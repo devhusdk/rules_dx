@@ -148,7 +148,7 @@ jobs:
         id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
       - name: Prove checkout left clean
+        # Bazel rewrites the registry lockfile on BCR drift; renderer dirt is what fails here.
         run: |
           git status --porcelain
-          git diff --stat
-          test -z "$(git status --porcelain)"
+          test -z "$(git status --porcelain -- ':!MODULE.bazel.lock')"

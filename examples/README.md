@@ -1,6 +1,7 @@
 # Examples
 
-Start a new consumer or adopt an existing tree.
+Start a new consumer or adopt an existing tree. Each workspace below records
+exact commands and expected evidence in its own `README.md`.
 
 ## Start From CI Templates
 

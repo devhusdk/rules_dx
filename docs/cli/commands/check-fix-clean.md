@@ -8,10 +8,33 @@ bazel run //cli/cli:dx -- clean
 
 ## `dx check` And `dx fix`
 
-Runs `format`, then `lint`, then `typecheck`, then `generate`. Stops on the first failure.
+```text
+dx check [--here] [scope...] [-- bazel-options...]
+dx fix [--here] [scope...] [-- bazel-options...]
+```
 
-`dx check` only reports. `dx fix` applies fixes. Run `dx check` again after `dx fix` to confirm.
+Runs `format`, then `lint`, then `typecheck`, then `generate` in order. Stops
+on the first failure. `--check`, `--fail-on`, and `--report` pass through to
+each phase.
+
+`dx check` only reports. `dx fix` applies fixes without re-running. Run
+`dx check` again after `dx fix` to confirm.
+
+```sh
+bazel run //cli/cli:dx -- check //...
+bazel run //cli/cli:dx -- fix --here
+```
 
 ## `dx clean`
 
-Prunes old `.dx` generations. `dx clean --bazel` also runs `bazel clean`. `dx clean --dry-run` only lists what would go.
+```text
+dx clean [--dry-run] [--bazel]
+```
+
+Prunes unselected managed state under `.dx`. Never touches Bazel outputs
+unless `--bazel` also runs `bazel clean`. Takes no scopes.
+`--dry-run` only lists what would go.
+
+```sh
+bazel run //cli/cli:dx -- clean --dry-run
+```

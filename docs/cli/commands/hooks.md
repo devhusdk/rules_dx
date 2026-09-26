@@ -5,6 +5,29 @@ bazel run //cli/cli:dx -- init
 bazel run //cli/cli:dx -- hooks install
 ```
 
-`dx init` scaffolds a new repo. It never overwrites existing files.
+## `dx init`
 
-`dx hooks install` installs `pre-commit` and `pre-push` shims. `dx hooks uninstall` removes them. `dx hooks status` shows what would run. `dx hooks run <trigger>` runs one trigger.
+```text
+dx init [module-name]
+```
+
+Scaffolds `dx` into a foreign tree. Takes an optional module name. Never
+overwrites existing files.
+
+## `dx hooks`
+
+```text
+dx hooks <install|uninstall|status|run [pre-commit|pre-push]>
+```
+
+Manages Git hooks through hermetic Git.
+
+- `install`: install `pre-commit` and `pre-push` shims.
+- `uninstall`: remove them.
+- `status`: show what would run.
+- `run <trigger>`: run one trigger.
+
+```sh
+bazel run //cli/cli:dx -- hooks status
+bazel run //cli/cli:dx -- hooks run pre-commit
+```

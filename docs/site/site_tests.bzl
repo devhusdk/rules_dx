@@ -153,3 +153,14 @@ def site_file_tests(name, shard, summary, api, records, html, index):
             index: "\"docs\"",
         },
     )
+
+def site_user_file_tests(name, summary, html, index):
+    starlark_test(
+        name = name,
+        mode = "execution",
+        file_checks = {
+            summary: "Command Reference",
+            html: "rules_dx",
+            index: "\"docs\"",
+        },
+    )

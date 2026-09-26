@@ -7,8 +7,8 @@ use dx_output::{
 };
 use dx_process::{build_workflow_argv, ProtectedFlag};
 
-const DOCS_CHECK_TARGET: &str = "//docs/site:demo_aggregate";
-const DOCS_BUILD_TARGET: &str = "//docs/site:demo_site";
+const DOCS_CHECK_TARGET: &str = "//docs/site:user_site_aggregate";
+const DOCS_BUILD_TARGET: &str = "//docs/site:user_site";
 
 const DOCS_DEFAULT_PORT: u16 = 8000;
 
@@ -143,7 +143,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             if let Ok(event) = error_event(
                 "bazel_failed",
                 &format!(
-                    "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit docs/site:demo, pinned mdBook 0.4.43)",
+                    "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit docs/site:user_site, fixture docs/site:demo, pinned mdBook 0.4.43)",
                     if invocation.check { "check" } else { "build" },
                 ),
                 None,
@@ -543,7 +543,7 @@ mod tests {
         let (code, out, _) = harness.run(&["docs", "--output=json"]);
         assert_eq!(code, 3, "{out}");
         assert!(out.contains("bazel_failed"), "{out}");
-        assert!(out.contains("docs/site:demo"), "{out}");
+        assert!(out.contains("docs/site:user_site"), "{out}");
         assert!(out.contains("0.4.43"), "{out}");
     }
 

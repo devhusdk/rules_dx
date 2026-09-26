@@ -130,15 +130,18 @@ jobs:
         # checkout is never left dirty. Uses the workspace `bazel-bin`
         # symlink left by `dx docs`: no `bazel info` call, which would
         # resolve a different output base than dx's `--nohome_rc` build.
+        # The published bundle is the user site: all user guides plus the
+        # API reference. The `demo_*` targets stay fixture-only for unit
+        # and execution tests and are never published.
         run: |
           set -euo pipefail
           stage="$RUNNER_TEMP/pages"
           rm -rf "$stage"
           mkdir -p "$stage"
-          test -f "bazel-bin/docs/site/demo_site_index.html"
-          test -f "bazel-bin/docs/site/demo_site_searchindex.json"
-          cp "bazel-bin/docs/site/demo_site_index.html" "$stage/index.html"
-          cp "bazel-bin/docs/site/demo_site_searchindex.json" "$stage/searchindex.json"
+          test -f "bazel-bin/docs/site/user_site_index.html"
+          test -f "bazel-bin/docs/site/user_site_searchindex.json"
+          cp "bazel-bin/docs/site/user_site_index.html" "$stage/index.html"
+          cp "bazel-bin/docs/site/user_site_searchindex.json" "$stage/searchindex.json"
           echo "PAGES_STAGE=$stage" >> "$GITHUB_ENV"
       - name: Upload rendered site as Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3

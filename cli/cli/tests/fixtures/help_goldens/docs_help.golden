@@ -17,7 +17,7 @@ dx docs - build, check, and serve the unified documentation site (non-mutating; 
 Usage: dx [global-options] docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...]
 Per-command flags: --check/--serve/--port/--host/--open (docs only; --check validates without rendering, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).
 
-Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:demo_site, //docs/site:demo_aggregate in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
+Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:user_site, //docs/site:user_site_aggregate in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|diff|json; --report <format>=<destination> (repeatable).
 

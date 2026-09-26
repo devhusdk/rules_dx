@@ -1,6 +1,20 @@
 # Documentation
 
-How to use `dx`:
+Start here to use `dx`. Install once, run `dx` through Bazel, and follow the
+command and CI guides below.
 
-- [Command reference](cli/commands/README.md): every `dx` command.
-- [GitHub CI](github-ci.md): run dx in CI.
+## Commands
+
+- [Command reference](cli/commands/README.md): behavior of each `dx` command.
+- [Scope defaults](cli/commands/scope-defaults.md): labels, files, dirs, and `--here`.
+- [Build, test, coverage](cli/commands/build-test-coverage.md): build, test, run, deploy, coverage.
+- [Quality](cli/commands/quality.md): lint, typecheck, format.
+- [Check, fix, clean](cli/commands/check-fix-clean.md): fix-up loops and cleanup.
+- [Generate](cli/commands/generate.md): refresh `BUILD` files.
+- [Docs](cli/commands/docs.md): build, check, and preview this site.
+
+## CI And Examples
+
+- [GitHub CI](github-ci.md): run `dx` in GitHub Actions.
+- [Examples](../examples/README.md): starter callers and per-language adoption workspaces.
+- [Docs site](https://ralvik.github.io/rules_dx/): rendered reference.

@@ -1,7 +1,17 @@
 # `dx completion`
 
 ```text
-dx completion <bash|zsh|fish|powershell>
+dx completion [<shell>] [--check]
 ```
 
-Prints a completion script. `dx completion <shell> --check` verifies it.
+Prints a static completion script for one shell: `bash`, `zsh`, `fish`, or
+`powershell`.
+
+- With one shell and no `--check`: print that shell script.
+- With `--check`: verify without writing. Zero shells checks all shells.
+- Unknown shells fail with `unknown-shell`.
+
+```sh
+bazel run //cli/cli:dx -- completion bash > ~/.cache/dx-completion.bash
+bazel run //cli/cli:dx -- completion --check
+```

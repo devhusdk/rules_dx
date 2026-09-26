@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load(":site.bzl", "docs_aggregate", "docs_extract", "docs_render", "docs_site")
-load(":site_tests.bzl", "site_file_tests", "site_unit_tests")
+load(":site.bzl", "docs_aggregate", "docs_extract", "docs_render", "docs_site", "docs_user_site")
+load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -16,6 +16,7 @@ exports_files(
         "demo/book.toml",
         "demo/guide.md",
         "demo/guide_steps.txt",
+        "user/book.toml",
     ],
     visibility = ["//visibility:private"],
 )
@@ -51,6 +52,56 @@ docs_site(
     prose = ["demo/demo_prose.md"],
 )
 
+USER_PROSE = [
+    "//:AGENTS.md",
+    "//:CONTRIBUTING.md",
+    "//:README.md",
+    "//docs:README.md",
+    "//docs:cli/commands/README.md",
+    "//docs:cli/commands/audit-update-bazel.md",
+    "//docs:cli/commands/build-test-coverage.md",
+    "//docs:cli/commands/check-fix-clean.md",
+    "//docs:cli/commands/completion.md",
+    "//docs:cli/commands/docs.md",
+    "//docs:cli/commands/environment-codegen-setup.md",
+    "//docs:cli/commands/generate.md",
+    "//docs:cli/commands/hooks.md",
+    "//docs:cli/commands/inspect.md",
+    "//docs:cli/commands/migrate.md",
+    "//docs:cli/commands/new-upgrade.md",
+    "//docs:cli/commands/quality.md",
+    "//docs:cli/commands/scope-defaults.md",
+    "//docs:cli/commands/status-version.md",
+    "//docs:cli/commands/watch.md",
+    "//docs:github-ci.md",
+    "//examples:README.md",
+    "//examples:consumer-ci/README.md",
+    "//examples:docs-ci/README.md",
+    "//examples/adopt-cpp:README.md",
+    "//examples/adopt-csharp:README.md",
+    "//examples/adopt-fsharp:README.md",
+    "//examples/adopt-go:README.md",
+    "//examples/adopt-java:README.md",
+    "//examples/adopt-js-ts:README.md",
+    "//examples/adopt-kotlin:README.md",
+    "//examples/adopt-polyglot:README.md",
+    "//examples/adopt-powershell:README.md",
+    "//examples/adopt-python:README.md",
+    "//examples/adopt-ruby:README.md",
+    "//examples/adopt-rust:README.md",
+    "//examples/adopt-scala:README.md",
+]
+
+docs_user_site(
+    name = "user_site",
+    srcs = ["demo/demo.symbols.txt"],
+    book_toml = "user/book.toml",
+    data = ["//:LICENSE"],
+    language = "python",
+    package = "demo",
+    prose = USER_PROSE,
+)
+
 site_unit_tests(name = "site_unit")
 
 site_file_tests(
@@ -61,6 +112,13 @@ site_file_tests(
     records = ":demo_aggregate_search_records.json",
     shard = ":demo_extract.ir.textproto",
     summary = ":demo_aggregate_SUMMARY.md",
+)
+
+site_user_file_tests(
+    name = "site_user_files",
+    html = ":user_site_index.html",
+    index = ":user_site_searchindex.json",
+    summary = ":user_site_aggregate_SUMMARY.md",
 )
 
 real_source_target(
@@ -87,5 +145,8 @@ real_source_target(
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
-    toml_srcs = ["demo/book.toml"],
+    toml_srcs = [
+        "demo/book.toml",
+        "user/book.toml",
+    ],
 )

@@ -236,6 +236,17 @@ mod tests {
             parsed["image"],
             serde_json::Value::from("mcr.microsoft.com/devcontainers/base:ubuntu")
         );
+        assert!(
+            parsed["features"]["ghcr.io/devcontainers/features/bazel:1"].is_object(),
+            "bazel feature must stay"
+        );
+        let extensions = parsed["customizations"]["vscode"]["extensions"]
+            .as_array()
+            .expect("vscode extensions array");
+        assert!(
+            extensions.contains(&serde_json::Value::from("rust-lang.rust-analyzer")),
+            "rust-analyzer extension must stay: {extensions:?}"
+        );
         let post_create = parsed["postCreateCommand"]
             .as_str()
             .expect("postCreateCommand string");

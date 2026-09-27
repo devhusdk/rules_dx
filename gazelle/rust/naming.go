@@ -2,33 +2,12 @@ package rust
 
 import (
 	"fmt"
+	"github.com/ralvik/rules_dx/gazelle/common"
 	"strings"
 )
 
 func Normalize(base string) (string, error) {
-	var b strings.Builder
-	b.Grow(len(base))
-	pending := false
-	for i := 0; i < len(base); i++ {
-		c := base[i]
-		if c <= 0x7F && (c == '_' ||
-			(c >= 'a' && c <= 'z') ||
-			(c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9')) {
-			if pending && b.Len() > 0 {
-				b.WriteByte('_')
-			}
-			pending = false
-			b.WriteByte(c)
-			continue
-		}
-		pending = true
-	}
-	out := strings.Trim(b.String(), "_")
-	if out == "" {
-		return "", fmt.Errorf("naming: %q normalizes to an empty target name", base)
-	}
-	return out, nil
+	return common.Normalize(base)
 }
 
 type Claimant struct {

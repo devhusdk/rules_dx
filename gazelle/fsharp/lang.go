@@ -4,8 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
+	"github.com/ralvik/rules_dx/gazelle/common"
 	"sort"
 	"strings"
 
@@ -21,15 +20,7 @@ import (
 const languageName = "fsharp"
 
 var fsharpKinds = map[string]rule.KindInfo{
-	LibraryKind: rule.KindInfo{
-		MatchAttrs:    []string{"srcs"},
-		NonEmptyAttrs: map[string]bool{"srcs": true},
-		MergeableAttrs: map[string]bool{
-			"srcs": true,
-			"deps": true,
-		},
-		ResolveAttrs: map[string]bool{"deps": true},
-	},
+	LibraryKind: common.LibraryKindInfo(),
 }
 
 type fsharpLang struct {
@@ -160,93 +151,35 @@ func isSupported(name string) bool {
 }
 
 func (l *fsharpLang) generateRules(args language.GenerateArgs) language.GenerateResult {
-	var sources []string
-	for _, name := range args.RegularFiles {
-		if isSupported(name) && !IsTestSource(name) {
-			sources = append(sources, name)
-		}
-	}
-	sort.Strings(sources)
-	if len(sources) == 0 {
-		return mergeStale(args.File, language.GenerateResult{})
-	}
-
-	name, err := DirTargetName(args.Rel)
-	if err != nil {
-		l.fail("fsharp: %s: %v", args.Rel, err)
-		return language.GenerateResult{}
-	}
-
-	packages := make(map[string]bool)
-	seen := make(map[string]bool)
-	contents := make(map[string][]byte, len(sources))
-	var imports []string
-	for _, src := range sources {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
-		if err != nil {
-			l.fail("fsharp: %s: read %s: %v", args.Rel, src, err)
-			continue
-		}
-		contents[src] = content
-		if DefinesMain(content) {
-			l.fail("fsharp: %s: %s defines main; thin fsharp_binary entries stay handwritten, so split main-bearing sources into their own directory before adopting generation", args.Rel, src)
-			continue
-		}
-		pkg, err := ParsePackage(content)
-		if err != nil {
-			l.fail("fsharp: %s: parse package %s: %v", args.Rel, src, err)
-			continue
-		}
-		packages[pkg] = true
-		for _, root := range ParseImports(content) {
-			if IsStdLib(root) || seen[root] {
-				continue
+	return common.GenerateSingleDir(args, fsharpKinds, common.SingleDirSpec{
+		LanguageName: languageName,
+		LibraryKind:  LibraryKind,
+		IsSource:     func(name string) bool { return isSupported(name) && !IsTestSource(name) },
+		DirName:      DirTargetName,
+		CheckPackage: true,
+		ParsePackage: ParsePackage,
+		DefinesMain:  DefinesMain,
+		MainRule:     "fsharp_binary",
+		MainPhrase:   "main-bearing sources",
+		ParseImports: ParseImports,
+		IsStdLib:     IsStdLib,
+		OrderSrcs:    orderSourcesByDependency,
+		MakeRule: func(name string, sources []string, _ []string) *rule.Rule {
+			r := rule.NewRule(LibraryKind, name)
+			r.SetSortedAttrs([]string{"deps"})
+			r.SetAttr("srcs", rule.UnsortedStrings(sources))
+			if comments := r.AttrComments("srcs"); comments != nil {
+				comments.Before = append(comments.Before, bzl.Comment{Token: "# do not sort: F# compile order, dependencies first"})
 			}
-			seen[root] = true
-			imports = append(imports, root)
-		}
-	}
-	if len(l.errors) > 0 {
-		return language.GenerateResult{}
-	}
-	if len(packages) > 1 {
-		names := make([]string, 0, len(packages))
-		for pkg := range packages {
-			names = append(names, pkg)
-		}
-		sort.Strings(names)
-		l.fail("fsharp: %s: mixed packages %s in one directory; split the directory before adopting generation", args.Rel, strings.Join(names, ", "))
-		return language.GenerateResult{}
-	}
-	sort.Strings(imports)
-
-	ordered, err := orderSourcesByDependency(sources, contents)
-	if err != nil {
-		l.fail("fsharp: %s: %v", args.Rel, err)
-		return language.GenerateResult{}
-	}
-
-	if err := checkClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: LibraryKind}}); err != nil {
-		l.fail("fsharp: %s: %v", args.Rel, err)
-		return language.GenerateResult{}
-	}
-
-	result := language.GenerateResult{}
-	r := rule.NewRule(LibraryKind, name)
-	r.SetSortedAttrs([]string{"deps"})
-	r.SetAttr("srcs", rule.UnsortedStrings(ordered))
-	if comments := r.AttrComments("srcs"); comments != nil {
-		comments.Before = append(comments.Before, bzl.Comment{Token: "# do not sort: F# compile order, dependencies first"})
-	}
-	result.Gen = append(result.Gen, r)
-	result.Imports = append(result.Imports, targetImports{imports: imports})
-	if isFixturePath(args.Rel) {
-		for _, r := range result.Gen {
-			r.SetAttr("testonly", true)
-		}
-	}
-	return mergeStale(args.File, result)
+			return r
+		},
+		Wrap: func(imports []string) any { return targetImports{imports: imports} },
+	}, l)
 }
+
+func (l *fsharpLang) Fail(format string, args ...interface{}) { l.fail(format, args...) }
+
+func (l *fsharpLang) Failed() bool { return len(l.errors) > 0 }
 
 func orderSourcesByDependency(sources []string, contents map[string][]byte) ([]string, error) {
 	identityToSrc := make(map[string]string, len(sources))
@@ -309,107 +242,36 @@ func orderSourcesByDependency(sources []string, contents map[string][]byte) ([]s
 	return ordered, nil
 }
 
-func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	existing := make(map[string]string)
-	if file != nil {
-		for _, r := range file.Rules {
-			existing[r.Name()] = r.Kind()
-		}
-	}
-	for _, r := range other {
-		existing[r.Name()] = r.Kind()
-	}
-	for _, c := range claimants {
-		if have, ok := existing[c.Name]; ok && have != LibraryKind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", c.Name, LibraryKind, c.Source, have)
-		}
-	}
-	return nil
-}
-
-func isFixturePath(rel string) bool {
-	padded := "/" + rel + "/"
-	return strings.Contains(padded, "/tests/") || strings.Contains(padded, "/fixtures/") || strings.Contains(padded, "/testdata/")
-}
-
-func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	desired := make(map[string]bool, len(result.Gen))
-	for _, r := range result.Gen {
-		desired[r.Kind()+"\x00"+r.Name()] = true
-	}
-	if file == nil {
-		return result
-	}
-	for _, existing := range file.Rules {
-		if _, owned := fsharpKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
-			continue
-		}
-		result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
-	}
-	return result
-}
-
 func (l *fsharpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
-	imports, ok := raw.(targetImports)
-	if !ok {
-		return
-	}
-	if r.Kind() != LibraryKind {
-		return
-	}
-	deps := make(map[string]bool)
-	for _, name := range imports.imports {
-		if IsStdLib(name) {
-			continue
-		}
-		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
-		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
+	common.ResolveSingle(c, ix, r, raw, from, common.ResolveSpec{
+		LanguageName: languageName,
+		WantKind:     LibraryKind,
+		Attr:         "deps",
+		Unwrap: func(raw any) ([]string, bool) {
+			imports, ok := raw.(targetImports)
+			if !ok {
+				return nil, false
+			}
+			return imports.imports, true
+		},
+		IsStdLib: IsStdLib,
+		MarkUsed: func(name string) bool {
 			if ignore := matchingIgnore(c, name); ignore != nil {
 				ignore.used = true
-				l.fail("fsharp: %s: import %q has both an exact resolve mapping and ignore", from, name)
-				continue
+				return true
 			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
-			continue
-		}
-		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
-		switch len(matches) {
-		case 1:
-			if matches[0].Label != from {
-				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
-			}
-		case 0:
-			if ignore := matchingIgnore(c, name); ignore != nil {
-				ignore.used = true
-				continue
-			}
+			return false
+		},
+		FailConflict: func(from label.Label, name string) {
+			l.fail("fsharp: %s: import %q has both an exact resolve mapping and ignore", from, name)
+		},
+		FailUnresolved: func(from label.Label, name string) {
 			l.fail("fsharp: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping", from, name)
-		default:
-			l.fail("fsharp: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
-		}
-	}
-	if len(deps) == 0 {
-		return
-	}
-	labels := make([]string, 0, len(deps))
-	for dep := range deps {
-		labels = append(labels, dep)
-	}
-	sort.Strings(labels)
-	r.SetAttr("deps", unionStrings(r.AttrStrings("deps"), labels))
-}
-
-func unionStrings(a, b []string) []string {
-	seen := make(map[string]bool, len(a)+len(b))
-	var out []string
-	for _, s := range append(append([]string{}, a...), b...) {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	sort.Strings(out)
-	return out
+		},
+		FailAmbiguous: func(from label.Label, name string, matches string) {
+			l.fail("fsharp: %s: ambiguous import %q resolves to %s", from, name, matches)
+		},
+	})
 }
 
 func matchingIgnore(c *config.Config, name string) *ignoreEntry {
@@ -423,15 +285,6 @@ func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 		}
 	}
 	return nil
-}
-
-func formatMatches(matches []resolve.FindResult) string {
-	labels := make([]string, 0, len(matches))
-	for _, match := range matches {
-		labels = append(labels, match.Label.String())
-	}
-	sort.Strings(labels)
-	return fmt.Sprintf("[%s]", strings.Join(labels, ", "))
 }
 
 func CollectUsedIgnores(c *config.Config) [][2]string {

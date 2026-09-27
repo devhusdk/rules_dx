@@ -23,6 +23,7 @@ go_library(
     importpath = "github.com/ralvik/rules_dx/gazelle/rust",
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
+        "//gazelle/common",
         "@com_github_bazelbuild_buildtools//build",
         "@com_github_pmezard_go_difflib//difflib",
         "@gazelle//config",

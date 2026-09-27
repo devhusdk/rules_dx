@@ -15,6 +15,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 const (
@@ -311,66 +312,13 @@ func claimKind(c Claimant) string {
 }
 
 func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	byName := make(map[string][]string, len(claimants))
-	order := make([]string, 0, len(claimants))
-	for _, c := range claimants {
-		if _, ok := byName[c.Name]; !ok {
-			order = append(order, c.Name)
-		}
-		byName[c.Name] = append(byName[c.Name], c.Source)
-	}
-	existing := make(map[string]string)
-	if file != nil {
-		for _, r := range file.Rules {
-			existing[r.Name()] = r.Kind()
-		}
-	}
-	for _, r := range other {
-		existing[r.Name()] = r.Kind()
-	}
-	for _, name := range order {
-		sources := byName[name]
-		kind := ""
-		for _, p := range claimants {
-			if p.Name == name {
-				kind = claimKind(p)
-				break
-			}
-		}
-		if len(sources) > 1 {
-			all := append([]string(nil), sources...)
-			if have, ok := existing[name]; ok {
-				all = append(all, "handwritten:"+have+":"+name)
-			}
-			return &CollisionError{Name: name, Claimants: all}
-		}
-		if have, ok := existing[name]; ok && have != kind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", name, kind, sources[0], have)
-		}
-	}
-	return nil
+	return common.CheckClaimsMulti(file, other, claimants, claimKind)
 }
 
-func isFixturePath(rel string) bool {
-	padded := "/" + rel + "/"
-	return strings.Contains(padded, "/tests/") || strings.Contains(padded, "/fixtures/") || strings.Contains(padded, "/testdata/")
-}
+func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	desired := make(map[string]bool, len(result.Gen))
-	for _, r := range result.Gen {
-		desired[r.Kind()+"\x00"+r.Name()] = true
-	}
-	if file == nil {
-		return result
-	}
-	for _, existing := range file.Rules {
-		if _, owned := javascriptKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
-			continue
-		}
-		result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
-	}
-	return result
+	return common.MergeStale(file, result, javascriptKinds)
 }
 
 func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
@@ -431,18 +379,7 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 	r.SetAttr(resolveAttr, unionStrings(r.AttrStrings(resolveAttr), labels))
 }
 
-func unionStrings(a, b []string) []string {
-	seen := make(map[string]bool, len(a)+len(b))
-	var out []string
-	for _, s := range append(append([]string{}, a...), b...) {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	sort.Strings(out)
-	return out
-}
+func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 	raw, ok := c.Exts[languageName]
@@ -457,14 +394,7 @@ func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 	return nil
 }
 
-func formatMatches(matches []resolve.FindResult) string {
-	labels := make([]string, 0, len(matches))
-	for _, match := range matches {
-		labels = append(labels, match.Label.String())
-	}
-	sort.Strings(labels)
-	return fmt.Sprintf("[%s]", strings.Join(labels, ", "))
-}
+func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
 
 func CollectUsedIgnores(c *config.Config) [][2]string {
 	raw, ok := c.Exts[languageName]

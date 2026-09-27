@@ -1,7 +1,7 @@
 package mdx
 
 import (
-	"path"
+	"github.com/ralvik/rules_dx/gazelle/common"
 	"sort"
 	"strings"
 )
@@ -13,14 +13,14 @@ func ParseImports(content []byte) []string {
 	}
 	set := make(map[string]struct{})
 	add := func(spec string) {
-		root := normalizeSpec(spec)
+		root := common.NormalizeJSSpec(spec)
 		if root == "" {
 			return
 		}
 		set[root] = struct{}{}
 	}
 	for _, region := range regions {
-		scan(region, add)
+		common.ScanEmbedded(region, add)
 	}
 	var out []string
 	for name := range set {
@@ -28,25 +28,6 @@ func ParseImports(content []byte) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func normalizeSpec(spec string) string {
-	spec = strings.TrimSpace(spec)
-	if spec == "" {
-		return ""
-	}
-	if strings.HasPrefix(spec, ".") || strings.HasPrefix(spec, "/") {
-		trimmed := strings.TrimSuffix(spec, "/")
-		base := path.Base(trimmed)
-		if base == "" || base == "." || base == "/" {
-			return ""
-		}
-		if idx := strings.LastIndexByte(base, '.'); idx > 0 {
-			base = base[:idx]
-		}
-		return base
-	}
-	return spec
 }
 
 func ExtractESMRegions(src []byte) [][]byte {
@@ -330,376 +311,26 @@ func braceDelta(line string) int {
 	return depth
 }
 
+func normalizeSpec(spec string) string {
+	return common.NormalizeJSSpec(spec)
+}
+
 func scan(src []byte, add func(string)) {
-	n := len(src)
-	i := 0
-	for i < n {
-		c := src[i]
-		if c == '/' && i+1 < n && src[i+1] == '/' {
-			j := i + 2
-			for j < n && src[j] != '\n' {
-				j++
-			}
-			i = j
-			continue
-		}
-		if c == '/' && i+1 < n && src[i+1] == '*' {
-			j := i + 2
-			for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
-				j++
-			}
-			if j+1 < n {
-				i = j + 2
-			} else {
-				return
-			}
-			continue
-		}
-		if c == '\'' || c == '"' {
-			i = skipQuoted(src, i)
-			continue
-		}
-		if c == '`' {
-			i = skipTemplate(src, i)
-			continue
-		}
-		if c == '/' && isRegexStart(src, i) {
-			i = skipRegex(src, i)
-			continue
-		}
-		if isIdentStart(c) {
-			j := i + 1
-			for j < n && isIdentChar(src[j]) {
-				j++
-			}
-			word := string(src[i:j])
-			switch word {
-			case "import":
-				i = parseImport(src, i, j, add)
-				continue
-			case "export":
-				i = parseExport(src, j, add)
-				continue
-			case "require":
-				if isPrecededByDot(src, i) {
-					i = j
-					continue
-				}
-				i = parseRequire(src, j, add)
-				continue
-			}
-			i = j
-			continue
-		}
-		i++
-	}
+	common.ScanEmbedded(src, add)
 }
 
-func isIdentStart(c byte) bool {
-	return c == '_' || c == '$' ||
-		(c >= 'a' && c <= 'z') ||
-		(c >= 'A' && c <= 'Z')
+func skipQuoted(src []byte, pos int) int {
+	return common.SkipEmbeddedQuoted(src, pos)
 }
 
-func isIdentChar(c byte) bool {
-	return isIdentStart(c) || (c >= '0' && c <= '9')
+func skipTemplate(src []byte, pos int) int {
+	return common.SkipEmbeddedTemplate(src, pos)
 }
 
-func isPrecededByDot(src []byte, i int) bool {
-	j := i - 1
-	for j >= 0 && (src[j] == ' ' || src[j] == '\t' || src[j] == '\n' || src[j] == '\r') {
-		j--
-	}
-	return j >= 0 && src[j] == '.'
+func isPrecededByDot(src []byte, pos int) bool {
+	return common.IsEmbeddedPrecededByDot(src, pos)
 }
 
-func isRegexStart(src []byte, i int) bool {
-	j := i - 1
-	for j >= 0 && (src[j] == ' ' || src[j] == '\t' || src[j] == '\n' || src[j] == '\r') {
-		j--
-	}
-	if j < 0 {
-		return true
-	}
-	p := src[j]
-	if p == ')' || p == ']' || p == '}' {
-		return false
-	}
-	if isIdentChar(p) || p == '$' || p == '"' || p == '\'' || p == '`' {
-		return false
-	}
-	return true
-}
-
-func skipQuoted(src []byte, i int) int {
-	quote := src[i]
-	j := i + 1
-	for j < len(src) {
-		if src[j] == '\\' {
-			j += 2
-			continue
-		}
-		if src[j] == quote {
-			return j + 1
-		}
-		if src[j] == '\n' {
-			return j
-		}
-		j++
-	}
-	return len(src)
-}
-
-func skipTemplate(src []byte, i int) int {
-	j := i + 1
-	for j < len(src) {
-		if src[j] == '\\' {
-			j += 2
-			continue
-		}
-		if src[j] == '`' {
-			return j + 1
-		}
-		if src[j] == '$' && j+1 < len(src) && src[j+1] == '{' {
-			depth := 1
-			j += 2
-			for j < len(src) && depth > 0 {
-				if src[j] == '{' {
-					depth++
-				} else if src[j] == '}' {
-					depth--
-				} else if src[j] == '\'' || src[j] == '"' {
-					j = skipQuoted(src, j)
-					continue
-				} else if src[j] == '`' {
-					j = skipTemplate(src, j)
-					continue
-				}
-				j++
-			}
-			continue
-		}
-		j++
-	}
-	return len(src)
-}
-
-func skipRegex(src []byte, i int) int {
-	j := i + 1
-	inClass := false
-	for j < len(src) {
-		c := src[j]
-		if c == '\\' {
-			j += 2
-			continue
-		}
-		if c == '\n' {
-			return j
-		}
-		if c == '[' {
-			inClass = true
-		} else if c == ']' {
-			inClass = false
-		} else if c == '/' && !inClass {
-			j++
-			for j < len(src) && isIdentChar(src[j]) {
-				j++
-			}
-			return j
-		}
-		j++
-	}
-	return len(src)
-}
-
-func skipTrivia(src []byte, pos int) int {
-	n := len(src)
-	p := pos
-	for p < n {
-		c := src[p]
-		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
-			p++
-			continue
-		}
-		if c == '/' && p+1 < n && src[p+1] == '/' {
-			j := p + 2
-			for j < n && src[j] != '\n' {
-				j++
-			}
-			p = j
-			continue
-		}
-		if c == '/' && p+1 < n && src[p+1] == '*' {
-			j := p + 2
-			for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
-				j++
-			}
-			if j+1 < n {
-				p = j + 2
-				continue
-			}
-			return n
-		}
-		return p
-	}
-	return p
-}
-
-func parseImport(src []byte, start, j int, add func(string)) int {
-	n := len(src)
-	k := skipTrivia(src, j)
-	if k < n && (src[k] == '\'' || src[k] == '"') {
-		if spec, next, ok := readQuoted(src, k); ok {
-			add(spec)
-			return next
-		}
-		return k + 1
-	}
-	if k < n && src[k] == '(' {
-		m := skipTrivia(src, k+1)
-		if m < n && (src[m] == '\'' || src[m] == '"') {
-			if spec, next, ok := readQuoted(src, m); ok {
-				after := skipTrivia(src, next)
-				if after < n && src[after] == ')' {
-					add(spec)
-					return after + 1
-				}
-				return next
-			}
-		}
-		return k + 1
-	}
-	depth := 0
-	p := k
-	for p < n {
-		if p+1 < n && src[p] == '/' && (src[p+1] == '/' || src[p+1] == '*') {
-			p = skipTrivia(src, p)
-			continue
-		}
-		c := src[p]
-		if c == '{' {
-			depth++
-		} else if c == '}' {
-			if depth > 0 {
-				depth--
-			}
-		} else if c == '\'' || c == '"' {
-			p = skipQuoted(src, p)
-			continue
-		} else if c == '`' {
-			p = skipTemplate(src, p)
-			continue
-		} else if c == ';' {
-			return p + 1
-		} else if depth == 0 && isIdentStart(c) {
-			q := p + 1
-			for q < n && isIdentChar(src[q]) {
-				q++
-			}
-			if string(src[p:q]) == "from" {
-				m := skipTrivia(src, q)
-				if m < n && (src[m] == '\'' || src[m] == '"') {
-					if spec, next, ok := readQuoted(src, m); ok {
-						add(spec)
-						return next
-					}
-				}
-				return q
-			}
-			p = q
-			continue
-		}
-		p++
-	}
-	return p
-}
-
-func parseExport(src []byte, j int, add func(string)) int {
-	n := len(src)
-	depth := 0
-	p := skipTrivia(src, j)
-	for p < n {
-		if p+1 < n && src[p] == '/' && (src[p+1] == '/' || src[p+1] == '*') {
-			p = skipTrivia(src, p)
-			continue
-		}
-		c := src[p]
-		if c == '{' {
-			depth++
-		} else if c == '}' {
-			if depth > 0 {
-				depth--
-			}
-		} else if c == '\'' || c == '"' {
-			p = skipQuoted(src, p)
-			continue
-		} else if c == '`' {
-			p = skipTemplate(src, p)
-			continue
-		} else if c == ';' {
-			return p + 1
-		} else if depth == 0 && c == '*' {
-		} else if depth == 0 && isIdentStart(c) {
-			q := p + 1
-			for q < n && isIdentChar(src[q]) {
-				q++
-			}
-			if string(src[p:q]) == "from" {
-				m := skipTrivia(src, q)
-				if m < n && (src[m] == '\'' || src[m] == '"') {
-					if spec, next, ok := readQuoted(src, m); ok {
-						add(spec)
-						return next
-					}
-				}
-				return q
-			}
-			p = q
-			continue
-		}
-		p++
-	}
-	return p
-}
-
-func parseRequire(src []byte, j int, add func(string)) int {
-	n := len(src)
-	k := skipTrivia(src, j)
-	if k >= n || src[k] != '(' {
-		return j
-	}
-	m := skipTrivia(src, k+1)
-	if m < n && (src[m] == '\'' || src[m] == '"') {
-		if spec, next, ok := readQuoted(src, m); ok {
-			after := skipTrivia(src, next)
-			if after < n && src[after] == ')' {
-				add(spec)
-				return after + 1
-			}
-			return next
-		}
-	}
-	return k + 1
-}
-
-func readQuoted(src []byte, i int) (string, int, bool) {
-	quote := src[i]
-	var b strings.Builder
-	j := i + 1
-	for j < len(src) {
-		if src[j] == '\\' && j+1 < len(src) {
-			b.WriteByte(src[j+1])
-			j += 2
-			continue
-		}
-		if src[j] == quote {
-			return b.String(), j + 1, true
-		}
-		if src[j] == '\n' {
-			return "", j, false
-		}
-		b.WriteByte(src[j])
-		j++
-	}
-	return "", len(src), false
+func isRegexStart(src []byte, pos int) bool {
+	return common.IsEmbeddedRegexStart(src, pos)
 }

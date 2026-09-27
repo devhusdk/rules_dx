@@ -15,6 +15,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 const languageName = "go"
@@ -330,43 +331,13 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 }
 
 func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	existing := make(map[string]string)
-	if file != nil {
-		for _, r := range file.Rules {
-			existing[r.Name()] = r.Kind()
-		}
-	}
-	for _, r := range other {
-		existing[r.Name()] = r.Kind()
-	}
-	for _, c := range claimants {
-		if have, ok := existing[c.Name]; ok && have != c.Kind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", c.Name, c.Kind, c.Source, have)
-		}
-	}
-	return nil
+	return common.CheckClaimsPerKind(file, other, claimants)
 }
 
-func isFixturePath(rel string) bool {
-	padded := "/" + rel + "/"
-	return strings.Contains(padded, "/tests/") || strings.Contains(padded, "/fixtures/") || strings.Contains(padded, "/testdata/")
-}
+func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	desired := make(map[string]bool, len(result.Gen))
-	for _, r := range result.Gen {
-		desired[r.Kind()+"\x00"+r.Name()] = true
-	}
-	if file == nil {
-		return result
-	}
-	for _, existing := range file.Rules {
-		if _, owned := goKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
-			continue
-		}
-		result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
-	}
-	return result
+	return common.MergeStale(file, result, goKinds)
 }
 
 func goImportPath(repoRoot, dir string) (string, bool) {
@@ -483,18 +454,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 	r.SetAttr("deps", unionStrings(r.AttrStrings("deps"), labels))
 }
 
-func unionStrings(a, b []string) []string {
-	seen := make(map[string]bool, len(a)+len(b))
-	var out []string
-	for _, s := range append(append([]string{}, a...), b...) {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	sort.Strings(out)
-	return out
-}
+func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 	raw, ok := c.Exts[languageName]
@@ -509,14 +469,7 @@ func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 	return nil
 }
 
-func formatMatches(matches []resolve.FindResult) string {
-	labels := make([]string, 0, len(matches))
-	for _, match := range matches {
-		labels = append(labels, match.Label.String())
-	}
-	sort.Strings(labels)
-	return fmt.Sprintf("[%s]", strings.Join(labels, ", "))
-}
+func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
 
 func CollectUsedIgnores(c *config.Config) [][2]string {
 	raw, ok := c.Exts[languageName]

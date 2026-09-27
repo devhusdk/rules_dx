@@ -12,6 +12,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	bzl "github.com/bazelbuild/buildtools/build"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 const resolveExtName = "_resolve"
@@ -396,18 +397,7 @@ func splitDepLabel(dep string, from label.Label) (string, string, bool) {
 	return pkg, target, true
 }
 
-func unionStrings(a, b []string) []string {
-	seen := make(map[string]bool, len(a)+len(b))
-	var out []string
-	for _, s := range append(append([]string{}, a...), b...) {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	sort.Strings(out)
-	return out
-}
+func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 	raw, ok := c.Exts[languageName]
@@ -422,11 +412,4 @@ func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 	return nil
 }
 
-func formatMatches(matches []resolve.FindResult) string {
-	labels := make([]string, 0, len(matches))
-	for _, match := range matches {
-		labels = append(labels, match.Label.String())
-	}
-	sort.Strings(labels)
-	return fmt.Sprintf("[%s]", strings.Join(labels, ", "))
-}
+func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }

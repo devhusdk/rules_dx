@@ -4,8 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
+	"github.com/ralvik/rules_dx/gazelle/common"
 	"sort"
 	"strings"
 
@@ -151,177 +150,65 @@ func (l *ccLang) GenerateRules(args language.GenerateArgs) language.GenerateResu
 }
 
 func (l *ccLang) generateRules(args language.GenerateArgs) language.GenerateResult {
-	var sources []string
-	var headers []string
-	for _, name := range args.RegularFiles {
-		if IsTestSource(name) {
-			continue
-		}
-		switch {
-		case IsSource(name):
-			sources = append(sources, name)
-		case IsHeader(name):
-			headers = append(headers, name)
-		}
-	}
-	sort.Strings(sources)
-	sort.Strings(headers)
-	if len(sources) == 0 && len(headers) == 0 {
-		return mergeStale(args.File, language.GenerateResult{})
-	}
-
-	name, err := DirTargetName(args.Rel)
-	if err != nil {
-		l.fail("cc: %s: %v", args.Rel, err)
-		return language.GenerateResult{}
-	}
-
-	seen := make(map[string]bool)
-	var imports []string
-	for _, file := range append(append([]string{}, sources...), headers...) {
-		content, err := os.ReadFile(filepath.Join(args.Dir, file))
-		if err != nil {
-			l.fail("cc: %s: read %s: %v", args.Rel, file, err)
-			continue
-		}
-		if IsSource(file) && DefinesMain(content) {
-			l.fail("cc: %s: %s defines main; thin cc_binary entries stay handwritten, so split main-defining sources into their own directory before adopting generation", args.Rel, file)
-			continue
-		}
-		for _, root := range ParseQuotedIncludes(content) {
-			if seen[root] {
-				continue
+	return common.GenerateSingleDir(args, ccKinds, common.SingleDirSpec{
+		LanguageName: languageName,
+		LibraryKind:  LibraryKind,
+		IsSource:     func(name string) bool { return IsSource(name) && !IsTestSource(name) },
+		IsHeader:     func(name string) bool { return IsHeader(name) && !IsTestSource(name) },
+		IsMainFile:   IsSource,
+		DirName:      DirTargetName,
+		CheckPackage: false,
+		DefinesMain:  DefinesMain,
+		MainRule:     "cc_binary",
+		MainPhrase:   "main-defining sources",
+		ParseImports: ParseQuotedIncludes,
+		MakeRule: func(name string, sources []string, headers []string) *rule.Rule {
+			r := rule.NewRule(LibraryKind, name)
+			if len(sources) > 0 {
+				r.SetAttr("srcs", sources)
 			}
-			seen[root] = true
-			imports = append(imports, root)
-		}
-	}
-	if len(l.errors) > 0 {
-		return language.GenerateResult{}
-	}
-	sort.Strings(imports)
-
-	if err := checkClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: LibraryKind}}); err != nil {
-		l.fail("cc: %s: %v", args.Rel, err)
-		return language.GenerateResult{}
-	}
-
-	result := language.GenerateResult{}
-	r := rule.NewRule(LibraryKind, name)
-	if len(sources) > 0 {
-		r.SetAttr("srcs", sources)
-	}
-	if len(headers) > 0 {
-		r.SetAttr("hdrs", headers)
-	}
-	result.Gen = append(result.Gen, r)
-	result.Imports = append(result.Imports, targetImports{imports: imports})
-	if isFixturePath(args.Rel) {
-		for _, r := range result.Gen {
-			r.SetAttr("testonly", true)
-		}
-	}
-	return mergeStale(args.File, result)
+			if len(headers) > 0 {
+				r.SetAttr("hdrs", headers)
+			}
+			return r
+		},
+		Wrap: func(imports []string) any { return targetImports{imports: imports} },
+	}, l)
 }
 
-func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	existing := make(map[string]string)
-	if file != nil {
-		for _, r := range file.Rules {
-			existing[r.Name()] = r.Kind()
-		}
-	}
-	for _, r := range other {
-		existing[r.Name()] = r.Kind()
-	}
-	for _, c := range claimants {
-		if have, ok := existing[c.Name]; ok && have != LibraryKind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", c.Name, LibraryKind, c.Source, have)
-		}
-	}
-	return nil
-}
+func (l *ccLang) Fail(format string, args ...interface{}) { l.fail(format, args...) }
 
-func isFixturePath(rel string) bool {
-	padded := "/" + rel + "/"
-	return strings.Contains(padded, "/tests/") || strings.Contains(padded, "/fixtures/") || strings.Contains(padded, "/testdata/")
-}
-
-func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
-	desired := make(map[string]bool, len(result.Gen))
-	for _, r := range result.Gen {
-		desired[r.Kind()+"\x00"+r.Name()] = true
-	}
-	if file == nil {
-		return result
-	}
-	for _, existing := range file.Rules {
-		if _, owned := ccKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
-			continue
-		}
-		result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))
-	}
-	return result
-}
+func (l *ccLang) Failed() bool { return len(l.errors) > 0 }
 
 func (l *ccLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
-	imports, ok := raw.(targetImports)
-	if !ok {
-		return
-	}
-	if r.Kind() != LibraryKind {
-		return
-	}
-	deps := make(map[string]bool)
-	for _, name := range imports.imports {
-		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
-		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
+	common.ResolveSingle(c, ix, r, raw, from, common.ResolveSpec{
+		LanguageName: languageName,
+		WantKind:     LibraryKind,
+		Attr:         "deps",
+		Unwrap: func(raw any) ([]string, bool) {
+			imports, ok := raw.(targetImports)
+			if !ok {
+				return nil, false
+			}
+			return imports.imports, true
+		},
+		MarkUsed: func(name string) bool {
 			if ignore := matchingIgnore(c, name); ignore != nil {
 				ignore.used = true
-				l.fail("cc: %s: import %q has both an exact resolve mapping and ignore", from, name)
-				continue
+				return true
 			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
-			continue
-		}
-		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
-		switch len(matches) {
-		case 1:
-			if matches[0].Label != from {
-				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
-			}
-		case 0:
-			if ignore := matchingIgnore(c, name); ignore != nil {
-				ignore.used = true
-				continue
-			}
+			return false
+		},
+		FailConflict: func(from label.Label, name string) {
+			l.fail("cc: %s: import %q has both an exact resolve mapping and ignore", from, name)
+		},
+		FailUnresolved: func(from label.Label, name string) {
 			l.fail("cc: %s: unresolved import %q; add a local one-header library or an exact # gazelle:resolve mapping", from, name)
-		default:
-			l.fail("cc: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
-		}
-	}
-	if len(deps) == 0 {
-		return
-	}
-	labels := make([]string, 0, len(deps))
-	for dep := range deps {
-		labels = append(labels, dep)
-	}
-	sort.Strings(labels)
-	r.SetAttr("deps", unionStrings(r.AttrStrings("deps"), labels))
-}
-
-func unionStrings(a, b []string) []string {
-	seen := make(map[string]bool, len(a)+len(b))
-	var out []string
-	for _, s := range append(append([]string{}, a...), b...) {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	sort.Strings(out)
-	return out
+		},
+		FailAmbiguous: func(from label.Label, name string, matches string) {
+			l.fail("cc: %s: ambiguous import %q resolves to %s", from, name, matches)
+		},
+	})
 }
 
 func matchingIgnore(c *config.Config, name string) *ignoreEntry {
@@ -335,15 +222,6 @@ func matchingIgnore(c *config.Config, name string) *ignoreEntry {
 		}
 	}
 	return nil
-}
-
-func formatMatches(matches []resolve.FindResult) string {
-	labels := make([]string, 0, len(matches))
-	for _, match := range matches {
-		labels = append(labels, match.Label.String())
-	}
-	sort.Strings(labels)
-	return fmt.Sprintf("[%s]", strings.Join(labels, ", "))
 }
 
 func CollectUsedIgnores(c *config.Config) [][2]string {

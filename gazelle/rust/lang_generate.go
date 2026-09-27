@@ -11,6 +11,7 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	bzl "github.com/bazelbuild/buildtools/build"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, plan *nativePlan) language.GenerateResult {
@@ -461,10 +462,7 @@ func addImport(sets [2]map[string]bool, localModules map[string]bool, raw string
 	sets[index][root] = true
 }
 
-func isFixturePath(rel string) bool {
-	padded := "/" + rel + "/"
-	return strings.Contains(padded, "/tests/") || strings.Contains(padded, "/fixtures/") || strings.Contains(padded, "/testdata/")
-}
+func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	desired := make(map[string]bool, len(result.Gen))

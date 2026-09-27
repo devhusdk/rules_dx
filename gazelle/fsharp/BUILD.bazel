@@ -16,6 +16,7 @@ go_library(
     importpath = "github.com/ralvik/rules_dx/gazelle/fsharp",
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
+        "//gazelle/common",
         "@com_github_bazelbuild_buildtools//build",
         "@gazelle//config",
         "@gazelle//language",

@@ -15,6 +15,7 @@ go_library(
     importpath = "github.com/ralvik/rules_dx/gazelle/cc",
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
+        "//gazelle/common",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//repo",

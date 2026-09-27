@@ -1,0 +1,55 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "common",
+    srcs = [
+        "doc.go",
+        "embeddedscan.go",
+        "jsscan.go",
+        "jvmmask.go",
+        "langcore.go",
+        "naming.go",
+    ],
+    importpath = "github.com/ralvik/rules_dx/gazelle/common",
+    visibility = [
+        "//gazelle/astro:__pkg__",
+        "//gazelle/cc:__pkg__",
+        "//gazelle/csharp:__pkg__",
+        "//gazelle/fsharp:__pkg__",
+        "//gazelle/go:__pkg__",
+        "//gazelle/java:__pkg__",
+        "//gazelle/javascript:__pkg__",
+        "//gazelle/kotlin:__pkg__",
+        "//gazelle/mdx:__pkg__",
+        "//gazelle/python:__pkg__",
+        "//gazelle/ruby:__pkg__",
+        "//gazelle/rust:__pkg__",
+        "//gazelle/scala:__pkg__",
+        "//gazelle/svelte:__pkg__",
+        "//gazelle/typescript:__pkg__",
+        "//gazelle/vue:__pkg__",
+    ],
+    deps = [
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
+        "@gazelle//v2/rule",
+    ],
+)
+
+go_test(
+    name = "common_test",
+    srcs = ["common_test.go"],
+    embed = [":common"],
+    pure = "on",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

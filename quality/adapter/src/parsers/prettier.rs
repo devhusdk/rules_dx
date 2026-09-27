@@ -15,10 +15,10 @@ pub fn parse_prettier_check(
     let mut findings = Vec::new();
     for line in text.lines() {
         let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed == "The system cannot find the path specified." {
+            continue;
+        }
         let Some(path) = trimmed.strip_prefix("[warn] ") else {
-            if trimmed.is_empty() {
-                continue;
-            }
             return Err(ParseError::Shape {
                 tool: TOOL,
                 detail: format!("unexpected stderr line: {trimmed:?}"),
@@ -74,5 +74,17 @@ mod tests {
         let findings =
             parse_prettier_check(padded.as_bytes(), Some(1), &["src/a.js"]).expect("parsed");
         assert_eq!(findings.len(), 1);
+        let windows_noise =
+            "The system cannot find the path specified.\n[warn] src/a.js\n[warn] Code style issues found in the above file. Run Prettier with --write to fix.\n";
+        let findings =
+            parse_prettier_check(windows_noise.as_bytes(), Some(1), &["src/a.js"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        let clean_noise = parse_prettier_check(
+            b"The system cannot find the path specified.\n",
+            Some(0),
+            &["src/a.js"],
+        )
+        .expect("parsed");
+        assert!(clean_noise.is_empty());
     }
 }

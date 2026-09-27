@@ -1,4 +1,5 @@
 use super::*;
+use std::path::{Path, PathBuf};
 
 fn testdata_root() -> PathBuf {
     for candidate in [

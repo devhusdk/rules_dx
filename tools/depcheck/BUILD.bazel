@@ -8,8 +8,23 @@ package(default_visibility = ["//:__subpackages__"])
 rust_library(
     name = "depcheck_lib",
     srcs = [
+        "src/consistency.rs",
+        "src/ecosystem/cc.rs",
+        "src/ecosystem/dotnet.rs",
+        "src/ecosystem/go.rs",
+        "src/ecosystem/js.rs",
+        "src/ecosystem/jvm.rs",
+        "src/ecosystem/mod.rs",
+        "src/ecosystem/python.rs",
+        "src/ecosystem/ruby.rs",
+        "src/ecosystem/rust.rs",
+        "src/exceptions.rs",
         "src/lib.rs",
         "src/tests.rs",
+        "src/toml_util.rs",
+        "src/types.rs",
+        "src/usage.rs",
+        "src/version.rs",
     ],
     aliases = aliases(
         package_name = "tools/dx_depcheck",

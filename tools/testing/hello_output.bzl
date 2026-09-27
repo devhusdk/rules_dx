@@ -8,6 +8,7 @@ def dx_hello_output_test(name, binary, expected, exit_code = 0, size = "small", 
         name = name,
         srcs = ["//tools/testing:hello_output_test.rs"],
         data = [binary],
+        deps = ["//tools/testing:dx_testing"],
         env = {
             "DX_HELLO_BIN": "$(rootpath %s)" % binary,
             "DX_HELLO_EXPECTED": expected,

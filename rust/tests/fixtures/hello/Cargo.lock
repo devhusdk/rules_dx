@@ -761,6 +761,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_testing"
+version = "0.0.0"
+dependencies = [
+ "regex",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "dx_update"
 version = "0.0.0"
 dependencies = [

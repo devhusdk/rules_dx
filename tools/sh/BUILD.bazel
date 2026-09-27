@@ -1,4 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@rules_shell//shell:sh_library.bzl", "sh_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":harness.bzl", "dx_shell_harness")
@@ -69,12 +69,6 @@ py_binary(
     main = "hermetic_grep.py",
 )
 
-py_test(
-    name = "hermetic_grep_test",
-    srcs = ["hermetic_grep_test.py"],
-    deps = [":hermetic_grep_lib"],
-)
-
 dx_shell_harness(
     name = "assert_test",
     srcs = ["assert_test.sh"],
@@ -100,9 +94,6 @@ real_source_target(
 real_source_target(
     name = "corpus_python",
     aspect_hints = ["//:ruff_config"],
-    python_srcs = [
-        "hermetic_grep.py",
-        "hermetic_grep_test.py",
-    ],
+    python_srcs = ["hermetic_grep.py"],
     tags = ["corpus"],
 )

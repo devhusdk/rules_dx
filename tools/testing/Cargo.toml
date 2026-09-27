@@ -1,0 +1,15 @@
+[package]
+name = "dx_testing"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_testing"
+path = "src/lib.rs"
+
+[dependencies]
+regex = "1"
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

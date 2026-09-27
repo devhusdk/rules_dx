@@ -1,5 +1,5 @@
-use super::real_tests_a::*;
-use super::real_tests_b::*;
+use super::real_core::*;
+use super::real_fixtures::*;
 use super::*;
 use quality_result::proto::Convergence;
 use quality_result::MAX_COMPLETED_ROUNDS;

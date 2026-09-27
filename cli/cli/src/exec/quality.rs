@@ -222,11 +222,11 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 #[cfg(test)]
-#[path = "quality_tests_a.rs"]
-mod quality_tests_a;
+#[path = "quality_edits.rs"]
+mod quality_edits;
 #[cfg(test)]
-#[path = "quality_tests_b.rs"]
-mod quality_tests_b;
+#[path = "quality_modes.rs"]
+mod quality_modes;
 #[cfg(test)]
-#[path = "quality_tests_c.rs"]
-mod quality_tests_c;
+#[path = "quality_reporting.rs"]
+mod quality_reporting;

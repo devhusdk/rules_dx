@@ -414,11 +414,11 @@ pub fn run_pipeline(
 }
 
 #[cfg(test)]
-#[path = "lib_tests_a.rs"]
-mod lib_tests_a;
+#[path = "lib_determinism.rs"]
+mod lib_determinism;
 #[cfg(test)]
-#[path = "lib_tests_b.rs"]
-mod lib_tests_b;
+#[path = "lib_gates.rs"]
+mod lib_gates;
 #[cfg(test)]
-#[path = "lib_tests_c.rs"]
-mod lib_tests_c;
+#[path = "lib_pipeline.rs"]
+mod lib_pipeline;

@@ -1,5 +1,5 @@
 use super::super::test_support::*;
-use super::audit_tests_a::*;
+use super::audit_live::*;
 
 #[test]
 fn secrets_launch_failure_is_incomplete_without_a_clean_result() {

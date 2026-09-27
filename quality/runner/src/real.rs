@@ -1475,14 +1475,14 @@ pub fn run_real_pipeline_with_resolve(
 mod real_fix;
 
 #[cfg(test)]
-#[path = "real_tests_a.rs"]
-mod real_tests_a;
+#[path = "real_core.rs"]
+mod real_core;
 #[cfg(test)]
-#[path = "real_tests_b.rs"]
-mod real_tests_b;
+#[path = "real_delegated.rs"]
+mod real_delegated;
 #[cfg(test)]
-#[path = "real_tests_c.rs"]
-mod real_tests_c;
+#[path = "real_fixtures.rs"]
+mod real_fixtures;
 #[cfg(test)]
-#[path = "real_tests_d.rs"]
-mod real_tests_d;
+#[path = "real_tools.rs"]
+mod real_tools;

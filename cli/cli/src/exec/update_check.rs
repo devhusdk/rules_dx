@@ -1,5 +1,5 @@
 use super::super::test_support::*;
-use super::update_tests_a::*;
+use super::update_live::*;
 
 #[test]
 fn preset_check_dry_run_never_reads_or_writes() {

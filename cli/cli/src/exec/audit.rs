@@ -1108,8 +1108,8 @@ mod audit_license;
 use audit_license::*;
 
 #[cfg(test)]
-#[path = "audit_tests_a.rs"]
-mod audit_tests_a;
+#[path = "audit_live.rs"]
+mod audit_live;
 #[cfg(test)]
-#[path = "audit_tests_b.rs"]
-mod audit_tests_b;
+#[path = "audit_reports.rs"]
+mod audit_reports;

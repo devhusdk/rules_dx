@@ -612,8 +612,8 @@ fn success_line(set: dx_update::sets::SetId, request: &dx_update::selector::SetR
 }
 
 #[cfg(test)]
-#[path = "update_tests_a.rs"]
-mod update_tests_a;
+#[path = "update_check.rs"]
+mod update_check;
 #[cfg(test)]
-#[path = "update_tests_b.rs"]
-mod update_tests_b;
+#[path = "update_live.rs"]
+mod update_live;

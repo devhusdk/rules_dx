@@ -860,11 +860,11 @@ pub fn parse_with<S: AsRef<OsStr>>(
 #[path = "defaults_tests.rs"]
 mod defaults_tests;
 #[cfg(test)]
-#[path = "parser_tests_a.rs"]
-mod parser_tests_a;
+#[path = "parser_commands.rs"]
+mod parser_commands;
 #[cfg(test)]
-#[path = "parser_tests_b.rs"]
-mod parser_tests_b;
+#[path = "parser_core.rs"]
+mod parser_core;
 #[cfg(test)]
 #[path = "strict_tests.rs"]
 mod strict_tests;

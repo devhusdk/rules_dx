@@ -1,6 +1,6 @@
 load("//go/rules:defs.bzl", "go_binary", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
@@ -38,22 +38,16 @@ go_test(
     embed = [":hello_lib"],
 )
 
-dx_shell_harness(
+dx_hello_output_test(
     name = "hello_output_test",
-    srcs = ["hello_output_test.sh"],
-    args = ["$(rootpath :hello)"],
-    data = [
-        ":hello",
-    ],
+    binary = ":hello",
+    expected = "hello world",
 )
 
-dx_shell_harness(
+dx_hello_output_test(
     name = "hello_thin_output_test",
-    srcs = ["hello_output_test.sh"],
-    args = ["$(rootpath :hello_thin)"],
-    data = [
-        ":hello_thin",
-    ],
+    binary = ":hello_thin",
+    expected = "hello world",
 )
 
 real_source_target(

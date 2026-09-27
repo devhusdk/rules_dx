@@ -1,42 +1,26 @@
 """Negative demonstrations as green hermetic proofs."""
 
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 def failing_check_demo(name):
-    sh_test(
+    dx_shell_harness(
         name = name,
         srcs = ["failing_check_test.sh"],
-        data = ["//tools/sh:lib"],
-        size = "small",
-        timeout = "short",
-        target_compatible_with = ["@platforms//os:linux"],
     )
 
 def missing_observation_demo(name):
-    sh_test(
+    dx_shell_harness(
         name = name,
         srcs = ["missing_observation_test.sh"],
-        data = [
-            "//tools/sh:lib",
-            ":negative_subject",
-        ],
-        size = "small",
-        timeout = "short",
-        target_compatible_with = ["@platforms//os:linux"],
+        data = [":negative_subject"],
     )
 
 def missing_fragment_demo(name):
-    sh_test(
+    dx_shell_harness(
         name = name,
         srcs = ["missing_fragment_test.sh"],
-        data = [
-            "//tools/sh:lib",
-            ":present_fixture.txt",
-        ],
-        size = "small",
-        timeout = "short",
-        target_compatible_with = ["@platforms//os:linux"],
+        data = [":present_fixture.txt"],
     )
 
 def _wrong_phase_subject_impl(ctx):

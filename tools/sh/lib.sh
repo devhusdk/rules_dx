@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if ! declare -F rlocation >/dev/null 2>&1; then
-  _dx_runfiles_bash="bazel_tools/tools/bash/runfiles/runfiles.bash"
-  source "${RUNFILES_DIR:-/dev/null}/$_dx_runfiles_bash" 2>/dev/null ||
-    source "$(grep -sm1 "^$_dx_runfiles_bash " "${RUNFILES_MANIFEST_FILE:-/dev/null}" 2>/dev/null | cut -f2- -d' ')" 2>/dev/null ||
-    source "$0.runfiles/$_dx_runfiles_bash" 2>/dev/null ||
-    source "$(grep -sm1 "^$_dx_runfiles_bash " "$0.runfiles_manifest" 2>/dev/null | cut -f2- -d' ')" 2>/dev/null ||
-    source "$(grep -sm1 "^$_dx_runfiles_bash " "$0.exe.runfiles_manifest" 2>/dev/null | cut -f2- -d' ')" 2>/dev/null ||
-    true
-  unset _dx_runfiles_bash
+if ! declare -F rlocation >/dev/null 2>&1 && declare -F dx_bootstrap >/dev/null 2>&1; then
+  dx_bootstrap "bazel_tools/tools/bash/runfiles/runfiles.bash" 2>/dev/null || true
 fi
 
 dx_workspace_root() {

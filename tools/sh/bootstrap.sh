@@ -22,6 +22,11 @@ dx_bootstrap() {
   source "${BASH_SOURCE[0]}.runfiles/_main/${rel}" 2>/dev/null && return 0 || true
   caller="${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-$0}}"
   source "${caller}.runfiles/_main/${rel}" 2>/dev/null && return 0 || true
+  source "${RUNFILES_DIR:-/dev/null}/${rel}" 2>/dev/null && return 0 || true
+  source "${TEST_SRCDIR:-/dev/null}/${rel}" 2>/dev/null && return 0 || true
+  source "$0.runfiles/${rel}" 2>/dev/null && return 0 || true
+  source "${BASH_SOURCE[0]}.runfiles/${rel}" 2>/dev/null && return 0 || true
+  source "${caller}.runfiles/${rel}" 2>/dev/null && return 0 || true
   if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" && -f "${BUILD_WORKSPACE_DIRECTORY}/${rel}" ]]; then
     source "${BUILD_WORKSPACE_DIRECTORY}/${rel}" && return 0 || return 1
   fi

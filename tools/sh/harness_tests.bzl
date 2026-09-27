@@ -1,7 +1,7 @@
 """Unit tests for the shell-harness helper."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":harness.bzl", "dx_harness_data", "dx_harness_linux", "dx_harness_tags")
+load(":harness.bzl", "dx_harness_data", "dx_harness_env", "dx_harness_linux", "dx_harness_tags")
 
 def harness_unit_tests(name):
     """Runs the unit tests for the shell-harness helper."""
@@ -43,6 +43,21 @@ def harness_unit_tests(name):
                 "explicit constraint passes through untouched",
                 dx_harness_linux(["@platforms//os:macos"]),
                 ["@platforms//os:macos"],
+            ),
+            expect_equal(
+                "bare env resolves to the bootstrap preload",
+                dx_harness_env(),
+                {"DX_BOOTSTRAP": "_main/tools/sh/bootstrap.sh"},
+            ),
+            expect_equal(
+                "caller env keeps its entries plus the preload",
+                dx_harness_env({"FOO": "bar"}),
+                {"FOO": "bar", "DX_BOOTSTRAP": "_main/tools/sh/bootstrap.sh"},
+            ),
+            expect_equal(
+                "explicit preload is not overwritten",
+                dx_harness_env({"DX_BOOTSTRAP": "/custom/bootstrap.sh"}),
+                {"DX_BOOTSTRAP": "/custom/bootstrap.sh"},
             ),
         ],
     )

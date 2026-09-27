@@ -80,6 +80,11 @@ dx_shell_harness(
     data = [":assert"],
 )
 
+dx_shell_harness(
+    name = "bootstrap_test",
+    srcs = ["bootstrap_test.sh"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

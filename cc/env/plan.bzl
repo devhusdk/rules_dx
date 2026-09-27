@@ -1,8 +1,8 @@
 """Focused C/C++ environment plan."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//env:focused.bzl", "focused_closure_plan", "focused_direct_sources", "focused_transitive_basenames", "focused_write_plan")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
+load("//env:focused.bzl", "focused_transitive_basenames")
+load("//env:plan_factory.bzl", "closure_env_plan_rule")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 CcEnvPlanInfo = provider(
@@ -20,38 +20,13 @@ CcEnvPlanInfo = provider(
     },
 )
 
-def _cc_env_plan_impl(ctx):
-    target = ctx.attr.target
-    if QualitySourcesInfo not in target:
-        fail("cc_env_plan: target has no QualitySourcesInfo: " + display_label(target.label))
-    if CcInfo not in target:
-        fail("cc_env_plan: target has no CcInfo: " + display_label(target.label))
-    direct = focused_direct_sources(target)
-    transitive = focused_transitive_basenames(target[CcInfo].compilation_context.headers)
-    info = focused_closure_plan(direct, transitive, display_label(ctx.attr.target.label))
-    plan = info.plan
-    out = focused_write_plan(ctx, plan)
-    return [
-        DefaultInfo(files = depset([out])),
-        CcEnvPlanInfo(
-            direct_sources = direct,
-            has_sources = info.has_sources,
-            has_tests = info.has_tests,
-            source_count = info.source_count,
-            target = plan["target"],
-            test_source_count = info.test_source_count,
-            test_sources = info.test_sources,
-            transitive_source_count = info.transitive_source_count,
-            transitive_sources = info.transitive_sources,
-        ),
-        DxSubjectInfo(fields = plan),
-    ]
+def _cc_transitive(target):
+    """Returns sorted basenames of the CcInfo header closure."""
+    return focused_transitive_basenames(target[CcInfo].compilation_context.headers)
 
-cc_env_plan = rule(
-    implementation = _cc_env_plan_impl,
-    attrs = {
-        "target": attr.label(
-            mandatory = True,
-        ),
-    },
+cc_env_plan = closure_env_plan_rule(
+    rule_name = "cc_env_plan",
+    info = CcEnvPlanInfo,
+    required = [(QualitySourcesInfo, "QualitySourcesInfo"), (CcInfo, "CcInfo")],
+    transitive = _cc_transitive,
 )

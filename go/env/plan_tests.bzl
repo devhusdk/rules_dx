@@ -1,6 +1,6 @@
 """Focused Go environment-plan tests."""
 
-load("//libs/starlark:defs.bzl", "starlark_test")
+load("//env:plan_factory.bzl", _env_plan_tests = "env_plan_tests")
 
 EXPECTED_ENV_PLAN_OBSERVATIONS = """subject //go/env:hello_lib_plan
 file hello_lib_plan.json
@@ -52,10 +52,5 @@ aspect_field subject_label=//go/env:hello_test_plan
 aspect_field transitive_count=0"""
 
 def env_plan_tests(name, subjects, **kwargs):
-    starlark_test(
-        name = name,
-        mode = "analysis",
-        subjects = subjects,
-        expected_observations = EXPECTED_ENV_PLAN_OBSERVATIONS,
-        **kwargs
-    )
+    """Declares one pinned-observation focused environment-plan test."""
+    _env_plan_tests(name, subjects, EXPECTED_ENV_PLAN_OBSERVATIONS, **kwargs)

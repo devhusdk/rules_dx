@@ -1,8 +1,8 @@
 """Focused C# environment plan."""
 
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("//env:focused.bzl", "focused_closure_plan", "focused_direct_sources", "focused_dotnet_transitive", "focused_write_plan")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
+load("//env:focused.bzl", "focused_dotnet_transitive")
+load("//env:plan_factory.bzl", "closure_env_plan_rule")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 CSharpEnvPlanInfo = provider(
@@ -20,41 +20,14 @@ CSharpEnvPlanInfo = provider(
     },
 )
 
-def _csharp_env_plan_impl(ctx):
-    target = ctx.attr.target
-    if QualitySourcesInfo not in target:
-        fail("csharp_env_plan: target has no QualitySourcesInfo: " + display_label(target.label))
-    if DotnetAssemblyCompileInfo not in target:
-        fail("csharp_env_plan: target has no DotnetAssemblyCompileInfo: " + display_label(target.label))
-    if DotnetAssemblyRuntimeInfo not in target:
-        fail("csharp_env_plan: target has no DotnetAssemblyRuntimeInfo: " + display_label(target.label))
-    direct = focused_direct_sources(target)
+def _csharp_transitive(target):
+    """Returns sorted basenames of the Dotnet assembly closure."""
     compile = target[DotnetAssemblyCompileInfo]
-    transitive = focused_dotnet_transitive(compile.refs, compile.transitive_refs)
-    info = focused_closure_plan(direct, transitive, display_label(ctx.attr.target.label))
-    plan = info.plan
-    out = focused_write_plan(ctx, plan)
-    return [
-        DefaultInfo(files = depset([out])),
-        CSharpEnvPlanInfo(
-            direct_sources = direct,
-            has_sources = info.has_sources,
-            has_tests = info.has_tests,
-            source_count = info.source_count,
-            target = plan["target"],
-            test_source_count = info.test_source_count,
-            test_sources = info.test_sources,
-            transitive_source_count = info.transitive_source_count,
-            transitive_sources = info.transitive_sources,
-        ),
-        DxSubjectInfo(fields = plan),
-    ]
+    return focused_dotnet_transitive(compile.refs, compile.transitive_refs)
 
-csharp_env_plan = rule(
-    implementation = _csharp_env_plan_impl,
-    attrs = {
-        "target": attr.label(
-            mandatory = True,
-        ),
-    },
+csharp_env_plan = closure_env_plan_rule(
+    rule_name = "csharp_env_plan",
+    info = CSharpEnvPlanInfo,
+    required = [(QualitySourcesInfo, "QualitySourcesInfo"), (DotnetAssemblyCompileInfo, "DotnetAssemblyCompileInfo"), (DotnetAssemblyRuntimeInfo, "DotnetAssemblyRuntimeInfo")],
+    transitive = _csharp_transitive,
 )

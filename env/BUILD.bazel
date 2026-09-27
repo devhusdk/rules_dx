@@ -168,6 +168,7 @@ real_source_target(
         "defs_tests.bzl",
         "focused.bzl",
         "plan.bzl",
+        "plan_factory.bzl",
         "plan_tests.bzl",
     ],
     tags = ["corpus"],

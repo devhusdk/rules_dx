@@ -2,8 +2,7 @@
 
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo")
-load("//env:focused.bzl", "focused_direct_sources", "focused_js_closure", "focused_npm_store_projection", "focused_tsconfig_projection", "focused_typescript_plan", "focused_write_plan")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
+load("//env:plan_factory.bzl", "js_env_plan_rule")
 
 TypeScriptEnvPlanInfo = provider(
     doc = "Provider-derived focused TypeScript target environment plan.",
@@ -21,47 +20,11 @@ TypeScriptEnvPlanInfo = provider(
     },
 )
 
-def _typescript_env_plan_impl(ctx):
-    target = ctx.attr.target
-    if _JsInfo not in target:
-        fail("typescript_env_plan: target has no JsInfo: " + display_label(target.label))
-    js_info = target[_JsInfo]
-    closure = focused_js_closure(js_info.transitive_sources.to_list(), js_info.npm_sources.to_list())
-    direct = focused_direct_sources(target)
-    has_tsconfig = _TsConfigInfo in target
-    plan = focused_typescript_plan(direct, closure, has_tsconfig, display_label(ctx.attr.target.label))
-    store = focused_npm_store_projection(js_info.npm_package_store_infos.to_list())
-    plan["has_store"] = str(store.has_store)
-    plan["store_count"] = str(store.store_count)
-    if has_tsconfig:
-        tsconfig = focused_tsconfig_projection(target[_TsConfigInfo].deps.to_list())
-    else:
-        tsconfig = focused_tsconfig_projection([])
-    plan["tsconfig"] = tsconfig.tsconfig
-    plan["tsconfig_count"] = str(tsconfig.tsconfig_count)
-    out = focused_write_plan(ctx, plan)
-    return [
-        DefaultInfo(files = depset([out])),
-        TypeScriptEnvPlanInfo(
-            direct_sources = direct,
-            has_npm = closure.has_npm,
-            has_store = store.has_store,
-            has_tsconfig = has_tsconfig,
-            npm_source_count = closure.npm_count,
-            store_count = store.store_count,
-            target = plan["target"],
-            transitive_sources = closure.transitive,
-            tsconfig = tsconfig.tsconfig,
-            tsconfig_count = tsconfig.tsconfig_count,
-        ),
-        DxSubjectInfo(fields = plan),
-    ]
-
-typescript_env_plan = rule(
-    implementation = _typescript_env_plan_impl,
-    attrs = {
-        "target": attr.label(
-            mandatory = True,
-        ),
-    },
+typescript_env_plan = js_env_plan_rule(
+    rule_name = "typescript_env_plan",
+    info = TypeScriptEnvPlanInfo,
+    JsInfo = _JsInfo,
+    TsConfigInfo = _TsConfigInfo,
+    with_store = True,
+    with_tsconfig = True,
 )

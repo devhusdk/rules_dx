@@ -1,8 +1,7 @@
 """Focused Svelte environment plan."""
 
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
-load("//env:focused.bzl", "focused_direct_sources", "focused_js_closure", "focused_js_plan", "focused_write_plan")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
+load("//env:plan_factory.bzl", "js_env_plan_rule")
 
 SvelteEnvPlanInfo = provider(
     doc = "Provider-derived focused Svelte target environment plan.",
@@ -15,32 +14,8 @@ SvelteEnvPlanInfo = provider(
     },
 )
 
-def _svelte_env_plan_impl(ctx):
-    target = ctx.attr.target
-    if _JsInfo not in target:
-        fail("svelte_env_plan: target has no JsInfo: " + display_label(target.label))
-    js_info = target[_JsInfo]
-    closure = focused_js_closure(js_info.transitive_sources.to_list(), js_info.npm_sources.to_list())
-    direct = focused_direct_sources(target)
-    plan = focused_js_plan(direct, closure, display_label(ctx.attr.target.label))
-    out = focused_write_plan(ctx, plan)
-    return [
-        DefaultInfo(files = depset([out])),
-        SvelteEnvPlanInfo(
-            direct_sources = direct,
-            has_npm = closure.has_npm,
-            npm_source_count = closure.npm_count,
-            target = plan["target"],
-            transitive_sources = closure.transitive,
-        ),
-        DxSubjectInfo(fields = plan),
-    ]
-
-svelte_env_plan = rule(
-    implementation = _svelte_env_plan_impl,
-    attrs = {
-        "target": attr.label(
-            mandatory = True,
-        ),
-    },
+svelte_env_plan = js_env_plan_rule(
+    rule_name = "svelte_env_plan",
+    info = SvelteEnvPlanInfo,
+    JsInfo = _JsInfo,
 )

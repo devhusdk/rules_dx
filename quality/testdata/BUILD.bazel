@@ -449,107 +449,34 @@ real_typecheck_fixture_tests(
 
 runner_matrix_cases(name = "runner_matrix")
 
-sh_binary(
-    name = "fake_scalafmt",
-    srcs = ["fake_scalafmt.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
+_FAKE_FORMAT_TOOLS = [
+    "buf_format",
+    "clang_format",
+    "csharpier",
+    "cue",
+    "djlint_format",
+    "fantomas",
+    "gofumpt",
+    "jsonnetfmt",
+    "modfmt",
+    "pkl",
+    "prettier_file_family",
+    "qmlformat",
+    "scalafmt",
+    "shfmt",
+    "standardrb",
+    "terraform",
+    "yamlfmt",
+]
 
-sh_binary(
-    name = "fake_csharpier",
-    srcs = ["fake_csharpier.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_fantomas",
-    srcs = ["fake_fantomas.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_clang_format",
-    srcs = ["fake_clang_format.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_gofumpt",
-    srcs = ["fake_gofumpt.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_buf_format",
-    srcs = ["fake_buf_format.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_qmlformat",
-    srcs = ["fake_qmlformat.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_cue",
-    srcs = ["fake_cue.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_jsonnetfmt",
-    srcs = ["fake_jsonnetfmt.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_pkl",
-    srcs = ["fake_pkl.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_modfmt",
-    srcs = ["fake_modfmt.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_terraform",
-    srcs = ["fake_terraform.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_yamlfmt",
-    srcs = ["fake_yamlfmt.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_shfmt",
-    srcs = ["fake_shfmt.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_standardrb",
-    srcs = ["fake_standardrb.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_djlint_format",
-    srcs = ["fake_djlint_format.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-sh_binary(
-    name = "fake_prettier_file_family",
-    srcs = ["fake_prettier_file_family.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
+[
+    sh_binary(
+        name = "fake_" + tool,
+        srcs = ["fake_format.sh"],
+        target_compatible_with = ["@platforms//os:linux"],
+    )
+    for tool in _FAKE_FORMAT_TOOLS
+]
 
 real_source_target(
     name = "corpus_starlark",

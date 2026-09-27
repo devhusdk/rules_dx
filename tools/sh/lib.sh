@@ -511,7 +511,7 @@ dx_expect_contains() {
     return 0
   fi
   for lit in "$@"; do
-    if ! grep -q -F -e "$lit" -- "$file"; then
+    if ! dx_hermetic_grep contains "$file" --fixed -- "$lit" >/dev/null 2>&1; then
       missing="$missing [$lit]"
     fi
   done
@@ -532,7 +532,7 @@ dx_expect_absent() {
     return 0
   fi
   for lit in "$@"; do
-    if grep -q -F -e "$lit" -- "$file"; then
+    if dx_hermetic_grep contains "$file" --fixed -- "$lit" >/dev/null 2>&1; then
       present="$present [$lit]"
     fi
   done

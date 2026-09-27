@@ -75,7 +75,7 @@ if "$dx_bin" --workspace "$scratch" update --check --quiet >/dev/null 2>&1; then
 else
   ok
 fi
-if grep -q -F -e "# dirty" "$actual"; then
+if dx_hermetic_grep contains "$actual" --fixed -- "# dirty" >/dev/null 2>&1; then
   ok
 else
   bad "check mode mutated the dirty fragment (check must never write)"

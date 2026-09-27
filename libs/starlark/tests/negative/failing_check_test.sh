@@ -37,22 +37,22 @@ if [[ "$inner_fail" != "1" ]]; then
     cat "$out" >&2
     exit 1
 fi
-if ! grep -q -F -e "FAIL: deliberately wrong sum" "$out"; then
+if ! dx_hermetic_grep contains "$out" --fixed -- "FAIL: deliberately wrong sum" >/dev/null 2>&1; then
     echo "FAIL: missing documented diagnostic: FAIL: deliberately wrong sum" >&2
     cat "$out" >&2
     exit 1
 fi
-if ! grep -q -F -e "FAIL: deliberately wrong product" "$out"; then
+if ! dx_hermetic_grep contains "$out" --fixed -- "FAIL: deliberately wrong product" >/dev/null 2>&1; then
     echo "FAIL: missing documented diagnostic: FAIL: deliberately wrong product" >&2
     cat "$out" >&2
     exit 1
 fi
-if ! grep -q -F -e "starlark_test: 1 passed, 2 failed" "$out"; then
+if ! dx_hermetic_grep contains "$out" --fixed -- "starlark_test: 1 passed, 2 failed" >/dev/null 2>&1; then
     echo "FAIL: missing documented summary: starlark_test: 1 passed, 2 failed" >&2
     cat "$out" >&2
     exit 1
 fi
-if ! grep -q -F -e "PASS: control that still passes" "$out"; then
+if ! dx_hermetic_grep contains "$out" --fixed -- "PASS: control that still passes" >/dev/null 2>&1; then
     echo "FAIL: control check should still pass" >&2
     cat "$out" >&2
     exit 1

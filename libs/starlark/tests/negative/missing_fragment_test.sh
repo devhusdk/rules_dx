@@ -18,19 +18,19 @@ fi
 
 want="this substring is absent"
 out="$scratch/out.txt"
-if grep -q -F -e "$want" "$fixture" >"$out" 2>&1; then
+if dx_hermetic_grep contains "$fixture" --fixed -- "$want" >"$out" 2>&1; then
     echo "FAIL: missing_fragment harness unexpectedly passed (substring found)" >&2
     exit 1
 fi
 
 echo "FAIL: file //libs/starlark/tests/negative:present_fixture.txt is missing substring 1/1" >"$out"
 echo "  substring: $want" >>"$out"
-if ! grep -q -F -e "is missing substring 1/1" "$out"; then
+if ! dx_hermetic_grep contains "$out" --fixed -- "is missing substring 1/1" >/dev/null 2>&1; then
     echo "FAIL: missing documented diagnostic: is missing substring 1/1" >&2
     cat "$out" >&2
     exit 1
 fi
-if ! grep -q -F -e "substring: $want" "$out"; then
+if ! dx_hermetic_grep contains "$out" --fixed -- "substring: $want" >/dev/null 2>&1; then
     echo "FAIL: missing documented diagnostic: substring: $want" >&2
     cat "$out" >&2
     exit 1

@@ -17,13 +17,13 @@ printf 'extends: existence\n' >"${root}/crate/styles/org/Example.yml"
 (cd "${root}" && "${gazelle}" -repo_root="${root}")
 build="${root}/crate/BUILD.bazel"
 for want in 'name = "rustfmt_config"' 'name = "taplo_config"' 'name = "vale_config"' 'aspect_hints = [' '":rustfmt_config"' 'data = ["crate/styles/org/Example.yml"]' '//crate:__subpackages__'; do
-  if ! grep -qF "${want}" "${build}"; then
+  if ! dx_hermetic_grep contains "${build}" --fixed -- "${want}" >/dev/null 2>&1; then
     echo "fresh generation missing ${want}" >&2
     cat "${build}" >&2
     exit 1
   fi
 done
-if grep -q '":taplo_config"' "${build}"; then
+if dx_hermetic_grep contains "${build}" --fixed -- '":taplo_config"' >/dev/null 2>&1; then
   echo "non-binding tool leaked into aspect_hints" >&2
   exit 1
 fi
@@ -37,19 +37,19 @@ dx_sha256_check "${TEST_TMPDIR}/first.sums" >/dev/null || {
 
 rm "${root}/crate/rustfmt.toml"
 (cd "${root}" && "${gazelle}" -repo_root="${root}")
-if grep -q "rustfmt_config" "${build}"; then
+if dx_hermetic_grep contains "${build}" --fixed -- "rustfmt_config" >/dev/null 2>&1; then
   echo "removed config file left its target behind" >&2
   exit 1
 fi
-if grep -q "rustfmt" "${build}"; then
+if dx_hermetic_grep contains "${build}" --fixed -- "rustfmt" >/dev/null 2>&1; then
   echo "removed config file left a stale hint behind" >&2
   exit 1
 fi
-if grep -q "aspect_hints" "${build}"; then
+if dx_hermetic_grep contains "${build}" --fixed -- "aspect_hints" >/dev/null 2>&1; then
   echo "removed config file left a stale hint behind" >&2
   exit 1
 fi
-if ! grep -q 'name = "taplo_config"' "${build}"; then
+if ! dx_hermetic_grep contains "${build}" --fixed -- 'name = "taplo_config"' >/dev/null 2>&1; then
   echo "removal dropped an unrelated target" >&2
   exit 1
 fi

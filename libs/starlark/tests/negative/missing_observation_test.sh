@@ -11,7 +11,7 @@ subject_file="$(dx_resolve_runfile "libs/starlark/tests/negative/negative_subjec
     echo "FAIL: cannot resolve negative_subject.txt" >&2
     exit 1
 }
-if ! grep -q -F -e "sum=0" "$subject_file"; then
+if ! dx_hermetic_grep contains "$subject_file" --fixed -- "sum=0" >/dev/null 2>&1; then
     echo "FAIL: negative_subject.txt should contain sum=0" >&2
     cat "$subject_file" >&2
     exit 1
@@ -45,12 +45,12 @@ if diff -u "$scratch/want.txt" "$scratch/actual.txt" >"$scratch/diff.txt" 2>&1; 
     echo "FAIL: missing_observation harness unexpectedly passed (observations match)" >&2
     exit 1
 fi
-if ! grep -q -F -e "sum=43" "$scratch/diff.txt"; then
+if ! dx_hermetic_grep contains "$scratch/diff.txt" --fixed -- "sum=43" >/dev/null 2>&1; then
     echo "FAIL: missing documented diagnostic: field sum=43 in observation diff" >&2
     cat "$scratch/diff.txt" >&2
     exit 1
 fi
-if ! grep -q -F -e "FAIL: observations" "$scratch/diff.txt" 2>/dev/null; then
+if ! dx_hermetic_grep contains "$scratch/diff.txt" --fixed -- "FAIL: observations" >/dev/null 2>&1; then
     echo "FAIL: observations" >>"$scratch/diff.txt"
 fi
 

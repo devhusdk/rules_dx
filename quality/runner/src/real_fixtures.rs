@@ -1,4 +1,7 @@
+use std::ffi::OsStr;
+
 use super::*;
+use crate::{FileInput, StageSpec};
 
 pub(super) type Spawn = SpawnFn;
 

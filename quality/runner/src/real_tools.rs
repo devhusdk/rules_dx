@@ -1,6 +1,7 @@
 use super::real_core::*;
 use super::real_fixtures::*;
 use super::*;
+use crate::run_convergence;
 use quality_result::proto::Convergence;
 use quality_result::MAX_COMPLETED_ROUNDS;
 

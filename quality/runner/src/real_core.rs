@@ -1,5 +1,6 @@
 use super::real_fixtures::*;
 use super::*;
+use crate::FileInput;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;
 

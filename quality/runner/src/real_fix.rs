@@ -1,3 +1,6 @@
+use quality_adapter::commands;
+use quality_adapter::exec::MirrorContents;
+
 use super::*;
 
 impl super::RealBackend {

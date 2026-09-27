@@ -4,7 +4,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "ide_acquisition.bzl",
-    "ide_acquisition.sh",
+    "ide_acquisition_test.rs",
 ])
 
 real_source_target(

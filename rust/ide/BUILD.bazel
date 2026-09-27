@@ -1,19 +1,16 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-dx_shell_harness(
+ide_acquisition_test(
     name = "ide_acquisition_test",
-    srcs = ["ide_acquisition_test.sh"],
-    args = [
-        "$(rootpath @rules_rust//tools/rust_analyzer:gen_rust_project)",
-        "$(rootpath @rules_rust//tools/rust_analyzer:flycheck)",
-    ],
-    data = [
-        "@rules_rust//tools/rust_analyzer:flycheck",
-        "@rules_rust//tools/rust_analyzer:gen_rust_project",
-    ],
+    binary = "@rules_rust//tools/rust_analyzer:gen_rust_project",
+    binary_two = "@rules_rust//tools/rust_analyzer:flycheck",
+    expected = "TARGETS",
+    expected_two = "rust-analyzer flycheck wrapper backed by `bazel build`",
+    version_args = ["--help"],
+    version_args_two = ["--help"],
 )
 
 real_source_target(

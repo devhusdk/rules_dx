@@ -30,143 +30,166 @@ use crate::args::{Command, Invocation};
 
 pub use common::Env;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Family {
+    Adoption,
+    Umbrella,
+    Workflow,
+    Bazel,
+    Generate,
+    Clean,
+    Managed,
+    Audit,
+    Update,
+    Bump,
+    Migrate,
+    Docs,
+    Quality,
+}
+
+impl Family {
+    #[cfg(test)]
+    fn name(self) -> &'static str {
+        match self {
+            Family::Adoption => "adoption",
+            Family::Umbrella => "umbrella",
+            Family::Workflow => "workflow",
+            Family::Bazel => "bazel",
+            Family::Generate => "generate",
+            Family::Clean => "clean",
+            Family::Managed => "managed",
+            Family::Audit => "audit",
+            Family::Update => "update",
+            Family::Bump => "bump",
+            Family::Migrate => "migrate",
+            Family::Docs => "docs",
+            Family::Quality => "quality",
+        }
+    }
+}
+
+static FAMILIES: [Family; 33] = [
+    Family::Audit,
+    Family::Audit,
+    Family::Quality,
+    Family::Quality,
+    Family::Quality,
+    Family::Generate,
+    Family::Workflow,
+    Family::Workflow,
+    Family::Workflow,
+    Family::Workflow,
+    Family::Workflow,
+    Family::Umbrella,
+    Family::Umbrella,
+    Family::Clean,
+    Family::Update,
+    Family::Bump,
+    Family::Migrate,
+    Family::Managed,
+    Family::Managed,
+    Family::Managed,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Adoption,
+    Family::Docs,
+    Family::Bazel,
+];
+
+fn family(command: Command) -> Family {
+    FAMILIES[command as usize]
+}
+
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.here {
         let Env { err, .. } = env;
         return common::pre_exec(err, "option \"--here/--cwd\" needs cwd resolution");
     }
-    if invocation.command.is_adoption() {
-        let Env {
-            workspace,
-            runner,
-            query_runner,
-            out,
-            err,
-            ..
-        } = env;
-        return crate::adopt::execute_adoption(
-            invocation,
-            crate::adopt::AdoptEnv {
+    match family(invocation.command) {
+        Family::Adoption => {
+            let Env {
                 workspace,
-                query_runner,
                 runner,
+                query_runner,
                 out,
                 err,
-            },
-        );
+                ..
+            } = env;
+            crate::adopt::execute_adoption(
+                invocation,
+                crate::adopt::AdoptEnv {
+                    workspace,
+                    query_runner,
+                    runner,
+                    out,
+                    err,
+                },
+            )
+        }
+        Family::Umbrella => umbrella::execute_umbrella(invocation, env),
+        Family::Workflow => workflow::execute_workflow(invocation, env),
+        Family::Bazel => bazel::execute_bazel(invocation, env),
+        Family::Generate => generate::execute_generate(invocation, env),
+        Family::Clean => clean::execute_clean(invocation, env),
+        Family::Managed => managed::execute_managed(invocation, env),
+        Family::Audit => audit::execute_audit(invocation, env),
+        Family::Update => update::execute_update(invocation, env),
+        Family::Bump => bump::execute_bump(invocation, env),
+        Family::Migrate => migrate::execute_migrate(invocation, env),
+        Family::Docs => docs::execute_docs(invocation, env),
+        Family::Quality => quality::execute_quality(invocation, env),
     }
-    if invocation.command.is_umbrella() {
-        return umbrella::execute_umbrella(invocation, env);
-    }
-    if invocation.command.is_workflow() {
-        return workflow::execute_workflow(invocation, env);
-    }
-    if invocation.command == Command::Bazel {
-        return bazel::execute_bazel(invocation, env);
-    }
-    if invocation.command == Command::Generate {
-        return generate::execute_generate(invocation, env);
-    }
-    if invocation.command == Command::Clean {
-        return clean::execute_clean(invocation, env);
-    }
-    if invocation.command.is_managed() {
-        return managed::execute_managed(invocation, env);
-    }
-    if invocation.command == Command::Security || invocation.command == Command::License {
-        return audit::execute_audit(invocation, env);
-    }
-    if invocation.command == Command::Update {
-        return update::execute_update(invocation, env);
-    }
-    if invocation.command == Command::Bump {
-        return bump::execute_bump(invocation, env);
-    }
-    if invocation.command == Command::Migrate {
-        return migrate::execute_migrate(invocation, env);
-    }
-    if invocation.command == Command::Docs {
-        return docs::execute_docs(invocation, env);
-    }
-    quality::execute_quality(invocation, env)
 }
 
 #[cfg(test)]
 mod tests {
     use super::test_support::Harness;
+    use super::{family, FAMILIES};
     use crate::args::Command;
-
-    fn family(command: Command) -> &'static str {
-        if command.is_adoption() {
-            "adoption"
-        } else if command.is_umbrella() {
-            "umbrella"
-        } else if command.is_workflow() {
-            "workflow"
-        } else if command == Command::Bazel {
-            "bazel"
-        } else if command == Command::Generate {
-            "generate"
-        } else if command == Command::Clean {
-            "clean"
-        } else if command.is_managed() {
-            "managed"
-        } else if command == Command::Security || command == Command::License {
-            "audit"
-        } else if command == Command::Update {
-            "update"
-        } else if command == Command::Bump {
-            "bump"
-        } else if command == Command::Migrate {
-            "migrate"
-        } else if command == Command::Docs {
-            "docs"
-        } else {
-            "quality"
-        }
-    }
 
     #[test]
     fn dispatch_table_covers_every_command() {
-        let cases = [
-            (Command::Security, "audit"),
-            (Command::License, "audit"),
-            (Command::Lint, "quality"),
-            (Command::Typecheck, "quality"),
-            (Command::Format, "quality"),
-            (Command::Generate, "generate"),
-            (Command::Build, "workflow"),
-            (Command::Test, "workflow"),
-            (Command::Coverage, "workflow"),
-            (Command::Run, "workflow"),
-            (Command::Deploy, "workflow"),
-            (Command::Check, "umbrella"),
-            (Command::Fix, "umbrella"),
-            (Command::Clean, "clean"),
-            (Command::Update, "update"),
-            (Command::Bump, "bump"),
-            (Command::Migrate, "migrate"),
-            (Command::Codegen, "managed"),
-            (Command::Env, "managed"),
-            (Command::Setup, "managed"),
-            (Command::Init, "adoption"),
-            (Command::New, "adoption"),
-            (Command::Upgrade, "adoption"),
-            (Command::Hooks, "adoption"),
-            (Command::Status, "adoption"),
-            (Command::Version, "adoption"),
-            (Command::Watch, "adoption"),
-            (Command::Owners, "adoption"),
-            (Command::Deps, "adoption"),
-            (Command::Why, "adoption"),
-            (Command::Completion, "adoption"),
-            (Command::Docs, "docs"),
-            (Command::Bazel, "bazel"),
-        ];
-        assert_eq!(cases.len(), 33, "every Command variant pinned");
-        for (command, want) in cases {
-            assert_eq!(family(command), want, "family for {}", command.name());
+        use clap::ValueEnum;
+        assert_eq!(FAMILIES.len(), 33, "every Command variant pinned");
+        assert_eq!(
+            FAMILIES.len(),
+            Command::value_variants().len(),
+            "every Command variant pinned"
+        );
+        for (index, command) in Command::value_variants().iter().enumerate() {
+            assert_eq!(*command as usize, index, "table order matches declaration");
+            assert_eq!(
+                family(*command),
+                FAMILIES[index],
+                "family for {}",
+                command.name()
+            );
         }
+        let mut counts = std::collections::BTreeMap::new();
+        for family in FAMILIES {
+            *counts.entry(family.name()).or_insert(0usize) += 1;
+        }
+        assert_eq!(counts.get("adoption"), Some(&11));
+        assert_eq!(counts.get("workflow"), Some(&5));
+        assert_eq!(counts.get("quality"), Some(&3));
+        assert_eq!(counts.get("managed"), Some(&3));
+        assert_eq!(counts.get("audit"), Some(&2));
+        assert_eq!(counts.get("umbrella"), Some(&2));
+        assert_eq!(counts.get("generate"), Some(&1));
+        assert_eq!(counts.get("clean"), Some(&1));
+        assert_eq!(counts.get("update"), Some(&1));
+        assert_eq!(counts.get("bump"), Some(&1));
+        assert_eq!(counts.get("migrate"), Some(&1));
+        assert_eq!(counts.get("docs"), Some(&1));
+        assert_eq!(counts.get("bazel"), Some(&1));
     }
 
     #[test]

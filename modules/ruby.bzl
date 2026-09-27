@@ -1,7 +1,9 @@
 """Pinned Ruby foundation."""
 
-RULES_RUBY_VERSION = "0.28.0"
-RUBY_VERSION = "3.4.9"
+load(":versions.bzl", _RUBY_VERSION = "RUBY_VERSION", _RULES_RUBY_VERSION = "RULES_RUBY_VERSION")
+
+RULES_RUBY_VERSION = _RULES_RUBY_VERSION
+RUBY_VERSION = _RUBY_VERSION
 
 GEMFILE = "//third_party/ruby:Gemfile"
 GEMFILE_LOCK = "//third_party/ruby:Gemfile.lock"

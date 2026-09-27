@@ -1,5 +1,7 @@
 """Per-cell coverage plus Codecov plus remote pins."""
 
+load("//modules:versions.bzl", _BAZEL_VERSION = "BAZEL_VERSION")
+
 PER_CELL_REGISTRY = "tools/coverage/cells.txt"
 PER_CELL_COUNT = 4
 PER_CELL_SEED = "qualified seed-linux_x86_64 tools/coverage/seed-inventory.txt"
@@ -22,7 +24,7 @@ DECISION_NO_UNION = "no cross-cell union"
 
 STARLARK_PROBE = "0-byte `coverage.dat`"
 STARLARK_UPSTREAM = "bazelbuild/bazel#15594"
-STARLARK_BAZEL_VERSION = "9.2.0"
+STARLARK_BAZEL_VERSION = _BAZEL_VERSION
 STARLARK_MATRIX = "behavioral matrix"
 STARLARK_VALIDATION = "matrix_validation"
 STARLARK_NO_LINE_COVERAGE = "no Starlark line-coverage percentage"

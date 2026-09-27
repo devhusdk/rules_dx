@@ -1,5 +1,7 @@
 """Third-party env plugin model plus Go cgo scope pins."""
 
+load("//modules:versions.bzl", _RULES_GO_VERSION = "RULES_GO_VERSION")
+
 PLUGIN_DISPOSITION = "out of scope"
 PLUGIN_SCOPE_NOTE = "third-party language-integration plugins are out of scope"
 PLUGIN_OWNER = "//env plus //cli/env"
@@ -17,8 +19,8 @@ PLUGIN_CRITERIA_NO_PRIVATE = "no private path"
 PLUGIN_CRITERIA_QUALIFICATION = "fixture-pinned qualification with no Supported claim"
 
 GO_DRIVER = "GOPACKAGESDRIVER"
-GO_DRIVER_UPSTREAM = "rules_go 0.63.0"
-GO_DRIVER_DOC = "https://github.com/bazel-contrib/rules_go/blob/v0.63.0/docs/editors.md"
+GO_DRIVER_UPSTREAM = "rules_go " + _RULES_GO_VERSION
+GO_DRIVER_DOC = "https://github.com/bazel-contrib/rules_go/blob/v" + _RULES_GO_VERSION + "/docs/editors.md"
 GO_SUPPORTED = "pure-Go packages"
 GO_SUPPORTED_CONSTRAINTS = "declared build constraints and platform source selection"
 GO_SEPARATE_BASE = "Use a separate IDE output base"

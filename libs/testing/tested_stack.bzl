@@ -1,28 +1,30 @@
 """Tested-stack manifest generator."""
 
+load("//modules:versions.bzl", _ASPECT_RULES_JEST_VERSION = "ASPECT_RULES_JEST_VERSION", _ASPECT_RULES_JS_VERSION = "ASPECT_RULES_JS_VERSION", _ASPECT_RULES_PY_VERSION = "ASPECT_RULES_PY_VERSION", _ASPECT_RULES_TS_VERSION = "ASPECT_RULES_TS_VERSION", _BAZEL_LIB_VERSION = "BAZEL_LIB_VERSION", _BAZEL_SKYLIB_VERSION = "BAZEL_SKYLIB_VERSION", _BAZEL_VERSION = "BAZEL_VERSION", _DOTNET_VERSION = "DOTNET_VERSION", _GAZELLE_VERSION = "GAZELLE_VERSION", _GOOGLETEST_VERSION = "GOOGLETEST_VERSION", _GO_SDK_VERSION = "GO_SDK_VERSION", _PLATFORMS_VERSION = "PLATFORMS_VERSION", _PNPM_VERSION = "PNPM_VERSION", _PYTHON_VERSION = "PYTHON_VERSION", _RULES_CC_VERSION = "RULES_CC_VERSION", _RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION", _RULES_GO_VERSION = "RULES_GO_VERSION", _RULES_JAVA_VERSION = "RULES_JAVA_VERSION", _RULES_JVM_EXTERNAL_VERSION = "RULES_JVM_EXTERNAL_VERSION", _RULES_KOTLIN_VERSION = "RULES_KOTLIN_VERSION", _RULES_POWERSHELL_VERSION = "RULES_POWERSHELL_VERSION", _RULES_PROTO_VERSION = "RULES_PROTO_VERSION", _RULES_PYTHON_VERSION = "RULES_PYTHON_VERSION", _RULES_RUST_PROST_VERSION = "RULES_RUST_PROST_VERSION", _RULES_RUST_VERSION = "RULES_RUST_VERSION", _RULES_SCALA_VERSION = "RULES_SCALA_VERSION", _RULES_SHELL_VERSION = "RULES_SHELL_VERSION", _RUST_VERSION = "RUST_VERSION", _SCALA_VERSION = "SCALA_VERSION", _TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION")
+
 _TESTED_DEPS = {
-    "rules_rust": "0.74.0",
-    "rules_cc": "0.2.22",
-    "googletest": "1.18.0",
-    "rules_python": "1.9.0",
-    "rules_go": "0.63.0",
-    "gazelle": "0.52.2",
-    "rules_shell": "0.7.1",
-    "platforms": "1.1.0",
-    "bazel_skylib": "1.9.0",
-    "rules_proto": "7.1.0",
-    "rules_rust_prost": "0.74.0",
-    "rules_java": "9.7.0",
-    "rules_kotlin": "2.4.10",
-    "rules_scala": "7.3.0",
-    "rules_dotnet": "0.22.1",
-    "bazel_lib": "3.7.0",
-    "rules_jvm_external": "7.1",
-    "aspect_rules_py": "2.0.0-alpha.6",
-    "aspect_rules_js": "3.4.1",
-    "aspect_rules_ts": "3.10.0",
-    "aspect_rules_jest": "0.26.0",
-    "rules_powershell": "0.2.0",
+    "rules_rust": _RULES_RUST_VERSION,
+    "rules_cc": _RULES_CC_VERSION,
+    "googletest": _GOOGLETEST_VERSION,
+    "rules_python": _RULES_PYTHON_VERSION,
+    "rules_go": _RULES_GO_VERSION,
+    "gazelle": _GAZELLE_VERSION,
+    "rules_shell": _RULES_SHELL_VERSION,
+    "platforms": _PLATFORMS_VERSION,
+    "bazel_skylib": _BAZEL_SKYLIB_VERSION,
+    "rules_proto": _RULES_PROTO_VERSION,
+    "rules_rust_prost": _RULES_RUST_PROST_VERSION,
+    "rules_java": _RULES_JAVA_VERSION,
+    "rules_kotlin": _RULES_KOTLIN_VERSION,
+    "rules_scala": _RULES_SCALA_VERSION,
+    "rules_dotnet": _RULES_DOTNET_VERSION,
+    "bazel_lib": _BAZEL_LIB_VERSION,
+    "rules_jvm_external": _RULES_JVM_EXTERNAL_VERSION,
+    "aspect_rules_py": _ASPECT_RULES_PY_VERSION,
+    "aspect_rules_js": _ASPECT_RULES_JS_VERSION,
+    "aspect_rules_ts": _ASPECT_RULES_TS_VERSION,
+    "aspect_rules_jest": _ASPECT_RULES_JEST_VERSION,
+    "rules_powershell": _RULES_POWERSHELL_VERSION,
 }
 
 def _tested_stack_impl(ctx):
@@ -53,38 +55,38 @@ tested_stack = rule(
     implementation = _tested_stack_impl,
     attrs = {
         "bazel_version": attr.string(
-            default = "9.2.0",
+            default = _BAZEL_VERSION,
         ),
         "deps": attr.string_dict(
             default = {},
         ),
         "dotnet_version": attr.string(
-            default = "10.0.201",
+            default = _DOTNET_VERSION,
         ),
         "go_sdk_version": attr.string(
-            default = "1.26.6",
+            default = _GO_SDK_VERSION,
         ),
         "platforms": attr.string_list(),
         "pnpm_version": attr.string(
-            default = "10.34.5",
+            default = _PNPM_VERSION,
         ),
         "python_version": attr.string(
-            default = "3.12",
+            default = _PYTHON_VERSION,
         ),
         "rules_cc_version": attr.string(
-            default = "0.2.22",
+            default = _RULES_CC_VERSION,
         ),
         "rules_rust_version": attr.string(
-            default = "0.74.0",
+            default = _RULES_RUST_VERSION,
         ),
         "rust_version": attr.string(
-            default = "1.98.0",
+            default = _RUST_VERSION,
         ),
         "scala_version": attr.string(
-            default = "2.13.18",
+            default = _SCALA_VERSION,
         ),
         "typescript_version": attr.string(
-            default = "5.9.3",
+            default = _TYPESCRIPT_VERSION,
         ),
     },
 )

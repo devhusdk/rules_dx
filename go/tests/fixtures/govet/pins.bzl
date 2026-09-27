@@ -1,8 +1,10 @@
 """Govet check-only wiring with errcheck complementary."""
 
-GOVET_TOOLCHAIN_VERSION = "1.26.6"
+load("//modules:versions.bzl", _GO_SDK_VERSION = "GO_SDK_VERSION", _RULES_GO_VERSION = "RULES_GO_VERSION")
 
-GOVET_COUPLING = "ships with the qualified Go toolchain (rules_go 0.63.0 plus Go SDK 1.26.6), no separate acquisition"
+GOVET_TOOLCHAIN_VERSION = _GO_SDK_VERSION
+
+GOVET_COUPLING = "ships with the qualified Go toolchain (rules_go " + _RULES_GO_VERSION + " plus Go SDK " + _GO_SDK_VERSION + "), no separate acquisition"
 
 GOVET_CHECK = "go vet text diagnostics file:line:col: message on stderr (exit 0 clean, exit 1 with findings)"
 GOVET_FIX = "check-only with the provisional sandbox-apply-and-diff fix flow"

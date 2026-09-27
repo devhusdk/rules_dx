@@ -1,6 +1,14 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load(":versions_tests.bzl", "versions_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
+
+versions_contract_tests(name = "versions_contract")
+
+test_suite(
+    name = "all",
+    tests = [":versions_contract"],
+)
 
 exports_files([
     "rust.bzl",
@@ -11,6 +19,7 @@ exports_files([
     "npm-uv-crates.bzl",
     "powershell.bzl",
     "toolchains.bzl",
+    "versions.bzl",
 ])
 
 real_source_target(
@@ -27,6 +36,8 @@ real_source_target(
         "rust.bzl",
         "toolchains.bzl",
         "ruby.bzl",
+        "versions.bzl",
+        "versions_tests.bzl",
     ],
     tags = ["corpus"],
 )

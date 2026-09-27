@@ -1,5 +1,7 @@
 """LCOV accounting pins."""
 
+load("//modules:versions.bzl", _BAZEL_VERSION = "BAZEL_VERSION", _RULES_CC_VERSION = "RULES_CC_VERSION", _RULES_RUST_VERSION = "RULES_RUST_VERSION", _RUST_VERSION = "RUST_VERSION")
+
 RUST_ONLY_SHAPE = "Rust-only LCOV via pinned rules_rust llvm-cov"
 RUST_ONLY_FIXTURE = "//rust/tests/fixtures/hello:hello_test"
 CC_ONLY_SHAPE = "C/C++-only LCOV via pinned Bazel LLVM source coverage"
@@ -17,10 +19,10 @@ CXXBRIDGE_CMD_LABEL = "@crates//:cxxbridge-cmd"
 MISSED_LINE_SHAPE = "missed-line test with uncovered location"
 MISSED_LINE_NOTE = "a zero-hit eligible line fails with its location, not just a rate dip"
 
-BAZEL_VERSION = "9.2.0"
-RULES_RUST_VERSION = "0.74.0"
-RULES_CC_VERSION = "0.2.22"
-RUST_VERSION = "1.98.0"
+BAZEL_VERSION = _BAZEL_VERSION
+RULES_RUST_VERSION = _RULES_RUST_VERSION
+RULES_CC_VERSION = _RULES_CC_VERSION
+RUST_VERSION = _RUST_VERSION
 LLVM_BASELINE_MODULE = "0.8.18"
 LLVM_BASELINE_LLVM = "22.1.8"
 LLVM_TARGET_MODULE = "0.8.19"

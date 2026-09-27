@@ -1,8 +1,10 @@
 """Go test runner pins."""
 
-RULES_GO_VERSION = "0.63.0"
+load("//modules:versions.bzl", _GO_SDK_VERSION = "GO_SDK_VERSION", _RULES_GO_VERSION = "RULES_GO_VERSION")
 
-GO_SDK_VERSION = "1.26.6"
+RULES_GO_VERSION = _RULES_GO_VERSION
+
+GO_SDK_VERSION = _GO_SDK_VERSION
 
 GOTEST_KIND = "go_test"
 GOTEST_RUNNER = "go test"

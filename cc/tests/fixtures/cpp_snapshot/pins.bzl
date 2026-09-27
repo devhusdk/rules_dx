@@ -1,12 +1,14 @@
 """C++ exact-target snapshot pins."""
 
+load("//modules:versions.bzl", _BAZEL_VERSION = "BAZEL_VERSION", _RULES_CC_VERSION = "RULES_CC_VERSION")
+
 HEDRON_EXTRACTOR_VERSION = "abb61a688167623088f8768cc9264798df6a9d10"
 HEDRON_EXTRACTOR_COMMIT = "abb61a688167623088f8768cc9264798df6a9d10"
 HEDRON_EXTRACTOR_NOTE = "uses actual action commands"
 HEDRON_SOURCE = "refresh.template.py"
 
-RULES_CC_VERSION = "0.2.22"
-BAZEL_VERSION = "9.2.0"
+RULES_CC_VERSION = _RULES_CC_VERSION
+BAZEL_VERSION = _BAZEL_VERSION
 
 RESOLVER_EXPRESSION_SHAPE = "kind('rule', rdeps(//..., set(<file-labels>), 1))"
 
@@ -22,7 +24,7 @@ MULTI_CONTEXT_EXAMPLE = "cc/tests/fixtures/hello/hello.h in hello_lib plus hello
 MANAGED_TOOLS_NOTE = "managed host-native clangd from the qualified toolchain"
 MANAGED_REJECTED = "unrestricted clangd query-driver execution"
 
-BAZEL_9_NOTE = "Bazel-9 compatibility on Bazel 9.2.0 plus rules_cc 0.2.22"
+BAZEL_9_NOTE = "Bazel-9 compatibility on Bazel " + _BAZEL_VERSION + " plus rules_cc " + _RULES_CC_VERSION
 
 REFRESH_REJECTED = [
     "refresh runs Bazel plus preprocessors",

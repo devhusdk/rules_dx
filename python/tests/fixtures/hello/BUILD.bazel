@@ -1,6 +1,6 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(
     default_testonly = True,
@@ -51,19 +51,13 @@ exports_files([
     "uv.lock",
 ])
 
-sh_test(
+dx_shell_harness(
     name = "hello_output_test",
-    size = "small",
-    timeout = "short",
     srcs = ["hello_output_test.sh"],
     args = ["$(rootpath :hello)"],
     data = [
         ":hello",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 real_source_target(

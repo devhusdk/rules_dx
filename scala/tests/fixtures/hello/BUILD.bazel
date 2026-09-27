@@ -1,6 +1,6 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//scala/rules:defs.bzl", "scala_binary", "scala_library", "scala_test")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(
     default_testonly = True,
@@ -30,19 +30,13 @@ scala_test(
     ],
 )
 
-sh_test(
+dx_shell_harness(
     name = "hello_output_test",
-    size = "small",
-    timeout = "short",
     srcs = ["hello_output_test.sh"],
     args = ["$(rootpath :hello)"],
     data = [
         ":hello",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 real_source_target(

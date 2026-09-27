@@ -1,7 +1,7 @@
 load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -57,49 +57,31 @@ gazelle_generation_test(
     test_data = [":generation_testdata"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "failure_test",
-    size = "small",
-    timeout = "short",
     srcs = ["failure_test.sh"],
     args = ["$(rootpath :gazelle)"],
     data = [
         ":gazelle",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "idempotent_test",
-    size = "small",
-    timeout = "short",
     srcs = ["idempotent_test.sh"],
     args = ["$(rootpath :gazelle)"],
     data = [
         ":gazelle",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "native_config_test",
-    size = "small",
-    timeout = "short",
     srcs = ["native_config_test.sh"],
     args = ["$(rootpath :gazelle)"],
     data = [
         ":gazelle",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 go_test(

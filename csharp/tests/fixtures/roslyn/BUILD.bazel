@@ -1,6 +1,6 @@
 load("@rules_dx//csharp/rules:defs.bzl", "csharp_library")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(
     default_testonly = True,
@@ -45,10 +45,8 @@ csharp_library(
     target_frameworks = ["net10.0"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "roslyn_aggregation_test",
-    size = "small",
-    timeout = "short",
     srcs = ["roslyn_aggregation_test.sh"],
     args = [
         "$(rootpath :net8.sarif)",
@@ -61,9 +59,5 @@ sh_test(
         ":net8.sarif",
         ":roslyn_net10",
         ":roslyn_net8",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )

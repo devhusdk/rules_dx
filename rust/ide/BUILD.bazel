@@ -1,25 +1,19 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(default_visibility = ["//:__subpackages__"])
 
-sh_test(
+dx_shell_harness(
     name = "ide_acquisition_test",
-    size = "small",
-    timeout = "short",
     srcs = ["ide_acquisition_test.sh"],
     args = [
         "$(rootpath @rules_rust//tools/rust_analyzer:gen_rust_project)",
         "$(rootpath @rules_rust//tools/rust_analyzer:flycheck)",
     ],
     data = [
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
         "@rules_rust//tools/rust_analyzer:flycheck",
         "@rules_rust//tools/rust_analyzer:gen_rust_project",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 real_source_target(

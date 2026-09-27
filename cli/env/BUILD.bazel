@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
@@ -120,19 +120,13 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "bootstrap_test",
-    size = "small",
-    timeout = "short",
     srcs = ["bootstrap_test.sh"],
     args = ["$(rootpath :env)"],
     data = [
         ":env",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 real_source_target(

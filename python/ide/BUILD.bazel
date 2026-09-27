@@ -1,13 +1,11 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(default_visibility = ["//:__subpackages__"])
 
 # buildifier: disable=canonical-repository
-sh_test(
+dx_shell_harness(
     name = "ide_acquisition_test",
-    size = "small",
-    timeout = "short",
     srcs = ["ide_acquisition_test.sh"],
     args = select({
         "@platforms//cpu:arm64": ["$(rootpath @@aspect_rules_py++python_interpreters+python_3_12_aarch64_unknown_linux_gnu//:bin/python3)"],
@@ -16,12 +14,7 @@ sh_test(
     data = select({
         "@platforms//cpu:arm64": ["@@aspect_rules_py++python_interpreters+python_3_12_aarch64_unknown_linux_gnu//:bin/python3"],
         "//conditions:default": ["@@aspect_rules_py++python_interpreters+python_3_12_x86_64_unknown_linux_gnu//:bin/python3"],
-    }) + [
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
-    ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
+    }),
 )
 
 real_source_target(

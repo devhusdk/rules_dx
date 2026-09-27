@@ -1,8 +1,8 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "ruff_config", "rustfmt_config", "vale_config")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 # gazelle:resolve rust dx_adopt //cli/adopt:dx_adopt
 # gazelle:resolve rust dx_apply //cli/apply:dx_apply
@@ -120,10 +120,8 @@ filegroup(
     srcs = ["licenses.toml"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "preset_parity_test",
-    size = "small",
-    timeout = "short",
     srcs = ["preset_parity_test.sh"],
     args = [
         "$(rootpath //tools/bazelrc:preset.bazelrc)",
@@ -134,13 +132,9 @@ sh_test(
         "//cli/cli:dx",
         "//tools/bazelrc:preset.bazelrc",
         "//tools/bazelrc:src/lib.rs",
-        "//tools/sh:bootstrap",
         "//tools/sh:guards",
-        "//tools/sh:lib",
         "//tools/sh:snapshot",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 rustfmt_config(

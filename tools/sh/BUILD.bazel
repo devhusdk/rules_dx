@@ -1,8 +1,16 @@
 load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 load("@rules_shell//shell:sh_library.bzl", "sh_library")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":harness_tests.bzl", "harness_unit_tests")
 
 package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "harness.bzl",
+    "harness_tests.bzl",
+])
+
+harness_unit_tests(name = "harness_unit")
 
 sh_library(
     name = "bootstrap",
@@ -56,7 +64,12 @@ py_test(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "harness.bzl",
+        "harness_tests.bzl",
+    ],
     tags = ["corpus"],
 )
 

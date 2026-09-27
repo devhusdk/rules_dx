@@ -1,6 +1,6 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//javascript/rules:defs.bzl", "javascript_binary")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 load("//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
 
 package(
@@ -37,19 +37,13 @@ typescript_test(
     deps = [":hello_lib"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "hello_output_test",
-    size = "small",
-    timeout = "short",
     srcs = ["hello_output_test.sh"],
     args = ["$(rootpath :hello)"],
     data = [
         ":hello",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 real_source_target(

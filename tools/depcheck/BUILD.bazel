@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -110,10 +110,8 @@ rust_clippy_test(
 
 exports_files(["Cargo.toml"])
 
-sh_test(
+dx_shell_harness(
     name = "repo_locks_test",
-    size = "small",
-    timeout = "short",
     srcs = ["repo_locks_test.sh"],
     args = [
         "$(rootpath :depcheck)",
@@ -148,17 +146,11 @@ sh_test(
         "//third_party/jvm:pins.bzl",
         "//third_party/ruby:Gemfile",
         "//third_party/ruby:Gemfile.lock",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
-sh_test(
+dx_shell_harness(
     name = "adopt_locks_test",
-    size = "small",
-    timeout = "short",
     srcs = ["adopt_locks_test.sh"],
     args = [
         "$(rootpath :depcheck)",
@@ -197,11 +189,7 @@ sh_test(
         "//examples/adopt-ruby:Gemfile.lock",
         "//examples/adopt-rust:Cargo.lock",
         "//examples/adopt-rust:Cargo.toml",
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
     ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 filegroup(

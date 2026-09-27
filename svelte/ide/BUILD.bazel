@@ -1,13 +1,11 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(default_visibility = ["//:__subpackages__"])
 
 # buildifier: disable=canonical-repository
-sh_test(
+dx_shell_harness(
     name = "ide_acquisition_test",
-    size = "small",
-    timeout = "short",
     srcs = ["ide_acquisition_test.sh"],
     args = select({
         "@platforms//cpu:arm64": ["$(rootpath @@rules_nodejs++node+nodejs_linux_arm64//:bin/nodejs/bin/node)"],
@@ -16,12 +14,7 @@ sh_test(
     data = select({
         "@platforms//cpu:arm64": ["@@rules_nodejs++node+nodejs_linux_arm64//:bin/nodejs/bin/node"],
         "//conditions:default": ["@@rules_nodejs++node+nodejs_linux_amd64//:bin/nodejs/bin/node"],
-    }) + [
-        "//tools/sh:bootstrap",
-        "//tools/sh:lib",
-    ],
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
+    }),
 )
 
 real_source_target(

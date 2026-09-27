@@ -1,5 +1,15 @@
 use super::*;
 
+#[cfg(windows)]
+fn test_symlink(target: &Path, link: &Path) -> io::Result<()> {
+    std::os::windows::fs::symlink_file(target, link)
+}
+
+#[cfg(not(windows))]
+fn test_symlink(target: &Path, link: &Path) -> io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
 fn plan(bin_name: &str, owner: &str) -> ToolPlan {
     ToolPlan {
         bin_name: bin_name.to_string(),
@@ -19,7 +29,7 @@ fn write_staged(root: &Path, tools: &[(&str, &str, &[&str])]) -> (PathBuf, PathB
         fs::write(&real, format!("#!/bin/sh\necho {bin_name}\n")).expect("write target");
         for host in *hosts {
             let _ = fs::remove_file(staged_bin.join(host));
-            std::os::unix::fs::symlink(&real, staged_bin.join(host)).expect("stage link");
+            test_symlink(&real, &staged_bin.join(host)).expect("stage link");
         }
         let host_list = hosts
             .iter()
@@ -317,8 +327,7 @@ fn staged_rejects_non_link_and_dangling() {
         Err(Error::Staged { .. })
     ));
     fs::remove_file(staged_bin.join("a")).expect("remove clobber");
-    std::os::unix::fs::symlink(root.join("dangling-target"), staged_bin.join("a"))
-        .expect("dangling link");
+    test_symlink(&root.join("dangling-target"), &staged_bin.join("a")).expect("dangling link");
     assert!(matches!(
         refresh(&opts, &probe_symlink),
         Err(Error::Staged { .. })
@@ -413,7 +422,7 @@ fn unmanaged_states_refuse_without_mutation() {
     );
     fs::remove_file(dx.join("bin")).expect("remove file bin");
 
-    std::os::unix::fs::symlink(root.join("elsewhere"), dx.join("bin")).expect("symlink bin");
+    test_symlink(&root.join("elsewhere"), &dx.join("bin")).expect("symlink bin");
     assert!(matches!(
         refresh(&opts, &probe_symlink),
         Err(Error::Unmanaged { .. })

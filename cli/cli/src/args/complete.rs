@@ -39,79 +39,23 @@ fn update_set_hints(current: &str) -> Vec<String> {
 }
 
 pub fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<String>, bool) {
-    match command {
-        Command::Security => (Vec::new(), true),
-        Command::License => (Vec::new(), true),
-        Command::Lint => (Vec::new(), true),
-        Command::Typecheck => (Vec::new(), true),
-        Command::Format => (Vec::new(), true),
-        Command::Generate => (Vec::new(), true),
-        Command::Build => (Vec::new(), true),
-        Command::Test => (Vec::new(), true),
-        Command::Coverage => (Vec::new(), true),
-        Command::Run => (Vec::new(), true),
-        Command::Deploy => (Vec::new(), true),
-        Command::Check => (Vec::new(), true),
-        Command::Fix => (Vec::new(), true),
-        Command::Clean => (Vec::new(), false),
-        Command::Update => {
-            if prior.is_empty() {
-                (update_set_hints(current), true)
-            } else {
-                (Vec::new(), true)
-            }
+    use super::command::FirstSlot;
+    let meta = command.meta();
+    let fixed = if prior.is_empty() {
+        match meta.first_slot {
+            FirstSlot::None => Vec::new(),
+            FirstSlot::UpdateSets => update_set_hints(current),
+            FirstSlot::NewLanguages => prefixed(dx_adopt::SUPPORTED_NEW_LANGUAGES, current),
+            FirstSlot::HookVerbs => prefixed(HOOK_VERBS, current),
+            FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
+            FirstSlot::CompletionShells => prefixed(COMPLETION_SHELLS, current),
         }
-        Command::Bump => {
-            if prior.is_empty() {
-                (update_set_hints(current), false)
-            } else {
-                (Vec::new(), false)
-            }
-        }
-        Command::Migrate => (Vec::new(), true),
-        Command::Codegen => (Vec::new(), prior.is_empty()),
-        Command::Env => (Vec::new(), prior.is_empty()),
-        Command::Setup => (Vec::new(), prior.is_empty()),
-        Command::Init => (Vec::new(), false),
-        Command::New => {
-            if prior.is_empty() {
-                (prefixed(dx_adopt::SUPPORTED_NEW_LANGUAGES, current), false)
-            } else {
-                (Vec::new(), false)
-            }
-        }
-        Command::Upgrade => (Vec::new(), false),
-        Command::Hooks => {
-            if prior.is_empty() {
-                (prefixed(HOOK_VERBS, current), false)
-            } else if prior.len() == 1 && prior[0] == "run" {
-                (prefixed(HOOK_TRIGGERS, current), false)
-            } else {
-                (Vec::new(), false)
-            }
-        }
-        Command::Status => (Vec::new(), false),
-        Command::Version => (Vec::new(), false),
-        Command::Watch => {
-            if prior.is_empty() {
-                (prefixed(dx_adopt::WATCHABLE_COMMANDS, current), false)
-            } else {
-                (Vec::new(), true)
-            }
-        }
-        Command::Owners => (Vec::new(), true),
-        Command::Deps => (Vec::new(), true),
-        Command::Why => (Vec::new(), prior.len() < 2),
-        Command::Completion => {
-            if prior.is_empty() {
-                (prefixed(COMPLETION_SHELLS, current), false)
-            } else {
-                (Vec::new(), false)
-            }
-        }
-        Command::Docs => (Vec::new(), true),
-        Command::Bazel => (Vec::new(), false),
-    }
+    } else if prior.len() == 1 && prior[0] == "run" && meta.hook_triggers_on_run {
+        prefixed(HOOK_TRIGGERS, current)
+    } else {
+        Vec::new()
+    };
+    (fixed, command.allows_labels(prior.len()))
 }
 
 pub fn completes_labels(command: Command) -> bool {

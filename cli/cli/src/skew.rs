@@ -11,15 +11,10 @@ pub fn disposition(command: Command, dry_run: bool, skewed: bool) -> SkewDisposi
     if !skewed {
         return SkewDisposition::Proceed;
     }
-    match command {
-        Command::Version | Command::Status | Command::Completion => SkewDisposition::Proceed,
-        Command::Check
-        | Command::Security
-        | Command::License
-        | Command::Owners
-        | Command::Deps
-        | Command::Why => SkewDisposition::Warn,
-        _ => {
+    match command.meta().skew {
+        crate::args::command::SkewKind::Proceed => SkewDisposition::Proceed,
+        crate::args::command::SkewKind::Warn => SkewDisposition::Warn,
+        crate::args::command::SkewKind::Refuse => {
             if dry_run {
                 SkewDisposition::Warn
             } else {

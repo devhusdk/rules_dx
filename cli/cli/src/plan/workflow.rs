@@ -14,33 +14,12 @@ pub enum WorkflowVerb {
 
 impl WorkflowVerb {
     pub fn of(command: Command) -> Option<Self> {
-        match command {
-            Command::Build => Some(WorkflowVerb::Build),
-            Command::Test => Some(WorkflowVerb::Test),
-            Command::Coverage => Some(WorkflowVerb::Coverage),
-            Command::Run => Some(WorkflowVerb::Run),
-            Command::Deploy => None,
-            Command::Lint | Command::Typecheck | Command::Format | Command::Generate => None,
-            Command::Check | Command::Fix | Command::Clean => None,
-            Command::Codegen | Command::Env | Command::Setup => None,
-            Command::Security
-            | Command::License
-            | Command::Update
-            | Command::Bump
-            | Command::Migrate => None,
-            Command::Bazel => None,
-            Command::Init
-            | Command::New
-            | Command::Upgrade
-            | Command::Hooks
-            | Command::Status
-            | Command::Version
-            | Command::Watch
-            | Command::Owners
-            | Command::Deps
-            | Command::Why
-            | Command::Completion
-            | Command::Docs => None,
+        match command.meta().workflow_verb {
+            Some("build") => Some(WorkflowVerb::Build),
+            Some("test") => Some(WorkflowVerb::Test),
+            Some("coverage") => Some(WorkflowVerb::Coverage),
+            Some("run") => Some(WorkflowVerb::Run),
+            _ => None,
         }
     }
 

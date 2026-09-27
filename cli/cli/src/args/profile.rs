@@ -29,9 +29,10 @@ impl Profile {
     }
 
     pub fn default_for(command: Command) -> Self {
-        match command {
-            Command::Deploy => Profile::Release,
-            _ => Profile::Dev,
+        if command.meta().default_release {
+            Profile::Release
+        } else {
+            Profile::Dev
         }
     }
 

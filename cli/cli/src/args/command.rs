@@ -35,7 +35,894 @@ pub enum Command {
     Bazel,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FirstSlot {
+    None,
+    UpdateSets,
+    NewLanguages,
+    HookVerbs,
+    WatchTasks,
+    CompletionShells,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LabelsPolicy {
+    Always,
+    Never,
+    OnlyEmpty,
+    OnlyNonEmpty,
+    FewerThanTwo,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SkewKind {
+    Proceed,
+    Warn,
+    Refuse,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommandMeta {
+    pub command: Command,
+    pub name: &'static str,
+    pub scope_policy: &'static str,
+    pub describe: &'static str,
+    pub usage: &'static str,
+    pub flags: &'static str,
+    pub scopes: &'static str,
+    pub is_workflow: bool,
+    pub is_umbrella: bool,
+    pub is_audit_update: bool,
+    pub is_managed: bool,
+    pub is_adoption: bool,
+    pub supports_json: bool,
+    pub supports_diff: bool,
+    pub supports_here: bool,
+    pub supports_offline: bool,
+    pub is_mutating_by_default: bool,
+    pub default_release: bool,
+    pub skew: SkewKind,
+    pub workflow_verb: Option<&'static str>,
+    pub first_slot: FirstSlot,
+    pub labels: LabelsPolicy,
+    pub hook_triggers_on_run: bool,
+}
+
+pub static COMMANDS: [CommandMeta; 33] = [
+    CommandMeta {
+        command: Command::Security,
+        name: "security",
+        scope_policy: "default-//...",
+        describe: "run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)",
+        usage: "Usage: dx [global-options] security [--offline|--frozen] [--here] [scope ...]",
+        flags: "Per-command flags: --offline/--frozen (cache-only, no network fetches), --fail-on info|warning|error, --report sarif|spdx (security/license only; --check and `-- --bazel-options` do not apply; --output diff has no patch).",
+        scopes: "Scopes: dependency-set/package/target selectors; bare run audits //... (secrets plus vulnerabilities). Pass --here (--cwd alias) for the current directory tree instead; --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: true,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: true,
+        supports_offline: true,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::License,
+        name: "license",
+        scope_policy: "default-//...",
+        describe: "run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)",
+        usage: "Usage: dx [global-options] license [--offline|--frozen] [--here] [scope ...]",
+        flags: "Per-command flags: --offline/--frozen (cache-only, no network fetches), --fail-on info|warning|error, --report sarif|spdx (security/license only; --check and `-- --bazel-options` do not apply; --output diff has no patch).",
+        scopes: "Scopes: dependency-set/package/target selectors; bare run audits //... (license policy plus SPDX inventory). Pass --here (--cwd alias) for the current directory tree instead; --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: true,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: true,
+        supports_offline: true,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Lint,
+        name: "lint",
+        scope_policy: "default-//...",
+        describe: "run lint analysis over resolved scopes (mutating by default; --check is non-mutating)",
+        usage: "Usage: dx [global-options] lint|typecheck|format|generate [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: true,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Typecheck,
+        name: "typecheck",
+        scope_policy: "default-//...",
+        describe: "run typecheck analysis over resolved scopes (mutating by default; --check is non-mutating)",
+        usage: "Usage: dx [global-options] lint|typecheck|format|generate [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: true,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Format,
+        name: "format",
+        scope_policy: "default-//...",
+        describe: "check or rewrite formatting over resolved scopes (mutating by default; --check is non-mutating)",
+        usage: "Usage: dx [global-options] lint|typecheck|format|generate [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: true,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Generate,
+        name: "generate",
+        scope_policy: "default-repo",
+        describe: "emit/sync BUILD files (Gazelle pipeline; mutating by default; --check validates without writes)",
+        usage: "Usage: dx [global-options] lint|typecheck|format|generate [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: true,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Build,
+        name: "build",
+        scope_policy: "default-//...",
+        describe: "run Bazel build over resolved targets",
+        usage: "Usage: dx [global-options] build|test [--here] [--debug|--release] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: true,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: Some("build"),
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Test,
+        name: "test",
+        scope_policy: "default-//...",
+        describe: "run Bazel test over resolved targets",
+        usage: "Usage: dx [global-options] build|test [--here] [--debug|--release] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: true,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: Some("test"),
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Coverage,
+        name: "coverage",
+        scope_policy: "default-//...",
+        describe: "collect LCOV coverage with optional threshold",
+        usage: "Usage: dx [global-options] coverage [--here] [--min-coverage 0-100] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --min-coverage <0-100> (coverage only; collects without enforcing when absent).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: true,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: Some("coverage"),
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Run,
+        name: "run",
+        scope_policy: "require",
+        describe: "build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)",
+        usage: "Usage: dx [global-options] run [--debug|--release] <target> [-- app-args ...]",
+        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Requires a scope (empty scope is a usage error); file/dir scopes need exactly one runnable.",
+        is_workflow: true,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: Some("run"),
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Deploy,
+        name: "deploy",
+        scope_policy: "require-label",
+        describe: "build and run a single deployable target",
+        usage: "Usage: dx [global-options] deploy [--debug|--release] <label> [-- app-args ...]",
+        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
+        scopes: "Scopes: exactly one main-workspace label (//pkg:target); patterns (//...), multiple labels, and file/path scopes are usage failures.",
+        is_workflow: true,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: false,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: true,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Check,
+        name: "check",
+        scope_policy: "default-//...",
+        describe: "run format+lint+typecheck+generate checks in order (non-mutating)",
+        usage: "Usage: dx [global-options] check|fix [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --check/--fail-on/--report pass through per phase (check only; non-mutating umbrella over format+lint+typecheck+generate, stop-on-first-failure).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: true,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: true,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Fix,
+        name: "fix",
+        scope_policy: "default-//...",
+        describe: "apply format+lint+typecheck+generate fixes in order (mutating by default; no rerun, run `dx check` to validate)",
+        usage: "Usage: dx [global-options] check|fix [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --check/--fail-on/--report pass through per phase (fix only; mutating by default with no rerun, run `dx check` to validate).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: true,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: true,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Clean,
+        name: "clean",
+        scope_policy: "reject",
+        describe: "prune unselected managed state, never Bazel outputs unless --bazel (no scopes)",
+        usage: "Usage: dx [global-options] clean [--dry-run] [--bazel]",
+        flags: "Per-command flags: --bazel (also run `bazel clean` after pruning; default never touches Bazel outputs; distinct from `dx bazel`, which forwards raw args; --output text|json only, diff has no patch).",
+        scopes: "Scopes: none (clean takes no scopes).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Update,
+        name: "update",
+        scope_policy: "selector-default-all",
+        describe: "update dependencies per set through qualified resolvers (mutating without confirmation; --check is the preset stale gate)",
+        usage: "Usage: dx [global-options] update [--offline|--frozen] [selector ...]",
+        flags: "Per-command flags: --offline/--frozen (cache-only, no network fetches), --check (preset stale gate; selectors ignored) (update only; --fail-on/--report and `-- --bazel-options` do not apply; --output diff has no patch).",
+        scopes: "Scopes: dependency-set/package/target selectors (cargo|npm|maven|nuget|go, set:package, labels/paths); bare run updates all sets.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: true,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: true,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::UpdateSets,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Bump,
+        name: "bump",
+        scope_policy: "require-selector+version",
+        describe: "widen one declared requirement to a new version (explicit; mutating without confirmation)",
+        usage: "Usage: dx [global-options] bump [--offline|--frozen] <set:package> <version>",
+        flags: "Per-command flags: --offline/--frozen (cache-only, no network fetches; exactly one `set:package` plus version; --check/--fail-on/--report and `-- --bazel-options` do not apply; --output diff has no patch).",
+        scopes: "Scopes: exactly one `set:package` plus one new version (bazel|cargo|github-actions|go|maven|npm|nuget); never batch.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: true,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: true,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::UpdateSets,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Migrate,
+        name: "migrate",
+        scope_policy: "default-//...",
+        describe: "rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)",
+        usage: "Usage: dx [global-options] migrate --from <version> --to <version> [scope ...]",
+        flags: "Per-command flags: --from <version> --to <version> (migrate only; both Cargo semver, upgrade-only gate).",
+        scopes: "Scopes: explicit Bazel labels/patterns or workspace-relative files/dirs reusing generation scope resolution; external scopes rejected. No scope selects //....",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Codegen,
+        name: "codegen",
+        scope_policy: "default-repo|exact-label",
+        describe: "collect codegen outputs with atomic commit (mutating managed state)",
+        usage: "Usage: dx [global-options] codegen|env|setup [<label>] [-- bazel-options ...]",
+        flags: "Per-command flags: none (repository-wide or one exact // or @ label; --check/--fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen-setup.md).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: true,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::OnlyEmpty,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Env,
+        name: "env",
+        scope_policy: "default-repo|exact-label",
+        describe: "collect the managed development environment (mutating managed state)",
+        usage: "Usage: dx [global-options] codegen|env|setup [<label>] [-- bazel-options ...]",
+        flags: "Per-command flags: none (repository-wide or one exact // or @ label; --check/--fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen-setup.md).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: true,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::OnlyEmpty,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Setup,
+        name: "setup",
+        scope_policy: "default-repo|exact-label",
+        describe: "collect setup outputs with atomic commit (mutating managed state)",
+        usage: "Usage: dx [global-options] codegen|env|setup [<label>] [-- bazel-options ...]",
+        flags: "Per-command flags: none (repository-wide or one exact // or @ label; --check/--fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen-setup.md).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: true,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::OnlyEmpty,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Init,
+        name: "init",
+        scope_policy: "optional-name",
+        describe: "scaffold dx into a foreign tree (absent-only; mutating by default)",
+        usage: "Usage: dx [global-options] init [module-name]",
+        flags: "Per-command flags: none (optional [module-name]; --check/--fail-on/--report/--output json|diff and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: optional single module name (defaults to my_project when absent); Bazel labels/patterns are not scopes; extra positionals are usage failures.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: false,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::New,
+        name: "new",
+        scope_policy: "require",
+        describe: "scaffold a minimal qualified project for one language (absent-only; mutating by default)",
+        usage: "Usage: dx [global-options] new <language> [name]",
+        flags: "Per-command flags: none (<language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cc|cpp; absent-only, no --force).",
+        scopes: "Scopes: <language> plus optional project name (defaults to my_project); unknown languages fail with the supported list; extra positionals are usage failures.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: false,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::NewLanguages,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Upgrade,
+        name: "upgrade",
+        scope_policy: "reject",
+        describe: "one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)",
+        usage: "Usage: dx [global-options] upgrade --from <version> --to <version>",
+        flags: "Per-command flags: --from <version> --to <version> (upgrade only; pin+migrate+setup composition with recovery pointer).",
+        scopes: "Scopes: none (repository-wide pin+migrate+setup composition; --from/--to required, positional scopes rejected).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Hooks,
+        name: "hooks",
+        scope_policy: "require",
+        describe: "manage Git hooks via hermetic Git (mutating by default)",
+        usage: "Usage: dx [global-options] hooks <install|uninstall|status|run [pre-commit|pre-push]>",
+        flags: "Per-command flags: none (verbs install|uninstall|status|run [pre-commit|pre-push]; --check/--fail-on/--report/--output json|diff and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: verb install|uninstall|status|run (run requires pre-commit|pre-push); no Bazel scopes; `-- --bazel-options` does not apply.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: false,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: true,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::HookVerbs,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: true,
+    },
+    CommandMeta {
+        command: Command::Status,
+        name: "status",
+        scope_policy: "reject",
+        describe: "report workspace and target status",
+        usage: "Usage: dx [global-options] status",
+        flags: "Per-command flags: none (no scopes; --output text|json only, diff has no patch; --check/--fail-on/--report/--pin/--rollback/--configured and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`; JSON streams command_started, one status event per check (name, status, detail, hint), optional status_pin_mismatch error, command_finished; no dx doctor, use dx status, see docs/cli/commands/status-version.md#failure-explainer).",
+        scopes: "Scopes: none (status takes no scopes).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Version,
+        name: "version",
+        scope_policy: "reject",
+        describe: "report version and pin drift",
+        usage: "Usage: dx [global-options] version [--check] [--pin <version>|--rollback]",
+        flags: "Per-command flags: --check (drift check), --pin <version>, --rollback (version only; --pin and --rollback conflict; --output text|json only, diff has no patch; JSON reuses the status envelope).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/README.md#scope-defaults).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Watch,
+        name: "watch",
+        scope_policy: "require",
+        describe: "watch for changes and rebuild (local only)",
+        usage: "Usage: dx [global-options] watch <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: wrapped-command flags pass through per iteration (watch only wraps build|test|run|lint|typecheck|format|check|fix; local only, refuses CI; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check|fix are watchable).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: false,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::WatchTasks,
+        labels: LabelsPolicy::OnlyNonEmpty,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Owners,
+        name: "owners",
+        scope_policy: "require",
+        describe: "query owners of files via Bazel query",
+        usage: "Usage: dx [global-options] owners [--configured] <scope> ...",
+        flags: "Per-command flags: --configured (use `bazel cquery` instead of `bazel query`; distinct from `dx clean --bazel`, which forwards `bazel clean`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/README.md#scope-defaults).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Deps,
+        name: "deps",
+        scope_policy: "require",
+        describe: "query dependencies of targets",
+        usage: "Usage: dx [global-options] deps [--configured] <scope> ...",
+        flags: "Per-command flags: --configured (use `bazel cquery` instead of `bazel query`; distinct from `dx clean --bazel`, which forwards `bazel clean`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/README.md#scope-defaults).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Why,
+        name: "why",
+        scope_policy: "require-file+label",
+        describe: "explain why a target depends on another",
+        usage: "Usage: dx [global-options] why [--configured] <file> <label>",
+        flags: "Per-command flags: --configured (use `bazel cquery` instead of `bazel query`; distinct from `dx clean --bazel`, which forwards `bazel clean`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/README.md#scope-defaults).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::FewerThanTwo,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Completion,
+        name: "completion",
+        scope_policy: "require",
+        describe: "emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)",
+        usage: "Usage: dx [global-options] completion [<shell> bash|zsh|fish|powershell] [--check]",
+        flags: "Per-command flags: [--check] verifies without writing (exactly one <shell> bash|zsh|fish|powershell without --check, zero shells checks all, one checks that shell with --check; unknown shells fail with unknown-shell; --output json|diff and `-- --bazel-options` do not apply).",
+        scopes: "Scopes: exactly one shell (bash|zsh|fish|powershell) without --check, zero (all shells) or one with --check; unknown shells fail with unknown-shell.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: false,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::CompletionShells,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Docs,
+        name: "docs",
+        scope_policy: "default-repo",
+        describe: "build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)",
+        usage: "Usage: dx [global-options] docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...]",
+        flags: "Per-command flags: --check/--serve/--port/--host/--open (docs only; --check validates without rendering, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:user_site, //docs/site:user_site_aggregate in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: true,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
+    CommandMeta {
+        command: Command::Bazel,
+        name: "bazel",
+        scope_policy: "passthrough",
+        describe: "forward raw arguments to the Bazel launcher",
+        usage: "Usage: dx [global-options] bazel [-- bazel-args ...]",
+        flags: "Per-command flags: none (raw Bazel forwarding; dx-owned options must precede the command word and most are rejected).",
+        scopes: "Scopes: none (raw Bazel forwarding; no dx scope resolution).",
+        is_workflow: false,
+        is_umbrella: false,
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: false,
+        supports_diff: false,
+        supports_here: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Refuse,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
+];
+
 impl Command {
+    pub fn meta(self) -> &'static CommandMeta {
+        let entry = &COMMANDS[self as usize];
+        debug_assert_eq!(entry.command, self);
+        entry
+    }
+
     pub fn pipe_list() -> String {
         use clap::ValueEnum;
         Self::value_variants()
@@ -46,73 +933,11 @@ impl Command {
     }
 
     pub fn scope_policy(self) -> &'static str {
-        match self {
-            Command::Security
-            | Command::License
-            | Command::Lint
-            | Command::Typecheck
-            | Command::Format
-            | Command::Build
-            | Command::Test
-            | Command::Coverage
-            | Command::Check
-            | Command::Fix
-            | Command::Migrate => "default-//...",
-            Command::Generate | Command::Docs => "default-repo",
-            Command::Codegen | Command::Env | Command::Setup => "default-repo|exact-label",
-            Command::Deploy => "require-label",
-            Command::Update => "selector-default-all",
-            Command::Bump => "require-selector+version",
-            Command::Run
-            | Command::Hooks
-            | Command::Watch
-            | Command::Owners
-            | Command::Deps
-            | Command::Completion
-            | Command::New => "require",
-            Command::Why => "require-file+label",
-            Command::Clean | Command::Status | Command::Version | Command::Upgrade => "reject",
-            Command::Init => "optional-name",
-            Command::Bazel => "passthrough",
-        }
+        self.meta().scope_policy
     }
 
     pub fn name(self) -> &'static str {
-        match self {
-            Command::Security => "security",
-            Command::License => "license",
-            Command::Lint => "lint",
-            Command::Typecheck => "typecheck",
-            Command::Format => "format",
-            Command::Generate => "generate",
-            Command::Build => "build",
-            Command::Test => "test",
-            Command::Coverage => "coverage",
-            Command::Run => "run",
-            Command::Deploy => "deploy",
-            Command::Check => "check",
-            Command::Fix => "fix",
-            Command::Clean => "clean",
-            Command::Update => "update",
-            Command::Bump => "bump",
-            Command::Migrate => "migrate",
-            Command::Codegen => "codegen",
-            Command::Env => "env",
-            Command::Setup => "setup",
-            Command::Init => "init",
-            Command::New => "new",
-            Command::Upgrade => "upgrade",
-            Command::Hooks => "hooks",
-            Command::Status => "status",
-            Command::Version => "version",
-            Command::Watch => "watch",
-            Command::Owners => "owners",
-            Command::Deps => "deps",
-            Command::Why => "why",
-            Command::Completion => "completion",
-            Command::Docs => "docs",
-            Command::Bazel => "bazel",
-        }
+        self.meta().name
     }
 
     pub(crate) fn parse(text: &str) -> Option<Self> {
@@ -121,169 +946,68 @@ impl Command {
     }
 
     pub fn is_workflow(self) -> bool {
-        matches!(
-            self,
-            Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy
-        )
+        self.meta().is_workflow
     }
 
     pub fn is_umbrella(self) -> bool {
-        matches!(self, Command::Check | Command::Fix)
+        self.meta().is_umbrella
     }
 
     pub fn is_audit_update(self) -> bool {
-        matches!(
-            self,
-            Command::Security | Command::License | Command::Update | Command::Bump
-        )
+        self.meta().is_audit_update
     }
 
     pub fn is_managed(self) -> bool {
-        matches!(self, Command::Codegen | Command::Env | Command::Setup)
+        self.meta().is_managed
     }
 
     pub fn is_adoption(self) -> bool {
-        matches!(
-            self,
-            Command::Init
-                | Command::New
-                | Command::Upgrade
-                | Command::Hooks
-                | Command::Status
-                | Command::Version
-                | Command::Watch
-                | Command::Owners
-                | Command::Deps
-                | Command::Why
-                | Command::Completion
-        )
+        self.meta().is_adoption
     }
 
     pub fn supports_json(self) -> bool {
-        matches!(
-            self,
-            Command::Security
-                | Command::License
-                | Command::Lint
-                | Command::Typecheck
-                | Command::Format
-                | Command::Generate
-                | Command::Build
-                | Command::Test
-                | Command::Coverage
-                | Command::Run
-                | Command::Update
-                | Command::Bump
-                | Command::Migrate
-                | Command::Upgrade
-                | Command::Check
-                | Command::Fix
-                | Command::Clean
-                | Command::Codegen
-                | Command::Env
-                | Command::Setup
-                | Command::Status
-                | Command::Version
-                | Command::Owners
-                | Command::Deps
-                | Command::Why
-                | Command::Docs
-        )
+        self.meta().supports_json
     }
 
     pub fn supports_diff(self) -> bool {
-        matches!(
-            self,
-            Command::Lint
-                | Command::Typecheck
-                | Command::Format
-                | Command::Generate
-                | Command::Check
-                | Command::Fix
-        )
+        self.meta().supports_diff
     }
 
     pub fn supports_here(self) -> bool {
-        matches!(
-            self,
-            Command::Security
-                | Command::License
-                | Command::Lint
-                | Command::Typecheck
-                | Command::Format
-                | Command::Generate
-                | Command::Build
-                | Command::Test
-                | Command::Coverage
-                | Command::Check
-                | Command::Fix
-                | Command::Docs
-        )
+        self.meta().supports_here
     }
 
     pub fn supports_offline(self) -> bool {
-        matches!(
-            self,
-            Command::Security | Command::License | Command::Update | Command::Bump
-        )
+        self.meta().supports_offline
     }
 
     pub fn is_mutating_by_default(self) -> bool {
-        matches!(
-            self,
-            Command::Lint
-                | Command::Typecheck
-                | Command::Format
-                | Command::Update
-                | Command::Bump
-                | Command::Migrate
-                | Command::New
-                | Command::Upgrade
-                | Command::Generate
-                | Command::Codegen
-                | Command::Env
-                | Command::Setup
-                | Command::Init
-                | Command::Fix
-                | Command::Hooks
-        )
+        self.meta().is_mutating_by_default
     }
 
     pub fn describe(self) -> &'static str {
-        match self {
-            Command::Security => "run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)",
-            Command::License => "run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)",
-            Command::Lint => "run lint analysis over resolved scopes (mutating by default; --check is non-mutating)",
-            Command::Typecheck => "run typecheck analysis over resolved scopes (mutating by default; --check is non-mutating)",
-            Command::Format => "check or rewrite formatting over resolved scopes (mutating by default; --check is non-mutating)",
-            Command::Generate => "emit/sync BUILD files (Gazelle pipeline; mutating by default; --check validates without writes)",
-            Command::Build => "run Bazel build over resolved targets",
-            Command::Test => "run Bazel test over resolved targets",
-            Command::Coverage => "collect LCOV coverage with optional threshold",
-            Command::Run => "build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)",
-            Command::Deploy => "build and run a single deployable target",
-            Command::Check => "run format+lint+typecheck+generate checks in order (non-mutating)",
-            Command::Fix => "apply format+lint+typecheck+generate fixes in order (mutating by default; no rerun, run `dx check` to validate)",
-            Command::Clean => "prune unselected managed state, never Bazel outputs unless --bazel (no scopes)",
-            Command::Update => "update dependencies per set through qualified resolvers (mutating without confirmation; --check is the preset stale gate)",
-            Command::Bump => "widen one declared requirement to a new version (explicit; mutating without confirmation)",
-            Command::Migrate => "rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)",
-            Command::Codegen => "collect codegen outputs with atomic commit (mutating managed state)",
-            Command::Env => "collect the managed development environment (mutating managed state)",
-            Command::Setup => "collect setup outputs with atomic commit (mutating managed state)",
-            Command::Init => "scaffold dx into a foreign tree (absent-only; mutating by default)",
-            Command::New => "scaffold a minimal qualified project for one language (absent-only; mutating by default)",
-            Command::Upgrade => "one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)",
-            Command::Hooks => "manage Git hooks via hermetic Git (mutating by default)",
-            Command::Status => "report workspace and target status",
-            Command::Version => "report version and pin drift",
-            Command::Watch => "watch for changes and rebuild (local only)",
-            Command::Owners => "query owners of files via Bazel query",
-            Command::Deps => "query dependencies of targets",
-            Command::Why => "explain why a target depends on another",
-            Command::Completion => "emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)",
-            Command::Docs => "build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)",
-            Command::Bazel => "forward raw arguments to the Bazel launcher",
+        self.meta().describe
+    }
+
+    pub fn usage(self) -> &'static str {
+        self.meta().usage
+    }
+
+    pub fn flags(self) -> &'static str {
+        self.meta().flags
+    }
+
+    pub fn scopes_text(self) -> &'static str {
+        self.meta().scopes
+    }
+
+    pub(crate) fn allows_labels(self, prior_len: usize) -> bool {
+        match self.meta().labels {
+            LabelsPolicy::Always => true,
+            LabelsPolicy::Never => false,
+            LabelsPolicy::OnlyEmpty => prior_len == 0,
+            LabelsPolicy::OnlyNonEmpty => prior_len > 0,
+            LabelsPolicy::FewerThanTwo => prior_len < 2,
         }
     }
 }
@@ -702,6 +1426,36 @@ mod tests {
         }
         for stem in ["output", "fail", "here", "color", "host", "open"] {
             assert!(text.contains(stem), "man missing flag stem {stem}");
+        }
+    }
+
+    #[test]
+    fn table_covers_every_command_exactly_once() {
+        use clap::ValueEnum;
+        assert_eq!(COMMANDS.len(), 33);
+        assert_eq!(COMMANDS.len(), Command::value_variants().len());
+        for (index, entry) in COMMANDS.iter().enumerate() {
+            assert_eq!(
+                entry.command,
+                Command::value_variants()[index],
+                "table order must match declaration order"
+            );
+            assert_eq!(entry.name, entry.command.meta().name);
+            assert_eq!(entry.describe, entry.command.describe());
+            assert_eq!(entry.usage, entry.command.usage());
+            assert_eq!(entry.flags, entry.command.flags());
+            assert_eq!(entry.scopes, entry.command.scopes_text());
+            assert_eq!(entry.scope_policy, entry.command.scope_policy());
+        }
+        let mut seen: Vec<Command> = Vec::new();
+        for entry in COMMANDS.iter() {
+            assert!(!seen.contains(&entry.command), "duplicate table entry");
+            seen.push(entry.command);
+            assert!(!entry.name.is_empty());
+            assert!(!entry.describe.is_empty());
+            assert!(!entry.usage.is_empty());
+            assert!(!entry.flags.is_empty());
+            assert!(!entry.scopes.is_empty());
         }
     }
 }

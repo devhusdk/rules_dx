@@ -1,7 +1,7 @@
 """Unit tests for the shell-harness helper."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":harness.bzl", "dx_harness_data", "dx_harness_env", "dx_harness_linux", "dx_harness_tags")
+load(":harness.bzl", "dx_harness_data", "dx_harness_entry", "dx_harness_env", "dx_harness_linux", "dx_harness_tags")
 
 def harness_unit_tests(name):
     """Runs the unit tests for the shell-harness helper."""
@@ -58,6 +58,36 @@ def harness_unit_tests(name):
                 "explicit preload is not overwritten",
                 dx_harness_env({"DX_BOOTSTRAP": "/custom/bootstrap.sh"}),
                 {"DX_BOOTSTRAP": "/custom/bootstrap.sh"},
+            ),
+            expect_equal(
+                "bare env with payload resolves to both preload entries",
+                dx_harness_env(None, "my/pkg/test.sh"),
+                {"DX_BOOTSTRAP": "_main/tools/sh/bootstrap.sh", "DX_HARNESS_SRC": "my/pkg/test.sh"},
+            ),
+            expect_equal(
+                "caller env keeps its entries plus the payload entry",
+                dx_harness_env({"FOO": "bar"}, "my/pkg/test.sh"),
+                {"FOO": "bar", "DX_BOOTSTRAP": "_main/tools/sh/bootstrap.sh", "DX_HARNESS_SRC": "my/pkg/test.sh"},
+            ),
+            expect_equal(
+                "explicit payload is not overwritten",
+                dx_harness_env({"DX_HARNESS_SRC": "custom/probe.sh"}, "my/pkg/test.sh"),
+                {"DX_BOOTSTRAP": "_main/tools/sh/bootstrap.sh", "DX_HARNESS_SRC": "custom/probe.sh"},
+            ),
+            expect_equal(
+                "relative payload resolves against the caller package",
+                dx_harness_entry("my/pkg", ["test.sh"]),
+                {"srcs": ["//tools/sh:entry.sh"], "data": ["test.sh"], "rel": "my/pkg/test.sh"},
+            ),
+            expect_equal(
+                "colon payload resolves against the caller package",
+                dx_harness_entry("my/pkg", [":test.sh"]),
+                {"srcs": ["//tools/sh:entry.sh"], "data": [":test.sh"], "rel": "my/pkg/test.sh"},
+            ),
+            expect_equal(
+                "absolute payload resolves to its workspace relpath",
+                dx_harness_entry("other/pkg", ["//my/pkg:test.sh"]),
+                {"srcs": ["//tools/sh:entry.sh"], "data": ["//my/pkg:test.sh"], "rel": "my/pkg/test.sh"},
             ),
         ],
     )

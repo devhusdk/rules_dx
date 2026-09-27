@@ -7,6 +7,7 @@ load(":harness_tests.bzl", "harness_unit_tests")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "entry.sh",
     "harness.bzl",
     "harness_tests.bzl",
 ])

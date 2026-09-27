@@ -1,20 +1,16 @@
+load("//modules:java-scala-kotlin.bzl", "JAVA_MAJOR")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
 # buildifier: disable=canonical-repository
-dx_shell_harness(
+ide_acquisition_test(
     name = "ide_acquisition_test",
-    srcs = ["ide_acquisition_test.sh"],
-    args = select({
-        "@platforms//cpu:arm64": ["$(rootpath @@rules_java++toolchains+remotejdk21_linux_aarch64//:bin/java)"],
-        "//conditions:default": ["$(rootpath @@rules_java++toolchains+remotejdk21_linux//:bin/java)"],
-    }),
-    data = select({
-        "@platforms//cpu:arm64": ["@@rules_java++toolchains+remotejdk21_linux_aarch64//:bin/java"],
-        "//conditions:default": ["@@rules_java++toolchains+remotejdk21_linux//:bin/java"],
-    }),
+    arm64_binary = "@@rules_java++toolchains+remotejdk21_linux_aarch64//:bin/java",
+    binary = "@@rules_java++toolchains+remotejdk21_linux//:bin/java",
+    expected = JAVA_MAJOR + ".",
+    version_args = ["-version"],
 )
 
 real_source_target(

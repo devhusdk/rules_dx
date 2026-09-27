@@ -18,4 +18,5 @@ JVM_TOOL_VERSIONS = {
     "ktlint": "1.8.0",
 }
 
-JAVA_RUNTIME_VERSION = "remotejdk_21"
+JAVA_MAJOR = "21"
+JAVA_RUNTIME_VERSION = "remotejdk_" + JAVA_MAJOR

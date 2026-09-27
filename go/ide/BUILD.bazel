@@ -1,20 +1,16 @@
+load("//modules:toolchains.bzl", "GO_SDK_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
 # buildifier: disable=canonical-repository
-dx_shell_harness(
+ide_acquisition_test(
     name = "ide_acquisition_test",
-    srcs = ["ide_acquisition_test.sh"],
-    args = select({
-        "@platforms//cpu:arm64": ["$(rootpath @@rules_go++go_sdk+main___download_0_linux_arm64//:bin/go)"],
-        "//conditions:default": ["$(rootpath @@rules_go++go_sdk+main___download_0_linux_amd64//:bin/go)"],
-    }),
-    data = select({
-        "@platforms//cpu:arm64": ["@@rules_go++go_sdk+main___download_0_linux_arm64//:bin/go"],
-        "//conditions:default": ["@@rules_go++go_sdk+main___download_0_linux_amd64//:bin/go"],
-    }),
+    arm64_binary = "@@rules_go++go_sdk+main___download_0_linux_arm64//:bin/go",
+    binary = "@@rules_go++go_sdk+main___download_0_linux_amd64//:bin/go",
+    expected = "go" + GO_SDK_VERSION,
+    version_args = ["version"],
 )
 
 real_source_target(

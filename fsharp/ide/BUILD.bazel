@@ -1,20 +1,16 @@
+load("//modules:dotnet.bzl", "DOTNET_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
 # buildifier: disable=canonical-repository
-dx_shell_harness(
+ide_acquisition_test(
     name = "ide_acquisition_test",
-    srcs = ["ide_acquisition_test.sh"],
-    args = select({
-        "@platforms//cpu:arm64": ["$(rootpath @@rules_dotnet++dotnet+dotnet_arm64-unknown-linux-gnu//:runtime)"],
-        "//conditions:default": ["$(rootpath @@rules_dotnet++dotnet+dotnet_x86_64-unknown-linux-gnu//:runtime)"],
-    }),
-    data = select({
-        "@platforms//cpu:arm64": ["@@rules_dotnet++dotnet+dotnet_arm64-unknown-linux-gnu//:runtime"],
-        "//conditions:default": ["@@rules_dotnet++dotnet+dotnet_x86_64-unknown-linux-gnu//:runtime"],
-    }),
+    arm64_binary = "@@rules_dotnet++dotnet+dotnet_arm64-unknown-linux-gnu//:runtime",
+    binary = "@@rules_dotnet++dotnet+dotnet_x86_64-unknown-linux-gnu//:runtime",
+    expected = DOTNET_VERSION,
+    version_args = ["--info"],
 )
 
 real_source_target(

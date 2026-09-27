@@ -1,0 +1,18 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "ide_acquisition.bzl",
+    "ide_acquisition.sh",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "ide_acquisition.bzl",
+    ],
+    tags = ["corpus"],
+)

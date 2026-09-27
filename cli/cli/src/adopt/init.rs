@@ -5,6 +5,8 @@ use crate::exec::common::check_stdout_write;
 
 use super::{operational, summaries_suppressed};
 
+pub(crate) const CODE_INIT_FAILED: &str = "init_failed";
+
 pub(crate) fn execute_init(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -41,7 +43,7 @@ pub(crate) fn execute_init(
             }
             0
         }
-        Err(error) => operational(out, err, &error.to_string()),
+        Err(error) => operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string()),
     }
 }
 

@@ -8,6 +8,8 @@ use crate::resolve::{QueryResult, QueryRunner};
 
 use super::{operational, pre_exec, summaries_suppressed};
 
+pub(crate) const CODE_HOOKS_FAILED: &str = "hooks_failed";
+
 pub(crate) fn execute_hooks(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -51,7 +53,9 @@ pub(crate) fn execute_hooks(
                     }
                     0
                 }
-                Err(error) => operational(out, err, &error.to_string()),
+                Err(error) => {
+                    operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string())
+                }
             }
         }
         "uninstall" => {
@@ -81,7 +85,9 @@ pub(crate) fn execute_hooks(
                     }
                     0
                 }
-                Err(error) => operational(out, err, &error.to_string()),
+                Err(error) => {
+                    operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string())
+                }
             }
         }
         "status" => execute_status(invocation, workspace, out, err),
@@ -132,19 +138,25 @@ fn execute_status(
         }
         let detail = detail.trim_end_matches("; ");
         return operational(
+            invocation,
             out,
             err,
+            CODE_HOOKS_FAILED,
             &format!("hooks status missing merged layer: {detail}"),
         );
     }
     let merged = match dx_adopt::load_hooks_config(baseline_opt.as_deref(), overlay_opt.as_deref())
     {
         Ok(config) => config,
-        Err(error) => return operational(out, err, &error.to_string()),
+        Err(error) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string());
+        }
     };
     let timings = match timings_res {
         Ok(timings) => timings,
-        Err(error) => return operational(out, err, &error.to_string()),
+        Err(error) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string());
+        }
     };
     let baseline_src = if baseline_opt.is_some() {
         dx_adopt::HOOK_BASELINE_REL.to_owned()
@@ -189,8 +201,10 @@ fn execute_run(
         .is_some_and(|path| dx_adopt::hook_git_path_is_hermetic(path));
     if !dx_adopt::hook_git_is_hermetic(uses_hermetic, false) {
         return operational(
+            invocation,
             out,
             err,
+            CODE_HOOKS_FAILED,
             &format!(
                 "hook git must be hermetic: set {} to an absolute managed Git path; ambient PATH lookup is rejected",
                 dx_adopt::HOOK_GIT_ENV_VAR
@@ -203,7 +217,9 @@ fn execute_run(
     let config = match dx_adopt::load_hooks_config(baseline_opt.as_deref(), overlay_opt.as_deref())
     {
         Ok(config) => config,
-        Err(error) => return operational(out, err, &error.to_string()),
+        Err(error) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string());
+        }
     };
     let checks = dx_adopt::checks_for_trigger(&config, trigger);
     if checks.is_empty() {
@@ -218,7 +234,9 @@ fn execute_run(
     }
     let staged = match staged_files(&git, workspace, query_runner) {
         Ok(files) => files,
-        Err(detail) => return operational(out, err, &detail),
+        Err(detail) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+        }
     };
     if staged.is_empty() {
         if !summaries_suppressed(invocation) {
@@ -232,7 +250,9 @@ fn execute_run(
     }
     let targets = match affected_targets(&staged, workspace, query_runner) {
         Ok(targets) => targets,
-        Err(detail) => return operational(out, err, &detail),
+        Err(detail) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+        }
     };
     if targets.is_empty() {
         if !summaries_suppressed(invocation) {
@@ -248,8 +268,10 @@ fn execute_run(
         Ok(exe) => exe.to_string_lossy().into_owned(),
         Err(error) => {
             return operational(
+                invocation,
                 out,
                 err,
+                CODE_HOOKS_FAILED,
                 &format!("hook dx executable unavailable: {error}"),
             );
         }
@@ -262,8 +284,10 @@ fn execute_run(
             Ok(status) => status,
             Err(error) => {
                 return operational(
+                    invocation,
                     out,
                     err,
+                    CODE_HOOKS_FAILED,
                     &format!("hook check {check:?} launch failed: {error}"),
                 );
             }
@@ -271,8 +295,10 @@ fn execute_run(
         let elapsed = start.elapsed().as_secs_f64();
         if dx_adopt::hook_check_timed_out(elapsed, config.budget_secs) {
             return operational(
+                invocation,
                 out,
                 err,
+                CODE_HOOKS_FAILED,
                 &format!(
                     "hook check {check:?} exceeded budget (took {elapsed:.2}s, budget {}s)",
                     config.budget_secs
@@ -285,22 +311,26 @@ fn execute_run(
             }
             Some(code) => {
                 return operational(
+                    invocation,
                     out,
                     err,
+                    CODE_HOOKS_FAILED,
                     &format!("hook check {check:?} failed with exit {code}"),
                 );
             }
             None => {
                 return operational(
+                    invocation,
                     out,
                     err,
+                    CODE_HOOKS_FAILED,
                     &format!("hook check {check:?} terminated by signal"),
                 );
             }
         }
     }
     if let Err(detail) = record_timings(workspace, &measured) {
-        return operational(out, err, &detail);
+        return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
     }
     if !summaries_suppressed(invocation) {
         for (check, elapsed) in &measured {

@@ -1,13 +1,11 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, emit_event};
+use crate::exec::common::{check_stdout_write, emit_event, emit_started};
 
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
-    OutputMode,
+    command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
-use dx_process::operational_code;
 
 use super::{operational, pre_exec, summaries_suppressed};
 
@@ -75,35 +73,17 @@ pub(crate) fn execute_upgrade(
         plan.manifest, plan.message
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-        let _ = writeln!(err, "dx: {CODE_UPGRADE_FAILED}: {message}");
-        if let Ok(event) = error_event(CODE_UPGRADE_FAILED, &message, None, None, None) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-        let finished = command_finished(
-            operational_code(),
-            &FinishedCounts {
-                results_complete: Some(false),
-                ..FinishedCounts::default()
-            },
-        );
-        if let Err(exit) = emit_event(out, &finished) {
+        if let Err(exit) = emit_started(invocation, out) {
             return exit;
         }
-        return operational_code();
+        return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
     }
     if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{live_summary}")) {
             return exit;
         }
     }
-    operational(out, err, &format!("{CODE_UPGRADE_FAILED}: {message}"))
+    operational(invocation, out, err, CODE_UPGRADE_FAILED, &message)
 }
 
 #[cfg(test)]

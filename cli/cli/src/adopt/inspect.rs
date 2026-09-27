@@ -11,6 +11,10 @@ use dx_process::operational_code;
 
 use super::{operational, pre_exec, summaries_suppressed};
 
+pub(crate) const CODE_QUERY_FAILED: &str = "bazel_failed";
+pub(crate) const CODE_NO_OWNER: &str = "no_owner";
+pub(crate) const CODE_WHY_INVALID: &str = "invalid_result";
+
 pub(crate) fn execute_inspect(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -94,7 +98,15 @@ pub(crate) fn execute_inspect(
             Ok(plan) => plan,
             Err(error) => return pre_exec(err, &error.to_string()),
         };
-        let step = run_inspect_query(&plan.verb, &plan.expr, workspace, query_runner, out, err);
+        let step = run_inspect_query(
+            invocation,
+            &plan.verb,
+            &plan.expr,
+            workspace,
+            query_runner,
+            out,
+            err,
+        );
         if step != 0 {
             code = step;
         }
@@ -122,7 +134,8 @@ fn run_inspect_query_json(
                     result.code.unwrap_or(-1)
                 );
                 let _ = writeln!(err, "dx: {message}");
-                if let Ok(event) = error_event("bazel_failed", &message, None, None, Some("query"))
+                if let Ok(event) =
+                    error_event(CODE_QUERY_FAILED, &message, None, None, Some("query"))
                 {
                     emit_event(out, &event)?;
                 }
@@ -147,7 +160,7 @@ fn run_inspect_query_json(
         Err(error) => {
             let message = error.to_string();
             let _ = writeln!(err, "dx: {message}");
-            if let Ok(event) = error_event("bazel_failed", &message, None, None, Some("query")) {
+            if let Ok(event) = error_event(CODE_QUERY_FAILED, &message, None, None, Some("query")) {
                 emit_event(out, &event)?;
             }
             Err(operational_code())
@@ -156,6 +169,7 @@ fn run_inspect_query_json(
 }
 
 fn run_inspect_query(
+    invocation: &Invocation,
     verb: &str,
     expr: &str,
     workspace: &std::path::Path,
@@ -168,8 +182,10 @@ fn run_inspect_query(
         Ok(result) => {
             if result.code != Some(0) {
                 return operational(
+                    invocation,
                     out,
                     err,
+                    CODE_QUERY_FAILED,
                     &format!(
                         "query failed: bazel {verb} {expr} exited with code {}",
                         result.code.unwrap_or(-1)
@@ -187,7 +203,7 @@ fn run_inspect_query(
             }
             0
         }
-        Err(error) => operational(out, err, &error.to_string()),
+        Err(error) => operational(invocation, out, err, CODE_QUERY_FAILED, &error.to_string()),
     }
 }
 
@@ -251,8 +267,10 @@ fn execute_why(
         Ok(result) => {
             if result.code != Some(0) {
                 return operational(
+                    invocation,
                     out,
                     err,
+                    CODE_QUERY_FAILED,
                     &format!(
                         "query failed: bazel {} {} for file {file} exited with code {}",
                         owner_plan.verb,
@@ -269,8 +287,10 @@ fn execute_why(
                 Some(owner) => owner.to_owned(),
                 None => {
                     return operational(
+                        invocation,
                         out,
                         err,
+                        CODE_NO_OWNER,
                         &format!(
                             "no owner for {file} via bazel {} {}",
                             owner_plan.verb, owner_plan.expr
@@ -279,13 +299,23 @@ fn execute_why(
                 }
             }
         }
-        Err(error) => return operational(out, err, &error.to_string()),
+        Err(error) => {
+            return operational(invocation, out, err, CODE_QUERY_FAILED, &error.to_string());
+        }
     };
     let leg = match dx_adopt::plan_somepath(&owner, label, invocation.configured) {
         Ok(leg) => leg,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    run_inspect_query(&leg.verb, &leg.expr, workspace, query_runner, out, err)
+    run_inspect_query(
+        invocation,
+        &leg.verb,
+        &leg.expr,
+        workspace,
+        query_runner,
+        out,
+        err,
+    )
 }
 
 fn execute_why_json(
@@ -327,7 +357,8 @@ fn execute_why_json(
                     result.code.unwrap_or(-1)
                 );
                 let _ = writeln!(err, "dx: {message}");
-                if let Ok(event) = error_event("bazel_failed", &message, None, None, Some("query"))
+                if let Ok(event) =
+                    error_event(CODE_QUERY_FAILED, &message, None, None, Some("query"))
                 {
                     if let Err(exit) = emit_event(out, &event) {
                         return exit;
@@ -353,7 +384,7 @@ fn execute_why_json(
                         owner_plan.verb, owner_plan.expr
                     );
                     let _ = writeln!(err, "dx: {message}");
-                    if let Ok(event) = error_event("no_owner", &message, None, None, None) {
+                    if let Ok(event) = error_event(CODE_NO_OWNER, &message, None, None, None) {
                         if let Err(exit) = emit_event(out, &event) {
                             return exit;
                         }
@@ -371,7 +402,7 @@ fn execute_why_json(
         Err(error) => {
             let message = error.to_string();
             let _ = writeln!(err, "dx: {message}");
-            if let Ok(event) = error_event("bazel_failed", &message, None, None, Some("query")) {
+            if let Ok(event) = error_event(CODE_QUERY_FAILED, &message, None, None, Some("query")) {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }
@@ -390,7 +421,7 @@ fn execute_why_json(
         Err(error) => {
             let message = error.to_string();
             let _ = writeln!(err, "dx: {message}");
-            if let Ok(event) = error_event("invalid_result", &message, None, None, None) {
+            if let Ok(event) = error_event(CODE_WHY_INVALID, &message, None, None, None) {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }
@@ -415,7 +446,8 @@ fn execute_why_json(
                     result.code.unwrap_or(-1)
                 );
                 let _ = writeln!(err, "dx: {message}");
-                if let Ok(event) = error_event("bazel_failed", &message, None, None, Some("query"))
+                if let Ok(event) =
+                    error_event(CODE_QUERY_FAILED, &message, None, None, Some("query"))
                 {
                     if let Err(exit) = emit_event(out, &event) {
                         return exit;
@@ -454,7 +486,7 @@ fn execute_why_json(
         Err(error) => {
             let message = error.to_string();
             let _ = writeln!(err, "dx: {message}");
-            if let Ok(event) = error_event("bazel_failed", &message, None, None, Some("query")) {
+            if let Ok(event) = error_event(CODE_QUERY_FAILED, &message, None, None, Some("query")) {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }

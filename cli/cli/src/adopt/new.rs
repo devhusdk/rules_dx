@@ -6,6 +6,8 @@ use crate::exec::common::check_stdout_write;
 use super::{operational, summaries_suppressed};
 use dx_process::pre_exec_code;
 
+pub(crate) const CODE_NEW_FAILED: &str = "new_failed";
+
 pub(crate) fn execute_new(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -37,7 +39,9 @@ pub(crate) fn execute_new(
                         }
                     }
                 }
-                Err(error) => return operational(out, err, &error.to_string()),
+                Err(error) => {
+                    return operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string());
+                }
             }
         }
         return 0;
@@ -58,7 +62,7 @@ pub(crate) fn execute_new(
             }
             0
         }
-        Err(error) => operational(out, err, &error.to_string()),
+        Err(error) => operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string()),
     }
 }
 

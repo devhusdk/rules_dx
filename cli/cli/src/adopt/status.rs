@@ -1,16 +1,14 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, emit_event, flush_out};
+use crate::exec::common::{check_stdout_write, emit_event, emit_started};
 use dx_output::{
-    command_finished, command_started, error_event, status_event, FinishedCounts, OutputMode,
-    StatusEvent,
+    command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
 };
-use dx_process::operational_code;
 
 pub(crate) const CODE_STATUS_PIN_MISMATCH: &str = "status_pin_mismatch";
 
-use super::summaries_suppressed;
+use super::{operational, summaries_suppressed};
 
 pub(crate) fn execute_status(
     invocation: &Invocation,
@@ -40,29 +38,11 @@ pub(crate) fn execute_status(
         Err(error) => {
             let message = error.to_string();
             if invocation.output == OutputMode::Json {
-                if let Ok(event) = command_started(invocation.command.name(), false, "default") {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-                if let Ok(event) = error_event(CODE_STATUS_PIN_MISMATCH, &message, None, None, None)
-                {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-                if let Err(exit) = emit_event(
-                    out,
-                    &command_finished(operational_code(), &FinishedCounts::default()),
-                ) {
+                if let Err(exit) = emit_started(invocation, out) {
                     return exit;
                 }
             }
-            let _ = writeln!(err, "dx: {message}");
-            if let Err(exit) = flush_out(out) {
-                return exit;
-            }
-            return operational_code();
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
     };
     let checks = dx_adopt::default_status_checks(&pinned);
@@ -85,26 +65,17 @@ pub(crate) fn execute_status(
             }
         }
         let failed = checks.iter().any(|c| c.status == "error");
-        let code = if failed { operational_code() } else { 0 };
         if failed {
-            let _ = writeln!(err, "dx: status: pin mismatch (see hint)");
-            if let Ok(event) = error_event(
+            return operational(
+                invocation,
+                out,
+                err,
                 CODE_STATUS_PIN_MISMATCH,
                 "pin mismatch (see hint)",
-                None,
-                None,
-                None,
-            ) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
+            );
         }
-        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
             return exit;
-        }
-        if failed {
-            return operational_code();
         }
         return 0;
     }
@@ -114,8 +85,13 @@ pub(crate) fn execute_status(
         return exit;
     }
     if checks.iter().any(|c| c.status == "error") {
-        let _ = writeln!(err, "dx: status: pin mismatch (see hint)");
-        return operational_code();
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_STATUS_PIN_MISMATCH,
+            "pin mismatch (see hint)",
+        );
     }
     0
 }

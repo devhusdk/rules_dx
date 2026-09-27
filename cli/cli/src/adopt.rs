@@ -11,10 +11,10 @@ mod watch;
 use std::io::Write;
 
 use crate::args::{Command, Invocation};
-use crate::exec::common::flush_out;
 use crate::resolve::QueryRunner;
 use dx_output::OutputMode;
-use dx_process::{operational_code, pre_exec_code};
+
+pub(crate) use crate::exec::common::{operational, pre_exec};
 
 pub struct AdoptEnv<'a> {
     pub workspace: &'a std::path::Path,
@@ -22,19 +22,6 @@ pub struct AdoptEnv<'a> {
     pub runner: &'a dyn dx_process::Runner,
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
-}
-
-fn pre_exec(err: &mut dyn Write, message: &str) -> i32 {
-    let _ = writeln!(err, "dx: {message}");
-    pre_exec_code()
-}
-
-fn operational(out: &mut dyn Write, err: &mut dyn Write, message: &str) -> i32 {
-    let _ = writeln!(err, "dx: {message}");
-    if let Err(exit) = flush_out(out) {
-        return exit;
-    }
-    operational_code()
 }
 
 fn summaries_suppressed(invocation: &Invocation) -> bool {

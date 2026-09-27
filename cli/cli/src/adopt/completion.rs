@@ -5,6 +5,8 @@ use crate::exec::common::check_stdout_write;
 
 use super::{operational, pre_exec, summaries_suppressed};
 
+pub(crate) const CODE_COMPLETION_FAILED: &str = "completion_failed";
+
 pub(crate) fn execute_completion(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -73,7 +75,13 @@ fn execute_completion_check(
         match crate::args::render_completion(shell) {
             Ok(script) => {
                 if script.is_empty() || !script.contains(crate::args::COMPLETE_SUBCOMMAND) {
-                    return operational(out, err, &format!("completion check failed for {shell}"));
+                    return operational(
+                        invocation,
+                        out,
+                        err,
+                        CODE_COMPLETION_FAILED,
+                        &format!("completion check failed for {shell}"),
+                    );
                 }
             }
             Err(error) => return pre_exec(err, &error.to_string()),

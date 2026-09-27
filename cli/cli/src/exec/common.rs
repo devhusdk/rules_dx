@@ -3,8 +3,8 @@ use crate::resolve::QueryRunner;
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
-    command_finished, write_event, ChangeEvent, ChangeKind, DiagnosticEvent, FinishedCounts,
-    OutputMode,
+    command_finished, command_started, write_event, ChangeEvent, ChangeKind, DiagnosticEvent,
+    FinishedCounts, OutputMode,
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
 use std::io::{self, Write};
@@ -18,7 +18,7 @@ pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
     }
 }
 
-pub(crate) fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), i32> {
+pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), i32> {
     write_event(out, event).map_err(|error| stdout_output_code(&error))
 }
 
@@ -26,8 +26,15 @@ pub(crate) fn check_stdout_write(result: io::Result<()>) -> Result<(), i32> {
     result.map_err(|error| stdout_io_code(&error))
 }
 
-pub(crate) fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
+pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
     out.flush().map_err(|error| stdout_io_code(&error))
+}
+
+pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), i32> {
+    if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, "default") {
+        emit_event(out, &event)?;
+    }
+    Ok(())
 }
 
 pub const REASON_STALE_SOURCE: &str = "stale_source";

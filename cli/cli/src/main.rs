@@ -14,29 +14,13 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dx_cli::args::{load_file_defaults, parse_with};
+use dx_cli::exec::common::{emit_event, flush_out};
 use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
-use dx_output::{command_finished, error_event, write_event, FinishedCounts, OutputMode};
+use dx_output::{command_finished, error_event, FinishedCounts, OutputMode};
 use dx_process::{
-    broken_pipe_code, discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus,
-    Runner,
+    discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
 };
-
-fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
-    if error.is_broken_pipe() {
-        broken_pipe_code()
-    } else {
-        operational_code()
-    }
-}
-
-fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), i32> {
-    write_event(out, event).map_err(|error| stdout_output_code(&error))
-}
-
-fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
-    out.flush().map_err(|error| stdout_io_code(&error))
-}
 
 static CHILD_PID: AtomicU32 = AtomicU32::new(0);
 

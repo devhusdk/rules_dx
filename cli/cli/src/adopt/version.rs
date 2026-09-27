@@ -1,12 +1,10 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, emit_event, flush_out};
+use crate::exec::common::{check_stdout_write, emit_event, emit_started};
 use dx_output::{
-    command_finished, command_started, error_event, status_event, FinishedCounts, OutputMode,
-    StatusEvent,
+    command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
 };
-use dx_process::operational_code;
 
 use super::status::CODE_STATUS_PIN_MISMATCH;
 use super::{operational, pre_exec, summaries_suppressed};
@@ -21,33 +19,6 @@ fn json_dry_run(invocation: &Invocation, out: &mut dyn Write) -> i32 {
         return exit;
     }
     0
-}
-
-fn json_error(
-    invocation: &Invocation,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-    message: &str,
-) -> i32 {
-    if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, "default") {
-        if let Err(exit) = emit_event(out, &event) {
-            return exit;
-        }
-    }
-    if let Ok(event) = error_event(CODE_STATUS_PIN_MISMATCH, message, None, None, None) {
-        if let Err(exit) = emit_event(out, &event) {
-            return exit;
-        }
-    }
-    if let Err(exit) = emit_event(
-        out,
-        &command_finished(operational_code(), &FinishedCounts::default()),
-    ) {
-        return exit;
-    }
-    let _ = writeln!(err, "dx: {message}");
-    let _ = flush_out(out);
-    operational_code()
 }
 
 fn json_status(
@@ -89,10 +60,13 @@ pub(crate) fn execute_version(
         let current = match dx_adopt::read_version_pin(workspace) {
             Ok(pin) => pin,
             Err(error) => {
+                let message = error.to_string();
                 if is_json {
-                    return json_error(invocation, out, err, &error.to_string());
+                    if let Err(exit) = emit_started(invocation, out) {
+                        return exit;
+                    }
                 }
-                return operational(out, err, &error.to_string());
+                return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
             }
         };
         if current.is_empty() || !dx_adopt::rollback_re_pins_previous(&current, previous, previous)
@@ -101,9 +75,11 @@ pub(crate) fn execute_version(
                 "rollback refused: pin {current:?} is not newer than previous release {previous:?}"
             );
             if is_json {
-                return json_error(invocation, out, err, &message);
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
+                }
             }
-            return operational(out, err, &message);
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
         if invocation.dry_run {
             if is_json {
@@ -150,10 +126,13 @@ pub(crate) fn execute_version(
                 0
             }
             Err(error) => {
+                let message = error.to_string();
                 if is_json {
-                    return json_error(invocation, out, err, &error.to_string());
+                    if let Err(exit) = emit_started(invocation, out) {
+                        return exit;
+                    }
                 }
-                operational(out, err, &error.to_string())
+                operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message)
             }
         };
     }
@@ -161,9 +140,11 @@ pub(crate) fn execute_version(
         if !dx_adopt::version_pin_matches_module(pin, dx_adopt::MODULE_VERSION) {
             let message = format!("version pin must equal module {}", dx_adopt::MODULE_VERSION);
             if is_json {
-                return json_error(invocation, out, err, &message);
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
+                }
             }
-            return operational(out, err, &message);
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
         if invocation.dry_run {
             if is_json {
@@ -207,10 +188,13 @@ pub(crate) fn execute_version(
                 0
             }
             Err(error) => {
+                let message = error.to_string();
                 if is_json {
-                    return json_error(invocation, out, err, &error.to_string());
+                    if let Err(exit) = emit_started(invocation, out) {
+                        return exit;
+                    }
                 }
-                operational(out, err, &error.to_string())
+                operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message)
             }
         };
     }
@@ -234,10 +218,13 @@ pub(crate) fn execute_version(
     let current = match dx_adopt::read_version_pin(workspace) {
         Ok(pin) => pin,
         Err(error) => {
+            let message = error.to_string();
             if is_json {
-                return json_error(invocation, out, err, &error.to_string());
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
+                }
             }
-            return operational(out, err, &error.to_string());
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
     };
     if invocation.check {
@@ -264,35 +251,16 @@ pub(crate) fn execute_version(
             }
             0
         } else {
+            let message = format!("version drift: {current} != {}", dx_adopt::MODULE_VERSION);
             if is_json {
-                if let Ok(event) = command_started(invocation.command.name(), false, "default") {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
                 }
                 if let Err(exit) = json_status(out, "pin", "error", &detail, &hint) {
                     return exit;
                 }
-                let message = format!("version drift: {current} != {}", dx_adopt::MODULE_VERSION);
-                if let Ok(event) = error_event(CODE_STATUS_PIN_MISMATCH, &message, None, None, None)
-                {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-                if let Err(exit) = emit_event(
-                    out,
-                    &command_finished(operational_code(), &FinishedCounts::default()),
-                ) {
-                    return exit;
-                }
             }
-            let _ = writeln!(
-                err,
-                "dx: version drift: {current} != {}",
-                dx_adopt::MODULE_VERSION
-            );
-            operational_code()
+            operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message)
         }
     } else {
         if is_json {

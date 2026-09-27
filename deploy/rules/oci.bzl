@@ -1,6 +1,6 @@
 """Local-first OCI publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -129,7 +129,7 @@ def oci_tar_error(filename):
     return ""
 
 def _oci_launcher_impl(ctx):
-    """Expands the py_binary launcher for one OCI deployment."""
+    """Expands the rust_binary launcher for one OCI deployment."""
     tar_files = ctx.attr.image_tar[DefaultInfo].files.to_list()
     if len(tar_files) != 1:
         fail("oci_deploy " + str(ctx.label) + ": image_tar " +
@@ -141,17 +141,14 @@ def _oci_launcher_impl(ctx):
         fail(tar_error + " (in " + str(ctx.label) + ")")
     tar_rloc = rlocation_path(ctx, tar_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@IMAGE_RLOC@@": tar_rloc,
-            "@@OCI_REGISTRY@@": ctx.attr.registry,
-            "@@OCI_REPOSITORY@@": ctx.attr.repository,
-            "@@OCI_TAG@@": ctx.attr.tag,
-        },
+        content = "const IMAGE_RLOC: &str = \"" + tar_rloc + "\";\n" +
+                  "const OCI_REGISTRY: &str = \"" + ctx.attr.registry + "\";\n" +
+                  "const OCI_REPOSITORY: &str = \"" + ctx.attr.repository + "\";\n" +
+                  "const OCI_TAG: &str = \"" + ctx.attr.tag + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::oci_main(IMAGE_RLOC, OCI_REGISTRY, OCI_REPOSITORY, OCI_TAG, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -170,10 +167,6 @@ _oci_launcher = rule(
         ),
         "tag": attr.string(
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:oci_deploy.py",
         ),
     },
 )
@@ -201,12 +194,11 @@ def oci_deploy(name, image_tar, tag = "latest", registry = OCI_DEFAULT_REGISTRY,
         tag = tag,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = [image_tar],
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

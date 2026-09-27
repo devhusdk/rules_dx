@@ -1,6 +1,6 @@
 """Octopus Deploy publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -168,7 +168,7 @@ def octopus_package_error(filename):
     return ""
 
 def _octopus_launcher_impl(ctx):
-    """Expands the py_binary launcher for one Octopus deployment."""
+    """Expands the rust_binary launcher for one Octopus deployment."""
     package_files = ctx.attr.package[DefaultInfo].files.to_list()
     if len(package_files) != 1:
         fail("octopus_deploy " + str(ctx.label) + ": package " +
@@ -181,21 +181,18 @@ def _octopus_launcher_impl(ctx):
         fail(package_error + " (in " + str(ctx.label) + ")")
     package_rloc = rlocation_path(ctx, package_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@CHANNEL@@": ctx.attr.channel,
-            "@@DEPLOY_NAME@@": ctx.attr.drop_name,
-            "@@DEPLOY_TO@@": ",".join(ctx.attr.deploy_to),
-            "@@OCTOPUS_URL@@": ctx.attr.octopus_url,
-            "@@PACKAGE_RLOC@@": package_rloc,
-            "@@PROJECT@@": ctx.attr.project,
-            "@@SPACE@@": ctx.attr.space,
-            "@@VERSION@@": ctx.attr.version,
-        },
+        content = "const PACKAGE_RLOC: &str = \"" + package_rloc + "\";\n" +
+                  "const DEPLOY_NAME: &str = \"" + ctx.attr.drop_name + "\";\n" +
+                  "const PROJECT: &str = \"" + ctx.attr.project + "\";\n" +
+                  "const CHANNEL: &str = \"" + ctx.attr.channel + "\";\n" +
+                  "const VERSION: &str = \"" + ctx.attr.version + "\";\n" +
+                  "const DEPLOY_TO: &str = \"" + ",".join(ctx.attr.deploy_to) + "\";\n" +
+                  "const SPACE: &str = \"" + ctx.attr.space + "\";\n" +
+                  "const OCTOPUS_URL: &str = \"" + ctx.attr.octopus_url + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::octopus_main(&dx_deploy_tools::OctopusLaunch { package_rloc: PACKAGE_RLOC, deploy_name: DEPLOY_NAME, project: PROJECT, channel: CHANNEL, version: VERSION, deploy_to_raw: DEPLOY_TO, space_default: SPACE, url_default: OCTOPUS_URL }, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -224,10 +221,6 @@ _octopus_launcher = rule(
         ),
         "version": attr.string(
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:octopus_deploy.py",
         ),
     },
 )
@@ -268,12 +261,11 @@ def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0
         version = version,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = [package],
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

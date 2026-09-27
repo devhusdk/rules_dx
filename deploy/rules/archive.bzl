@@ -1,6 +1,6 @@
 """Credential-free release archives for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -24,7 +24,7 @@ _archive_stage = rule(
 )
 
 def _archive_launcher_impl(ctx):
-    """Expands the py_binary launcher for one release."""
+    """Expands the rust_binary launcher for one release."""
     app_files = ctx.attr.app[DefaultInfo].files.to_list()
     if len(app_files) != 1:
         fail("archive_deploy " + str(ctx.label) + ": stage must provide exactly one file")
@@ -42,16 +42,13 @@ def _archive_launcher_impl(ctx):
     archive_rloc = rlocation_path(ctx, archive_file)
     checksum_rloc = rlocation_path(ctx, checksum_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@APP_RLOC@@": app_rloc,
-            "@@CHECKSUM_RLOC@@": checksum_rloc,
-            "@@TARBALL_RLOC@@": archive_rloc,
-        },
+        content = "const APP_RLOC: &str = \"" + app_rloc + "\";\n" +
+                  "const TARBALL_RLOC: &str = \"" + archive_rloc + "\";\n" +
+                  "const CHECKSUM_RLOC: &str = \"" + checksum_rloc + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::archive_main(APP_RLOC, TARBALL_RLOC, CHECKSUM_RLOC, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -61,10 +58,6 @@ _archive_launcher = rule(
         "app": attr.label(mandatory = True),
         "archive": attr.label(mandatory = True),
         "checksum": attr.label(mandatory = True),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:archive_deploy.py",
-        ),
     },
 )
 
@@ -109,7 +102,7 @@ def archive_deploy(name, app, profile = "release"):
         checksum = ":" + checksum_target,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = [
@@ -117,8 +110,7 @@ def archive_deploy(name, app, profile = "release"):
             ":" + archive_target,
             ":" + checksum_target,
         ],
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

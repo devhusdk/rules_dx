@@ -1,6 +1,6 @@
 """Local-first Maven Central publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -142,7 +142,7 @@ def maven_pom_error(filename):
     return ""
 
 def _maven_launcher_impl(ctx):
-    """Expands the py_binary launcher for one Maven deployment."""
+    """Expands the rust_binary launcher for one Maven deployment."""
     jar_files = ctx.attr.jar[DefaultInfo].files.to_list()
     if len(jar_files) != 1:
         fail("maven_deploy " + str(ctx.label) + ": jar " +
@@ -165,19 +165,16 @@ def _maven_launcher_impl(ctx):
         fail(pom_error + " (in " + str(ctx.label) + ")")
     pom_rloc = rlocation_path(ctx, pom_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@ARTIFACT@@": ctx.attr.artifact,
-            "@@GROUP@@": ctx.attr.group,
-            "@@JAR_RLOC@@": jar_rloc,
-            "@@POM_RLOC@@": pom_rloc,
-            "@@REPOSITORY_URL@@": ctx.attr.repository_url,
-            "@@VERSION@@": ctx.attr.version,
-        },
+        content = "const JAR_RLOC: &str = \"" + jar_rloc + "\";\n" +
+                  "const POM_RLOC: &str = \"" + pom_rloc + "\";\n" +
+                  "const GROUP: &str = \"" + ctx.attr.group + "\";\n" +
+                  "const ARTIFACT: &str = \"" + ctx.attr.artifact + "\";\n" +
+                  "const VERSION: &str = \"" + ctx.attr.version + "\";\n" +
+                  "const REPOSITORY_URL: &str = \"" + ctx.attr.repository_url + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::maven_main(JAR_RLOC, POM_RLOC, GROUP, ARTIFACT, VERSION, REPOSITORY_URL, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -203,10 +200,6 @@ _maven_launcher = rule(
         ),
         "version": attr.string(
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:maven_deploy.py",
         ),
     },
 )
@@ -238,12 +231,11 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
         version = version,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = [jar, pom],
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

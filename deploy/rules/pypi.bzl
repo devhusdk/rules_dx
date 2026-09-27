@@ -1,6 +1,6 @@
 """Local-first PyPI publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -73,7 +73,7 @@ def pypi_wheel_error(filename):
     return ""
 
 def _pypi_launcher_impl(ctx):
-    """Expands the py_binary launcher for one PyPI deployment."""
+    """Expands the rust_binary launcher for one PyPI deployment."""
     wheel_files = ctx.attr.wheel[DefaultInfo].files.to_list()
     if len(wheel_files) != 1:
         fail("pypi_deploy " + str(ctx.label) + ": wheel " +
@@ -98,17 +98,14 @@ def _pypi_launcher_impl(ctx):
                  sdist_file.basename + "' must end in .tar.gz")
         sdist_rloc = rlocation_path(ctx, sdist_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@DIST_NAME@@": ctx.attr.dist_name,
-            "@@REPOSITORY_URL@@": ctx.attr.repository_url,
-            "@@SDIST_RLOC@@": sdist_rloc,
-            "@@WHEEL_RLOC@@": wheel_rloc,
-        },
+        content = "const WHEEL_RLOC: &str = \"" + wheel_rloc + "\";\n" +
+                  "const SDIST_RLOC: &str = \"" + sdist_rloc + "\";\n" +
+                  "const DIST_NAME: &str = \"" + ctx.attr.dist_name + "\";\n" +
+                  "const REPOSITORY_URL: &str = \"" + ctx.attr.repository_url + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::pypi_main(WHEEL_RLOC, SDIST_RLOC, DIST_NAME, REPOSITORY_URL, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -127,10 +124,6 @@ _pypi_launcher = rule(
         "wheel": attr.label(
             allow_single_file = True,
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:pypi_deploy.py",
         ),
     },
 )
@@ -157,12 +150,11 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
     data = [wheel]
     if sdist != None:
         data.append(sdist)
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = data,
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

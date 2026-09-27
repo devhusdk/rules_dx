@@ -15,6 +15,10 @@ path = "src/bin_archiver.rs"
 name = "hasher"
 path = "src/bin_hasher.rs"
 
+[[bin]]
+name = "npm_pack"
+path = "src/bin_npm_pack.rs"
+
 [dependencies]
 flate2 = { version = "1", default-features = false, features = ["zlib"] }
 hex = "0.4"

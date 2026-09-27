@@ -1,5 +1,4 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
-load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -31,13 +30,11 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "archive.bzl",
-    "archive_deploy.py",
     "archive_tests.bzl",
     "archive_verify.sh",
     "defs.bzl",
     "deploy_tests.bzl",
     "github.bzl",
-    "github_deploy.py",
     "github_tests.bzl",
     "github_verify.sh",
     "crates.bzl",
@@ -149,6 +146,7 @@ rustfmt_test(
         ":dx_deploy_tools",
         ":archiver",
         ":hasher",
+        ":npm_packer",
     ],
 )
 
@@ -159,91 +157,31 @@ rust_clippy_test(
         ":dx_deploy_tools",
         ":archiver",
         ":hasher",
+        ":npm_packer",
     ],
 )
 
 exports_files(["Cargo.toml"])
 
-py_library(
-    name = "archive_deploy_lib",
-    srcs = ["archive_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "github_deploy_lib",
-    srcs = ["github_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "crates_deploy_lib",
-    srcs = ["crates_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "maven_deploy_lib",
-    srcs = ["maven_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "pypi_deploy_lib",
-    srcs = ["pypi_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "nuget_deploy_lib",
-    srcs = ["nuget_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "oci_deploy_lib",
-    srcs = ["oci_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "octopus_deploy_lib",
-    srcs = ["octopus_deploy.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "promotion_deploy_lib",
-    srcs = ["promotion_deploy.py"],
-    imports = ["."],
-)
-
-py_binary(
+rust_binary(
     name = "npm_packer",
-    srcs = ["npm_pack.py"],
-    main = "npm_pack.py",
-)
-
-py_library(
-    name = "npm_pack_lib",
-    srcs = ["npm_pack.py"],
-    imports = ["."],
-)
-
-py_library(
-    name = "npm_deploy_lib",
-    srcs = ["npm_deploy.py"],
-    imports = ["."],
-)
-
-py_test(
-    name = "npm_deploy_test",
-    srcs = ["npm_deploy_test.py"],
-    tags = ["no-coverage"],
-    deps = [
-        ":npm_deploy_lib",
-        ":npm_pack_lib",
-    ],
+    srcs = ["src/bin_npm_pack.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "npm_packer",
+    crate_root = "src/bin_npm_pack.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = crate_deps(
+        [
+            "flate2",
+            "hex",
+            "sha2",
+        ],
+        package_name = "deploy/dx_deploy_tools",
+    ) + [":dx_deploy_tools"],
 )
 
 sh_binary(
@@ -298,15 +236,6 @@ archive_analysis_tests(name = "archive_analysis")
 
 archive_debug_analysis_tests(name = "archive_debug_analysis")
 
-py_test(
-    name = "archive_deploy_test",
-    srcs = ["archive_deploy_test.py"],
-    imports = ["."],
-    main = "archive_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":archive_deploy_lib"],
-)
-
 sh_test(
     name = "release_demo_verify",
     size = "small",
@@ -348,48 +277,39 @@ test_suite(
     tests = [
         ":archive_analysis",
         ":archive_debug_analysis",
-        ":archive_deploy_test",
         ":archive_unit",
         ":crates_analysis",
         ":crates_debug_analysis",
-        ":crates_deploy_test",
         ":crates_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
         ":deploy_debug_analysis",
         ":deploy_unit",
+        ":dx_deploy_tools_test",
         ":github_analysis",
         ":github_debug_analysis",
         ":github_demo_verify",
-        ":github_deploy_test",
         ":github_unit",
         ":maven_analysis",
         ":maven_debug_analysis",
-        ":maven_deploy_test",
         ":maven_unit",
         ":npm_analysis",
         ":npm_debug_analysis",
-        ":npm_deploy_test",
         ":npm_unit",
         ":nuget_analysis",
         ":nuget_debug_analysis",
-        ":nuget_deploy_test",
         ":nuget_unit",
         ":oci_analysis",
         ":oci_debug_analysis",
-        ":oci_deploy_test",
         ":oci_unit",
         ":octopus_analysis",
         ":octopus_debug_analysis",
-        ":octopus_deploy_test",
         ":octopus_unit",
         ":promotion_analysis",
         ":promotion_debug_analysis",
-        ":promotion_deploy_test",
         ":promotion_unit",
         ":pypi_analysis",
         ":pypi_debug_analysis",
-        ":pypi_deploy_test",
         ":pypi_unit",
         ":release_demo_debug_verify",
         ":release_demo_verify",
@@ -418,15 +338,6 @@ github_unit_tests(name = "github_unit")
 github_analysis_tests(name = "github_analysis")
 
 github_debug_analysis_tests(name = "github_debug_analysis")
-
-py_test(
-    name = "github_deploy_test",
-    srcs = ["github_deploy_test.py"],
-    imports = ["."],
-    main = "github_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":github_deploy_lib"],
-)
 
 sh_test(
     name = "github_demo_verify",
@@ -475,15 +386,6 @@ pypi_analysis_tests(name = "pypi_analysis")
 
 pypi_debug_analysis_tests(name = "pypi_debug_analysis")
 
-py_test(
-    name = "pypi_deploy_test",
-    srcs = ["pypi_deploy_test.py"],
-    imports = ["."],
-    main = "pypi_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":pypi_deploy_lib"],
-)
-
 genrule(
     name = "crates_demo_manifest",
     outs = ["crates_demo_crate/Cargo.toml"],
@@ -522,15 +424,6 @@ crates_unit_tests(name = "crates_unit")
 crates_analysis_tests(name = "crates_analysis")
 
 crates_debug_analysis_tests(name = "crates_debug_analysis")
-
-py_test(
-    name = "crates_deploy_test",
-    srcs = ["crates_deploy_test.py"],
-    imports = ["."],
-    main = "crates_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":crates_deploy_lib"],
-)
 
 npm_deploy(
     name = "npm_demo",
@@ -574,15 +467,6 @@ nuget_analysis_tests(name = "nuget_analysis")
 
 nuget_debug_analysis_tests(name = "nuget_debug_analysis")
 
-py_test(
-    name = "nuget_deploy_test",
-    srcs = ["nuget_deploy_test.py"],
-    imports = ["."],
-    main = "nuget_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":nuget_deploy_lib"],
-)
-
 genrule(
     name = "maven_demo_jar",
     outs = ["maven_demo-0.0.0.jar"],
@@ -620,15 +504,6 @@ maven_analysis_tests(name = "maven_analysis")
 
 maven_debug_analysis_tests(name = "maven_debug_analysis")
 
-py_test(
-    name = "maven_deploy_test",
-    srcs = ["maven_deploy_test.py"],
-    imports = ["."],
-    main = "maven_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":maven_deploy_lib"],
-)
-
 genrule(
     name = "oci_demo_tar",
     outs = ["oci_demo.tar"],
@@ -651,15 +526,6 @@ oci_unit_tests(name = "oci_unit")
 oci_analysis_tests(name = "oci_analysis")
 
 oci_debug_analysis_tests(name = "oci_debug_analysis")
-
-py_test(
-    name = "oci_deploy_test",
-    srcs = ["oci_deploy_test.py"],
-    imports = ["."],
-    main = "oci_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":oci_deploy_lib"],
-)
 
 octopus_deploy(
     name = "octopus_demo",
@@ -686,15 +552,6 @@ octopus_analysis_tests(name = "octopus_analysis")
 
 octopus_debug_analysis_tests(name = "octopus_debug_analysis")
 
-py_test(
-    name = "octopus_deploy_test",
-    srcs = ["octopus_deploy_test.py"],
-    imports = ["."],
-    main = "octopus_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":octopus_deploy_lib"],
-)
-
 promotion_deploy(
     name = "promotion_demo",
     artifact = ":release_demo_archive",
@@ -717,15 +574,6 @@ promotion_unit_tests(name = "promotion_unit")
 promotion_analysis_tests(name = "promotion_analysis")
 
 promotion_debug_analysis_tests(name = "promotion_debug_analysis")
-
-py_test(
-    name = "promotion_deploy_test",
-    srcs = ["promotion_deploy_test.py"],
-    imports = ["."],
-    main = "promotion_deploy_test.py",
-    tags = ["no-coverage"],
-    deps = [":promotion_deploy_lib"],
-)
 
 real_source_target(
     name = "corpus_starlark",

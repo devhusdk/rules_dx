@@ -1,6 +1,6 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -48,7 +48,7 @@ def github_draft_error(draft):
     return ""
 
 def _github_launcher_impl(ctx):
-    """Expands the py_binary launcher for one draft release."""
+    """Expands the rust_binary launcher for one draft release."""
     asset_rlocs = []
     for target in ctx.attr.artifacts:
         info = target[DefaultInfo]
@@ -63,16 +63,13 @@ def _github_launcher_impl(ctx):
             f = files[0]
         asset_rlocs.append(rlocation_path(ctx, f))
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@ASSET_RLOCS@@": ";".join(asset_rlocs),
-            "@@DEPLOY_NAME@@": ctx.attr.deploy_name,
-            "@@TAG@@": ctx.attr.tag,
-        },
+        content = "const ASSET_RLOCS: &str = \"" + ";".join(asset_rlocs) + "\";\n" +
+                  "const DEPLOY_NAME: &str = \"" + ctx.attr.deploy_name + "\";\n" +
+                  "const TAG: &str = \"" + ctx.attr.tag + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::github_main(ASSET_RLOCS, DEPLOY_NAME, TAG, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -87,10 +84,6 @@ _github_launcher = rule(
         ),
         "tag": attr.string(
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:github_deploy.py",
         ),
     },
 )
@@ -116,12 +109,11 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", draft = True, profile 
         tag = tag,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = artifacts,
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

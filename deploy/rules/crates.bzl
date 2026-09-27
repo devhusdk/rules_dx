@@ -1,6 +1,6 @@
 """Local-first crates.io publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -87,7 +87,7 @@ def crates_allow_dirty_error(allow_dirty):
     return ""
 
 def _crates_launcher_impl(ctx):
-    """Expands the py_binary launcher for one crates.io deployment."""
+    """Expands the rust_binary launcher for one crates.io deployment."""
     crate_files = ctx.attr.crate[DefaultInfo].files.to_list()
     if len(crate_files) == 0:
         fail("crates_deploy " + str(ctx.label) + ": crate " +
@@ -99,17 +99,14 @@ def _crates_launcher_impl(ctx):
             fail(file_error + " (in " + str(ctx.label) + ")")
         rlocs.append(rlocation_path(ctx, f))
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@ALLOW_DIRTY@@": "1" if ctx.attr.allow_dirty else "0",
-            "@@CRATE_NAME@@": ctx.attr.crate_name,
-            "@@CRATE_RLOCS@@": ";".join(rlocs),
-            "@@CRATE_VERSION@@": ctx.attr.version,
-        },
+        content = "const CRATE_RLOCS: &str = \"" + ";".join(rlocs) + "\";\n" +
+                  "const CRATE_NAME: &str = \"" + ctx.attr.crate_name + "\";\n" +
+                  "const CRATE_VERSION: &str = \"" + ctx.attr.version + "\";\n" +
+                  "const ALLOW_DIRTY: bool = " + ("true" if ctx.attr.allow_dirty else "false") + ";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::crates_main(CRATE_RLOCS, CRATE_NAME, CRATE_VERSION, ALLOW_DIRTY, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -126,10 +123,6 @@ _crates_launcher = rule(
         ),
         "version": attr.string(
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:crates_deploy.py",
         ),
     },
 )
@@ -156,12 +149,11 @@ def crates_deploy(name, crate, version = "0.0.0", allow_dirty = False, profile =
         version = version,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = [crate],
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

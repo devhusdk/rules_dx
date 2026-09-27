@@ -1,6 +1,6 @@
 """Staging-to-production promotion publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -97,7 +97,7 @@ def promotion_edge_error(from_environment, to_environment):
     return ""
 
 def _promotion_launcher_impl(ctx):
-    """Expands the py_binary launcher for one promotion deployment."""
+    """Expands the rust_binary launcher for one promotion deployment."""
     artifact_files = ctx.attr.artifact[DefaultInfo].files.to_list()
     if len(artifact_files) != 1:
         fail("promotion_deploy " + str(ctx.label) + ": artifact " +
@@ -109,18 +109,15 @@ def _promotion_launcher_impl(ctx):
         fail(artifact_error + " (in " + str(ctx.label) + ")")
     artifact_rloc = rlocation_path(ctx, artifact_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@ARTIFACT_RLOC@@": artifact_rloc,
-            "@@DEPLOY_NAME@@": ctx.attr.deploy_name,
-            "@@FROM_ENV@@": ctx.attr.from_environment,
-            "@@TO_ENV@@": ctx.attr.to_environment,
-            "@@VERSION@@": ctx.attr.version,
-        },
+        content = "const ARTIFACT_RLOC: &str = \"" + artifact_rloc + "\";\n" +
+                  "const DEPLOY_NAME: &str = \"" + ctx.attr.deploy_name + "\";\n" +
+                  "const FROM_ENV: &str = \"" + ctx.attr.from_environment + "\";\n" +
+                  "const TO_ENV: &str = \"" + ctx.attr.to_environment + "\";\n" +
+                  "const VERSION: &str = \"" + ctx.attr.version + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::promotion_main(ARTIFACT_RLOC, DEPLOY_NAME, FROM_ENV, TO_ENV, VERSION, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -142,10 +139,6 @@ _promotion_launcher = rule(
         ),
         "version": attr.string(
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:promotion_deploy.py",
         ),
     },
 )
@@ -176,12 +169,11 @@ def promotion_deploy(name, artifact, from_environment = "staging", to_environmen
         version = version,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = [artifact],
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

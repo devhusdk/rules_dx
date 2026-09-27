@@ -1,6 +1,6 @@
 """Local-first NuGet publisher for dx deploy."""
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
@@ -100,7 +100,7 @@ def nuget_source_error(source):
     return ""
 
 def _nuget_launcher_impl(ctx):
-    """Expands the py_binary launcher for one NuGet deployment."""
+    """Expands the rust_binary launcher for one NuGet deployment."""
     nupkg_files = ctx.attr.nupkg[DefaultInfo].files.to_list()
     if len(nupkg_files) != 1:
         fail("nuget_deploy " + str(ctx.label) + ": nupkg " +
@@ -112,17 +112,14 @@ def _nuget_launcher_impl(ctx):
         fail(nupkg_error + " (in " + str(ctx.label) + ")")
     nupkg_rloc = rlocation_path(ctx, nupkg_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".py")
-    ctx.actions.expand_template(
-        template = ctx.file._template,
+    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
+    ctx.actions.write(
         output = launcher,
-        # buildifier: disable=canonical-repository
-        substitutions = {
-            "@@NUPKG_RLOC@@": nupkg_rloc,
-            "@@PACKAGE_ID@@": ctx.attr.package_id,
-            "@@PACKAGE_SOURCE@@": ctx.attr.source,
-            "@@PACKAGE_VERSION@@": ctx.attr.version,
-        },
+        content = "const NUPKG_RLOC: &str = \"" + nupkg_rloc + "\";\n" +
+                  "const PACKAGE_ID: &str = \"" + ctx.attr.package_id + "\";\n" +
+                  "const PACKAGE_VERSION: &str = \"" + ctx.attr.version + "\";\n" +
+                  "const PACKAGE_SOURCE: &str = \"" + ctx.attr.source + "\";\n" +
+                  "fn main() { std::process::exit(dx_deploy_tools::nuget_main(NUPKG_RLOC, PACKAGE_ID, PACKAGE_VERSION, PACKAGE_SOURCE, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -141,10 +138,6 @@ _nuget_launcher = rule(
         ),
         "version": attr.string(
             mandatory = True,
-        ),
-        "_template": attr.label(
-            allow_single_file = True,
-            default = "//deploy/rules:nuget_deploy.py",
         ),
     },
 )
@@ -171,12 +164,11 @@ def nuget_deploy(name, nupkg, version = "0.0.0", source = NUGET_DEFAULT_SOURCE, 
         version = version,
     )
 
-    py_binary(
+    rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
         data = [nupkg],
-        main = launcher_target + ".py",
-        deps = ["@rules_python//python/runfiles"],
+        deps = ["//deploy/rules:dx_deploy_tools"],
     )
 
     dx_deployment(

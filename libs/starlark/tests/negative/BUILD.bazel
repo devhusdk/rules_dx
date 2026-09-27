@@ -1,6 +1,6 @@
 load("//libs/starlark/tests:subject.bzl", "example_subject")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":negative_tests.bzl", "failing_check_demo", "missing_fragment_demo", "missing_observation_demo", "wrong_phase_demo")
+load(":negative_tests.bzl", "failing_check_demo", "missing_fragment_demo", "missing_observation_demo", "red_failing_checks", "red_missing_fragment", "red_missing_observation", "wrong_phase_demo")
 
 exports_files(["negative_tests.bzl"])
 
@@ -9,6 +9,12 @@ example_subject(
 )
 
 failing_check_demo(name = "failing_check_demo")
+
+red_failing_checks(name = "red_failing_checks")
+
+red_missing_observation(name = "red_missing_observation")
+
+red_missing_fragment(name = "red_missing_fragment")
 
 missing_observation_demo(name = "missing_observation_demo")
 

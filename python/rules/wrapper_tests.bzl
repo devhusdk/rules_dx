@@ -1,13 +1,15 @@
 """Wrapper-contract tests for the Python wrappers (item 2)."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
 load(":defs.bzl", "python_test_rejection")
 
 def python_wrapper_contract_tests(name):
-    starlark_test(
-        name = name,
-        mode = "unit",
-        checks = [
+    """Instantiates Python wrapper contract tests."""
+    dx_wrapper_contract_tests(
+        name,
+        include_forwarder_checks = False,
+        extra_checks = [
             expect_equal(
                 "generic main is rejected",
                 python_test_rejection({"main": "main.py"}) != None,

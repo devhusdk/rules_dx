@@ -1,13 +1,15 @@
 """Wrapper-contract tests for the TypeScript wrappers (item 2)."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
 load(":defs.bzl", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection")
 
 def typescript_wrapper_contract_tests(name):
-    starlark_test(
-        name = name,
-        mode = "unit",
-        checks = [
+    """Instantiates TypeScript wrapper contract tests."""
+    dx_wrapper_contract_tests(
+        name,
+        include_forwarder_checks = False,
+        extra_checks = [
             expect_equal(
                 "declaration file is rejected",
                 typescript_srcs_rejection(["types.d.ts"]) != None,

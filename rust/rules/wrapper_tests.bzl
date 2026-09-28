@@ -1,22 +1,17 @@
 """Wrapper conformance tests."""
 
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//libs/starlark:wrapper.bzl", "dx_effective_visibility", "dx_forwarded_test_kwargs")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
 
 def dx_wrapper_registry_tests(name):
-    starlark_test(
-        name = name,
-        mode = "unit",
-        checks = [
+    """Instantiates Rust wrapper registry tests."""
+    dx_wrapper_contract_tests(
+        name,
+        include_forwarder_checks = True,
+        extra_checks = [
             expect_equal("RUST class id", RUST, "rust"),
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),
-            expect_equal("forwarder defaults to private", dx_effective_visibility(None), ["//visibility:private"]),
-            expect_equal("explicit visibility wins", dx_effective_visibility(["//visibility:public"]), ["//visibility:public"]),
-            expect_equal("test kwargs strip manual", dx_forwarded_test_kwargs({"tags": ["manual", "cpu:4"]}), {"tags": ["cpu:4"]}),
-            expect_equal("test kwargs forward timeout, flaky stays upstream", dx_forwarded_test_kwargs({"timeout": "short", "flaky": True}), {"timeout": "short"}),
-            expect_equal("test kwargs keep flaky out of forwarder", dx_forwarded_test_kwargs({"flaky": True}), {}),
-            expect_equal("test kwargs empty stays empty", dx_forwarded_test_kwargs({}), {}),
         ],
     )
 
@@ -230,6 +225,7 @@ aspect_field subject_label=//rust/tests/fixtures/hello:hello_test_subject
 aspect_field transitive_count=0"""
 
 def dx_wrapper_conformance_tests(name, subjects):
+    """Instantiates Rust wrapper conformance tests."""
     starlark_test(
         name = name,
         mode = "analysis",

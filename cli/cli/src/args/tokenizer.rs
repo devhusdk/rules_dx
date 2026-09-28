@@ -137,16 +137,17 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
                 ArgsError::UnknownOption { option, suggestion }
             }
         }
-        _ => ArgsError::UnknownOption {
-            option: error
+        _ => ArgsError::InvalidArguments {
+            message: error
                 .render()
                 .to_string()
                 .lines()
                 .next()
-                .unwrap_or("dx")
+                .unwrap_or("invalid arguments")
+                .trim()
+                .trim_start_matches("error:")
                 .trim()
                 .to_owned(),
-            suggestion: None,
         },
     }
 }

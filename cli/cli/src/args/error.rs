@@ -26,6 +26,8 @@ pub enum ArgsError {
         option: String,
         suggestion: Option<String>,
     },
+    #[error("invalid arguments: {message}")]
+    InvalidArguments { message: String },
     #[error("option {option:?} is not supported by dx {command}")]
     UnsupportedOption {
         command: &'static str,
@@ -105,6 +107,17 @@ mod tests {
             }
         )
         .contains("--bogus"));
+        let invalid = format!(
+            "{}",
+            ArgsError::InvalidArguments {
+                message: "the argument '--quiet' cannot be used multiple times".to_owned(),
+            }
+        );
+        assert!(
+            invalid.starts_with("invalid arguments: the argument"),
+            "{invalid}"
+        );
+        assert!(!invalid.contains("unknown option"), "{invalid}");
         assert!(format!(
             "{}",
             ArgsError::UnsupportedOption {

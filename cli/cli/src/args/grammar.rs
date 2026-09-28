@@ -17,13 +17,13 @@ pub(crate) struct Cli {
     #[arg(long, allow_negative_numbers = true, overrides_with = "workspace")]
     pub(crate) workspace: Option<OsString>,
     /// Show the plan without running it.
-    #[arg(long)]
+    #[arg(long, overrides_with = "dry_run")]
     pub(crate) dry_run: bool,
     /// Hide summaries.
-    #[arg(long)]
+    #[arg(long, overrides_with = "quiet")]
     pub(crate) quiet: bool,
     /// Show more logs.
-    #[arg(long, short = 'v')]
+    #[arg(long, short = 'v', overrides_with = "verbose")]
     pub(crate) verbose: bool,
     /// Set color output.
     #[arg(long, allow_negative_numbers = true, overrides_with = "color")]
@@ -49,25 +49,25 @@ pub(crate) struct Cli {
     #[arg(long, allow_negative_numbers = true, overrides_with = "min_coverage")]
     pub(crate) min_coverage: Option<String>,
     /// Check without changing files.
-    #[arg(long)]
+    #[arg(long, overrides_with = "check")]
     pub(crate) check: bool,
     /// Use debug build.
-    #[arg(long)]
+    #[arg(long, overrides_with = "debug")]
     pub(crate) debug: bool,
     /// Use release build.
-    #[arg(long)]
+    #[arg(long, overrides_with = "release")]
     pub(crate) release: bool,
     /// Also run bazel clean.
-    #[arg(long = "bazel")]
+    #[arg(long = "bazel", overrides_with = "bazel_clean")]
     pub(crate) bazel_clean: bool,
     /// Re-pin to this version.
     #[arg(long, allow_negative_numbers = true, overrides_with = "pin")]
     pub(crate) pin: Option<String>,
     /// Re-pin the last release.
-    #[arg(long)]
+    #[arg(long, overrides_with = "rollback")]
     pub(crate) rollback: bool,
     /// Use cquery instead of query.
-    #[arg(long)]
+    #[arg(long, overrides_with = "configured")]
     pub(crate) configured: bool,
     /// Migrate from this version.
     #[arg(long, allow_negative_numbers = true, overrides_with = "from")]
@@ -76,10 +76,10 @@ pub(crate) struct Cli {
     #[arg(long, allow_negative_numbers = true, overrides_with = "to")]
     pub(crate) to: Option<String>,
     /// Use the current dir tree.
-    #[arg(long, visible_alias = "cwd")]
+    #[arg(long, visible_alias = "cwd", overrides_with = "here")]
     pub(crate) here: bool,
     /// Serve docs locally.
-    #[arg(long)]
+    #[arg(long, overrides_with = "serve")]
     pub(crate) serve: bool,
     /// Docs serve port.
     #[arg(long, allow_negative_numbers = true, overrides_with = "port")]
@@ -88,10 +88,10 @@ pub(crate) struct Cli {
     #[arg(long, allow_negative_numbers = true, overrides_with = "host")]
     pub(crate) host: Option<String>,
     /// Open docs in a browser.
-    #[arg(long)]
+    #[arg(long, overrides_with = "open")]
     pub(crate) open: bool,
     /// Run without network.
-    #[arg(long, visible_alias = "frozen")]
+    #[arg(long, visible_alias = "frozen", overrides_with = "offline")]
     pub(crate) offline: bool,
     /// Command to run.
     #[arg(value_enum)]

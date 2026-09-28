@@ -187,6 +187,33 @@ fn strict_typo_suggestions_come_from_the_same_grammar() {
 }
 
 #[test]
+fn strict_repeated_flags_are_last_wins() {
+    for (words, command) in [
+        (vec!["build", "--here", "--cwd"], Command::Build),
+        (vec!["build", "--cwd", "--here"], Command::Build),
+        (vec!["lint", "--check", "--check"], Command::Lint),
+        (vec!["lint", "--quiet", "--quiet"], Command::Lint),
+        (vec!["build", "-vv"], Command::Build),
+        (vec!["update", "--offline", "--frozen"], Command::Update),
+        (vec!["clean", "--bazel", "--bazel"], Command::Clean),
+    ] {
+        let got = parse(&args(&words)).unwrap_or_else(|error| panic!("words: {words:?}: {error}"));
+        assert_eq!(got.command, command, "words: {words:?}");
+    }
+    assert!(
+        parse(&args(&["build", "--here", "--cwd"]))
+            .expect("here")
+            .here
+    );
+    assert!(parse(&args(&["build", "-vv"])).expect("verbose").verbose);
+    assert!(
+        parse(&args(&["build", "--debug", "--release"]))
+            .is_err_and(|error| matches!(error, ArgsError::ConflictingProfiles)),
+        "repeatable flags must not weaken the profile conflict"
+    );
+}
+
+#[test]
 fn strict_bazel_tail_forwards_verbatim() {
     let got = parse(&args(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
     assert_eq!(got.command, Command::Bazel);

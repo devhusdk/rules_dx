@@ -89,7 +89,7 @@ rust_test(
             "thiserror",
         ],
         package_name = "docs/docs_adapters",
-    ),
+    ) + ["//docs/ir/ir:documentation_ir"],
 )
 
 rustfmt_test(

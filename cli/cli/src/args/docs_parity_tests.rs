@@ -250,3 +250,47 @@ fn help_doc_anchors_resolve() {
         }
     }
 }
+
+fn gated_check_ids(workflow: &str) -> Vec<String> {
+    let mut ids: Vec<String> = workflow
+        .lines()
+        .filter_map(|line| {
+            line.split_once("inputs.disabled_checks), ',")
+                .and_then(|(_, tail)| tail.split_once(",')"))
+                .map(|(id, _)| id.to_owned())
+        })
+        .collect();
+    ids.sort();
+    ids
+}
+
+#[test]
+fn github_ci_page_matches_the_consumer_workflow() {
+    let workflow =
+        std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
+            .expect("reusable-consumer.yml ships as test data");
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+
+    let ids = gated_check_ids(&workflow);
+    assert_eq!(ids.len(), 9, "consumer workflow gates nine checks");
+    for id in &ids {
+        assert!(
+            page.contains(&format!("`{id}`")),
+            "docs/github-ci.md never names the {id} check"
+        );
+    }
+
+    for command in Command::value_variants() {
+        for line in page.lines() {
+            if !line.contains(&format!("dx {} ", command.name())) || !line.contains("--check") {
+                continue;
+            }
+            assert!(
+                !rejects(*command, "--check", None),
+                "docs/github-ci.md pairs dx {} with --check but dx rejects it: {line}",
+                command.name()
+            );
+        }
+    }
+}

@@ -14,14 +14,30 @@ bazel_dep(name = "rules_dx", version = "0.0.0")
 
 ## Consumer Workflow
 
-`examples/consumer-ci/` calls `reusable-consumer.yml`. Each check runs
-`dx <check> --check` on your platforms: `lint`, `typecheck`, `format`,
-`generate`, `security`, `license`, `test`, `build`, `coverage`.
+`examples/consumer-ci/` calls `reusable-consumer.yml`. Nine checks run on
+every platform in `platforms`:
+
+- `lint`: `dx lint --check //...`
+- `typecheck`: `dx typecheck --check //...`
+- `format`: `dx format --check //...`
+- `generate`: `dx generate --check //...`
+- `security-audit`: `dx security //...`
+- `license-audit`: `dx license //...`
+- `test`: `dx test //...`
+- `build`: `dx build //...`
+- `coverage`: `dx coverage //...`, plus `--min-coverage <percent>` when
+  `min_coverage` is set.
+
+`--check` applies to the four quality checks. `dx security`, `dx license`,
+`dx test`, `dx build`, and `dx coverage` reject it.
 
 Inputs:
 
 - `rules_dx_version`: must match your `MODULE.bazel` pin.
+- `disabled_checks`: job IDs above to skip. Empty runs all nine.
 - `platforms`: defaults to Linux x86_64. Add arm64, macOS, Windows as needed.
+- `scheduling_mode`: `parallel` or `sequential`. Checks run in parallel either way.
+- `code_scanning_opt_in`: accepted and ignored.
 - `min_coverage`: fails below that percent. Coverage comes from `dx coverage`.
 
 The workflow needs `contents: read` plus `checks: write` for check runs.

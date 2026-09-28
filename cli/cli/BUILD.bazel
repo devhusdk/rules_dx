@@ -260,7 +260,9 @@ rust_test(
     crate = ":dx_cli",
     data = [
         ":dx",
+        "//.github:workflows/reusable-consumer.yml",
         "//docs:command_docs",
+        "//docs:github-ci.md",
     ],
     deps = crate_deps(
         [

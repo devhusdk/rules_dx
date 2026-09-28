@@ -1,0 +1,10 @@
+producer //quality/testdata:matrix_toml_lint_fail
+capability LINT
+stages 1
+stage taplo classes=toml sources=matrix/toml_dirty.toml
+completed_rounds 2
+convergence STABLE
+initial 0
+terminal 0
+replacements 1
+replacement matrix/toml_dirty.toml 1 2 " = "

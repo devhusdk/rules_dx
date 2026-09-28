@@ -1,0 +1,1 @@
+[{"source": "matrix/stylelint_dirty.less", "warnings": [{"line": 2, "column": 5, "rule": "color-no-invalid-hex", "text": "Unexpected invalid hex", "severity": "error"}]}]

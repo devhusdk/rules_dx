@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_yaml_format_fail
+capability FORMAT
+stages 1
+stage yamlfmt classes=yaml sources=matrix/yamlfmt_dirty.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING yamlfmt - matrix/yamlfmt_dirty.yaml 0 0 fixable=false "file is not formatted"
+terminal 1
+terminal WARNING yamlfmt - matrix/yamlfmt_dirty.yaml 0 0 fixable=false "file is not formatted"
+replacements 0

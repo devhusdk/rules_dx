@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_csharp_format_fail
+capability FORMAT
+stages 1
+stage csharpier classes=csharp sources=matrix/csharpier_dirty.cs
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING csharpier - matrix/csharpier_dirty.cs 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/csharpier_dirty.cs 88 94 "fixed"

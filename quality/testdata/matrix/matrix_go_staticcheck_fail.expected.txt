@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_go_staticcheck_fail
+capability LINT
+stages 1
+stage staticcheck classes=go sources=matrix/staticcheck_dirty.go
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING staticcheck SA4006 matrix/staticcheck_dirty.go 80 81 fixable=false "this value of x is never used"
+terminal 1
+terminal WARNING staticcheck SA4006 matrix/staticcheck_dirty.go 80 81 fixable=false "this value of x is never used"
+replacements 0

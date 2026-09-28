@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_rust_format_edition_2015
+capability FORMAT
+stages 1
+stage rustfmt classes=rust sources=matrix/rustfmt_edition_2015.rs
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

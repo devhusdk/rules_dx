@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_scss_lint_fail
+capability LINT
+stages 1
+stage stylelint classes=scss sources=matrix/stylelint_dirty.scss
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.scss 14 14 fixable=false "Unexpected invalid hex"
+terminal 1
+terminal ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.scss 14 14 fixable=false "Unexpected invalid hex"
+replacements 0

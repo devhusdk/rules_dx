@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_gherkin_format_pass
+capability FORMAT
+stages 1
+stage prettier classes=gherkin sources=matrix/prettier_gherkin_clean.feature
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

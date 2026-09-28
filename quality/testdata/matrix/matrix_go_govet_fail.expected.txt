@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_go_govet_fail
+capability LINT
+stages 1
+stage govet classes=go sources=matrix/govet_dirty.go
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING govet - matrix/govet_dirty.go 87 87 fixable=false "non-constant format string in call to fmt.Printf"
+terminal 1
+terminal WARNING govet - matrix/govet_dirty.go 87 87 fixable=false "non-constant format string in call to fmt.Printf"
+replacements 0

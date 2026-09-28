@@ -1,0 +1,1 @@
+matrix/govet_dirty.go:7:2: non-constant format string in call to fmt.Printf

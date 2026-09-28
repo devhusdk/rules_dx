@@ -1,0 +1,1 @@
+{"files": [{"path": "matrix/rubocop_dirty.rb", "offenses": [{"severity": "convention", "message": "Use double quotes", "cop_name": "Style/StringLiterals", "location": {"line": 3, "column": 1}}]}]}

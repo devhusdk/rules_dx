@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_python_stub_format_pass
+capability FORMAT
+stages 1
+stage ruff classes=python_stub sources=matrix/stub_format_clean.pyi
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

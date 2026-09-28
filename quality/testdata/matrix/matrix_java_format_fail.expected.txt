@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_java_format_fail
+capability FORMAT
+stages 1
+stage google_java_format classes=java sources=quality/testdata/real_dirty.java
+completed_rounds 3
+convergence STABLE
+initial 1
+initial WARNING google_java_format - quality/testdata/real_dirty.java 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement quality/testdata/real_dirty.java 15 128 "\npublic class Dirty {\n  public static String hello(String name) {\n    return \"hello \" + name;\n  "

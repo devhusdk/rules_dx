@@ -1,0 +1,1 @@
+matrix/psscriptanalyzer_dirty.ps1:4:1: [PSAvoidUsingWriteHost] Avoid using Write-Host

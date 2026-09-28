@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_sql_format_fail
+capability FORMAT
+stages 1
+stage prettier classes=sql sources=matrix/prettier_sql_dirty.sql
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - matrix/prettier_sql_dirty.sql 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/prettier_sql_dirty.sql 9 15 "fixed"

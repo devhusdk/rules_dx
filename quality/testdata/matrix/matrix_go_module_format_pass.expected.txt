@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_go_module_format_pass
+capability FORMAT
+stages 1
+stage modfmt classes=go_module sources=matrix/modfmt_clean.mod
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

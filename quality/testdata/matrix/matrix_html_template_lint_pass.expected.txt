@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_html_template_lint_pass
+capability LINT
+stages 1
+stage djlint classes=html_template sources=matrix/djlint_clean.html
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

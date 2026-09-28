@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_java_format_pass
+capability FORMAT
+stages 1
+stage google_java_format classes=java sources=quality/testdata/real_clean.java
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

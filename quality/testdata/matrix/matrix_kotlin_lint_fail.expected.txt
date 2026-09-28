@@ -1,0 +1,18 @@
+producer //quality/testdata:matrix_kotlin_lint_fail
+capability LINT
+stages 1
+stage ktlint classes=kotlin sources=quality/testdata/real_dirty.kt
+completed_rounds 2
+convergence STABLE
+initial 7
+initial ERROR ktlint standard:filename quality/testdata/real_dirty.kt 0 0 fixable=false "File 'real_dirty.kt' contains a single top level declaration and should be named 'Dirty.kt'"
+initial ERROR ktlint standard:blank-line-before-declaration quality/testdata/real_dirty.kt 41 41 fixable=true "Expected a blank line for this declaration"
+initial ERROR ktlint standard:indent quality/testdata/real_dirty.kt 56 56 fixable=true "Unexpected indentation (0) (should be 4)"
+initial ERROR ktlint standard:function-expression-body quality/testdata/real_dirty.kt 88 88 fixable=true "Function body should be replaced with body expression"
+initial ERROR ktlint standard:indent quality/testdata/real_dirty.kt 90 90 fixable=true "Unexpected indentation (0) (should be 8)"
+initial ERROR ktlint standard:op-spacing quality/testdata/real_dirty.kt 105 105 fixable=true "Missing spacing around \"+\""
+initial ERROR ktlint standard:indent quality/testdata/real_dirty.kt 111 111 fixable=true "Unexpected indentation (0) (should be 4)"
+terminal 1
+terminal ERROR ktlint standard:filename quality/testdata/real_dirty.kt 0 0 fixable=false "File 'real_dirty.kt' contains a single top level declaration and should be named 'Dirty.kt'"
+replacements 1
+replacement quality/testdata/real_dirty.kt 41 112 "\nobject Dirty {\n    fun hello(name: String): String = \"hello \" + name"

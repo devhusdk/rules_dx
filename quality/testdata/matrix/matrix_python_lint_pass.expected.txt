@@ -1,0 +1,10 @@
+producer //quality/testdata:matrix_python_lint_pass
+capability LINT
+stages 2
+stage pydoclint classes=python sources=quality/testdata/real_clean.py
+stage ruff classes=python sources=quality/testdata/real_clean.py
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_yaml_lint_fail
+capability LINT
+stages 1
+stage yamllint classes=yaml sources=matrix/yamllint_dirty.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING yamllint trailing-spaces matrix/yamllint_dirty.yaml 11 11 fixable=false "trailing spaces"
+terminal 1
+terminal WARNING yamllint trailing-spaces matrix/yamllint_dirty.yaml 11 11 fixable=false "trailing spaces"
+replacements 0

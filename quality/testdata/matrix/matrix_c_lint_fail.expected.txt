@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_c_lint_fail
+capability LINT
+stages 1
+stage clang_tidy classes=c sources=matrix/clang_tidy_dirty.c
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING clang_tidy readability-else-after-return matrix/clang_tidy_dirty.c 46 46 fixable=false "do not use 'else' after 'return'"
+terminal 1
+terminal WARNING clang_tidy readability-else-after-return matrix/clang_tidy_dirty.c 46 46 fixable=false "do not use 'else' after 'return'"
+replacements 0

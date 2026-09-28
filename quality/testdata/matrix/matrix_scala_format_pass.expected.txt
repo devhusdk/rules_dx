@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_scala_format_pass
+capability FORMAT
+stages 1
+stage scalafmt classes=scala sources=matrix/scalafmt_clean.scala
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_python_typecheck_pass
+capability TYPECHECK
+stages 1
+stage ty classes=python sources=quality/testdata/real_clean.py
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

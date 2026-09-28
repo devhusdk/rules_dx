@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_pkl_format_pass
+capability FORMAT
+stages 1
+stage pkl classes=pkl sources=matrix/pkl_clean.pkl
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

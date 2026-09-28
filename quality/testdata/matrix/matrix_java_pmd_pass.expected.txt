@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_java_pmd_pass
+capability LINT
+stages 1
+stage pmd classes=java sources=quality/testdata/real_clean.java
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

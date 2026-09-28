@@ -1,0 +1,1 @@
+matrix/shellcheck_dirty.sh:3:1: warning: Double quote to prevent globbing [SC2086]

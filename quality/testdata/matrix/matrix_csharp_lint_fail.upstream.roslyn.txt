@@ -1,0 +1,1 @@
+{"version": "2.1.0", "runs": [{"results": [{"ruleId": "CA1822", "level": "warning", "message": {"text": "Member 'Greet' does not access instance data"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "matrix/roslyn_dirty.cs"}, "region": {"startLine": 6, "startColumn": 28, "endLine": 6, "endColumn": 33}}}]}]}]}

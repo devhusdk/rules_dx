@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_scala_format_fail
+capability FORMAT
+stages 1
+stage scalafmt classes=scala sources=matrix/scalafmt_dirty.scala
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING scalafmt - matrix/scalafmt_dirty.scala 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/scalafmt_dirty.scala 43 49 "fixed"

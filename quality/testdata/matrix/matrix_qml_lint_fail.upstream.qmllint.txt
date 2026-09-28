@@ -1,0 +1,1 @@
+{"diagnostics": [{"file": "matrix/qmllint_dirty.qml", "line": 4, "column": 5, "rule": "unqualified", "message": "Unqualified access to `foo`.", "severity": "warning"}]}

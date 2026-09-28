@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_fsharp_format_pass
+capability FORMAT
+stages 1
+stage fantomas classes=fsharp sources=matrix/fantomas_clean.fs
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

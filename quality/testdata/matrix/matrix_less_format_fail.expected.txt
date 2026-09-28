@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_less_format_fail
+capability FORMAT
+stages 1
+stage prettier classes=less sources=matrix/prettier_less_dirty.less
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - matrix/prettier_less_dirty.less 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/prettier_less_dirty.less 18 24 "fixed"

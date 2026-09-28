@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_scss_format_pass
+capability FORMAT
+stages 1
+stage prettier classes=scss sources=matrix/prettier_scss_clean.scss
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

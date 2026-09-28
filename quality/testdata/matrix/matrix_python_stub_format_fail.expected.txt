@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_python_stub_format_fail
+capability FORMAT
+stages 1
+stage ruff classes=python_stub sources=matrix/stub_format_dirty.pyi
+completed_rounds 2
+convergence STABLE
+initial 1
+initial ERROR ruff unformatted matrix/stub_format_dirty.pyi 27 58 fixable=true "File would be reformatted"
+terminal 0
+replacements 1
+replacement matrix/stub_format_dirty.pyi 27 58 "\ndef add(first: int, second: int) -> "

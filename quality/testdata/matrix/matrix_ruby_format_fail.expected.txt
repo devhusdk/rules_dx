@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_ruby_format_fail
+capability FORMAT
+stages 1
+stage standardrb classes=ruby sources=matrix/standardrb_dirty.rb
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING standardrb - matrix/standardrb_dirty.rb 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/standardrb_dirty.rb 5 11 "fixed"

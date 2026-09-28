@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_qml_format_fail
+capability FORMAT
+stages 1
+stage qmlformat classes=qml sources=matrix/qmlformat_dirty.qml
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING qmlformat - matrix/qmlformat_dirty.qml 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/qmlformat_dirty.qml 23 29 "fixed"

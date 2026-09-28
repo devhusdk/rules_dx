@@ -8,16 +8,7 @@ TS_CASES = [
         "stages": ["biome;typescript;quality/testdata/real_clean.ts"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_typescript_lint_pass
-capability LINT
-stages 1
-stage biome classes=typescript sources=quality/testdata/real_clean.ts
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_typescript_lint_pass.expected.txt",
     },
     {
         "name": "matrix_typescript_lint_fail",
@@ -26,18 +17,7 @@ replacements 0
         "stages": ["biome;typescript;quality/testdata/real_dirty.ts"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_typescript_lint_fail
-capability LINT
-stages 1
-stage biome classes=typescript sources=quality/testdata/real_dirty.ts
-completed_rounds 1
-convergence STABLE
-initial 1
-initial WARNING biome lint/correctness/noUnusedVariables quality/testdata/real_dirty.ts 57 63 fixable=false "This variable unused is unused."
-terminal 1
-terminal WARNING biome lint/correctness/noUnusedVariables quality/testdata/real_dirty.ts 57 63 fixable=false "This variable unused is unused."
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_typescript_lint_fail.expected.txt",
     },
     {
         "name": "matrix_typescript_format_pass",
@@ -46,16 +26,7 @@ replacements 0
         "stages": ["biome;typescript;quality/testdata/real_clean.ts"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_typescript_format_pass
-capability FORMAT
-stages 1
-stage biome classes=typescript sources=quality/testdata/real_clean.ts
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_typescript_format_pass.expected.txt",
     },
     {
         "name": "matrix_typescript_format_fail",
@@ -64,18 +35,7 @@ replacements 0
         "stages": ["biome;typescript;quality/testdata/real_dirty.ts"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_typescript_format_fail
-capability FORMAT
-stages 1
-stage biome classes=typescript sources=quality/testdata/real_dirty.ts
-completed_rounds 2
-convergence STABLE
-initial 1
-initial WARNING biome - quality/testdata/real_dirty.ts 0 0 fixable=true "file is not formatted"
-terminal 0
-replacements 1
-replacement quality/testdata/real_dirty.ts 20 89 "first: number, second: number) {\\n\\tconst unused = 1;\\n\\treturn first + second;\\n"
-""",
+        "expected_file": ":matrix/matrix_typescript_format_fail.expected.txt",
     },
     {
         "name": "matrix_jsx_lint_pass",
@@ -84,16 +44,7 @@ replacement quality/testdata/real_dirty.ts 20 89 "first: number, second: number)
         "stages": ["biome;jsx;quality/testdata/real_clean.jsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_jsx_lint_pass
-capability LINT
-stages 1
-stage biome classes=jsx sources=quality/testdata/real_clean.jsx
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_jsx_lint_pass.expected.txt",
     },
     {
         "name": "matrix_jsx_lint_fail",
@@ -104,18 +55,7 @@ replacements 0
         "stages": ["biome;jsx;matrix/jsx_dirty.jsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_jsx_lint_fail
-capability LINT
-stages 1
-stage biome classes=jsx sources=matrix/jsx_dirty.jsx
-completed_rounds 1
-convergence STABLE
-initial 1
-initial WARNING biome lint/correctness/noUnusedVariables matrix/jsx_dirty.jsx 31 37 fixable=false "This variable unused is unused."
-terminal 1
-terminal WARNING biome lint/correctness/noUnusedVariables matrix/jsx_dirty.jsx 31 37 fixable=false "This variable unused is unused."
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_jsx_lint_fail.expected.txt",
     },
     {
         "name": "matrix_jsx_format_pass",
@@ -124,16 +64,7 @@ replacements 0
         "stages": ["biome;jsx;quality/testdata/real_clean.jsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_jsx_format_pass
-capability FORMAT
-stages 1
-stage biome classes=jsx sources=quality/testdata/real_clean.jsx
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_jsx_format_pass.expected.txt",
     },
     {
         "name": "matrix_jsx_format_fail",
@@ -144,18 +75,7 @@ replacements 0
         "stages": ["biome;jsx;matrix/jsx_dirty.jsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_jsx_format_fail
-capability FORMAT
-stages 1
-stage biome classes=jsx sources=matrix/jsx_dirty.jsx
-completed_rounds 2
-convergence STABLE
-initial 1
-initial WARNING biome - matrix/jsx_dirty.jsx 0 0 fixable=true "file is not formatted"
-terminal 0
-replacements 1
-replacement matrix/jsx_dirty.jsx 21 67 ") {\\n\\tconst unused = 1;\\n\\treturn <div>Hello</div>;\\n"
-""",
+        "expected_file": ":matrix/matrix_jsx_format_fail.expected.txt",
     },
     {
         "name": "matrix_tsx_lint_pass",
@@ -164,16 +84,7 @@ replacement matrix/jsx_dirty.jsx 21 67 ") {\\n\\tconst unused = 1;\\n\\treturn <
         "stages": ["biome;tsx;quality/testdata/real_clean.tsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_tsx_lint_pass
-capability LINT
-stages 1
-stage biome classes=tsx sources=quality/testdata/real_clean.tsx
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_tsx_lint_pass.expected.txt",
     },
     {
         "name": "matrix_tsx_lint_fail",
@@ -184,18 +95,7 @@ replacements 0
         "stages": ["biome;tsx;matrix/tsx_dirty.tsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_tsx_lint_fail
-capability LINT
-stages 1
-stage biome classes=tsx sources=matrix/tsx_dirty.tsx
-completed_rounds 1
-convergence STABLE
-initial 1
-initial WARNING biome lint/correctness/noUnusedVariables matrix/tsx_dirty.tsx 49 55 fixable=false "This variable unused is unused."
-terminal 1
-terminal WARNING biome lint/correctness/noUnusedVariables matrix/tsx_dirty.tsx 49 55 fixable=false "This variable unused is unused."
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_tsx_lint_fail.expected.txt",
     },
     {
         "name": "matrix_tsx_format_pass",
@@ -204,16 +104,7 @@ replacements 0
         "stages": ["biome;tsx;quality/testdata/real_clean.tsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_tsx_format_pass
-capability FORMAT
-stages 1
-stage biome classes=tsx sources=quality/testdata/real_clean.tsx
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_tsx_format_pass.expected.txt",
     },
     {
         "name": "matrix_tsx_format_fail",
@@ -224,17 +115,6 @@ replacements 0
         "stages": ["biome;tsx;matrix/tsx_dirty.tsx"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_tsx_format_fail
-capability FORMAT
-stages 1
-stage biome classes=tsx sources=matrix/tsx_dirty.tsx
-completed_rounds 2
-convergence STABLE
-initial 1
-initial WARNING biome - matrix/tsx_dirty.tsx 0 0 fixable=true "file is not formatted"
-terminal 0
-replacements 1
-replacement matrix/tsx_dirty.tsx 27 98 " { name: string }) {\\n\\tconst unused = 1;\\n\\treturn <div>Hello {props.name}</div>;\\n"
-""",
+        "expected_file": ":matrix/matrix_tsx_format_fail.expected.txt",
     },
 ]

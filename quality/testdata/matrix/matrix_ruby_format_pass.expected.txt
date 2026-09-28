@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_ruby_format_pass
+capability FORMAT
+stages 1
+stage standardrb classes=ruby sources=matrix/standardrb_clean.rb
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

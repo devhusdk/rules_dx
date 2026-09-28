@@ -1,0 +1,12 @@
+producer //quality/testdata:matrix_starlark_lint_fail
+capability LINT
+stages 1
+stage buildifier classes=starlark sources=matrix/starlark_dirty.bzl
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING buildifier module-docstring matrix/starlark_dirty.bzl 0 1 fixable=false "The file has no module docstring.\nA module docstring is a string literal (not a comment) which should be the first statement of a file (it may follow comment lines)."
+terminal 1
+terminal WARNING buildifier module-docstring matrix/starlark_dirty.bzl 0 1 fixable=false "The file has no module docstring.\nA module docstring is a string literal (not a comment) which should be the first statement of a file (it may follow comment lines)."
+replacements 1
+replacement matrix/starlark_dirty.bzl 1 2 " = "

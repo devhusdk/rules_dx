@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<results version="2">
+  <cppcheck version="2.21.0"/>
+  <errors>
+    <error id="nullPointer" severity="error" msg="Possible null pointer dereference: slot" verbose="Possible null pointer dereference: slot">
+      <location file="matrix/cppcheck_dirty.c" line="7" column="10"/>
+    </error>
+  </errors>
+</results>

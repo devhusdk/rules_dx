@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_sql_format_pass
+capability FORMAT
+stages 1
+stage prettier classes=sql sources=matrix/prettier_sql_clean.sql
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_c_format_pass
+capability FORMAT
+stages 1
+stage clang_format classes=c sources=matrix/clang_format_clean.c
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

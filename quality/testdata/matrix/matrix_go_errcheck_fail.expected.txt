@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_go_errcheck_fail
+capability LINT
+stages 1
+stage errcheck classes=go sources=matrix/errcheck_dirty.go
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING errcheck - matrix/errcheck_dirty.go 89 89 fixable=false "unchecked error: f.WriteString(\"hello\")"
+terminal 1
+terminal WARNING errcheck - matrix/errcheck_dirty.go 89 89 fixable=false "unchecked error: f.WriteString(\"hello\")"
+replacements 0

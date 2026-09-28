@@ -1,0 +1,1 @@
+{"files": [{"path": "matrix/rubocop_clean.rb", "offenses": []}]}

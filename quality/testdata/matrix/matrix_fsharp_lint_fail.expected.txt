@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_fsharp_lint_fail
+capability LINT
+stages 1
+stage fsharplint classes=fsharp sources=matrix/fsharplint_dirty.fs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING fsharplint FL0036 matrix/fsharplint_dirty.fs 45 61 fixable=false "Consider changing `ExampleInterface` to be prefixed with `I`."
+terminal 1
+terminal WARNING fsharplint FL0036 matrix/fsharplint_dirty.fs 45 61 fixable=false "Consider changing `ExampleInterface` to be prefixed with `I`."
+replacements 0

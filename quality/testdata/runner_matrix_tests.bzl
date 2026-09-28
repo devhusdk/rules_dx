@@ -79,8 +79,14 @@ def _runner_matrix_test_impl(ctx):
         ctx.actions.write(output = diagnostics, content = content)
         upstream.append((tool, diagnostics))
 
-    expected = ctx.actions.declare_file(ctx.label.name + "_expected.txt")
-    ctx.actions.write(output = expected, content = ctx.attr.expected)
+    expected = ctx.file.expected_file
+    if expected == None:
+        if not ctx.attr.expected:
+            fail("runner_matrix_test: either expected or expected_file must be set")
+        expected = ctx.actions.declare_file(ctx.label.name + "_expected.txt")
+        ctx.actions.write(output = expected, content = ctx.attr.expected)
+    elif ctx.attr.expected:
+        fail("runner_matrix_test: expected and expected_file are mutually exclusive")
 
     lines = [
         "#!/bin/bash",
@@ -198,10 +204,7 @@ def _runner_matrix_test_impl(ctx):
         "  mkdir -p \"$out_dir\"\n" +
         "  cp " + _var_ref("$ACTUAL") + " \"$out_dir/" + ctx.label.name + ".expected.update\"\n" +
         "  echo \"snapshot UPDATE_EXPECT: staged fresh actual at $out_dir/" + ctx.label.name + ".expected.update\"\n" +
-        "  echo \"paste the block below into runner_matrix_cases.bzl expected for " + ctx.label.name + ":\"\n" +
-        "  echo '\"\"\"'\n" +
-        "  cat " + _var_ref("$ACTUAL") + "\n" +
-        "  echo '\"\"\"'\n" +
+        "  echo \"copy it to quality/testdata/matrix/" + ctx.label.name + ".expected.txt, then review before pinning.\"\n" +
         "  echo " + shell.quote("matrix PASS (updated): " + ctx.label.name) + "\n" +
         "  exit 0\n" +
         "fi",
@@ -279,7 +282,10 @@ _runner_matrix_test = rule(
         ),
         "upstream_generated": attr.string_dict(),
         "expected": attr.string(
-            mandatory = True,
+            default = "",
+        ),
+        "expected_file": attr.label(
+            allow_single_file = True,
         ),
         "rustfmt_from_toolchain": attr.bool(
             default = False,
@@ -324,7 +330,8 @@ def runner_matrix_suite(name, cases):
             upstream_tools = case.get("upstream_tools", []),
             upstream_srcs = case.get("upstream_srcs", []),
             upstream_generated = case.get("upstream_generated", {}),
-            expected = case["expected"],
+            expected = case.get("expected", ""),
+            expected_file = case.get("expected_file"),
             tags = ["no-coverage"],
             target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         )

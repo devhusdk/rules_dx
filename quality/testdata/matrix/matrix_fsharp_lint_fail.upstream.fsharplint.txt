@@ -1,0 +1,1 @@
+{"path": "matrix/fsharplint_dirty.fs", "rule": "FL0036", "message": "Consider changing `ExampleInterface` to be prefixed with `I`.", "startLine": 4, "startColumn": 6, "endLine": 4, "endColumn": 22}

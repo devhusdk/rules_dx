@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_css_lint_pass
+capability LINT
+stages 1
+stage stylelint classes=css sources=matrix/stylelint_clean.css
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

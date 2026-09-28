@@ -1,0 +1,1 @@
+[{"source": "matrix/stylelint_clean.scss", "warnings": []}]

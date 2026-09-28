@@ -1,0 +1,1 @@
+matrix/yamllint_dirty.yaml:2:1: [trailing-spaces] trailing spaces

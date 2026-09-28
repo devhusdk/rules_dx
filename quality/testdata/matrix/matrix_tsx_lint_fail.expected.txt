@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_tsx_lint_fail
+capability LINT
+stages 1
+stage biome classes=tsx sources=matrix/tsx_dirty.tsx
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING biome lint/correctness/noUnusedVariables matrix/tsx_dirty.tsx 49 55 fixable=false "This variable unused is unused."
+terminal 1
+terminal WARNING biome lint/correctness/noUnusedVariables matrix/tsx_dirty.tsx 49 55 fixable=false "This variable unused is unused."
+replacements 0

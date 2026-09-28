@@ -1,0 +1,16 @@
+producer //quality/testdata:matrix_python_lint_fail
+capability LINT
+stages 2
+stage pydoclint classes=python sources=quality/testdata/real_dirty.py
+stage ruff classes=python sources=quality/testdata/real_dirty.py
+completed_rounds 2
+convergence STABLE
+initial 3
+initial ERROR ruff F401 quality/testdata/real_dirty.py 49 51 fixable=true "`os` imported but unused"
+initial ERROR pydoclint DOC101 quality/testdata/real_dirty.py 54 54 fixable=false "Function `add`: Docstring contains fewer arguments than in function signature."
+initial ERROR pydoclint DOC103 quality/testdata/real_dirty.py 54 54 fixable=false "Function `add`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [second: int]."
+terminal 2
+terminal ERROR pydoclint DOC101 quality/testdata/real_dirty.py 44 44 fixable=false "Function `add`: Docstring contains fewer arguments than in function signature."
+terminal ERROR pydoclint DOC103 quality/testdata/real_dirty.py 44 44 fixable=false "Function `add`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [second: int]."
+replacements 1
+replacement quality/testdata/real_dirty.py 42 52 ""

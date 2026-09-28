@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_csharp_lint_fail
+capability LINT
+stages 1
+stage roslyn classes=csharp sources=matrix/roslyn_dirty.cs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING roslyn CA1822 matrix/roslyn_dirty.cs 110 115 fixable=false "Member 'Greet' does not access instance data"
+terminal 1
+terminal WARNING roslyn CA1822 matrix/roslyn_dirty.cs 110 115 fixable=false "Member 'Greet' does not access instance data"
+replacements 0

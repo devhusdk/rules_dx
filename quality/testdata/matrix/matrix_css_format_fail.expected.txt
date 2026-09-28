@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_css_format_fail
+capability FORMAT
+stages 1
+stage prettier classes=css sources=matrix/prettier_css_dirty.css
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - matrix/prettier_css_dirty.css 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/prettier_css_dirty.css 18 24 "fixed"

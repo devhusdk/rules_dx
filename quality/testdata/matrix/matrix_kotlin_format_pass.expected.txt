@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_kotlin_format_pass
+capability FORMAT
+stages 1
+stage ktfmt classes=kotlin sources=quality/testdata/real_clean.kt
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

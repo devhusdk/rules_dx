@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_go_staticcheck_pass
+capability LINT
+stages 1
+stage staticcheck classes=go sources=matrix/staticcheck_clean.go
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

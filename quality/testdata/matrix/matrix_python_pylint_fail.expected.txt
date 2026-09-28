@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_python_pylint_fail
+capability LINT
+stages 1
+stage pylint classes=python sources=quality/testdata/real_dirty.py
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING pylint W0611 quality/testdata/real_dirty.py 42 51 fixable=false "Unused import os"
+terminal 1
+terminal WARNING pylint W0611 quality/testdata/real_dirty.py 42 51 fixable=false "Unused import os"
+replacements 0

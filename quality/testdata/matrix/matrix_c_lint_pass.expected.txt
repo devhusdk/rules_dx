@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_c_lint_pass
+capability LINT
+stages 1
+stage clang_tidy classes=c sources=matrix/clang_tidy_clean.c
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

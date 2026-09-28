@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_shell_format_pass
+capability FORMAT
+stages 1
+stage shfmt classes=shell sources=matrix/shfmt_clean.sh
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

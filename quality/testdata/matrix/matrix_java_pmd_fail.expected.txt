@@ -1,0 +1,13 @@
+producer //quality/testdata:matrix_java_pmd_fail
+capability LINT
+stages 1
+stage pmd classes=java sources=quality/testdata/real_dirty.java
+completed_rounds 1
+convergence STABLE
+initial 2
+initial INFO pmd UnnecessaryImport quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
+initial WARNING pmd InstantiableUtilityClass quality/testdata/real_dirty.java 56 61 fixable=false "All members are static. Consider adding a private no-args constructor to prevent instantiation."
+terminal 2
+terminal INFO pmd UnnecessaryImport quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
+terminal WARNING pmd InstantiableUtilityClass quality/testdata/real_dirty.java 56 61 fixable=false "All members are static. Consider adding a private no-args constructor to prevent instantiation."
+replacements 0

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_terraform_format_fail
+capability FORMAT
+stages 1
+stage terraform classes=terraform sources=matrix/terraform_dirty.tf
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING terraform - matrix/terraform_dirty.tf 0 0 fixable=false "file is not formatted"
+terminal 1
+terminal WARNING terraform - matrix/terraform_dirty.tf 0 0 fixable=false "file is not formatted"
+replacements 0

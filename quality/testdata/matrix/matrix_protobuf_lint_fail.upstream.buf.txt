@@ -1,0 +1,1 @@
+{"path": "matrix/buf_lint_dirty.proto", "start_line": 3, "start_column": 9, "end_line": 3, "end_column": 18, "type": "PACKAGE_DIRECTORY_MATCH", "message": "Files with package fixtures.buf must be in a directory fixtures/buf."}

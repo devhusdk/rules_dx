@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_rust_typecheck_fail
+capability TYPECHECK
+stages 1
+stage rustc classes=rust sources=matrix/rustc_type.rs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR rustc E0308 matrix/rustc_type.rs 44 49 fixable=false "mismatched types"
+terminal 1
+terminal ERROR rustc E0308 matrix/rustc_type.rs 44 49 fixable=false "mismatched types"
+replacements 0

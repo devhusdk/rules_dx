@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_rust_lint_pass
+capability LINT
+stages 1
+stage clippy classes=rust sources=matrix/clippy_clean.rs
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

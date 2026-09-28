@@ -1,0 +1,13 @@
+producer //quality/testdata:matrix_python_stub_lint_fail
+capability LINT
+stages 2
+stage pydoclint classes=python_stub sources=matrix/stub_dirty.pyi
+stage ruff classes=python_stub sources=matrix/stub_dirty.pyi
+completed_rounds 2
+convergence STABLE
+initial 2
+initial ERROR ruff I001 matrix/stub_dirty.pyi 34 43 fixable=true "Import block is un-sorted or un-formatted"
+initial ERROR ruff F401 matrix/stub_dirty.pyi 41 43 fixable=true "`os` imported but unused"
+terminal 0
+replacements 1
+replacement matrix/stub_dirty.pyi 34 44 ""

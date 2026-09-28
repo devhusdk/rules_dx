@@ -8,16 +8,7 @@ JSON_CASES = [
         "stages": ["biome;json;quality/testdata/real_clean.json"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_json_lint_pass
-capability LINT
-stages 1
-stage biome classes=json sources=quality/testdata/real_clean.json
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_json_lint_pass.expected.txt",
     },
     {
         "name": "matrix_json_lint_fail",
@@ -28,18 +19,7 @@ replacements 0
         "stages": ["biome;json;matrix/json_dup.json"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
-        "expected": """producer //quality/testdata:matrix_json_lint_fail
-capability LINT
-stages 1
-stage biome classes=json sources=matrix/json_dup.json
-completed_rounds 1
-convergence STABLE
-initial 1
-initial ERROR biome lint/suspicious/noDuplicateObjectKeys matrix/json_dup.json 1 4 fixable=false "The key a was already declared."
-terminal 1
-terminal ERROR biome lint/suspicious/noDuplicateObjectKeys matrix/json_dup.json 1 4 fixable=false "The key a was already declared."
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_json_lint_fail.expected.txt",
     },
     {
         "name": "matrix_json_format_pass",
@@ -48,16 +28,7 @@ replacements 0
         "stages": ["prettier;json;quality/testdata/real_clean.json"],
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
-        "expected": """producer //quality/testdata:matrix_json_format_pass
-capability FORMAT
-stages 1
-stage prettier classes=json sources=quality/testdata/real_clean.json
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0
-""",
+        "expected_file": ":matrix/matrix_json_format_pass.expected.txt",
     },
     {
         "name": "matrix_json_format_fail",
@@ -66,17 +37,6 @@ replacements 0
         "stages": ["prettier;json;quality/testdata/real_dirty.json"],
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
-        "expected": """producer //quality/testdata:matrix_json_format_fail
-capability FORMAT
-stages 1
-stage prettier classes=json sources=quality/testdata/real_dirty.json
-completed_rounds 2
-convergence STABLE
-initial 1
-initial WARNING prettier - quality/testdata/real_dirty.json 0 0 fixable=true "file is not formatted"
-terminal 0
-replacements 1
-replacement quality/testdata/real_dirty.json 1 6 " \\"a\\": 1 "
-""",
+        "expected_file": ":matrix/matrix_json_format_fail.expected.txt",
     },
 ]

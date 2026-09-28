@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cpp_format_fail
+capability FORMAT
+stages 1
+stage clang_format classes=cpp sources=matrix/clang_format_dirty.cpp
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING clang_format - matrix/clang_format_dirty.cpp 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/clang_format_dirty.cpp 58 64 "fixed"

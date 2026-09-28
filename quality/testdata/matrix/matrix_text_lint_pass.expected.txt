@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_text_lint_pass
+capability LINT
+stages 1
+stage keep_sorted classes=text sources=matrix/keep_sorted_clean.txt
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

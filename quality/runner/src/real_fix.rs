@@ -3,6 +3,172 @@ use quality_adapter::exec::MirrorContents;
 
 use super::*;
 
+enum FixConfig {
+    None,
+    Optional,
+    Required,
+    BiomeDir,
+    Rustfmt,
+    Buildifier,
+}
+
+struct FixSpec {
+    tool: &'static str,
+    config: FixConfig,
+    keep_exit_one: bool,
+}
+
+const RUFF_LINT_SPEC: FixSpec = FixSpec {
+    tool: "ruff",
+    config: FixConfig::Optional,
+    keep_exit_one: true,
+};
+
+const RUFF_FORMAT_SPEC: FixSpec = FixSpec {
+    tool: "ruff",
+    config: FixConfig::Optional,
+    keep_exit_one: false,
+};
+
+const FIX_SPECS: &[FixSpec] = &[
+    FixSpec {
+        tool: "rustfmt",
+        config: FixConfig::Rustfmt,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "buildifier",
+        config: FixConfig::Buildifier,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "taplo",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "google_java_format",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "ktfmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "biome",
+        config: FixConfig::BiomeDir,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "prettier",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "eslint",
+        config: FixConfig::Required,
+        keep_exit_one: true,
+    },
+    FixSpec {
+        tool: "scalafmt",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "csharpier",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "fantomas",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "ktlint",
+        config: FixConfig::None,
+        keep_exit_one: true,
+    },
+    FixSpec {
+        tool: "buf",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "clang_format",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "gofumpt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "qmlformat",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "cue",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "jsonnetfmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "pkl",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "modfmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "terraform",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "yamlfmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "shfmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "standardrb",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
+        tool: "djlint",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+];
+
+fn fix_spec(tool_id: &str, format: bool) -> Option<&'static FixSpec> {
+    if tool_id == "ruff" {
+        return Some(if format {
+            &RUFF_FORMAT_SPEC
+        } else {
+            &RUFF_LINT_SPEC
+        });
+    }
+    FIX_SPECS.iter().find(|spec| spec.tool == tool_id)
+}
+
 impl super::RealBackend {
     pub fn apply_fix(
         &self,
@@ -17,63 +183,20 @@ impl super::RealBackend {
         }
         let tool = self.tool(tool_id)?;
         match tool_id {
-            "rustfmt" | "buildifier" | "taplo" | "google_java_format" | "ktfmt" => {
-                self.run_fix(tool_id, tool, path, text)
-            }
-            "ruff" => self.run_ruff_fix(tool, path, text, capability == "format"),
             "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
             | "clippy" | "scalafix" | "roslyn" | "fsharplint" | "checkstyle" | "pmd"
             | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"
             | "errcheck" | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint"
             | "shellcheck" | "keep_sorted" => Ok(text.to_owned()),
-            "buf" => {
+            "buf" | "djlint" | "biome" | "prettier" => {
                 if capability == "format" {
-                    self.run_buf_format_fix(tool, path, text)
+                    self.run_spec_fix(tool_id, tool, path, text, true)
                 } else {
                     Ok(text.to_owned())
                 }
             }
-            "djlint" => {
-                if capability == "format" {
-                    self.run_djlint_format_fix(tool, path, text)
-                } else {
-                    Ok(text.to_owned())
-                }
-            }
-            "biome" => {
-                if capability == "format" {
-                    self.run_biome_format_fix(tool, path, text)
-                } else {
-                    Ok(text.to_owned())
-                }
-            }
-            "prettier" => {
-                if capability == "format" {
-                    self.run_prettier_fix(tool, path, text)
-                } else {
-                    Ok(text.to_owned())
-                }
-            }
-            "scalafmt" => self.run_scalafmt_fix(tool, path, text),
-            "csharpier" => self.run_csharpier_fix(tool, path, text),
-            "fantomas" => self.run_fantomas_fix(tool, path, text),
-            "clang_format" => self.run_clang_format_fix(tool, path, text),
-            "gofumpt" => self.run_gofumpt_fix(tool, path, text),
-            "qmlformat" => self.run_qmlformat_fix(tool, path, text),
-            "eslint" => self.run_eslint_fix(tool, path, text),
-            "ktlint" => self.run_ktlint_fix(tool, path, text),
-            "cue" => self.run_cue_fix(tool, path, text),
-            "jsonnetfmt" => self.run_jsonnetfmt_fix(tool, path, text),
-            "pkl" => self.run_pkl_fix(tool, path, text),
-            "modfmt" => self.run_modfmt_fix(tool, path, text),
-            "terraform" => self.run_terraform_fix(tool, path, text),
-            "yamlfmt" => self.run_yamlfmt_fix(tool, path, text),
-            "shfmt" => self.run_shfmt_fix(tool, path, text),
-            "standardrb" => self.run_standardrb_fix(tool, path, text),
-            _ => Err(execution(
-                tool_id,
-                format!("unsupported real tool: {tool_id}"),
-            )),
+            "ruff" => self.run_spec_fix(tool_id, tool, path, text, capability == "format"),
+            _ => self.run_spec_fix(tool_id, tool, path, text, false),
         }
     }
 
@@ -104,431 +227,138 @@ impl super::RealBackend {
         })
     }
 
-    fn run_fix(
+    fn build_fix_invocation(
+        &self,
+        spec: &FixSpec,
+        tool_id: &str,
+        tool: &RealTool,
+        refs: &[&Path],
+        scratch: &Scratch,
+        format: bool,
+    ) -> Result<Invocation, RunnerError> {
+        match spec.config {
+            FixConfig::Rustfmt => {
+                let config = self.config_abs(tool_id, tool, scratch)?;
+                let Some(cfg) = config.as_ref() else {
+                    return Err(execution(tool_id, "rustfmt requires a config".to_owned()));
+                };
+                Ok(commands::rustfmt(
+                    &tool.binary,
+                    refs,
+                    cfg,
+                    Self::rustfmt_edition(tool)?,
+                    false,
+                ))
+            }
+            FixConfig::Buildifier => {
+                let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
+                Ok(commands::buildifier_fix(
+                    &tool.binary,
+                    refs,
+                    hint_dir(tool.config_rel.as_deref(), &cwd_rel),
+                ))
+            }
+            FixConfig::BiomeDir => {
+                let config_dir = Self::biome_config_dir(tool, scratch)?;
+                Ok(commands::biome_format_fix(&tool.binary, refs, &config_dir))
+            }
+            FixConfig::Required => {
+                let config = self.config_abs(tool_id, tool, scratch)?;
+                let Some(cfg) = config.as_deref() else {
+                    return Err(execution(tool_id, format!("{tool_id} requires a config")));
+                };
+                match tool_id {
+                    "eslint" => Ok(commands::eslint_fix(&tool.binary, refs, cfg)),
+                    _ => Err(execution(
+                        tool_id,
+                        format!("unsupported real tool: {tool_id}"),
+                    )),
+                }
+            }
+            FixConfig::Optional => {
+                let config = self.config_abs(tool_id, tool, scratch)?;
+                match tool_id {
+                    "taplo" => Ok(commands::taplo_format(
+                        &tool.binary,
+                        refs,
+                        config.as_deref(),
+                        false,
+                    )),
+                    "ruff" => Ok(if format {
+                        commands::ruff_format_fix(&tool.binary, refs, config.as_deref())
+                    } else {
+                        commands::ruff_fix(&tool.binary, refs, config.as_deref())
+                    }),
+                    "scalafmt" => Ok(commands::scalafmt_fix(
+                        &tool.binary,
+                        refs,
+                        config.as_deref(),
+                    )),
+                    "csharpier" => Ok(commands::csharpier_fix(
+                        &tool.binary,
+                        refs,
+                        config.as_deref(),
+                    )),
+                    "clang_format" => Ok(commands::clang_format_fix(
+                        &tool.binary,
+                        refs,
+                        config.as_deref(),
+                    )),
+                    _ => Err(execution(
+                        tool_id,
+                        format!("unsupported real tool: {tool_id}"),
+                    )),
+                }
+            }
+            FixConfig::None => match tool_id {
+                "google_java_format" => Ok(commands::google_java_format_fix(&tool.binary, refs)),
+                "ktfmt" => Ok(commands::ktfmt_fix(&tool.binary, refs)),
+                "prettier" => Ok(commands::prettier_fix(&tool.binary, refs)),
+                "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
+                "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs)),
+                "buf" => Ok(commands::buf_format_fix(&tool.binary, refs)),
+                "gofumpt" => Ok(commands::gofumpt_fix(&tool.binary, refs)),
+                "qmlformat" => Ok(commands::qmlformat_fix(&tool.binary, refs)),
+                "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
+                "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
+                "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
+                "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),
+                "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
+                "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs)),
+                "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
+                "standardrb" => Ok(commands::standardrb_fix(&tool.binary, refs)),
+                "djlint" => Ok(commands::djlint_format_fix(&tool.binary, refs)),
+                _ => Err(execution(
+                    tool_id,
+                    format!("unsupported real tool: {tool_id}"),
+                )),
+            },
+        }
+    }
+
+    fn run_spec_fix(
         &self,
         tool_id: &str,
         tool: &RealTool,
         path: &str,
         text: &str,
+        format: bool,
     ) -> Result<String, RunnerError> {
+        let Some(spec) = fix_spec(tool_id, format) else {
+            return Err(execution(
+                tool_id,
+                format!("unsupported real tool: {tool_id}"),
+            ));
+        };
         let (scratch, absolute) = self.fix_scratch(tool_id, tool, path, text)?;
         let refs = [absolute.as_path()];
-        let config = self.config_abs(tool_id, tool, &scratch)?;
-        let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
-        let invocation = match tool_id {
-            "rustfmt" => {
-                let Some(cfg) = config.as_ref() else {
-                    return Err(execution(tool_id, "rustfmt requires a config".to_owned()));
-                };
-                commands::rustfmt(
-                    &tool.binary,
-                    &refs,
-                    cfg,
-                    Self::rustfmt_edition(tool)?,
-                    false,
-                )
-            }
-            "buildifier" => commands::buildifier_fix(
-                &tool.binary,
-                &refs,
-                hint_dir(tool.config_rel.as_deref(), &cwd_rel),
-            ),
-            "google_java_format" => commands::google_java_format_fix(&tool.binary, &refs),
-            "ktfmt" => commands::ktfmt_fix(&tool.binary, &refs),
-            _ => commands::taplo_format(&tool.binary, &refs, config.as_deref(), false),
-        };
+        let invocation = self.build_fix_invocation(spec, tool_id, tool, &refs, &scratch, format)?;
         let out = self.run(tool_id, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
+        let keep_input = out.code != Some(0) && !(spec.keep_exit_one && out.code == Some(1));
+        if keep_input {
             return cleaned(tool_id, scratch, text.to_owned());
         }
         let fixed = Self::reread_fixed(tool_id, &absolute)?;
         cleaned(tool_id, scratch, fixed)
-    }
-
-    fn run_ruff_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-        format: bool,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "ruff";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let config = self.config_abs(TOOL_ID, tool, &scratch)?;
-        let invocation = if format {
-            commands::ruff_format_fix(&tool.binary, &refs, config.as_deref())
-        } else {
-            commands::ruff_fix(&tool.binary, &refs, config.as_deref())
-        };
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        let keep_input = if format {
-            out.code != Some(0)
-        } else {
-            out.code != Some(0) && out.code != Some(1)
-        };
-        if keep_input {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_biome_format_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "biome";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let config_dir = Self::biome_config_dir(tool, &scratch)?;
-        let invocation = commands::biome_format_fix(&tool.binary, &refs, &config_dir);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_prettier_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "prettier";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::prettier_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_eslint_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "eslint";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let config = self.config_abs(TOOL_ID, tool, &scratch)?;
-        let Some(cfg) = config.as_deref() else {
-            return Err(execution(TOOL_ID, "eslint requires a config".to_owned()));
-        };
-        let invocation = commands::eslint_fix(&tool.binary, &refs, cfg);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) && out.code != Some(1) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_scalafmt_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "scalafmt";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let config = self.config_abs(TOOL_ID, tool, &scratch)?;
-        let invocation = commands::scalafmt_fix(&tool.binary, &refs, config.as_deref());
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_csharpier_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "csharpier";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let config = self.config_abs(TOOL_ID, tool, &scratch)?;
-        let invocation = commands::csharpier_fix(&tool.binary, &refs, config.as_deref());
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_fantomas_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "fantomas";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::fantomas_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_ktlint_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "ktlint";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::ktlint_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) && out.code != Some(1) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_buf_format_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "buf";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::buf_format_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_clang_format_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "clang_format";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let config = self.config_abs(TOOL_ID, tool, &scratch)?;
-        let invocation = commands::clang_format_fix(&tool.binary, &refs, config.as_deref());
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_gofumpt_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "gofumpt";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::gofumpt_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_qmlformat_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "qmlformat";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::qmlformat_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_cue_fix(&self, tool: &RealTool, path: &str, text: &str) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "cue";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::cue_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_jsonnetfmt_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "jsonnetfmt";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::jsonnetfmt_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_pkl_fix(&self, tool: &RealTool, path: &str, text: &str) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "pkl";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::pkl_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_modfmt_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "modfmt";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::modfmt_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_terraform_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "terraform";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::terraform_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_yamlfmt_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "yamlfmt";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::yamlfmt_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_shfmt_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "shfmt";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::shfmt_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_standardrb_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "standardrb";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::standardrb_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
-    }
-
-    fn run_djlint_format_fix(
-        &self,
-        tool: &RealTool,
-        path: &str,
-        text: &str,
-    ) -> Result<String, RunnerError> {
-        const TOOL_ID: &str = "djlint";
-        let (scratch, absolute) = self.fix_scratch(TOOL_ID, tool, path, text)?;
-        let refs = [absolute.as_path()];
-        let invocation = commands::djlint_format_fix(&tool.binary, &refs);
-        let out = self.run(TOOL_ID, tool, &invocation, &scratch)?;
-        if out.code != Some(0) {
-            return cleaned(TOOL_ID, scratch, text.to_owned());
-        }
-        let fixed = Self::reread_fixed(TOOL_ID, &absolute)?;
-        cleaned(TOOL_ID, scratch, fixed)
     }
 }

@@ -33,7 +33,9 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
 - `--log-level error|warn|info|debug|trace`: log verbosity.
 - `--color auto|always|never`: color output. Default `auto`.
 - `--output text|diff|json`: result shape. `diff` has no patch for most commands.
-- `--report <format>=<dest>`: write SARIF, JUnit, or LCOV reports. Repeatable.
+- `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
+  `sarif` for `lint`, `typecheck`, `check`, `fix`, `security`, and `license`;
+  `junit` for `test`; `lcov` for `coverage`; `spdx` for `license`.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--check`: report without changing files, where supported.
 - `--debug`, `--release`: build profiles for build-like commands.

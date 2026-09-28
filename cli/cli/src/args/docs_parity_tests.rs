@@ -201,6 +201,54 @@ fn docs_usage_blocks_only_use_accepted_flags() {
     }
 }
 
+fn report_formats(line: &str) -> Vec<String> {
+    let tokens: Vec<&str> = line.split_whitespace().collect();
+    let mut formats = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        let token = token.trim_start_matches('[');
+        let payload = match token.strip_prefix("--report=") {
+            Some(payload) => payload.to_owned(),
+            None if token == "--report" => match tokens.get(index + 1) {
+                Some(next) => (*next).to_owned(),
+                None => continue,
+            },
+            None => continue,
+        };
+        for choice in payload.split('|') {
+            let format = choice
+                .split(['<', '='])
+                .next()
+                .unwrap_or_default()
+                .trim_end_matches(']');
+            if !format.is_empty() {
+                formats.push(format.to_owned());
+            }
+        }
+    }
+    formats
+}
+
+#[test]
+fn docs_report_formats_match_the_command_registry() {
+    for (name, page) in pages() {
+        for block in usage_blocks(&page) {
+            for line in &block {
+                let words: Vec<&str> = line.split_whitespace().collect();
+                let command = Command::parse(words[1]).unwrap_or_else(|| {
+                    panic!("{name}: usage line names an unknown command: {line}")
+                });
+                let supported = crate::plan::spec(command).reports;
+                for format in report_formats(line) {
+                    assert!(
+                        supported.contains(&format.as_str()),
+                        "{name}: dx {command:?} documents --report {format} but the registry allows only {supported:?}: {line}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn every_command_has_a_docs_page() {
     let all: String = pages()

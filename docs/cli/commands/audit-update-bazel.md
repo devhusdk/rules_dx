@@ -18,14 +18,16 @@ bazel run //cli/cli:dx -- --dry-run bazel query //...
 ## `dx security` And `dx license`
 
 ```text
-dx security [--here] [--offline|--frozen] [--fail-on info|warning|error] [--report <format>=<dest>] [scope...]
-dx license [--here] [--offline|--frozen] [--fail-on info|warning|error] [--report <format>=<dest>] [scope...]
+dx security [--here] [--offline|--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx license [--here] [--offline|--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>] [scope...]
 ```
 
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
 checks dependency licenses. No scope means `//...`. Use `--here` for the
 current dir tree. Neither command changes files. `--check` and Bazel options
-do not apply. Reports are SARIF or SPDX.
+do not apply. `dx security` writes `--report sarif=<dest>`. `dx license`
+writes `--report sarif=<dest>` or `--report spdx=<dest>`. Repeat the flag for
+more files. Use `-` for stdout.
 
 ```sh
 bazel run //cli/cli:dx -- security //...

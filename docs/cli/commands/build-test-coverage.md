@@ -20,8 +20,9 @@ dx test [--here] [--debug|--release] [scope...] [-- bazel-options...]
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 `--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
 
-Output: `--output text|json`. Reports: `--report junit=<path>` writes a
-JUnit report. Repeat the flag for more files. Use `-` for stdout.
+Output: `--output text|json`. Reports: `dx test` writes
+`--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
+for stdout. `dx build` has no report format.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. A single missing `test.xml`

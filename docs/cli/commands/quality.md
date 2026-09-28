@@ -11,14 +11,15 @@ rewrite files by default and report with `--check`. Args after `--` go to
 Bazel unchanged.
 
 ```text
-dx lint [--here] [--check] [--fail-on info|warning|error] [--report <format>=<dest>] [scope...]
-dx typecheck [--here] [--check] [--fail-on info|warning|error] [--report <format>=<dest>] [scope...]
-dx format [--here] [--check] [--fail-on info|warning|error] [--report <format>=<dest>] [scope...]
+dx lint [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx typecheck [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx format [--here] [--check] [--fail-on info|warning|error] [scope...]
 ```
 
 - `--check`: report findings without writing files.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
-- `--report <format>=<dest>`: write SARIF or JUnit reports. Repeatable.
+- `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
+  Repeatable. `dx format` has no report format.
 - `--output text|diff|json`: result shape.
 
 ```sh

@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//rust/rules:defs.bzl", "rust_test")
 
 def red_failing_checks(name):
     """Red unit runner with two wrong expects and one passing control."""
@@ -50,24 +50,45 @@ def red_missing_fragment(name):
     )
 
 def failing_check_demo(name):
-    dx_shell_harness(
+    rust_test(
         name = name,
-        srcs = ["failing_check_test.sh"],
+        srcs = ["negative_proof_test.rs"],
         data = [":red_failing_checks"],
+        env = {
+            "DX_NEGATIVE_CASE": "failing_check",
+            "DX_RUNNER_BIN": "$(rootpath :red_failing_checks)",
+        },
+        tags = ["no-coverage"],
+        target_compatible_with = ["@platforms//os:linux"],
+        deps = ["//tools/testing:dx_testing"],
     )
 
 def missing_observation_demo(name):
-    dx_shell_harness(
+    rust_test(
         name = name,
-        srcs = ["missing_observation_test.sh"],
+        srcs = ["negative_proof_test.rs"],
         data = [":red_missing_observation"],
+        env = {
+            "DX_NEGATIVE_CASE": "missing_observation",
+            "DX_RUNNER_BIN": "$(rootpath :red_missing_observation)",
+        },
+        tags = ["no-coverage"],
+        target_compatible_with = ["@platforms//os:linux"],
+        deps = ["//tools/testing:dx_testing"],
     )
 
 def missing_fragment_demo(name):
-    dx_shell_harness(
+    rust_test(
         name = name,
-        srcs = ["missing_fragment_test.sh"],
+        srcs = ["negative_proof_test.rs"],
         data = [":red_missing_fragment"],
+        env = {
+            "DX_NEGATIVE_CASE": "missing_fragment",
+            "DX_RUNNER_BIN": "$(rootpath :red_missing_fragment)",
+        },
+        tags = ["no-coverage"],
+        target_compatible_with = ["@platforms//os:linux"],
+        deps = ["//tools/testing:dx_testing"],
     )
 
 def _wrong_phase_subject_impl(ctx):

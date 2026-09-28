@@ -1,22 +1,25 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["Dockerfile.prebuilt"])
 
-dx_shell_harness(
+# keep
+rust_test(
     name = "devcontainer_parity_test",
-    srcs = ["devcontainer_parity_test.sh"],
-    args = [
-        "$(rootpath :devcontainer.json)",
-        "$(rootpath //cli/cli:dx)",
-    ],
+    srcs = ["devcontainer_parity_test.rs"],
     data = [
         ":devcontainer.json",
         "//cli/cli:dx",
-        "//tools/sh:snapshot",
     ],
+    env = {
+        "DX_DEVCONTAINER_EXPECTED": "$(rootpath :devcontainer.json)",
+        "DX_DX_BIN": "$(rootpath //cli/cli:dx)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

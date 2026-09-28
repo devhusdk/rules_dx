@@ -1,7 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -125,26 +124,10 @@ rust_clippy_test(
 
 exports_files(["Cargo.toml"])
 
-dx_shell_harness(
+# keep
+rust_test(
     name = "repo_locks_test",
-    srcs = ["repo_locks_test.sh"],
-    args = [
-        "$(rootpath :depcheck)",
-        "$(rootpath //rust/tests/fixtures/hello:Cargo.toml)",
-        "$(rootpath //rust/tests/fixtures/hello:Cargo.lock)",
-        "$(rootpath //python/tests/fixtures/hello:pyproject.toml)",
-        "$(rootpath //python/tests/fixtures/hello:uv.lock)",
-        "$(rootpath //:package.json)",
-        "$(rootpath //:pnpm-lock.yaml)",
-        "$(rootpath //third_party/go:go.mod)",
-        "$(rootpath //third_party/go:go.sum)",
-        "$(rootpath //third_party/jvm:pins.bzl)",
-        "$(rootpath //third_party/jvm:maven_install.json)",
-        "$(rootpath //third_party/dotnet:paket.dependencies)",
-        "$(rootpath //third_party/dotnet:paket.lock)",
-        "$(rootpath //third_party/ruby:Gemfile)",
-        "$(rootpath //third_party/ruby:Gemfile.lock)",
-    ],
+    srcs = ["repo_locks_test.rs"],
     data = [
         ":depcheck",
         "//:package.json",
@@ -162,30 +145,32 @@ dx_shell_harness(
         "//third_party/ruby:Gemfile",
         "//third_party/ruby:Gemfile.lock",
     ],
+    env = {
+        "DX_CARGO_LOCK": "$(rootpath //rust/tests/fixtures/hello:Cargo.lock)",
+        "DX_CARGO_MANIFEST": "$(rootpath //rust/tests/fixtures/hello:Cargo.toml)",
+        "DX_DEPCHECK_BIN": "$(rootpath :depcheck)",
+        "DX_GO_LOCK": "$(rootpath //third_party/go:go.sum)",
+        "DX_GO_MANIFEST": "$(rootpath //third_party/go:go.mod)",
+        "DX_MAVEN_LOCK": "$(rootpath //third_party/jvm:maven_install.json)",
+        "DX_MAVEN_MANIFEST": "$(rootpath //third_party/jvm:pins.bzl)",
+        "DX_PAKET_LOCK": "$(rootpath //third_party/dotnet:paket.lock)",
+        "DX_PAKET_MANIFEST": "$(rootpath //third_party/dotnet:paket.dependencies)",
+        "DX_PNPM_LOCK": "$(rootpath //:pnpm-lock.yaml)",
+        "DX_PNPM_MANIFEST": "$(rootpath //:package.json)",
+        "DX_RUBY_LOCK": "$(rootpath //third_party/ruby:Gemfile.lock)",
+        "DX_RUBY_MANIFEST": "$(rootpath //third_party/ruby:Gemfile)",
+        "DX_UV_LOCK": "$(rootpath //python/tests/fixtures/hello:uv.lock)",
+        "DX_UV_MANIFEST": "$(rootpath //python/tests/fixtures/hello:pyproject.toml)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
-dx_shell_harness(
+# keep
+rust_test(
     name = "adopt_locks_test",
-    srcs = ["adopt_locks_test.sh"],
-    args = [
-        "$(rootpath :depcheck)",
-        "$(rootpath //examples/adopt-go:go.mod)",
-        "$(rootpath //examples/adopt-go:go.sum)",
-        "$(rootpath //examples/adopt-ruby:Gemfile)",
-        "$(rootpath //examples/adopt-ruby:Gemfile.lock)",
-        "$(rootpath //examples/adopt-rust:Cargo.toml)",
-        "$(rootpath //examples/adopt-rust:Cargo.lock)",
-        "$(rootpath //examples/adopt-js-ts:package.json)",
-        "$(rootpath //examples/adopt-js-ts:pnpm-lock.yaml)",
-        "$(rootpath //examples/adopt-python:pyproject.toml)",
-        "$(rootpath //examples/adopt-python:uv.lock)",
-        "$(rootpath //examples/adopt-polyglot:package.json)",
-        "$(rootpath //examples/adopt-polyglot:pnpm-lock.yaml)",
-        "$(rootpath //examples/adopt-polyglot:pyproject.toml)",
-        "$(rootpath //examples/adopt-polyglot:uv.lock)",
-        "$(rootpath //examples/adopt-polyglot:Cargo.toml)",
-        "$(rootpath //examples/adopt-polyglot:Cargo.lock)",
-    ],
+    srcs = ["adopt_locks_test.rs"],
     data = [
         ":depcheck",
         "//examples/adopt-go:go.mod",
@@ -205,6 +190,28 @@ dx_shell_harness(
         "//examples/adopt-rust:Cargo.lock",
         "//examples/adopt-rust:Cargo.toml",
     ],
+    env = {
+        "DX_DEPCHECK_BIN": "$(rootpath :depcheck)",
+        "DX_GO_LOCK": "$(rootpath //examples/adopt-go:go.sum)",
+        "DX_GO_MANIFEST": "$(rootpath //examples/adopt-go:go.mod)",
+        "DX_JS_LOCK": "$(rootpath //examples/adopt-js-ts:pnpm-lock.yaml)",
+        "DX_JS_MANIFEST": "$(rootpath //examples/adopt-js-ts:package.json)",
+        "DX_PG_JS_LOCK": "$(rootpath //examples/adopt-polyglot:pnpm-lock.yaml)",
+        "DX_PG_JS_MANIFEST": "$(rootpath //examples/adopt-polyglot:package.json)",
+        "DX_PG_PY_LOCK": "$(rootpath //examples/adopt-polyglot:uv.lock)",
+        "DX_PG_PY_MANIFEST": "$(rootpath //examples/adopt-polyglot:pyproject.toml)",
+        "DX_PG_RUST_LOCK": "$(rootpath //examples/adopt-polyglot:Cargo.lock)",
+        "DX_PG_RUST_MANIFEST": "$(rootpath //examples/adopt-polyglot:Cargo.toml)",
+        "DX_PY_LOCK": "$(rootpath //examples/adopt-python:uv.lock)",
+        "DX_PY_MANIFEST": "$(rootpath //examples/adopt-python:pyproject.toml)",
+        "DX_RUBY_LOCK": "$(rootpath //examples/adopt-ruby:Gemfile.lock)",
+        "DX_RUBY_MANIFEST": "$(rootpath //examples/adopt-ruby:Gemfile)",
+        "DX_RUST_LOCK": "$(rootpath //examples/adopt-rust:Cargo.lock)",
+        "DX_RUST_MANIFEST": "$(rootpath //examples/adopt-rust:Cargo.toml)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 filegroup(

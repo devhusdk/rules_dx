@@ -11,6 +11,62 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+pub use serde_json;
+
+pub struct Run {
+    pub status: std::process::ExitStatus,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+impl Run {
+    pub fn combined(&self) -> String {
+        let mut out = self.stdout.clone();
+        out.push_str(&self.stderr);
+        out
+    }
+}
+
+pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {
+    let output = std::process::Command::new(bin)
+        .args(args)
+        .envs(envs.iter().copied())
+        .output()?;
+    Ok(Run {
+        status: output.status,
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    })
+}
+
+static SCRATCH_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn mkscratch(prefix: &str) -> std::io::Result<PathBuf> {
+    let base = std::env::var("TEST_TMPDIR")
+        .ok()
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let seq = SCRATCH_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = base.join(format!("{prefix}-{}-{seq}", std::process::id()));
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
+    serde_json::from_str(&text)
+        .map_err(|err| format!("{} is not valid JSON: {err}", path.display()))
+}
+
+pub fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> {
+    let mut text = serde_json::to_string_pretty(value).map_err(|err| err.to_string())?;
+    text.push('\n');
+    std::fs::write(path, text.as_bytes())
+        .map_err(|err| format!("cannot write {}: {err}", path.display()))
+}
+
 fn read_lines(path: &Path) -> std::io::Result<Vec<String>> {
     let bytes = std::fs::read(path)?;
     let text = String::from_utf8_lossy(&bytes).into_owned();
@@ -62,8 +118,14 @@ fn include_ok(basename: &str, includes: &[String]) -> bool {
 
 pub fn resolve_runfiles(rel: &str) -> PathBuf {
     let direct = PathBuf::from(rel);
-    if direct.is_absolute() || direct.exists() {
+    if direct.is_absolute() {
         return direct;
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        let abs = cwd.join(&direct);
+        if abs.exists() {
+            return abs;
+        }
     }
     for key in ["TEST_SRCDIR", "RUNFILES_DIR"] {
         if let Ok(root) = std::env::var(key) {
@@ -78,6 +140,9 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
                 }
             }
         }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        return cwd.join(direct);
     }
     direct
 }
@@ -903,5 +968,27 @@ mod tests {
         assert!(assert_valid_json(&expected).is_ok());
         let invalid = write(dir.path(), "bad.json", "not json\n");
         assert!(assert_valid_json(&invalid).is_err());
+    }
+
+    #[test]
+    fn scratch_json_and_run_helpers() {
+        let first = mkscratch("dx-helper-").expect("scratch");
+        let second = mkscratch("dx-helper-").expect("scratch");
+        assert_ne!(first, second);
+        let path = first.join("doc.json");
+        let value: serde_json::Value =
+            serde_json::from_str("{\"tools\": [{\"bin_name\": \"dx\"}]}").expect("parse");
+        write_json(&path, &value).expect("write");
+        let back = read_json(&path).expect("read");
+        assert_eq!(back["tools"][0]["bin_name"], "dx");
+        assert!(read_json(&first.join("missing.json")).is_err());
+        let echo = run(
+            &PathBuf::from("/bin/echo"),
+            &["hello"],
+            &[("DX_HELPER_CHECK", "1")],
+        )
+        .expect("run");
+        assert!(echo.status.success());
+        assert!(echo.combined().contains("hello"));
     }
 }

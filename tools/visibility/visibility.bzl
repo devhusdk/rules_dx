@@ -203,7 +203,7 @@ SCOPED_TARGET_GRANTS = [
 LAYER_FORBIDDEN_DEPS = [
     ["cli/", "//dx:", ["//dx:codegen", "//dx:env"]],
     ["cli/", "//docs:", []],
-    ["cli/", "//tools/", ["//tools/sh:bootstrap", "//tools/sh:lib"]],
+    ["cli/", "//tools/", []],
     ["dx/", "//tools/", []],
     ["env/", "//dx:", []],
     ["gazelle/", "//dx:", []],

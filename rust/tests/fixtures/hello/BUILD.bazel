@@ -1,5 +1,4 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
@@ -224,22 +223,23 @@ archive_deploy(
     app = ":hello",
 )
 
-sh_test(
+# keep
+rust_test(
     name = "release_verify",
-    size = "small",
-    timeout = "short",
-    srcs = ["//deploy/rules:archive_verify.sh"],
-    args = [
-        "$(rootpath :release_archive)",
-        "$(rootpath :release_checksum)",
-        "hello",
-    ],
+    srcs = ["//deploy/rules:verify_test.rs"],
     data = [
         ":release_archive",
         ":release_checksum",
     ],
+    env = {
+        "DX_ARCHIVE_CHECKSUM": "$(rootpath :release_checksum)",
+        "DX_ARCHIVE_MEMBER": "hello",
+        "DX_ARCHIVE_TARBALL": "$(rootpath :release_archive)",
+        "DX_VERIFY_MODE": "archive",
+    },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

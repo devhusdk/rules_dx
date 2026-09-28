@@ -2,7 +2,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "ruff_config", "rustfmt_config", "vale_config")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/sh:harness.bzl", "dx_shell_harness")
+load("//rust/rules:defs.bzl", "rust_test")
 
 # gazelle:resolve rust dx_adopt //cli/adopt:dx_adopt
 # gazelle:resolve rust dx_apply //cli/apply:dx_apply
@@ -89,7 +89,6 @@ load("//tools/sh:harness.bzl", "dx_shell_harness")
 # gazelle:exclude scala/tests/fixtures/scalafix
 # gazelle:exclude rust/tests/fixtures/cargo_metadata
 # gazelle:exclude quality/tests/fixtures/strict_preset
-# gazelle:exclude tools/sh
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -120,21 +119,23 @@ filegroup(
     srcs = ["licenses.toml"],
 )
 
-dx_shell_harness(
+# keep
+rust_test(
     name = "preset_parity_test",
-    srcs = ["preset_parity_test.sh"],
-    args = [
-        "$(rootpath //tools/bazelrc:preset.bazelrc)",
-        "$(rootpath //cli/cli:dx)",
-        "$(rootpath //tools/bazelrc:src/lib.rs)",
-    ],
+    srcs = ["preset_parity_test.rs"],
     data = [
         "//cli/cli:dx",
         "//tools/bazelrc:preset.bazelrc",
         "//tools/bazelrc:src/lib.rs",
-        "//tools/sh:guards",
-        "//tools/sh:snapshot",
     ],
+    env = {
+        "DX_DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_PRESET_EXPECTED": "$(rootpath //tools/bazelrc:preset.bazelrc)",
+        "DX_PRESET_RS": "$(rootpath //tools/bazelrc:src/lib.rs)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 rustfmt_config(

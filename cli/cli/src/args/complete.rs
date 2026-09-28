@@ -259,7 +259,23 @@ mod tests {
             .map(|id| id.name())
             .collect();
         sets.sort_unstable();
-        assert_eq!(sets, vec!["cargo", "go", "maven", "npm", "nuget"]);
+        assert_eq!(
+            sets,
+            vec![
+                "cargo",
+                "go",
+                "maven",
+                "npm",
+                "npm-adopt",
+                "npm-adopt-polyglot",
+                "npm-tools",
+                "nuget",
+                "uv",
+                "uv-adopt",
+                "uv-adopt-polyglot",
+                "uv-tools",
+            ]
+        );
     }
 
     #[test]
@@ -304,7 +320,23 @@ mod tests {
                     assert!(!labels);
                 }
                 Command::Update | Command::Bump => {
-                    assert_eq!(fixed, vec!["cargo", "go", "maven", "npm", "nuget"]);
+                    assert_eq!(
+                        fixed,
+                        vec![
+                            "cargo",
+                            "go",
+                            "maven",
+                            "npm",
+                            "npm-adopt",
+                            "npm-adopt-polyglot",
+                            "npm-tools",
+                            "nuget",
+                            "uv",
+                            "uv-adopt",
+                            "uv-adopt-polyglot",
+                            "uv-tools",
+                        ]
+                    );
                     assert_eq!(labels, *command == Command::Update);
                 }
                 Command::Clean

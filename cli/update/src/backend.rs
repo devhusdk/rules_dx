@@ -28,7 +28,14 @@ pub fn plan(set: SetId, request: &SetRequest, offline: bool) -> Result<BackendPl
             (SetId::Cargo, SetRequest::Packages(_))
             | (SetId::Maven, SetRequest::Packages(_))
             | (SetId::NuGet, SetRequest::Packages(_))
-            | (SetId::Go, SetRequest::Packages(_)) => {}
+            | (SetId::Go, SetRequest::Packages(_))
+            | (SetId::NpmTools, SetRequest::Packages(_))
+            | (SetId::Uv, SetRequest::Packages(_))
+            | (SetId::UvTools, SetRequest::Packages(_))
+            | (SetId::NpmAdopt, SetRequest::Packages(_))
+            | (SetId::NpmAdoptPolyglot, SetRequest::Packages(_))
+            | (SetId::UvAdopt, SetRequest::Packages(_))
+            | (SetId::UvAdoptPolyglot, SetRequest::Packages(_)) => {}
             _ => {
                 let would_run = matches!(
                     (set, request),
@@ -36,6 +43,13 @@ pub fn plan(set: SetId, request: &SetRequest, offline: bool) -> Result<BackendPl
                         | (SetId::Npm, _)
                         | (SetId::Maven, SetRequest::Full)
                         | (SetId::NuGet, SetRequest::Full)
+                        | (SetId::NpmTools, SetRequest::Full)
+                        | (SetId::Uv, SetRequest::Full)
+                        | (SetId::UvTools, SetRequest::Full)
+                        | (SetId::NpmAdopt, SetRequest::Full)
+                        | (SetId::NpmAdoptPolyglot, SetRequest::Full)
+                        | (SetId::UvAdopt, SetRequest::Full)
+                        | (SetId::UvAdoptPolyglot, SetRequest::Full)
                 );
                 if would_run {
                     return Err(BackendError::OfflineRequired { set: set.name() });
@@ -63,6 +77,90 @@ pub fn plan(set: SetId, request: &SetRequest, offline: bool) -> Result<BackendPl
             ]
             .concat(),
             env: vec![],
+        }),
+        (SetId::NpmTools, SetRequest::Full) => Ok(BackendPlan::Run {
+            argv: strings(&[
+                "bazel",
+                "run",
+                "@pnpm//:pnpm",
+                "--",
+                "--dir",
+                "quality/tools/javascript",
+                "install",
+                "--lockfile-only",
+            ]),
+            env: vec![],
+        }),
+        (SetId::NpmTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "npm-tools pins are exact in quality/tools/javascript; use `dx update npm-tools` for the set",
+        }),
+        (SetId::Uv, SetRequest::Full) => Ok(BackendPlan::Run {
+            argv: strings(&["uv", "lock", "--directory", "python/tests/fixtures/hello"]),
+            env: vec![],
+        }),
+        (SetId::Uv, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv` for the set",
+        }),
+        (SetId::UvTools, SetRequest::Full) => Ok(BackendPlan::Run {
+            argv: strings(&["uv", "lock", "--directory", "quality/tools/python"]),
+            env: vec![],
+        }),
+        (SetId::UvTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv-tools` for the set",
+        }),
+        (SetId::NpmAdopt, SetRequest::Full) => Ok(BackendPlan::Run {
+            argv: strings(&[
+                "pnpm",
+                "--dir",
+                "examples/adopt-js-ts",
+                "install",
+                "--lockfile-only",
+            ]),
+            env: vec![],
+        }),
+        (SetId::NpmAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "npm-adopt pins are exact in examples/adopt-js-ts; use `dx update npm-adopt` for the set",
+        }),
+        (SetId::NpmAdoptPolyglot, SetRequest::Full) => Ok(BackendPlan::Run {
+            argv: strings(&[
+                "pnpm",
+                "--dir",
+                "examples/adopt-polyglot",
+                "install",
+                "--lockfile-only",
+            ]),
+            env: vec![],
+        }),
+        (SetId::NpmAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "npm-adopt-polyglot pins are exact in examples/adopt-polyglot; use `dx update npm-adopt-polyglot` for the set",
+        }),
+        (SetId::UvAdopt, SetRequest::Full) => Ok(BackendPlan::Run {
+            argv: strings(&["uv", "lock", "--directory", "examples/adopt-python"]),
+            env: vec![],
+        }),
+        (SetId::UvAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv-adopt` for the set",
+        }),
+        (SetId::UvAdoptPolyglot, SetRequest::Full) => Ok(BackendPlan::Run {
+            argv: strings(&["uv", "lock", "--directory", "examples/adopt-polyglot"]),
+            env: vec![],
+        }),
+        (SetId::UvAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv-adopt-polyglot` for the set",
         }),
         (SetId::Maven, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["bazel", "run", "@maven//:pin"]),
@@ -161,6 +259,79 @@ mod tests {
         assert_eq!(
             plan(SetId::Go, &SetRequest::Full, false).expect("go"),
             BackendPlan::Noop
+        );
+        let npm_tools = plan(SetId::NpmTools, &SetRequest::Full, false).expect("npm-tools");
+        match npm_tools {
+            BackendPlan::Run { argv, env } => {
+                assert_eq!(
+                    argv,
+                    vec![
+                        "bazel".to_owned(),
+                        "run".to_owned(),
+                        "@pnpm//:pnpm".to_owned(),
+                        "--".to_owned(),
+                        "--dir".to_owned(),
+                        "quality/tools/javascript".to_owned(),
+                        "install".to_owned(),
+                        "--lockfile-only".to_owned(),
+                    ]
+                );
+                assert!(env.is_empty());
+            }
+            BackendPlan::Noop => panic!("npm-tools runs pnpm"),
+        }
+        let uv = plan(SetId::Uv, &SetRequest::Full, false).expect("uv");
+        assert_eq!(
+            uv,
+            BackendPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--directory".to_owned(),
+                    "python/tests/fixtures/hello".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        let uv_tools = plan(SetId::UvTools, &SetRequest::Full, false).expect("uv-tools");
+        assert_eq!(
+            uv_tools,
+            BackendPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--directory".to_owned(),
+                    "quality/tools/python".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        let npm_adopt = plan(SetId::NpmAdopt, &SetRequest::Full, false).expect("npm-adopt");
+        assert_eq!(
+            npm_adopt,
+            BackendPlan::Run {
+                argv: vec![
+                    "pnpm".to_owned(),
+                    "--dir".to_owned(),
+                    "examples/adopt-js-ts".to_owned(),
+                    "install".to_owned(),
+                    "--lockfile-only".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        let uv_adopt = plan(SetId::UvAdopt, &SetRequest::Full, false).expect("uv-adopt");
+        assert_eq!(
+            uv_adopt,
+            BackendPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--directory".to_owned(),
+                    "examples/adopt-python".to_owned(),
+                ],
+                env: vec![],
+            }
         );
     }
 
@@ -268,6 +439,31 @@ mod tests {
                 SetId::Go,
                 SetRequest::Packages(vec!["rules_dx/go/tests/fixtures/hello".to_owned()]),
             ),
+            (
+                SetId::NpmTools,
+                SetRequest::Packages(vec!["eslint".to_owned()]),
+            ),
+            (SetId::Uv, SetRequest::Packages(vec!["pytest".to_owned()])),
+            (
+                SetId::UvTools,
+                SetRequest::Packages(vec!["pylint".to_owned()]),
+            ),
+            (
+                SetId::NpmAdopt,
+                SetRequest::Packages(vec!["jest".to_owned()]),
+            ),
+            (
+                SetId::NpmAdoptPolyglot,
+                SetRequest::Packages(vec!["jest".to_owned()]),
+            ),
+            (
+                SetId::UvAdopt,
+                SetRequest::Packages(vec!["pytest".to_owned()]),
+            ),
+            (
+                SetId::UvAdoptPolyglot,
+                SetRequest::Packages(vec!["pytest".to_owned()]),
+            ),
         ] {
             let error = plan(set, &packages, false).expect_err("unsupported");
             assert!(matches!(error, BackendError::Unsupported { .. }), "{set:?}");
@@ -316,7 +512,19 @@ mod tests {
 
     #[test]
     fn offline_forces_cache_only_except_go_noop() {
-        for set in [SetId::Cargo, SetId::Npm, SetId::Maven, SetId::NuGet] {
+        for set in [
+            SetId::Cargo,
+            SetId::Npm,
+            SetId::Maven,
+            SetId::NuGet,
+            SetId::NpmTools,
+            SetId::Uv,
+            SetId::UvTools,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+            SetId::UvAdopt,
+            SetId::UvAdoptPolyglot,
+        ] {
             let error = plan(set, &SetRequest::Full, true).expect_err("offline needs network");
             assert!(
                 matches!(error, BackendError::OfflineRequired { .. }),
@@ -355,6 +563,31 @@ mod tests {
             (
                 SetId::Go,
                 SetRequest::Packages(vec!["example.com/mod".to_owned()]),
+            ),
+            (
+                SetId::NpmTools,
+                SetRequest::Packages(vec!["eslint".to_owned()]),
+            ),
+            (SetId::Uv, SetRequest::Packages(vec!["pytest".to_owned()])),
+            (
+                SetId::UvTools,
+                SetRequest::Packages(vec!["pylint".to_owned()]),
+            ),
+            (
+                SetId::NpmAdopt,
+                SetRequest::Packages(vec!["jest".to_owned()]),
+            ),
+            (
+                SetId::NpmAdoptPolyglot,
+                SetRequest::Packages(vec!["jest".to_owned()]),
+            ),
+            (
+                SetId::UvAdopt,
+                SetRequest::Packages(vec!["pytest".to_owned()]),
+            ),
+            (
+                SetId::UvAdoptPolyglot,
+                SetRequest::Packages(vec!["pytest".to_owned()]),
             ),
         ] {
             let error = plan(set, &packages, true).expect_err("unsupported stays unsupported");

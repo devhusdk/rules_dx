@@ -586,11 +586,32 @@ fn success_line(set: dx_update::sets::SetId, request: &dx_update::selector::SetR
                     .to_owned()
             }
             dx_update::sets::SetId::Npm => "updated npm (pnpm-lock.yaml)".to_owned(),
+            dx_update::sets::SetId::NpmTools => {
+                "updated npm-tools (quality/tools/javascript/pnpm-lock.yaml)".to_owned()
+            }
+            dx_update::sets::SetId::NpmAdopt => {
+                "updated npm-adopt (examples/adopt-js-ts/pnpm-lock.yaml)".to_owned()
+            }
+            dx_update::sets::SetId::NpmAdoptPolyglot => {
+                "updated npm-adopt-polyglot (examples/adopt-polyglot/pnpm-lock.yaml)".to_owned()
+            }
             dx_update::sets::SetId::Maven => {
                 "updated maven (third_party/jvm/maven_install.json)".to_owned()
             }
             dx_update::sets::SetId::NuGet => {
                 "updated nuget (third_party/dotnet/paket.lock)".to_owned()
+            }
+            dx_update::sets::SetId::Uv => {
+                "updated uv (python/tests/fixtures/hello/uv.lock)".to_owned()
+            }
+            dx_update::sets::SetId::UvTools => {
+                "updated uv-tools (quality/tools/python/uv.lock)".to_owned()
+            }
+            dx_update::sets::SetId::UvAdopt => {
+                "updated uv-adopt (examples/adopt-python/uv.lock)".to_owned()
+            }
+            dx_update::sets::SetId::UvAdoptPolyglot => {
+                "updated uv-adopt-polyglot (examples/adopt-polyglot/uv.lock)".to_owned()
             }
             dx_update::sets::SetId::Go => {
                 "updated go (pinned module lock; no-op success)".to_owned()

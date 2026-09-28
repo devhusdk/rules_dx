@@ -16,7 +16,7 @@ pub enum Selector {
 pub enum SelectorError {
     #[error("empty selector")]
     Empty,
-    #[error("unknown update selector {selector:?}; expected cargo|npm|maven|nuget|go, set:package, or a label/path")]
+    #[error("unknown update selector {selector:?}; expected cargo|npm|maven|nuget|go|uv|npm-tools|uv-tools|npm-adopt|npm-adopt-polyglot|uv-adopt|uv-adopt-polyglot, set:package, or a label/path")]
     UnknownSelector { selector: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
     InvalidPackage {
@@ -24,7 +24,9 @@ pub enum SelectorError {
         package: String,
         reason: &'static str,
     },
-    #[error("no owning dependency set for {target:?} (python and non-dependency paths are out of V1 update scope)")]
+    #[error(
+        "no owning dependency set for {target:?} (non-dependency paths are out of update scope)"
+    )]
     NoOwningSet { target: String },
 }
 
@@ -176,7 +178,7 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
             }
             Ok(())
         }
-        SetId::Npm => {
+        SetId::Npm | SetId::NpmTools | SetId::NpmAdopt | SetId::NpmAdoptPolyglot => {
             if package.is_empty() || package.contains(':') || package.contains(' ') {
                 return Err(invalid("npm package names never contain ':' or spaces"));
             }
@@ -239,6 +241,12 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
             }
             Ok(())
         }
+        SetId::Uv | SetId::UvTools | SetId::UvAdopt | SetId::UvAdoptPolyglot => {
+            if !is_dotted_name(package) {
+                return Err(invalid("uv package names use [A-Za-z0-9_.-] only"));
+            }
+            Ok(())
+        }
         SetId::Go => {
             if package.is_empty()
                 || package.contains(':')
@@ -278,16 +286,22 @@ pub fn owning_sets(target: &str) -> Vec<SetId> {
         return root_owning_sets(target);
     }
     if has_prefix(&package, "quality/tools/javascript") {
-        return vec![SetId::Npm];
+        return vec![SetId::NpmTools];
     }
     if has_prefix(&package, "quality/tools/python") {
-        return vec![];
+        return vec![SetId::UvTools];
+    }
+    if has_prefix(&package, "python/tests/fixtures/hello") {
+        return vec![SetId::Uv];
+    }
+    if has_prefix(&package, "examples/adopt-python") {
+        return vec![SetId::UvAdopt];
+    }
+    if has_prefix(&package, "examples/adopt-js-ts") {
+        return vec![SetId::NpmAdopt];
     }
     if has_prefix(&package, "examples/adopt-rust") {
         return vec![SetId::Cargo];
-    }
-    if has_prefix(&package, "examples/adopt-js-ts") {
-        return vec![SetId::Npm];
     }
     if has_prefix(&package, "examples/adopt-java") || has_prefix(&package, "examples/adopt-kotlin")
     {
@@ -297,7 +311,10 @@ pub fn owning_sets(target: &str) -> Vec<SetId> {
         return vec![SetId::Go];
     }
     if has_prefix(&package, "examples/adopt-polyglot") {
-        return vec![SetId::Cargo, SetId::Npm];
+        return vec![SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot];
+    }
+    if has_prefix(&package, "python") {
+        return vec![SetId::Uv];
     }
     if has_prefix(&package, "docs/ir") {
         return vec![SetId::Cargo];
@@ -654,16 +671,17 @@ mod tests {
     }
 
     #[test]
-    fn owning_sets_cover_the_five_families() {
+    fn owning_sets_cover_all_families() {
         for (path, expected) in [
             ("examples/adopt-rust/crates", vec![SetId::Cargo]),
-            ("examples/adopt-js-ts/app", vec![SetId::Npm]),
+            ("examples/adopt-js-ts/app", vec![SetId::NpmAdopt]),
+            ("examples/adopt-python/app", vec![SetId::UvAdopt]),
             ("examples/adopt-java/greet", vec![SetId::Maven]),
             ("examples/adopt-kotlin/greet", vec![SetId::Maven]),
             ("examples/adopt-go/greet", vec![SetId::Go]),
             (
                 "examples/adopt-polyglot/frontend",
-                vec![SetId::Cargo, SetId::Npm],
+                vec![SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot],
             ),
             ("docs/ir/ir", vec![SetId::Cargo]),
         ] {
@@ -682,7 +700,19 @@ mod tests {
         assert_eq!(owning_sets("cli/cli/src/exec.rs"), vec![SetId::Cargo]);
         assert_eq!(
             owning_sets("quality/tools/javascript/package.json"),
-            vec![SetId::Npm]
+            vec![SetId::NpmTools]
+        );
+        assert_eq!(
+            owning_sets("quality/tools/python/pyproject.toml"),
+            vec![SetId::UvTools]
+        );
+        assert_eq!(
+            owning_sets("python/tests/fixtures/hello/pyproject.toml"),
+            vec![SetId::Uv]
+        );
+        assert_eq!(
+            owning_sets("python/tests/fixtures/hello/hello.py"),
+            vec![SetId::Uv]
         );
         assert_eq!(
             owning_sets("//javascript/tests/fixtures/hello:hello"),
@@ -702,8 +732,6 @@ mod tests {
             vec![SetId::Go]
         );
         assert_eq!(owning_sets("go/tests/fixtures/hello"), vec![SetId::Go]);
-        assert!(owning_sets("python/tests/fixtures/hello/hello.py").is_empty());
-        assert!(owning_sets("quality/tools/python/pyproject.toml").is_empty());
         assert!(owning_sets("docs/cli/README.md").is_empty());
         assert!(owning_sets("libs/starlark/defs.bzl").is_empty());
     }
@@ -711,7 +739,7 @@ mod tests {
     #[test]
     fn bare_resolves_to_all_sets_full() {
         let resolved = resolve(&[]).expect("bare");
-        assert_eq!(resolved.len(), 5);
+        assert_eq!(resolved.len(), 12);
         for set in SetId::ALL {
             assert_eq!(resolved.get(&set), Some(&SetRequest::Full));
         }
@@ -795,7 +823,7 @@ mod tests {
         let resolved = resolve(&strings(&["//go/tests/fixtures/hello:hello"])).expect("target");
         assert_eq!(resolved.get(&SetId::Go), Some(&SetRequest::Full));
         let resolved = resolve(&strings(&["//..."])).expect("repo");
-        assert_eq!(resolved.len(), 5);
+        assert_eq!(resolved.len(), 12);
     }
 
     #[test]
@@ -803,10 +831,6 @@ mod tests {
         assert!(matches!(
             resolve(&strings(&["crates"])),
             Err(SelectorError::UnknownSelector { .. })
-        ));
-        assert!(matches!(
-            resolve(&strings(&["python/tests/fixtures/hello/hello.py"])),
-            Err(SelectorError::NoOwningSet { .. })
         ));
         assert!(matches!(
             resolve(&strings(&["docs/cli/README.md"])),

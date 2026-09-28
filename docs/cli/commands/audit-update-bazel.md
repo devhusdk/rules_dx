@@ -41,12 +41,22 @@ dx update [--check] [--offline|--frozen] [set...]
 ```
 
 Updates dependencies per set through the qualified resolvers. No selector
-updates all sets. `--check` fails if the preset is stale and ignores
-selectors. `--fail-on`, `--report`, and Bazel options do not apply.
+updates all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
+`npm-adopt-polyglot`, `npm-tools`, `nuget`, `uv`, `uv-adopt`,
+`uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`, or a
+label/path. `go` is a pinned no-op success. `--check` fails if the preset is
+stale and ignores selectors. `--offline` and `--frozen` run cache-only with
+no network fetches. `--fail-on`, `--report`, and Bazel options do not apply.
+Output is text or JSON per set plus a summary count. Exit codes: 0 success,
+2 usage or scope errors, 1 operational failures.
 
 ```sh
 bazel run //cli/cli:dx -- update --check
 bazel run //cli/cli:dx -- update go
+bazel run //cli/cli:dx -- update uv uv-tools
+bazel run //cli/cli:dx -- update npm-tools
+bazel run //cli/cli:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
+bazel run //cli/cli:dx -- --dry-run update
 ```
 
 ## `dx bump`

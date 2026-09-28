@@ -265,7 +265,7 @@ fn lock_loading_requires_readable_inputs_and_deduplicates_npm_siblings() {
 #[test]
 fn audit_live_unowned_scope_fails_usage() {
     let harness = Harness::new("audit-unowned");
-    let (code, _out, err) = harness.run(&["security", "python/tests/fixtures/hello/hello.py"]);
+    let (code, _out, err) = harness.run(&["security", "docs/cli/README.md"]);
     assert_eq!(code, 2, "{err}");
 }
 
@@ -965,7 +965,7 @@ fn audit_errors_stay_typed_with_stable_display() {
         .to_string(),
         "could not parse pnpm-lock.yaml: boom"
     );
-    let unowned = super::resolve_audit_sets(&["python/tests/fixtures/hello/hello.py".to_owned()])
+    let unowned = super::resolve_audit_sets(&["docs/cli/README.md".to_owned()])
         .expect_err("unowned scope fails");
     assert!(matches!(unowned, AuditError::NoOwningSet { .. }));
     assert!(unowned.to_string().contains("no owning dependency set"));

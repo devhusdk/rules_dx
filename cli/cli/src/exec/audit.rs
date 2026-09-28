@@ -293,7 +293,10 @@ fn parse_locked_for_set(
     for (rel, text) in locks {
         let mut packages = match set {
             dx_update::sets::SetId::Cargo => dx_audit::locks::parse_cargo_lock(text),
-            dx_update::sets::SetId::Npm => match rel.as_str() {
+            dx_update::sets::SetId::Npm
+            | dx_update::sets::SetId::NpmTools
+            | dx_update::sets::SetId::NpmAdopt
+            | dx_update::sets::SetId::NpmAdoptPolyglot => match rel.as_str() {
                 "package-lock.json" => dx_audit::locks::parse_package_lock(text),
                 "yarn.lock" => dx_audit::locks::parse_yarn_lock(text),
                 _ => dx_audit::locks::parse_pnpm_lock(text),
@@ -301,6 +304,10 @@ fn parse_locked_for_set(
             dx_update::sets::SetId::Maven => dx_audit::locks::parse_maven_install(text),
             dx_update::sets::SetId::NuGet => dx_audit::locks::parse_paket_lock(text),
             dx_update::sets::SetId::Go => dx_audit::locks::parse_go_mod(text),
+            dx_update::sets::SetId::Uv
+            | dx_update::sets::SetId::UvTools
+            | dx_update::sets::SetId::UvAdopt
+            | dx_update::sets::SetId::UvAdoptPolyglot => Ok(Vec::new()),
         }
         .map_err(|detail| AuditError::LockParse {
             rel: rel.clone(),

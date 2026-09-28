@@ -4,16 +4,30 @@ pub enum SetId {
     Go,
     Maven,
     Npm,
+    NpmAdopt,
+    NpmAdoptPolyglot,
+    NpmTools,
     NuGet,
+    Uv,
+    UvAdopt,
+    UvAdoptPolyglot,
+    UvTools,
 }
 
 impl SetId {
-    pub const ALL: [SetId; 5] = [
+    pub const ALL: [SetId; 12] = [
         SetId::Cargo,
         SetId::Go,
         SetId::Maven,
         SetId::Npm,
+        SetId::NpmAdopt,
+        SetId::NpmAdoptPolyglot,
+        SetId::NpmTools,
         SetId::NuGet,
+        SetId::Uv,
+        SetId::UvAdopt,
+        SetId::UvAdoptPolyglot,
+        SetId::UvTools,
     ];
 
     pub fn name(self) -> &'static str {
@@ -22,7 +36,14 @@ impl SetId {
             SetId::Go => "go",
             SetId::Maven => "maven",
             SetId::Npm => "npm",
+            SetId::NpmAdopt => "npm-adopt",
+            SetId::NpmAdoptPolyglot => "npm-adopt-polyglot",
+            SetId::NpmTools => "npm-tools",
             SetId::NuGet => "nuget",
+            SetId::Uv => "uv",
+            SetId::UvAdopt => "uv-adopt",
+            SetId::UvAdoptPolyglot => "uv-adopt-polyglot",
+            SetId::UvTools => "uv-tools",
         }
     }
 
@@ -32,7 +53,14 @@ impl SetId {
             "go" => Some(SetId::Go),
             "maven" => Some(SetId::Maven),
             "npm" => Some(SetId::Npm),
+            "npm-adopt" => Some(SetId::NpmAdopt),
+            "npm-adopt-polyglot" => Some(SetId::NpmAdoptPolyglot),
+            "npm-tools" => Some(SetId::NpmTools),
             "nuget" => Some(SetId::NuGet),
+            "uv" => Some(SetId::Uv),
+            "uv-adopt" => Some(SetId::UvAdopt),
+            "uv-adopt-polyglot" => Some(SetId::UvAdoptPolyglot),
+            "uv-tools" => Some(SetId::UvTools),
             _ => None,
         }
     }
@@ -43,7 +71,14 @@ impl SetId {
             SetId::Go => &["third_party/go/go.mod"],
             SetId::Maven => &["MODULE.bazel"],
             SetId::Npm => &["package.json"],
+            SetId::NpmAdopt => &["examples/adopt-js-ts/package.json"],
+            SetId::NpmAdoptPolyglot => &["examples/adopt-polyglot/package.json"],
+            SetId::NpmTools => &["quality/tools/javascript/package.json"],
             SetId::NuGet => &["third_party/dotnet/paket.dependencies"],
+            SetId::Uv => &["python/tests/fixtures/hello/pyproject.toml"],
+            SetId::UvAdopt => &["examples/adopt-python/pyproject.toml"],
+            SetId::UvAdoptPolyglot => &["examples/adopt-polyglot/pyproject.toml"],
+            SetId::UvTools => &["quality/tools/python/pyproject.toml"],
         }
     }
 
@@ -56,7 +91,14 @@ impl SetId {
             SetId::Go => &["third_party/go/go.mod", "third_party/go/go.sum"],
             SetId::Maven => &["third_party/jvm/maven_install.json"],
             SetId::Npm => &["pnpm-lock.yaml"],
+            SetId::NpmAdopt => &["examples/adopt-js-ts/pnpm-lock.yaml"],
+            SetId::NpmAdoptPolyglot => &["examples/adopt-polyglot/pnpm-lock.yaml"],
+            SetId::NpmTools => &["quality/tools/javascript/pnpm-lock.yaml"],
             SetId::NuGet => &["third_party/dotnet/paket.lock", "third_party/dotnet/deps"],
+            SetId::Uv => &["python/tests/fixtures/hello/uv.lock"],
+            SetId::UvAdopt => &["examples/adopt-python/uv.lock"],
+            SetId::UvAdoptPolyglot => &["examples/adopt-polyglot/uv.lock"],
+            SetId::UvTools => &["quality/tools/python/uv.lock"],
         }
     }
 
@@ -70,9 +112,24 @@ impl SetId {
             }
             SetId::Maven => "rules_jvm_external pin (REPIN=1 bazel run @maven//:pin)",
             SetId::Npm => "Bazel-pinned pnpm update (bazel run @pnpm//:pnpm -- update)",
+            SetId::NpmAdopt => {
+                "pnpm lockfile-only install (pnpm --dir examples/adopt-js-ts install --lockfile-only)"
+            }
+            SetId::NpmAdoptPolyglot => {
+                "pnpm lockfile-only install (pnpm --dir examples/adopt-polyglot install --lockfile-only)"
+            }
+            SetId::NpmTools => {
+                "Bazel-pinned pnpm lockfile-only install (bazel run @pnpm//:pnpm -- --dir quality/tools/javascript install --lockfile-only)"
+            }
             SetId::NuGet => {
                 "paket2bazel regeneration (bazel run @rules_dotnet//tools/paket2bazel -- ...)"
             }
+            SetId::Uv => "uv lock (uv lock --directory python/tests/fixtures/hello)",
+            SetId::UvAdopt => "uv lock (uv lock --directory examples/adopt-python)",
+            SetId::UvAdoptPolyglot => {
+                "uv lock (uv lock --directory examples/adopt-polyglot)"
+            }
+            SetId::UvTools => "uv lock (uv lock --directory quality/tools/python)",
         }
     }
 }
@@ -89,7 +146,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(SetId::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 5);
+        assert_eq!(seen.len(), 12);
         assert_eq!(SetId::parse("Cargo"), None);
         assert_eq!(SetId::parse("cargo-lock"), None);
         assert_eq!(SetId::parse(""), None);
@@ -98,7 +155,23 @@ mod tests {
     #[test]
     fn order_is_alphabetical_and_deterministic() {
         let names: Vec<&str> = SetId::ALL.iter().map(|set| set.name()).collect();
-        assert_eq!(names, vec!["cargo", "go", "maven", "npm", "nuget"]);
+        assert_eq!(
+            names,
+            vec![
+                "cargo",
+                "go",
+                "maven",
+                "npm",
+                "npm-adopt",
+                "npm-adopt-polyglot",
+                "npm-tools",
+                "nuget",
+                "uv",
+                "uv-adopt",
+                "uv-adopt-polyglot",
+                "uv-tools",
+            ]
+        );
         let mut sorted = names.clone();
         sorted.sort();
         assert_eq!(names, sorted);
@@ -151,5 +224,82 @@ mod tests {
         assert!(SetId::NuGet
             .locks()
             .contains(&"third_party/dotnet/paket.lock"));
+    }
+
+    #[test]
+    fn repin_table_covers_twelve_dialects() {
+        let rows: Vec<(&str, &str, &str)> = SetId::ALL
+            .iter()
+            .map(|set| (set.name(), set.manifests()[0], set.locks()[0]))
+            .collect();
+        assert_eq!(
+            rows,
+            vec![
+                (
+                    "cargo",
+                    "rust/tests/fixtures/hello/Cargo.toml",
+                    "rust/tests/fixtures/hello/Cargo.lock"
+                ),
+                ("go", "third_party/go/go.mod", "third_party/go/go.mod"),
+                (
+                    "maven",
+                    "MODULE.bazel",
+                    "third_party/jvm/maven_install.json"
+                ),
+                ("npm", "package.json", "pnpm-lock.yaml"),
+                (
+                    "npm-adopt",
+                    "examples/adopt-js-ts/package.json",
+                    "examples/adopt-js-ts/pnpm-lock.yaml"
+                ),
+                (
+                    "npm-adopt-polyglot",
+                    "examples/adopt-polyglot/package.json",
+                    "examples/adopt-polyglot/pnpm-lock.yaml"
+                ),
+                (
+                    "npm-tools",
+                    "quality/tools/javascript/package.json",
+                    "quality/tools/javascript/pnpm-lock.yaml"
+                ),
+                (
+                    "nuget",
+                    "third_party/dotnet/paket.dependencies",
+                    "third_party/dotnet/paket.lock"
+                ),
+                (
+                    "uv",
+                    "python/tests/fixtures/hello/pyproject.toml",
+                    "python/tests/fixtures/hello/uv.lock"
+                ),
+                (
+                    "uv-adopt",
+                    "examples/adopt-python/pyproject.toml",
+                    "examples/adopt-python/uv.lock"
+                ),
+                (
+                    "uv-adopt-polyglot",
+                    "examples/adopt-polyglot/pyproject.toml",
+                    "examples/adopt-polyglot/uv.lock"
+                ),
+                (
+                    "uv-tools",
+                    "quality/tools/python/pyproject.toml",
+                    "quality/tools/python/uv.lock"
+                ),
+            ]
+        );
+        for set in SetId::ALL {
+            assert!(!set.updater().is_empty(), "{set:?} owns an updater");
+        }
+        assert!(SetId::Uv.updater().contains("uv lock --directory"));
+        assert!(SetId::UvTools.updater().contains("quality/tools/python"));
+        assert!(SetId::NpmTools
+            .updater()
+            .contains("quality/tools/javascript"));
+        assert!(SetId::NpmAdopt.updater().contains("examples/adopt-js-ts"));
+        assert!(SetId::UvAdoptPolyglot
+            .updater()
+            .contains("examples/adopt-polyglot"));
     }
 }

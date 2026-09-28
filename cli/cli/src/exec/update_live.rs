@@ -29,12 +29,45 @@ impl ScriptRunner {
     pub(super) fn key_for(argv: &[String]) -> String {
         if argv.contains(&"//rust/tests/fixtures/hello:hello".to_owned()) {
             "cargo".to_owned()
+        } else if argv.contains(&"@pnpm//:pnpm".to_owned())
+            && argv
+                .iter()
+                .any(|arg| arg.contains("quality/tools/javascript"))
+        {
+            "npm-tools".to_owned()
         } else if argv.contains(&"@pnpm//:pnpm".to_owned()) {
             "npm".to_owned()
         } else if argv.contains(&"@maven//:pin".to_owned()) {
             "maven".to_owned()
         } else if argv.iter().any(|arg| arg.contains("paket2bazel")) {
             "nuget".to_owned()
+        } else if argv.contains(&"uv".to_owned())
+            && argv
+                .iter()
+                .any(|arg| arg.contains("python/tests/fixtures/hello"))
+        {
+            "uv".to_owned()
+        } else if argv.contains(&"uv".to_owned())
+            && argv.iter().any(|arg| arg.contains("quality/tools/python"))
+        {
+            "uv-tools".to_owned()
+        } else if argv.contains(&"uv".to_owned())
+            && argv.iter().any(|arg| arg.contains("examples/adopt-python"))
+        {
+            "uv-adopt".to_owned()
+        } else if argv.contains(&"uv".to_owned())
+            && argv
+                .iter()
+                .any(|arg| arg.contains("examples/adopt-polyglot"))
+        {
+            "uv-adopt-polyglot".to_owned()
+        } else if argv.iter().any(|arg| arg.contains("examples/adopt-js-ts")) {
+            "npm-adopt".to_owned()
+        } else if argv
+            .iter()
+            .any(|arg| arg.contains("examples/adopt-polyglot"))
+        {
+            "npm-adopt-polyglot".to_owned()
         } else {
             argv.join(" ")
         }
@@ -118,11 +151,7 @@ pub(super) fn dry_run_rejects_unknown_and_unowned() {
     let (code, _, err) = harness.run(&["update", "crates", "--dry-run"]);
     assert_eq!(code, 2, "{err}");
     let harness = Harness::new("update-dryrun-unowned");
-    let (code, _, err) = harness.run(&[
-        "update",
-        "python/tests/fixtures/hello/hello.py",
-        "--dry-run",
-    ]);
+    let (code, _, err) = harness.run(&["update", "docs/cli/README.md", "--dry-run"]);
     assert_eq!(code, 2, "{err}");
 }
 
@@ -137,15 +166,20 @@ pub(super) fn live_all_success_reports_per_set_and_exits_zero() {
     );
     assert!(out.contains("updated cargo ("), "{out}");
     assert!(out.contains("updated npm ("), "{out}");
+    assert!(out.contains("updated npm-tools ("), "{out}");
     assert!(out.contains("updated maven ("), "{out}");
     assert!(out.contains("updated nuget ("), "{out}");
+    assert!(out.contains("updated uv ("), "{out}");
+    assert!(out.contains("updated uv-tools ("), "{out}");
+    assert!(out.contains("updated npm-adopt ("), "{out}");
+    assert!(out.contains("updated uv-adopt ("), "{out}");
     assert!(
         out.contains("updated go (pinned module lock; no-op success)"),
         "{out}"
     );
-    assert!(out.contains("5 succeeded, 0 failed, 0 blocked"), "{out}");
+    assert!(out.contains("12 succeeded, 0 failed, 0 blocked"), "{out}");
     assert_eq!(err, "", "{err}");
-    assert_eq!(runner.calls.borrow().len(), 4);
+    assert_eq!(runner.calls.borrow().len(), 11);
 }
 
 #[test]
@@ -155,12 +189,12 @@ pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("updated cargo ("), "{out}");
     assert!(out.contains("updated npm ("), "{out}");
-    assert!(out.contains("4 succeeded, 1 failed, 0 blocked"), "{out}");
+    assert!(out.contains("11 succeeded, 1 failed, 0 blocked"), "{out}");
     assert!(err.contains("update_failed"), "{err}");
     assert!(err.contains("failed to update maven"), "{err}");
     assert!(err.contains("update_recovery"), "{err}");
     assert!(err.contains("dx update maven"), "{err}");
-    assert_eq!(runner.calls.borrow().len(), 4);
+    assert_eq!(runner.calls.borrow().len(), 11);
 }
 
 #[test]

@@ -2712,8 +2712,30 @@ pub fn npm_deploy_main(argv: &[String]) -> i32 {
 mod tests {
     use super::*;
 
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn scratch_dir() -> tempfile::TempDir {
         tempfile::TempDir::new().expect("scratch")
+    }
+
+    fn with_env<T>(vars: &[(&str, Option<&str>)], body: impl FnOnce() -> T) -> T {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let mut saved: Vec<(&str, Option<String>)> = Vec::new();
+        for (key, value) in vars {
+            saved.push((*key, std::env::var(key).ok()));
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+        }
+        let out = body();
+        for (key, value) in saved {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+        }
+        out
     }
 
     #[test]
@@ -3168,5 +3190,928 @@ mod tests {
             npm_npmrc_line("registry.npmjs.org", "tok"),
             "//registry.npmjs.org/:_authToken=tok\n"
         );
+    }
+
+    #[test]
+    fn shlex_split_handles_quotes_escapes_and_spacing() {
+        assert_eq!(shlex_split("a b c"), vec!["a", "b", "c"]);
+        assert_eq!(shlex_split("  a   b  "), vec!["a", "b"]);
+        assert_eq!(shlex_split(""), Vec::<String>::new());
+        assert_eq!(shlex_split("   "), Vec::<String>::new());
+        assert_eq!(shlex_split("'one two'"), vec!["one two"]);
+        assert_eq!(shlex_split("\"one two\""), vec!["one two"]);
+        assert_eq!(shlex_split("a\\ b"), vec!["a b"]);
+        assert_eq!(shlex_split("\"a\\\"b\""), vec!["a\"b"]);
+        assert_eq!(shlex_split("'a\\b'"), vec!["a\\b"]);
+        assert_eq!(shlex_split("'unterminated"), vec!["unterminated"]);
+        assert_eq!(shlex_split("a\\"), vec!["a"]);
+    }
+
+    #[test]
+    fn json_and_xml_escape_cover_control_and_markup() {
+        assert_eq!(json_escape("a\"b\\c"), "a\\\"b\\\\c");
+        assert_eq!(json_escape("n\r\nt"), "n\\r\\nt");
+        assert_eq!(json_escape("\u{1}"), "\\u0001");
+        assert_eq!(json_escape("plain"), "plain");
+        assert_eq!(
+            xml_escape("<a href=\"x\">&'</a>"),
+            "&lt;a href=&quot;x&quot;&gt;&amp;&apos;&lt;/a&gt;"
+        );
+    }
+
+    #[test]
+    fn json_field_helpers_read_escaped_values() {
+        let body = r#"{"name": "a\"b\\c\nd", "files": ["x", "y\\z", "w\"q"]}"#;
+        assert_eq!(
+            json_string_field(body, "name").as_deref(),
+            Some("a\"b\\c\nd")
+        );
+        assert_eq!(json_string_field(body, "missing"), None, "absent key");
+        assert_eq!(json_string_field("{\"name\": ", "name"), None);
+        assert_eq!(json_string_field("{\"name\": 7}", "name"), None);
+        assert_eq!(
+            json_files_field(body),
+            Some(vec!["x".to_owned(), "y\\z".to_owned(), "w\"q".to_owned()])
+        );
+        assert_eq!(json_files_field("{}"), None);
+        assert_eq!(json_files_field(r#"{"files": 7}"#), None);
+    }
+
+    #[test]
+    fn command_formatters_cover_optional_segments() {
+        assert_eq!(maven_group_path("com.example.demo"), "com/example/demo");
+        assert_eq!(
+            octopus_push_command("demo-1.0.0", "https://octo.invalid", ""),
+            "octo push demo-1.0.0 --server https://octo.invalid"
+        );
+        assert_eq!(
+            octopus_push_command("demo-1.0.0", "https://octo.invalid", "Spaces"),
+            "octo push demo-1.0.0 --server https://octo.invalid --space Spaces"
+        );
+        let release = octopus_release_command(
+            "demo",
+            "Default",
+            "1.0.0",
+            "demo-1.0.0",
+            &["Production".to_owned(), "Staging".to_owned()],
+            "Spaces",
+            "https://octo.invalid",
+        );
+        assert_eq!(
+            release,
+            "octo create-release --project demo --channel Default --version 1.0.0 --package demo-1.0.0 --deploy-to Production --deploy-to Staging --space Spaces --server https://octo.invalid"
+        );
+        assert_eq!(
+            promotion_rollback_command("demo", "1.0.1"),
+            "rollback demo to 1.0.1 (restore the pinned artifact for that version)"
+        );
+        assert_eq!(
+            github_release_command("v1", &[]),
+            "gh release create v1 --draft --verify-tag"
+        );
+    }
+
+    #[test]
+    fn maven_file_repo_rejects_empty_coordinates() {
+        let scratch = scratch_dir();
+        let jar = scratch.path().join("demo.jar");
+        std::fs::write(&jar, b"jar").expect("write jar");
+        let pom = scratch.path().join("demo.pom");
+        std::fs::write(&pom, b"pom").expect("write pom");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        for (group, artifact, version) in [("", "a", "1"), ("g", "", "1"), ("g", "a", "")] {
+            let error = maven_build_file_repo(&jar, &pom, &outdir, group, artifact, version)
+                .expect_err("empty coordinate");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        }
+    }
+
+    #[test]
+    fn stage_helpers_create_and_report_paths() {
+        let dir = tempfile_stage_dir("dx-deploy-stage-").expect("stage dir");
+        assert!(dir.is_dir());
+        assert!(dir.to_string_lossy().contains("dx-deploy-stage-"));
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+        assert!(tempfile_stage_dir("dx-deploy-stage-").is_ok());
+    }
+
+    #[test]
+    fn copy_verified_reports_source_digest() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("src.bin");
+        std::fs::write(&src, b"payload").expect("write src");
+        let dest = scratch.path().join("dest.bin");
+        std::fs::write(&dest, b"stale-bytes").expect("write dest");
+        let digest = copy_verified(&src, &dest).expect("copy");
+        assert_eq!(digest, sha256_file_hex(&src).expect("hex"));
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"payload");
+    }
+
+    #[test]
+    fn which_on_path_finds_present_and_missing_tools() {
+        with_env(&[("PATH", Some(""))], || {
+            assert!(which_on_path("definitely-not-a-real-tool-xyz").is_none());
+        });
+        let dir = scratch_dir();
+        let tool = dir.path().join("dx_fake_tool");
+        std::fs::write(&tool, b"#!/bin/sh\n").expect("write tool");
+        let path = format!("{}{}", dir.path().to_string_lossy(), {
+            if cfg!(windows) {
+                ";"
+            } else {
+                ":"
+            }
+        });
+        with_env(&[("PATH", Some(&path))], || {
+            assert_eq!(
+                which_on_path("dx_fake_tool").as_deref(),
+                Some(tool.as_path())
+            );
+            assert!(which_on_path("dx_missing_tool").is_none());
+        });
+    }
+
+    #[test]
+    fn minimal_env_keeps_allowlist_and_applies_extras() {
+        with_env(
+            &[
+                ("DX_TEST_KEEP", Some("kept")),
+                ("DX_TEST_DROP", Some("dropped")),
+            ],
+            || {
+                let env = minimal_env(
+                    &["DX_TEST_KEEP", "DX_TEST_ABSENT"],
+                    &[("DX_TEST_EXTRA", "extra")],
+                );
+                assert_eq!(env.get("DX_TEST_KEEP").map(String::as_str), Some("kept"));
+                assert_eq!(env.get("DX_TEST_EXTRA").map(String::as_str), Some("extra"));
+                assert!(!env.contains_key("DX_TEST_DROP"));
+                assert!(!env.contains_key("DX_TEST_ABSENT"));
+            },
+        );
+    }
+
+    #[test]
+    fn deploy_outdir_prefers_arg_then_env_then_cwd() {
+        let scratch = scratch_dir();
+        let explicit = scratch.path().join("explicit");
+        let argv = vec!["prog".to_owned(), explicit.to_string_lossy().into_owned()];
+        assert_eq!(deploy_outdir(&argv), explicit);
+        with_env(&[("BUILD_WORKSPACE_DIRECTORY", None)], || {
+            let fallback = std::env::current_dir().expect("cwd");
+            assert_eq!(deploy_outdir(&["prog".to_owned()]), fallback);
+        });
+        let from_env = scratch.path().join("from-env");
+        with_env(
+            &[(
+                "BUILD_WORKSPACE_DIRECTORY",
+                Some(from_env.to_string_lossy().as_ref()),
+            )],
+            || {
+                assert_eq!(deploy_outdir(&["prog".to_owned()]), from_env);
+            },
+        );
+    }
+
+    #[test]
+    fn resolve_runfile_reads_dir_and_manifest() {
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let payload = runfiles.join("demo/app.bin");
+        std::fs::create_dir_all(payload.parent().expect("parent")).expect("nested");
+        std::fs::write(&payload, b"payload").expect("write payload");
+        let manifest = scratch.path().join("manifest.txt");
+        std::fs::write(
+            &manifest,
+            format!(
+                "demo/app.bin {}\nother/missing.bin /nope\nmalformed\n",
+                payload.display()
+            ),
+        )
+        .expect("write manifest");
+
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+            ],
+            || {
+                assert_eq!(resolve_runfile("demo/app.bin").expect("from dir"), payload);
+            },
+        );
+        with_env(
+            &[
+                (
+                    "RUNFILES_DIR",
+                    Some(scratch.path().to_string_lossy().as_ref()),
+                ),
+                (
+                    "RUNFILES_MANIFEST_FILE",
+                    Some(manifest.to_string_lossy().as_ref()),
+                ),
+            ],
+            || {
+                assert_eq!(
+                    resolve_runfile("demo/app.bin").expect("from manifest"),
+                    payload
+                );
+            },
+        );
+        with_env(
+            &[("RUNFILES_DIR", None), ("RUNFILES_MANIFEST_FILE", None)],
+            || {
+                let empty = resolve_runfile("").expect_err("empty rloc");
+                assert_eq!(empty.kind(), io::ErrorKind::InvalidInput);
+                let missing = resolve_runfile("demo/absent-xyz").expect_err("missing rloc");
+                assert_eq!(missing.kind(), io::ErrorKind::NotFound);
+            },
+        );
+    }
+
+    #[test]
+    fn npm_find_pack_inputs_reads_manifest_entries() {
+        let scratch = scratch_dir();
+        let tgz = scratch.path().join("npm_demo.tgz");
+        std::fs::write(&tgz, b"tarball-bytes").expect("write tgz");
+        let feed = scratch.path().join("npm_demo.feed.json");
+        std::fs::write(
+            &feed,
+            b"{\"name\": \"npm-demo\", \"tarball\": \"npm_demo.tgz\"}\n",
+        )
+        .expect("write feed");
+        let manifest = scratch.path().join("manifest.txt");
+        std::fs::write(
+            &manifest,
+            format!(
+                "npm/nested/npm_demo.feed.json {}\nnpm/nested/npm_demo.tgz {}\n",
+                feed.display(),
+                tgz.display()
+            ),
+        )
+        .expect("write manifest");
+        with_env(
+            &[
+                ("RUNFILES_DIR", None),
+                (
+                    "RUNFILES_MANIFEST_FILE",
+                    Some(manifest.to_string_lossy().as_ref()),
+                ),
+            ],
+            || {
+                let (found_feed, found_tgz) = npm_find_pack_inputs().expect("pack pair");
+                assert_eq!(found_feed, feed);
+                assert_eq!(found_tgz, tgz);
+            },
+        );
+        let empty_dir = scratch.path().join("empty-runfiles");
+        std::fs::create_dir_all(&empty_dir).expect("empty runfiles");
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(empty_dir.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+            ],
+            || {
+                let error = npm_find_pack_inputs().expect_err("no feed under runfiles");
+                assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+            },
+        );
+    }
+
+    #[test]
+    fn npmrc_written_with_owner_only_permissions() {
+        let path = npm_write_npmrc("registry.npmjs.org", "tok").expect("npmrc");
+        assert_eq!(
+            std::fs::read_to_string(&path).expect("read npmrc"),
+            "//registry.npmjs.org/:_authToken=tok\n"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&path).expect("stat").permissions().mode();
+            assert_eq!(mode & 0o777, 0o600, "npmrc must stay owner-only");
+        }
+        std::fs::remove_file(&path).expect("cleanup");
+    }
+
+    #[test]
+    fn promotion_secret_refs_cover_every_ref_kind() {
+        let scratch = scratch_dir();
+        let secret = scratch.path().join("secret.txt");
+        std::fs::write(&secret, b"token").expect("write secret");
+        let file_ref = format!("file:{}", secret.display());
+        with_env(&[("DX_TEST_PROMOTION_SECRET", None)], || {
+            let normalized = promotion_check_secret_refs(&[file_ref.clone()]).expect("file ref");
+            assert_eq!(normalized, vec![file_ref.clone()]);
+        });
+        let missing = promotion_check_secret_refs(&["file:/nope/absent-xyz".to_owned()])
+            .expect_err("missing secret file");
+        assert_eq!(missing.kind(), io::ErrorKind::NotFound);
+        let empty_file =
+            promotion_check_secret_refs(&["file:".to_owned()]).expect_err("empty path");
+        assert_eq!(empty_file.kind(), io::ErrorKind::NotFound);
+        let missing_tool = promotion_check_secret_refs(&["cmd:dx-no-such-tool-xyz".to_owned()])
+            .expect_err("missing tool");
+        assert_eq!(missing_tool.kind(), io::ErrorKind::NotFound);
+        let empty_tool = promotion_check_secret_refs(&["cmd:".to_owned()]).expect_err("empty tool");
+        assert_eq!(empty_tool.kind(), io::ErrorKind::NotFound);
+        for bad in ["", "has space", "quote'", "dollar$", "back`tick`"] {
+            let error = promotion_check_secret_refs(&[bad.to_owned()]).expect_err("invalid ref");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{bad}");
+        }
+        let unset = promotion_check_secret_refs(&["DX_TEST_PROMOTION_SECRET".to_owned()])
+            .expect_err("unset env ref");
+        assert_eq!(unset.kind(), io::ErrorKind::NotFound);
+        with_env(&[("DX_TEST_PROMOTION_SECRET", Some("value"))], || {
+            assert_eq!(
+                promotion_check_secret_refs(&["DX_TEST_PROMOTION_SECRET".to_owned()])
+                    .expect("env ref"),
+                vec!["DX_TEST_PROMOTION_SECRET".to_owned()]
+            );
+        });
+    }
+
+    #[test]
+    fn promotion_health_cmd_rejects_empty_and_missing_tools() {
+        let empty = promotion_run_health_cmd("   ").expect_err("empty health cmd");
+        assert_eq!(empty.kind(), io::ErrorKind::InvalidInput);
+        with_env(&[("PATH", Some(""))], || {
+            let missing = promotion_run_health_cmd("dx-no-such-health-tool-xyz")
+                .expect_err("missing health tool");
+            assert_eq!(missing.kind(), io::ErrorKind::NotFound);
+        });
+    }
+
+    #[test]
+    fn promotion_rollback_requires_directory_and_version() {
+        let scratch = scratch_dir();
+        let absent = scratch.path().join("absent");
+        let missing_dir = promotion_record_rollback(&absent, "demo", "1.0.1", "")
+            .expect_err("missing promotion dir");
+        assert_eq!(missing_dir.kind(), io::ErrorKind::InvalidInput);
+        let artifact = scratch.path().join("demo.tar.gz");
+        std::fs::write(&artifact, b"bytes").expect("write artifact");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let promotion = promotion_build(
+            &artifact,
+            &outdir,
+            "demo",
+            "staging",
+            "production",
+            "1.0.2",
+            &[],
+        )
+        .expect("promotion");
+        let missing_version =
+            promotion_record_rollback(&promotion, "demo", "", "").expect_err("missing version");
+        assert_eq!(missing_version.kind(), io::ErrorKind::InvalidInput);
+        let pinned = promotion_record_rollback(&promotion, "demo", "1.0.1", "abc123")
+            .expect("rollback record");
+        let body = std::fs::read_to_string(&pinned).expect("read rollback");
+        assert!(body.contains("rollback demo to 1.0.1"));
+        assert!(body.contains("expected-sha256: abc123"));
+    }
+
+    #[test]
+    fn npm_pack_main_requires_full_argv() {
+        let short: Vec<String> = ["npm_pack", "a", "b", "c", "d", "e"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        assert_eq!(npm_pack_main(&short), 1);
+    }
+
+    #[test]
+    fn launchers_reject_extra_arguments() {
+        let argv = vec!["prog".to_owned(), "out".to_owned(), "extra".to_owned()];
+        let spec = OctopusLaunch {
+            package_rloc: "demo.tar.gz",
+            deploy_name: "demo",
+            project: "demo",
+            channel: "Default",
+            version: "1.0.0",
+            deploy_to_raw: "",
+            space_default: "",
+            url_default: "https://octopus.example.invalid",
+        };
+        assert_eq!(archive_main("a", "b", "c", &argv), 1);
+        assert_eq!(pypi_main("a", "b", "c", "https://pypi.invalid", &argv), 1);
+        assert_eq!(
+            nuget_main("a", "b", "1.0.0", "https://nuget.invalid", &argv),
+            1
+        );
+        assert_eq!(crates_main("a", "b", "1.0.0", false, &argv), 1);
+        assert_eq!(github_main("a", "b", "v1.0.0", &argv), 1);
+        assert_eq!(
+            maven_main(
+                "a",
+                "b",
+                "com.example",
+                "demo",
+                "1.0.0",
+                "https://maven.invalid",
+                &argv
+            ),
+            1
+        );
+        assert_eq!(
+            oci_main("a", "registry.invalid", "demo/app", "1.0.0", &argv),
+            1
+        );
+        assert_eq!(octopus_main(&spec, &argv), 1);
+        assert_eq!(
+            promotion_main("a", "b", "staging", "production", "1.0.0", &argv),
+            1
+        );
+    }
+
+    #[test]
+    fn launchers_report_missing_pinned_inputs() {
+        let outdir = tempfile_stage_dir("dx-deploy-missing-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(outdir.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+            ],
+            || {
+                let missing = "dx-absent-pinned-input-xyz";
+                assert_eq!(archive_main(missing, missing, missing, &argv), 1);
+                assert_eq!(
+                    pypi_main(missing, missing, "demo", "https://pypi.invalid", &argv),
+                    1
+                );
+                assert_eq!(
+                    nuget_main(missing, "demo", "1.0.0", "https://nuget.invalid", &argv),
+                    1
+                );
+                assert_eq!(crates_main(missing, "demo", "1.0.0", false, &argv), 1);
+                assert_eq!(github_main(missing, "demo", "v1.0.0", &argv), 1);
+                assert_eq!(
+                    maven_main(
+                        missing,
+                        missing,
+                        "com.example",
+                        "demo",
+                        "1.0.0",
+                        "https://maven.invalid",
+                        &argv
+                    ),
+                    1
+                );
+                assert_eq!(
+                    oci_main(missing, "registry.invalid", "demo/app", "1.0.0", &argv),
+                    1
+                );
+                let spec = OctopusLaunch {
+                    package_rloc: missing,
+                    deploy_name: "demo",
+                    project: "demo",
+                    channel: "Default",
+                    version: "1.0.0",
+                    deploy_to_raw: "",
+                    space_default: "",
+                    url_default: "https://octopus.example.invalid",
+                };
+                assert_eq!(octopus_main(&spec, &argv), 1);
+                assert_eq!(
+                    promotion_main(missing, "demo", "staging", "production", "1.0.0", &argv),
+                    1
+                );
+            },
+        );
+        std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    #[test]
+    fn launchers_refuse_live_publish_without_owner_approval() {
+        let outdir = tempfile_stage_dir("dx-deploy-live-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        let runfiles = outdir.join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        assert!(runfiles.is_dir());
+        let missing = "dx-absent-pinned-input-xyz";
+        with_env(
+            &[
+                (
+                    "RUNFILES_DIR",
+                    Some(outdir.join("runfiles").to_string_lossy().as_ref()),
+                ),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("PYPI_PUBLISH_LIVE", Some("1")),
+                ("PYPI_API_TOKEN", Some("")),
+                ("PYPI_PUBLISH_APPROVED", Some("1")),
+            ],
+            || {
+                assert_eq!(
+                    pypi_main(missing, missing, "demo", "https://pypi.invalid", &argv),
+                    1,
+                    "pypi needs a resolvable wheel before the token gate"
+                );
+            },
+        );
+        with_env(
+            &[
+                ("NUGET_PUBLISH_LIVE", Some("1")),
+                ("NUGET_PUBLISH_APPROVED", Some("1")),
+            ],
+            || {
+                assert_eq!(
+                    nuget_main(missing, "demo", "0.0.0", "https://nuget.invalid", &argv),
+                    1
+                );
+            },
+        );
+        with_env(
+            &[
+                ("GH_RELEASE_LIVE", Some("1")),
+                ("GH_RELEASE_APPROVED", Some("1")),
+            ],
+            || {
+                assert_eq!(github_main(missing, "demo", "v0.0.0-dryrun", &argv), 1);
+            },
+        );
+        with_env(
+            &[
+                ("MAVEN_PUBLISH_LIVE", Some("1")),
+                ("MAVEN_PUBLISH_APPROVED", Some("1")),
+            ],
+            || {
+                assert_eq!(
+                    maven_main(
+                        missing,
+                        missing,
+                        "com.example",
+                        "demo",
+                        "0.0.0",
+                        "https://maven.invalid",
+                        &argv
+                    ),
+                    1
+                );
+            },
+        );
+        with_env(
+            &[
+                ("OCI_PUBLISH_LIVE", Some("1")),
+                ("OCI_PUBLISH_APPROVED", Some("1")),
+            ],
+            || {
+                assert_eq!(
+                    oci_main(missing, "registry.invalid", "demo/app", "0.0.0", &argv),
+                    1
+                );
+            },
+        );
+        with_env(
+            &[
+                ("CRATES_PUBLISH_LIVE", Some("1")),
+                ("CRATES_PUBLISH_APPROVED", Some("1")),
+            ],
+            || {
+                assert_eq!(crates_main(missing, "demo", "0.0.0", false, &argv), 1);
+            },
+        );
+        with_env(
+            &[
+                ("PROMOTION_LIVE", Some("1")),
+                ("PROMOTION_APPROVED", Some("1")),
+            ],
+            || {
+                assert_eq!(
+                    promotion_main(missing, "demo", "staging", "production", "0.0.0", &argv),
+                    1
+                );
+            },
+        );
+        std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    #[test]
+    fn archive_and_promotion_launchers_stage_locally() {
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let app = runfiles.join("app");
+        std::fs::write(&app, b"#!/bin/sh\necho hi\n").expect("write app");
+        let tarball = runfiles.join("release_demo.tar.gz");
+        let tarball_bytes = archive_bytes(b"payload", "release_demo.tar.gz", false).expect("tar");
+        std::fs::write(&tarball, &tarball_bytes).expect("write tarball");
+        let digest = sha256_file_hex(&tarball).expect("digest");
+        let checksum = runfiles.join("release_demo.tar.gz.sha256");
+        std::fs::write(&checksum, format!("{digest}  release_demo.tar.gz\n")).expect("write sum");
+
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("DX_PROFILE", Some("dx_dev")),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+            ],
+            || {
+                let outdir = tempfile_stage_dir("dx-deploy-archive-").expect("outdir");
+                let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+                assert_eq!(
+                    archive_main(
+                        "app",
+                        "release_demo.tar.gz",
+                        "release_demo.tar.gz.sha256",
+                        &argv
+                    ),
+                    0
+                );
+                assert!(outdir.join("release_demo.tar.gz").is_file());
+                std::fs::remove_dir_all(&outdir).expect("cleanup");
+
+                let promotion_out = tempfile_stage_dir("dx-deploy-promotion-").expect("outdir");
+                let promotion_argv = vec![
+                    "prog".to_owned(),
+                    promotion_out.to_string_lossy().into_owned(),
+                ];
+                assert_eq!(
+                    promotion_main(
+                        "release_demo.tar.gz",
+                        "promotion_demo",
+                        "staging",
+                        "production",
+                        "1.2.3",
+                        &promotion_argv
+                    ),
+                    0
+                );
+                assert!(promotion_out.join("promotion_demo-promotion").is_dir());
+                std::fs::remove_dir_all(&promotion_out).expect("cleanup");
+            },
+        );
+    }
+
+    fn stage_runfiles_inputs(root: &Path) {
+        std::fs::create_dir_all(root).expect("runfiles");
+        for (name, body) in [
+            ("pypi_demo-0.0.0-py3-none-any.whl", &b"wheel"[..]),
+            ("pypi_demo-0.0.0.tar.gz", &b"sdist"[..]),
+            ("nuget_demo.0.0.0.nupkg", &b"nupkg"[..]),
+            ("maven_demo-0.0.0.jar", &b"jar"[..]),
+            ("maven_demo-0.0.0.pom", &b"<project/>"[..]),
+            ("oci_demo.tar", &b"image"[..]),
+            ("release_demo.tar.gz", &b"package"[..]),
+            (
+                "Cargo.toml",
+                &b"[package]\nname = \"crates_demo\"\nversion = \"1.0.0\"\n"[..],
+            ),
+            (
+                "lib.rs",
+                &b"pub fn hello() -> &'static str { \"hello\" }\n"[..],
+            ),
+        ] {
+            std::fs::write(root.join(name), body).expect("write runfile input");
+        }
+    }
+
+    #[test]
+    fn launchers_stage_locally_without_publishing() {
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        stage_runfiles_inputs(&runfiles);
+        let outdir = tempfile_stage_dir("dx-deploy-stage-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("DX_PROFILE", Some("dx_dev")),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+                ("PYPI_PUBLISH_LIVE", None),
+                ("NUGET_PUBLISH_LIVE", None),
+                ("CRATES_PUBLISH_LIVE", None),
+                ("GH_RELEASE_LIVE", None),
+                ("GH_RELEASE_DRY_RUN", Some("1")),
+                ("MAVEN_PUBLISH_LIVE", None),
+                ("OCI_PUBLISH_LIVE", None),
+                ("OCI_PUBLISH_DRY_RUN", Some("1")),
+                ("OCTOPUS_PUBLISH_LIVE", None),
+            ],
+            || {
+                assert_eq!(
+                    pypi_main(
+                        "pypi_demo-0.0.0-py3-none-any.whl",
+                        "pypi_demo-0.0.0.tar.gz",
+                        "pypi_demo",
+                        "https://pypi.invalid",
+                        &argv
+                    ),
+                    0
+                );
+                assert_eq!(
+                    nuget_main(
+                        "nuget_demo.0.0.0.nupkg",
+                        "nuget_demo",
+                        "1.0.0",
+                        "https://nuget.invalid",
+                        &argv
+                    ),
+                    0
+                );
+                assert_eq!(
+                    crates_main("Cargo.toml;lib.rs", "crates_demo", "1.0.0", false, &argv),
+                    0
+                );
+                assert_eq!(
+                    github_main("release_demo.tar.gz", "github_demo", "v1.0.0", &argv),
+                    0
+                );
+                assert_eq!(
+                    maven_main(
+                        "maven_demo-0.0.0.jar",
+                        "maven_demo-0.0.0.pom",
+                        "com.example",
+                        "maven_demo",
+                        "1.0.0",
+                        "https://maven.invalid",
+                        &argv
+                    ),
+                    0
+                );
+                assert_eq!(
+                    oci_main(
+                        "oci_demo.tar",
+                        "registry.invalid",
+                        "demo/app",
+                        "1.0.0",
+                        &argv
+                    ),
+                    0
+                );
+                let spec = OctopusLaunch {
+                    package_rloc: "release_demo.tar.gz",
+                    deploy_name: "octopus_demo",
+                    project: "octopus_demo",
+                    channel: "Default",
+                    version: "1.0.0",
+                    deploy_to_raw: "Production,Staging",
+                    space_default: "Spaces",
+                    url_default: "https://octopus.example.invalid",
+                };
+                assert_eq!(octopus_main(&spec, &argv), 0);
+            },
+        );
+        assert!(outdir.join("pypi_demo-wheelhouse").is_dir());
+        assert!(outdir.join("maven_demo-repo").is_dir());
+        assert!(outdir.join("github_demo-release").is_dir());
+        assert!(outdir.join("crates_demo-vendor").is_dir());
+        assert!(outdir.join("nuget_demo-feed").is_dir());
+        assert!(outdir.join("octopus_demo-drop").is_dir());
+        assert!(outdir.join("app-oci-layout").is_dir());
+        std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    #[test]
+    fn build_helpers_reject_unusable_inputs() {
+        let scratch = scratch_dir();
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let image = scratch.path().join("oci_demo.bin");
+        std::fs::write(&image, b"image").expect("write image");
+        let error = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
+            .expect_err("non-tar image");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+
+        let package = scratch.path().join("release_demo.zip");
+        std::fs::write(&package, b"package").expect("write package");
+        let error = octopus_build_drop(
+            &package,
+            &outdir,
+            &OctopusDrop {
+                deploy_name: "octopus_demo",
+                project: "octopus_demo",
+                channel: "Default",
+                version: "1.0.0",
+                deploy_to: &[],
+                space: "",
+                server: "https://octopus.example.invalid",
+            },
+        )
+        .expect_err("non-tar.gz package");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn npm_verify_and_pack_report_feed_problems() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("package.json");
+        std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
+            .expect("write src");
+        let tgz = scratch.path().join("npm_demo.tgz");
+        let feed = scratch.path().join("npm_demo.feed.json");
+        npm_create_pack(
+            "npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            &tgz,
+            &feed,
+            std::slice::from_ref(&src),
+        )
+        .expect("pack");
+        let (name, tag, registry) = npm_verify_pack(&tgz, &feed).expect("verify");
+        assert_eq!(name, "npm-demo");
+        assert_eq!(tag, "latest");
+        assert_eq!(registry, "https://registry.npmjs.org");
+
+        let body = std::fs::read_to_string(&feed).expect("read feed");
+        for field in ["name", "tag", "registry", "tarball", "sha256", "files"] {
+            let stripped = body
+                .lines()
+                .filter(|line| !line.contains(&format!("\"{field}\"")))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let path = scratch.path().join(format!("missing_{field}.feed.json"));
+            std::fs::write(&path, stripped).expect("write feed");
+            let error = npm_verify_pack(&tgz, &path).expect_err(field);
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{field}");
+        }
+
+        let wrong_members = scratch.path().join("wrong_members.feed.json");
+        std::fs::write(
+            &wrong_members,
+            body.replace("package/package.json", "package/absent.json"),
+        )
+        .expect("write feed");
+        let error = npm_verify_pack(&tgz, &wrong_members).expect_err("member mismatch");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn npm_pack_main_packs_and_reports_failures() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("package.json");
+        std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
+            .expect("write src");
+        let tgz = scratch.path().join("npm_demo.tgz");
+        let feed = scratch.path().join("npm_demo.feed.json");
+        let argv = vec![
+            "npm_pack".to_owned(),
+            "npm-demo".to_owned(),
+            "latest".to_owned(),
+            "https://registry.npmjs.org".to_owned(),
+            tgz.to_string_lossy().into_owned(),
+            feed.to_string_lossy().into_owned(),
+            src.to_string_lossy().into_owned(),
+        ];
+        assert_eq!(npm_pack_main(&argv), 0);
+        assert!(tgz.is_file());
+        assert!(feed.is_file());
+        let mut missing_src = argv.clone();
+        missing_src.pop();
+        missing_src.push(
+            scratch
+                .path()
+                .join("absent.json")
+                .to_string_lossy()
+                .into_owned(),
+        );
+        assert_eq!(npm_pack_main(&missing_src), 1);
+    }
+
+    #[test]
+    fn npm_deploy_main_releases_a_staged_pack() {
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let tgz = runfiles.join("npm_demo.tgz");
+        let feed = runfiles.join("npm_demo.feed.json");
+        let src = runfiles.join("package.json");
+        std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
+            .expect("write src");
+        npm_create_pack(
+            "npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            &tgz,
+            &feed,
+            std::slice::from_ref(&src),
+        )
+        .expect("pack");
+        let outdir = tempfile_stage_dir("dx-deploy-npm-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("DX_PROFILE", Some("dx_dev")),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+                ("NPM_PUBLISH_LIVE", None),
+            ],
+            || {
+                assert_eq!(npm_deploy_main(&argv), 0);
+            },
+        );
+        assert!(outdir.join("npm_demo.tgz").is_file());
+        assert!(outdir
+            .join("npm_demo-feed")
+            .join("npm_demo.feed.json")
+            .is_file());
+        std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 }

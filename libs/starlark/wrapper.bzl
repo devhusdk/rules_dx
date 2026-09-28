@@ -128,17 +128,20 @@ def dx_symlink_executable(ctx, target_file):
     ctx.actions.symlink(output = link, target_file = target_file, is_executable = True)
     return link
 
-def dx_symlink_default_info(ctx, what):
+def dx_symlink_default_info(ctx, what, extra_runfiles = None):
     """Builds the executable DefaultInfo symlinking the upstream binary."""
     upstream = ctx.attr.upstream[DefaultInfo]
     exe = upstream.files_to_run.executable
     if exe == None:
         fail(what + ": upstream target has no executable: " + str(ctx.attr.upstream.label))
     link = dx_symlink_executable(ctx, exe)
+    runfiles = ctx.runfiles(files = [link]).merge(upstream.default_runfiles)
+    if extra_runfiles != None:
+        runfiles = runfiles.merge(extra_runfiles)
     return DefaultInfo(
         executable = link,
         files = depset([link]),
-        runfiles = ctx.runfiles(files = [link]).merge(upstream.default_runfiles),
+        runfiles = runfiles,
     )
 
 def dx_lcov_merger_attr():
@@ -218,13 +221,14 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
         ),
     )
 
-def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None):
+def dx_executable_forward_rule(kind, provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, optional_providers = [], runtime = "mandatory", extra_quality_attrs = None, coverage_runfiles = None, toolchains = None):
     """Creates the executable or test forwarding rule for one wrapper."""
 
     def _impl(ctx):
         upstream = ctx.attr.upstream
+        extra_runfiles = coverage_runfiles(ctx) if coverage_runfiles != None else None
         return (
-            [dx_symlink_default_info(ctx, what)] +
+            [dx_symlink_default_info(ctx, what, extra_runfiles)] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
             _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs) +
@@ -243,6 +247,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
             executable = True,
             provides = provides,
             attrs = attrs,
+            toolchains = toolchains if toolchains != None else [],
         )
     elif kind == "test":
         return rule(
@@ -250,6 +255,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
             test = True,
             provides = provides,
             attrs = attrs,
+            toolchains = toolchains if toolchains != None else [],
         )
     else:
         fail("dx_executable_forward_rule: unknown kind '" + kind + "': want \"executable\" or \"test\"")

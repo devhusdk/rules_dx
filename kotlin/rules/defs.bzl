@@ -5,6 +5,17 @@ load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
+_KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
+
+def _kotlin_coverage_runfiles(ctx):
+    """Returns the Jacoco runner runfiles the upstream launcher needs under coverage."""
+    if not ctx.configuration.coverage_enabled:
+        return None
+    runner = ctx.toolchains[_KT_TOOLCHAIN_TYPE].jacocorunner
+    if runner == None:
+        return None
+    return ctx.runfiles(transitive_files = depset(runner.files.to_list()))
+
 _DX_KOTLIN_LIBRARY_PROVIDES = [
     JavaInfo,
     DefaultInfo,
@@ -39,6 +50,8 @@ _kotlin_binary_forward = dx_executable_forward_rule(
     upstream_providers = [[JavaInfo]],
     optional_providers = [JavaInfo],
     runtime = "besteffort",
+    coverage_runfiles = _kotlin_coverage_runfiles,
+    toolchains = [_KT_TOOLCHAIN_TYPE],
 )
 
 _kotlin_forward_test = dx_executable_forward_rule(

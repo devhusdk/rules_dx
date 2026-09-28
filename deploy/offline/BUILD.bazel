@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":offline.bzl", "offline_bundle")
 load(":offline_tests.bzl", "offline_file_tests", "offline_unit_tests")
@@ -16,6 +17,11 @@ exports_files(
         "demo/demo-cargo.json",
     ],
     visibility = ["//visibility:private"],
+)
+
+sh_binary(
+    name = "bootstrap_offline",
+    srcs = ["bootstrap-offline.sh"],
 )
 
 offline_bundle(

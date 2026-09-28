@@ -903,3 +903,81 @@ fn file_family_lint_checks_are_check_only() {
         vec![BIN, "/scratch/notes.txt"]
     );
 }
+
+#[test]
+fn spec_table_lists_every_builder_once() {
+    assert_eq!(TOOL_SPECS.len(), 83);
+    for spec in TOOL_SPECS {
+        assert!(!spec.tool.is_empty());
+        assert!(!spec.mode.is_empty());
+    }
+    let modes = |tool: &str| -> Vec<&&str> {
+        TOOL_SPECS
+            .iter()
+            .filter(|spec| spec.tool == tool)
+            .map(|spec| &spec.mode)
+            .collect()
+    };
+    assert_eq!(modes("buildifier"), [&"check", &"fix"]);
+    assert_eq!(modes("ruff"), [&"check", &"fix"]);
+    assert_eq!(modes("buf"), [&"lint", &"format-check", &"format-fix"]);
+    assert_eq!(modes("djlint"), [&"format-check", &"format-fix", &"lint"]);
+    assert_eq!(modes("keep-sorted"), [&"check"]);
+    assert!(TOOL_SPECS.contains(&ToolSpec {
+        tool: "gofumpt",
+        mode: "check",
+        args: GOFUMPT_CHECK_ARGS,
+        config: ConfigThreading::None,
+    }));
+    assert!(TOOL_SPECS.contains(&ToolSpec {
+        tool: "scalafmt",
+        mode: "check",
+        args: SCALAFMT_CHECK_PREFIX,
+        config: ConfigThreading::OptionalFlag,
+    }));
+    assert!(TOOL_SPECS.contains(&ToolSpec {
+        tool: "clang-format",
+        mode: "check",
+        args: CLANG_FORMAT_CHECK_PREFIX,
+        config: ConfigThreading::OptionalJoined,
+    }));
+    assert!(TOOL_SPECS.contains(&ToolSpec {
+        tool: "staticcheck",
+        mode: "check",
+        args: STATICCHECK_ARGS,
+        config: ConfigThreading::Cwd,
+    }));
+    assert!(TOOL_SPECS.contains(&ToolSpec {
+        tool: "ty",
+        mode: "check",
+        args: TY_BASE,
+        config: ConfigThreading::Dynamic,
+    }));
+}
+
+#[test]
+fn spec_table_fixed_args_match_recorded_invocations() {
+    let file = Path::new(FILE);
+    let cases: &[(&[&str], Invocation)] = &[
+        (GOFUMPT_CHECK_ARGS, gofumpt_check(Path::new(BIN), &[file])),
+        (
+            GOOGLE_JAVA_FORMAT_CHECK_ARGS,
+            google_java_format_check(Path::new(BIN), &[file]),
+        ),
+        (KTLINT_CHECK_ARGS, ktlint_check(Path::new(BIN), &[file])),
+        (BUF_LINT_ARGS, buf_lint_check(Path::new(BIN), &[file])),
+        (
+            DJLINT_FORMAT_CHECK_ARGS,
+            djlint_format_check(Path::new(BIN), &[file]),
+        ),
+        (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file])),
+        (SHELLCHECK_ARGS, shellcheck_check(Path::new(BIN), &[file])),
+    ];
+    for (args, invocation) in cases {
+        let mut expected = vec![BIN.to_owned()];
+        expected.extend(args.iter().map(|arg| arg.to_string()));
+        expected.push(FILE.to_owned());
+        assert_eq!(argv_strings(invocation), expected);
+        assert_eq!(invocation.cwd_rel, "");
+    }
+}

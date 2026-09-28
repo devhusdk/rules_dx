@@ -1,4 +1,4 @@
-use super::*;
+use crate::vuln::LockedPackage;
 
 pub fn strip_go_comment(line: &str) -> &str {
     let bytes = line.as_bytes();

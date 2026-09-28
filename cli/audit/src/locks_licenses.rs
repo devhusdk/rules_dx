@@ -1,4 +1,5 @@
-use super::*;
+use super::package_lock_name;
+use crate::vuln::LockedPackage;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LicensedPackage {

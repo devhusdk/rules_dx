@@ -1,4 +1,5 @@
 use super::*;
+use crate::vuln::LockedPackage;
 
 #[test]
 fn lock_fallback_parsers_match_normal_paths() {

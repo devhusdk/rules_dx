@@ -1,4 +1,5 @@
 use super::*;
+use crate::exception::{version_in_scope, ExceptionProblem, RiskException};
 
 #[test]
 fn osv_range_boundaries_project_to_native_ecosystem_scopes() {

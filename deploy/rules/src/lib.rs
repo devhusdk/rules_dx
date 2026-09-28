@@ -2845,7 +2845,8 @@ mod tests {
         archive_file(&executable, &exe_out).expect("archive exe");
         let plain_out = scratch.path().join("plain.tar.gz");
         archive_file(&plain, &plain_out).expect("archive plain");
-        for (path, want_mode) in [(&exe_out, "0000755"), (&plain_out, "0000644")] {
+        let exe_mode = if cfg!(unix) { "0000755" } else { "0000644" };
+        for (path, want_mode) in [(&exe_out, exe_mode), (&plain_out, "0000644")] {
             let gz = std::fs::read(path).expect("read gz");
             let mut decoder = flate2::read::GzDecoder::new(&gz[..]);
             let mut tar = Vec::new();

@@ -25,6 +25,7 @@ rust_library(
         "src/args/complete.rs",
         "src/args/completion.rs",
         "src/args/defaults_tests.rs",
+        "src/args/docs_parity_tests.rs",
         "src/args/error.rs",
         "src/args/grammar.rs",
         "src/args/help.rs",
@@ -257,7 +258,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_cli",
-    data = [":dx"],
+    data = [
+        ":dx",
+        "//docs:command_docs",
+    ],
     deps = crate_deps(
         [
             "assert_cmd",

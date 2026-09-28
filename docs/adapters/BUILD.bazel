@@ -6,7 +6,26 @@ package(default_visibility = ["//:__subpackages__"])
 
 rust_library(
     name = "docs_adapters",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/adapters/cpp.rs",
+        "src/adapters/csharp.rs",
+        "src/adapters/fsharp.rs",
+        "src/adapters/go.rs",
+        "src/adapters/java.rs",
+        "src/adapters/kotlin.rs",
+        "src/adapters/mod.rs",
+        "src/adapters/prose.rs",
+        "src/adapters/python.rs",
+        "src/adapters/rust.rs",
+        "src/adapters/scala.rs",
+        "src/adapters/svelte.rs",
+        "src/adapters/typescript.rs",
+        "src/adapters/vue.rs",
+        "src/common.rs",
+        "src/lib.rs",
+        "src/tests.rs",
+        "src/types.rs",
+    ],
     aliases = aliases(
         package_name = "docs/docs_adapters",
         normal = True,

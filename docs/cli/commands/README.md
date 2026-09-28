@@ -30,11 +30,21 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
 - `--workspace <dir>`: run in another workspace.
 - `--dry-run`: print the plan without running it.
 - `--quiet`, `--verbose`: less or more output.
+- `--log-level error|warn|info|debug|trace`: log verbosity.
+- `--color auto|always|never`: color output. Default `auto`.
 - `--output text|diff|json`: result shape. `diff` has no patch for most commands.
 - `--report <format>=<dest>`: write SARIF, JUnit, or LCOV reports. Repeatable.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--check`: report without changing files, where supported.
 - `--debug`, `--release`: build profiles for build-like commands.
 - `--here`: limit to the current directory tree.
+- `-h`, `--help`: print help for a command.
+- `-V`, `--version`: print the version.
 
 Exit codes: `0` success, `2` usage error, `1` failed check.
+
+## Environment
+
+- `RUST_LOG=<filter>`: overrides `--verbose` and `--log-level`.
+- `NO_COLOR=<any>`: disables color output.
+- `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.

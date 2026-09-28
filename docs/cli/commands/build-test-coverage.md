@@ -20,6 +20,13 @@ dx test [--here] [--debug|--release] [scope...] [-- bazel-options...]
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 `--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
 
+Output: `--output text|json`. Reports: `--report junit=<path>` writes a
+JUnit report. Repeat the flag for more files. Use `-` for stdout.
+
+Exit codes: `0` success. `2` usage or scope errors. `1` operational
+failures. Bazel failures keep Bazel's code. A single missing `test.xml`
+warns and passes when Bazel passes and other results exist.
+
 ```sh
 bazel run //cli/cli:dx -- build //cli/...
 bazel run //cli/cli:dx -- test --here
@@ -57,6 +64,12 @@ dx coverage [--here] [--min-coverage <percent>] [scope...] [-- bazel-options...]
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that
 percent. Without it, coverage collects without enforcing.
+
+Output: `--output text|json`. Reports: `--report lcov=<path>` writes
+combined LCOV. Repeat the flag for more files. Use `-` for stdout.
+
+Exit codes: `0` success. `2` usage or scope errors. `1` operational
+failures or coverage below minimum. Bazel failures keep Bazel's code.
 
 ```sh
 bazel run //cli/cli:dx -- coverage //...

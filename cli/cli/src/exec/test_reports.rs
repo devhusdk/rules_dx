@@ -70,6 +70,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut lcov_documents: Vec<String> = Vec::new();
     if verb == WorkflowVerb::Test {
         let mut grouped: BTreeMap<String, Vec<JunitCase>> = BTreeMap::new();
+        let mut first_error = String::new();
         for output in &outputs {
             if output.name != "test.xml" {
                 continue;
@@ -77,9 +78,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             let bytes = match reader.read_artifact(&output.exec_path) {
                 Ok(bytes) => bytes,
                 Err(error) => {
-                    complete = false;
-                    if detail.is_empty() {
-                        detail = format!("unreadable {}: {error}", output.exec_path.display());
+                    if first_error.is_empty() {
+                        first_error = format!("unreadable {}: {error}", output.exec_path.display());
                     }
                     continue;
                 }
@@ -92,9 +92,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     .or_default()
                     .extend(cases),
                 Err(error) => {
-                    complete = false;
-                    if detail.is_empty() {
-                        detail = format!("invalid {}: {error}", output.exec_path.display());
+                    if first_error.is_empty() {
+                        first_error = format!("invalid {}: {error}", output.exec_path.display());
                     }
                 }
             }
@@ -102,7 +101,20 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         if grouped.is_empty() {
             complete = false;
             if detail.is_empty() {
-                detail = "no test.xml artifacts were reported".to_owned();
+                detail = if first_error.is_empty() {
+                    "no test.xml artifacts were reported".to_owned()
+                } else {
+                    first_error.clone()
+                };
+            }
+        } else if !first_error.is_empty() {
+            if bazel_code == 0 {
+                let _ = writeln!(err, "dx: incomplete_results (tolerated): {first_error}");
+            } else {
+                complete = false;
+                if detail.is_empty() {
+                    detail = first_error.clone();
+                }
             }
         }
         suites = grouped.into_iter().collect();
@@ -591,6 +603,51 @@ mod tests {
                 )],
             )]),
             ..Harness::new("test-unreadable")
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+    }
+
+    #[test]
+    fn test_single_missing_xml_tolerated_when_bazel_passed() {
+        let harness = Harness::new("test-partial-tolerated");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("test.xml"), uri)]),
+                test_result_line(
+                    "//a:missing",
+                    &[(
+                        String::from("test.xml"),
+                        String::from("file:///nonexistent/missing.xml"),
+                    )],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("tolerated"), "{err}");
+    }
+
+    #[test]
+    fn test_single_missing_xml_fails_when_bazel_failed() {
+        let harness = Harness::new("test-partial-bazelfail");
+        let uri = write_bep_artifact(&harness, "ok2.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("test.xml"), uri)]),
+                test_result_line(
+                    "//a:missing",
+                    &[(
+                        String::from("test.xml"),
+                        String::from("file:///nonexistent/missing2.xml"),
+                    )],
+                ),
+            ]),
+            bazel_code: 1,
+            ..harness
         };
         let (code, _, err) = harness.run(&["test", "--output=text"]);
         assert_eq!(code, 1, "{err}");

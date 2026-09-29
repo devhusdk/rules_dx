@@ -1,7 +1,7 @@
 # Consumer caller template: pins the qualified reusable workflow at a reviewed commit.
 # Copy to .github/workflows/ci.yml in the consumer repo; do not copy per-check logic.
 # Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.
-# Required repository settings (documented separately, not configured here):
+# Required repository settings (see the GitHub CI docs, not configured here):
 # - approval policy: all_external_contributors for fork runs
 # - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)
 # - permissions: contents read; checks/write + PR write granted to reusable jobs only

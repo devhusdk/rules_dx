@@ -1,7 +1,7 @@
 # Docs caller template: pins the qualified reusable docs workflow at a reviewed commit.
 # Copy to .github/workflows/docs.yml in the consumer repo; do not copy per-check logic.
 # Reviewed pin bumps only; customizations (docs_scope, publish) preserved across bumps.
-# Required repository settings (documented separately, not configured here):
+# Required repository settings (see the GitHub CI docs, not configured here):
 # - Pages source: GitHub Actions (Settings -> Pages), once, before first publish: true run
 # - permissions: contents read; pages/write + id-token/write granted to the publish job only
 # - branch protection: require docs-check (+ docs-publish when publish is true) as needed
@@ -21,10 +21,9 @@ jobs:
       # Bazel-owned bundle to GitHub Pages. Gate on the default
       # branch so pull requests stay check-only.
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    secrets: inherit
     # Least privilege: the reusable workflow's publish job needs
-    # pages:write + id-token:write, so the caller must grant them on the
-    # calling job (no secrets: inherit: the workflow defines no secrets).
-    # Other jobs in this file keep their own narrower permissions.
+    # pages:write + id-token:write, so the caller grants them here.
     permissions:
       contents: read
       pages: write

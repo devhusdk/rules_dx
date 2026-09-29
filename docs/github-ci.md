@@ -59,7 +59,23 @@ Inputs:
 Publishing needs `pages: write` plus `id-token: write`. Enable Pages with
 source GitHub Actions before the first publishing run.
 
+## Repository Settings
+
+Neither caller configures these. Set them once in the repository.
+
+- Approval policy: `all_external_contributors`, so fork pull requests run.
+- Branch protection for the consumer workflow: require `dx-ci (aggregate)`.
+  One green gate covers the whole matrix.
+- Branch protection for the docs workflow: require `docs-check`. Add
+  `docs-publish (GitHub Pages)` once `publish` is true.
+- Merge gate: require branches to be up to date, or use a merge queue.
+- Pages source: GitHub Actions, before the first publishing run.
+- Workflow permissions: read-only by default. The nine check jobs need
+  `checks: write`; `coverage` and the `dx-ci` aggregate also need
+  `pull-requests: write`.
+
 ## Caching
 
-Pass `BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Fork pull
+Both callers forward repository secrets with `secrets: inherit`. Set
+`BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Fork pull
 requests run local-cache only. Codecov is optional.

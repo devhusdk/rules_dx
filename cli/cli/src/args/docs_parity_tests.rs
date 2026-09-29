@@ -452,11 +452,118 @@ fn github_ci_page_matches_the_consumer_workflow() {
     }
 }
 
+fn workflow_call_secrets(workflow: &str) -> Vec<String> {
+    let mut secrets: Vec<String> = Vec::new();
+    let mut inside = false;
+    for line in workflow.lines() {
+        if line == "    secrets:" {
+            inside = true;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        if !line.starts_with("      ") {
+            break;
+        }
+        let Some(name) = line
+            .strip_prefix("      ")
+            .and_then(|rest| rest.strip_suffix(':'))
+        else {
+            continue;
+        };
+        if !name.is_empty() && !name.contains(char::is_whitespace) {
+            secrets.push(name.to_owned());
+        }
+    }
+    secrets.sort();
+    secrets
+}
+
+fn workflow_check_names(workflow: &str) -> Vec<String> {
+    let mut jobs: Vec<(String, Option<String>)> = Vec::new();
+    let mut in_jobs = false;
+    for line in workflow.lines() {
+        if line == "jobs:" {
+            in_jobs = true;
+            continue;
+        }
+        if !in_jobs {
+            continue;
+        }
+        if let Some(id) = line
+            .strip_prefix("  ")
+            .and_then(|rest| rest.strip_suffix(':'))
+        {
+            if !id.is_empty() && !id.contains(char::is_whitespace) {
+                jobs.push((id.to_owned(), None));
+            }
+        } else if let Some(name) = line.strip_prefix("    name: ") {
+            if let Some(job) = jobs.last_mut() {
+                job.1 = Some(name.trim_matches('"').to_owned());
+            }
+        }
+    }
+    jobs.into_iter()
+        .map(|(id, name)| name.unwrap_or(id))
+        .collect()
+}
+
+fn workflow_callers() -> [(&'static str, &'static str); 2] {
+    [
+        ("reusable-consumer.yml", "examples/consumer-ci/caller.yml"),
+        ("reusable-docs.yml", "examples/docs-ci/caller.yml"),
+    ]
+}
+
+#[test]
+fn callers_forward_every_workflow_secret() {
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    for (workflow, caller) in workflow_callers() {
+        let root = workspace_root();
+        let text = std::fs::read_to_string(root.join(".github/workflows").join(workflow))
+            .expect("workflow ships as test data");
+        let secrets = workflow_call_secrets(&text);
+        assert!(!secrets.is_empty(), "{workflow} declares no secrets");
+        let template =
+            std::fs::read_to_string(root.join(caller)).expect("caller ships as test data");
+        for secret in secrets {
+            assert!(
+                page.contains(&secret),
+                "docs/github-ci.md never names the {workflow} secret {secret}"
+            );
+            assert!(
+                template.contains("secrets: inherit") || template.contains(&secret),
+                "{caller} never forwards the {workflow} secret {secret}"
+            );
+        }
+    }
+}
+
+#[test]
+fn docs_page_names_every_workflow_check() {
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    for (workflow, _) in workflow_callers() {
+        let path = workspace_root().join(".github/workflows").join(workflow);
+        let text = std::fs::read_to_string(&path).expect("workflow ships as test data");
+        let checks = workflow_check_names(&text);
+        assert!(!checks.is_empty(), "{workflow} declares no jobs");
+        for check in checks {
+            assert!(
+                page.contains(&format!("`{check}`")),
+                "docs/github-ci.md never names the {workflow} check {check}"
+            );
+        }
+    }
+}
+
 #[test]
 fn docs_page_names_every_workflow_input() {
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
-    for workflow in ["reusable-consumer.yml", "reusable-docs.yml"] {
+    for (workflow, _) in workflow_callers() {
         let path = workspace_root().join(".github/workflows").join(workflow);
         let inputs = workflow_call_inputs(
             &std::fs::read_to_string(&path).expect("workflow ships as test data"),

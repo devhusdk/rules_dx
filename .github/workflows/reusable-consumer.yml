@@ -11,8 +11,8 @@
 # `platforms` selects the matrix; empty selects Linux x86_64 only.
 # Checks run in parallel. Aggregate `dx-ci` is the single stable
 # required check.
-# Reporting is first-party dx code; no reviewdog. SARIF Code Scanning
-# publication is opt-in, off by default.
+# Reporting is first-party dx code; no reviewdog. No SARIF upload step
+# ships here; `code_scanning_opt_in` is accepted and ignored.
 #
 # Hygiene (issue #80, deduped under #915): job bootstraps are an inline
 # no-secrets `actions/checkout` (must be step 1) plus the pinned
@@ -52,7 +52,7 @@ on:
         default: "parallel"
         type: string
       code_scanning_opt_in:
-        description: "Publish complete SARIF scans to Code Scanning. Off by default."
+        description: "Accepted and ignored. No SARIF upload step ships in this workflow."
         required: false
         default: false
         type: boolean

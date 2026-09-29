@@ -312,6 +312,34 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
     ids
 }
 
+fn workflow_call_inputs(workflow: &str) -> Vec<String> {
+    let mut inputs: Vec<String> = Vec::new();
+    let mut inside = false;
+    for line in workflow.lines() {
+        if line == "    inputs:" {
+            inside = true;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        if !line.starts_with("      ") {
+            break;
+        }
+        let Some(name) = line
+            .strip_prefix("      ")
+            .and_then(|rest| rest.strip_suffix(':'))
+        else {
+            continue;
+        };
+        if !name.is_empty() && !name.contains(char::is_whitespace) {
+            inputs.push(name.to_owned());
+        }
+    }
+    inputs.sort();
+    inputs
+}
+
 #[test]
 fn github_ci_page_matches_the_consumer_workflow() {
     let workflow =
@@ -338,6 +366,25 @@ fn github_ci_page_matches_the_consumer_workflow() {
                 !rejects(*command, "--check", None),
                 "docs/github-ci.md pairs dx {} with --check but dx rejects it: {line}",
                 command.name()
+            );
+        }
+    }
+}
+
+#[test]
+fn docs_page_names_every_workflow_input() {
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    for workflow in ["reusable-consumer.yml", "reusable-docs.yml"] {
+        let path = workspace_root().join(".github/workflows").join(workflow);
+        let inputs = workflow_call_inputs(
+            &std::fs::read_to_string(&path).expect("workflow ships as test data"),
+        );
+        assert!(!inputs.is_empty(), "{workflow} declares no inputs");
+        for input in inputs {
+            assert!(
+                page.contains(&format!("`{input}`")),
+                "docs/github-ci.md never names the {workflow} input {input}"
             );
         }
     }

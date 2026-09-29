@@ -261,6 +261,7 @@ rust_test(
     data = [
         ":dx",
         "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
         "//docs:command_docs",
         "//docs:github-ci.md",
     ],

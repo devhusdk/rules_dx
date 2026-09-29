@@ -8,7 +8,6 @@ dx_rust_crate(
     name = "dx_adopt",
     package_name = "cli/dx_adopt",
     srcs = [
-        "src/completion.rs",
         "src/defaults.rs",
         "src/error.rs",
         "src/hooks.rs",

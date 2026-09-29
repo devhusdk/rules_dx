@@ -1,6 +1,5 @@
 #![cfg_attr(not(test), deny(clippy::expect_used, clippy::unwrap_used))]
 
-pub mod completion;
 pub mod defaults;
 pub mod error;
 pub mod hooks;
@@ -15,7 +14,6 @@ pub mod upgrade;
 pub mod version;
 pub mod watch;
 
-pub use completion::{completion_source_is_single, ALL_COMMANDS, SUPPORTED_SHELLS};
 pub use defaults::{
     env_bool, env_string, find_config, is_truthy, load_defaults, parse_file_text, resolve_bool,
     resolve_string, resolve_workspace, FileDefaults, CONFIG_REL, CONFIG_TOML_REL, DX_DRY_RUN_ENV,

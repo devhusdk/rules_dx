@@ -393,6 +393,79 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
     ids
 }
 
+fn platform_labels(workflow: &str) -> Vec<String> {
+    let mut labels: Vec<String> = Vec::new();
+    for line in workflow.lines() {
+        let Some((_, table)) = line.split_once("fromJSON('{") else {
+            continue;
+        };
+        let Some((body, _)) = table.split_once('}') else {
+            continue;
+        };
+        for entry in body.split(',') {
+            if let Some((label, _)) = entry.split_once(':') {
+                let label = label.trim().trim_matches('"');
+                if !label.is_empty() && !label.contains(char::is_whitespace) {
+                    labels.push(label.to_owned());
+                }
+            }
+        }
+    }
+    labels.sort();
+    labels.dedup();
+    labels
+}
+
+#[test]
+fn docs_page_names_every_platform_label() {
+    let path = workspace_root().join(".github/workflows/reusable-consumer.yml");
+    let workflow = std::fs::read_to_string(&path).expect("workflow ships as test data");
+    let labels = platform_labels(&workflow);
+    assert_eq!(labels.len(), 5, "consumer workflow maps five platforms");
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    for label in &labels {
+        assert!(
+            page.contains(&format!("`{label}`")),
+            "docs/github-ci.md never names the {label} platform"
+        );
+    }
+}
+
+#[test]
+fn caller_passes_platforms_as_a_json_array() {
+    let template =
+        std::fs::read_to_string(workspace_root().join("examples/consumer-ci/caller.yml"))
+            .expect("caller ships as test data");
+    let value = template
+        .lines()
+        .skip_while(|line| line.trim() != "with:")
+        .find_map(|line| line.trim().strip_prefix("platforms:"))
+        .expect("caller sets platforms");
+    let value = value.trim();
+    assert!(
+        value.starts_with("'[\"") && value.ends_with("]'"),
+        "caller platforms must be a quoted JSON array, got {value}"
+    );
+    let requested = value
+        .trim_matches('\'')
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .split(',')
+        .map(|label| label.trim().trim_matches('"').to_owned())
+        .filter(|label| !label.is_empty())
+        .collect::<Vec<_>>();
+    assert!(!requested.is_empty(), "caller requests no platforms");
+    let path = workspace_root().join(".github/workflows/reusable-consumer.yml");
+    let workflow = std::fs::read_to_string(&path).expect("workflow ships as test data");
+    for label in requested {
+        assert!(
+            platform_labels(&workflow).contains(&label),
+            "caller platform {label} is not in the workflow label table"
+        );
+    }
+}
+
 fn workflow_call_inputs(workflow: &str) -> Vec<String> {
     let mut inputs: Vec<String> = Vec::new();
     let mut inside = false;

@@ -35,7 +35,10 @@ Inputs:
 
 - `rules_dx_version`: must match your `MODULE.bazel` pin.
 - `disabled_checks`: job IDs above to skip. Empty runs all nine.
-- `platforms`: defaults to Linux x86_64. Add arm64, macOS, Windows as needed.
+- `platforms`: JSON array of platform labels, such as `["linux_x86_64"]`.
+  Defaults to `["linux_x86_64"]`. Valid labels: `linux_x86_64`, `linux_arm64`,
+  `macos_arm64`, `windows_x86_64`, `windows_arm64`. Any other label fails the
+  workflow.
 - `scheduling_mode`: `parallel` or `sequential`. Checks run in parallel either way.
 - `code_scanning_opt_in`: accepted and ignored.
 - `min_coverage`: fails below that percent. Coverage comes from `dx coverage`.

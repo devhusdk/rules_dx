@@ -8,7 +8,7 @@ dx bazel <bazel arguments...>
 
 Runs Bazel directly through the repo launcher. Args after `bazel` go to Bazel
 unchanged, even tokens that look like `dx` flags. Put `dx` flags before
-`bazel`.
+`bazel`. The exit code is Bazel's own.
 
 ```sh
 bazel run //cli/cli:dx -- bazel build //...
@@ -34,7 +34,8 @@ bazel run //cli/cli:dx -- security //...
 bazel run //cli/cli:dx -- license --fail-on error //...
 ```
 
-`--offline` and `--frozen` run cache-only with no network fetches.
+`--offline` and `--frozen` run cache-only with no network fetches. Exit
+codes: 0 success, 2 usage or scope errors, 1 operational failures.
 
 ## `dx update`
 
@@ -68,9 +69,24 @@ dx bump [--offline|--frozen] <set:package> <version>
 ```
 
 Widens one declared requirement to a new version. Takes exactly one
-`set:package` plus version. Then run `dx update <set>` to resolve.
+`set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
+`go`, `maven`, `npm`, `nuget`. The package must already be declared in the
+manifest, or the run fails without writing.
+
+`cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
+`dx update <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
+and `github-actions` are file-only and refresh nothing. Review the pin diff
+and run `bazel build //...`.
+
+`--offline` and `--frozen` run cache-only. A set that needs a refresh then
+fails before widening with `offline_required`. A major bump also needs
+`dx migrate --from <old> --to <new>`.
+
+`--check`, `--fail-on`, `--report`, and Bazel options do not apply. Output is
+text or JSON. Exit codes: 0 success, 2 usage or scope errors, 1 operational
+failures.
 
 ```sh
-bazel run //cli/cli:dx -- bump go:example 1.2.3
-bazel run //cli/cli:dx -- update go
+bazel run //cli/cli:dx -- bump cargo:anyhow 1.0.100
+bazel run //cli/cli:dx -- bump go:github.com/google/go-cmp 0.7.0
 ```

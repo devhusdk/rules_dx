@@ -94,27 +94,12 @@ fn global_flags() -> Vec<String> {
         .collect()
 }
 
+fn shell_blocks(page: &str) -> Vec<Vec<String>> {
+    fenced_blocks(page, "```sh")
+}
+
 fn usage_blocks(page: &str) -> Vec<Vec<String>> {
-    let mut blocks: Vec<Vec<String>> = Vec::new();
-    let mut current: Vec<String> = Vec::new();
-    let mut open = false;
-    for line in page.lines() {
-        if !open && line.trim() == "```text" {
-            open = true;
-            current.clear();
-            continue;
-        }
-        if open && line.trim() == "```" {
-            open = false;
-            blocks.push(std::mem::take(&mut current));
-            continue;
-        }
-        if open {
-            current.push(line.to_owned());
-        }
-    }
-    assert!(!open, "unterminated ```text block");
-    blocks
+    fenced_blocks(page, "```text")
         .into_iter()
         .filter(|block| {
             block
@@ -129,6 +114,29 @@ fn usage_blocks(page: &str) -> Vec<Vec<String>> {
                 .collect()
         })
         .collect()
+}
+
+fn fenced_blocks(page: &str, fence: &str) -> Vec<Vec<String>> {
+    let mut blocks: Vec<Vec<String>> = Vec::new();
+    let mut current: Vec<String> = Vec::new();
+    let mut open = false;
+    for line in page.lines() {
+        if !open && line.trim() == fence {
+            open = true;
+            current.clear();
+            continue;
+        }
+        if open && line.trim() == "```" {
+            open = false;
+            blocks.push(std::mem::take(&mut current));
+            continue;
+        }
+        if open {
+            current.push(line.to_owned());
+        }
+    }
+    assert!(!open, "unterminated {fence} block");
+    blocks
 }
 
 fn slug(heading: &str) -> String {
@@ -196,6 +204,42 @@ fn docs_usage_blocks_only_use_accepted_flags() {
                         command.name()
                     );
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn docs_shell_examples_parse() {
+    const DX_PREFIX: &str = "bazel run //cli/cli:dx --";
+    const ENV_LAUNCHER: &str = "bazel run //dx:env";
+    for (name, page) in pages() {
+        for block in shell_blocks(&page) {
+            for line in &block {
+                let trimmed = line.trim();
+                assert!(
+                    trimmed.starts_with(DX_PREFIX) || trimmed == ENV_LAUNCHER,
+                    "{name}: shell example must run the dx launcher: {line}"
+                );
+                if trimmed == ENV_LAUNCHER {
+                    continue;
+                }
+                let words: Vec<String> = trimmed
+                    .strip_prefix(DX_PREFIX)
+                    .expect("checked above")
+                    .split_whitespace()
+                    .take_while(|word| *word != ">")
+                    .map(ToOwned::to_owned)
+                    .collect();
+                assert!(!words.is_empty(), "{name}: empty example: {line}");
+                if words.first().is_some_and(|word| word == "--help") {
+                    continue;
+                }
+                let parsed = parse(&words);
+                assert!(
+                    parsed.is_ok(),
+                    "{name}: example does not parse: {line}\n{parsed:?}"
+                );
             }
         }
     }

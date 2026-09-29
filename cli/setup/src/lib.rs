@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use dx_digest::blake3 as digest;
-use dx_env::{acquire_lock, Error};
+use dx_env::{acquire_lock, Error, DX_DIR_NAME};
 use dx_roots::{
     build_argv_union, invocation_targets_union, repository_plan, resolve_exact_target,
     ExactScopeError, RepositoryRootPlan,
@@ -266,7 +266,7 @@ fn map_lock_error(error: Error) -> CommitError {
         Error::Busy { path } => CommitError::Busy { path },
         Error::LockFailed { path, reason } => CommitError::LockFailed { path, reason },
         other => CommitError::LockFailed {
-            path: PathBuf::from(".dx"),
+            path: PathBuf::from(DX_DIR_NAME),
             reason: other.to_string(),
         },
     }
@@ -290,7 +290,7 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
         });
     }
     let current = workspace_root
-        .join(".dx")
+        .join(DX_DIR_NAME)
         .join(SETUPS_DIR_NAME)
         .join(CURRENT_LINK_NAME);
     let meta = match fs::symlink_metadata(&current) {
@@ -462,7 +462,7 @@ pub fn commit_pair_with_timeout(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(".dx");
+    let dx_dir = workspace_root.join(DX_DIR_NAME);
     fs::create_dir_all(&dx_dir).map_err(|e| CommitError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
@@ -489,7 +489,7 @@ pub fn commit_prepared_with_timeout(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(".dx");
+    let dx_dir = workspace_root.join(DX_DIR_NAME);
     fs::create_dir_all(&dx_dir).map_err(|e| CommitError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;

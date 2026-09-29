@@ -13,6 +13,10 @@ AGENTS.local.md
 # .bazelignore so Bazel never watches it and git never tracks it).
 .opencode/
 
+# dx managed state (machine-managed, never commit; `dx setup`, `dx env`,
+# `dx codegen` and `dx upgrade` write it; whole-dir scope mirrors .bazelignore).
+.dx/
+
 # Release outputs (never commit; rebuilt locally on demand)
 # No tags, GitHub releases, or registry submissions without explicit owner approval.
 /dist/

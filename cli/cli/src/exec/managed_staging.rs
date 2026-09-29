@@ -1,5 +1,6 @@
 use super::common::*;
 use dx_bep::CollectorConfig;
+use dx_env::DX_DIR_NAME;
 use std::io;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -41,7 +42,7 @@ pub(crate) fn ensure_generation_dir(
             format!("workspace root {} is not a directory", workspace.display()),
         ));
     }
-    let dir = workspace.join(".dx").join(dir_name).join(hex);
+    let dir = workspace.join(DX_DIR_NAME).join(dir_name).join(hex);
     match std::fs::symlink_metadata(&dir) {
         Ok(meta) => {
             if !meta.file_type().is_dir() || meta.file_type().is_symlink() {

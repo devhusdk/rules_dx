@@ -3,7 +3,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use dx_env::{acquire_lock, Error};
+use dx_env::{acquire_lock, Error, DX_DIR_NAME};
 use dx_setup::{read_current_pair, GenerationId, SETUPS_DIR_NAME};
 
 use super::inventory::collect_inventory;
@@ -18,7 +18,7 @@ fn map_lock_error(error: Error) -> CleanError {
         Error::Busy { path } => CleanError::Busy { path },
         Error::LockFailed { path, reason } => CleanError::LockFailed { path, reason },
         other => CleanError::LockFailed {
-            path: PathBuf::from(".dx"),
+            path: PathBuf::from(DX_DIR_NAME),
             reason: other.to_string(),
         },
     }
@@ -44,7 +44,7 @@ pub fn apply_plan_with_timeout(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(".dx");
+    let dx_dir = workspace_root.join(DX_DIR_NAME);
     fs::create_dir_all(&dx_dir).map_err(|e| CleanError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;

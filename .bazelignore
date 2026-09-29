@@ -1,6 +1,7 @@
 node_modules
 quality/tools/javascript/node_modules
 .opencode/
+.dx/
 # Disposable trees also gitignored (.gitignore): keep Bazel from watching
 # or querying them (issue #953). File singletons (*.profraw, *.profdata,
 # opencode.json, *.pyc, ...) have no .bazelignore form — only directories
@@ -21,7 +22,7 @@ bazel-testlogs
 bazel-rules_dx
 # Parity notes (mirrors .gitignore): .ruff_cache is the Ruff cache dir;
 # bazel-* covers output symlinks (git: /bazel-*); .opencode/ is agent-local
-# whole-dir state (git: .opencode/).
+# whole-dir state (git: .opencode/); .dx/ is dx managed state (git: .dx/).
 # Editor parity (issue #1072): biome.json files.includes mirrors these
 # disposable dirs for editors (Biome v2 uses includes negations: regular
 # !**/node_modules plus force-ignore !! for build outputs/caches/state).

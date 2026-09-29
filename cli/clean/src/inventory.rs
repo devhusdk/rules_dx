@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use dx_env::DX_DIR_NAME;
 use dx_setup::{
     GenerationId, CURRENT_LINK_NAME, CURRENT_STAGE_NAME, ENVIRONMENT_LINK_NAME,
     GENERATED_LINK_NAME, SETUPS_DIR_NAME,
@@ -124,7 +125,7 @@ pub fn collect_inventory(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(".dx");
+    let dx_dir = workspace_root.join(DX_DIR_NAME);
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let mut inventory = CollectedInventory {
         active_setup_hexes: active_setup_hexes.to_vec(),

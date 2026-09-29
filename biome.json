@@ -10,6 +10,7 @@
       "!!**/__pycache__",
       "!!**/.ruff_cache",
       "!!**/.opencode",
+      "!!**/.dx",
       "!!**/bazel-*",
       "!!**/dist",
       "!!**/release"

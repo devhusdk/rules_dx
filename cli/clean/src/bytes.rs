@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+use dx_env::DX_DIR_NAME;
 use dx_setup::SETUPS_DIR_NAME;
 
 use super::apply::CleanOutcome;
@@ -77,7 +78,7 @@ pub fn measure_prune_bytes(
             path: workspace_root.to_path_buf(),
         });
     }
-    let dx_dir = workspace_root.join(".dx");
+    let dx_dir = workspace_root.join(DX_DIR_NAME);
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let mut measured = PruneBytes::default();
     for hex in &plan.prune_setup_records {

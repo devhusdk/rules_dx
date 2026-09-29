@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use dx_env::DX_DIR_NAME;
 use dx_setup::{GenerationId, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, SETUPS_DIR_NAME};
 
 use super::inventory::{collect_inventory, CollectedInventory};
@@ -107,7 +108,7 @@ pub fn scan_live_hexes(proc_root: &Path, dx_dir: &Path) -> LiveHexes {
 pub fn collect_inventory_with_scan(
     workspace_root: &Path,
 ) -> Result<CollectedInventory, CleanError> {
-    let dx_dir = workspace_root.join(".dx");
+    let dx_dir = workspace_root.join(DX_DIR_NAME);
     let live = scan_live_hexes(Path::new("/proc"), &dx_dir);
     let setup: Vec<String> = live.setup;
     let generations: Vec<String> = live
@@ -198,7 +199,7 @@ mod tests {
             __scratch
         };
         let root = scratch.path().to_path_buf();
-        let dx_dir = workspace_of(&root).join(".dx");
+        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
         assert_eq!(
             scan_live_hexes(&root.join("no-such-proc"), &dx_dir),
             LiveHexes::default()

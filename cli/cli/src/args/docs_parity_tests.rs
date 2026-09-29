@@ -755,3 +755,64 @@ fn docs_page_names_every_workflow_input() {
         }
     }
 }
+
+fn ignored_dir(text: &str, dir: &str) -> bool {
+    text.lines()
+        .map(str::trim)
+        .any(|line| line == format!("{dir}/"))
+}
+
+fn bazelignored_dirs(text: &str) -> Vec<String> {
+    let mut dirs: Vec<String> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with('.') && !line.starts_with(".."))
+        .map(|line| line.trim_end_matches('/').to_owned())
+        .collect();
+    dirs.sort();
+    dirs.dedup();
+    dirs
+}
+
+#[test]
+fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
+    let root = workspace_root();
+    let dir = dx_env::DX_DIR_NAME;
+    let gitignore = std::fs::read_to_string(root.join(".gitignore")).expect("readable .gitignore");
+    let bazelignore =
+        std::fs::read_to_string(root.join(".bazelignore")).expect("readable .bazelignore");
+    let biome = std::fs::read_to_string(root.join("biome.json")).expect("readable biome.json");
+    assert!(
+        ignored_dir(&gitignore, dir),
+        ".gitignore never ignores {dir}/"
+    );
+    assert!(
+        ignored_dir(&bazelignore, dir),
+        ".bazelignore never ignores {dir}/"
+    );
+    assert!(
+        biome.contains(&format!("\"!!**/{dir}\"")),
+        "biome.json files.includes never force-ignores {dir}"
+    );
+}
+
+#[test]
+fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
+    let root = workspace_root();
+    let bazelignore =
+        std::fs::read_to_string(root.join(".bazelignore")).expect("readable .bazelignore");
+    let gitignore = std::fs::read_to_string(root.join(".gitignore")).expect("readable .gitignore");
+    let biome = std::fs::read_to_string(root.join("biome.json")).expect("readable biome.json");
+    let dirs = bazelignored_dirs(&bazelignore);
+    assert!(!dirs.is_empty(), ".bazelignore lists no dot dirs");
+    for dir in dirs {
+        assert!(
+            ignored_dir(&gitignore, &dir),
+            ".gitignore never ignores {dir}/ listed in .bazelignore"
+        );
+        assert!(
+            biome.contains(&format!("\"!!**/{dir}\"")),
+            "biome.json files.includes never force-ignores {dir} listed in .bazelignore"
+        );
+    }
+}

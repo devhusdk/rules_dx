@@ -9,6 +9,7 @@ use marker_proto::dx::env::v1::{EnvIdentity, EnvMarker, ToolEntry};
 use prost::Message;
 use serde::Deserialize;
 
+pub const DX_DIR_NAME: &str = ".dx";
 pub const MARKER_FILE_NAME: &str = ".rules_dx_managed";
 pub const MARKER_SCHEMA_VERSION: u32 = 1;
 pub const STAGED_METADATA_SCHEMA_VERSION: u32 = 1;
@@ -288,7 +289,7 @@ pub fn refresh(
             path: options.workspace_root.clone(),
         });
     }
-    let dx_dir = options.workspace_root.join(".dx");
+    let dx_dir = options.workspace_root.join(DX_DIR_NAME);
     fs::create_dir_all(&dx_dir).map_err(|e| Error::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;

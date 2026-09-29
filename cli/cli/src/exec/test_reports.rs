@@ -12,6 +12,14 @@ use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
 use std::path::Path;
 
+fn unusable_detail(count: usize, first: &str) -> String {
+    if count > 1 {
+        format!("{count} missing or invalid results: {first}")
+    } else {
+        first.to_owned()
+    }
+}
+
 pub(crate) struct TestReportsRequest<'a> {
     pub(crate) invocation: &'a Invocation,
     pub(crate) workspace: &'a Path,
@@ -71,6 +79,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     if verb == WorkflowVerb::Test {
         let mut grouped: BTreeMap<String, Vec<JunitCase>> = BTreeMap::new();
         let mut first_error = String::new();
+        let mut error_count = 0usize;
         for output in &outputs {
             if output.name != "test.xml" {
                 continue;
@@ -78,6 +87,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             let bytes = match reader.read_artifact(&output.exec_path) {
                 Ok(bytes) => bytes,
                 Err(error) => {
+                    error_count += 1;
                     if first_error.is_empty() {
                         first_error = format!("unreadable {}: {error}", output.exec_path.display());
                     }
@@ -92,6 +102,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     .or_default()
                     .extend(cases),
                 Err(error) => {
+                    error_count += 1;
                     if first_error.is_empty() {
                         first_error = format!("invalid {}: {error}", output.exec_path.display());
                     }
@@ -108,12 +119,12 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 };
             }
         } else if !first_error.is_empty() {
-            if bazel_code == 0 {
+            if bazel_code == 0 && error_count == 1 {
                 let _ = writeln!(err, "dx: incomplete_results (tolerated): {first_error}");
             } else {
                 complete = false;
                 if detail.is_empty() {
-                    detail = first_error.clone();
+                    detail = unusable_detail(error_count, &first_error);
                 }
             }
         }
@@ -123,6 +134,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         }
     } else {
         let mut first_error = String::new();
+        let mut error_count = 0usize;
         for output in &outputs {
             if output.name != "coverage.dat" && output.name != "test.lcov" {
                 continue;
@@ -130,6 +142,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             let bytes = match reader.read_artifact(&output.exec_path) {
                 Ok(bytes) => bytes,
                 Err(error) => {
+                    error_count += 1;
                     if first_error.is_empty() {
                         first_error = format!("unreadable {}: {error}", output.exec_path.display());
                     }
@@ -142,6 +155,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     if bytes.iter().all(|b| b.is_ascii_whitespace()) {
                         continue;
                     }
+                    error_count += 1;
                     if first_error.is_empty() {
                         first_error = format!("invalid {}: {error}", output.exec_path.display());
                     }
@@ -158,12 +172,12 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 };
             }
         } else if !first_error.is_empty() {
-            if bazel_code == 0 {
+            if bazel_code == 0 && error_count == 1 {
                 let _ = writeln!(err, "dx: incomplete_results (tolerated): {first_error}");
             } else {
                 complete = false;
                 if detail.is_empty() {
-                    detail = first_error.clone();
+                    detail = unusable_detail(error_count, &first_error);
                 }
             }
         }
@@ -644,6 +658,59 @@ mod tests {
     }
 
     #[test]
+    fn test_two_missing_xmls_fail_when_bazel_passed() {
+        let harness = Harness::new("test-partial-two");
+        let uri = write_bep_artifact(&harness, "ok3.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("test.xml"), uri)]),
+                test_result_line(
+                    "//a:missing1",
+                    &[(
+                        String::from("test.xml"),
+                        String::from("file:///nonexistent/missing3.xml"),
+                    )],
+                ),
+                test_result_line(
+                    "//a:missing2",
+                    &[(
+                        String::from("test.xml"),
+                        String::from("file:///nonexistent/missing4.xml"),
+                    )],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("2 missing or invalid results"), "{err}");
+    }
+
+    #[test]
+    fn test_one_missing_and_one_invalid_xml_fail_when_bazel_passed() {
+        let harness = Harness::new("test-mixed-two");
+        let ok = write_bep_artifact(&harness, "ok4.xml", MINIMAL_TEST_XML.as_bytes());
+        let bad = write_bep_artifact(&harness, "bad2.xml", b"not xml");
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("test.xml"), ok)]),
+                test_result_line("//a:bad", &[(String::from("test.xml"), bad)]),
+                test_result_line(
+                    "//a:missing",
+                    &[(
+                        String::from("test.xml"),
+                        String::from("file:///nonexistent/missing5.xml"),
+                    )],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("2 missing or invalid results"), "{err}");
+    }
+
+    #[test]
     fn test_single_missing_xml_fails_when_bazel_failed() {
         let harness = Harness::new("test-partial-bazelfail");
         let uri = write_bep_artifact(&harness, "ok2.xml", MINIMAL_TEST_XML.as_bytes());
@@ -735,6 +802,76 @@ mod tests {
         let (code, _, err) = harness.run(&["coverage", "--output=text"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("tolerated"), "{err}");
+    }
+
+    #[test]
+    fn coverage_two_missing_dats_fail_when_bazel_passed() {
+        let harness = Harness::new("cov-partial-two");
+        let uri = write_bep_artifact(&harness, "ok3.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("coverage.dat"), uri)]),
+                test_result_line(
+                    "//a:missing1",
+                    &[(
+                        String::from("coverage.dat"),
+                        String::from("file:///nonexistent/missing3.dat"),
+                    )],
+                ),
+                test_result_line(
+                    "//a:missing2",
+                    &[(
+                        String::from("coverage.dat"),
+                        String::from("file:///nonexistent/missing4.dat"),
+                    )],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("2 missing or invalid results"), "{err}");
+    }
+
+    #[test]
+    fn coverage_one_invalid_and_one_missing_dat_fail_when_bazel_passed() {
+        let harness = Harness::new("cov-mixed-two");
+        let ok = write_bep_artifact(&harness, "ok4.dat", MINIMAL_LCOV.as_bytes());
+        let bad = write_bep_artifact(&harness, "bad3.dat", b"not lcov");
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("test.lcov"), ok)]),
+                test_result_line("//a:bad", &[(String::from("test.lcov"), bad)]),
+                test_result_line(
+                    "//a:missing",
+                    &[(
+                        String::from("coverage.dat"),
+                        String::from("file:///nonexistent/missing5.dat"),
+                    )],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("2 missing or invalid results"), "{err}");
+    }
+
+    #[test]
+    fn coverage_empty_dat_does_not_count_against_tolerance() {
+        let harness = Harness::new("cov-empty-ok");
+        let empty = write_bep_artifact(&harness, "empty2.dat", b"");
+        let ok = write_bep_artifact(&harness, "ok5.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:empty", &[(String::from("coverage.dat"), empty)]),
+                test_result_line("//a:ok", &[(String::from("coverage.dat"), ok)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("incomplete_results"), "{err}");
     }
 
     #[test]

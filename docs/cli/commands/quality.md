@@ -22,6 +22,10 @@ dx format [--here] [--check] [--fail-on info|warning|error] [scope...]
   Repeatable. `dx format` has no report format.
 - `--output text|diff|json`: result shape.
 
+Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
+`--fail-on`, an incomplete result set, or a failed report write. Bazel
+failures report `1`, not Bazel's code.
+
 ```sh
 bazel run //cli/cli:dx -- lint --check //...
 bazel run //cli/cli:dx -- format --here

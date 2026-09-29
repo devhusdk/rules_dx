@@ -8,7 +8,8 @@ dx bazel <bazel arguments...>
 
 Runs Bazel directly through the repo launcher. Args after `bazel` go to Bazel
 unchanged, even tokens that look like `dx` flags. Put `dx` flags before
-`bazel`. The exit code is Bazel's own.
+`bazel`. The exit code is Bazel's own, except a launch failure or a signal
+is `1`.
 
 ```sh
 bazel run //cli/cli:dx -- bazel build //...

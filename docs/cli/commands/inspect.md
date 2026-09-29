@@ -16,6 +16,9 @@ dx why [--configured] <file> <label>
 - `--configured`: use `bazel cquery` instead of `bazel query`.
 - Output is text or JSON only.
 
+Exit codes: `0` success, `2` usage or scope errors, `1` a query failed or
+`dx why` found no owner.
+
 ```sh
 bazel run //cli/cli:dx -- owners cli/cli/src/main.rs
 bazel run //cli/cli:dx -- deps //cli/cli:dx

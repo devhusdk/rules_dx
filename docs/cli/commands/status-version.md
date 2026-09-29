@@ -46,6 +46,9 @@ Prints the version.
 - `--pin <version>`: re-pin to this version.
 - `--rollback`: restore the last pin. Conflicts with `--pin`.
 
+Exit codes: `0` success, `2` usage errors including conflicting flags, `1`
+pin drift or a refused pin.
+
 ```sh
 bazel run //cli/cli:dx -- version --check
 bazel run //cli/cli:dx -- version --pin 0.0.0

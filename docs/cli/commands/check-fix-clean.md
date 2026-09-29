@@ -24,7 +24,9 @@ Output: `--output text|diff|json`.
 `dx check` only reports. `dx fix` applies fixes without re-running. Run
 `dx check` again after `dx fix` to confirm.
 
-Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed.
+Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed. The
+failing phase's code wins, so a `generate` phase keeps Bazel's code. A failed
+report write is `1`.
 
 ```sh
 bazel run //cli/cli:dx -- check //...
@@ -40,6 +42,10 @@ dx clean [--dry-run] [--bazel]
 Prunes unselected managed state under `.dx`. Never touches Bazel outputs
 unless `--bazel` also runs `bazel clean`. Takes no scopes.
 `--dry-run` only lists what would go.
+
+Exit codes: `0` success, `2` usage errors including any scope, `1` a prune
+or launch failure. With `--bazel`, a `bazel clean` failure keeps Bazel's
+code.
 
 ```sh
 bazel run //cli/cli:dx -- clean --dry-run

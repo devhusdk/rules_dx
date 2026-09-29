@@ -19,3 +19,11 @@ default. With one exact `//` or `@` label, each acts on that target only.
 
 These commands change managed state. They take no `--check`, `--fail-on`,
 or `--report`. Output is text or JSON only.
+
+Exit codes: `0` success, `2` usage or scope errors, `1` a launch or commit
+failure. Bazel failures keep Bazel's code.
+
+```sh
+bazel run //cli/cli:dx -- env //a:one
+bazel run //cli/cli:dx -- setup --dry-run
+```

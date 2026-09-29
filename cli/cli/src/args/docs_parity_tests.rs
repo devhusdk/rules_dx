@@ -139,6 +139,28 @@ fn fenced_blocks(page: &str, fence: &str) -> Vec<Vec<String>> {
     blocks
 }
 
+fn sections(page: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut heading = String::new();
+    let mut body: Vec<&str> = Vec::new();
+    for line in page.lines() {
+        if let Some(rest) = line.strip_prefix("## ") {
+            out.push((std::mem::take(&mut heading), body.join("\n")));
+            heading = rest.trim().to_owned();
+            body.clear();
+            continue;
+        }
+        body.push(line);
+    }
+    out.push((heading, body.join("\n")));
+    out
+}
+
+fn documents_exit_codes(text: &str) -> bool {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    flat.to_lowercase().contains("exit code")
+}
+
 fn slug(heading: &str) -> String {
     heading
         .trim_start_matches('#')
@@ -289,6 +311,21 @@ fn docs_report_formats_match_the_command_registry() {
                     );
                 }
             }
+        }
+    }
+}
+
+#[test]
+fn docs_sections_with_usage_blocks_document_exit_codes() {
+    for (name, page) in pages() {
+        for (heading, body) in sections(&page) {
+            if usage_blocks(&body).is_empty() {
+                continue;
+            }
+            assert!(
+                documents_exit_codes(&body),
+                "{name}: section {heading:?} has a usage block but no exit codes"
+            );
         }
     }
 }

@@ -15,6 +15,10 @@ current directory tree.
   the preview in a browser.
 - `--output text|json`: result shape. `diff` has no patch.
 
+Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal, or
+preview failure. Bazel failures keep Bazel's code. Under `--serve` the
+preview server's code is the exit code.
+
 ```sh
 bazel run //cli/cli:dx -- docs --check
 bazel run //cli/cli:dx -- docs

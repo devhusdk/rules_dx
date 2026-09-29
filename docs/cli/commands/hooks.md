@@ -14,6 +14,9 @@ dx init [module-name]
 Scaffolds `dx` into a foreign tree. Takes an optional module name. Never
 overwrites existing files.
 
+Exit codes: `0` success, `2` usage errors including extra positionals, `1`
+scaffolding failed.
+
 ## `dx hooks`
 
 ```text
@@ -26,6 +29,10 @@ Manages Git hooks through hermetic Git.
 - `uninstall`: remove them.
 - `status`: show what would run.
 - `run <trigger>`: run one trigger.
+
+Exit codes: `0` success, `2` usage errors including an unknown verb or
+trigger, `1` a hook install, status, or check failed. A failing check reports
+`1`, never the check's own code.
 
 ```sh
 bazel run //cli/cli:dx -- hooks status

@@ -262,6 +262,7 @@ rust_test(
         ":dx",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
+        "//cli/cli/tests/fixtures/help_goldens:goldens",
         "//docs:command_docs",
         "//docs:github-ci.md",
         "//examples:consumer-ci/caller.yml",

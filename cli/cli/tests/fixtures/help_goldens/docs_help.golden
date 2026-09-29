@@ -1,17 +1,3 @@
-Computing main repo mapping: 
-Loading: 
-Loading: 0 packages loaded
-Analyzing: target //cli/cli:dx (0 packages loaded, 0 targets configured)
-Analyzing: target //cli/cli:dx (0 packages loaded, 0 targets configured)
-
-INFO: Analyzed target //cli/cli:dx (0 packages loaded, 0 targets configured).
-INFO: Found 1 target...
-Target //cli/cli:dx up-to-date:
-  bazel-bin/cli/cli/dx
-INFO: Elapsed time: 0.488s, Critical Path: 0.00s
-INFO: 1 process: 1 internal.
-INFO: Build completed successfully, 1 total action
-INFO: Running command line: bazel-bin/cli/cli/dx <args omitted>
 dx docs - build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)
 
 Usage: dx [global-options] docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...]
@@ -19,7 +5,7 @@ Per-command flags: --check/--serve/--port/--host/--open (docs only; --check vali
 
 Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:user_site, //docs/site:user_site_aggregate in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
-Output: --output text|diff|json; --report <format>=<destination> (repeatable).
+Output: --output text|json; --report has no standard format for this command.
 
 dx - Run Bazel workflows
 

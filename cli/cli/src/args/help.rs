@@ -149,6 +149,33 @@ pub(crate) fn per_command_flags(command: Command) -> &'static str {
     command.flags()
 }
 
+fn output_modes(command: Command) -> String {
+    let mut modes = vec!["text"];
+    if command.supports_diff() {
+        modes.push("diff");
+    }
+    if command.supports_json() {
+        modes.push("json");
+    }
+    modes.join("|")
+}
+
+fn report_clause(command: Command) -> String {
+    let formats = crate::plan::spec(command).reports.join("|");
+    if formats.is_empty() {
+        return "--report has no standard format for this command.".to_owned();
+    }
+    format!("--report {formats}=<destination> (repeatable).")
+}
+
+fn output_line(command: Command) -> String {
+    format!(
+        "Output: --output {}; {}",
+        output_modes(command),
+        report_clause(command)
+    )
+}
+
 pub(crate) fn render_command_help(command: Command) -> String {
     let usage = command.usage();
     let scopes = command.scopes_text();
@@ -164,9 +191,8 @@ pub(crate) fn render_command_help(command: Command) -> String {
     out.push_str("\n\n");
     out.push_str(scopes);
     out.push_str("\nExit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.");
-    out.push_str(
-        "\nOutput: --output text|diff|json; --report <format>=<destination> (repeatable).",
-    );
+    out.push('\n');
+    out.push_str(&output_line(command));
     out.push_str("\n\n");
     out.push_str(&render_top_help());
     out
@@ -222,6 +248,26 @@ mod tests {
             .assert()
             .success()
             .stdout(predicates::str::contains("Run Bazel workflows"));
+    }
+
+    #[test]
+    fn rendered_help_matches_the_goldens() {
+        let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let dir = std::path::Path::new(&root)
+            .join(workspace)
+            .join("cli/cli/tests/fixtures/help_goldens");
+        for (name, rendered) in [
+            ("build_help.golden", render_command_help(Command::Build)),
+            ("clean_help.golden", render_command_help(Command::Clean)),
+            ("docs_help.golden", render_command_help(Command::Docs)),
+            ("lint_help.golden", render_command_help(Command::Lint)),
+            ("top_help.golden", super::render_top_help()),
+        ] {
+            let expected =
+                std::fs::read_to_string(dir.join(name)).expect("golden ships as test data");
+            assert_eq!(rendered, expected, "{name} no longer matches dx help");
+        }
     }
 
     #[test]
@@ -367,6 +413,61 @@ mod tests {
             parse(&args(&["help", "bogus"])),
             Err(ArgsError::UnknownCommand { .. })
         ));
+    }
+
+    fn completing_words(command: Command) -> Vec<String> {
+        let owned = |words: &[&str]| words.iter().map(|word| (*word).to_owned()).collect();
+        match command {
+            Command::Bump => owned(&["rust:serde", "1.0.0"]),
+            Command::Migrate | Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
+            Command::Why => owned(&["README.md", "//:all"]),
+            Command::Completion => owned(&["bash"]),
+            Command::Hooks => owned(&["install"]),
+            Command::Watch => owned(&["build"]),
+            Command::Owners | Command::Deps => owned(&["//:all"]),
+            Command::New => owned(&["rust"]),
+            _ => Vec::new(),
+        }
+    }
+
+    fn accepts_output(command: Command, mode: &str) -> bool {
+        let mut words = vec![format!("--output={mode}")];
+        words.push(command.name().to_owned());
+        if command != Command::Bazel {
+            words.extend(completing_words(command));
+        }
+        parse(&words).is_ok()
+    }
+
+    #[test]
+    fn output_line_names_only_accepted_modes_and_registry_reports() {
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            let command = *command;
+            let help = render_command_help(command);
+            let line = help
+                .lines()
+                .find(|line| line.starts_with("Output: "))
+                .unwrap_or_else(|| panic!("dx {} help has no Output line", command.name()));
+            let mut modes = vec!["text"];
+            for mode in ["diff", "json"] {
+                if accepts_output(command, mode) {
+                    modes.push(mode);
+                }
+            }
+            let reports = crate::plan::spec(command).reports;
+            let report = if reports.is_empty() {
+                "--report has no standard format for this command.".to_owned()
+            } else {
+                format!("--report {}=<destination> (repeatable).", reports.join("|"))
+            };
+            assert_eq!(
+                line,
+                format!("Output: --output {}; {report}", modes.join("|")),
+                "dx {} output line",
+                command.name()
+            );
+        }
     }
 
     #[test]

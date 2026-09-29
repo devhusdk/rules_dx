@@ -18,6 +18,11 @@ exports_files(
     ],
 )
 
+filegroup(
+    name = "goldens",
+    srcs = glob(["*.golden"]),
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

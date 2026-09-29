@@ -1,17 +1,3 @@
-Computing main repo mapping: 
-Loading: 
-Loading: 0 packages loaded
-Analyzing: target //cli/cli:dx (0 packages loaded, 0 targets configured)
-Analyzing: target //cli/cli:dx (0 packages loaded, 0 targets configured)
-
-INFO: Analyzed target //cli/cli:dx (0 packages loaded, 0 targets configured).
-INFO: Found 1 target...
-Target //cli/cli:dx up-to-date:
-  bazel-bin/cli/cli/dx
-INFO: Elapsed time: 0.503s, Critical Path: 0.00s
-INFO: 1 process: 1 internal.
-INFO: Build completed successfully, 1 total action
-INFO: Running command line: bazel-bin/cli/cli/dx <args omitted>
 dx - Run Bazel workflows
 
 Commands:

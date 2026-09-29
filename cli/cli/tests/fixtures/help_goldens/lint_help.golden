@@ -1,17 +1,3 @@
-Computing main repo mapping: 
-Loading: 
-Loading: 0 packages loaded
-Analyzing: target //cli/cli:dx (0 packages loaded, 0 targets configured)
-Analyzing: target //cli/cli:dx (0 packages loaded, 0 targets configured)
-
-INFO: Analyzed target //cli/cli:dx (0 packages loaded, 0 targets configured).
-INFO: Found 1 target...
-Target //cli/cli:dx up-to-date:
-  bazel-bin/cli/cli/dx
-INFO: Elapsed time: 0.477s, Critical Path: 0.00s
-INFO: 1 process: 1 internal.
-INFO: Build completed successfully, 1 total action
-INFO: Running command line: bazel-bin/cli/cli/dx <args omitted>
 dx lint - run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
 
 Usage: dx [global-options] lint|typecheck|format|generate [--here] [scope ...] [-- bazel-options ...]
@@ -19,7 +5,7 @@ Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scop
 
 Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
-Output: --output text|diff|json; --report <format>=<destination> (repeatable).
+Output: --output text|diff|json; --report sarif=<destination> (repeatable).
 
 dx - Run Bazel workflows
 

@@ -315,6 +315,111 @@ fn docs_report_formats_match_the_command_registry() {
     }
 }
 
+fn flag_bullet(page: &str, flag: &str) -> String {
+    let head = format!("- `--{flag} ");
+    let mut bullet: Option<String> = None;
+    let mut continued = String::new();
+    for line in page.lines() {
+        if line.starts_with(&head) {
+            bullet = Some(line.to_owned());
+            continued.clear();
+            continue;
+        }
+        if bullet.is_none() {
+            continue;
+        }
+        if line.starts_with("  ") {
+            continued.push_str(line);
+            continue;
+        }
+        break;
+    }
+    format!("{}{continued}", bullet.expect("global flag bullet"))
+}
+
+fn backticked(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find('`') {
+        let tail = &rest[start + 1..];
+        let Some(end) = tail.find('`') else {
+            break;
+        };
+        out.push(tail[..end].to_owned());
+        rest = &tail[end + 1..];
+    }
+    out
+}
+
+fn registry_reports() -> Vec<String> {
+    let mut formats: Vec<String> = Command::value_variants()
+        .iter()
+        .flat_map(|command| {
+            crate::plan::spec(*command)
+                .reports
+                .iter()
+                .map(|format| (*format).to_owned())
+        })
+        .collect();
+    formats.sort();
+    formats.dedup();
+    formats
+}
+
+#[test]
+fn global_flags_page_names_exactly_the_diff_commands() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let bullet = flag_bullet(&page, "output");
+    let mut documented: Vec<String> = backticked(&bullet)
+        .into_iter()
+        .filter(|token| Command::parse(token).is_some())
+        .collect();
+    documented.sort();
+    documented.dedup();
+    let mut accepted: Vec<String> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| command.supports_diff())
+        .map(|command| command.name().to_owned())
+        .collect();
+    accepted.sort();
+    assert_eq!(
+        documented, accepted,
+        "docs/cli/commands/README.md --output bullet must name every command with diff output"
+    );
+}
+
+#[test]
+fn global_flags_page_names_every_reporting_command_and_format() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let bullet = flag_bullet(&page, "report");
+    let mut documented: Vec<String> = backticked(&bullet)
+        .into_iter()
+        .filter(|token| Command::parse(token).is_some())
+        .collect();
+    documented.sort();
+    documented.dedup();
+    let mut reporting: Vec<String> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| !crate::plan::spec(*command).reports.is_empty())
+        .map(|command| command.name().to_owned())
+        .collect();
+    reporting.sort();
+    assert_eq!(
+        documented, reporting,
+        "docs/cli/commands/README.md --report bullet must name every command with a report format"
+    );
+    for format in registry_reports() {
+        assert!(
+            bullet.contains(&format!("`{format}`")),
+            "docs/cli/commands/README.md --report bullet never names the {format} format"
+        );
+    }
+}
+
 #[test]
 fn docs_sections_with_usage_blocks_document_exit_codes() {
     for (name, page) in pages() {

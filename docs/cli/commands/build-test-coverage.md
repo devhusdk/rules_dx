@@ -25,8 +25,10 @@ Output: `--output text|json`. Reports: `dx test` writes
 for stdout. `dx build` has no report format.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
-failures. Bazel failures keep Bazel's code. A single missing `test.xml`
-warns and passes when Bazel passes and other results exist.
+failures. Bazel failures keep Bazel's code. Missing or invalid `test.xml`
+artifacts warn and pass when Bazel passes, other results exist, and at most
+a quarter of the reported results are unusable. More than that fails as
+incomplete.
 
 ```sh
 bazel run //cli/cli:dx -- build //cli/...
@@ -70,9 +72,10 @@ Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
-failures or coverage below minimum. Bazel failures keep Bazel's code. A
-single missing or invalid `coverage.dat` warns and passes when Bazel passes
-and other results exist.
+failures or coverage below minimum. Bazel failures keep Bazel's code.
+Missing or invalid `coverage.dat` artifacts warn and pass when Bazel passes,
+other results exist, and at most a quarter of the reported results are
+unusable. More than that fails as incomplete.
 
 ```sh
 bazel run //cli/cli:dx -- coverage //...

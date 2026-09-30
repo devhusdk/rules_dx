@@ -1,59 +1,71 @@
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::str::FromStr;
+
+use pep440_rs::{Version, VersionSpecifiers};
 
 use crate::toml_util::parse_toml_file;
 use crate::{DepInfo, DepcheckError};
+
+const PLATFORM_MARKERS: [&str; 4] = ["sys_platform", "sys-platform", "platform_system", "os_name"];
 
 pub fn normalize_py(name: &str) -> String {
     name.to_lowercase().replace(['-', '.'], "_")
 }
 
-fn python_spec_from_rest(rest: &str) -> String {
-    let mut spec = String::new();
-    for ch in rest.chars() {
-        if matches!(
-            ch,
-            '=' | '<' | '>' | '^' | '~' | '!' | '.' | ',' | '*' | ' ' | '\t'
-        ) || ch.is_ascii_digit()
-        {
-            spec.push(ch);
-        } else {
-            break;
-        }
-    }
-    let trimmed = spec.trim().to_owned();
-    if trimmed.is_empty() {
-        "*".to_owned()
-    } else {
-        trimmed
-    }
+struct Requirement {
+    name: String,
+    spec: String,
+    platform: bool,
 }
 
-fn python_raw_name(item: &str) -> Option<(String, String)> {
-    let item = item.trim();
-    if item.is_empty() {
-        return None;
-    }
-    let mut end = 0usize;
-    for (idx, ch) in item.char_indices() {
-        if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | '[' | ']') {
-            end = idx + ch.len_utf8();
-        } else {
-            break;
-        }
-    }
+fn parse_requirement(item: &str) -> Option<Requirement> {
+    let (head, marker) = match item.split_once(';') {
+        Some((head, marker)) => (head.trim(), Some(marker)),
+        None => (item.trim(), None),
+    };
+    let end = head
+        .char_indices()
+        .find(|(_, ch)| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
+        .map_or(head.len(), |(idx, _)| idx);
     if end == 0 {
         return None;
     }
-    let mut head = item[..end].to_owned();
-    if let Some(bracket) = head.find('[') {
-        head = head[..bracket].to_owned();
-    }
-    if head.is_empty() {
-        return None;
-    }
-    let rest = item[end..].trim().to_owned();
-    Some((head, rest))
+    let name = &head[..end];
+    let after_extras = match head[end..].trim_start().strip_prefix('[') {
+        Some(inner) => match inner.find(']') {
+            Some(close) => &inner[close + 1..],
+            None => "",
+        },
+        None => head[end..].trim(),
+    };
+    let spec = match VersionSpecifiers::from_str(after_extras.trim()) {
+        Ok(specifiers) => {
+            let text = specifiers.to_string();
+            if text.is_empty() {
+                "*".to_owned()
+            } else {
+                text
+            }
+        }
+        Err(_) => "*".to_owned(),
+    };
+    let platform = marker.is_some_and(|marker| {
+        PLATFORM_MARKERS
+            .iter()
+            .any(|marker_name| marker.contains(marker_name))
+    });
+    Some(Requirement {
+        name: name.to_owned(),
+        spec,
+        platform,
+    })
+}
+
+pub fn satisfies_py(spec: &str, locked: &str) -> Option<bool> {
+    let specifiers = VersionSpecifiers::from_str(spec.trim()).ok()?;
+    let version = Version::from_str(locked.trim()).ok()?;
+    Some(specifiers.contains(&version))
 }
 
 pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
@@ -63,22 +75,17 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
         if let Some(list) = proj.get("dependencies").and_then(|v| v.as_array()) {
             for item in list {
                 let Some(text) = item.as_str() else { continue };
-                let Some((rawname, rest)) = python_raw_name(text) else {
+                let Some(requirement) = parse_requirement(text) else {
                     continue;
                 };
-                let marker_platform = rest.contains("sys_platform")
-                    || rest.contains("sys-platform")
-                    || rest.contains("platform_system")
-                    || rest.contains("os_name");
-                let spec = python_spec_from_rest(&rest);
                 deps.insert(
-                    normalize_py(&rawname),
+                    normalize_py(&requirement.name),
                     DepInfo {
-                        spec,
+                        spec: requirement.spec,
                         category: "prod".to_owned(),
                         optional: false,
-                        platform: marker_platform,
-                        raw: rawname,
+                        platform: requirement.platform,
+                        raw: requirement.name,
                         peer: false,
                         sha256: String::new(),
                     },
@@ -92,18 +99,17 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                 };
                 for item in list {
                     let Some(text) = item.as_str() else { continue };
-                    let Some((rawname, rest)) = python_raw_name(text) else {
+                    let Some(requirement) = parse_requirement(text) else {
                         continue;
                     };
-                    let spec = python_spec_from_rest(&rest);
                     deps.insert(
-                        normalize_py(&rawname),
+                        normalize_py(&requirement.name),
                         DepInfo {
-                            spec,
+                            spec: requirement.spec,
                             category: "dev".to_owned(),
                             optional: true,
                             platform: false,
-                            raw: rawname,
+                            raw: requirement.name,
                             peer: false,
                             sha256: String::new(),
                         },
@@ -119,18 +125,17 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
             };
             for item in list {
                 let Some(text) = item.as_str() else { continue };
-                let Some((rawname, rest)) = python_raw_name(text) else {
+                let Some(requirement) = parse_requirement(text) else {
                     continue;
                 };
-                let spec = python_spec_from_rest(&rest);
                 deps.insert(
-                    normalize_py(&rawname),
+                    normalize_py(&requirement.name),
                     DepInfo {
-                        spec,
+                        spec: requirement.spec,
                         category: "dev".to_owned(),
                         optional: false,
                         platform: false,
-                        raw: rawname,
+                        raw: requirement.name,
                         peer: false,
                         sha256: String::new(),
                     },

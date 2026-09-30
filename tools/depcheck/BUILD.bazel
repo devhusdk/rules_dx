@@ -35,6 +35,7 @@ rust_library(
     deps = crate_deps(
         [
             "clap",
+            "pep440_rs",
             "regex",
             "serde",
             "serde_json",
@@ -58,6 +59,7 @@ rust_binary(
     deps = crate_deps(
         [
             "clap",
+            "pep440_rs",
             "regex",
             "serde",
             "serde_json",
@@ -94,6 +96,7 @@ rust_test(
     deps = crate_deps(
         [
             "clap",
+            "pep440_rs",
             "regex",
             "serde",
             "serde_json",

@@ -900,6 +900,69 @@ fn python_lock_regex_fallback() {
 }
 
 #[test]
+fn python_requirement_specs_are_pep440() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("pyproject.toml");
+    write_file(
+        &man,
+        r#"
+[project]
+name = "hello"
+dependencies = ["bounded>=1,<2", "star", "compat~=1.4", "extras[bar,baz]==3.1"]
+"#,
+    );
+    let deps = parse_python_manifest(&man).expect("parse");
+    assert_eq!(deps["bounded"].spec, ">=1, <2");
+    assert_eq!(deps["star"].spec, "*");
+    assert_eq!(deps["compat"].spec, "~=1.4");
+    assert_eq!(deps["extras"].spec, "==3.1");
+    assert_eq!(deps["extras"].raw, "extras");
+}
+
+#[test]
+fn python_satisfaction_is_pep440() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("pyproject.toml");
+    write_file(
+        &man,
+        r#"
+[project]
+name = "hello"
+dependencies = ["upper>=1.0,<2.0", "excluded!=1.2", "compatible~=1.4", "any"]
+"#,
+    );
+    let lock = dir.path().join("uv.lock");
+    write_file(
+        &lock,
+        r#"
+[[package]]
+name = "upper"
+version = "2.5.0"
+
+[[package]]
+name = "excluded"
+version = "1.3.0"
+
+[[package]]
+name = "compatible"
+version = "1.5.0"
+
+[[package]]
+name = "any"
+version = "0.1.0rc1"
+"#,
+    );
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Python, &man, &lock, &mut out, &mut err);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("stale lock entry for 'upper'"), "{err}");
+    assert!(!err.contains("'excluded'"), "{err}");
+    assert!(!err.contains("'compatible'"), "{err}");
+    assert!(!err.contains("'any'"), "{err}");
+}
+
+#[test]
 fn parsers_tolerate_missing_sections() {
     let dir = tempfile::tempdir().expect("scratch");
     let rust_lock = dir.path().join("Cargo.lock");

@@ -1,5 +1,5 @@
 {
-  "checksum": "7d14cd93a3b7bb50c5c535763b8a461ebcee8dff3cfcc32e1d83b62f40aae82e",
+  "checksum": "a6f4683597d685660dd94b78a541a0615c0fb3a022b1f644d4b531ec74e19c2f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2830,6 +2830,10 @@
           {
             "id": "clap 4.6.7",
             "target": "clap"
+          },
+          {
+            "id": "pep440_rs 0.7.3",
+            "target": "pep440_rs"
           },
           {
             "id": "regex 1.13.1",
@@ -6676,6 +6680,53 @@
         }
       ],
       "version": "0.7.0"
+    },
+    "pep440_rs 0.7.3": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "once_cell 1.21.4",
+            "target": "once_cell"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "unicode-width 0.2.2",
+            "target": "unicode_width"
+          },
+          {
+            "id": "unscanny 0.1.0",
+            "target": "unscanny"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "pep440_rs",
+      "license": "Apache-2.0 OR BSD-2-Clause",
+      "license_file": "License-Apache",
+      "license_ids": [
+        "Apache-2.0",
+        "BSD-2-Clause"
+      ],
+      "name": "pep440_rs",
+      "package_url": "https://github.com/konstin/pep440-rs",
+      "repository": {
+        "Http": {
+          "sha256": "31095ca1f396e3de32745f42b20deef7bc09077f918b085307e8eab6ddd8fb9c",
+          "url": "https://static.crates.io/crates/pep440_rs/0.7.3/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "pep440_rs",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.7.3"
     },
     "percent-encoding 2.3.2": {
       "common_attrs": {
@@ -10619,6 +10670,35 @@
       ],
       "version": "0.2.2"
     },
+    "unscanny 0.1.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "unscanny",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "unscanny",
+      "package_url": "https://github.com/typst/unscanny",
+      "repository": {
+        "Http": {
+          "sha256": "e9df2af067a7953e9c3831320f35c1cc0600c30d44d9f7a12b01db1cd88d6b47",
+          "url": "https://static.crates.io/crates/unscanny/0.1.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "unscanny",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.1.0"
+    },
     "uriparse 0.6.4": {
       "common_attrs": {
         "crate_features": [
@@ -13193,6 +13273,7 @@
     "notify-debouncer-mini 0.6.0",
     "osv 0.3.0",
     "packageurl 0.7.0",
+    "pep440_rs 0.7.3",
     "pulldown-cmark 0.13.4",
     "quick-junit 0.8.0",
     "quick-xml 0.41.0",

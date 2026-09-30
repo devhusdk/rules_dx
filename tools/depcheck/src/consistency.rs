@@ -82,6 +82,15 @@ pub fn cmd_consistency(
     check_maps(eco, &deps, &pkgs, &cc_lock_sha, stdout, stderr)
 }
 
+fn spec_matched(eco: Ecosystem, spec: &str, locked: &str) -> bool {
+    if eco == Ecosystem::Python {
+        if let Some(matched) = python::satisfies_py(spec, locked) {
+            return matched;
+        }
+    }
+    satisfies(spec, locked)
+}
+
 fn check_maps(
     eco: Ecosystem,
     deps: &BTreeMap<String, DepInfo>,
@@ -108,7 +117,7 @@ fn check_maps(
             ));
             continue;
         };
-        if !satisfies(&info.spec, &locked) {
+        if !spec_matched(eco, &info.spec, &locked) {
             failures.push(format!(
                 "stale lock entry for '{}': manifest requires {}, lock has {locked}",
                 info.raw, info.spec

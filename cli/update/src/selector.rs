@@ -16,7 +16,10 @@ pub enum Selector {
 pub enum SelectorError {
     #[error("empty selector")]
     Empty,
-    #[error("unknown update selector {selector:?}; expected cargo|npm|maven|nuget|go|uv|npm-tools|uv-tools|npm-adopt|npm-adopt-polyglot|uv-adopt|uv-adopt-polyglot, set:package, or a label/path")]
+    #[error(
+        "unknown update selector {selector:?}; expected {}, set:package, or a label/path",
+        SetId::pipe_list()
+    )]
     UnknownSelector { selector: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
     InvalidPackage {

@@ -20,7 +20,10 @@ pub struct OutdatedCandidate {
 pub enum DiscoveryError {
     #[error("empty discovery entry; expected `set:package` plus semver")]
     Empty,
-    #[error("unknown discovery selector {selector:?}; expected bazel|cargo|go|maven|npm|nuget as `set:package`")]
+    #[error(
+        "unknown discovery selector {selector:?}; expected {} as `set:package`",
+        BumpSet::pipe_list()
+    )]
     UnknownSelector { selector: String },
     #[error("invalid version {version:?} for selector {selector:?}: expected exact semver")]
     InvalidVersion { selector: String, version: String },

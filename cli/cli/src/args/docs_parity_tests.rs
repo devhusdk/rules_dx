@@ -956,6 +956,144 @@ fn banner() -> String {
     super::super::help::usage_banner()
 }
 
+fn set_names_in_list(text: &str) -> Vec<String> {
+    let start = text
+        .find("Sets: ")
+        .unwrap_or_else(|| panic!("no `Sets:` list in:\n{text}"));
+    let rest = &text[start + "Sets: ".len()..];
+    let end = rest.find('.').expect("the Sets: list ends a sentence");
+    let mut names: Vec<String> = rest[..end]
+        .split(',')
+        .map(|name| name.trim().trim_matches('`').to_owned())
+        .filter(|name| !name.is_empty())
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
+fn sorted(mut names: Vec<String>) -> Vec<String> {
+    names.sort();
+    names
+}
+
+#[test]
+fn update_docs_page_names_exactly_the_update_sets() {
+    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+        .expect("audit page ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx update`")
+        .map(|(_, body)| body)
+        .expect("`dx update` section");
+    assert_eq!(
+        set_names_in_list(&body),
+        sorted(
+            dx_update::sets::SetId::names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect()
+        ),
+        "docs/cli/commands/audit-update-bazel.md must name every dx update set, and nothing else"
+    );
+}
+
+#[test]
+fn bump_docs_page_names_exactly_the_bump_sets() {
+    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+        .expect("audit page ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx bump`")
+        .map(|(_, body)| body)
+        .expect("`dx bump` section");
+    assert_eq!(
+        set_names_in_list(&body),
+        sorted(
+            dx_bump::BumpSet::ALL
+                .iter()
+                .map(|set| (*set).name().to_owned())
+                .collect()
+        ),
+        "docs/cli/commands/audit-update-bazel.md must name every dx bump set, and nothing else"
+    );
+}
+
+#[test]
+fn update_help_scopes_name_exactly_the_update_sets() {
+    let sets: Vec<String> = dx_update::sets::SetId::names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect();
+    let update = scoped_set_list(Command::Update.scopes_text());
+    assert_eq!(
+        sorted(update),
+        sorted(sets.clone()),
+        "dx update --help must name every update set, and nothing else"
+    );
+    let bump = scoped_set_list(Command::Bump.scopes_text());
+    assert_eq!(
+        sorted(bump),
+        sorted(
+            dx_bump::BumpSet::ALL
+                .iter()
+                .map(|set| (*set).name().to_owned())
+                .collect()
+        ),
+        "dx bump --help must name every bump set, and nothing else"
+    );
+}
+
+fn scoped_set_list(scopes: &str) -> Vec<String> {
+    let open = scopes
+        .rfind('(')
+        .unwrap_or_else(|| panic!("Scopes: names no parenthesised set list:\n{scopes}"));
+    let rest = &scopes[open + 1..];
+    let end = rest
+        .find(')')
+        .unwrap_or_else(|| panic!("Scopes: set list is unterminated:\n{scopes}"));
+    rest[..end]
+        .split('|')
+        .map(|name| name.split(',').next().unwrap_or(name).trim().to_owned())
+        .collect()
+}
+
+#[test]
+fn unknown_set_and_selector_errors_name_every_set() {
+    let unknown_set = dx_update::manifest::ManifestError::UnknownSet {
+        set: "nope".to_owned(),
+    }
+    .to_string();
+    assert!(
+        unknown_set.contains(&dx_update::sets::SetId::name_list()),
+        "the unknown-set error never names every set: {unknown_set}"
+    );
+    let unknown_selector = dx_update::selector::SelectorError::UnknownSelector {
+        selector: "nope".to_owned(),
+    }
+    .to_string();
+    assert!(
+        unknown_selector.contains(&dx_update::sets::SetId::pipe_list()),
+        "the unknown-selector error never names every set: {unknown_selector}"
+    );
+    let unknown_bump = dx_bump::BumpError::UnknownSelector {
+        selector: "nope:thing".to_owned(),
+    }
+    .to_string();
+    assert!(
+        unknown_bump.contains(&dx_bump::BumpSet::pipe_list()),
+        "the unknown-bump-selector error never names every set: {unknown_bump}"
+    );
+    let unknown_discovery = dx_bump::discovery::DiscoveryError::UnknownSelector {
+        selector: "nope:thing".to_owned(),
+    }
+    .to_string();
+    assert!(
+        unknown_discovery.contains(&dx_bump::BumpSet::pipe_list()),
+        "the unknown-discovery-selector error never names every set: {unknown_discovery}"
+    );
+}
+
 #[test]
 fn every_usage_error_prints_the_same_banner() {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");

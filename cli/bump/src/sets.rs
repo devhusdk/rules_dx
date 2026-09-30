@@ -45,6 +45,14 @@ impl BumpSet {
         }
     }
 
+    pub fn names() -> Vec<&'static str> {
+        Self::ALL.iter().map(|set| set.name()).collect()
+    }
+
+    pub fn pipe_list() -> String {
+        Self::names().join("|")
+    }
+
     pub fn canonical_alias(text: &str) -> Option<&'static str> {
         Self::parse(text).map(|set| set.name())
     }
@@ -149,6 +157,22 @@ mod tests {
         let mut sorted = names.clone();
         sorted.sort();
         assert_eq!(names, sorted);
+    }
+
+    #[test]
+    fn pipe_list_names_every_set_once() {
+        assert_eq!(BumpSet::names().len(), BumpSet::ALL.len());
+        assert_eq!(BumpSet::pipe_list(), BumpSet::names().join("|"));
+        let pipe = BumpSet::pipe_list();
+        let listed: Vec<&str> = pipe.split('|').collect();
+        for set in BumpSet::ALL {
+            assert_eq!(
+                listed.iter().filter(|name| **name == set.name()).count(),
+                1,
+                "pipe_list names {} more than once",
+                set.name()
+            );
+        }
     }
 
     #[test]

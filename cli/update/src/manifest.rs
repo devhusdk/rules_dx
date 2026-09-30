@@ -33,7 +33,7 @@ pub struct CommittedManifest {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ManifestError {
-    #[error("unknown set {set:?}: want cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget, uv, uv-adopt, uv-adopt-polyglot, or uv-tools")]
+    #[error("unknown set {set:?}: want {}", SetId::name_list())]
     UnknownSet { set: String },
     #[error("invalid path {path:?}: {reason}")]
     BadPath { path: String, reason: &'static str },

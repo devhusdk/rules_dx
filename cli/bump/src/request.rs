@@ -14,7 +14,7 @@ pub struct BumpRequest {
 pub enum BumpError {
     #[error("empty bump selector or version; expected `dx bump <set:package> <version>`")]
     Empty,
-    #[error("unknown bump selector {selector:?}; expected bazel|cargo|github-actions|go|maven|npm|nuget as `set:package` (e.g. cargo:anyhow, maven:junit:junit)")]
+    #[error("unknown bump selector {selector:?}; expected {} as `set:package` (e.g. cargo:anyhow, maven:junit:junit)", BumpSet::pipe_list())]
     UnknownSelector { selector: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
     InvalidPackage {

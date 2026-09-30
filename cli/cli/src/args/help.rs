@@ -134,14 +134,23 @@ pub(crate) fn render_top_help() -> String {
 }
 
 fn render_env_help() -> String {
+    use dx_adopt::defaults::ENV_DEFAULTS;
     let mut out = String::new();
     out.push_str("\nEnvironment:\n");
+    for (env, flag, shape) in ENV_DEFAULTS {
+        out.push_str(&format!("  {env}=<{shape}>\n"));
+        out.push_str(&format!("      Default for {flag}.\n"));
+    }
     out.push_str("  RUST_LOG=<filter>\n");
     out.push_str("      Override --verbose and --log-level.\n");
     out.push_str("  NO_COLOR=<any>\n");
     out.push_str("      Disable color output.\n");
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
+    out.push_str(&format!(
+        "  {}\n      Same defaults as the DX_ variables, below the environment.\n",
+        dx_adopt::defaults::CONFIG_TOML_REL
+    ));
     out
 }
 
@@ -268,6 +277,25 @@ mod tests {
             .assert()
             .success()
             .stdout(predicates::str::contains("Run Bazel workflows"));
+    }
+
+    #[test]
+    fn top_help_environment_names_every_env_default() {
+        let text = super::render_top_help();
+        for (env, flag, shape) in dx_adopt::defaults::ENV_DEFAULTS {
+            assert!(
+                text.contains(&format!("  {env}=<{shape}>")),
+                "top help never names {env}"
+            );
+            assert!(
+                text.contains(&format!("Default for {flag}.")),
+                "top help never says {env} defaults {flag}"
+            );
+        }
+        assert!(
+            text.contains(dx_adopt::defaults::CONFIG_TOML_REL),
+            "top help never names the config file"
+        );
     }
 
     #[test]

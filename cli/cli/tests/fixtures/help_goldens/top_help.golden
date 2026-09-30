@@ -142,9 +142,25 @@ Options:
           Print version
 
 Environment:
+  DX_WORKSPACE=<dir>
+      Default for --workspace.
+  DX_DRY_RUN=<bool>
+      Default for --dry-run.
+  DX_QUIET=<bool>
+      Default for --quiet.
+  DX_VERBOSE=<bool>
+      Default for --verbose.
+  DX_COLOR=<mode>
+      Default for --color.
+  DX_OUTPUT=<mode>
+      Default for --output.
+  DX_FAIL_ON=<level>
+      Default for --fail-on.
   RUST_LOG=<filter>
       Override --verbose and --log-level.
   NO_COLOR=<any>
       Disable color output.
   BUILD_WORKSPACE_DIRECTORY=<dir>
       Workspace start under `bazel run`.
+  .dx/config.toml
+      Same defaults as the DX_ variables, below the environment.

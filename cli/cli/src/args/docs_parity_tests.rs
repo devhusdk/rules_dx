@@ -858,6 +858,100 @@ fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
     }
 }
 
+fn documented_env_names(page: &str) -> Vec<String> {
+    let (_, body) = sections(page)
+        .into_iter()
+        .find(|(heading, _)| heading == "Environment")
+        .expect("docs/cli/commands/README.md has an Environment section");
+    let mut names: Vec<String> = body
+        .lines()
+        .filter_map(|line| line.strip_prefix("- `"))
+        .filter_map(|line| line.split(['=', '`']).next())
+        .filter(|name| name.chars().any(|c| c.is_ascii_uppercase()))
+        .map(|name| name.trim().to_owned())
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
+#[test]
+fn environment_section_documents_every_parsed_env_default() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "Environment")
+        .map(|(_, body)| body)
+        .expect("Environment section");
+    let expected: Vec<String> = dx_adopt::defaults::ENV_DEFAULTS
+        .iter()
+        .map(|(env, _, _)| (*env).to_owned())
+        .chain([
+            "RUST_LOG".to_owned(),
+            "NO_COLOR".to_owned(),
+            "BUILD_WORKSPACE_DIRECTORY".to_owned(),
+        ])
+        .collect();
+    assert_eq!(
+        documented_env_names(&page),
+        {
+            let mut sorted = expected.clone();
+            sorted.sort();
+            sorted
+        },
+        "docs/cli/commands/README.md Environment must name every env default dx reads, and nothing else"
+    );
+    for (_, flag, _) in dx_adopt::defaults::ENV_DEFAULTS {
+        assert!(
+            body.contains(&format!("default for `{flag}`")),
+            "docs/cli/commands/README.md never states which flag {flag} comes from"
+        );
+    }
+}
+
+#[test]
+fn every_env_default_names_a_real_global_flag() {
+    for (env, flag, _) in dx_adopt::defaults::ENV_DEFAULTS {
+        assert!(
+            global_flags().contains(&flag.to_owned()),
+            "{env} defaults {flag}, which is not a global flag"
+        );
+        assert_eq!(
+            dx_adopt::defaults::config_key(env),
+            Some(flag.trim_start_matches("--")),
+            "{env} has no matching .dx/config.toml key"
+        );
+    }
+}
+
+#[test]
+fn config_file_keys_are_the_underscore_spellings_the_parser_reads() {
+    let text = "[dx]\nworkspace = \"/w\"\ncolor = \"never\"\ndry_run = true\nfail_on = \"error\"\n";
+    let parsed = dx_adopt::defaults::parse_file_text(text).expect("keys parse");
+    assert_eq!(parsed.workspace, Some("/w".to_owned()));
+    assert_eq!(parsed.color, Some("never".to_owned()));
+    assert_eq!(parsed.dry_run, Some(true));
+    assert_eq!(parsed.fail_on, Some("error".to_owned()));
+    for (env, _, _) in dx_adopt::defaults::ENV_DEFAULTS {
+        let key = dx_adopt::defaults::config_key(env).expect("every default has a key");
+        let spelled = key.replace('-', "_");
+        let body = format!("[dx]\n{spelled} = {}\n", literal_for(&key));
+        dx_adopt::defaults::parse_file_text(&body)
+            .unwrap_or_else(|error| panic!("docs promise {key} works in a config file: {error}"));
+    }
+}
+
+fn literal_for(key: &str) -> &'static str {
+    match key {
+        "dry-run" | "quiet" | "verbose" => "true",
+        "fail-on" => "\"error\"",
+        "color" => "\"never\"",
+        "output" => "\"json\"",
+        _ => "\"/w\"",
+    }
+}
+
 fn banner() -> String {
     super::super::help::usage_banner()
 }

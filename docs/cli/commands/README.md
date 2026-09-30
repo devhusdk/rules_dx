@@ -51,6 +51,21 @@ Exit codes: `0` success, `2` usage error, `1` failed check.
 
 ## Environment
 
+Every variable below supplies a default. A flag on the command line wins.
+
+- `DX_WORKSPACE=<dir>`: default for `--workspace`.
+- `DX_DRY_RUN=<bool>`: default for `--dry-run`.
+- `DX_QUIET=<bool>`: default for `--quiet`.
+- `DX_VERBOSE=<bool>`: default for `--verbose`.
+- `DX_COLOR=<mode>`: default for `--color`.
+- `DX_OUTPUT=<mode>`: default for `--output`.
+- `DX_FAIL_ON=<level>`: default for `--fail-on`.
 - `RUST_LOG=<filter>`: overrides `--verbose` and `--log-level`.
 - `NO_COLOR=<any>`: disables color output.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
+
+A `<bool>` is on for `1`, `true`, `yes`, `y`, or `on`.
+
+`.dx/config.toml` takes the same keys, without the `DX_` prefix and under a
+`[dx]` table or at the top level. The nearest file to the working directory
+wins, and its values sit below the environment. An empty value is unset.

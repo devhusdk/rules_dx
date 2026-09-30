@@ -8,6 +8,28 @@ pub const DX_QUIET_ENV: &str = "DX_QUIET";
 pub const DX_DRY_RUN_ENV: &str = "DX_DRY_RUN";
 pub const DX_FAIL_ON_ENV: &str = "DX_FAIL_ON";
 
+/// Environment defaults, the flag each one defaults, and the value shape.
+pub const ENV_DEFAULTS: [(&str, &str, &str); 7] = [
+    (DX_WORKSPACE_ENV, "--workspace", "dir"),
+    (DX_DRY_RUN_ENV, "--dry-run", "bool"),
+    (DX_QUIET_ENV, "--quiet", "bool"),
+    (DX_VERBOSE_ENV, "--verbose", "bool"),
+    (DX_COLOR_ENV, "--color", "mode"),
+    (DX_OUTPUT_ENV, "--output", "mode"),
+    (DX_FAIL_ON_ENV, "--fail-on", "level"),
+];
+
+/// Spellings that turn a boolean environment default on.
+pub const TRUTHY: [&str; 5] = ["1", "true", "yes", "y", "on"];
+
+/// The `.dx/config.toml` key that carries the same default as an env var.
+pub fn config_key(env: &str) -> Option<&'static str> {
+    ENV_DEFAULTS
+        .iter()
+        .find(|(name, _, _)| *name == env)
+        .map(|(_, flag, _)| flag.trim_start_matches("--"))
+}
+
 pub const CONFIG_TOML_REL: &str = ".dx/config.toml";
 pub const CONFIG_REL: &str = ".dx/config";
 
@@ -23,10 +45,8 @@ pub struct FileDefaults {
 }
 
 pub fn is_truthy(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "1" | "true" | "yes" | "y" | "on"
-    )
+    let value = value.trim().to_ascii_lowercase();
+    TRUTHY.contains(&value.as_str())
 }
 
 pub fn env_string(get: &dyn Fn(&str) -> Option<String>, name: &str) -> Option<String> {
@@ -173,6 +193,31 @@ mod tests {
         for falsy in ["", "0", "false", "no", "off", "tru", "2", "maybe"] {
             assert!(!is_truthy(falsy), "{falsy:?} must not enable");
         }
+    }
+
+    #[test]
+    fn env_defaults_cover_every_documented_variable() {
+        assert_eq!(
+            ENV_DEFAULTS.map(|(env, _, _)| env),
+            [
+                DX_WORKSPACE_ENV,
+                DX_DRY_RUN_ENV,
+                DX_QUIET_ENV,
+                DX_VERBOSE_ENV,
+                DX_COLOR_ENV,
+                DX_OUTPUT_ENV,
+                DX_FAIL_ON_ENV
+            ]
+        );
+        assert_eq!(TRUTHY, ["1", "true", "yes", "y", "on"]);
+        for (env, flag, _) in ENV_DEFAULTS {
+            assert_eq!(
+                config_key(env),
+                Some(flag.trim_start_matches("--")),
+                "{env}"
+            );
+        }
+        assert_eq!(config_key("DX_NOPE"), None);
     }
 
     #[test]

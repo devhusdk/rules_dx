@@ -109,15 +109,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -146,15 +137,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -179,15 +161,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -212,15 +185,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -245,15 +209,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -338,15 +293,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -373,15 +319,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -406,15 +343,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -440,15 +368,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Free disk space (Windows only)
-        if: runner.os == 'Windows'
-        run: |
-          rm -rf /c/Android /c/ghc /c/cabal "/c/Program Files/Haskell" \
-            "$HOME/.cabal" "$HOME/.ghcup" /c/codeql /c/R \
-            "/c/Program Files/R" /c/Julia || true
-          npm cache clean --force >/dev/null 2>&1 || true
-          pip cache purge >/dev/null 2>&1 || true
-          df -h /c || true
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}

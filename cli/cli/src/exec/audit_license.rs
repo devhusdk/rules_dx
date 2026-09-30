@@ -55,6 +55,7 @@ pub(super) fn run_license(
     let mut packages_all: Vec<dx_audit::spdx::SpdxPackage> = Vec::new();
     let mut incomplete: Option<String> = None;
     let mut licensed_all: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
+    let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
     let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
         std::collections::BTreeMap::new();
     let uncovered = dx_audit::backend::sets_without_coverage(sets.iter().map(|set| set.name()));
@@ -71,15 +72,16 @@ pub(super) fn run_license(
             }
             Ok(locks) => locks,
         };
-        let locked = match parse_locked_for_set(*set, &locks) {
+        let (locked, paths) = match parse_locked_for_set(*set, &locks) {
             Err(error) => {
                 if incomplete.is_none() {
                     incomplete = Some(error.to_string());
                 }
                 continue;
             }
-            Ok(locked) => locked,
+            Ok(parsed) => parsed,
         };
+        lock_paths.insert(set.name().to_owned(), paths);
         let mut licensed = match *set {
             dx_update::sets::SetId::Cargo => {
                 let bazel_text =
@@ -211,9 +213,9 @@ pub(super) fn run_license(
         ));
         spdx_index += 1;
         if fails && meets_audit_threshold(level, fail_on) {
-            let lock_path = dx_audit::backend::vuln_locks(&licensed.set)
-                .first()
-                .copied()
+            let lock_path = lock_paths
+                .get(&licensed.set)
+                .map(|paths| paths.of(&licensed.name, &licensed.version))
                 .unwrap_or("unknown lockfile");
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {
@@ -238,9 +240,9 @@ pub(super) fn run_license(
             });
         }
         if notice_fails && meets_audit_threshold("error", fail_on) {
-            let lock_path = dx_audit::backend::vuln_locks(&licensed.set)
-                .first()
-                .copied()
+            let lock_path = lock_paths
+                .get(&licensed.set)
+                .map(|paths| paths.of(&licensed.name, &licensed.version))
                 .unwrap_or("unknown lockfile");
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {

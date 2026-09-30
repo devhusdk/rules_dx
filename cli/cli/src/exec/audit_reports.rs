@@ -269,9 +269,11 @@ fn lock_loading_requires_readable_inputs_and_deduplicates_npm_siblings() {
     harness.write_source("yarn.lock", "demo@^1.0.0:\n  version \"1.0.0\"\n");
     let texts = super::lock_texts_for_set(&harness.workspace, SetId::Npm).expect("three locks");
     assert_eq!(texts.len(), 3);
-    let packages = super::parse_locked_for_set(SetId::Npm, &texts).expect("deduplicate");
+    let (packages, paths) = super::parse_locked_for_set(SetId::Npm, &texts).expect("deduplicate");
     assert_eq!(packages.len(), 1);
     assert_eq!(packages[0].name, "demo");
+    assert_eq!(paths.of("demo", "1.0.0"), "pnpm-lock.yaml");
+    assert_eq!(paths.of("absent", "9.9.9"), "pnpm-lock.yaml");
     assert!(matches!(
         super::parse_locked_for_set(
             SetId::Npm,
@@ -284,6 +286,108 @@ fn lock_loading_requires_readable_inputs_and_deduplicates_npm_siblings() {
         super::lock_texts_for_set(&harness.workspace, SetId::Npm),
         Err(AuditError::NotUtf8 { .. })
     ));
+}
+
+#[test]
+fn audit_live_names_the_lockfile_each_finding_came_from() {
+    use crate::args::parse;
+    use crate::exec::{execute, Env};
+    fn sarif_paths(
+        harness: &Harness,
+        report: &str,
+        driver: &str,
+    ) -> std::collections::BTreeMap<String, String> {
+        let sarif = std::fs::read_to_string(harness.workspace.join(report)).expect("sarif");
+        let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
+        let runs = value["runs"].as_array().expect("runs");
+        let run = runs
+            .iter()
+            .find(|run| {
+                run["tool"]["driver"]["name"] == serde_json::Value::String(driver.to_owned())
+            })
+            .unwrap_or_else(|| panic!("{driver} run in {value}"));
+        let mut by_package: std::collections::BTreeMap<String, String> = Default::default();
+        for result in run["results"].as_array().expect("results") {
+            let message = result["message"]["text"].as_str().expect("message");
+            let package = message.split('@').next().expect("package").to_owned();
+            by_package.insert(
+                package,
+                result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+                    .as_str()
+                    .expect("uri")
+                    .to_owned(),
+            );
+        }
+        by_package
+    }
+    let advisories = serde_json::json!([
+        {"id": "GHSA-aaaa", "package": "pnpmonly", "versions": "1.0.0", "severity": "high", "fixed": ["1.0.1"], "set": "npm"},
+        {"id": "GHSA-bbbb", "package": "jsononly", "versions": "2.0.0", "severity": "high", "fixed": [], "set": "npm"},
+        {"id": "GHSA-cccc", "package": "yarnonly", "versions": "3.0.0", "severity": "high", "fixed": ["3.0.1"], "set": "npm"},
+    ])
+    .to_string();
+    let runner = AuditRunner::clean();
+    let harness = Harness::new("audit-lock-paths");
+    harness.write_source(
+        "pnpm-lock.yaml",
+        "lockfileVersion: '9.0'\n\npackages:\n\n  'pnpmonly@1.0.0':\n    resolution: {integrity: sha512-abc}\n",
+    );
+    harness.write_source(
+        "package-lock.json",
+        r#"{"packages":{"node_modules/jsononly":{"version":"2.0.0","license":"GPL-3.0-only"}}}"#,
+    );
+    harness.write_source("yarn.lock", "yarnonly@^3.0.0:\n  version \"3.0.0\"\n");
+    harness.write_source(
+        "licenses.toml",
+        "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = []\n[[inventory]]\npackage = \"pnpmonly\"\nset = \"npm\"\nlicense = \"AGPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = false\n[[inventory]]\npackage = \"yarnonly\"\nset = \"npm\"\nlicense = \"AGPL-3.0-only\"\nversions = \"3.0.0\"\ntext_present = false\n",
+    );
+    write_advisory(&harness, "npm", &advisories);
+    for (command, report, driver) in [
+        ("security", "vuln.sarif", "vuln"),
+        ("license", "license.sarif", "license"),
+    ] {
+        let invocation = parse(&[
+            command.to_owned(),
+            "//javascript:demo".to_owned(),
+            format!("--report=sarif={report}"),
+        ])
+        .expect("parse");
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = execute(
+            &invocation,
+            Env {
+                workspace: &harness.workspace,
+                runner: &runner,
+                query_runner: &harness.query,
+                temp_dir: &harness.temp,
+                pid: std::process::id(),
+                nonce: 0,
+                out: &mut out,
+                err: &mut err,
+                ci: false,
+            },
+        );
+        let out_text = String::from_utf8(out).expect("stdout");
+        let err_text = String::from_utf8(err).expect("stderr");
+        assert_eq!(code, 1, "{command}: {out_text}{err_text}");
+        let by_package = sarif_paths(&harness, report, driver);
+        assert_eq!(
+            by_package.get("pnpmonly").map(String::as_str),
+            Some("pnpm-lock.yaml"),
+            "{command}: {by_package:?}"
+        );
+        assert_eq!(
+            by_package.get("jsononly").map(String::as_str),
+            Some("package-lock.json"),
+            "{command}: {by_package:?}"
+        );
+        assert_eq!(
+            by_package.get("yarnonly").map(String::as_str),
+            Some("yarn.lock"),
+            "{command}: {by_package:?}"
+        );
+    }
 }
 
 #[test]

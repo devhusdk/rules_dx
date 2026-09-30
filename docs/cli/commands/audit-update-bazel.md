@@ -36,6 +36,10 @@ do not apply.
 `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot. Sets
 without a snapshot are listed as `no advisory coverage for <sets>`.
 
+`dx security` and `dx license` read `pnpm-lock.yaml`, `package-lock.json`, and
+`yarn.lock` for the `npm` set, and the lockfile of every other set. Each finding
+names the lockfile it was read from.
+
 `dx security` reads `security.toml` from the workspace root. Without the file
 no finding is exempted. Each `[[exception]]` needs `advisory`, `package`, `set`,
 `versions`, `reason`, and `expires`. `schema_version` is `1`.

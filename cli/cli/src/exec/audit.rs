@@ -292,11 +292,28 @@ fn lock_texts_for_set(
     Ok(out)
 }
 
+/// Which lockfile each parsed package was read from.
+#[derive(Clone, Debug)]
+struct LockPaths {
+    by_package: BTreeMap<(String, String), String>,
+    fallback: String,
+}
+
+impl LockPaths {
+    fn of(&self, name: &str, version: &str) -> &str {
+        match self.by_package.get(&(name.to_owned(), version.to_owned())) {
+            Some(rel) => rel.as_str(),
+            None => self.fallback.as_str(),
+        }
+    }
+}
+
 fn parse_locked_for_set(
     set: dx_update::sets::SetId,
     locks: &[(String, String)],
-) -> Result<Vec<dx_audit::vuln::LockedPackage>, AuditError> {
+) -> Result<(Vec<dx_audit::vuln::LockedPackage>, LockPaths), AuditError> {
     let mut all = Vec::new();
+    let mut by_package: BTreeMap<(String, String), String> = BTreeMap::new();
     for (rel, text) in locks {
         let mut packages = match set {
             dx_update::sets::SetId::Cargo => dx_audit::locks::parse_cargo_lock(text),
@@ -320,11 +337,26 @@ fn parse_locked_for_set(
             rel: rel.clone(),
             detail,
         })?;
+        for package in &packages {
+            by_package
+                .entry((package.name.clone(), package.version.clone()))
+                .or_insert_with(|| rel.clone());
+        }
         all.append(&mut packages);
     }
     all.sort_by(|a, b| (&a.set, &a.name, &a.version).cmp(&(&b.set, &b.name, &b.version)));
     all.dedup_by(|b, a| a.set == b.set && a.name == b.name && a.version == b.version);
-    Ok(all)
+    let fallback = locks
+        .first()
+        .map(|(rel, _)| rel.clone())
+        .unwrap_or_else(|| "unknown lockfile".to_owned());
+    Ok((
+        all,
+        LockPaths {
+            by_package,
+            fallback,
+        },
+    ))
 }
 
 fn default_license_policy() -> dx_audit::license_policy::LicensePolicy {
@@ -701,14 +733,14 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
             Ok(locks) => locks,
         };
-        let packages = match parse_locked_for_set(*set, &locks) {
+        let (packages, lock_paths) = match parse_locked_for_set(*set, &locks) {
             Err(error) => {
                 if incomplete.is_none() {
                     incomplete = Some(error.to_string());
                 }
                 continue;
             }
-            Ok(packages) => packages,
+            Ok(parsed) => parsed,
         };
         let advisories = match load_advisories(workspace, *set, today) {
             Err(error) => {
@@ -745,10 +777,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
         }
         for finding in &unexempted {
-            let lock_path = dx_audit::backend::vuln_locks(set.name())
-                .first()
-                .copied()
-                .unwrap_or("unknown lockfile");
+            let lock_path = lock_paths.of(&finding.package, &finding.version);
             let fixed = if finding.fixed.is_empty() {
                 "no fixed version available".to_owned()
             } else {

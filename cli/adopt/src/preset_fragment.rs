@@ -1,87 +1,17 @@
-use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-pub const PRESET_BAZEL_VERSION: &str = "9.2.0";
-
-const UPSTREAM_FLAGS: [&str; 3] = [
-    "common --enable_bzlmod",
-    "build --verbose_failures",
-    "test --test_output=errors",
-];
-
-const COVERAGE_FLAGS: [&str; 8] = [
-    "common --enable_platform_specific_config",
-    "coverage --test_env=GENERATE_LLVM_LCOV=1",
-    "coverage --combined_report=lcov",
-    "coverage --test_tag_filters=-no-coverage",
-    "coverage --enable_runfiles",
-    "coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-    "coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-    "coverage --instrumentation_filter=^//",
-];
-
-const BUILD_PROFILES: [&str; 5] = [
-    "build:dx_debug --compilation_mode=dbg",
-    "build:dx_dev --compilation_mode=fastbuild",
-    "build:dx_release --compilation_mode=opt",
-    "build:dx_dev_remote --compilation_mode=fastbuild",
-    "build:dx_toolchain --compilation_mode=fastbuild",
-];
-
-const WINDOWS_FLAGS: [&str; 1] = ["build:windows --enable_runfiles"];
+pub use dx_preset::PRESET_BAZEL_VERSION;
 
 pub fn render_preset_fragment() -> String {
-    let mut lines = vec![
-        "# Vendored Bazel execution preset -- GENERATED, do not edit.".to_owned(),
-        "# Regenerate: `bazel run //tools/bazelrc:preset_update`.".to_owned(),
-    ];
-    lines.extend(UPSTREAM_FLAGS.iter().map(|s| (*s).to_owned()));
-    lines.extend(COVERAGE_FLAGS.iter().map(|s| (*s).to_owned()));
-    lines.extend(BUILD_PROFILES.iter().map(|s| (*s).to_owned()));
-    lines.extend(WINDOWS_FLAGS.iter().map(|s| (*s).to_owned()));
-    let mut out = lines.join("\n");
-    out.push('\n');
-    out
-}
-
-fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
-    rendered
-        .lines()
-        .filter_map(|line| {
-            if line.is_empty() || line.starts_with('#') {
-                None
-            } else {
-                Some(line.to_owned())
-            }
-        })
-        .collect()
+    dx_preset::render_fragment()
 }
 
 pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<String> {
-    let rendered_lines = rendered_flag_lines(rendered);
-    let mut collisions = Vec::new();
-    for raw in root_content.lines() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        if line.starts_with("import ") || line.starts_with("try-import ") {
-            continue;
-        }
-        if rendered_lines.contains(line) {
-            collisions.push(line.to_owned());
-        }
-    }
-    collisions.sort();
-    collisions.dedup();
-    collisions
+    dx_preset::owned_collisions_in_content(root_content, rendered)
 }
 
-pub fn preset_paths(workspace: &Path) -> (std::path::PathBuf, std::path::PathBuf) {
-    (
-        workspace.join(".bazelrc"),
-        workspace.join("tools/bazelrc/preset.bazelrc"),
-    )
+pub fn preset_paths(workspace: &Path) -> (PathBuf, PathBuf) {
+    dx_preset::preset_paths(workspace)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -94,105 +24,66 @@ pub enum PresetError {
     Unwritable { path: String, detail: String },
 }
 
-fn unified_diff(checked_in: &str, regenerated: &str) -> String {
-    let old: Vec<&str> = checked_in.lines().collect();
-    let new: Vec<&str> = regenerated.lines().collect();
-    let mut out = vec!["--- checked-in".to_owned(), "+++ regenerated".to_owned()];
-    let max = old.len().max(new.len());
-    for i in 0..max {
-        let o = old.get(i).copied().unwrap_or("");
-        let n = new.get(i).copied().unwrap_or("");
-        if o != n {
-            if i < old.len() {
-                out.push(format!("-{o}"));
-            }
-            if i < new.len() {
-                out.push(format!("+{n}"));
-            }
-        }
+fn root_collisions(root_path: &Path, rendered: &str) -> Result<Vec<String>, PresetError> {
+    match std::fs::read_to_string(root_path) {
+        Ok(content) => Ok(owned_collisions_in_content(&content, rendered)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(PresetError::Unwritable {
+            path: ".bazelrc".to_owned(),
+            detail: error.to_string(),
+        }),
     }
-    out.join("\n")
+}
+
+fn collision_error(collisions: &[String]) -> PresetError {
+    PresetError::OwnedCollision {
+        lines: collisions.join(", "),
+    }
+}
+
+fn stale_error(detail: String) -> PresetError {
+    PresetError::Stale { detail }
 }
 
 pub fn check_preset(workspace: &Path) -> Result<(), PresetError> {
     let (root_path, fragment_path) = preset_paths(workspace);
     let rendered = render_preset_fragment();
-    let rendered_lines = rendered_flag_lines(&rendered);
-    if let Ok(root_content) = std::fs::read_to_string(&root_path) {
-        let mut collisions = Vec::new();
-        for raw in root_content.lines() {
-            let line = raw.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            if line.starts_with("import ") || line.starts_with("try-import ") {
-                continue;
-            }
-            if rendered_lines.contains(line) {
-                collisions.push(line.to_owned());
-            }
-        }
-        collisions.sort();
-        collisions.dedup();
-        if !collisions.is_empty() {
-            return Err(PresetError::OwnedCollision {
-                lines: collisions.join(", "),
-            });
-        }
+    let collisions = root_collisions(&root_path, &rendered)?;
+    if !collisions.is_empty() {
+        return Err(collision_error(&collisions));
     }
-    let checked_in = std::fs::read_to_string(&fragment_path).map_err(|e| PresetError::Stale {
-        detail: format!(
-            "tools/bazelrc/preset.bazelrc is stale (missing); run `dx update` to regenerate ({e})"
-        ),
+    let checked_in = std::fs::read_to_string(&fragment_path).map_err(|error| {
+        stale_error(format!(
+            "tools/bazelrc/preset.bazelrc is stale (missing); run `dx update` to regenerate ({error})"
+        ))
     })?;
     if checked_in == rendered {
         Ok(())
     } else {
-        let diff = unified_diff(&checked_in, &rendered);
-        Err(PresetError::Stale {
-            detail: format!(
-                "tools/bazelrc/preset.bazelrc is stale; run `dx update` to regenerate\n{diff}"
-            ),
-        })
+        Err(stale_error(format!(
+            "tools/bazelrc/preset.bazelrc is stale; run `dx update` to regenerate\n{}",
+            dx_preset::unified_diff(&checked_in, &rendered)
+        )))
     }
 }
 
 pub fn update_preset(workspace: &Path) -> Result<(), PresetError> {
     let (root_path, fragment_path) = preset_paths(workspace);
     let rendered = render_preset_fragment();
-    let rendered_lines = rendered_flag_lines(&rendered);
-    if let Ok(root_content) = std::fs::read_to_string(&root_path) {
-        let mut collisions = Vec::new();
-        for raw in root_content.lines() {
-            let line = raw.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            if line.starts_with("import ") || line.starts_with("try-import ") {
-                continue;
-            }
-            if rendered_lines.contains(line) {
-                collisions.push(line.to_owned());
-            }
-        }
-        collisions.sort();
-        collisions.dedup();
-        if !collisions.is_empty() {
-            return Err(PresetError::OwnedCollision {
-                lines: collisions.join(", "),
-            });
-        }
+    let collisions = root_collisions(&root_path, &rendered)?;
+    if !collisions.is_empty() {
+        return Err(collision_error(&collisions));
     }
     if let Some(parent) = fragment_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| PresetError::Unwritable {
+        std::fs::create_dir_all(parent).map_err(|error| PresetError::Unwritable {
             path: "tools/bazelrc/preset.bazelrc".to_owned(),
-            detail: e.to_string(),
+            detail: error.to_string(),
         })?;
     }
-    dx_atomic_fs::write_atomic(&fragment_path, rendered.as_bytes()).map_err(|e| {
+    dx_atomic_fs::write_atomic(&fragment_path, rendered.as_bytes()).map_err(|error| {
         PresetError::Unwritable {
             path: "tools/bazelrc/preset.bazelrc".to_owned(),
-            detail: e.to_string(),
+            detail: error.to_string(),
         }
     })?;
     Ok(())
@@ -210,18 +101,6 @@ mod tests {
         assert!(!rendered.contains("Version-matched to Bazel"));
         assert!(!rendered.contains("Consumer refresh:"));
         assert!(!rendered.contains("Upstream-derived flags"));
-        assert_eq!(UPSTREAM_FLAGS.len(), 3);
-        assert_eq!(COVERAGE_FLAGS.len(), 8);
-        assert_eq!(BUILD_PROFILES.len(), 5);
-        assert_eq!(WINDOWS_FLAGS.len(), 1);
-        for flag in UPSTREAM_FLAGS
-            .iter()
-            .chain(COVERAGE_FLAGS.iter())
-            .chain(BUILD_PROFILES.iter())
-            .chain(WINDOWS_FLAGS.iter())
-        {
-            assert!(rendered.contains(flag), "missing {flag}");
-        }
         assert!(rendered.ends_with('\n'));
         assert!(!rendered.ends_with("\n\n"));
     }
@@ -283,5 +162,42 @@ mod tests {
             Err(PresetError::OwnedCollision { .. })
         ));
         scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn repeated_offending_line_is_reported_once() {
+        let rendered = render_preset_fragment();
+        let root = "build --verbose_failures\nbuild --verbose_failures\ncommon --enable_bzlmod\n";
+        assert_eq!(
+            owned_collisions_in_content(root, &rendered),
+            vec![
+                "build --verbose_failures".to_owned(),
+                "common --enable_bzlmod".to_owned()
+            ]
+        );
+    }
+
+    #[test]
+    fn unreadable_root_bazelrc_fails_closed() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let scratch = dx_test_scratch::scratch("dx-preset-unreadable-");
+            let root = scratch.path().to_path_buf();
+            let bazelrc = root.join(".bazelrc");
+            std::fs::write(&bazelrc, "common --enable_bzlmod\n").expect("bazelrc");
+            let mut permissions = std::fs::metadata(&bazelrc).expect("stat").permissions();
+            permissions.set_mode(0o000);
+            std::fs::set_permissions(&bazelrc, permissions).expect("chmod");
+            let outcome = check_preset(&root);
+            std::fs::set_permissions(&bazelrc, std::fs::Permissions::from_mode(0o600))
+                .expect("chmod back");
+            match outcome {
+                Err(PresetError::Unwritable { path, .. }) => assert_eq!(path, ".bazelrc"),
+                other => panic!("want Unwritable for an unreadable .bazelrc, got {other:?}"),
+            }
+            scratch.close().expect("cleanup");
+        }
     }
 }

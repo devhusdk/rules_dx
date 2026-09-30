@@ -27,6 +27,7 @@ dx_rust_crate(
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/fingerprint:dx_fingerprint",
+        "//tools/bazelrc:dx_preset",
     ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
     deps = [

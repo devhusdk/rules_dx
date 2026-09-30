@@ -77,6 +77,7 @@ pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<St
         }
     }
     collisions.sort();
+    collisions.dedup();
     collisions
 }
 
@@ -290,9 +291,10 @@ mod tests {
     }
 
     #[test]
-    fn collisions_sort_without_dedup_drift() {
+    fn collisions_are_sorted_and_deduped() {
         let rendered = render_fragment();
-        let root = "test --test_output=errors\nbuild --verbose_failures\n";
+        let root =
+            "test --test_output=errors\nbuild --verbose_failures\ntest --test_output=errors\n";
         let collisions = owned_collisions_in_content(root, &rendered);
         assert_eq!(
             collisions,

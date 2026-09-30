@@ -20,6 +20,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:resolve rust dx_lcov //cli/lcov:dx_lcov
 # gazelle:resolve rust dx_output //cli/output:dx_output
 # gazelle:resolve rust dx_path //cli/path:dx_path
+# gazelle:resolve rust dx_preset //tools/bazelrc:dx_preset
 # gazelle:resolve rust dx_process //cli/process:dx_process
 # gazelle:resolve rust dx_proto_validate //cli/proto_validate:dx_proto_validate
 # gazelle:resolve rust dx_roots //cli/roots:dx_roots
@@ -136,7 +137,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/bazelrc:dx_preset",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_config(

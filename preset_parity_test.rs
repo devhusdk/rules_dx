@@ -18,6 +18,14 @@ fn preset_parity() {
     let dx = data("DX_DX_BIN");
     let preset_rs = data("DX_PRESET_RS");
 
+    let expected_text = std::fs::read_to_string(&expected).expect("read checked-in preset");
+    assert_eq!(
+        dx_preset::render_fragment(),
+        expected_text,
+        "//tools/bazelrc:preset_update would rewrite tools/bazelrc/preset.bazelrc; \
+         run `bazel run //tools/bazelrc:preset_update`"
+    );
+
     dx_testing::expect_contains(
         &expected,
         &[

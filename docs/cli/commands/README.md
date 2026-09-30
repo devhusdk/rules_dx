@@ -50,6 +50,8 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means
   release. Every other command rejects them.
+- `--offline`, `--frozen`: run cache-only, no network fetches. Taken by
+  `security`, `license`, `update`, and `bump`. Every other command rejects it.
 - `--here`: limit to the current directory tree.
 - `-h`, `--help`: print help for a command.
 - `-V`, `--version`: print the version.

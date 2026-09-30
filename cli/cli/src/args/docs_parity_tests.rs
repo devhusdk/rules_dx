@@ -537,6 +537,15 @@ fn global_flags_page_names_every_check_command() {
 }
 
 #[test]
+fn global_flags_page_names_every_offline_command() {
+    assert_eq!(
+        global_flag_bullet_names("offline"),
+        commands_where(Command::supports_offline),
+        "docs/cli/commands/README.md --offline bullet must name every command that runs cache-only"
+    );
+}
+
+#[test]
 fn global_flags_page_names_every_profile_command() {
     assert_eq!(
         global_flag_bullet_names("debug"),

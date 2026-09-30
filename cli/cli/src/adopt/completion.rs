@@ -271,6 +271,32 @@ mod tests {
             powershell.contains("dx __complete"),
             "powershell must call back into the binary"
         );
+        let marker = format!("#{}: completion callback.", crate::args::DYNAMIC_MARKER);
+        assert_eq!(
+            powershell.matches(&marker).count(),
+            1,
+            "powershell must splice the dynamic callback exactly once"
+        );
+        let pipeline = crate::args::POWERSHELL_PIPELINE_ANCHOR;
+        assert_eq!(
+            powershell.matches(pipeline).count(),
+            1,
+            "powershell must expose exactly one completion pipeline to splice before"
+        );
+        let callback_at = powershell
+            .find(&marker)
+            .expect("powershell misses the dynamic callback block");
+        let completer_at = powershell
+            .find("Register-ArgumentCompleter")
+            .expect("powershell misses the native completer block");
+        let pipeline_at = powershell
+            .find(pipeline)
+            .expect("powershell misses the completion pipeline");
+        assert!(
+            completer_at < callback_at && callback_at < pipeline_at,
+            "powershell callback must sit inside the generated completer block and before the completion pipeline, \
+             otherwise it is an orphan fragment no shell will run"
+        );
         let fish = crate::args::render_completion("fish").expect("render");
         for line in [
             "__fish_seen_subcommand_from watch' -a 'build check fix format lint run test typecheck'",

@@ -12,8 +12,8 @@ pub mod tokenizer;
 pub mod values;
 
 pub use command::{Command, WorkflowVerb};
-pub use complete::{completes_labels, run_complete, COMPLETE_SUBCOMMAND};
-pub use completion::{render_completion, COMPLETION_SHELLS};
+pub use complete::{completes_labels, run_complete, COMPLETE_SUBCOMMAND, DYNAMIC_MARKER};
+pub use completion::{render_completion, COMPLETION_SHELLS, POWERSHELL_PIPELINE_ANCHOR};
 pub use error::ArgsError;
 pub use grammar::cli_command;
 pub use invocation::{apply_here, here_scope, Invocation, ReportRequest};

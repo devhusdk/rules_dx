@@ -7,6 +7,8 @@ use super::ArgsError;
 
 pub const COMPLETION_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
 
+pub const POWERSHELL_PIPELINE_ANCHOR: &str = "    $completions.Where{";
+
 fn sorted_join(names: &[&str]) -> String {
     let mut sorted: Vec<&str> = names.to_vec();
     sorted.sort_unstable();
@@ -110,15 +112,18 @@ fn fish_dynamic(text: &mut String) {
     ));
 }
 
-fn powershell_dynamic(text: &mut String) {
+fn powershell_dynamic(text: &mut String) -> Result<(), ArgsError> {
     let block = format!(
         "    if ($command -ne 'dx') {{\n        #{DYNAMIC_MARKER}: completion callback.\n        try {{\n            $dxWords = @()\n            for ($i = 1; $i -lt $commandElements.Count; $i++) {{\n                $element = $commandElements[$i]\n                if ($element -is [StringConstantExpressionAst] -and $element.Value -ne $wordToComplete) {{\n                    $dxWords += $element.Value\n                }}\n            }}\n            $dxDynamic = @(dx {COMPLETE_SUBCOMMAND} @dxWords \"$wordToComplete\" 2>$null)\n            foreach ($candidate in $dxDynamic) {{\n                if ($candidate -ne '') {{\n                    $completions += [CompletionResult]::new($candidate, $candidate, [CompletionResultType]::ParameterValue, $candidate)\n                }}\n            }}\n        }} catch {{}}\n    }}\n"
     );
-    let anchor = "    $completions.Where{";
-    if let Some(pos) = text.find(anchor) {
-        text.insert_str(pos, &block);
-    } else {
-        text.push_str(&format!("\n{block}"));
+    match text.find(POWERSHELL_PIPELINE_ANCHOR) {
+        Some(pos) => {
+            text.insert_str(pos, &block);
+            Ok(())
+        }
+        None => Err(ArgsError::UnknownShell {
+            shell: "powershell".to_owned(),
+        }),
     }
 }
 
@@ -175,7 +180,7 @@ pub fn render_completion(shell: &str) -> Result<String, ArgsError> {
                     shell: shell.to_owned(),
                 });
             }
-            powershell_dynamic(&mut text);
+            powershell_dynamic(&mut text)?;
         }
         "bash" => {
             bash_dynamic(&mut text)?;

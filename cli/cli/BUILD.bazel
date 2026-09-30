@@ -264,6 +264,7 @@ rust_test(
         "//:.bazelignore",
         "//:.gitignore",
         "//:biome.json",
+        "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//cli/cli/tests/fixtures/help_goldens:goldens",

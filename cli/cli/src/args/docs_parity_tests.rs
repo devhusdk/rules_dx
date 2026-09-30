@@ -797,6 +797,104 @@ fn docs_page_names_every_workflow_input() {
     }
 }
 
+fn workflow_jobs(text: &str) -> Vec<(String, String)> {
+    let mut jobs: Vec<(String, String)> = Vec::new();
+    let mut current: Option<(String, String)> = None;
+    let mut in_jobs = false;
+    for line in text.lines() {
+        if line == "jobs:" {
+            in_jobs = true;
+            continue;
+        }
+        if !in_jobs {
+            continue;
+        }
+        if let Some(id) = line
+            .strip_prefix("  ")
+            .and_then(|rest| rest.strip_suffix(':'))
+            .filter(|id| !id.is_empty() && !id.contains(char::is_whitespace))
+        {
+            if let Some(job) = current.take() {
+                jobs.push(job);
+            }
+            current = Some((id.to_owned(), String::new()));
+            continue;
+        }
+        if let Some(job) = current.as_mut() {
+            job.1.push('\n');
+            job.1.push_str(line);
+        }
+    }
+    if let Some(job) = current.take() {
+        jobs.push(job);
+    }
+    jobs
+}
+
+fn job_needs(body: &str) -> Vec<String> {
+    const KEY: &str = "\n    needs:";
+    let Some(start) = body.find(KEY) else {
+        return Vec::new();
+    };
+    let tail = &body[start + KEY.len()..];
+    let end = [
+        "\n    if:",
+        "\n    runs-on:",
+        "\n    timeout-minutes:",
+        "\n    steps:",
+        "\n    strategy:",
+    ]
+    .iter()
+    .filter_map(|marker| tail.find(marker))
+    .min()
+    .unwrap_or(tail.len());
+    tail[..end]
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.starts_with('#'))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .split(|c: char| !c.is_ascii_alphanumeric() && c != '-')
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+fn aggregates_needs(body: &str) -> bool {
+    body.to_lowercase().contains("tojson(needs)")
+}
+
+#[test]
+fn aggregate_jobs_need_every_other_job_in_the_workflow() {
+    for workflow in ["ci.yml", "reusable-consumer.yml"] {
+        let path = workspace_root().join(".github/workflows").join(workflow);
+        let jobs =
+            workflow_jobs(&std::fs::read_to_string(&path).expect("workflow ships as test data"));
+        assert!(jobs.len() > 1, "{workflow} declares no aggregate job");
+        let aggregates: Vec<&(String, String)> = jobs
+            .iter()
+            .filter(|(_, body)| aggregates_needs(body))
+            .collect();
+        assert_eq!(
+            aggregates.len(),
+            1,
+            "{workflow} must aggregate over its needs exactly once"
+        );
+        let (id, body) = aggregates[0];
+        let needs = job_needs(body);
+        for (other, _) in &jobs {
+            if other == id {
+                continue;
+            }
+            assert!(
+                needs.contains(other),
+                "{workflow}: the {id} required check must need {other}; without it a failing \
+                 {other} reports green behind the aggregate"
+            );
+        }
+    }
+}
+
 fn ignored_dir(text: &str, dir: &str) -> bool {
     text.lines()
         .map(str::trim)

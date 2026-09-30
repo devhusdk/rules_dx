@@ -2,7 +2,7 @@ dx build - run Bazel build over resolved targets
 
 run Bazel build over resolved targets
 
-Usage: dx [global-options] build|test [--here] [--debug|--release] [scope ...] [-- bazel-options ...]
+Usage: dx build|test [--here] [--debug|--release] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...

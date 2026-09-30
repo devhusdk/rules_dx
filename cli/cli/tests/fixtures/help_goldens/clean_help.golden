@@ -2,7 +2,7 @@ dx clean - prune unselected managed state, never Bazel outputs unless --bazel (n
 
 prune unselected managed state, never Bazel outputs unless --bazel (no scopes)
 
-Usage: dx [global-options] clean [--dry-run] [--bazel]
+Usage: dx clean [--dry-run] [--bazel]
 
 Arguments:
   [TARGETS]...

@@ -241,6 +241,41 @@ fn command_help_only_advertises_accepted_flags() {
     }
 }
 
+#[test]
+fn usage_strings_and_docs_put_dx_flags_after_the_command() {
+    for command in Command::value_variants() {
+        let command = *command;
+        let usage = command.usage();
+        let Some(rest) = usage.strip_prefix("Usage: dx ") else {
+            panic!(
+                "dx {} usage must start with `Usage: dx `: {usage}",
+                command.name()
+            );
+        };
+        let slot: Vec<&str> = rest
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .split('|')
+            .collect();
+        assert!(
+            !slot.is_empty() && slot.iter().all(|name| Command::parse(name).is_some()),
+            "dx {} usage must name the command before its flags: {usage}",
+            command.name()
+        );
+    }
+    let readme =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    assert!(
+        readme.contains("flags after the command"),
+        "docs/cli/commands/README.md must put dx flags after the command:\n{readme}"
+    );
+    assert!(
+        !readme.contains("flags before the command"),
+        "docs/cli/commands/README.md still puts dx flags before the command"
+    );
+}
+
 fn words_taking_bazel_options(command: Command) -> Vec<String> {
     let name = command.name();
     if command == Command::Bazel {

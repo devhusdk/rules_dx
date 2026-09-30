@@ -254,6 +254,7 @@ rust_test(
     crate = ":dx_cli",
     data = [
         ":dx",
+        ":man_pages",
         "//:.bazelignore",
         "//:.gitignore",
         "//:biome.json",

@@ -2,7 +2,7 @@ dx lint - run lint analysis over resolved scopes (mutating by default; --check i
 
 run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
 
-Usage: dx [global-options] lint|typecheck|format|generate [--check] [--here] [scope ...] [-- bazel-options ...]
+Usage: dx lint|typecheck|format|generate [--check] [--here] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...

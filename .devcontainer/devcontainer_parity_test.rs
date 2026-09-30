@@ -15,9 +15,9 @@ fn devcontainer_parity() {
     let init = dx_testing::run(
         &dx,
         &[
+            "init",
             "--workspace",
             scratch.to_string_lossy().as_ref(),
-            "init",
             "--quiet",
         ],
         &[],

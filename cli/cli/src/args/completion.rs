@@ -204,11 +204,7 @@ fn label_hint(current: &str) -> Vec<String> {
     }
 }
 
-fn label_candidates_from_workspace(
-    workspace: &Path,
-    current: &str,
-    limit: usize,
-) -> Vec<String> {
+fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize) -> Vec<String> {
     if current.starts_with('@') {
         return Vec::new();
     }

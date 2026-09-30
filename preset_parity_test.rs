@@ -6,9 +6,10 @@ fn data(name: &str) -> PathBuf {
 }
 
 fn dx_update(dx: &Path, scratch: &Path, args: &[&str]) -> dx_testing::Run {
+    let (command, rest) = args.split_first().expect("dx_update needs a command");
     let workspace = scratch.to_string_lossy().into_owned();
-    let mut full = vec!["--workspace", workspace.as_str()];
-    full.extend(args);
+    let mut full = vec![*command, "--workspace", workspace.as_str()];
+    full.extend_from_slice(rest);
     dx_testing::run(dx, &full, &[]).expect("dx update must execute")
 }
 

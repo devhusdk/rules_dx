@@ -2,7 +2,7 @@ dx docs - build, check, and serve the unified documentation site (non-mutating; 
 
 build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)
 
-Usage: dx [global-options] docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]
+Usage: dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...

@@ -2,7 +2,7 @@ dx bazel - forward raw arguments to the Bazel launcher
 
 forward raw arguments to the Bazel launcher
 
-Usage: dx [global-options] bazel [-- bazel-args ...]
+Usage: dx bazel [-- bazel-args ...]
 
 Arguments:
   [TARGETS]...

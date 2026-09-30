@@ -1,6 +1,6 @@
 # Command Reference
 
-Every `dx` command runs through Bazel. Put `dx` flags before the command,
+Every `dx` command runs through Bazel. Put `dx` flags after the command,
 Bazel flags after `--`.
 
 ```sh

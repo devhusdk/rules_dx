@@ -47,7 +47,9 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `check`, `fix`, `update`, `version`, `completion`, and `docs`.
   Every other command rejects it.
-- `--debug`, `--release`: build profiles for build-like commands.
+- `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
+  `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means
+  release. Every other command rejects them.
 - `--here`: limit to the current directory tree.
 - `-h`, `--help`: print help for a command.
 - `-V`, `--version`: print the version.

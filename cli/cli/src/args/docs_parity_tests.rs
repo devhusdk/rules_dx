@@ -537,6 +537,15 @@ fn global_flags_page_names_every_check_command() {
 }
 
 #[test]
+fn global_flags_page_names_every_profile_command() {
+    assert_eq!(
+        global_flag_bullet_names("debug"),
+        commands_where(Command::supports_profile),
+        "docs/cli/commands/README.md --debug bullet must name every command that takes a build profile"
+    );
+}
+
+#[test]
 fn global_flags_page_documents_every_banner_option() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");

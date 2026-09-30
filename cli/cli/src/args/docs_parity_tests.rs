@@ -400,11 +400,14 @@ fn docs_report_formats_match_the_command_registry() {
 }
 
 fn flag_bullet(page: &str, flag: &str) -> String {
-    let head = format!("- `--{flag} ");
+    let head = format!("- `--{flag}");
     let mut bullet: Option<String> = None;
     let mut continued = String::new();
     for line in page.lines() {
-        if line.starts_with(&head) {
+        if line
+            .strip_prefix(&head)
+            .is_some_and(|rest| rest.starts_with([' ', '`']))
+        {
             bullet = Some(line.to_owned());
             continued.clear();
             continue;
@@ -450,17 +453,42 @@ fn registry_reports() -> Vec<String> {
     formats
 }
 
-#[test]
-fn global_flags_page_names_every_reporting_command_and_format() {
+fn global_flag_bullet(flag: &str) -> String {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let bullet = flag_bullet(&page, "report");
-    let mut documented: Vec<String> = backticked(&bullet)
+    flag_bullet(&page, flag)
+}
+
+fn global_flag_bullet_names(flag: &str) -> Vec<String> {
+    let mut tokens = backticked(&global_flag_bullet(flag));
+    let head = tokens.remove(0);
+    assert!(
+        head.trim_start_matches('-').starts_with(flag),
+        "the {flag} bullet opens with {head:?} instead of the flag itself"
+    );
+    let mut names: Vec<String> = tokens
         .into_iter()
         .filter(|token| Command::parse(token).is_some())
         .collect();
-    documented.sort();
-    documented.dedup();
+    names.sort();
+    names.dedup();
+    names
+}
+
+fn commands_where(predicate: impl Fn(Command) -> bool) -> Vec<String> {
+    let mut names: Vec<String> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| predicate(*command))
+        .map(|command| command.name().to_owned())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn global_flags_page_names_every_reporting_command_and_format() {
+    let bullet = global_flag_bullet("report");
     let mut reporting: Vec<String> = Command::value_variants()
         .iter()
         .copied()
@@ -469,7 +497,8 @@ fn global_flags_page_names_every_reporting_command_and_format() {
         .collect();
     reporting.sort();
     assert_eq!(
-        documented, reporting,
+        global_flag_bullet_names("report"),
+        reporting,
         "docs/cli/commands/README.md --report bullet must name every command with a report format"
     );
     for format in registry_reports() {
@@ -482,49 +511,28 @@ fn global_flags_page_names_every_reporting_command_and_format() {
 
 #[test]
 fn global_flags_page_names_exactly_the_narrow_output_commands() {
-    let page =
-        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let bullet = flag_bullet(&page, "output");
-    let mut documented: Vec<String> = backticked(&bullet)
-        .into_iter()
-        .filter(|token| Command::parse(token).is_some())
-        .collect();
-    documented.sort();
-    documented.dedup();
-    let mut narrow: Vec<String> = Command::value_variants()
-        .iter()
-        .copied()
-        .filter(|command| command.supports_diff() || !command.supports_json())
-        .map(|command| command.name().to_owned())
-        .collect();
-    narrow.sort();
     assert_eq!(
-        documented, narrow,
+        global_flag_bullet_names("output"),
+        commands_where(|command| command.supports_diff() || !command.supports_json()),
         "docs/cli/commands/README.md --output bullet must name every command that accepts `diff` or rejects `json`"
     );
 }
 
 #[test]
 fn global_flags_page_names_every_fail_on_command() {
-    let page =
-        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let bullet = flag_bullet(&page, "fail-on");
-    let mut documented: Vec<String> = backticked(&bullet)
-        .into_iter()
-        .filter(|token| Command::parse(token).is_some())
-        .collect();
-    documented.sort();
-    documented.dedup();
-    let mut thresholded: Vec<String> = Command::value_variants()
-        .iter()
-        .copied()
-        .filter(|command| command.supports_fail_on())
-        .map(|command| command.name().to_owned())
-        .collect();
-    thresholded.sort();
     assert_eq!(
-        documented, thresholded,
+        global_flag_bullet_names("fail-on"),
+        commands_where(Command::supports_fail_on),
         "docs/cli/commands/README.md --fail-on bullet must name every command that takes a threshold"
+    );
+}
+
+#[test]
+fn global_flags_page_names_every_check_command() {
+    assert_eq!(
+        global_flag_bullet_names("check"),
+        commands_where(Command::supports_check),
+        "docs/cli/commands/README.md --check bullet must name every command that takes a check mode"
     );
 }
 

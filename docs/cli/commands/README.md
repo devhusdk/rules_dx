@@ -44,7 +44,9 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
   `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
   Every other command rejects it.
 - `--min-coverage <percent>`: fail `coverage` below this percent.
-- `--check`: report without changing files, where supported.
+- `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
+  `generate`, `check`, `fix`, `update`, `version`, `completion`, and `docs`.
+  Every other command rejects it.
 - `--debug`, `--release`: build profiles for build-like commands.
 - `--here`: limit to the current directory tree.
 - `-h`, `--help`: print help for a command.

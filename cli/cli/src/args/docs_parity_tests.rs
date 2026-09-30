@@ -1139,6 +1139,18 @@ fn security_docs_scope_table_matches_owning_sets() {
         ),
         "the scope table must name every set a scope can own, and nothing else"
     );
+    let documented_paths: Vec<String> = rows
+        .iter()
+        .map(|(path, _)| path.trim_start_matches('/').to_owned())
+        .collect();
+    for (prefix, _) in dx_update::selector::owning_prefixes() {
+        assert!(
+            documented_paths
+                .iter()
+                .any(|path| path == prefix || path == &format!("{prefix}/...")),
+            "OWNING_PREFIXES maps {prefix:?}, which the scope table does not name"
+        );
+    }
 }
 
 #[test]

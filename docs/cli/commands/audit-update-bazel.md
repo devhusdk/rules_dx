@@ -67,8 +67,8 @@ scope narrows which sets run, never which packages inside a lockfile.
 
 A scope that owns no set exits `2` and names the audited sets. `//...` and
 `MODULE.bazel` select every set. The four `uv` sets resolve but have no
-snapshot, so they report `no advisory coverage`. Paths with no set at all are
-`examples/adopt-cpp`.
+snapshot, so they report `no advisory coverage`. Every path outside the table
+owns no set.
 
 `dx security` and `dx license` read `pnpm-lock.yaml`, `package-lock.json`, and
 `yarn.lock` for the `npm` set, and the lockfile of every other set. The `ruby`

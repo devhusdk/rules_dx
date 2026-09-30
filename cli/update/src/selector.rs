@@ -330,10 +330,14 @@ const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
     ("csharp", &[SetId::NuGet]),
     ("fsharp", &[SetId::NuGet]),
     ("third_party/dotnet", &[SetId::NuGet]),
-    ("paket-files", &[SetId::NuGet]),
     ("go", &[SetId::Go]),
     ("third_party/go", &[SetId::Go]),
 ];
+
+/// Every workspace path that owns a set, with the sets it owns.
+pub fn owning_prefixes() -> &'static [(&'static str, &'static [SetId])] {
+    OWNING_PREFIXES
+}
 
 /// A `...` scope owns its own set plus every set nested under it.
 pub fn owning_sets(target: &str) -> Vec<SetId> {

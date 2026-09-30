@@ -282,12 +282,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 option: format!("--report={}={}", request.format, request.destination),
             });
         }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
-            });
-        }
         if let Err(error) = dx_setup::resolve_scope(&targets) {
             return Err(match error {
                 dx_setup::ScopeError::MultipleTargets { count } => ArgsError::UnsupportedOption {
@@ -307,12 +301,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
                 option: "--check".to_owned(),
-            });
-        }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
             });
         }
         if !bazel_options.is_empty() {
@@ -344,12 +332,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
                 option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
             });
         }
         if !bazel_options.is_empty() {
@@ -387,12 +369,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
                 option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
             });
         }
         if !bazel_options.is_empty() {
@@ -435,12 +411,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
                 option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
             });
         }
         if !bazel_options.is_empty() {
@@ -498,12 +468,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 option: format!("--report={}={}", request.format, request.destination),
             });
         }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
-            });
-        }
         if !bazel_options.is_empty() {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -539,12 +503,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
                 option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
             });
         }
         if port.is_some() && !serve {
@@ -652,12 +610,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 option: "--check".to_owned(),
             });
         }
-        if pin.is_some() && command != Command::Version {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
-            });
-        }
         match command {
             Command::Status | Command::Version => {
                 if !targets.is_empty() && command == Command::Status {
@@ -744,12 +696,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 option: format!("--report={}={}", request.format, request.destination),
             });
         }
-        if pin.is_some() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--pin".to_owned(),
-            });
-        }
         if bazel_clean {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -812,6 +758,12 @@ pub fn parse_with<S: AsRef<OsStr>>(
         return Err(ArgsError::UnsupportedOption {
             command: command.name(),
             option: "--rollback".to_owned(),
+        });
+    }
+    if pin.is_some() && command != Command::Version {
+        return Err(ArgsError::UnsupportedOption {
+            command: command.name(),
+            option: "--pin".to_owned(),
         });
     }
     if configured

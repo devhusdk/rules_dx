@@ -1,5 +1,6 @@
 use super::super::{ArgsError, Command};
 use super::parse;
+use clap::ValueEnum;
 use dx_output::OutputMode;
 
 fn args(words: &[&str]) -> Vec<String> {
@@ -51,6 +52,10 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         vec!["version", "--pin="],
         vec!["migrate", "--from="],
         vec!["migrate", "--to="],
+        vec!["lint", "--pin=1.0.0"],
+        vec!["build", "--pin=1.0.0"],
+        vec!["clean", "--pin=1.0.0"],
+        vec!["coverage", "--pin=1.0.0"],
         vec!["status", "extra"],
         vec!["version", "extra"],
         vec!["init", "one", "two"],
@@ -67,6 +72,86 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         vec!["--bazel", "bazel", "version"],
     ] {
         assert!(parse(&args(&words)).is_err(), "{words:?}");
+    }
+}
+
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
+    ("--pin", &["--pin=1.0.0"], &["version"]),
+    ("--rollback", &["--rollback"], &["version"]),
+    (
+        "--configured",
+        &["--configured"],
+        &["owners", "deps", "why"],
+    ),
+    ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
+    ("--serve", &["--serve"], &["docs"]),
+    ("--port", &["--serve", "--port=8080"], &["docs"]),
+    ("--host", &["--serve", "--host=127.0.0.1"], &["docs"]),
+    ("--open", &["--serve", "--open"], &["docs"]),
+    ("--bazel", &["--bazel"], &["clean"]),
+];
+
+fn owned_option_words(command: Command, argv: &[&str]) -> Vec<String> {
+    let name = command.name();
+    if command == Command::Bazel {
+        return argv
+            .iter()
+            .copied()
+            .chain([name, "info"])
+            .map(ToOwned::to_owned)
+            .collect();
+    }
+    let required: &[&str] = match name {
+        "bump" => &["cargo:demo", "1.0.0"],
+        "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
+        "run" | "deploy" => &["//:demo"],
+        "owners" | "deps" => &["//:demo"],
+        "why" => &["a.rs", "//:demo"],
+        "hooks" => &["status"],
+        "new" => &["rust"],
+        "watch" => &["build"],
+        "completion" => &["bash"],
+        _ => &[],
+    };
+    [name]
+        .into_iter()
+        .chain(argv.iter().copied())
+        .chain(required.iter().copied())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+#[test]
+fn an_owned_option_is_accepted_only_by_its_owner() {
+    for command in Command::value_variants() {
+        let command = *command;
+        for (option, argv, owners) in OWNED_OPTIONS {
+            let words = owned_option_words(command, argv);
+            match parse(&words) {
+                Ok(_) => assert!(
+                    owners.contains(&command.name()),
+                    "dx {} accepts {option}, which {owners:?} own: {words:?}",
+                    command.name()
+                ),
+                Err(ArgsError::UnsupportedOption { option: named, .. })
+                | Err(ArgsError::UnknownOption { option: named, .. }) => {
+                    assert!(
+                        !owners.contains(&command.name()),
+                        "dx {} owns {option} but rejects it: {words:?}",
+                        command.name()
+                    );
+                    if argv.len() == 1 {
+                        assert_eq!(
+                            named,
+                            option,
+                            "dx {} rejects {words:?} as {named}, which names another option",
+                            command.name()
+                        );
+                    }
+                }
+                Err(error) => panic!("dx {words:?} failed with {error} instead of naming {option}"),
+            }
+        }
     }
 }
 

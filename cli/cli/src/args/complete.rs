@@ -9,9 +9,7 @@ pub const COMPLETE_SUBCOMMAND: &str = "__complete";
 
 pub const DYNAMIC_MARKER: &str = "dx dynamic candidates";
 
-pub const HOOK_VERBS: &[&str] = &["install", "uninstall", "status", "run"];
-
-pub const HOOK_TRIGGERS: &[&str] = &["pre-commit", "pre-push"];
+pub use dx_adopt::{HOOK_TRIGGERS, HOOK_VERBS};
 
 const MAX_LABEL_CANDIDATES: usize = 100;
 

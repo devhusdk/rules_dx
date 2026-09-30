@@ -620,7 +620,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         scope_policy: "require",
         describe: "scaffold a minimal qualified project for one language (absent-only; mutating by default)",
         usage: "Usage: dx [global-options] new <language> [name]",
-        flags: "Per-command flags: none (<language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cc|cpp; absent-only, no --force).",
+        flags: "Per-command flags: none (<language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cc|cpp; c# and f# also scaffold csharp and fsharp; absent-only, no --force).",
         scopes: "Scopes: <language> plus optional project name (defaults to my_project); unknown languages fail with the supported list; extra positionals are usage failures.",
         is_workflow: false,
         is_umbrella: false,

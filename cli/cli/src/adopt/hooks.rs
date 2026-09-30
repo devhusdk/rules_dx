@@ -92,7 +92,10 @@ pub(crate) fn execute_hooks(
         }
         "status" => execute_status(invocation, workspace, out, err),
         "run" => execute_run(invocation, workspace, query_runner, runner, out, err),
-        _ => pre_exec(err, "usage: dx hooks <install|uninstall|status|run>"),
+        _ => pre_exec(
+            err,
+            &format!("usage: dx hooks <{}>", dx_adopt::hook_verb_pipe()),
+        ),
     }
 }
 
@@ -185,7 +188,10 @@ fn execute_run(
 ) -> i32 {
     let trigger = invocation.targets.get(1).map(String::as_str).unwrap_or("");
     if !dx_adopt::is_hook_trigger(trigger) {
-        return pre_exec(err, "usage: dx hooks run <pre-commit|pre-push>");
+        return pre_exec(
+            err,
+            &format!("usage: dx hooks run <{}>", dx_adopt::hook_trigger_pipe()),
+        );
     }
     if invocation.dry_run {
         if !summaries_suppressed(invocation) {
@@ -483,6 +489,44 @@ mod tests {
                 1
             );
             assert!(!err.is_empty());
+        }
+    }
+
+    #[test]
+    fn unknown_verb_and_trigger_usage_name_every_verb_and_trigger() {
+        let scratch = dx_test_scratch::scratch("hooks-usage-");
+        let cases = [
+            (
+                vec!["hooks", "frobnicate"],
+                format!("usage: dx hooks <{}>", dx_adopt::hook_verb_pipe()),
+            ),
+            (
+                vec!["hooks", "run", "pre-rebase"],
+                format!("usage: dx hooks run <{}>", dx_adopt::hook_trigger_pipe()),
+            ),
+        ];
+        for (words, expected) in cases {
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            assert_eq!(
+                execute_hooks(
+                    &invocation(&words),
+                    scratch.path(),
+                    &NullQuery,
+                    &NullRunner,
+                    &mut out,
+                    &mut err
+                ),
+                2
+            );
+            assert!(out.is_empty());
+            assert!(
+                String::from_utf8(err)
+                    .expect("err")
+                    .contains(&format!("dx: {expected}")),
+                "dx {} must print `{expected}`",
+                words.join(" ")
+            );
         }
     }
 

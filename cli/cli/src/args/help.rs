@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 
 use super::command::Command;
+use super::completion::COMPLETION_SHELLS;
 use super::grammar::{Cli, VALUE_OPTIONS};
 use super::{suggest, ArgsError};
 
@@ -160,6 +161,7 @@ pub(crate) fn per_command_flags(command: Command) -> &'static str {
 
 pub fn usage_banner() -> String {
     let commands = Command::pipe_list();
+    let shells = COMPLETION_SHELLS.join("|");
     format!(
         "usage: dx [--workspace DIR] [--dry-run] [--quiet] [--verbose|-v] \
 [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
@@ -170,7 +172,7 @@ per-command flags: clean --bazel (also run `bazel clean`; default never touches 
 distinct from `dx bazel` passthrough); owners|deps|why --configured (cquery); \
 coverage --min-coverage; build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
-completion <bash|zsh|fish|powershell> [--check] (no shell with --check verifies all). \
+completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/version/update/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). fix applies without rerun (run `dx check` to validate). \
 no dx doctor; use `dx status` for diagnostics. \

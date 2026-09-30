@@ -18,21 +18,28 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "cpp",
 ];
 
+pub const NEW_LANGUAGE_ALIASES: &[(&str, &str)] = &[
+    ("c", "cpp"),
+    ("cc", "cpp"),
+    ("c#", "csharp"),
+    ("f#", "fsharp"),
+];
+
+pub fn new_language_name_list() -> String {
+    SUPPORTED_NEW_LANGUAGES.join(", ")
+}
+
 pub fn normalize_new_language(language: &str) -> Option<&'static str> {
-    match language {
-        "rust" => Some("rust"),
-        "python" => Some("python"),
-        "javascript" => Some("javascript"),
-        "typescript" => Some("typescript"),
-        "go" => Some("go"),
-        "java" => Some("java"),
-        "kotlin" => Some("kotlin"),
-        "scala" => Some("scala"),
-        "csharp" | "c#" => Some("csharp"),
-        "fsharp" | "f#" => Some("fsharp"),
-        "c" | "cc" | "cpp" => Some("cpp"),
-        _ => None,
+    if let Some((_, canonical)) = NEW_LANGUAGE_ALIASES
+        .iter()
+        .find(|(alias, _)| *alias == language)
+    {
+        return Some(canonical);
     }
+    SUPPORTED_NEW_LANGUAGES
+        .iter()
+        .copied()
+        .find(|name| *name == language)
 }
 
 pub fn new_is_known_language(language: &str) -> bool {
@@ -258,6 +265,39 @@ mod tests {
         assert!(new_is_known_language("go"));
         assert!(!new_is_known_language("swift"));
         assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 13);
+    }
+
+    #[test]
+    fn every_supported_language_is_accepted_and_gets_its_own_template() {
+        for language in SUPPORTED_NEW_LANGUAGES {
+            let canonical = normalize_new_language(language)
+                .unwrap_or_else(|| panic!("{language} is listed but refused"));
+            assert!(
+                SUPPORTED_NEW_LANGUAGES.contains(&canonical),
+                "{language} normalizes to {canonical}, which is not a supported language"
+            );
+        }
+        for (alias, canonical) in NEW_LANGUAGE_ALIASES {
+            assert_eq!(normalize_new_language(alias), Some(*canonical));
+            assert!(SUPPORTED_NEW_LANGUAGES.contains(canonical));
+        }
+        let mut seen: Vec<(String, Vec<String>)> = Vec::new();
+        for language in SUPPORTED_NEW_LANGUAGES {
+            let canonical = normalize_new_language(language).expect("canonical");
+            if seen.iter().any(|(name, _)| name == canonical) {
+                continue;
+            }
+            let files = plan_new_files(language, "demo")
+                .expect("plans")
+                .iter()
+                .map(|file| file.path.clone())
+                .collect::<Vec<_>>();
+            assert!(
+                !seen.iter().any(|(_, paths)| paths == &files),
+                "{canonical} shares its template with another language"
+            );
+            seen.push((canonical.to_owned(), files));
+        }
     }
 
     #[test]

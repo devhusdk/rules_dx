@@ -1265,3 +1265,175 @@ fn scope_page_here_bullet_names_exactly_the_here_commands() {
         "the scope-defaults.md `--here` bullet must name every command that accepts `--here`, and nothing else"
     );
 }
+
+fn pipe_runs(text: &str) -> Vec<Vec<String>> {
+    let mut runs: Vec<Vec<String>> = Vec::new();
+    let mut run: Vec<String> = Vec::new();
+    let mut word = String::new();
+    for letter in text.chars() {
+        if letter.is_ascii_alphanumeric() || matches!(letter, '#' | '+' | '-' | '.') {
+            word.push(letter);
+            continue;
+        }
+        if !word.is_empty() {
+            run.push(std::mem::take(&mut word));
+        }
+        if letter != '|' {
+            if run.len() > 1 && !run.iter().any(|part| part.starts_with('-')) {
+                runs.push(std::mem::take(&mut run));
+            }
+            run.clear();
+        }
+    }
+    if !word.is_empty() {
+        run.push(word);
+    }
+    if run.len() > 1 && !run.iter().any(|part| part.starts_with('-')) {
+        runs.push(run);
+    }
+    runs
+}
+
+fn backticked_runs(text: &str) -> Vec<Vec<String>> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut runs: Vec<Vec<String>> = Vec::new();
+    let mut run: Vec<String> = Vec::new();
+    let mut gap = String::new();
+    let mut index = 0;
+    while index < chars.len() {
+        if chars[index] != '`' {
+            gap.push(chars[index]);
+            index += 1;
+            continue;
+        }
+        let start = index + 1;
+        let mut end = start;
+        while end < chars.len() && chars[end] != '`' {
+            end += 1;
+        }
+        if !run.is_empty() {
+            let separator = gap
+                .chars()
+                .all(|letter| letter.is_whitespace() || ",orand".contains(letter));
+            if !separator {
+                if run.len() > 1 {
+                    runs.push(std::mem::take(&mut run));
+                }
+                run.clear();
+            }
+        }
+        run.push(chars[start..end].iter().collect());
+        gap.clear();
+        index = end + 1;
+    }
+    if run.len() > 1 {
+        runs.push(run);
+    }
+    runs
+}
+
+fn slot_lists(text: &str, registry: &[&str]) -> Vec<Vec<String>> {
+    let wanted: Vec<String> = registry.iter().map(|name| (*name).to_owned()).collect();
+    let mut found: Vec<Vec<String>> = pipe_runs(text)
+        .into_iter()
+        .chain(backticked_runs(text))
+        .filter(|run| run.iter().any(|name| wanted.contains(name)))
+        .collect();
+    found.sort();
+    found.dedup();
+    assert!(
+        !found.is_empty(),
+        "no list of these names is spelled out in:\n{text}"
+    );
+    for run in &found {
+        assert_eq!(
+            *run,
+            wanted,
+            "the list must name every entry of the registry, in order, and nothing else, in:\n{text}"
+        );
+    }
+    found
+}
+
+fn bullet_terms(page: &str) -> Vec<String> {
+    let mut terms = Vec::new();
+    for line in page.lines() {
+        let Some(rest) = line.trim_start().strip_prefix("- `") else {
+            continue;
+        };
+        let term: String = rest
+            .chars()
+            .take_while(|letter| !letter.is_whitespace() && *letter != '`')
+            .collect();
+        terms.push(term);
+    }
+    terms
+}
+
+#[test]
+fn watch_help_and_page_name_exactly_the_watchable_commands() {
+    let registry = dx_adopt::WATCHABLE_COMMANDS;
+    let command = Command::Watch;
+    for text in [command.usage(), command.flags(), command.scopes_text()] {
+        slot_lists(text, registry);
+    }
+    let page = std::fs::read_to_string(docs_dir().join("watch.md")).expect("watch page");
+    slot_lists(&page, registry);
+}
+
+#[test]
+fn completion_help_banner_and_page_name_exactly_the_shells() {
+    let registry = super::super::completion::COMPLETION_SHELLS;
+    let command = Command::Completion;
+    for text in [
+        command.describe(),
+        command.usage(),
+        command.flags(),
+        command.scopes_text(),
+        &banner(),
+    ] {
+        slot_lists(text, registry);
+    }
+    let page = std::fs::read_to_string(docs_dir().join("completion.md")).expect("completion page");
+    slot_lists(&page, registry);
+}
+
+#[test]
+fn hooks_help_and_page_name_exactly_the_verbs_and_triggers() {
+    let command = Command::Hooks;
+    for text in [command.usage(), command.flags(), command.scopes_text()] {
+        slot_lists(text, dx_adopt::HOOK_VERBS);
+        slot_lists(text, dx_adopt::HOOK_TRIGGERS);
+    }
+    let page = std::fs::read_to_string(docs_dir().join("hooks.md")).expect("hooks page");
+    slot_lists(&page, dx_adopt::HOOK_VERBS);
+    slot_lists(&page, dx_adopt::HOOK_TRIGGERS);
+    assert_eq!(
+        bullet_terms(&page),
+        dx_adopt::HOOK_VERBS
+            .iter()
+            .map(|verb| (*verb).to_owned())
+            .collect::<Vec<_>>(),
+        "the hooks.md bullets must document every verb, and nothing else"
+    );
+}
+
+#[test]
+fn new_help_and_page_name_exactly_the_languages() {
+    let registry = dx_adopt::SUPPORTED_NEW_LANGUAGES;
+    slot_lists(Command::New.flags(), registry);
+    let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
+    slot_lists(&page, registry);
+    for (alias, canonical) in dx_adopt::NEW_LANGUAGE_ALIASES {
+        assert!(
+            page.contains(&format!("`{alias}`")) && page.contains(&format!("`{canonical}`")),
+            "docs/cli/commands/new-upgrade.md must name the {alias} spelling of {canonical}"
+        );
+    }
+    for (alias, canonical) in dx_adopt::NEW_LANGUAGE_ALIASES {
+        assert!(
+            Command::New.flags().contains(alias) && Command::New.flags().contains(canonical),
+            "dx new --help must name the {alias} spelling of {canonical}"
+        );
+    }
+}

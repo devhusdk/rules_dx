@@ -22,7 +22,15 @@ pub fn hook_git_path_is_hermetic(path: &Path) -> bool {
 }
 
 pub fn is_hook_trigger(trigger: &str) -> bool {
-    trigger == "pre-commit" || trigger == "pre-push"
+    HOOK_TRIGGERS.contains(&trigger)
+}
+
+pub fn hook_verb_pipe() -> String {
+    HOOK_VERBS.join("|")
+}
+
+pub fn hook_trigger_pipe() -> String {
+    HOOK_TRIGGERS.join("|")
 }
 
 pub fn hook_shim_overwrite_allowed(existing_managed: bool) -> bool {
@@ -38,6 +46,10 @@ pub fn hook_status_shows_merged(
 }
 
 pub const HOOK_MANAGED_MARKER: &str = "# managed by dx hooks";
+
+pub const HOOK_VERBS: &[&str] = &["install", "uninstall", "status", "run"];
+
+pub const HOOK_TRIGGERS: &[&str] = &["pre-commit", "pre-push"];
 
 pub const LOCAL_OVERLAY_COMMENT: &str = "# Local-only overrides (gitignored).";
 

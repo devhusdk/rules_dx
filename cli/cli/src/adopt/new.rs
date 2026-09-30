@@ -23,7 +23,8 @@ pub(crate) fn execute_new(
     if !dx_adopt::new_is_known_language(language) {
         let _ = writeln!(
             err,
-            "dx: unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp)"
+            "dx: unknown language for dx new: {language} (want one of {})",
+            dx_adopt::new_language_name_list()
         );
         return pre_exec_code();
     }

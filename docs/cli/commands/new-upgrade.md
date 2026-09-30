@@ -16,6 +16,11 @@ Scaffolds a minimal project for one language: `rust`, `python`,
 `fsharp`, `c`, `cc`, or `cpp`. Never overwrites existing files. There is no
 `--force`.
 
+Two spellings scaffold the same projects:
+
+- `c#` scaffolds `csharp`.
+- `f#` scaffolds `fsharp`.
+
 Output: `--output text`.
 
 Exit codes: `0` success, `2` usage errors including an unknown language or

@@ -3,42 +3,8 @@ use std::ffi::{OsStr, OsString};
 use clap::Parser;
 
 use super::command::Command;
-use super::grammar::{Cli, VALUE_OPTIONS};
+use super::grammar::{Cli, GlobalArgs, Verb};
 use super::{help, ArgsError};
-
-fn arg_text(arg: &OsStr) -> Option<&str> {
-    arg.to_str()
-}
-
-fn split_bazel_verbatim<S: AsRef<OsStr>>(args: &[S]) -> Option<usize> {
-    let mut index = 0;
-    while index < args.len() {
-        let raw = args[index].as_ref();
-        let arg = arg_text(raw)?;
-        if arg == "--" {
-            return None;
-        }
-        if arg.starts_with('-') {
-            let name = arg.split_once('=').map_or(arg, |(name, _)| name);
-            if !arg.contains('=') && VALUE_OPTIONS.contains(&name) {
-                let next = args.get(index + 1)?;
-                let next_raw = next.as_ref();
-                let is_flag = next_raw == OsStr::new("--")
-                    || next_raw.to_str().is_some_and(|text| text.starts_with("--"));
-                if !is_flag {
-                    index += 2;
-                } else {
-                    return None;
-                }
-                continue;
-            }
-            index += 1;
-            continue;
-        }
-        return (arg == "bazel").then_some(index);
-    }
-    None
-}
 
 /// clap's error text with its own usage block dropped.
 pub(crate) fn without_usage(text: &str) -> String {
@@ -85,52 +51,64 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
     }
 }
 
-fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Cli, ArgsError> {
+fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Option<Verb>, ArgsError> {
     Cli::try_parse_from(
         std::iter::once(OsString::from("dx"))
             .chain(args.iter().map(|arg| arg.as_ref().to_os_string())),
     )
+    .map(|cli| cli.verb)
     .map_err(|error| map_clap_error(args, &error))
 }
 
-pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<(Cli, Vec<String>), ArgsError> {
-    if let Some(at) = split_bazel_verbatim(args) {
-        let prefix: Vec<OsString> = args[..at]
-            .iter()
-            .map(|arg| arg.as_ref().to_os_string())
-            .collect();
-        let mut cli = parse_tokens(&prefix)?;
-        cli.command = Some(Command::Bazel);
-        let mut bazel_options = Vec::new();
-        let mut tail = args[at + 1..].iter();
-        for arg in tail.by_ref() {
-            let raw = arg.as_ref();
-            if raw == OsStr::new("--") {
-                break;
-            }
-            match raw.to_str() {
-                Some(text) => bazel_options.push(text.to_owned()),
-                None => {
-                    return Err(ArgsError::InvalidScope {
-                        scope: raw.to_string_lossy().into_owned(),
-                    });
-                }
-            }
+/// Every word after the first `--` is forwarded to the Bazel launcher.
+fn collect_bazel_options<S: AsRef<OsStr>>(args: &[S]) -> Result<Vec<String>, ArgsError> {
+    let mut forwarded = Vec::with_capacity(args.len());
+    let mut past_separator = false;
+    for arg in args {
+        let raw = arg.as_ref();
+        if !past_separator && raw == OsStr::new("--") {
+            past_separator = true;
+            continue;
         }
-        for arg in tail {
-            let raw = arg.as_ref();
-            match raw.to_str() {
-                Some(text) => bazel_options.push(text.to_owned()),
-                None => {
-                    return Err(ArgsError::InvalidScope {
-                        scope: raw.to_string_lossy().into_owned(),
-                    });
-                }
+        forwarded.push(match raw.to_str() {
+            Some(text) => text.to_owned(),
+            None => {
+                return Err(ArgsError::InvalidScope {
+                    scope: raw.to_string_lossy().into_owned(),
+                });
             }
-        }
-        return Ok((cli, bazel_options));
+        });
     }
-    let mut cli = parse_tokens(args)?;
-    let bazel_options = std::mem::take(&mut cli.bazel_options);
-    Ok((cli, bazel_options))
+    Ok(forwarded)
+}
+
+/// The parsed invocation: the command, its shared options, its scopes, and its `--` payload.
+pub(crate) struct Tokenized {
+    pub(crate) command: Command,
+    pub(crate) global: GlobalArgs,
+    pub(crate) targets: Vec<OsString>,
+    pub(crate) bazel_options: Vec<String>,
+}
+
+/// `dx bazel` forwards every later word to the Bazel launcher.
+pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<Tokenized, ArgsError> {
+    if args
+        .first()
+        .is_some_and(|first| first.as_ref() == OsStr::new("bazel"))
+    {
+        return Ok(Tokenized {
+            command: Command::Bazel,
+            global: GlobalArgs::default(),
+            targets: Vec::new(),
+            bazel_options: collect_bazel_options(&args[1..])?,
+        });
+    }
+    let command = parse_tokens(args)?.ok_or(ArgsError::MissingCommand)?;
+    let (command, global, targets, bazel_options) = command.into_parts();
+    Ok(Tokenized {
+        command,
+        global,
+        targets,
+        bazel_options,
+    })
 }

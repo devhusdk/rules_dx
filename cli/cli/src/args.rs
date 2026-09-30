@@ -99,7 +99,7 @@ pub use dx_adopt::defaults::FileDefaults;
 
 /// Assert that a parse failure is clap-rendered and names every needle.
 #[cfg(test)]
-pub(crate) fn assert_usage(words: &[&str], error: ArgsError, needles: &[&str]) {
+pub(crate) fn assert_usage<D: std::fmt::Debug>(words: D, error: ArgsError, needles: &[&str]) {
     let ArgsError::Usage { text } = &error else {
         panic!("words: {words:?}: want Usage, got {error:?}");
     };

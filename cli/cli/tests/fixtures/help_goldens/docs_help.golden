@@ -1,63 +1,10 @@
 dx docs - build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)
 
+build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)
+
 Usage: dx [global-options] docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]
-Per-command flags: --check/--serve/--port/--host/--open (docs only; `-- --bazel-options` pass through to the docs build; --check validates without rendering, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).
-
-Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:user_site, //docs/site:user_site_aggregate in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
-Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
-Output: --output text|json; --report has no standard format for this command.
-
-dx - Run Bazel workflows
-
-Commands:
-  security     run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
-  license      run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
-  lint         run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
-  typecheck    run typecheck analysis over resolved scopes (mutating by default; --check is non-mutating)
-  format       check or rewrite formatting over resolved scopes (mutating by default; --check is non-mutating)
-  generate     emit/sync BUILD files (Gazelle pipeline; mutating by default; --check validates without writes)
-  build        run Bazel build over resolved targets
-  test         run Bazel test over resolved targets
-  coverage     collect LCOV coverage with optional threshold
-  run          build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
-  deploy       build and run a single deployable target
-  check        run format+lint+typecheck+generate checks in order (non-mutating)
-  fix          apply format+lint+typecheck+generate fixes in order (mutating by default; no rerun, run `dx check` to validate)
-  clean        prune unselected managed state, never Bazel outputs unless --bazel (no scopes)
-  update       update dependencies per set through qualified resolvers (mutating without confirmation; --check is the preset stale gate)
-  bump         widen one declared requirement to a new version (explicit; mutating without confirmation)
-  migrate      rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)
-  codegen      collect codegen outputs with atomic commit (mutating managed state)
-  env          collect the managed development environment (mutating managed state)
-  setup        collect setup outputs with atomic commit (mutating managed state)
-  init         scaffold dx into a foreign tree (absent-only; mutating by default)
-  new          scaffold a minimal qualified project for one language (absent-only; mutating by default)
-  upgrade      one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)
-  hooks        manage Git hooks via hermetic Git (mutating by default)
-  status       report workspace and target status
-  version      report version and pin drift
-  watch        watch for changes and rebuild (local only)
-  owners       query owners of files via Bazel query
-  deps         query dependencies of targets
-  why          explain why a target depends on another
-  completion   emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)
-  docs         build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)
-  bazel        forward raw arguments to the Bazel launcher
-
-dx [global-options] <command> [scope ...] [-- bazel-options ...]
-
-Scopes: labels, patterns, files, or dirs. No scope means //... for most commands.
-
-Exit codes: 0 success, 2 usage error, 1 failed check.
-
-Usage: dx [OPTIONS] [COMMAND] [TARGETS]... [-- <BAZEL_OPTIONS>...]
 
 Arguments:
-  [COMMAND]
-          Command to run
-          
-          [possible values: security, license, lint, typecheck, format, generate, build, test, coverage, run, deploy, check, fix, clean, update, bump, migrate, codegen, env, setup, init, new, upgrade, hooks, status, version, watch, owners, deps, why, completion, docs, bazel]
-
   [TARGETS]...
           Scopes to run on
 
@@ -144,6 +91,61 @@ Options:
           
           [alias: --frozen]
 
+  -h, --help
+          Print help
+
+Per-command flags: --check/--serve/--port/--host/--open (docs only; `-- --bazel-options` pass through to the docs build; --check validates without rendering, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).
+
+Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:user_site, //docs/site:user_site_aggregate in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
+Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
+Output: --output text|json; --report has no standard format for this command.
+
+dx - Run Bazel workflows
+
+dx <command> [flags] [scope ...] [-- bazel-options ...]
+
+Scopes: labels, patterns, files, or dirs. No scope means //... for most commands.
+
+Exit codes: 0 success, 2 usage error, 1 failed check.
+
+Usage: dx [COMMAND]
+
+Commands:
+  security    run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
+  license     run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
+  lint        run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
+  typecheck   run typecheck analysis over resolved scopes (mutating by default; --check is non-mutating)
+  format      check or rewrite formatting over resolved scopes (mutating by default; --check is non-mutating)
+  generate    emit/sync BUILD files (Gazelle pipeline; mutating by default; --check validates without writes)
+  build       run Bazel build over resolved targets
+  test        run Bazel test over resolved targets
+  coverage    collect LCOV coverage with optional threshold
+  run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
+  deploy      build and run a single deployable target
+  check       run format+lint+typecheck+generate checks in order (non-mutating)
+  fix         apply format+lint+typecheck+generate fixes in order (mutating by default; no rerun, run `dx check` to validate)
+  clean       prune unselected managed state, never Bazel outputs unless --bazel (no scopes)
+  update      update dependencies per set through qualified resolvers (mutating without confirmation; --check is the preset stale gate)
+  bump        widen one declared requirement to a new version (explicit; mutating without confirmation)
+  migrate     rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)
+  codegen     collect codegen outputs with atomic commit (mutating managed state)
+  env         collect the managed development environment (mutating managed state)
+  setup       collect setup outputs with atomic commit (mutating managed state)
+  init        scaffold dx into a foreign tree (absent-only; mutating by default)
+  new         scaffold a minimal qualified project for one language (absent-only; mutating by default)
+  upgrade     one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)
+  hooks       manage Git hooks via hermetic Git (mutating by default)
+  status      report workspace and target status
+  version     report version and pin drift
+  watch       watch for changes and rebuild (local only)
+  owners      query owners of files via Bazel query
+  deps        query dependencies of targets
+  why         explain why a target depends on another
+  completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)
+  docs        build, check, and serve the unified documentation site (non-mutating; --check validates without rendering)
+  bazel       forward raw arguments to the Bazel launcher
+
+Options:
   -h, --help
           Print help (see a summary with '-h')
 

@@ -6,16 +6,15 @@
 dx bazel <bazel arguments...>
 ```
 
-Runs Bazel directly through the repo launcher. Args after `bazel` go to Bazel
-unchanged, even tokens that look like `dx` flags. Put `dx` flags before
-`bazel`. The exit code is Bazel's own, except a launch failure or a signal
-is `1`.
+Runs Bazel directly through the repo launcher. Every arg after `bazel` goes to
+Bazel unchanged, so `dx` flags do not apply. The exit code is Bazel's own,
+except a launch failure or a signal is `1`.
 
 Output: `--output text`.
 
 ```sh
 bazel run //cli/cli:dx -- bazel build //...
-bazel run //cli/cli:dx -- --dry-run bazel query //...
+bazel run //cli/cli:dx -- bazel query //...
 ```
 
 ## `dx security` And `dx license`
@@ -141,7 +140,7 @@ bazel run //cli/cli:dx -- update powershell
 bazel run //cli/cli:dx -- update uv uv-tools
 bazel run //cli/cli:dx -- update npm-tools
 bazel run //cli/cli:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
-bazel run //cli/cli:dx -- --dry-run update
+bazel run //cli/cli:dx -- update --dry-run
 ```
 
 ## `dx bump`

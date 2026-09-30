@@ -95,6 +95,9 @@ fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
 
 fn global_flags() -> Vec<String> {
     Cli::command()
+        .get_subcommands()
+        .next()
+        .expect("dx has subcommands")
         .get_arguments()
         .filter_map(|arg| {
             arg.get_long_and_visible_aliases().map(|names| {
@@ -286,13 +289,16 @@ fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
     for command in Command::value_variants() {
         let command = *command;
         let usage = command.usage();
-        let tail: &[&str] = if command == Command::Bazel {
-            &["info"]
-        } else {
-            &[]
-        };
-        let mut words = vec!["--check", command.name()];
-        words.extend_from_slice(tail);
+        let words = vec![command.name(), "--check"];
+        if command == Command::Bazel {
+            let got = parse(&args(&words)).expect("dx bazel forwards every later word");
+            assert_eq!(got.bazel_options, args(&["--check"]), "words: {words:?}");
+            assert!(
+                !usage.contains("[--check]"),
+                "dx bazel forwards --check to Bazel: {usage}"
+            );
+            continue;
+        }
         let accepted = parse(&args(&words)).is_ok();
         let advertised = usage.contains("[--check]");
         assert_eq!(
@@ -1992,9 +1998,12 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
         String::from_utf8(output).expect("stderr is utf-8")
     };
     for (argv, needle) in [
-        (vec!["lintt"], "a similar value exists: 'lint'"),
         (
-            vec!["--ouptut=json"],
+            vec!["lintt"],
+            "some similar subcommands exist: 'init', 'lint'",
+        ),
+        (
+            vec!["lint", "--ouptut=json"],
             "a similar argument exists: '--output'",
         ),
     ] {

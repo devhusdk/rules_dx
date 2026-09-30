@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn dry_run_families_launch_nothing() {
         for argv in [
-            vec!["--dry-run", "bazel", "version"],
+            vec!["build", "--dry-run", "//a:one"],
             vec!["security", "--dry-run"],
             vec!["license", "--dry-run"],
             vec!["update", "--dry-run"],

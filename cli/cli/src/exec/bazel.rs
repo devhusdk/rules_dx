@@ -95,14 +95,14 @@ mod tests {
     }
 
     #[test]
-    fn bazel_dry_run_launches_nothing() {
+    fn bazel_passthrough_forwards_a_dry_run_argv_verbatim() {
         let harness = Harness::new("bazel-dry");
         let seen = Rc::new(RefCell::new(Vec::new()));
         let probe = ArgvProbe {
             code: Some(0),
             seen: Rc::clone(&seen),
         };
-        let inv = invocation(&["--dry-run", "bazel", "version"]);
+        let inv = invocation(&["bazel", "build", "--jobs=4"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
         let code = execute(
@@ -120,10 +120,18 @@ mod tests {
             },
         );
         assert_eq!(code, 0);
-        assert!(seen.borrow().is_empty());
+        assert_eq!(
+            *seen.borrow(),
+            vec![vec![
+                "bazel".to_owned(),
+                "build".to_owned(),
+                "--jobs=4".to_owned()
+            ]],
+            "dx bazel forwards every word verbatim"
+        );
         assert!(String::from_utf8(out)
             .expect("stdout")
-            .contains("Running bazel version"));
+            .contains("Running bazel build"));
     }
 
     #[test]

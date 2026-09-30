@@ -3,12 +3,12 @@ use std::ffi::OsStr;
 use dx_output::{OutputMode, Threshold};
 
 use super::command::Command;
+use super::grammar::GlobalArgs;
 use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
 
 pub use super::grammar::cli_command;
-pub(crate) use super::grammar::Cli;
 
 fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
     match value.to_str() {
@@ -38,8 +38,9 @@ pub fn parse_with<S: AsRef<OsStr>>(
     if let Some(error) = super::help::help_verb_error_in(args) {
         return Err(error);
     }
-    let (cli, bazel_options) = tokenize(args)?;
-    let Cli {
+    let tokenized = tokenize(args)?;
+    let command = tokenized.command;
+    let GlobalArgs {
         workspace: workspace_os,
         dry_run,
         quiet,
@@ -65,10 +66,9 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
-        command: command_name,
-        targets: targets_os,
-        ..
-    } = cli;
+    } = tokenized.global;
+    let targets_os = tokenized.targets;
+    let bazel_options = tokenized.bazel_options;
     let flag_workspace = match workspace_os {
         Some(value) => Some(decode_scope(value.as_os_str())?),
         None => None,
@@ -139,7 +139,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         value: color_name.clone(),
     })?;
     let reports = report;
-    let command = command_name.ok_or(ArgsError::MissingCommand)?;
     if here && !command.supports_here() {
         return Err(ArgsError::UnsupportedOption {
             command: command.name(),

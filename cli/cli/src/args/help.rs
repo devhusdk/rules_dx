@@ -113,30 +113,25 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
 /// Ask clap to render the failure for a word that names no command.
 pub(crate) fn unknown_command_text(word: &str) -> String {
     use clap::CommandFactory;
-    Cli::command()
-        .try_get_matches_from(["dx", word])
-        .err()
-        .map_or_else(
-            || format!("unknown command {word:?}"),
-            |error| super::tokenizer::without_usage(&error.render().to_string()),
-        )
+    let root = Cli::command();
+    let names: Vec<String> = root
+        .get_subcommands()
+        .map(|sub| sub.get_name().to_owned())
+        .collect();
+    let mut out = root.try_get_matches_from(["dx", word]).err().map_or_else(
+        || format!("unknown command {word:?}"),
+        |error| super::tokenizer::without_usage(&error.render().to_string()),
+    );
+    out.push_str(&format!("\nAvailable commands: {}", names.join("|")));
+    out
 }
 
 pub(crate) fn render_top_help() -> String {
-    use clap::{CommandFactory, ValueEnum};
+    use clap::CommandFactory;
     let mut out = String::new();
     if let Some(about) = Cli::command().get_about() {
         out.push_str(&format!("dx - {about}\n\n"));
     }
-    out.push_str("Commands:\n");
-    for command in Command::value_variants() {
-        out.push_str(&format!(
-            "  {:<12} {}\n",
-            command.name(),
-            command.describe()
-        ));
-    }
-    out.push('\n');
     out.push_str(&Cli::command().render_long_help().to_string());
     out.push_str(&render_env_help());
     out
@@ -163,6 +158,8 @@ fn render_env_help() -> String {
     out
 }
 
+const EXIT_CODES: &str = "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.";
+
 pub(crate) fn per_command_flags(command: Command) -> &'static str {
     command.flags()
 }
@@ -171,11 +168,12 @@ pub fn usage_banner() -> String {
     let commands = Command::pipe_list();
     let shells = COMPLETION_SHELLS.join("|");
     format!(
-        "usage: dx [--workspace DIR] [--dry-run] [--quiet] [--verbose|-v] \
+        "usage: dx <{commands}> [--workspace DIR] [--dry-run] [--quiet] [--verbose|-v] \
 [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
 [--output text|diff|json] [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
-<{commands}> [per-command-flags] [scope ...] [-- command-options...]\n\
+[scope ...] [-- command-options...]\n\
+flags go after the command: `dx lint --check //...`. \
 per-command flags: clean --bazel (also run `bazel clean`; default never touches Bazel outputs; \
 distinct from `dx bazel` passthrough); owners|deps|why --configured (cquery); \
 coverage --min-coverage; build|run|test|deploy --debug|--release; \
@@ -207,32 +205,44 @@ fn report_clause(command: Command) -> String {
     format!("--report {formats}=<destination> (repeatable).")
 }
 
-fn output_line(command: Command) -> String {
+pub(crate) fn output_line(command: Command) -> String {
     format!(
         "Output: --output {}; {}",
         output_modes(command),
         report_clause(command)
     )
 }
-
-pub(crate) fn render_command_help(command: Command) -> String {
-    let usage = command.usage();
-    let scopes = command.scopes_text();
+/// The prose clap appends to each command's long help.
+pub(crate) fn after_long_help(command: Command) -> String {
     let mut out = String::new();
-    out.push_str(&format!(
-        "dx {} - {}\n\n",
-        command.name(),
-        command.describe()
-    ));
-    out.push_str(usage);
-    out.push('\n');
     out.push_str(per_command_flags(command));
     out.push_str("\n\n");
-    out.push_str(scopes);
-    out.push_str("\nExit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.");
+    out.push_str(command.scopes_text());
+    out.push_str(&format!("\n{EXIT_CODES}"));
     out.push('\n');
     out.push_str(&output_line(command));
-    out.push_str("\n\n");
+    out
+}
+
+pub(crate) fn render_command_help(command: Command) -> String {
+    let root = super::grammar::cli_command();
+    let mut out = String::new();
+    if let Some(sub) = root.find_subcommand(command.name()) {
+        out.push_str(&format!(
+            "dx {} - {}\n\n",
+            command.name(),
+            command.describe()
+        ));
+        out.push_str(&sub.clone().render_long_help().to_string());
+    } else {
+        out.push_str(&format!(
+            "dx {} - {}\n\n{}\n",
+            command.name(),
+            command.describe(),
+            command.usage()
+        ));
+    }
+    out.push('\n');
     out.push_str(&render_top_help());
     out
 }
@@ -441,7 +451,7 @@ mod tests {
 
     #[test]
     fn help_value_option_payload_is_not_a_command() {
-        let text = match parse(&args(&["--output", "bazel", "--help"])) {
+        let text = match parse(&args(&["lint", "--output", "bazel", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
@@ -490,11 +500,12 @@ mod tests {
     }
 
     fn accepts_output(command: Command, mode: &str) -> bool {
-        let mut words = vec![format!("--output={mode}")];
-        words.push(command.name().to_owned());
-        if command != Command::Bazel {
-            words.extend(completing_words(command));
+        if command == Command::Bazel {
+            return false;
         }
+        let mut words = vec![command.name().to_owned()];
+        words.push(format!("--output={mode}"));
+        words.extend(completing_words(command));
         parse(&words).is_ok()
     }
 

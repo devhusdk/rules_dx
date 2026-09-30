@@ -1502,10 +1502,17 @@ mod tests {
             &["bash", "zsh", "fish", "powershell"],
             "shell value set changed; update docs plus fixtures"
         );
-        let man = clap_mangen::Man::new(super::super::grammar::cli_command());
-        let mut buffer = Vec::new();
-        man.render(&mut buffer).expect("man renders");
-        let text = String::from_utf8(buffer).expect("man utf8");
+        let root = super::super::grammar::cli_command();
+        let mut text = String::new();
+        for command in Command::value_variants() {
+            let sub = root
+                .find_subcommand(command.name())
+                .unwrap_or_else(|| panic!("dx has no {} subcommand", command.name()));
+            let man = clap_mangen::Man::new(sub.clone());
+            let mut buffer = Vec::new();
+            man.render(&mut buffer).expect("man renders");
+            text.push_str(&String::from_utf8(buffer).expect("man utf8"));
+        }
         for command in Command::value_variants() {
             assert!(
                 text.contains(command.name()),

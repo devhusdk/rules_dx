@@ -130,7 +130,7 @@ mod tests {
         let release = parse(&args(&["deploy", "--release"])).expect("deploy release parse");
         assert_eq!(release.profile_flag(), Some(Profile::Release));
         assert_eq!(release.profile(), Profile::Release);
-        let got = parse(&args(&["--debug", "build"])).expect("parse");
+        let got = parse(&args(&["build", "--debug"])).expect("parse");
         assert_eq!(got.profile_flag(), Some(Profile::Debug));
         let got = parse(&args(&["test", "--release", "//a:t"])).expect("parse");
         assert_eq!(got.profile_flag(), Some(Profile::Release));

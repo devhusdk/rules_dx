@@ -98,13 +98,13 @@ fn generate_parses_repo_wide_with_bazel_options() {
 }
 
 #[test]
-fn globals_parse_before_and_after_command() {
+fn globals_parse_after_the_command() {
     let got = parse(&args(&[
+        "typecheck",
         "--workspace",
         "/repo",
         "--dry-run",
         "--quiet",
-        "typecheck",
         "--output=json",
         "--fail-on=error",
     ]))
@@ -124,21 +124,17 @@ fn quiet_applies_to_text_output() {
 }
 
 #[test]
-fn verbose_parses_before_and_after_command_and_stays_orthogonal_to_quiet() {
+fn verbose_parses_after_the_command_and_stays_orthogonal_to_quiet() {
     let bare = parse(&args(&["lint", "--verbose"])).expect("parse");
     assert!(bare.verbose);
     assert!(!bare.quiet);
-    let before = parse(&args(&["--verbose", "lint"])).expect("parse");
-    assert!(before.verbose);
     let both = parse(&args(&["lint", "--quiet", "--verbose"])).expect("parse");
     assert!(both.quiet);
     assert!(both.verbose);
     assert_eq!(both.output, OutputMode::Text { quiet: true });
     let short = parse(&args(&["lint", "-v"])).expect("parse -v");
     assert!(short.verbose);
-    let short_before = parse(&args(&["-v", "lint"])).expect("parse -v before");
-    assert!(short_before.verbose);
-    let help = match parse(&args(&["--verbose", "--help"])) {
+    let help = match parse(&args(&["lint", "--verbose", "--help"])) {
         Err(ArgsError::Help { text }) => text,
         other => panic!("want Help, got {other:?}"),
     };
@@ -153,8 +149,6 @@ fn log_level_parses_and_conflicts_with_verbose() {
     assert!(!got.verbose);
     let spaced = parse(&args(&["lint", "--log-level", "trace"])).expect("parse spaced");
     assert_eq!(spaced.log_level, Some(LogLevel::Trace));
-    let before = parse(&args(&["--log-level=warn", "lint"])).expect("parse before");
-    assert_eq!(before.log_level, Some(LogLevel::Warn));
     for level in ["error", "warn", "info", "debug", "trace"] {
         let got = parse(&args(&["lint", &format!("--log-level={level}")])).expect("parse level");
         assert_eq!(got.log_level.map(|level| level.name()), Some(level));
@@ -221,7 +215,11 @@ fn bazel_options_forward_verbatim_after_separator() {
 #[test]
 fn missing_command_fails() {
     assert_eq!(parse(&args(&[])), Err(ArgsError::MissingCommand));
-    assert_eq!(parse(&args(&["--quiet"])), Err(ArgsError::MissingCommand));
+    assert_usage(
+        &["--quiet"],
+        parse(&args(&["--quiet"])).unwrap_err(),
+        &["--quiet"],
+    );
 }
 
 #[test]

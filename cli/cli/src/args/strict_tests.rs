@@ -129,7 +129,10 @@ fn strict_bad_values_fail_with_contract_shapes() {
 
 #[test]
 fn strict_typo_suggestions_come_from_the_same_grammar() {
-    for (words, needle) in [(vec!["lintt"], "lint"), (vec!["--ouptut=json"], "--output")] {
+    for (words, needle) in [
+        (vec!["lintt"], "subcommands exist"),
+        (vec!["lint", "--ouptut=json"], "--output"),
+    ] {
         assert_usage(&words, parse(&args(&words)).unwrap_err(), &[needle]);
     }
 }
@@ -186,12 +189,10 @@ fn strict_bazel_tail_forwards_verbatim() {
         vec!["--check", "bazel", "version"],
         vec!["--here", "bazel", "version"],
     ] {
-        assert!(
-            matches!(
-                parse(&args(&words)),
-                Err(ArgsError::UnsupportedOption { .. })
-            ),
-            "words: {words:?}"
+        assert_usage(
+            &words,
+            parse(&args(&words)).unwrap_err(),
+            &[words[0].split('=').next().expect("a flag")],
         );
     }
 }
@@ -325,7 +326,7 @@ fn strict_help_is_generated_from_the_same_grammar() {
         );
     }
     let grammar = super::super::grammar::cli_command();
-    for long in [
+    const GLOBAL_LONGS: [&str; 9] = [
         "workspace",
         "output",
         "fail-on",
@@ -335,14 +336,18 @@ fn strict_help_is_generated_from_the_same_grammar() {
         "color",
         "host",
         "log-level",
-    ] {
-        assert!(
-            grammar
-                .get_arguments()
-                .any(|arg| arg.get_long() == Some(long)),
-            "grammar missing --{long}"
-        );
-        assert!(text.contains(&format!("--{long}")), "help missing --{long}");
+    ];
+    for command in Command::value_variants() {
+        let sub = grammar
+            .find_subcommand(command.name())
+            .unwrap_or_else(|| panic!("dx {} must be a subcommand", command.name()));
+        for long in GLOBAL_LONGS {
+            assert!(
+                sub.get_arguments().any(|arg| arg.get_long() == Some(long)),
+                "dx {} grammar missing --{long}",
+                command.name()
+            );
+        }
     }
     for needle in [
         "RUST_LOG",
@@ -363,9 +368,14 @@ fn strict_help_is_generated_from_the_same_grammar() {
             "Exit codes:",
             "Output:",
             "Per-command flags:",
-            "--workspace",
         ] {
             assert!(text.contains(needle), "{argv:?}: missing {needle:?}");
+        }
+        for long in GLOBAL_LONGS {
+            assert!(
+                text.contains(&format!("--{long}")),
+                "{argv:?}: missing --{long}"
+            );
         }
     }
 }
@@ -444,9 +454,9 @@ fn strict_non_utf8_argv_fails_as_invalid_scope() {
         })
     );
     let argv = vec![
+        OsString::from("lint"),
         OsString::from("--workspace"),
         raw.clone(),
-        OsString::from("lint"),
     ];
     assert_eq!(parse(&argv), Err(ArgsError::InvalidScope { scope: lossy }));
 }

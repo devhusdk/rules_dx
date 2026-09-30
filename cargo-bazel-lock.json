@@ -1,5 +1,5 @@
 {
-  "checksum": "614244628e8d424cb1307e424f45e8be3bfbad171b3ae526c92ef32b2f772da3",
+  "checksum": "f5c1e2497461c16966b5a708fb7dcdf26c02050f83b4fb3a235ee348cf3ceaec",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1341,6 +1341,7 @@
           "help",
           "std",
           "suggestions",
+          "unstable-ext",
           "usage"
         ],
         "deps": [
@@ -1391,6 +1392,7 @@
           "help",
           "std",
           "suggestions",
+          "unstable-ext",
           "usage"
         ],
         "deps": [
@@ -1441,12 +1443,25 @@
     "clap_complete 4.6.11": {
       "common_attrs": {
         "crate_features": [
-          "default"
+          "default",
+          "unstable-dynamic"
         ],
         "deps": [
           {
             "id": "clap 4.6.7",
             "target": "clap"
+          },
+          {
+            "id": "clap_lex 1.1.1",
+            "target": "clap_lex"
+          },
+          {
+            "id": "is_executable 1.0.6",
+            "target": "is_executable"
+          },
+          {
+            "id": "shlex 2.0.1",
+            "target": "shlex"
           }
         ],
         "edition": "2024"
@@ -5258,6 +5273,46 @@
         }
       ],
       "version": "1.48.0"
+    },
+    "is_executable 1.0.6": {
+      "common_attrs": {
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(target_os = \"windows\")": [
+              {
+                "id": "windows-sys 0.59.0",
+                "target": "windows_sys"
+              }
+            ]
+          }
+        },
+        "edition": "2021"
+      },
+      "library_target_name": "is_executable",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "is_executable",
+      "package_url": "https://github.com/fitzgen/is_executable",
+      "repository": {
+        "Http": {
+          "sha256": "82cb6a9f675da968c63b6208c641b9dca58fc0133ae53375736b1767b0cab8bd",
+          "url": "https://static.crates.io/crates/is_executable/1.0.6/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "is_executable",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.6"
     },
     "is_terminal_polyfill 1.70.2": {
       "common_attrs": {

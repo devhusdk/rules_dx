@@ -1,5 +1,4 @@
 pub mod command;
-pub mod complete;
 pub mod completion;
 pub mod grammar;
 pub mod help;
@@ -88,8 +87,9 @@ pub fn scope_error(scope: &str) -> ArgsError {
 }
 
 pub use command::{Command, WorkflowVerb};
-pub use complete::{completes_labels, run_complete, COMPLETE_SUBCOMMAND, DYNAMIC_MARKER};
-pub use completion::{render_completion, COMPLETION_SHELLS, POWERSHELL_PIPELINE_ANCHOR};
+pub use completion::{
+    registers_callback, render_completion, try_complete, COMPLETE_VAR, COMPLETION_SHELLS,
+};
 pub use grammar::cli_command;
 pub use invocation::{apply_here, here_scope, Invocation, ReportRequest};
 pub use parser::{load_file_defaults, parse, parse_with};

@@ -22,7 +22,6 @@ rust_library(
         "src/adopt/watch.rs",
         "src/args.rs",
         "src/args/command.rs",
-        "src/args/complete.rs",
         "src/args/completion.rs",
         "src/args/defaults_tests.rs",
         "src/args/docs_parity_tests.rs",

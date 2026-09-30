@@ -74,7 +74,7 @@ fn execute_completion_check(
     for shell in &shells {
         match crate::args::render_completion(shell) {
             Ok(script) => {
-                if script.is_empty() || !script.contains(crate::args::COMPLETE_SUBCOMMAND) {
+                if !crate::args::registers_callback(&script, shell) {
                     return operational(
                         invocation,
                         out,
@@ -141,29 +141,6 @@ mod tests {
 
     #[test]
     fn completion_renders_from_single_source() {
-        use clap::ValueEnum;
-        const FLAGS: &[&str] = &[
-            "workspace",
-            "dry-run",
-            "quiet",
-            "verbose",
-            "log-level",
-            "output",
-            "report",
-            "fail-on",
-            "min-coverage",
-            "check",
-            "debug",
-            "release",
-            "bazel",
-            "pin",
-            "rollback",
-            "configured",
-            "from",
-            "to",
-            "here",
-            "cwd",
-        ];
         for &shell in crate::args::COMPLETION_SHELLS {
             let inv = invocation(&["completion", shell]);
             let scratch = dx_test_scratch::scratch("dx-adopt-completion-renders-");
@@ -182,56 +159,22 @@ mod tests {
             );
             assert_eq!(code, 0, "shell {shell}");
             let text = String::from_utf8(out).expect("out");
-            for cmd in crate::args::Command::value_variants() {
-                assert!(
-                    text.contains(cmd.name()),
-                    "shell {shell} misses command {}",
-                    cmd.name()
-                );
-            }
-            for flag in FLAGS {
-                if shell == "fish" {
-                    assert!(
-                        text.contains(&format!("-l {flag}")),
-                        "shell {shell} misses flag {flag}"
-                    );
-                } else {
-                    assert!(
-                        text.contains(&format!("--{flag}")),
-                        "shell {shell} misses flag {flag}"
-                    );
-                }
-            }
-            if shell == "fish" {
-                for cmd in crate::args::Command::value_variants() {
-                    assert!(
-                        text.contains(&format!("-a {} -d", cmd.name())),
-                        "shell {shell} misses functional completion for {}",
-                        cmd.name()
-                    );
-                }
-            }
-            if shell == "powershell" {
-                assert!(
-                    text.contains("'dx' {"),
-                    "shell {shell} lost the 'dx' case anchor"
-                );
-                assert!(
-                    !text.contains("# dx "),
-                    "shell {shell} degraded to non-functional comments"
-                );
-                for cmd in crate::args::Command::value_variants() {
-                    assert!(
-                        text.contains(&format!(
-                            "[CompletionResult]::new('{}', '{}'",
-                            cmd.name(),
-                            cmd.name()
-                        )),
-                        "shell {shell} misses functional completion for {}",
-                        cmd.name()
-                    );
-                }
-            }
+            assert!(
+                crate::args::registers_callback(&text, shell),
+                "shell {shell} must ask dx for candidates: {text}"
+            );
+            assert!(
+                text.contains(crate::args::COMPLETE_VAR),
+                "shell {shell} must name the completion variable: {text}"
+            );
+            assert!(
+                text.contains("dx"),
+                "shell {shell} must call back into dx: {text}"
+            );
+            assert!(
+                !text.contains("dx dynamic candidates"),
+                "shell {shell} must not splice hand-written candidates: {text}"
+            );
         }
         let unknown = crate::args::render_completion("tcsh");
         assert!(unknown.is_err());
@@ -240,87 +183,16 @@ mod tests {
 
     #[test]
     fn completion_embeds_dynamic_callback_without_drift() {
-        use clap::ValueEnum;
         for &shell in crate::args::COMPLETION_SHELLS {
             let text = crate::args::render_completion(shell).expect("render");
             assert!(
-                text.contains(crate::args::COMPLETE_SUBCOMMAND),
-                "shell {shell} misses the __complete callback"
+                crate::args::registers_callback(&text, shell),
+                "shell {shell} misses the dx callback: {text}"
             );
             assert!(
-                text.contains("dx dynamic candidates"),
-                "shell {shell} misses the dynamic marker"
+                text.contains("--"),
+                "shell {shell} must pass the typed words to dx: {text}"
             );
-        }
-        let bash = crate::args::render_completion("bash").expect("render");
-        assert!(
-            bash.contains("dx __complete"),
-            "bash must call back into the binary"
-        );
-        let zsh = crate::args::render_completion("zsh").expect("render");
-        assert!(
-            zsh.contains("_dx_dynamic_targets"),
-            "zsh must route targets through the callback"
-        );
-        assert!(
-            zsh.contains("dx __complete"),
-            "zsh must call back into the binary"
-        );
-        let powershell = crate::args::render_completion("powershell").expect("render");
-        assert!(
-            powershell.contains("dx __complete"),
-            "powershell must call back into the binary"
-        );
-        let marker = format!("#{}: completion callback.", crate::args::DYNAMIC_MARKER);
-        assert_eq!(
-            powershell.matches(&marker).count(),
-            1,
-            "powershell must splice the dynamic callback exactly once"
-        );
-        let pipeline = crate::args::POWERSHELL_PIPELINE_ANCHOR;
-        assert_eq!(
-            powershell.matches(pipeline).count(),
-            1,
-            "powershell must expose exactly one completion pipeline to splice before"
-        );
-        let callback_at = powershell
-            .find(&marker)
-            .expect("powershell misses the dynamic callback block");
-        let completer_at = powershell
-            .find("Register-ArgumentCompleter")
-            .expect("powershell misses the native completer block");
-        let pipeline_at = powershell
-            .find(pipeline)
-            .expect("powershell misses the completion pipeline");
-        assert!(
-            completer_at < callback_at && callback_at < pipeline_at,
-            "powershell callback must sit inside the generated completer block and before the completion pipeline, \
-             otherwise it is an orphan fragment no shell will run"
-        );
-        let fish = crate::args::render_completion("fish").expect("render");
-        for line in [
-            "__fish_seen_subcommand_from watch' -a 'build check fix format lint run test typecheck'",
-            "__fish_seen_subcommand_from hooks; and not __fish_seen_subcommand_from install uninstall status run' -a 'install run status uninstall'",
-            "__fish_seen_subcommand_from hooks; and __fish_seen_subcommand_from run' -a 'pre-commit pre-push'",
-            "__fish_seen_subcommand_from new' -a 'c cc cpp csharp fsharp go java javascript kotlin python rust scala typescript'",
-            "__fish_seen_subcommand_from completion' -a 'bash fish powershell zsh'",
-            "__fish_seen_subcommand_from update' -a 'cargo go maven npm npm-adopt npm-adopt-polyglot npm-tools nuget powershell ruby uv uv-adopt uv-adopt-polyglot uv-tools'",
-            "__fish_seen_subcommand_from bump' -a 'bazel cargo github-actions go maven npm nuget'",
-            "(commandline -opc)",
-        ] {
-            assert!(
-                fish.contains(line),
-                "fish misses dynamic line {line:?}"
-            );
-        }
-        for cmd in crate::args::Command::value_variants() {
-            if crate::args::completes_labels(*cmd) {
-                assert!(
-                    fish.contains(cmd.name()),
-                    "fish label condition misses {}",
-                    cmd.name()
-                );
-            }
         }
     }
 

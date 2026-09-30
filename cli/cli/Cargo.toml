@@ -7,7 +7,7 @@ edition = "2021"
 base64 = "0.22"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
-clap_complete = "4"
+clap_complete = { version = "4", features = ["unstable-dynamic"] }
 # Build-step only: the `dx_man` binary renders man/dx.1 from the clap
 # grammar. Kept out of the `dx` binary itself.
 clap_mangen = "0.2"

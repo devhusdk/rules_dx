@@ -155,20 +155,10 @@ fn main() {
 fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
-    if args.first().is_some_and(|first| {
-        first.as_os_str() == std::ffi::OsStr::new(dx_cli::args::COMPLETE_SUBCOMMAND)
-    }) {
-        let cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
-        let stdout = io::stdout();
-        let mut out = stdout.lock();
-        let code = dx_cli::args::run_complete(&args[1..], &cwd, &mut out);
-        if code != 0 {
-            return code;
-        }
-        if let Err(exit) = flush_out(&mut out) {
-            return exit;
-        }
-        return code;
+    match dx_cli::args::try_complete() {
+        Ok(true) => return 0,
+        Ok(false) => {}
+        Err(message) => return usage_error(&message),
     }
     let defaults_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
     let defaults_start = dx_process::workspace_start(&defaults_cwd);

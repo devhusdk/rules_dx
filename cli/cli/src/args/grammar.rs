@@ -249,7 +249,8 @@ pub(crate) struct Cli {
 
 pub fn cli_command() -> clap::Command {
     use clap::CommandFactory;
-    Cli::command()
+    let start = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    super::completion::with_scope_completers(Cli::command(), std::env::args_os().skip(1), &start)
 }
 
 pub(crate) const VALUE_OPTIONS: &[&str] = &[

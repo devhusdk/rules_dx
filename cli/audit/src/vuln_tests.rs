@@ -574,6 +574,21 @@ fn maven_ranges_cover_intervals_unions_and_edges() {
 }
 
 #[test]
+fn maven_range_bounds_follow_comparable_version() {
+    assert!(maven_in_scope("[1.0.0.Final,2.0.0)", "1.0.0"));
+    assert!(maven_in_scope("[1.0.0.RELEASE,2.0)", "1.0.0"));
+    assert!(maven_in_scope("[1.0.0.Final,)", "1.0"));
+    assert!(!maven_in_scope("[1.0.0.Final,)", "0.9"));
+    assert!(maven_in_scope("[1.0-cr1,2.0)", "1.0-rc1"));
+    assert!(maven_in_scope("[1.0-ga,2.0)", "1.0"));
+    assert!(maven_in_scope("(,2.0.0.RELEASE]", "2.0.0"));
+    assert!(!maven_in_scope("(,2.0.0.RELEASE]", "2.0.1"));
+    assert!(maven_in_scope("[1.0.0.M1,2.0)", "1.0.0-milestone-1"));
+    assert!(maven_in_scope("(,1.1),(1.1,)", "1.0.0.0"));
+    assert!(!maven_in_scope("(,1.1),(1.1,)", "1.1.0.Final"));
+}
+
+#[test]
 fn maven_range_advisories_report_findings() {
     let packages = vec![LockedPackage {
         name: "com.google.guava:guava".to_owned(),

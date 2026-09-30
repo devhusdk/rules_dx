@@ -4,7 +4,7 @@ user.bazelrc
 **/user.bazelrc
 # user.bazelrc is a gitignored local-only overlay (try-imported from .bazelrc);
 # it carries only per-person resolution flags. Canonical registry/lockfile URLs
-# stay bcr.bazel.build (see docs/contributing/local-workflows.md).
+# stay bcr.bazel.build.
 
 # Local agent instructions
 AGENTS.local.md

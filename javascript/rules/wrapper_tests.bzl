@@ -20,9 +20,7 @@ def javascript_wrapper_contract_tests(name):
                 javascript_test_rejection({"auto_configure_reporters": False}),
                 "javascript_test always uses jest with the standard " +
                 "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported " +
-                "(project-specific result protocols are rejected per " +
-                "docs/testing/generation.md).",
+                "`auto_configure_reporters = False` is not supported.",
             ),
             expect_equal(
                 "empty kwargs are clean",

@@ -9,7 +9,6 @@
 // Field numbers below are frozen compatibility surface. The installer
 // refuses markers whose schema version it does not understand; changing
 // the identity algorithm is a schema-version bump, never silent drift.
-// Contract: `docs/environments/managed-state.md`.
 
 syntax = "proto3";
 

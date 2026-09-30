@@ -88,7 +88,7 @@ def deferred_pipeline_error(target_classes, capability):
     for class_id in deferred:
         entry = PARITY_DEFERRED[class_id]
         details.append(class_id + " (" + entry[0] + ": " + entry[1] + ")")
-    return "deferred " + capability + " pipeline for " + ", ".join(details) + ": no adapter claims these classes; see docs/product/support-matrix.md"
+    return "deferred " + capability + " pipeline for " + ", ".join(details) + ": no adapter claims these classes"
 
 def parity_unit_tests(name):
     starlark_test(

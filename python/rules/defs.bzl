@@ -71,13 +71,11 @@ def python_binary(name, srcs = None, main = None, visibility = None, **kwargs):
         _python_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
 
 def python_test_rejection(kwargs):
-    """Returns the contract rejection for forbidden python_test kwargs, or None."""
+    """Returns the rejection for forbidden python_test kwargs, or None."""
     if "main" in kwargs:
         return ("python_test always runs pytest and provides its own " +
-                "entrypoint; `main` is not supported (generic mains and " +
-                "alternate test drivers are rejected per " +
-                "docs/testing/generation.md). Use py_pytest_main + py_test " +
-                "directly for a custom main.")
+                "entrypoint; `main` is not supported. Use py_pytest_main + " +
+                "py_test directly for a custom main.")
     return None
 
 def python_test(name, srcs, visibility = None, **kwargs):

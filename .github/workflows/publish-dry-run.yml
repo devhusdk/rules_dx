@@ -22,7 +22,7 @@
 # follow-ups qualified with per-host evidence under issue #815; macOS
 # x86_64 Not planned per #976 with no cell); SBOM,
 # signing/attestation, and BCR run owner-gated dry-run-first per the
-# human-run release path (docs/deploy/release-runbook.md, issue #458); GHCR images
+# human-run release path (issue #458); GHCR images
 # stay in the separate ghcr.yml workflow per owner decision. Nothing here
 # tags, publishes, or pushes, with or without approval: `dist/`/`release/`
 # stay git-ignored, staging happens under RUNNER_TEMP so the checkout is

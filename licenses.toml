@@ -2,10 +2,10 @@
 # This repository cuts no releases (version 0.0.0, unpublishable module,
 # no tags); the `//...` dogfood scope stays internal-only, inventoried in
 # the SBOM and never failing on the allow/review/deny table except blocked.
-# `//cli/cli:dx` is the release binary (see docs/deploy/release-runbook.md)
-# and is marked distributed so `dx audit license //cli/cli:dx` exercises the
-# strict table on the existing customer flow. Blocked licenses fail in both
-# tiers and need versioned exceptions.
+# `//cli/cli:dx` is the release binary and is marked distributed so
+# `dx audit license //cli/cli:dx` exercises the strict table on the
+# existing customer flow. Blocked licenses fail in both tiers and need
+# versioned exceptions.
 [policy]
 blocked = ["AGPL-3.0-only", "AGPL-3.0-or-later", "SSPL-1.0"]
 

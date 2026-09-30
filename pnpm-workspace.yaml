@@ -1,5 +1,5 @@
-# Application/test graph workspace (hub `npm`); one of two single-importer
-# workspaces (see docs/tools/tool-acquisition.md).
+# Application/test graph workspace (hub `npm`); one of two
+# single-importer workspaces.
 # `packages` stays explicit so pnpm never treats the file as an empty
 # workspace; only the root importer participates in this workspace.
 # allowBuilds stays empty: the jest graph is pure JS with no lifecycle

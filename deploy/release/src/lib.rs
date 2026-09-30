@@ -224,7 +224,7 @@ pub fn bcr_run(
     }
     let mut out = String::new();
     out.push_str(&format!(
-        "bcr: owner-approved submission for {module}@{version} (human-run path only; see docs/deploy/release-runbook.md)\n"
+        "bcr: owner-approved submission for {module}@{version} (human-run path only)\n"
     ));
     for input in inputs {
         out.push_str(&format!("  input: {} ({input})\n", basename_of(input)));
@@ -444,7 +444,7 @@ pub fn release_run(
     }
     let mut out = String::new();
     out.push_str(&format!(
-        "release: owner-approved human-run release for {tag} (see docs/deploy/release-runbook.md for the full checklist)\n"
+        "release: owner-approved human-run release for {tag}\n"
     ));
     out.push_str("release: proceeding step by step; any failure stops before publish\n");
     out.push_str(&format!(

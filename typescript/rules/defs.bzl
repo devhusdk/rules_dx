@@ -44,12 +44,11 @@ def _is_declaration(src):
     return False
 
 def typescript_srcs_rejection(srcs):
-    """Returns the contract rejection for forbidden typescript_project srcs, or None."""
+    """Returns the rejection for forbidden typescript_project srcs, or None."""
     bad = [src for src in srcs or [] if _is_declaration(src)]
     if bad:
         return ("typescript_project takes real sources only; declaration " +
-                "files are inert and must not be listed in srcs " +
-                "(rejected per docs/testing/generation.md): " +
+                "files are inert and must not be listed in srcs: " +
                 ", ".join(sorted(bad)))
     return None
 
@@ -92,13 +91,11 @@ _typescript_test = rule(
 )
 
 def typescript_test_rejection(kwargs):
-    """Returns the contract rejection for forbidden typescript_test kwargs, or None."""
+    """Returns the rejection for forbidden typescript_test kwargs, or None."""
     if kwargs.get("auto_configure_reporters", True) == False:
         return ("typescript_test always uses jest with the standard " +
                 "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported " +
-                "(project-specific result protocols are rejected per " +
-                "docs/testing/generation.md).")
+                "`auto_configure_reporters = False` is not supported.")
     return None
 
 def typescript_test_env(env_inherit):

@@ -14,8 +14,8 @@
 # switching it to `ghcr.io/...@sha256:<digest>` follows the first push, with
 # `cosign sign <digest>` on the #26 trust root (signing-second after #26/#78).
 # GHCR quotas/retention are qualified on first push (free for public repos,
-# record exact limits then per docs/testing/README.md); this build-only slice
-# pushes nothing, so no quota is consumed.
+# record exact limits then); this build-only slice pushes nothing, so no
+# quota is consumed.
 #
 # Build locally (no push):
 #   docker build -f .devcontainer/Dockerfile.prebuilt -t dx-devcontainer:local .

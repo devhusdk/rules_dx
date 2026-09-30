@@ -48,7 +48,7 @@ pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
             detail:
                 "linux_x86_64 + linux_arm64 glibc plus macos_arm64 plus windows_x86_64 qualified"
                     .to_owned(),
-            hint: "see support-matrix for out-of-v1".to_owned(),
+            hint: "out-of-v1 hosts stay unqualified".to_owned(),
         },
         StatusCheck {
             name: "tools".to_owned(),
@@ -97,7 +97,7 @@ mod tests {
             tools.detail
         );
         let json = render_status_json(&checks).expect("status json");
-        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"linux_x86_64 + linux_arm64 glibc plus macos_arm64 plus windows_x86_64 qualified","hint":"see support-matrix for out-of-v1"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts)","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0"}]}"#);
+        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"linux_x86_64 + linux_arm64 glibc plus macos_arm64 plus windows_x86_64 qualified","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts)","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0"}]}"#);
     }
 
     #[test]

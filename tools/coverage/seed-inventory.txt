@@ -1,20 +1,4 @@
-# Snapshot of the tools/coverage/cells.bzl registry; scope follows the seed cell.
-# Seed-cell exact-gate inventory (issue #89 item 1; registry issue #507).
-#
-# Each required configuration/platform cell gates its own combined LCOV
-# report separately: no cross-platform union, no averaged percentages, no
-# rounding up (docs/testing/README.md). Only the seed host qualifies today
-# (issue #5), so this file lists the seed cell's exact-gate scope. The
-# required-cell registry is tools/coverage/cells.txt, qualified by
-# `bazel run //tools/ci:coverage_qualification`.
-#
-# Scope starts with the gate's own implementation because it is fully
-# covered: every eligible line is hit or carries a validated `reason:`
-# ignore. Expand this file (never shrink a passing scope without a
-# recorded decision) as more of the tree reaches zero-uncovered.
-# Dispositions: `eligible` (gated) or `support` (report hits skipped).
-# The gate library was promoted to //cli/lcov:dx_lcov (#74); the thin
-# binary shim stays at tools/coverage/src/main.rs.
+# Seed cell exact-gate inventory: `<eligible|support> <path>` rows, one per gated file.
 eligible cli/lcov/src/lib.rs
 eligible cli/lcov/src/ignores.rs
 eligible cli/lcov/src/inventory.rs

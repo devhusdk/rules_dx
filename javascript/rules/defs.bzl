@@ -108,13 +108,11 @@ _javascript_test = rule(
 )
 
 def javascript_test_rejection(kwargs):
-    """Returns the contract rejection for forbidden javascript_test kwargs, or None."""
+    """Returns the rejection for forbidden javascript_test kwargs, or None."""
     if kwargs.get("auto_configure_reporters", True) == False:
         return ("javascript_test always uses jest with the standard " +
                 "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported " +
-                "(project-specific result protocols are rejected per " +
-                "docs/testing/generation.md).")
+                "`auto_configure_reporters = False` is not supported.")
     return None
 
 def javascript_test_env(env_inherit):

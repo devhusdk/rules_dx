@@ -1,21 +1,4 @@
-# Single source: tools/coverage/cells.bzl (COVERAGE_CELLS registry snapshot).
-# Required coverage cells (issues #507, #410, #412, #414).
-#
-# Each required configuration/platform cell gates its own combined LCOV
-# report separately: no cross-cell union, no averaged percentages, no
-# rounding up (docs/testing/README.md#coverage). The Linux x86_64 seed
-# host plus Linux arm64 glibc native (issue #410) plus macOS arm64 native
-# (issue #412) plus Windows x86_64 MSVC-compatible
-# native (issue #414) qualify today (issues #5/#298); all required
-# cells are qualified, so no unqualified row remains (out-of-v1
-# Windows arm64 carries no coverage cell, never silent substitution; macOS
-# x86_64 carries no cell, Not planned per issue #976).
-#
-# Format: `<disposition> <cell> <detail>`.
-# `qualified` detail is the versioned cell inventory gated by
-# `coverage_bin`. `unqualified` detail is the owning platform issue.
-# Expand qualified rows (never shrink a passing scope without a recorded
-# decision) as hosts qualify per ADR 0014 plus the platform policy.
+# Required coverage cells, snapshot of the COVERAGE_CELLS registry: `<disposition> <cell> <inventory>`.
 qualified seed-linux_x86_64 tools/coverage/seed-inventory.txt
 qualified linux_arm64 tools/coverage/arm64-inventory.txt
 qualified macos_arm64 tools/coverage/macos-arm64-inventory.txt

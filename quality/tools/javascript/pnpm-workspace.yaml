@@ -1,10 +1,9 @@
 # Private pure-JavaScript tool graph (ESLint + Prettier, hub `npm_tools`);
-# one of two single-importer workspaces (see docs/tools/tool-acquisition.md).
+# one of two single-importer workspaces.
 # `packages` stays explicit so pnpm never treats the file as an empty
 # workspace; only this importer participates in this workspace.
 # allowBuilds stays empty: both packages are pure JS with no lifecycle
-# hooks; any future native dep must opt in explicitly here (fail-closed
-# per tool-acquisition private-graph requirements).
+# hooks; any future native dep must opt in explicitly here (fail-closed).
 packages:
   - .
 allowBuilds: {}

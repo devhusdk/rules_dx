@@ -16,16 +16,14 @@
 # `preset_update --verify-only` flag-diff, `bazel build //...`,
 # `bazel test //...` with CI flaky/timeout flags, `dx coverage
 # --min-coverage 96 //...` seed gate plus `dx lint/typecheck/format --check
-# //...` plus `dx security/license //...` dogfood gates per
-# docs/contributing/local-workflows.md; seed host only, full host matrix stays
-# in CI on the opened PR, issue #641) → if green open one PR, if red
-# discard and record → reset to clean tree → next dep.
+# //...` plus `dx security/license //...` dogfood gates; seed host only, full
+# host matrix stays in CI on the opened PR, issue #641) → if green open one
+# PR, if red discard and record → reset to clean tree → next dep.
 #
 # Runner: scheduled weekly plus manual dispatch, `GITHUB_TOKEN` for PR
 # creation, concurrency control so N open PRs do not stampede CI; failures
 # never retry-until-green; fork-safety (fork runs plan only, never push or
-# open PRs with write credentials) and the human merge path from
-# docs/contributing/automation.md preserved.
+# open PRs with write credentials) and the human merge path preserved.
 #
 # Hygiene (issue #80, deduped under #915): the bootstrap is an inline
 # no-secrets `actions/checkout` (step 1) plus the pinned

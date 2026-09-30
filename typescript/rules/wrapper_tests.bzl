@@ -19,8 +19,7 @@ def typescript_wrapper_contract_tests(name):
                 "declaration rejection names the files",
                 typescript_srcs_rejection(["types.d.ts"]),
                 "typescript_project takes real sources only; declaration " +
-                "files are inert and must not be listed in srcs " +
-                "(rejected per docs/testing/generation.md): types.d.ts",
+                "files are inert and must not be listed in srcs: types.d.ts",
             ),
             expect_equal(
                 "every declaration suffix is rejected",
@@ -31,15 +30,13 @@ def typescript_wrapper_contract_tests(name):
                 "rejected files render sorted",
                 typescript_srcs_rejection(["b.d.mts", "a.d.ts"]),
                 "typescript_project takes real sources only; declaration " +
-                "files are inert and must not be listed in srcs " +
-                "(rejected per docs/testing/generation.md): a.d.ts, b.d.mts",
+                "files are inert and must not be listed in srcs: a.d.ts, b.d.mts",
             ),
             expect_equal(
                 "mixed srcs reject only the declarations",
                 typescript_srcs_rejection(["main.ts", "types.d.ts"]),
                 "typescript_project takes real sources only; declaration " +
-                "files are inert and must not be listed in srcs " +
-                "(rejected per docs/testing/generation.md): types.d.ts",
+                "files are inert and must not be listed in srcs: types.d.ts",
             ),
             expect_equal(
                 "real sources are clean",
@@ -66,9 +63,7 @@ def typescript_wrapper_contract_tests(name):
                 typescript_test_rejection({"auto_configure_reporters": False}),
                 "typescript_test always uses jest with the standard " +
                 "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported " +
-                "(project-specific result protocols are rejected per " +
-                "docs/testing/generation.md).",
+                "`auto_configure_reporters = False` is not supported.",
             ),
             expect_equal(
                 "empty kwargs are clean",

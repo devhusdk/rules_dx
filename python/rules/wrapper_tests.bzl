@@ -19,10 +19,8 @@ def python_wrapper_contract_tests(name):
                 "main rejection names pytest",
                 python_test_rejection({"main": "main.py"}),
                 "python_test always runs pytest and provides its own " +
-                "entrypoint; `main` is not supported (generic mains and " +
-                "alternate test drivers are rejected per " +
-                "docs/testing/generation.md). Use py_pytest_main + py_test " +
-                "directly for a custom main.",
+                "entrypoint; `main` is not supported. Use py_pytest_main + " +
+                "py_test directly for a custom main.",
             ),
             expect_equal(
                 "empty kwargs are clean",

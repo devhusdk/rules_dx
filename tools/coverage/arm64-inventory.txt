@@ -1,17 +1,4 @@
-# Snapshot of the tools/coverage/cells.bzl registry; scope follows the seed cell.
-# Linux arm64 cell exact-gate inventory (issue #410; registry issue #507).
-#
-# Same first-party code as the seed cell, so the exact-gate scope matches
-# `tools/coverage/seed-inventory.txt` line for line: the arm64 runner gates
-# its own combined LCOV report through `coverage_bin` against this file
-# (CI `coverage-arm64` job), with no cross-cell union, no averaged
-# percentages, and no rounding up (docs/testing/README.md). Only the
-# inventory path differs so each cell gates its own report separately.
-# Expand this file (never shrink a passing scope without a
-# recorded decision) as more of the tree reaches zero-uncovered.
-# Dispositions: `eligible` (gated) or `support` (report hits skipped).
-# The gate library was promoted to //cli/lcov:dx_lcov (#74); the thin
-# binary shim stays at tools/coverage/src/main.rs.
+# Linux arm64 cell inventory: the same rows as the seed cell.
 eligible cli/lcov/src/lib.rs
 eligible cli/lcov/src/ignores.rs
 eligible cli/lcov/src/inventory.rs

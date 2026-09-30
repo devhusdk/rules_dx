@@ -15,8 +15,7 @@
 # that lands with the first push. GHCR container storage/bandwidth is
 # currently free for public repos (1-month notice before pricing changes per
 # GitHub Packages billing; private Packages quotas 500MB/1GB do not apply
-# to containers today) — qualified in docs/contributing/devcontainer.md and
-# docs/testing/README.md, not assumed. Build-only PRs consume no quota.
+# to containers today) — not assumed. Build-only PRs consume no quota.
 #
 # Hygiene (issue #80): where Bazel is needed, Bazelisk installs go
 # through the pinned `bazel-contrib/setup-bazel` action (commit SHA plus
@@ -134,7 +133,7 @@ jobs:
           (cd /tmp && grep -F "cosign-linux-amd64" cosign_checksums | sha256sum -c -)
           install -m755 /tmp/cosign /tmp/cosign-bin
           rm /tmp/cosign /tmp/cosign_checksums
-          echo "signing: cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) for $ref plus gh attestation create (owner-approved human-run path, see docs/deploy/release-runbook.md)."
+          echo "signing: cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) for $ref plus gh attestation create (owner-approved human-run path)."
           /tmp/cosign-bin sign --yes --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
           /tmp/cosign-bin verify --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
           if command -v gh >/dev/null 2>&1; then
@@ -148,7 +147,7 @@ jobs:
             echo "- digest pin (never latest): \`$ref\`"
             echo "- signed: \`cosign sign <digest>\` on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) plus verified (\`cosign verify\` / \`gh attestation verify\`), same as //deploy/release:signing_demo."
             echo "- scaffold update: set \`.devcontainer/devcontainer.json\` \`\"image\": \"$ref\"\` (digest pin, never latest) plus \`cli/adopt/src/scaffold.rs\` \`DEVCONTAINER_JSON\`, then \`bazel test //.devcontainer:devcontainer_parity_test\`."
-            echo "- quota: image size from \`docker images --digests\`; container storage/bandwidth currently free for public repos (1-month notice before pricing changes); record exact bytes here on first push per docs/testing/README.md."
+            echo "- quota: image size from \`docker images --digests\`; container storage/bandwidth currently free for public repos (1-month notice before pricing changes); record exact bytes here on first push."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Write job summary (build-only by default)
         if: always()

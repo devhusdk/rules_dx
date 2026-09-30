@@ -2,7 +2,7 @@
 //
 // Internal binary contract between quality pipeline actions, Bazel
 // evaluators, and the `dx` CLI. Distinct from the public NDJSON output
-// protocol. Contract: `docs/quality/quality-result-protocol.md`.
+// protocol.
 //
 // Field and enum numbers below are frozen compatibility surface. Unknown
 // major versions are rejected; newer minors are accepted when decoding

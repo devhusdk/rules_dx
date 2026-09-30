@@ -7,12 +7,12 @@
     "Pester": {
       "version": "5.7.1",
       "gallery": "https://www.powershellgallery.com/packages/Pester/5.7.1",
-      "notes": "Widely deployed stable (Jan 2025); 6.1.0 observed Aug 2026 stays a currency candidate. Byte identity (nupkg sha) pending maintainer acquisition per docs/tools/tool-acquisition.md."
+      "notes": "Widely deployed stable (Jan 2025); 6.1.0 observed Aug 2026 stays a currency candidate. Byte identity (nupkg sha) pending maintainer acquisition."
     },
     "PSScriptAnalyzer": {
       "version": "1.25.0",
       "gallery": "https://www.powershellgallery.com/packages/PSScriptAnalyzer/1.25.0",
-      "notes": "Exact-module route per docs/tools/tool-acquisition.md; console-parse vs library-API binding stays tracked under #800. Byte identity pending."
+      "notes": "Exact-module route; console-parse vs library-API binding stays tracked under #800. Byte identity pending."
     }
   },
   "fail_closed": "generation consumes this lock, never writes it; consumer builds never run Install-Module or Install-PSResource; explicit-path import only",

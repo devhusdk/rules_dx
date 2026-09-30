@@ -556,6 +556,29 @@ fn global_flags_page_names_every_profile_command() {
 }
 
 #[test]
+fn global_flags_page_names_every_min_coverage_command() {
+    let bullet = global_flag_bullet("min-coverage");
+    let (_, owners) = bullet
+        .split_once("Taken by")
+        .unwrap_or_else(|| panic!("the --min-coverage bullet has no owner list:\n{bullet}"));
+    let mut named: Vec<String> = backticked(owners)
+        .into_iter()
+        .filter(|token| Command::parse(token).is_some())
+        .collect();
+    named.sort();
+    named.dedup();
+    assert_eq!(
+        named,
+        commands_where(Command::supports_min_coverage),
+        "docs/cli/commands/README.md --min-coverage bullet must name every command that takes a threshold"
+    );
+    assert!(
+        bullet.contains("Every other command rejects it."),
+        "docs/cli/commands/README.md --min-coverage bullet must say every other command rejects it:\n{bullet}"
+    );
+}
+
+#[test]
 fn global_flags_page_documents_every_banner_option() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");

@@ -461,7 +461,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
             option: "--open".to_owned(),
         });
     }
-    if min_coverage.is_some() && command != Command::Coverage {
+    if min_coverage.is_some() && !command.supports_min_coverage() {
         return Err(ArgsError::UnsupportedOption {
             command: command.name(),
             option: "--min-coverage".to_owned(),

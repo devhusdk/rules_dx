@@ -46,7 +46,8 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--fail-on info|warning|error`: severity that fails. Default `warning`. Taken by
   `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
   Every other command rejects it.
-- `--min-coverage <percent>`: fail `coverage` below this percent.
+- `--min-coverage <percent>`: fail `coverage` below this percent. Taken by
+  `coverage`. Every other command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `check`, `fix`, `update`, `version`, `completion`, and `docs`.
   Every other command rejects it.

@@ -3,8 +3,8 @@ use std::ffi::OsStr;
 use dx_output::{OutputMode, Threshold};
 
 use super::command::Command;
+use super::error::scope_error;
 use super::tokenizer::tokenize;
-use super::values::{parse_min_coverage, parse_report, scope_error};
 use super::{ArgsError, Invocation};
 
 pub use super::grammar::cli_command;
@@ -49,7 +49,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         output,
         report,
         fail_on,
-        min_coverage: min_coverage_name,
+        min_coverage,
         check,
         debug,
         release,
@@ -61,8 +61,8 @@ pub fn parse_with<S: AsRef<OsStr>>(
         to,
         here,
         serve,
-        port: port_name,
-        host: host_name,
+        port,
+        host,
         open,
         offline,
         command: command_name,
@@ -103,21 +103,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV),
         file.verbose,
     );
-    if pin.as_deref().is_some_and(str::is_empty) {
-        return Err(ArgsError::MissingValue {
-            option: "--pin".to_owned(),
-        });
-    }
-    if from.as_deref().is_some_and(str::is_empty) {
-        return Err(ArgsError::MissingValue {
-            option: "--from".to_owned(),
-        });
-    }
-    if to.as_deref().is_some_and(str::is_empty) {
-        return Err(ArgsError::MissingValue {
-            option: "--to".to_owned(),
-        });
-    }
     let output_name = invocation_defaults::resolve_string(
         output,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
@@ -153,39 +138,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     let color = dx_output::ColorMode::parse(&color_name).map_err(|_| ArgsError::BadColor {
         value: color_name.clone(),
     })?;
-    let mut reports = Vec::new();
-    for value in &report {
-        reports.push(parse_report(value)?);
-    }
-    let mut min_coverage: Option<u32> = None;
-    if let Some(value) = &min_coverage_name {
-        min_coverage = Some(parse_min_coverage(value)?);
-    }
-    let mut port: Option<u16> = None;
-    if let Some(value) = &port_name {
-        if value.is_empty() {
-            return Err(ArgsError::MissingValue {
-                option: "--port".to_owned(),
-            });
-        }
-        match value.parse::<u16>() {
-            Ok(port_value) if port_value != 0 => port = Some(port_value),
-            _ => {
-                return Err(ArgsError::MissingValue {
-                    option: "--port".to_owned(),
-                });
-            }
-        }
-    }
-    let mut host: Option<String> = None;
-    if let Some(value) = &host_name {
-        if value.is_empty() {
-            return Err(ArgsError::MissingValue {
-                option: "--host".to_owned(),
-            });
-        }
-        host = Some(value.clone());
-    }
+    let reports = report;
     let command = command_name.ok_or(ArgsError::MissingCommand)?;
     if here && !command.supports_here() {
         return Err(ArgsError::UnsupportedOption {
@@ -605,9 +558,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             command: command.name(),
             option: "--output=diff".to_owned(),
         });
-    }
-    if debug && release {
-        return Err(ArgsError::ConflictingProfiles);
     }
     if (debug || release) && !command.supports_profile() {
         return Err(ArgsError::UnsupportedOption {

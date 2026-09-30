@@ -69,6 +69,20 @@ pub enum ArgsError {
     InvalidScope { scope: String },
 }
 
+pub fn scope_error(scope: &str) -> ArgsError {
+    if scope.is_empty() {
+        ArgsError::EmptyScope
+    } else if scope.starts_with(':') {
+        ArgsError::RelativeLabel {
+            scope: scope.to_owned(),
+        }
+    } else {
+        ArgsError::InvalidScope {
+            scope: scope.to_owned(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

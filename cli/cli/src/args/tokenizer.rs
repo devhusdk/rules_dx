@@ -53,6 +53,36 @@ fn invalid_value(error: &clap::Error) -> Option<String> {
     dx_output::rejected_value(error)
 }
 
+fn rejected_token(error: &clap::Error) -> String {
+    match error.get(clap::error::ContextKind::InvalidValue) {
+        Some(clap::error::ContextValue::String(value)) => value.clone(),
+        Some(clap::error::ContextValue::Strings(values)) => {
+            values.first().cloned().unwrap_or_default()
+        }
+        _ => String::new(),
+    }
+}
+
+fn argument_conflict(error: &clap::Error) -> ArgsError {
+    match invalid_token(error).unwrap_or_default().as_str() {
+        "--debug" | "--release" => ArgsError::ConflictingProfiles,
+        _ => ArgsError::ConflictingVerboseLogLevel,
+    }
+}
+
+fn value_validation(error: &clap::Error) -> ArgsError {
+    let token = invalid_token(error).unwrap_or_default();
+    let option = leading_flag(&token);
+    let value = rejected_token(error);
+    match option.as_str() {
+        "--min-coverage" => ArgsError::BadMinCoverage { value },
+        "--report" => ArgsError::BadReport { value },
+        _ => ArgsError::MissingValue {
+            option: option.to_owned(),
+        },
+    }
+}
+
 fn recover_token<S: AsRef<OsStr>>(args: &[S], token: Option<String>) -> String {
     let token = token.unwrap_or_default();
     for arg in args {
@@ -102,6 +132,8 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
                 suggest::clap_suggestion(error).or_else(|| suggest::suggest_option(&option));
             ArgsError::UnknownOption { option, suggestion }
         }
+        ErrorKind::ValueValidation => value_validation(error),
+        ErrorKind::ArgumentConflict => argument_conflict(error),
         ErrorKind::InvalidValue => {
             let token = invalid_token(error).unwrap_or_default();
             if invalid_value(error).is_none_or(|value| value.is_empty()) {

@@ -37,7 +37,6 @@ rust_library(
         "src/args/strict_tests.rs",
         "src/args/suggest.rs",
         "src/args/tokenizer.rs",
-        "src/args/values.rs",
         "src/exec.rs",
         "src/exec/audit.rs",
         "src/exec/audit_license.rs",

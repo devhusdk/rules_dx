@@ -250,6 +250,130 @@ fn strict_bazel_tail_forwards_verbatim() {
 }
 
 #[test]
+fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
+    for words in [
+        vec!["build", "--debug", "--release"],
+        vec!["build", "--release", "--debug"],
+    ] {
+        assert_eq!(
+            parse(&args(&words)),
+            Err(ArgsError::ConflictingProfiles),
+            "words: {words:?}"
+        );
+    }
+    for words in [
+        vec!["lint", "--verbose", "--log-level=debug"],
+        vec!["lint", "--log-level=debug", "--verbose"],
+        vec!["lint", "-v", "--log-level=info"],
+        vec!["lint", "--log-level=info", "-v"],
+    ] {
+        assert_eq!(
+            parse(&args(&words)),
+            Err(ArgsError::ConflictingVerboseLogLevel),
+            "words: {words:?}"
+        );
+    }
+    for (words, want) in [
+        (
+            vec!["coverage", "--min-coverage=eighty"],
+            ArgsError::BadMinCoverage {
+                value: "eighty".to_owned(),
+            },
+        ),
+        (
+            vec!["coverage", "--min-coverage=101"],
+            ArgsError::BadMinCoverage {
+                value: "101".to_owned(),
+            },
+        ),
+        (
+            vec!["coverage", "--min-coverage=-1"],
+            ArgsError::BadMinCoverage {
+                value: "-1".to_owned(),
+            },
+        ),
+        (
+            vec!["lint", "--report=sarif"],
+            ArgsError::BadReport {
+                value: "sarif".to_owned(),
+            },
+        ),
+        (
+            vec!["lint", "--report=sarif="],
+            ArgsError::BadReport {
+                value: "sarif=".to_owned(),
+            },
+        ),
+        (
+            vec!["docs", "--serve", "--port=0"],
+            ArgsError::MissingValue {
+                option: "--port".to_owned(),
+            },
+        ),
+        (
+            vec!["docs", "--serve", "--port=notanumber"],
+            ArgsError::MissingValue {
+                option: "--port".to_owned(),
+            },
+        ),
+        (
+            vec!["docs", "--serve", "--port="],
+            ArgsError::MissingValue {
+                option: "--port".to_owned(),
+            },
+        ),
+        (
+            vec!["docs", "--serve", "--host="],
+            ArgsError::MissingValue {
+                option: "--host".to_owned(),
+            },
+        ),
+        (
+            vec!["version", "--pin="],
+            ArgsError::MissingValue {
+                option: "--pin".to_owned(),
+            },
+        ),
+        (
+            vec!["migrate", "--from="],
+            ArgsError::MissingValue {
+                option: "--from".to_owned(),
+            },
+        ),
+        (
+            vec!["migrate", "--to="],
+            ArgsError::MissingValue {
+                option: "--to".to_owned(),
+            },
+        ),
+    ] {
+        assert_eq!(parse(&args(&words)), Err(want), "words: {words:?}");
+    }
+}
+
+#[test]
+fn strict_here_conflicts_stay_imperative_and_ordered() {
+    for words in [
+        vec!["lint", "--here", "//pkg:target"],
+        vec!["build", "--here", "//pkg:target"],
+        vec!["security", "--here", "//pkg:target"],
+    ] {
+        assert_eq!(
+            parse(&args(&words)),
+            Err(ArgsError::ConflictingHere),
+            "words: {words:?}"
+        );
+    }
+    assert!(
+        matches!(
+            parse(&args(&["version", "--here", "//pkg:target"])),
+            Err(ArgsError::UnsupportedOption { .. })
+        ),
+        "the command gate must outrank the scope conflict"
+    );
+}
+
+#[test]
 fn strict_help_verb_redirects_to_generated_help() {
     for words in [vec!["Help"], vec!["HELP"]] {
         match parse(&args(&words)) {

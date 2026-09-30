@@ -1,4 +1,4 @@
-use super::super::values::scope_error;
+use super::super::error::scope_error;
 use super::super::{ArgsError, Command};
 use super::parse;
 use clap::ValueEnum;

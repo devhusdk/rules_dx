@@ -46,7 +46,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         } else {
             DOCS_BUILD_TARGET
         };
-        (vec![target.to_owned()], "//...".to_owned())
+        (vec![target.to_owned()], target.to_owned())
     } else {
         match resolve(&invocation.targets, workspace, query_runner) {
             Ok(resolved) => {
@@ -250,7 +250,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use super::CODE_SERVE_FAILED;
+    use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET, DOCS_CHECK_TARGET};
 
     #[test]
     fn docs_explicit_scopes_and_process_failures_keep_exit_contract() {
@@ -307,6 +307,27 @@ mod tests {
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("Running docs build"), "{out}");
         assert!(out.contains("render"), "{out}");
+    }
+
+    #[test]
+    fn docs_default_summary_names_the_target_it_builds() {
+        let cases: Vec<(Vec<&str>, &str)> = vec![
+            (vec!["docs", "--output=text"], DOCS_BUILD_TARGET),
+            (vec!["docs", "--check", "--output=text"], DOCS_CHECK_TARGET),
+        ];
+        for (words, target) in cases {
+            let harness = Harness::new("docs-summary-scope");
+            let (code, out, err) = harness.run(&words);
+            assert_eq!(code, 0, "{out}{err}");
+            assert!(
+                out.contains(target),
+                "summary must name the label it builds: {out}"
+            );
+            assert!(
+                !out.contains("//..."),
+                "must not claim a repository-wide scope: {out}"
+            );
+        }
     }
 
     #[test]

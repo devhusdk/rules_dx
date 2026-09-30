@@ -32,6 +32,11 @@ const BUILD_PROFILES: [&str; 5] = [
     "build:dx_toolchain --compilation_mode=fastbuild",
 ];
 
+const RUNFILES_FLAGS: [&str; 2] = [
+    "common --nolegacy_external_runfiles",
+    "build:windows --nobuild_runfile_links",
+];
+
 const WINDOWS_FLAGS: [&str; 1] = ["build:windows --enable_runfiles"];
 
 pub fn render_fragment() -> String {
@@ -42,6 +47,7 @@ pub fn render_fragment() -> String {
     lines.extend(UPSTREAM_FLAGS.iter().map(|flag| (*flag).to_owned()));
     lines.extend(COVERAGE_FLAGS.iter().map(|flag| (*flag).to_owned()));
     lines.extend(BUILD_PROFILES.iter().map(|flag| (*flag).to_owned()));
+    lines.extend(RUNFILES_FLAGS.iter().map(|flag| (*flag).to_owned()));
     lines.extend(WINDOWS_FLAGS.iter().map(|flag| (*flag).to_owned()));
     let mut out = lines.join("\n");
     out.push('\n');
@@ -246,12 +252,13 @@ mod tests {
         assert_eq!(COVERAGE_FLAGS.len(), 8);
         assert_eq!(BUILD_PROFILES.len(), 5);
         assert_eq!(WINDOWS_FLAGS.len(), 1);
+        assert_eq!(RUNFILES_FLAGS.len(), 2);
     }
 
     #[test]
     fn fragment_bytes_match_retired_python() {
         let rendered = render_fragment();
-        let expected = "# Vendored Bazel execution preset -- GENERATED, do not edit.\n# Regenerate: `bazel run //tools/bazelrc:preset_update`.\ncommon --enable_bzlmod\nbuild --verbose_failures\ntest --test_output=errors\ncommon --enable_platform_specific_config\ncoverage --test_env=GENERATE_LLVM_LCOV=1\ncoverage --combined_report=lcov\ncoverage --test_tag_filters=-no-coverage\ncoverage --enable_runfiles\ncoverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage --instrumentation_filter=^//\nbuild:dx_debug --compilation_mode=dbg\nbuild:dx_dev --compilation_mode=fastbuild\nbuild:dx_release --compilation_mode=opt\nbuild:dx_dev_remote --compilation_mode=fastbuild\nbuild:dx_toolchain --compilation_mode=fastbuild\nbuild:windows --enable_runfiles\n";
+        let expected = "# Vendored Bazel execution preset -- GENERATED, do not edit.\n# Regenerate: `bazel run //tools/bazelrc:preset_update`.\ncommon --enable_bzlmod\nbuild --verbose_failures\ntest --test_output=errors\ncommon --enable_platform_specific_config\ncoverage --test_env=GENERATE_LLVM_LCOV=1\ncoverage --combined_report=lcov\ncoverage --test_tag_filters=-no-coverage\ncoverage --enable_runfiles\ncoverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov\ncoverage --instrumentation_filter=^//\nbuild:dx_debug --compilation_mode=dbg\nbuild:dx_dev --compilation_mode=fastbuild\nbuild:dx_release --compilation_mode=opt\nbuild:dx_dev_remote --compilation_mode=fastbuild\nbuild:dx_toolchain --compilation_mode=fastbuild\ncommon --nolegacy_external_runfiles\nbuild:windows --nobuild_runfile_links\nbuild:windows --enable_runfiles\n";
         assert_eq!(rendered, expected);
         assert!(rendered.ends_with('\n'));
         assert!(!rendered.ends_with("\n\n"));
@@ -259,6 +266,7 @@ mod tests {
             .iter()
             .chain(COVERAGE_FLAGS.iter())
             .chain(BUILD_PROFILES.iter())
+            .chain(RUNFILES_FLAGS.iter())
             .chain(WINDOWS_FLAGS.iter())
         {
             assert!(rendered.contains(flag), "missing {flag}");
@@ -273,7 +281,9 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build:dx_dev_remote --compilation_mode=fastbuild"));
         assert!(flags.contains("build:dx_toolchain --compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 17);
+        assert!(flags.contains("common --nolegacy_external_runfiles"));
+        assert!(flags.contains("build:windows --nobuild_runfile_links"));
+        assert_eq!(flags.len(), 19);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

@@ -16,4 +16,6 @@ build:dx_dev --compilation_mode=fastbuild
 build:dx_release --compilation_mode=opt
 build:dx_dev_remote --compilation_mode=fastbuild
 build:dx_toolchain --compilation_mode=fastbuild
+common --nolegacy_external_runfiles
+build:windows --nobuild_runfile_links
 build:windows --enable_runfiles

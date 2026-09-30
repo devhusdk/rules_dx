@@ -1047,6 +1047,42 @@ fn offline_bundle_accepts_every_curated_advisory_set() {
     );
 }
 
+fn workflow_advisory_populates() -> Vec<(String, String)> {
+    let workflow =
+        std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
+            .expect("reusable-consumer.yml ships as test data");
+    workflow
+        .lines()
+        .filter_map(|line| {
+            let rest = line.trim().strip_prefix("populate ")?;
+            let (set, url) = rest.split_once(' ')?;
+            Some((set.to_owned(), url.trim().trim_matches('"').to_owned()))
+        })
+        .collect()
+}
+
+#[test]
+fn security_audit_populates_every_curated_advisory_set() {
+    let populates = workflow_advisory_populates();
+    assert_eq!(
+        sorted(populates.iter().map(|(set, _)| set.clone()).collect()),
+        sorted(
+            dx_audit::curator::CURATOR_ADVISORY_SETS
+                .iter()
+                .map(|set| (*set).to_owned())
+                .collect()
+        ),
+        "the security-audit job must populate every curated advisory set, and nothing else"
+    );
+    for (set, url) in &populates {
+        assert_eq!(
+            dx_audit::advisory::advisory_source(set),
+            Some(url.as_str()),
+            "the security-audit job downloads {set} from the wrong OSV source"
+        );
+    }
+}
+
 #[test]
 fn security_docs_page_names_exactly_the_audited_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))

@@ -220,9 +220,10 @@ jobs:
           echo "DX_GITLEAKS_BIN=$(bazel info output_base)/$rel" >> "$GITHUB_ENV"
       - name: Populate advisory snapshots (OSV offline sets)
         # dx audit security loads `.dx/advisory/<set>.json` plus identity
-        # offline (no network in the audit itself). Populate all five
-        # supported sets from the OSV GCS zips, merge each zip's per-vuln
-        # JSON files into one array, and write same-day identities.
+        # offline (no network in the audit itself). Populate every curated
+        # advisory set from the OSV GCS zips, merge each zip's per-vuln
+        # JSON files into one array, and write same-day identities. A set
+        # with a lockfile and no snapshot fails the audit.
         run: |
           set -euo pipefail
           mkdir -p .dx/advisory
@@ -270,6 +271,7 @@ jobs:
           populate maven "https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip"
           populate nuget "https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip"
           populate go "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"
+          populate rubygems "https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"
       # Audit backends run no Bazel (live Gitleaks plus lockfile/advisory
       # analysis over the checkout), so this call takes no `--` forwards.
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- security //...

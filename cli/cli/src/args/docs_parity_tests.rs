@@ -63,6 +63,19 @@ fn flag_tokens(text: &str) -> Vec<String> {
     flags
 }
 
+fn strip_backticks(text: &str) -> String {
+    let mut plain = String::with_capacity(text.len());
+    let mut quoted = false;
+    for ch in text.chars() {
+        match ch {
+            '`' => quoted = !quoted,
+            _ if !quoted => plain.push(ch),
+            _ => {}
+        }
+    }
+    plain
+}
+
 fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
     let mut words = vec![command.name()];
     if command == Command::Docs {
@@ -181,7 +194,7 @@ fn anchors(page: &str) -> Vec<String> {
 }
 
 #[test]
-fn command_usage_only_advertises_accepted_flags() {
+fn command_help_only_advertises_accepted_flags() {
     for command in Command::value_variants() {
         let command = *command;
         let usage = command.usage();
@@ -189,6 +202,28 @@ fn command_usage_only_advertises_accepted_flags() {
             assert!(
                 !rejects(command, &flag, None),
                 "dx {} advertises {flag} in its usage but rejects it:\n{usage}",
+                command.name()
+            );
+        }
+        let prose = command.flags();
+        let plain = strip_backticks(prose);
+        let clauses: Vec<&str> = plain
+            .split(", ")
+            .filter(|clause| flag_tokens(clause).contains(&"--fail-on".to_owned()))
+            .collect();
+        if let Some(first) = clauses.first() {
+            let excluded = first.contains("do not apply");
+            assert!(
+                clauses
+                    .iter()
+                    .all(|clause| clause.contains("do not apply") == excluded),
+                "dx {} splits --fail-on across clauses that disagree:\n{prose}",
+                command.name()
+            );
+            assert_eq!(
+                excluded,
+                rejects(command, "--fail-on", Some("error")),
+                "dx {} prose and parser disagree on --fail-on:\n{prose}",
                 command.name()
             );
         }

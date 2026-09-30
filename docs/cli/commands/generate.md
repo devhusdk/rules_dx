@@ -12,10 +12,12 @@ repo. Use `--here` for the current dir tree.
 dx generate [--here] [--check] [scope...] [-- bazel-options...]
 ```
 
-`--check` fails if files are stale instead of writing them. Run
-`dx generate` without `--check` to update, then `dx check` to confirm.
+- `--check`: fail if files are stale instead of writing them. Run
+  `dx generate` without `--check` to update, then `dx check` to confirm.
+- `--fail-on info|warning|error`: rejected. Generation reports staleness, not
+  findings with severities.
+- `--report`: rejected. No report format exists for this command.
+- `--output text|diff|json`: result shape.
 
-Output: `--output text|diff|json`.
-
-Exit codes: `0` success, `2` usage error, `1` stale or failed generation.
-Bazel failures keep Bazel's code.
+Exit codes: `0` success, `2` usage or scope errors, `1` stale or failed
+generation. Bazel failures keep Bazel's code.

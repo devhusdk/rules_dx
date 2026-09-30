@@ -192,7 +192,7 @@ pub(crate) fn output_modes(command: Command) -> String {
 }
 
 fn report_clause(command: Command) -> String {
-    let formats = crate::plan::spec(command).reports.join("|");
+    let formats = crate::reports::format_names(crate::plan::spec(command).reports).join("|");
     if formats.is_empty() {
         return "--report has no standard format for this command.".to_owned();
     }
@@ -505,7 +505,7 @@ mod tests {
                     modes.push(mode);
                 }
             }
-            let reports = crate::plan::spec(command).reports;
+            let reports = crate::reports::format_names(crate::plan::spec(command).reports);
             let report = if reports.is_empty() {
                 "--report has no standard format for this command.".to_owned()
             } else {

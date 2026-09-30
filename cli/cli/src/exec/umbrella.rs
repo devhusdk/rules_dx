@@ -71,7 +71,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         let mut phase_reports = Vec::new();
         let mut sarif_capture: Option<PathBuf> = None;
         for request in &invocation.reports {
-            if !spec(*phase).reports.contains(&request.format.as_str()) {
+            if !spec(*phase).accepts_report(&request.format) {
                 continue;
             }
             if sarif_capture.is_none() {
@@ -158,10 +158,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         let mut schema = json!("https://json.schemastore.org/sarif-2.1.0.json");
         let mut version = json!("2.1.0");
         for phase in &executed {
-            if !spec(phase.command)
-                .reports
-                .contains(&request.format.as_str())
-            {
+            if !spec(phase.command).accepts_report(&request.format) {
                 continue;
             }
             let Some(capture) = &phase.sarif_capture else {

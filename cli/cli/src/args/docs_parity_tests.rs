@@ -344,7 +344,7 @@ fn docs_report_formats_match_the_command_registry() {
         let mut supported: Vec<String> = crate::plan::spec(command)
             .reports
             .iter()
-            .map(|format| (*format).to_owned())
+            .map(|format| format.name().to_owned())
             .collect();
         supported.sort();
         let mut documented: Vec<String> = documented_usage_lines()
@@ -407,7 +407,7 @@ fn registry_reports() -> Vec<String> {
             crate::plan::spec(*command)
                 .reports
                 .iter()
-                .map(|format| (*format).to_owned())
+                .map(|format| format.name().to_owned())
         })
         .collect();
     formats.sort();

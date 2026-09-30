@@ -410,17 +410,13 @@ mod tests {
         let invocation = parse(&options(&["lint", "--report=junit=out.xml"])).expect("parse");
         let entry = spec(invocation.command);
         assert!(
-            !entry
-                .reports
-                .contains(&invocation.reports[0].format.as_str()),
+            !entry.accepts_report(&invocation.reports[0].format),
             "junit is not a lint report: {invocation:?}"
         );
         let invocation = parse(&options(&["format", "--report=sarif=out.sarif"])).expect("parse");
         let entry = spec(invocation.command);
         assert!(
-            !entry
-                .reports
-                .contains(&invocation.reports[0].format.as_str()),
+            !entry.accepts_report(&invocation.reports[0].format),
             "format has no standard report: {invocation:?}"
         );
         assert_eq!(

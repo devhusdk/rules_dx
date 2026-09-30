@@ -1,12 +1,19 @@
 use super::{CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG};
 use crate::args::Command;
+use crate::reports::StandardFormat;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CommandSpec {
     pub command: Command,
     pub aspects: &'static [&'static str],
-    pub reports: &'static [&'static str],
+    pub reports: &'static [StandardFormat],
     pub settings: &'static [&'static str],
+}
+
+impl CommandSpec {
+    pub fn accepts_report(&self, format: &str) -> bool {
+        StandardFormat::parse(format).is_some_and(|parsed| self.reports.contains(&parsed))
+    }
 }
 
 pub fn spec(command: Command) -> CommandSpec {
@@ -20,7 +27,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "//quality:real_aspects.bzl%real_jvm_lint_aspect",
                 "//quality:real_aspects.bzl%real_rust_lint_aspect",
             ],
-            reports: &["sarif"],
+            reports: &[StandardFormat::Sarif],
             settings: &[CLIPPY_DIAGNOSTICS_FLAG],
         },
         Command::Typecheck => CommandSpec {
@@ -29,7 +36,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "//quality:real_aspects.bzl%real_typecheck_aspect",
                 "//quality:real_aspects.bzl%real_rust_typecheck_aspect",
             ],
-            reports: &["sarif"],
+            reports: &[StandardFormat::Sarif],
             settings: &[RUSTC_DIAGNOSTICS_FLAG],
         },
         Command::Format => CommandSpec {
@@ -58,13 +65,13 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Test => CommandSpec {
             command,
             aspects: &[],
-            reports: &["junit"],
+            reports: &[StandardFormat::Junit],
             settings: &[],
         },
         Command::Coverage => CommandSpec {
             command,
             aspects: &[],
-            reports: &["lcov"],
+            reports: &[StandardFormat::Lcov],
             settings: &[],
         },
         Command::Run => CommandSpec {
@@ -82,13 +89,13 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Check => CommandSpec {
             command,
             aspects: &[],
-            reports: &["sarif"],
+            reports: &[StandardFormat::Sarif],
             settings: &[],
         },
         Command::Fix => CommandSpec {
             command,
             aspects: &[],
-            reports: &["sarif"],
+            reports: &[StandardFormat::Sarif],
             settings: &[],
         },
         Command::Clean => CommandSpec {
@@ -122,13 +129,13 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Security => CommandSpec {
             command,
             aspects: &[],
-            reports: &["sarif"],
+            reports: &[StandardFormat::Sarif],
             settings: &[],
         },
         Command::License => CommandSpec {
             command,
             aspects: &[],
-            reports: &["sarif", "spdx"],
+            reports: &[StandardFormat::Sarif, StandardFormat::Spdx],
             settings: &[],
         },
         Command::Update => CommandSpec {
@@ -181,7 +188,7 @@ mod tests {
                 "//quality:real_aspects.bzl%real_rust_lint_aspect",
             ]
         );
-        assert_eq!(lint.reports, &["sarif"]);
+        assert_eq!(lint.reports, &[StandardFormat::Sarif]);
         assert_eq!(lint.settings, &[CLIPPY_DIAGNOSTICS_FLAG]);
         let typecheck = spec(Command::Typecheck);
         assert_eq!(
@@ -191,7 +198,7 @@ mod tests {
                 "//quality:real_aspects.bzl%real_rust_typecheck_aspect",
             ]
         );
-        assert_eq!(typecheck.reports, &["sarif"]);
+        assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
         assert_eq!(typecheck.settings, &[RUSTC_DIAGNOSTICS_FLAG]);
         let format = spec(Command::Format);
         assert_eq!(
@@ -208,9 +215,9 @@ mod tests {
         assert!(build.aspects.is_empty());
         assert!(build.reports.is_empty());
         let test = spec(Command::Test);
-        assert_eq!(test.reports, &["junit"]);
+        assert_eq!(test.reports, &[StandardFormat::Junit]);
         let coverage = spec(Command::Coverage);
-        assert_eq!(coverage.reports, &["lcov"]);
+        assert_eq!(coverage.reports, &[StandardFormat::Lcov]);
         let run = spec(Command::Run);
         assert!(run.aspects.is_empty());
         assert!(run.reports.is_empty());
@@ -234,8 +241,11 @@ mod tests {
             assert!(entry.aspects.is_empty());
             assert!(command.is_audit_update());
         }
-        assert_eq!(spec(Command::Security).reports, &["sarif"]);
-        assert_eq!(spec(Command::License).reports, &["sarif", "spdx"]);
+        assert_eq!(spec(Command::Security).reports, &[StandardFormat::Sarif]);
+        assert_eq!(
+            spec(Command::License).reports,
+            &[StandardFormat::Sarif, StandardFormat::Spdx]
+        );
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());
         assert!(update.reports.is_empty());
@@ -248,5 +258,38 @@ mod tests {
         assert!(migrate.aspects.is_empty());
         assert!(migrate.reports.is_empty());
         assert!(!Command::Migrate.is_audit_update());
+    }
+
+    #[test]
+    fn standard_format_names_and_parsing_are_inverses() {
+        for format in [
+            StandardFormat::Sarif,
+            StandardFormat::Junit,
+            StandardFormat::Lcov,
+            StandardFormat::Spdx,
+        ] {
+            assert_eq!(StandardFormat::parse(format.name()), Some(format));
+        }
+        for text in ["sraif", "SARIF", "Junit", "", "sarif "] {
+            assert_eq!(StandardFormat::parse(text), None, "{text:?} must not parse");
+        }
+    }
+
+    #[test]
+    fn every_standard_format_reaches_at_least_one_command() {
+        use clap::ValueEnum;
+        for format in [
+            StandardFormat::Sarif,
+            StandardFormat::Junit,
+            StandardFormat::Lcov,
+            StandardFormat::Spdx,
+        ] {
+            assert!(
+                Command::value_variants()
+                    .iter()
+                    .any(|command| spec(*command).accepts_report(format.name())),
+                "no command accepts the {format:?} format"
+            );
+        }
     }
 }

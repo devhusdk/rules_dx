@@ -23,7 +23,7 @@ impl StandardFormat {
         }
     }
 
-    fn parse(text: &str) -> Option<Self> {
+    pub(crate) fn parse(text: &str) -> Option<Self> {
         match text {
             "sarif" => Some(StandardFormat::Sarif),
             "junit" => Some(StandardFormat::Junit),
@@ -32,6 +32,10 @@ impl StandardFormat {
             _ => None,
         }
     }
+}
+
+pub fn format_names(formats: &[StandardFormat]) -> Vec<&'static str> {
+    formats.iter().map(|format| format.name()).collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -84,14 +88,14 @@ pub fn plan_reports(
             ReportError::UnsupportedFormat {
                 command: command.name(),
                 format: request.format.clone(),
-                supported: entry.reports.to_vec(),
+                supported: format_names(entry.reports),
             }
         })?;
-        if !entry.reports.contains(&format.name()) {
+        if !entry.reports.contains(&format) {
             return Err(ReportError::UnsupportedFormat {
                 command: command.name(),
                 format: request.format.clone(),
-                supported: entry.reports.to_vec(),
+                supported: format_names(entry.reports),
             });
         }
         let destination = if request.destination == "-" {
@@ -464,7 +468,7 @@ mod tests {
                 ReportError::UnsupportedFormat {
                     command: command.name(),
                     format: format.to_owned(),
-                    supported: want.reports.to_vec(),
+                    supported: format_names(want.reports),
                 },
                 "{command:?} {format} must stay unsupported"
             );

@@ -16,14 +16,6 @@ pub const WATCHABLE_COMMANDS: &[&str] = &[
     "fix",
 ];
 
-pub fn watch_iteration_accepts(
-    scope_reresolved: bool,
-    local_only: bool,
-    single_runnable_held: bool,
-) -> bool {
-    scope_reresolved && local_only && single_runnable_held
-}
-
 pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
     if ci {
         return Err(AdoptError::WatchRefusesCi);
@@ -88,14 +80,6 @@ pub fn watch_for_change(watch_root: &Path, timeout: Duration) -> Result<Vec<Path
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn watch_iterations_stay_local_reresolved_and_single() {
-        assert!(watch_iteration_accepts(true, true, true));
-        assert!(!watch_iteration_accepts(false, true, true));
-        assert!(!watch_iteration_accepts(true, false, true));
-        assert!(!watch_iteration_accepts(true, true, false));
-    }
 
     #[test]
     fn watch_freeze_holds() {

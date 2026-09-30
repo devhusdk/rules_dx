@@ -103,6 +103,9 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         let Env { err, .. } = env;
         return common::pre_exec(err, "option \"--here/--cwd\" needs cwd resolution");
     }
+    if invocation.command == Command::Watch {
+        return crate::adopt::watch::execute_watch(invocation, env);
+    }
     match family(invocation.command) {
         Family::Adoption => {
             let Env {

@@ -6,7 +6,7 @@ mod new;
 mod status;
 mod upgrade;
 mod version;
-mod watch;
+pub(crate) mod watch;
 
 use std::io::Write;
 
@@ -45,7 +45,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         }
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Version => version::execute_version(invocation, workspace, out, err),
-        Command::Watch => watch::execute_watch(invocation, workspace, out, err),
         Command::Owners | Command::Deps | Command::Why => {
             inspect::execute_inspect(invocation, workspace, query_runner, out, err)
         }

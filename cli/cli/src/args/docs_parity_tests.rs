@@ -977,6 +977,76 @@ fn sorted(mut names: Vec<String>) -> Vec<String> {
     names
 }
 
+fn offline_bzl() -> String {
+    std::fs::read_to_string(workspace_root().join("deploy/offline/offline.bzl"))
+        .expect("offline.bzl ships as test data")
+}
+
+fn offline_accepted_sets() -> Vec<String> {
+    let source = offline_bzl();
+    let marker = "if set in [";
+    let start = source
+        .find(marker)
+        .unwrap_or_else(|| panic!("no advisory set list in:\n{source}"));
+    let rest = &source[start + marker.len()..];
+    let end = rest.find(']').expect("the advisory set list is closed");
+    rest[..end]
+        .split(',')
+        .map(|name| name.trim().trim_matches('"').to_owned())
+        .collect()
+}
+
+fn offline_wanted_sets() -> Vec<String> {
+    let source = offline_bzl();
+    let marker = "want one of ";
+    let start = source
+        .find(marker)
+        .unwrap_or_else(|| panic!("no wanted-set list in:\n{source}"));
+    let rest = &source[start + marker.len()..];
+    let end = rest.find('"').expect("the wanted-set list is closed");
+    rest[..end]
+        .split(',')
+        .map(|name| name.trim().to_owned())
+        .collect()
+}
+
+fn bootstrap_accepted_sets() -> Vec<String> {
+    let source =
+        std::fs::read_to_string(workspace_root().join("deploy/offline/bootstrap-offline.sh"))
+            .expect("bootstrap-offline.sh ships as test data");
+    source
+        .lines()
+        .filter_map(|line| line.trim().strip_suffix(") ;;"))
+        .find(|alts| alts.contains('|'))
+        .map(|alts| alts.split('|').map(|name| name.trim().to_owned()).collect())
+        .expect("bootstrap-offline.sh accepts a fixed advisory set list")
+}
+
+#[test]
+fn offline_bundle_accepts_every_curated_advisory_set() {
+    let want = sorted(
+        dx_audit::curator::CURATOR_ADVISORY_SETS
+            .iter()
+            .map(|set| (*set).to_owned())
+            .collect(),
+    );
+    assert_eq!(
+        sorted(offline_accepted_sets()),
+        want.clone(),
+        "deploy/offline/offline.bzl must vendor every curated advisory set, and nothing else"
+    );
+    assert_eq!(
+        sorted(offline_wanted_sets()),
+        want.clone(),
+        "the invalid-advisory-set error must name every curated advisory set"
+    );
+    assert_eq!(
+        sorted(bootstrap_accepted_sets()),
+        want,
+        "deploy/offline/bootstrap-offline.sh must install every curated advisory set, and nothing else"
+    );
+}
+
 #[test]
 fn security_docs_page_names_exactly_the_audited_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))

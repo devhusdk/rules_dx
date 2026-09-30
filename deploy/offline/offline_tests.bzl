@@ -20,13 +20,13 @@ def offline_unit_tests(name):
             ),
             expect_equal(
                 "offline_set_error accepts every vendored set",
-                [offline_set_error(set) for set in ["cargo", "npm", "maven", "nuget", "go"]],
-                ["", "", "", "", ""],
+                [offline_set_error(set) for set in ["cargo", "npm", "maven", "nuget", "go", "rubygems"]],
+                ["", "", "", "", "", ""],
             ),
             expect_equal(
                 "offline_set_error rejects an unknown set",
                 offline_set_error("pypi"),
-                "offline_bundle: invalid advisory set 'pypi': want one of cargo, npm, maven, nuget, go",
+                "offline_bundle: invalid advisory set 'pypi': want one of cargo, npm, maven, nuget, go, rubygems",
             ),
             expect_equal(
                 "offline_srcs_error rejects an empty bundle",

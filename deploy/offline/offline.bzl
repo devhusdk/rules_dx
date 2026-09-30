@@ -6,10 +6,10 @@ def offline_manifest_name(name):
 
 def offline_set_error(set):
     """Validates one vendored advisory set name."""
-    if set in ["cargo", "npm", "maven", "nuget", "go"]:
+    if set in ["cargo", "npm", "maven", "nuget", "go", "rubygems"]:
         return ""
     return ("offline_bundle: invalid advisory set '" + str(set) +
-            "': want one of cargo, npm, maven, nuget, go")
+            "': want one of cargo, npm, maven, nuget, go, rubygems")
 
 def offline_srcs_error(srcs):
     """Validates one manifest input list."""

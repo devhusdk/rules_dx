@@ -267,6 +267,8 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//cli/cli/tests/fixtures/help_goldens:goldens",
+        "//deploy/offline:bootstrap-offline.sh",
+        "//deploy/offline:offline.bzl",
         "//docs:command_docs",
         "//docs:github-ci.md",
         "//examples:consumer-ci/caller.yml",

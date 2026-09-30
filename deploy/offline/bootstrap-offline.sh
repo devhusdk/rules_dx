@@ -126,7 +126,7 @@ for snapshot in "$bundle"/advisory/*.json; do
   [[ -e "$snapshot" ]] || continue
   set_name="$(basename "$snapshot" .json)"
   case "$set_name" in
-    cargo | npm | maven | nuget | go) ;;
+    cargo | npm | maven | nuget | go | rubygems) ;;
     *)
       echo "bootstrap-offline: bundle carries unknown advisory set: $set_name" >&2
       exit 1

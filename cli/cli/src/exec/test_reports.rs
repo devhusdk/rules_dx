@@ -294,13 +294,6 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 planned.format.name(),
                 planned.destination.display()
             );
-        } else if invocation.output == OutputMode::Diff {
-            let _ = writeln!(
-                err,
-                "Wrote {} report to {}.",
-                planned.format.name(),
-                planned.destination.display()
-            );
         }
     }
     if !complete && !detail.is_empty() && planned_reports.is_empty() {

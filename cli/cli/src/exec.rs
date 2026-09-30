@@ -66,6 +66,10 @@ impl Family {
             Family::Quality => "quality",
         }
     }
+
+    fn supports_diff(self) -> bool {
+        matches!(self, Family::Umbrella | Family::Generate | Family::Quality)
+    }
 }
 
 fn family(command: Command) -> Family {
@@ -99,6 +103,12 @@ fn family(command: Command) -> Family {
 }
 
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
+    debug_assert!(
+        invocation.output != dx_output::OutputMode::Diff
+            || family(invocation.command).supports_diff(),
+        "{} reaches a family whose commands reject --output=diff",
+        invocation.command.name()
+    );
     if invocation.here {
         let Env { err, .. } = env;
         return common::pre_exec(err, "option \"--here/--cwd\" needs cwd resolution");
@@ -147,6 +157,27 @@ mod tests {
     use super::family;
     use super::test_support::Harness;
     use crate::args::Command;
+
+    #[test]
+    fn diff_families_match_the_registry() {
+        use crate::args::command::COMMANDS;
+        use std::collections::BTreeMap;
+        let mut any_supports_diff: BTreeMap<&str, bool> = BTreeMap::new();
+        for meta in COMMANDS {
+            *any_supports_diff
+                .entry(family(meta.command).name())
+                .or_insert(false) |= meta.supports_diff;
+        }
+        assert_eq!(any_supports_diff.len(), 13, "every family classified");
+        for meta in COMMANDS {
+            let name = family(meta.command).name();
+            assert_eq!(
+                family(meta.command).supports_diff(),
+                any_supports_diff[name],
+                "family {name} disagrees with COMMANDS supports_diff"
+            );
+        }
+    }
 
     #[test]
     fn every_command_has_exactly_one_family() {

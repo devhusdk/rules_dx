@@ -1047,17 +1047,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 {
                     let _ = write_event(out, &event);
                 }
-            } else if verbose {
-                if planned.destination != Destination::Stdout {
-                    let _ = writeln!(
-                        out,
-                        "Wrote sarif report to {}.",
-                        planned.destination.display()
-                    );
-                }
-            } else if invocation.output == OutputMode::Diff {
+            } else if verbose && planned.destination != Destination::Stdout {
                 let _ = writeln!(
-                    err,
+                    out,
                     "Wrote sarif report to {}.",
                     planned.destination.display()
                 );
@@ -1102,17 +1094,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 {
                     let _ = write_event(out, &event);
                 }
-            } else if verbose {
-                if planned.destination != Destination::Stdout {
-                    let _ = writeln!(
-                        out,
-                        "Wrote spdx report to {}.",
-                        planned.destination.display()
-                    );
-                }
-            } else if invocation.output == OutputMode::Diff {
+            } else if verbose && planned.destination != Destination::Stdout {
                 let _ = writeln!(
-                    err,
+                    out,
                     "Wrote spdx report to {}.",
                     planned.destination.display()
                 );

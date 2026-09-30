@@ -306,9 +306,16 @@ pub fn owning_sets(target: &str) -> Vec<SetId> {
     if has_prefix(&package, "examples/adopt-rust") {
         return vec![SetId::Cargo];
     }
-    if has_prefix(&package, "examples/adopt-java") || has_prefix(&package, "examples/adopt-kotlin")
+    if has_prefix(&package, "examples/adopt-java")
+        || has_prefix(&package, "examples/adopt-kotlin")
+        || has_prefix(&package, "examples/adopt-scala")
     {
         return vec![SetId::Maven];
+    }
+    if has_prefix(&package, "examples/adopt-csharp")
+        || has_prefix(&package, "examples/adopt-fsharp")
+    {
+        return vec![SetId::NuGet];
     }
     if has_prefix(&package, "examples/adopt-go") {
         return vec![SetId::Go];
@@ -681,6 +688,9 @@ mod tests {
             ("examples/adopt-python/app", vec![SetId::UvAdopt]),
             ("examples/adopt-java/greet", vec![SetId::Maven]),
             ("examples/adopt-kotlin/greet", vec![SetId::Maven]),
+            ("examples/adopt-scala/greet", vec![SetId::Maven]),
+            ("examples/adopt-csharp/greet", vec![SetId::NuGet]),
+            ("examples/adopt-fsharp/greet", vec![SetId::NuGet]),
             ("examples/adopt-go/greet", vec![SetId::Go]),
             (
                 "examples/adopt-polyglot/frontend",
@@ -737,6 +747,14 @@ mod tests {
         assert_eq!(owning_sets("go/tests/fixtures/hello"), vec![SetId::Go]);
         assert!(owning_sets("docs/cli/README.md").is_empty());
         assert!(owning_sets("libs/starlark/defs.bzl").is_empty());
+    }
+
+    #[test]
+    fn adopt_examples_without_a_dependency_set_stay_unowned() {
+        assert!(owning_sets("examples/adopt-ruby/greet").is_empty());
+        assert!(owning_sets("//examples/adopt-cpp/solo:solo").is_empty());
+        assert!(owning_sets("//examples/adopt-powershell/greet:greet").is_empty());
+        assert!(owning_sets("//third_party/powershell:PSGallery.lock.json").is_empty());
     }
 
     #[test]

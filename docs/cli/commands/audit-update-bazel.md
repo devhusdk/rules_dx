@@ -36,6 +36,35 @@ do not apply.
 `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot. Sets
 without a snapshot are listed as `no advisory coverage for <sets>`.
 
+A scope selects sets by path, and a path can select more than one. Each set
+then reads its own lockfile, so a scope narrows which sets run, never which
+packages inside a lockfile.
+
+```text
+//cli/..., //docs/ir/..., //env/..., //generation/..., //quality/..., //rust/...      cargo
+//examples/adopt-rust/...                                                             cargo
+//csharp/..., //fsharp/..., //third_party/dotnet/...                                  nuget
+//examples/adopt-csharp/..., //examples/adopt-fsharp/...                              nuget
+//go/...                                                                              go
+//examples/adopt-go/...                                                               go
+//java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
+//examples/adopt-java/..., //examples/adopt-kotlin/..., //examples/adopt-scala/...    maven
+//javascript/..., //typescript/..., //astro/..., //svelte/..., //vue/..., //mdx/...   npm
+//quality/tools/javascript/...                                                        npm-tools
+//examples/adopt-js-ts/...                                                            npm-adopt
+//examples/adopt-polyglot/...                                                         npm-adopt-polyglot
+//examples/adopt-polyglot/...                                                         uv-adopt-polyglot
+//python/..., //python/tests/fixtures/hello/...                                       uv
+//examples/adopt-python/...                                                           uv-adopt
+//quality/tools/python/...                                                            uv-tools
+```
+
+A scope that owns no set exits `2` and names the audited sets. `//...` and
+`MODULE.bazel` select every set. The four `uv` sets resolve but have no
+snapshot, so they report `no advisory coverage`. Paths with no set at all are
+`examples/adopt-ruby`, `examples/adopt-cpp`, `examples/adopt-powershell`, and
+`third_party/powershell`.
+
 `dx security` and `dx license` read `pnpm-lock.yaml`, `package-lock.json`, and
 `yarn.lock` for the `npm` set, and the lockfile of every other set. Each finding
 names the lockfile it was read from.

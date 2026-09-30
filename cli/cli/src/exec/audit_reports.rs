@@ -1012,10 +1012,11 @@ fn audit_errors_stay_typed_with_stable_display() {
     use std::error::Error as _;
     assert_eq!(
         AuditError::NoOwningSet {
-            scope: "python/tests/fixtures/hello/hello.py".to_owned(),
+            scope: "examples/adopt-ruby/greet".to_owned(),
+            sets: super::audited_set_names().join(", "),
         }
         .to_string(),
-        "no owning dependency set for \"python/tests/fixtures/hello/hello.py\" (python and non-dependency paths are out of V1 audit scope)"
+        "no owning dependency set for \"examples/adopt-ruby/greet\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget"
     );
     let read = AuditError::Read {
         rel: "pnpm-lock.yaml".to_owned(),
@@ -1172,6 +1173,50 @@ fn audit_errors_stay_typed_with_stable_display() {
     let lock_missing = super::lock_texts_for_set(&harness.workspace, dx_update::sets::SetId::Cargo)
         .expect_err("missing lock fails");
     assert!(matches!(lock_missing, AuditError::LockMissing { .. }));
+}
+
+#[test]
+fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
+    use super::AuditError;
+    use dx_update::sets::SetId;
+    for (scope, expected) in [
+        ("//examples/adopt-csharp/greet:greet", vec![SetId::NuGet]),
+        ("//examples/adopt-fsharp/solo:solo", vec![SetId::NuGet]),
+        ("//examples/adopt-scala/greet:greet", vec![SetId::Maven]),
+        ("//csharp/tests/fixtures/hello:hello", vec![SetId::NuGet]),
+        ("//scala/greet:greet", vec![SetId::Maven]),
+        ("//python/tests/fixtures/hello/hello.py", vec![SetId::Uv]),
+    ] {
+        assert_eq!(
+            super::resolve_audit_sets(&[scope.to_owned()]).expect(scope),
+            expected,
+            "{scope}"
+        );
+    }
+    assert_eq!(
+        super::audited_set_names(),
+        vec![
+            "cargo",
+            "go",
+            "maven",
+            "npm",
+            "npm-adopt",
+            "npm-adopt-polyglot",
+            "npm-tools",
+            "nuget"
+        ]
+    );
+    for scope in [
+        "//examples/adopt-ruby/greet:greet_spec",
+        "//examples/adopt-cpp/solo:solo",
+        "//third_party/powershell:PSGallery.lock.json",
+    ] {
+        let unowned = super::resolve_audit_sets(&[scope.to_owned()]).expect_err(scope);
+        assert!(
+            matches!(unowned, AuditError::NoOwningSet { .. }),
+            "{scope} has no dependency set"
+        );
+    }
 }
 
 #[test]

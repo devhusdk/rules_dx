@@ -978,6 +978,100 @@ fn sorted(mut names: Vec<String>) -> Vec<String> {
 }
 
 #[test]
+fn security_docs_page_names_exactly_the_audited_sets() {
+    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+        .expect("audit page ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx security` And `dx license`")
+        .map(|(_, body)| body)
+        .expect("`dx security` section");
+    assert_eq!(
+        set_names_in_list(&body),
+        sorted(
+            dx_update::sets::SetId::ALL
+                .iter()
+                .map(|set| (*set).name())
+                .filter(|name| !dx_audit::backend::is_empty_set(name))
+                .map(ToOwned::to_owned)
+                .collect()
+        ),
+        "docs/cli/commands/audit-update-bazel.md must name every set dx security audits, and nothing else"
+    );
+}
+
+#[test]
+fn security_docs_scope_table_matches_owning_sets() {
+    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+        .expect("audit page ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx security` And `dx license`")
+        .map(|(_, body)| body)
+        .expect("`dx security` section");
+    let mut rows: Vec<(String, String)> = Vec::new();
+    let mut block: Vec<&str> = Vec::new();
+    let mut blocks: Vec<Vec<&str>> = Vec::new();
+    let mut fenced = false;
+    for line in body.lines() {
+        if line.starts_with("```") {
+            if fenced && !block.is_empty() {
+                blocks.push(std::mem::take(&mut block));
+            } else {
+                block.clear();
+            }
+            fenced = !fenced;
+            continue;
+        }
+        if fenced {
+            block.push(line);
+        }
+    }
+    for lines in &blocks {
+        let parsed: Vec<Option<(String, String)>> = lines
+            .iter()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| {
+                let (paths, set) = line.split_once("  ")?;
+                let set = set.trim().to_owned();
+                dx_update::sets::SetId::parse(&set)?;
+                Some((paths.trim().to_owned(), set))
+            })
+            .collect();
+        if parsed.iter().any(Option::is_none) {
+            continue;
+        }
+        for row in parsed.into_iter().flatten() {
+            for path in row.0.split(',') {
+                rows.push((path.trim().to_owned(), row.1.clone()));
+            }
+        }
+        break;
+    }
+    assert!(!rows.is_empty(), "the scope table ships");
+    for (path, set) in &rows {
+        let expected = dx_update::sets::SetId::parse(set).expect("known set");
+        assert!(
+            dx_update::selector::owning_sets(path).contains(&expected),
+            "the scope table says {path} is audited by {set}"
+        );
+    }
+    let mut documented: Vec<String> = rows.iter().map(|(_, set)| set.clone()).collect();
+    documented.sort();
+    documented.dedup();
+    assert_eq!(
+        documented,
+        sorted(
+            dx_update::sets::SetId::names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect()
+        ),
+        "the scope table must name every set a scope can own, and nothing else"
+    );
+}
+
+#[test]
 fn update_docs_page_names_exactly_the_update_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
         .expect("audit page ships as test data");

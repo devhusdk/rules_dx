@@ -15,10 +15,8 @@ fn today_utc() -> String {
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum AuditError {
-    #[error(
-        "no owning dependency set for {scope:?} (python and non-dependency paths are out of V1 audit scope)"
-    )]
-    NoOwningSet { scope: String },
+    #[error("no owning dependency set for {scope:?}; audited sets: {sets}")]
+    NoOwningSet { scope: String, sets: String },
     #[error("could not read {rel}: {error}")]
     Read {
         rel: String,
@@ -110,6 +108,14 @@ pub(crate) enum AuditError {
     OfflineRequired { set: String, detail: String },
 }
 
+pub(crate) fn audited_set_names() -> Vec<&'static str> {
+    dx_update::sets::SetId::ALL
+        .iter()
+        .map(|set| set.name())
+        .filter(|name| !dx_audit::backend::is_empty_set(name))
+        .collect()
+}
+
 fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, AuditError> {
     let mut union: BTreeSet<dx_update::sets::SetId> = BTreeSet::new();
     for scope in scopes {
@@ -117,6 +123,7 @@ fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, 
         if owners.is_empty() {
             return Err(AuditError::NoOwningSet {
                 scope: scope.clone(),
+                sets: audited_set_names().join(", "),
             });
         }
         for set in owners {

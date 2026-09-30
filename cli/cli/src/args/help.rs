@@ -149,7 +149,7 @@ pub(crate) fn per_command_flags(command: Command) -> &'static str {
     command.flags()
 }
 
-fn output_modes(command: Command) -> String {
+pub(crate) fn output_modes(command: Command) -> String {
     let mut modes = vec!["text"];
     if command.supports_diff() {
         modes.push("diff");

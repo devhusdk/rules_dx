@@ -33,7 +33,9 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
 - `--log-level error|warn|info|debug|trace`: log verbosity.
 - `--color auto|always|never`: color output. Default `auto`.
 - `--output text|diff|json`: result shape. `diff` is limited to `lint`,
-  `typecheck`, `format`, `generate`, `check`, and `fix`.
+  `typecheck`, `format`, `generate`, `check`, and `fix`. `json` is rejected by
+  `deploy`, `init`, `new`, `hooks`, `watch`, `completion`, and `bazel`, which
+  take `text` only.
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
   `sarif` and `spdx` for `security` and `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.

@@ -1,4 +1,4 @@
-"""Typed native-configuration targets for adapters plus Ruff, Biome/ESLint, Checkstyle, Scala/.NET, Native, Structured."""
+"""Typed native-configuration targets for adapters."""
 
 DxNativeConfigInfo = provider(
     doc = "One tool-owned native config file plus its checked-in closure.",

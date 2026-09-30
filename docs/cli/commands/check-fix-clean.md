@@ -43,6 +43,8 @@ Prunes unselected managed state under `.dx`. Never touches Bazel outputs
 unless `--bazel` also runs `bazel clean`. Takes no scopes.
 `--dry-run` only lists what would go.
 
+Output: `--output text|json`.
+
 Exit codes: `0` success, `2` usage errors including any scope, `1` a prune
 or launch failure. With `--bazel`, a `bazel clean` failure keeps Bazel's
 code.

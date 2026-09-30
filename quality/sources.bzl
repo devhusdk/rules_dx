@@ -1,4 +1,4 @@
-"""Quality source-ownership boundary (freeze for ADR 0013)."""
+"""Quality source-ownership boundary."""
 
 QualitySourcesInfo = provider(
     doc = "Directly owned repository sources keyed by semantic file class.",

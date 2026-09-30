@@ -12,6 +12,8 @@ Reruns one command when files change. Scope is re-resolved each iteration.
   and args after `--` do not apply.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
 
+Output: `--output text`.
+
 Exit codes: `0` success, `2` usage error, `1` operational failures.
 
 ```sh

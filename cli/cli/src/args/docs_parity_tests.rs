@@ -367,30 +367,6 @@ fn registry_reports() -> Vec<String> {
 }
 
 #[test]
-fn global_flags_page_names_exactly_the_diff_commands() {
-    let page =
-        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let bullet = flag_bullet(&page, "output");
-    let mut documented: Vec<String> = backticked(&bullet)
-        .into_iter()
-        .filter(|token| Command::parse(token).is_some())
-        .collect();
-    documented.sort();
-    documented.dedup();
-    let mut accepted: Vec<String> = Command::value_variants()
-        .iter()
-        .copied()
-        .filter(|command| command.supports_diff())
-        .map(|command| command.name().to_owned())
-        .collect();
-    accepted.sort();
-    assert_eq!(
-        documented, accepted,
-        "docs/cli/commands/README.md --output bullet must name every command with diff output"
-    );
-}
-
-#[test]
 fn global_flags_page_names_every_reporting_command_and_format() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
@@ -418,6 +394,71 @@ fn global_flags_page_names_every_reporting_command_and_format() {
             "docs/cli/commands/README.md --report bullet never names the {format} format"
         );
     }
+}
+
+#[test]
+fn global_flags_page_names_exactly_the_narrow_output_commands() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let bullet = flag_bullet(&page, "output");
+    let mut documented: Vec<String> = backticked(&bullet)
+        .into_iter()
+        .filter(|token| Command::parse(token).is_some())
+        .collect();
+    documented.sort();
+    documented.dedup();
+    let mut narrow: Vec<String> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| command.supports_diff() || !command.supports_json())
+        .map(|command| command.name().to_owned())
+        .collect();
+    narrow.sort();
+    assert_eq!(
+        documented, narrow,
+        "docs/cli/commands/README.md --output bullet must name every command that accepts `diff` or rejects `json`"
+    );
+}
+
+#[test]
+fn docs_sections_with_usage_blocks_document_output_modes() {
+    for (name, page) in pages() {
+        for (heading, body) in sections(&page) {
+            for line in usage_lines(&body) {
+                let command = Command::parse(&line[1]).unwrap_or_else(|| {
+                    panic!("{name}: usage line names an unknown command: {line:?}")
+                });
+                let modes = super::super::help::output_modes(command);
+                let where_ = if heading.is_empty() {
+                    "the page intro".to_owned()
+                } else {
+                    format!("section {heading:?}")
+                };
+                assert!(
+                    body.contains(&format!("`--output {modes}`")),
+                    "{name}: {where_} documents dx {} usage but never states `--output {modes}`",
+                    command.name()
+                );
+            }
+        }
+    }
+}
+
+fn usage_lines(body: &str) -> Vec<Vec<String>> {
+    usage_blocks(body)
+        .into_iter()
+        .flat_map(|block| {
+            block
+                .into_iter()
+                .filter(|line| line.starts_with("dx "))
+                .map(|line| {
+                    line.split_whitespace()
+                        .map(ToOwned::to_owned)
+                        .collect::<Vec<String>>()
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
 }
 
 #[test]

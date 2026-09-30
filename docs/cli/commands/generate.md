@@ -15,5 +15,7 @@ dx generate [--here] [--check] [scope...] [-- bazel-options...]
 `--check` fails if files are stale instead of writing them. Run
 `dx generate` without `--check` to update, then `dx check` to confirm.
 
+Output: `--output text|diff|json`.
+
 Exit codes: `0` success, `2` usage error, `1` stale or failed generation.
 Bazel failures keep Bazel's code.

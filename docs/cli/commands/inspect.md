@@ -14,7 +14,8 @@ dx why [--configured] <file> <label>
 - `dx why`: show one path from a file owner to a label. Takes exactly one
   file plus one label.
 - `--configured`: use `bazel cquery` instead of `bazel query`.
-- Output is text or JSON only.
+
+Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a query failed or
 `dx why` found no owner.

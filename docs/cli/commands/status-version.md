@@ -12,8 +12,9 @@ dx status
 ```
 
 Reports toolchain, platform, tools, and pin drift. Takes no scopes and no
-per-command flags. Output is text or JSON. There is no `dx doctor`. Use
-`dx status` instead.
+per-command flags. There is no `dx doctor`. Use `dx status` instead.
+
+Output: `--output text|json`.
 
 Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 
@@ -45,6 +46,8 @@ Prints the version.
 - `--check`: verify the pin without changing it.
 - `--pin <version>`: re-pin to this version.
 - `--rollback`: restore the last pin. Conflicts with `--pin`.
+
+Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including conflicting flags, `1`
 pin drift or a refused pin.

@@ -16,6 +16,8 @@ Scaffolds a minimal project for one language: `rust`, `python`,
 `fsharp`, `c`, `cc`, or `cpp`. Never overwrites existing files. There is no
 `--force`.
 
+Output: `--output text`.
+
 Exit codes: `0` success, `2` usage errors including an unknown language or
 extra positionals, `1` scaffolding failed.
 
@@ -28,6 +30,8 @@ dx upgrade --from <version> --to <version> [--dry-run]
 Runs pin, migrate, and setup in one go with a recovery pointer. Both
 versions are required. `--dry-run` prints the plan without writing files.
 No manifests exist yet, so live runs fail closed.
+
+Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including missing versions or a
 target that is not newer, `1` a step failed.

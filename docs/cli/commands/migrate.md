@@ -10,6 +10,8 @@ writing files.
 
 No manifests exist yet, so live runs fail closed. Scopes default to `//...`.
 
+Output: `--output text|json`.
+
 Exit codes: `0` success, `2` usage errors including missing versions or a
 target that is not newer, `1` the run failed.
 

@@ -14,6 +14,8 @@ dx init [module-name]
 Scaffolds `dx` into a foreign tree. Takes an optional module name. Never
 overwrites existing files.
 
+Output: `--output text`.
+
 Exit codes: `0` success, `2` usage errors including extra positionals, `1`
 scaffolding failed.
 
@@ -29,6 +31,8 @@ Manages Git hooks through hermetic Git.
 - `uninstall`: remove them.
 - `status`: show what would run.
 - `run <trigger>`: run one trigger.
+
+Output: `--output text`.
 
 Exit codes: `0` success, `2` usage errors including an unknown verb or
 trigger, `1` a hook install, status, or check failed. A failing check reports

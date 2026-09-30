@@ -11,6 +11,8 @@ unchanged, even tokens that look like `dx` flags. Put `dx` flags before
 `bazel`. The exit code is Bazel's own, except a launch failure or a signal
 is `1`.
 
+Output: `--output text`.
+
 ```sh
 bazel run //cli/cli:dx -- bazel build //...
 bazel run //cli/cli:dx -- --dry-run bazel query //...
@@ -26,9 +28,11 @@ dx license [--here] [--offline|--frozen] [--fail-on info|warning|error] [--repor
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
 checks dependency licenses. No scope means `//...`. Use `--here` for the
 current dir tree. Neither command changes files. `--check` and Bazel options
-do not apply. `dx security` writes `--report sarif=<dest>`. `dx license`
-writes `--report sarif=<dest>` or `--report spdx=<dest>`. Repeat the flag for
-more files. Use `-` for stdout.
+do not apply.
+
+Output: `--output text|json`. Reports: `dx security` writes
+`--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
+`--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
 
 ```sh
 bazel run //cli/cli:dx -- security //...
@@ -51,8 +55,8 @@ updates all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
 label/path. `go` is a pinned no-op success. `--check` fails if the preset is
 stale and ignores selectors. `--offline` and `--frozen` run cache-only with
 no network fetches. `--fail-on`, `--report`, and Bazel options do not apply.
-Output is text or JSON per set plus a summary count. Exit codes: 0 success,
-2 usage or scope errors, 1 operational failures.
+Output: `--output text|json`. `json` reports per set plus a summary count.
+Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
 
 ```sh
 bazel run //cli/cli:dx -- update --check
@@ -83,9 +87,9 @@ and run `bazel build //...`.
 fails before widening with `offline_required`. A major bump also needs
 `dx migrate --from <old> --to <new>`.
 
-`--check`, `--fail-on`, `--report`, and Bazel options do not apply. Output is
-text or JSON. Exit codes: 0 success, 2 usage or scope errors, 1 operational
-failures.
+`--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
+1 operational failures.
 
 ```sh
 bazel run //cli/cli:dx -- bump cargo:anyhow 1.0.100

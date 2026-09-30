@@ -46,6 +46,8 @@ Builds and runs runnable targets in scope order. Explicit labels and patterns
 run sequentially. File and directory scopes must resolve to exactly one
 runnable target. Args after `--` go to the app.
 
+Output: `--output text|json`. `dx run` has no report format.
+
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
 a launch failure. The app's own code is the exit code.
 
@@ -61,6 +63,8 @@ dx deploy [--debug|--release] <label> [-- args...]
 
 Builds and runs one deployable target. Takes exactly one label. No flag uses
 `dx_release` here. Args after `--` go to the app.
+
+Output: `--output text`.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a build or launch
 failure. The target's own code is the exit code.

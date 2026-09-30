@@ -579,6 +579,46 @@ fn global_flags_page_names_every_min_coverage_command() {
 }
 
 #[test]
+fn json_output_section_names_every_event_kind() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "JSON Output")
+        .map(|(_, body)| body)
+        .expect("README has a `## JSON Output` section");
+    let mut named = bullet_terms(&body);
+    named.sort();
+    let mut expected: Vec<String> = dx_output::EVENTS
+        .iter()
+        .map(|event| (*event).to_owned())
+        .collect();
+    expected.sort();
+    assert_eq!(
+        named, expected,
+        "docs/cli/commands/README.md JSON Output must give every event one bullet, and no others"
+    );
+    for field in ["event", "schema"] {
+        assert!(
+            body.contains(&format!("`{field}`")),
+            "docs/cli/commands/README.md JSON Output never names the {field} field every object carries"
+        );
+    }
+    let intro = body
+        .split("\n- ")
+        .next()
+        .expect("JSON Output has prose before its bullets")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let envelope = "The stream starts with `command_started` and ends with `command_finished`";
+    assert!(
+        intro.contains(envelope),
+        "docs/cli/commands/README.md JSON Output must say \"{envelope}\": {intro}"
+    );
+}
+
+#[test]
 fn global_flags_page_documents_every_banner_option() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");

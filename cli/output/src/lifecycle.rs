@@ -4,6 +4,20 @@ use serde_json::{json, Value};
 pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
+pub const EVENTS: &[&str] = &[
+    "change",
+    "command_finished",
+    "command_started",
+    "diagnostic",
+    "error",
+    "mutation",
+    "notice",
+    "operation",
+    "report",
+    "selection",
+    "status",
+];
+
 pub fn schema() -> Value {
     json!({"major": SCHEMA_MAJOR, "minor": SCHEMA_MINOR})
 }
@@ -16,6 +30,10 @@ pub(crate) fn nonempty(field: &'static str, value: &str) -> Result<(), OutputErr
 }
 
 pub(crate) fn base(event: &str) -> serde_json::Map<String, Value> {
+    debug_assert!(
+        EVENTS.contains(&event),
+        "{event} is not a registered NDJSON event"
+    );
     let mut map = serde_json::Map::new();
     map.insert("schema".to_owned(), schema());
     map.insert("event".to_owned(), Value::String(event.to_owned()));

@@ -26,7 +26,7 @@ pub use findings::{
 pub use lifecycle::{
     command_finished, command_started, error_event, operation_event, report_event, schema,
     selection_event, status_event, with_correlation, write_event, FinishedCounts, StatusEvent,
-    SCHEMA_MAJOR, SCHEMA_MINOR,
+    EVENTS, SCHEMA_MAJOR, SCHEMA_MINOR,
 };
 pub use modes::{
     check_output_conflict, dx_text_visible, stdout_owner, OutputMode, OutputModeName, StdoutOwner,

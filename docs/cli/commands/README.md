@@ -62,6 +62,38 @@ commands. See [Version Skew](status-version.md#version-skew).
 
 Exit codes: `0` success, `2` usage error, `1` failed check.
 
+## JSON Output
+
+`--output=json` writes one JSON object per line to stdout. Every object has an
+`event` name and a `schema` with `major` and `minor`. The stream starts with
+`command_started` and ends with `command_finished`. Diagnostics and logs go to
+stderr.
+
+```sh
+bazel run //cli/cli:dx -- lint --check //... --output=json
+```
+
+- `command_started`: the command, whether it is a dry run, and its mode.
+- `operation`: a phase, with the scopes it resolved to.
+- `selection`: the resolved environment, as `setup_id`, `environment_id`, and
+  `codegen_id` digests.
+- `status`: one check, with `name`, `status`, `detail`, and `hint`.
+- `diagnostic`: one finding, with `severity`, `tool`, `message`, and optional
+  `rule`, `path`, `range`, `snapshot`, `fixable`, and `resolution`.
+- `change`: a file the command would edit, with `path`, `kind`, and `edits`.
+- `mutation`: a file the command edited or skipped, with `path`, `kind`,
+  `outcome`, and an optional `reason`.
+- `notice`: a note, with `level`, `code`, `message`, and optional
+  `related_command`, `scope`, `path`, `language`, and `import`.
+- `report`: a report written, with `format`, `path`, and `results_complete`.
+- `error`: a failure, with `code`, `message`, and optional `path`, `flag`, and
+  `phase`.
+- `command_finished`: the `exit_code`, plus any `results_complete`,
+  `diagnostics`, `changes`, and `mutations` counts.
+
+`dx run` and `dx update` add `correlation` to their events, so you can group
+them by target or set.
+
 ## Environment
 
 Every variable below supplies a default. A flag on the command line wins.

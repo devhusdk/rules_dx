@@ -32,6 +32,10 @@ Manages Git hooks through hermetic Git.
 - `status`: show what would run.
 - `run <trigger>`: run one trigger.
 
+`run` needs a hermetic Git. Set `DX_GIT_BIN` to the absolute path of a managed
+Git binary. A relative path is rejected and `PATH` is never searched. Without
+it the run exits `1` with `hook git must be hermetic`.
+
 Output: `--output text`.
 
 Exit codes: `0` success, `2` usage errors including an unknown verb or

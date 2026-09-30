@@ -1209,6 +1209,39 @@ fn literal_for(key: &str) -> &'static str {
     }
 }
 
+#[test]
+fn tool_path_env_vars_are_documented_where_the_command_needs_them() {
+    let cases: Vec<(&str, Option<&str>, &str, &str)> = vec![
+        (
+            dx_audit::secrets::TOOL_ENV_VAR,
+            Some(dx_audit::secrets::TOOL_LABEL),
+            "audit-update-bazel.md",
+            "dx security",
+        ),
+        (dx_adopt::HOOK_GIT_ENV_VAR, None, "hooks.md", "dx hooks run"),
+    ];
+    for (var, label, page_name, command) in cases {
+        let page = std::fs::read_to_string(docs_dir().join(page_name))
+            .unwrap_or_else(|error| panic!("{page_name} ships as test data: {error}"));
+        let paragraph = page
+            .split("\n\n")
+            .find(|block| block.contains(var))
+            .unwrap_or_else(|| {
+                panic!("{page_name} never names {var}, which {command} needs to find its tool")
+            });
+        assert!(
+            paragraph.contains("absolute"),
+            "{page_name} must say {var} takes an absolute path: {paragraph}"
+        );
+        if let Some(label) = label {
+            assert!(
+                paragraph.contains(label),
+                "{page_name} must name the pinned label {label} next to {var}: {paragraph}"
+            );
+        }
+    }
+}
+
 fn banner() -> String {
     super::super::help::usage_banner()
 }

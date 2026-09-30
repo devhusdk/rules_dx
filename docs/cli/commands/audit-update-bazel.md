@@ -98,6 +98,11 @@ An `expires` date on or before the audit date fails the run. An exception that
 matches no current finding in its own set fails the run, so remove it when the
 finding goes away. `versions` uses the range syntax of the `set` ecosystem.
 
+`dx security` scans secrets with Gitleaks. Set `DX_GITLEAKS_BIN` to the absolute
+path of the pinned `@dx_tools//:gitleaks` artifact. A relative path is rejected
+and `PATH` is never searched. Without it the run exits `1` with `secrets
+auditor unavailable`. `dx license` does not read it.
+
 Output: `--output text|json`. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.

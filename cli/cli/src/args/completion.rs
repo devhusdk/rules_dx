@@ -20,6 +20,10 @@ fn update_set_names() -> Vec<&'static str> {
         .collect()
 }
 
+fn bump_set_names() -> Vec<&'static str> {
+    dx_bump::BumpSet::names()
+}
+
 fn bash_dynamic(text: &mut String) -> Result<(), ArgsError> {
     let anchor = "                *)\n                    COMPREPLY=()\n                    ;;";
     let dynamic = format!(
@@ -85,8 +89,13 @@ fn fish_dynamic(text: &mut String) {
         "completion shell",
     );
     line(
-        "__fish_seen_subcommand_from update bump",
+        "__fish_seen_subcommand_from update",
         &update_set_names(),
+        "dependency set",
+    );
+    line(
+        "__fish_seen_subcommand_from bump",
+        &bump_set_names(),
         "dependency set",
     );
     let mut label_commands: Vec<&str> = Command::value_variants()

@@ -39,6 +39,7 @@ pub enum Command {
 pub enum FirstSlot {
     None,
     UpdateSets,
+    BumpSets,
     NewLanguages,
     HookVerbs,
     WatchTasks,
@@ -502,7 +503,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
-        first_slot: FirstSlot::UpdateSets,
+        first_slot: FirstSlot::BumpSets,
         labels: LabelsPolicy::Never,
         hook_triggers_on_run: false,
     },

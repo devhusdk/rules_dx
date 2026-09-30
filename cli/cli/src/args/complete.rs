@@ -36,6 +36,10 @@ fn update_set_hints(current: &str) -> Vec<String> {
     prefixed(&names, current)
 }
 
+fn bump_set_hints(current: &str) -> Vec<String> {
+    prefixed(&dx_bump::BumpSet::names(), current)
+}
+
 pub fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<String>, bool) {
     use super::command::FirstSlot;
     let meta = command.meta();
@@ -43,6 +47,7 @@ pub fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Ve
         match meta.first_slot {
             FirstSlot::None => Vec::new(),
             FirstSlot::UpdateSets => update_set_hints(current),
+            FirstSlot::BumpSets => bump_set_hints(current),
             FirstSlot::NewLanguages => prefixed(dx_adopt::SUPPORTED_NEW_LANGUAGES, current),
             FirstSlot::HookVerbs => prefixed(HOOK_VERBS, current),
             FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
@@ -319,27 +324,25 @@ mod tests {
                     assert_eq!(fixed, vec!["bash", "fish", "powershell", "zsh"]);
                     assert!(!labels);
                 }
-                Command::Update | Command::Bump => {
-                    assert_eq!(
-                        fixed,
-                        vec![
-                            "cargo",
-                            "go",
-                            "maven",
-                            "npm",
-                            "npm-adopt",
-                            "npm-adopt-polyglot",
-                            "npm-tools",
-                            "nuget",
-                            "powershell",
-                            "ruby",
-                            "uv",
-                            "uv-adopt",
-                            "uv-adopt-polyglot",
-                            "uv-tools",
-                        ]
-                    );
-                    assert_eq!(labels, *command == Command::Update);
+                Command::Update => {
+                    let mut want: Vec<String> = dx_update::sets::SetId::ALL
+                        .iter()
+                        .map(|id| (*id).name().to_owned())
+                        .collect();
+                    want.sort();
+                    assert_eq!(fixed, want);
+                    assert!(labels);
+                }
+                Command::Bump => {
+                    let mut want: Vec<String> = dx_bump::BumpSet::names()
+                        .into_iter()
+                        .map(String::from)
+                        .collect();
+                    want.sort();
+                    assert_eq!(fixed, want, "bump must offer the bump sets");
+                    assert!(!fixed.contains(&String::from("uv")));
+                    assert!(fixed.contains(&String::from("github-actions")));
+                    assert!(!labels);
                 }
                 Command::Clean
                 | Command::Init

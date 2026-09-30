@@ -423,7 +423,6 @@ fn clean_parses_dry_run_and_bazel() {
     assert!(got.dry_run);
     assert!(got.bazel_clean);
     assert_eq!(Command::Clean.name(), "clean");
-    assert!(!Command::Clean.is_workflow());
     assert!(!Command::Clean.is_umbrella());
 }
 
@@ -503,7 +502,6 @@ fn audit_update_parse_and_reject_unsupported_options() {
     assert_eq!(security.command, Command::Security);
     assert_eq!(security.command.name(), "security");
     assert!(security.command.is_audit_update());
-    assert!(!security.command.is_workflow());
     assert!(!security.command.is_adoption());
     assert!(!security.command.is_managed());
     assert!(security.targets.is_empty());

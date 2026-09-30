@@ -214,19 +214,19 @@ pub fn parse_with<S: AsRef<OsStr>>(
             }
         }
     }
+    if check && !command.supports_check() {
+        return Err(ArgsError::UnsupportedOption {
+            command: command.name(),
+            option: "--check".to_owned(),
+        });
+    }
+    if fail_on_name != "warning" && !command.supports_fail_on() {
+        return Err(ArgsError::UnsupportedOption {
+            command: command.name(),
+            option: "--fail-on".to_owned(),
+        });
+    }
     if command == Command::Clean {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name == "diff" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -258,18 +258,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         });
     }
     if command.is_managed() {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name == "diff" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -297,12 +285,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Security || command == Command::License {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
         if !bazel_options.is_empty() {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -316,12 +298,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Update {
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name == "diff" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -347,18 +323,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Bump {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name == "diff" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -389,18 +353,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Migrate {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name == "diff" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -444,18 +396,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         });
     }
     if command == Command::Upgrade {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name == "diff" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -487,12 +427,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Docs {
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name == "diff" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -553,20 +487,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             option: "--open".to_owned(),
         });
     }
-    if command.is_workflow() {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
-    }
     if min_coverage.is_some() && command != Command::Coverage {
         return Err(ArgsError::UnsupportedOption {
             command: command.name(),
@@ -580,12 +500,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         value: fail_on_name.clone(),
     })?;
     if command.is_adoption() {
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if let Some(request) = reports.first() {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
@@ -602,12 +516,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),
                 option: "--".to_owned(),
-            });
-        }
-        if check && command != Command::Version && command != Command::Completion {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
             });
         }
         match command {
@@ -672,18 +580,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Bazel {
-        if check {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--check".to_owned(),
-            });
-        }
-        if fail_on_name != "warning" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--fail-on".to_owned(),
-            });
-        }
         if output_name != "text" {
             return Err(ArgsError::UnsupportedOption {
                 command: command.name(),

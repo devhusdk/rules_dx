@@ -155,6 +155,42 @@ fn an_owned_option_is_accepted_only_by_its_owner() {
     }
 }
 
+const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 2] = [
+    ("--check", Command::supports_check, &["--check"]),
+    ("--fail-on", Command::supports_fail_on, &["--fail-on=error"]),
+];
+
+#[test]
+fn a_global_gate_is_accepted_exactly_where_the_registry_declares() {
+    for command in Command::value_variants() {
+        let command = *command;
+        for (flag, supported, argv) in REGISTRY_GATES {
+            let words = owned_option_words(command, argv);
+            match parse(&words) {
+                Ok(_) => assert!(
+                    supported(command),
+                    "dx {} accepts {flag} but the registry says it does not: {words:?}",
+                    command.name()
+                ),
+                Err(ArgsError::UnsupportedOption { option: named, .. }) => {
+                    assert_eq!(
+                        named,
+                        flag,
+                        "dx {} rejects {words:?} as {named}, which names another option",
+                        command.name()
+                    );
+                    assert!(
+                        !supported(command),
+                        "dx {} rejects {flag} but the registry says it accepts it: {words:?}",
+                        command.name()
+                    );
+                }
+                Err(error) => panic!("dx {words:?} failed with {error} instead of naming {flag}"),
+            }
+        }
+    }
+}
+
 #[test]
 fn file_defaults_load_from_workspace_and_reject_invalid_toml() {
     let scratch = dx_test_scratch::scratch("parser-file-defaults-");
@@ -185,7 +221,6 @@ fn bump_needs_exactly_one_selector_plus_version() {
     assert_eq!(bump.command, Command::Bump);
     assert_eq!(bump.command.name(), "bump");
     assert!(bump.command.is_audit_update());
-    assert!(!bump.command.is_workflow());
     assert!(!bump.command.is_adoption());
     assert!(!bump.command.is_managed());
     assert_eq!(
@@ -261,7 +296,6 @@ fn migrate_needs_from_and_to_versions() {
     assert_eq!(migrate.command, Command::Migrate);
     assert_eq!(migrate.command.name(), "migrate");
     assert!(!migrate.command.is_audit_update());
-    assert!(!migrate.command.is_workflow());
     assert!(!migrate.command.is_adoption());
     assert!(!migrate.command.is_managed());
     assert!(migrate.command.is_mutating_by_default());
@@ -587,7 +621,6 @@ fn bazel_forwards_verbatim_and_rejects_dx_options() {
     let got = parse(&args(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
     assert_eq!(got.command, Command::Bazel);
     assert_eq!(got.command.name(), "bazel");
-    assert!(!got.command.is_workflow());
     assert!(!got.command.is_adoption());
     assert!(got.targets.is_empty());
     assert_eq!(

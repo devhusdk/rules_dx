@@ -41,6 +41,7 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
   Every other command rejects `--report`.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
+- `--min-coverage <percent>`: fail `coverage` below this percent.
 - `--check`: report without changing files, where supported.
 - `--debug`, `--release`: build profiles for build-like commands.
 - `--here`: limit to the current directory tree.

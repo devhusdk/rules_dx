@@ -231,6 +231,49 @@ fn docs_usage_blocks_only_use_accepted_flags() {
     }
 }
 
+fn documented_usage_lines() -> Vec<(String, Command, String)> {
+    let mut lines: Vec<(String, Command, String)> = Vec::new();
+    for (name, page) in pages() {
+        for block in usage_blocks(&page) {
+            for line in block {
+                let words: Vec<&str> = line.split_whitespace().collect();
+                let command = Command::parse(words[1]).unwrap_or_else(|| {
+                    panic!("{name}: usage line names an unknown command: {line}")
+                });
+                lines.push((name.clone(), command, line));
+            }
+        }
+    }
+    lines
+}
+
+#[test]
+fn docs_usage_blocks_document_every_advertised_flag() {
+    let all = documented_usage_lines();
+    for command in Command::value_variants() {
+        let command = *command;
+        let documented: Vec<&String> = all
+            .iter()
+            .filter(|(_, owner, _)| *owner == command)
+            .map(|(_, _, line)| line)
+            .collect();
+        assert!(
+            !documented.is_empty(),
+            "no docs/cli/commands usage line documents dx {}",
+            command.name()
+        );
+        for flag in flag_tokens(command.usage()) {
+            assert!(
+                documented
+                    .iter()
+                    .any(|line| flag_tokens(line).contains(&flag)),
+                "dx {} advertises {flag} but no docs usage line states it: {documented:?}",
+                command.name()
+            );
+        }
+    }
+}
+
 #[test]
 fn docs_shell_examples_parse() {
     const DX_PREFIX: &str = "bazel run //cli/cli:dx --";
@@ -418,6 +461,31 @@ fn global_flags_page_names_exactly_the_narrow_output_commands() {
         documented, narrow,
         "docs/cli/commands/README.md --output bullet must name every command that accepts `diff` or rejects `json`"
     );
+}
+
+#[test]
+fn global_flags_page_documents_every_banner_option() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "Global Flags")
+        .map(|(_, body)| body)
+        .expect("README has a `## Global Flags` section");
+    let bullets: Vec<&str> = body.lines().filter(|line| line.starts_with("- ")).collect();
+    let advertised = banner()
+        .lines()
+        .next()
+        .expect("the usage banner opens with its usage line")
+        .to_owned();
+    for flag in flag_tokens(&advertised) {
+        assert!(
+            bullets
+                .iter()
+                .any(|bullet| bullet.contains(&format!("`{flag}"))),
+            "docs/cli/commands/README.md Global Flags never documents {flag}, which the usage banner advertises: {advertised}"
+        );
+    }
 }
 
 #[test]

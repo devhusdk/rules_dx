@@ -390,6 +390,7 @@ mod tests {
             Command::Bump,
             Command::New,
             Command::Completion,
+            Command::Deploy,
         ] {
             assert_eq!(
                 slot_candidates(command, &one, ""),
@@ -399,6 +400,7 @@ mod tests {
         }
         for command in [
             Command::Build,
+            Command::Run,
             Command::Owners,
             Command::Security,
             Command::License,

@@ -339,7 +339,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         name: "run",
         scope_policy: "require",
         describe: "build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)",
-        usage: "Usage: dx [global-options] run [--debug|--release] <target> [-- app-args ...]",
+        usage: "Usage: dx [global-options] run [--debug|--release] <label> ... [-- app-args ...]",
         flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Requires a scope (empty scope is a usage error); file/dir scopes need exactly one runnable.",
         is_umbrella: false,
@@ -385,7 +385,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         skew: SkewKind::Refuse,
         workflow_verb: None,
         first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Always,
+        labels: LabelsPolicy::OnlyEmpty,
         hook_triggers_on_run: false,
     },
     CommandMeta {

@@ -282,6 +282,29 @@ fn command_usage_advertises_the_bazel_passthrough_exactly_where_the_parser_accep
 }
 
 #[test]
+fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
+    for command in Command::value_variants() {
+        let command = *command;
+        let usage = command.usage();
+        let tail: &[&str] = if command == Command::Bazel {
+            &["info"]
+        } else {
+            &[]
+        };
+        let mut words = vec!["--check", command.name()];
+        words.extend_from_slice(tail);
+        let accepted = parse(&args(&words)).is_ok();
+        let advertised = usage.contains("[--check]");
+        assert_eq!(
+            accepted,
+            advertised,
+            "dx {} accepts={accepted} advertises={advertised} for --check: {words:?}\n{usage}",
+            command.name()
+        );
+    }
+}
+
+#[test]
 fn docs_usage_blocks_only_use_accepted_flags() {
     let globals = global_flags();
     for (name, page) in pages() {

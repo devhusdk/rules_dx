@@ -1,6 +1,6 @@
 dx lint - run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
 
-Usage: dx [global-options] lint|typecheck|format|generate [--here] [scope ...] [-- bazel-options ...]
+Usage: dx [global-options] lint|typecheck|format|generate [--check] [--here] [scope ...] [-- bazel-options ...]
 Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option "--flag" is not supported by dx <command>`).
 
 Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.

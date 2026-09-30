@@ -270,11 +270,7 @@ fn run() -> i32 {
         }
     }
     let pin = dx_cli::skew::read_pin(&workspace);
-    match dx_cli::skew::disposition(
-        invocation.command,
-        invocation.dry_run,
-        dx_cli::skew::is_skewed(&pin),
-    ) {
+    match dx_cli::skew::disposition(&invocation, dx_cli::skew::is_skewed(&pin)) {
         dx_cli::skew::SkewDisposition::Proceed => {}
         dx_cli::skew::SkewDisposition::Warn => {
             let _ = writeln!(

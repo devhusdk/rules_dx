@@ -1,41 +1,9 @@
 use dx_process::{build_workflow_argv, describe_scope, ForwardError, ProtectedFlag};
 
 use super::{workflow_scope_labels, workspace_flag, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG};
-use crate::args::Command;
 use crate::resolve::ResolvedScope;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WorkflowVerb {
-    Build,
-    Test,
-    Coverage,
-    Run,
-}
-
-impl WorkflowVerb {
-    pub fn of(command: Command) -> Option<Self> {
-        match command.meta().workflow_verb {
-            Some("build") => Some(WorkflowVerb::Build),
-            Some("test") => Some(WorkflowVerb::Test),
-            Some("coverage") => Some(WorkflowVerb::Coverage),
-            Some("run") => Some(WorkflowVerb::Run),
-            _ => None,
-        }
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            WorkflowVerb::Build => "build",
-            WorkflowVerb::Test => "test",
-            WorkflowVerb::Coverage => "coverage",
-            WorkflowVerb::Run => "run",
-        }
-    }
-
-    pub fn collects_reports(self) -> bool {
-        matches!(self, WorkflowVerb::Test | WorkflowVerb::Coverage)
-    }
-}
+pub use crate::args::WorkflowVerb;
 
 pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 

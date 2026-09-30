@@ -60,7 +60,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let Some(verb) = WorkflowVerb::of(invocation.command) else {
+    let Some(verb) = invocation.command.workflow_verb() else {
         return pre_exec(
             err,
             &ForwardError::UnsupportedCommand {

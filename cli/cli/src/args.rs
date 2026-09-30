@@ -11,7 +11,7 @@ pub mod suggest;
 pub mod tokenizer;
 pub mod values;
 
-pub use command::Command;
+pub use command::{Command, WorkflowVerb};
 pub use complete::{completes_labels, run_complete, COMPLETE_SUBCOMMAND};
 pub use completion::{render_completion, COMPLETION_SHELLS};
 pub use error::ArgsError;

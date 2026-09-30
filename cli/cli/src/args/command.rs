@@ -63,6 +63,29 @@ pub enum SkewKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkflowVerb {
+    Build,
+    Test,
+    Coverage,
+    Run,
+}
+
+impl WorkflowVerb {
+    pub fn name(self) -> &'static str {
+        match self {
+            WorkflowVerb::Build => "build",
+            WorkflowVerb::Test => "test",
+            WorkflowVerb::Coverage => "coverage",
+            WorkflowVerb::Run => "run",
+        }
+    }
+
+    pub fn collects_reports(self) -> bool {
+        matches!(self, WorkflowVerb::Test | WorkflowVerb::Coverage)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CommandMeta {
     pub command: Command,
     pub name: &'static str,
@@ -84,7 +107,7 @@ pub struct CommandMeta {
     pub is_mutating_by_default: bool,
     pub default_release: bool,
     pub skew: SkewKind,
-    pub workflow_verb: Option<&'static str>,
+    pub workflow_verb: Option<WorkflowVerb>,
     pub first_slot: FirstSlot,
     pub labels: LabelsPolicy,
     pub hook_triggers_on_run: bool,
@@ -268,7 +291,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
-        workflow_verb: Some("build"),
+        workflow_verb: Some(WorkflowVerb::Build),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
         hook_triggers_on_run: false,
@@ -294,7 +317,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
-        workflow_verb: Some("test"),
+        workflow_verb: Some(WorkflowVerb::Test),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
         hook_triggers_on_run: false,
@@ -320,7 +343,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
-        workflow_verb: Some("coverage"),
+        workflow_verb: Some(WorkflowVerb::Coverage),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
         hook_triggers_on_run: false,
@@ -346,7 +369,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
-        workflow_verb: Some("run"),
+        workflow_verb: Some(WorkflowVerb::Run),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
         hook_triggers_on_run: false,
@@ -980,6 +1003,10 @@ impl Command {
         Self::from_str(text, false).ok()
     }
 
+    pub fn workflow_verb(self) -> Option<WorkflowVerb> {
+        self.meta().workflow_verb
+    }
+
     pub fn is_audit_update(self) -> bool {
         self.meta().is_audit_update
     }
@@ -1482,5 +1509,30 @@ mod tests {
             assert!(!entry.flags.is_empty());
             assert!(!entry.scopes.is_empty());
         }
+    }
+
+    #[test]
+    fn every_workflow_verb_is_the_command_it_runs() {
+        use clap::ValueEnum;
+        let mut verbs: Vec<&'static str> = Vec::new();
+        for command in Command::value_variants() {
+            let Some(verb) = command.workflow_verb() else {
+                continue;
+            };
+            assert_eq!(
+                verb.name(),
+                command.name(),
+                "{command:?} runs bazel {} but is spelled {}",
+                verb.name(),
+                command.name()
+            );
+            verbs.push(verb.name());
+        }
+        verbs.sort_unstable();
+        assert_eq!(verbs, ["build", "coverage", "run", "test"]);
+        assert!(WorkflowVerb::Test.collects_reports());
+        assert!(WorkflowVerb::Coverage.collects_reports());
+        assert!(!WorkflowVerb::Build.collects_reports());
+        assert!(!WorkflowVerb::Run.collects_reports());
     }
 }

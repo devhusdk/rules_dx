@@ -167,7 +167,6 @@ pub fn spec(command: Command) -> CommandSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plan::WorkflowVerb;
 
     #[test]
     fn registry_entries_match_command_contract() {
@@ -218,32 +217,21 @@ mod tests {
         let generate = spec(Command::Generate);
         assert!(generate.aspects.is_empty());
         assert!(generate.reports.is_empty());
-        assert_eq!(WorkflowVerb::of(Command::Generate), None);
-        assert_eq!(WorkflowVerb::of(Command::Run), Some(WorkflowVerb::Run));
-        assert_eq!(WorkflowVerb::of(Command::Lint), None);
-        assert_eq!(WorkflowVerb::of(Command::Typecheck), None);
-        assert_eq!(WorkflowVerb::of(Command::Format), None);
-        assert_eq!(WorkflowVerb::of(Command::Check), None);
-        assert_eq!(WorkflowVerb::of(Command::Fix), None);
         let clean = spec(Command::Clean);
         assert!(clean.aspects.is_empty());
         assert!(clean.reports.is_empty());
-        assert_eq!(WorkflowVerb::of(Command::Clean), None);
         let bazel = spec(Command::Bazel);
         assert!(bazel.aspects.is_empty());
         assert!(bazel.reports.is_empty());
-        assert_eq!(WorkflowVerb::of(Command::Bazel), None);
         for command in [Command::Codegen, Command::Env, Command::Setup] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());
             assert!(entry.reports.is_empty());
-            assert_eq!(WorkflowVerb::of(command), None);
             assert!(command.is_managed());
         }
         for command in [Command::Security, Command::License] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());
-            assert_eq!(WorkflowVerb::of(command), None);
             assert!(command.is_audit_update());
         }
         assert_eq!(spec(Command::Security).reports, &["sarif"]);
@@ -251,19 +239,14 @@ mod tests {
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());
         assert!(update.reports.is_empty());
-        assert_eq!(WorkflowVerb::of(Command::Update), None);
         assert!(Command::Update.is_audit_update());
         let bump = spec(Command::Bump);
         assert!(bump.aspects.is_empty());
         assert!(bump.reports.is_empty());
-        assert_eq!(WorkflowVerb::of(Command::Bump), None);
         assert!(Command::Bump.is_audit_update());
         let migrate = spec(Command::Migrate);
         assert!(migrate.aspects.is_empty());
         assert!(migrate.reports.is_empty());
-        assert_eq!(WorkflowVerb::of(Command::Migrate), None);
         assert!(!Command::Migrate.is_audit_update());
-        assert_eq!(WorkflowVerb::Run.name(), "run");
-        assert!(!WorkflowVerb::Run.collects_reports());
     }
 }

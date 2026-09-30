@@ -199,6 +199,11 @@ pub fn plan(set: SetId, request: &SetRequest, offline: bool) -> Result<BackendPl
             set: set.name(),
             reason: "ruby pins are exact in third_party/ruby/Gemfile; widen the requirement there and regenerate the lock with `bundle lock`",
         }),
+        (SetId::PowerShell, SetRequest::Full) => Ok(BackendPlan::Noop),
+        (SetId::PowerShell, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason: "powershell pins are exact in third_party/powershell/PSGallery.requirements.psd1; widen the requirement there and hand-regenerate PSGallery.lock.json, because consumer builds never run Install-Module",
+        }),
     }
 }
 
@@ -445,6 +450,25 @@ mod tests {
     }
 
     #[test]
+    fn powershell_full_is_pinned_noop_success() {
+        assert_eq!(
+            plan(SetId::PowerShell, &SetRequest::Full, false).expect("powershell full"),
+            BackendPlan::Noop
+        );
+        let error = plan(
+            SetId::PowerShell,
+            &SetRequest::Packages(vec!["Pester".to_owned()]),
+            false,
+        )
+        .expect_err("powershell selective is seed-host only");
+        assert!(
+            matches!(error, BackendError::Unsupported { .. }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("Install-Module"), "{error}");
+    }
+
+    #[test]
     fn non_npm_selective_reports_unsupported_never_full() {
         for (set, packages) in [
             (
@@ -466,6 +490,10 @@ mod tests {
             (
                 SetId::Ruby,
                 SetRequest::Packages(vec!["rspec-core".to_owned()]),
+            ),
+            (
+                SetId::PowerShell,
+                SetRequest::Packages(vec!["Pester".to_owned()]),
             ),
             (
                 SetId::NpmTools,
@@ -571,7 +599,7 @@ mod tests {
             matches!(selective, BackendError::OfflineRequired { .. }),
             "{selective:?}"
         );
-        for set in [SetId::Go, SetId::Ruby] {
+        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
                 plan(set, &SetRequest::Full, true).expect("pinned noop offline"),
                 BackendPlan::Noop,
@@ -598,6 +626,10 @@ mod tests {
             (
                 SetId::Ruby,
                 SetRequest::Packages(vec!["rspec-core".to_owned()]),
+            ),
+            (
+                SetId::PowerShell,
+                SetRequest::Packages(vec!["Pester".to_owned()]),
             ),
             (
                 SetId::NpmTools,

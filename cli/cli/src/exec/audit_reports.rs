@@ -488,6 +488,7 @@ fn audit_live_json_emits_per_family_lifecycle() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -526,6 +527,7 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
         harness.write_source(
             "cargo-bazel-lock.json",
@@ -786,6 +788,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     );
     write_go_mod(&harness);
     write_ruby_locks(&harness);
+    write_powershell_locks(&harness);
     write_all_empty_advisories(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
@@ -841,6 +844,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1);
@@ -868,6 +872,7 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
     );
     write_go_mod(&harness);
     write_ruby_locks(&harness);
+    write_powershell_locks(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
     let mut out = Vec::new();
@@ -1096,7 +1101,7 @@ fn audit_errors_stay_typed_with_stable_display() {
             sets: super::audited_set_names().join(", "),
         }
         .to_string(),
-        "no owning dependency set for \"examples/adopt-cpp/solo:solo\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget, ruby"
+        "no owning dependency set for \"examples/adopt-cpp/solo:solo\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget, powershell, ruby"
     );
     let read = AuditError::Read {
         rel: "pnpm-lock.yaml".to_owned(),
@@ -1268,6 +1273,14 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
         ("//python/tests/fixtures/hello/hello.py", vec![SetId::Uv]),
         ("//ruby/tests/fixtures/hello:hello", vec![SetId::Ruby]),
         ("//examples/adopt-ruby/greet:greet", vec![SetId::Ruby]),
+        (
+            "//examples/adopt-powershell/greet:greet",
+            vec![SetId::PowerShell],
+        ),
+        (
+            "//third_party/powershell:PSGallery.lock.json",
+            vec![SetId::PowerShell],
+        ),
     ] {
         assert_eq!(
             super::resolve_audit_sets(&[scope.to_owned()]).expect(scope),
@@ -1286,13 +1299,13 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
             "npm-adopt-polyglot",
             "npm-tools",
             "nuget",
+            "powershell",
             "ruby"
         ]
     );
     for scope in [
         "//examples/adopt-cpp/solo:solo",
-        "//examples/adopt-powershell/greet:greet",
-        "//third_party/powershell:PSGallery.lock.json",
+        "//examples/adopt-cpp/greet:greet",
     ] {
         let unowned = super::resolve_audit_sets(&[scope.to_owned()]).expect_err(scope);
         assert!(

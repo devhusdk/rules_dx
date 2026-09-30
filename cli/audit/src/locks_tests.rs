@@ -528,6 +528,37 @@ fn gemfile_lock_missing_gem_section_fails_closed() {
 }
 
 #[test]
+fn psgallery_lock_parses_every_pinned_module_as_a_nuget_package() {
+    let text = "{\n  \"pwsh\": \"7.5.4\",\n  \"modules\": {\n    \"Pester\": {\n      \"version\": \"5.7.1\",\n      \"gallery\": \"https://www.powershellgallery.com/packages/Pester/5.7.1\"\n    },\n    \"PSScriptAnalyzer\": {\n      \"version\": \"1.25.0\",\n      \"notes\": \"exact module route\"\n    }\n  }\n}\n";
+    let packages = parse_psgallery_lock(text).expect("parses");
+    assert_eq!(
+        packages
+            .iter()
+            .map(|package| (package.name.as_str(), package.version.as_str()))
+            .collect::<Vec<_>>(),
+        vec![("PSScriptAnalyzer", "1.25.0"), ("Pester", "5.7.1")]
+    );
+    assert!(packages
+        .iter()
+        .all(|package| package.set == "nuget" && !package.is_git && !package.is_private));
+}
+
+#[test]
+fn psgallery_lock_missing_modules_or_versions_fails_closed() {
+    assert!(parse_psgallery_lock("{\"pwsh\": \"7.5.4\"}").is_err());
+    assert!(parse_psgallery_lock("{\"modules\": []}").is_err());
+    assert!(parse_psgallery_lock("lockfileVersion: 9").is_err());
+    assert!(parse_psgallery_lock("").is_err());
+    assert!(
+        parse_psgallery_lock("{\"modules\": {\"Pester\": {\"notes\": \"floating\"}}}").is_err()
+    );
+    assert!(parse_psgallery_lock("{\"modules\": {\"Pester\": {\"version\": \"\"}}}").is_err());
+    assert!(parse_psgallery_lock("{\"modules\": {}}")
+        .expect("an empty lock is valid")
+        .is_empty());
+}
+
+#[test]
 fn go_mod_parses_require_block_and_single_line_with_comments() {
     let text = "module rules_dx/third_party/go\n\ngo 1.24.12\n\nrequire (\n\tgithub.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 // indirect\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/pmezard/go-difflib v1.0.0\n)\n\nrequire example.com/single v1.2.3 // indirect\n";
     let packages = parse_go_mod(text).expect("parses");

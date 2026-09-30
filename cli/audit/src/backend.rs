@@ -92,6 +92,7 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
         "npm-tools" => &["quality/tools/javascript/pnpm-lock.yaml"],
         "maven" => &["third_party/jvm/maven_install.json"],
         "nuget" => &["third_party/dotnet/paket.lock"],
+        "powershell" => &["third_party/powershell/PSGallery.lock.json"],
         "go" => &["third_party/go/go.mod"],
         "ruby" | "rubygems" => &[
             "third_party/ruby/Gemfile.lock",
@@ -246,6 +247,10 @@ mod tests {
         assert_eq!(vuln_locks("nuget"), &["third_party/dotnet/paket.lock"]);
         assert_eq!(vuln_locks("go"), &["third_party/go/go.mod"]);
         assert_eq!(
+            vuln_locks("powershell"),
+            &["third_party/powershell/PSGallery.lock.json"]
+        );
+        assert_eq!(
             vuln_locks("ruby"),
             &[
                 "third_party/ruby/Gemfile.lock",
@@ -279,6 +284,7 @@ mod tests {
             "npm-tools",
             "maven",
             "nuget",
+            "powershell",
             "go",
             "ruby"
         ])

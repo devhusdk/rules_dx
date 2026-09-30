@@ -619,6 +619,10 @@ fn success_line(set: dx_update::sets::SetId, request: &dx_update::selector::SetR
             dx_update::sets::SetId::Ruby => {
                 "updated ruby (third_party/ruby/Gemfile.lock; no-op success)".to_owned()
             }
+            dx_update::sets::SetId::PowerShell => {
+                "updated powershell (third_party/powershell/PSGallery.lock.json; no-op success)"
+                    .to_owned()
+            }
         },
         dx_update::selector::SetRequest::Packages(packages) => {
             let locks = set.locks().join(", ");

@@ -128,6 +128,7 @@ pub(super) fn clean_workspace(harness: &Harness) {
     );
     write_go_mod(harness);
     write_ruby_locks(harness);
+    write_powershell_locks(harness);
     harness.write_source(
         "licenses.toml",
         "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n",
@@ -138,6 +139,13 @@ pub(super) fn write_go_mod(harness: &Harness) {
     harness.write_source(
         "third_party/go/go.mod",
         "module rules_dx/third_party/go\n\ngo 1.24.12\n\nrequire (\n\tgithub.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 // indirect\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/pmezard/go-difflib v1.0.0\n)\n",
+    );
+}
+
+pub(super) fn write_powershell_locks(harness: &Harness) {
+    harness.write_source(
+        "third_party/powershell/PSGallery.lock.json",
+        "{\n  \"pwsh\": \"7.5.4\",\n  \"modules\": {\n    \"Pester\": {\n      \"version\": \"5.7.1\"\n    },\n    \"PSScriptAnalyzer\": {\n      \"version\": \"1.25.0\"\n    }\n  }\n}\n",
     );
 }
 
@@ -231,6 +239,7 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -277,6 +286,7 @@ pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1, "{out}{err}");
@@ -327,6 +337,7 @@ pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
         );
         write_go_mod(&harness);
         write_ruby_locks(&harness);
+        write_powershell_locks(&harness);
         write_all_empty_advisories(&harness);
         let mut out = Vec::new();
         let mut err = Vec::new();
@@ -372,6 +383,7 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1, "{err}");
@@ -399,6 +411,7 @@ pub(super) fn audit_live_npm_git_and_sibling_locks_are_incomplete() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1, "{err}");
@@ -426,6 +439,7 @@ pub(super) fn audit_live_npm_pnpm_git_resolution_is_incomplete() {
         );
         write_go_mod(harness);
         write_ruby_locks(harness);
+        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1, "{err}");
@@ -523,10 +537,34 @@ pub(super) fn audit_live_ruby_scopes_are_assessed_against_the_rubygems_snapshot(
         let runner = AuditRunner::clean();
         let (code, _out, err) = run_with(&["security", scope], &runner, &|harness| {
             write_ruby_locks(harness);
+            write_powershell_locks(harness);
             write_advisory(
                 harness,
                 "rubygems",
                 r#"[{"id":"GHSA-ruby-test-0001","package":"rspec-core","versions":">=3.0.0, <3.13.1","severity":"high","fixed":["3.13.1"],"set":"ruby"}]"#,
+            );
+        });
+        assert_eq!(code, 1, "{scope} must fail: {err}");
+        assert!(
+            err.contains("1 vulnerability findings"),
+            "{scope} must be assessed: {err}"
+        );
+    }
+}
+
+#[test]
+pub(super) fn audit_live_powershell_scopes_are_assessed_against_the_nuget_snapshot() {
+    for scope in [
+        "//third_party/powershell:default",
+        "//examples/adopt-powershell/greet:greet",
+    ] {
+        let runner = AuditRunner::clean();
+        let (code, _out, err) = run_with(&["security", scope], &runner, &|harness| {
+            write_powershell_locks(harness);
+            write_advisory(
+                harness,
+                "nuget",
+                r#"[{"id":"GHSA-nuget-test-0001","package":"Pester","versions":"[5.0.0, 5.7.2)","severity":"high","fixed":["5.7.2"],"set":"nuget"}]"#,
             );
         });
         assert_eq!(code, 1, "{scope} must fail: {err}");

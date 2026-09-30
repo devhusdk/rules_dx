@@ -335,6 +335,7 @@ fn parse_locked_for_set(
             dx_update::sets::SetId::Maven => dx_audit::locks::parse_maven_install(text),
             dx_update::sets::SetId::NuGet => dx_audit::locks::parse_paket_lock(text),
             dx_update::sets::SetId::Ruby => dx_audit::locks::parse_gemfile_lock(text),
+            dx_update::sets::SetId::PowerShell => dx_audit::locks::parse_psgallery_lock(text),
             dx_update::sets::SetId::Go => dx_audit::locks::parse_go_mod(text),
             dx_update::sets::SetId::Uv
             | dx_update::sets::SetId::UvTools

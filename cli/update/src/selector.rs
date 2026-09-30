@@ -256,6 +256,12 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
             }
             Ok(())
         }
+        SetId::PowerShell => {
+            if !is_dotted_name(package) {
+                return Err(invalid("powershell module names use [A-Za-z0-9_.-] only"));
+            }
+            Ok(())
+        }
         SetId::Go => {
             if package.is_empty()
                 || package.contains(':')
@@ -294,6 +300,9 @@ const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
     ("examples/adopt-csharp", &[SetId::NuGet]),
     ("examples/adopt-fsharp", &[SetId::NuGet]),
     ("examples/adopt-go", &[SetId::Go]),
+    ("third_party/powershell", &[SetId::PowerShell]),
+    ("examples/adopt-powershell", &[SetId::PowerShell]),
+    ("powershell", &[SetId::PowerShell]),
     ("third_party/ruby", &[SetId::Ruby]),
     ("examples/adopt-ruby", &[SetId::Ruby]),
     ("ruby", &[SetId::Ruby]),
@@ -765,8 +774,7 @@ mod tests {
     #[test]
     fn adopt_examples_without_a_dependency_set_stay_unowned() {
         assert!(owning_sets("//examples/adopt-cpp/solo:solo").is_empty());
-        assert!(owning_sets("//examples/adopt-powershell/greet:greet").is_empty());
-        assert!(owning_sets("//third_party/powershell:PSGallery.lock.json").is_empty());
+        assert!(owning_sets("//examples/adopt-cpp/greet:greet").is_empty());
     }
 
     #[test]
@@ -786,6 +794,32 @@ mod tests {
     }
 
     #[test]
+    fn the_gallery_hub_owns_its_shared_lock_and_the_adopted_copy() {
+        assert_eq!(
+            owning_sets("//third_party/powershell:default"),
+            vec![SetId::PowerShell]
+        );
+        assert_eq!(
+            owning_sets("third_party/powershell/PSGallery.lock.json"),
+            vec![SetId::PowerShell]
+        );
+        assert_eq!(
+            owning_sets("examples/adopt-powershell/greet"),
+            vec![SetId::PowerShell],
+            "the adopted requirements read the shared hub lock"
+        );
+        assert_eq!(
+            owning_sets("//examples/adopt-powershell/..."),
+            vec![SetId::PowerShell]
+        );
+        assert_eq!(
+            owning_sets("//powershell/greet:greet"),
+            vec![SetId::PowerShell],
+            "the rules package consumes the shared Gallery hub"
+        );
+    }
+
+    #[test]
     fn a_recursive_scope_owns_the_sets_nested_under_it() {
         assert_eq!(
             owning_sets("//quality/..."),
@@ -800,7 +834,13 @@ mod tests {
         assert_eq!(owning_sets("//javascript/..."), vec![SetId::Npm]);
         assert_eq!(
             owning_sets("//third_party/..."),
-            vec![SetId::Go, SetId::Maven, SetId::NuGet, SetId::Ruby]
+            vec![
+                SetId::Go,
+                SetId::Maven,
+                SetId::NuGet,
+                SetId::PowerShell,
+                SetId::Ruby
+            ]
         );
         assert_eq!(
             owning_sets("//docs/..."),
@@ -816,6 +856,7 @@ mod tests {
                 SetId::NpmAdopt,
                 SetId::NpmAdoptPolyglot,
                 SetId::NuGet,
+                SetId::PowerShell,
                 SetId::Ruby,
                 SetId::UvAdopt,
                 SetId::UvAdoptPolyglot,
@@ -854,7 +895,7 @@ mod tests {
     #[test]
     fn bare_resolves_to_all_sets_full() {
         let resolved = resolve(&[]).expect("bare");
-        assert_eq!(resolved.len(), 13);
+        assert_eq!(resolved.len(), 14);
         for set in SetId::ALL {
             assert_eq!(resolved.get(&set), Some(&SetRequest::Full));
         }
@@ -938,7 +979,7 @@ mod tests {
         let resolved = resolve(&strings(&["//go/tests/fixtures/hello:hello"])).expect("target");
         assert_eq!(resolved.get(&SetId::Go), Some(&SetRequest::Full));
         let resolved = resolve(&strings(&["//..."])).expect("repo");
-        assert_eq!(resolved.len(), 13);
+        assert_eq!(resolved.len(), 14);
     }
 
     #[test]

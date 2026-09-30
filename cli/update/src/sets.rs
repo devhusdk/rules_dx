@@ -8,6 +8,7 @@ pub enum SetId {
     NpmAdoptPolyglot,
     NpmTools,
     NuGet,
+    PowerShell,
     Ruby,
     Uv,
     UvAdopt,
@@ -16,7 +17,7 @@ pub enum SetId {
 }
 
 impl SetId {
-    pub const ALL: [SetId; 13] = [
+    pub const ALL: [SetId; 14] = [
         SetId::Cargo,
         SetId::Go,
         SetId::Maven,
@@ -25,6 +26,7 @@ impl SetId {
         SetId::NpmAdoptPolyglot,
         SetId::NpmTools,
         SetId::NuGet,
+        SetId::PowerShell,
         SetId::Ruby,
         SetId::Uv,
         SetId::UvAdopt,
@@ -42,6 +44,7 @@ impl SetId {
             SetId::NpmAdoptPolyglot => "npm-adopt-polyglot",
             SetId::NpmTools => "npm-tools",
             SetId::NuGet => "nuget",
+            SetId::PowerShell => "powershell",
             SetId::Ruby => "ruby",
             SetId::Uv => "uv",
             SetId::UvAdopt => "uv-adopt",
@@ -72,6 +75,7 @@ impl SetId {
             "npm-adopt-polyglot" => Some(SetId::NpmAdoptPolyglot),
             "npm-tools" => Some(SetId::NpmTools),
             "nuget" => Some(SetId::NuGet),
+            "powershell" => Some(SetId::PowerShell),
             "ruby" => Some(SetId::Ruby),
             "uv" => Some(SetId::Uv),
             "uv-adopt" => Some(SetId::UvAdopt),
@@ -91,6 +95,7 @@ impl SetId {
             SetId::NpmAdoptPolyglot => &["examples/adopt-polyglot/package.json"],
             SetId::NpmTools => &["quality/tools/javascript/package.json"],
             SetId::NuGet => &["third_party/dotnet/paket.dependencies"],
+            SetId::PowerShell => &["third_party/powershell/PSGallery.requirements.psd1"],
             SetId::Ruby => &["third_party/ruby/Gemfile"],
             SetId::Uv => &["python/tests/fixtures/hello/pyproject.toml"],
             SetId::UvAdopt => &["examples/adopt-python/pyproject.toml"],
@@ -112,6 +117,7 @@ impl SetId {
             SetId::NpmAdoptPolyglot => &["examples/adopt-polyglot/pnpm-lock.yaml"],
             SetId::NpmTools => &["quality/tools/javascript/pnpm-lock.yaml"],
             SetId::NuGet => &["third_party/dotnet/paket.lock", "third_party/dotnet/deps"],
+            SetId::PowerShell => &["third_party/powershell/PSGallery.lock.json"],
             SetId::Ruby => &[
                 "third_party/ruby/Gemfile.lock",
                 "examples/adopt-ruby/Gemfile.lock",
@@ -145,6 +151,9 @@ impl SetId {
             SetId::NuGet => {
                 "paket2bazel regeneration (bazel run @rules_dotnet//tools/paket2bazel -- ...)"
             }
+            SetId::PowerShell => {
+                "pinned PSGallery.lock.json for the shared Gallery hub (regenerate by hand from exact requirements; builds never run Install-Module)"
+            }
             SetId::Ruby => {
                 "pinned Gemfile.lock for the shared bundle hub (regenerate with `bundle lock` on the seed host)"
             }
@@ -170,7 +179,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(SetId::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 13);
+        assert_eq!(seen.len(), 14);
         assert_eq!(SetId::parse("Cargo"), None);
         assert_eq!(SetId::parse("cargo-lock"), None);
         assert_eq!(SetId::parse(""), None);
@@ -190,6 +199,7 @@ mod tests {
                 "npm-adopt-polyglot",
                 "npm-tools",
                 "nuget",
+                "powershell",
                 "ruby",
                 "uv",
                 "uv-adopt",
@@ -277,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn repin_table_covers_thirteen_dialects() {
+    fn repin_table_covers_fourteen_dialects() {
         let rows: Vec<(&str, &str, &str)> = SetId::ALL
             .iter()
             .map(|set| (set.name(), set.manifests()[0], set.locks()[0]))
@@ -316,6 +326,11 @@ mod tests {
                     "nuget",
                     "third_party/dotnet/paket.dependencies",
                     "third_party/dotnet/paket.lock"
+                ),
+                (
+                    "powershell",
+                    "third_party/powershell/PSGallery.requirements.psd1",
+                    "third_party/powershell/PSGallery.lock.json"
                 ),
                 (
                     "ruby",

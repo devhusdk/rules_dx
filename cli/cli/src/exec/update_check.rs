@@ -242,8 +242,8 @@ fn update_json_completeness_is_per_set_plus_finished() {
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     let middle = &events[1..events.len() - 1];
-    assert_eq!(middle.len(), 14, "{out}");
-    let (per_set, recovery) = (&middle[..13], &middle[13]);
+    assert_eq!(middle.len(), 15, "{out}");
+    let (per_set, recovery) = (&middle[..14], &middle[14]);
     assert_eq!(
         recovery["code"],
         serde_json::json!("update_recovery"),

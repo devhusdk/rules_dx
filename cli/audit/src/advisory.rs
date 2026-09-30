@@ -44,6 +44,7 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
         "npm" | "npm-adopt" | "npm-adopt-polyglot" | "npm-tools" => Some("npm"),
         "maven" => Some("maven"),
         "nuget" => Some("nuget"),
+        "powershell" => Some("nuget"),
         "go" => Some("go"),
         "ruby" => Some("rubygems"),
         _ => None,
@@ -388,6 +389,8 @@ mod tests {
         assert_eq!(advisory_family("cargo"), Some("cargo"));
         assert_eq!(advisory_family("ruby"), Some("rubygems"));
         assert_eq!(snapshot_rel("ruby"), ".dx/advisory/rubygems.json");
+        assert_eq!(advisory_family("powershell"), Some("nuget"));
+        assert_eq!(snapshot_rel("powershell"), ".dx/advisory/nuget.json");
         assert_eq!(advisory_family("uv"), None);
         assert_eq!(advisory_family("unknown-set"), None);
     }

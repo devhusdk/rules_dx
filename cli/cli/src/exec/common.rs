@@ -176,12 +176,8 @@ pub(crate) fn text_diagnostic(diagnostic: &DiagnosticEvent) -> String {
 }
 
 pub(crate) fn pre_exec(err: &mut dyn Write, message: &str) -> i32 {
-    let commands = crate::args::Command::pipe_list();
     let _ = writeln!(err, "dx: {message}");
-    let _ = writeln!(
-        err,
-        "usage: dx [--workspace DIR] [--dry-run] [--quiet] [--verbose] [--color auto|always|never] [--output text|diff|json] [--report <format>=<destination>]... [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] <{commands}> [per-command-flags] [scope ...] [-- command-options...] (see `dx help <command>` or `dx <command> --help`; no dx doctor, use `dx status`)"
-    );
+    let _ = writeln!(err, "{}", crate::args::help::usage_banner());
     pre_exec_code()
 }
 

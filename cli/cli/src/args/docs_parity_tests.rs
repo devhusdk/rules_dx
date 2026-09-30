@@ -857,3 +857,53 @@ fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
         );
     }
 }
+
+fn banner() -> String {
+    super::super::help::usage_banner()
+}
+
+#[test]
+fn every_usage_error_prints_the_same_banner() {
+    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+    let binary = std::path::Path::new(&root)
+        .join(workspace)
+        .join("cli/cli/dx");
+    let scratch = dx_test_scratch::scratch("usage-banner-");
+    std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("scratch workspace");
+    let rendered = |argv: &[&str]| -> String {
+        let output = assert_cmd::Command::new(&binary)
+            .current_dir(scratch.path())
+            .args(argv)
+            .assert()
+            .code(2)
+            .get_output()
+            .stderr
+            .clone();
+        String::from_utf8(output).expect("stderr is utf-8")
+    };
+    let parse_error = rendered(&["--nope", "build"]);
+    let pre_exec_error = rendered(&["lint", "--dry-run", "--report=sarif=out.sarif"]);
+    let expected = banner();
+    for (label, text) in [("parse", &parse_error), ("pre-exec", &pre_exec_error)] {
+        assert!(
+            text.contains(&expected),
+            "the {label} usage error does not print usage_banner():\n{text}"
+        );
+        assert_eq!(
+            text.matches("usage: dx").count(),
+            1,
+            "the {label} usage error prints the banner more than once:\n{text}"
+        );
+    }
+}
+
+#[test]
+fn the_usage_banner_names_every_command() {
+    let text = banner();
+    let marker = format!("<{}>", Command::pipe_list());
+    assert!(
+        text.contains(&marker),
+        "the usage banner must list the registry commands as {marker}"
+    );
+}

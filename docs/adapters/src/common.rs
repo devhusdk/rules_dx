@@ -1,4 +1,5 @@
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind, Visibility};
+use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
 
 use crate::types::AdapterError;
 
@@ -37,8 +38,8 @@ pub fn shard(language: &str, package: &str, symbols: Vec<Symbol>) -> Result<DocI
         }
     }
     let shard = DocIr {
-        schema_major: 1,
-        schema_minor: 0,
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
         language: language.to_owned(),
         package: package.to_owned(),
         symbols: ordered,

@@ -104,8 +104,8 @@ mod tests {
 
     fn example_shard() -> DocIr {
         DocIr {
-            schema_major: 1,
-            schema_minor: 0,
+            schema_major: SCHEMA_MAJOR,
+            schema_minor: SCHEMA_MINOR,
             language: "python".to_owned(),
             package: "mylib".to_owned(),
             symbols: vec![Symbol {

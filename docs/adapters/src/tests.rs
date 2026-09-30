@@ -2,6 +2,7 @@ use super::*;
 use crate::adapters::go::split_pos;
 use crate::common::{shard, symbol_id};
 use documentation_ir::proto::DocIr;
+use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
 
 #[test]
 fn adapters_validate_symbol_identity_and_unusual_input_shapes() {
@@ -292,4 +293,41 @@ fn thirteen_scopes_stay_pinned() {
     assert_eq!(ADAPTER_SCOPES.len(), 13);
     assert!(ADAPTER_SCOPES.contains(&"scala"));
     assert!(ADAPTER_SCOPES.contains(&"astromdx"));
+}
+
+#[test]
+fn every_adapter_stamps_the_current_schema_version() {
+    assert_eq!((SCHEMA_MAJOR, SCHEMA_MINOR), (1, 1));
+    type Normalize = fn(&str, &str) -> Result<DocIr, AdapterError>;
+    let adapters: [(&str, Normalize); 12] = [
+        ("rust", normalize_rust),
+        ("python", normalize_python),
+        ("typescript", normalize_typescript),
+        ("java", normalize_java),
+        ("kotlin", normalize_kotlin),
+        ("go", normalize_go),
+        ("cpp", normalize_cpp),
+        ("csharp", normalize_csharp),
+        ("fsharp", normalize_fsharp),
+        ("vue", normalize_vue),
+        ("svelte", normalize_svelte),
+        ("scala", normalize_scala),
+    ];
+    for (name, normalize) in adapters {
+        let extension = if name == "cpp" { "xml" } else { "json" };
+        let shard = normalize(&fixture(&format!("{name}/input.{extension}")), "demo")
+            .unwrap_or_else(|err| panic!("{name} fixture: {err}"));
+        assert_eq!(
+            (shard.schema_major, shard.schema_minor),
+            (SCHEMA_MAJOR, SCHEMA_MINOR),
+            "{name}"
+        );
+    }
+    let prose = confirm_prose_only("site", &["docs/guide.md"])
+        .unwrap_or_else(|err| panic!("astromdx fixture: {err}"));
+    assert_eq!(
+        (prose.schema_major, prose.schema_minor),
+        (SCHEMA_MAJOR, SCHEMA_MINOR),
+        "astromdx"
+    );
 }

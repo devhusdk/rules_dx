@@ -1601,3 +1601,17 @@ fn new_help_and_page_name_exactly_the_languages() {
         );
     }
 }
+
+#[test]
+fn the_repin_wrapper_defers_to_dx_update() {
+    let script =
+        std::fs::read_to_string(workspace_root().join("tools/repin_all.sh")).expect("wrapper");
+    assert!(
+        script.contains("exec bazel run //cli/cli:dx -- update"),
+        "tools/repin_all.sh must forward to dx update, the owner of the repin table"
+    );
+    assert!(
+        !script.contains("repin table"),
+        "tools/repin_all.sh must not claim the repin table; dx update owns it"
+    );
+}

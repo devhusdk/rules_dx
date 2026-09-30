@@ -3,6 +3,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+exports_files(["repin_all.sh"])
+
 sh_binary(
     name = "repin-all",
     srcs = ["repin_all.sh"],

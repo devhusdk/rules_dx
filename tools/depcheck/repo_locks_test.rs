@@ -52,7 +52,7 @@ fn repo_locks_consistent() {
     .expect("depcheck locks must execute");
     assert!(
         run.status.success(),
-        "workspace locks inconsistent (repin with bazel run //tools:repin-all)\n{}",
+        "workspace locks inconsistent (repin with bazel run //cli/cli:dx -- update)\n{}",
         run.combined()
     );
 }

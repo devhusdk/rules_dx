@@ -238,6 +238,49 @@ fn command_help_only_advertises_accepted_flags() {
     }
 }
 
+fn words_taking_bazel_options(command: Command) -> Vec<String> {
+    let name = command.name();
+    if command == Command::Bazel {
+        return args(&[name, "info"]);
+    }
+    let required: &[&str] = match name {
+        "bump" => &["cargo:demo", "1.0.0"],
+        "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
+        "run" | "deploy" => &["//:demo"],
+        "owners" | "deps" => &["//:demo"],
+        "why" => &["a.rs", "//:demo"],
+        "hooks" => &["status"],
+        "new" => &["rust"],
+        "watch" => &["build"],
+        "completion" => &["bash"],
+        _ => &[],
+    };
+    let mut words = vec![name];
+    words.extend_from_slice(required);
+    words.push("--");
+    words.push("--jobs=1");
+    args(&words)
+}
+
+#[test]
+fn command_usage_advertises_the_bazel_passthrough_exactly_where_the_parser_accepts_it() {
+    for command in Command::value_variants() {
+        let command = *command;
+        let words = words_taking_bazel_options(command);
+        let accepted = parse(&words).is_ok();
+        let usage = command.usage();
+        let advertised = usage.contains("[-- bazel-options")
+            || usage.contains("[-- app-args")
+            || usage.contains("[-- bazel-args");
+        assert_eq!(
+            accepted,
+            advertised,
+            "dx {} accepts={accepted} advertises={advertised} for `--`: {words:?}\n{usage}",
+            command.name()
+        );
+    }
+}
+
 #[test]
 fn docs_usage_blocks_only_use_accepted_flags() {
     let globals = global_flags();

@@ -1,13 +1,13 @@
 # `dx docs`
 
 ```text
-dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...]
+dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
 ```
 
 Builds the docs site with Bazel: all user guides plus the API reference.
 With no scope it builds the repository site (`//docs/site:user_site`,
 `//docs/site:user_site_aggregate` in `--check`). `--here` limits to the
-current directory tree.
+current directory tree. Args after `--` go to Bazel unchanged.
 
 - `--check`: validate without rendering. Builds extract plus aggregate only.
 - `--serve`: preview the last build locally after building.

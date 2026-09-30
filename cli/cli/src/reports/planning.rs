@@ -429,7 +429,6 @@ mod tests {
             (Command::Test, "junit"),
             (Command::Coverage, "lcov"),
             (Command::Security, "sarif"),
-            (Command::Security, "spdx"),
             (Command::License, "sarif"),
             (Command::License, "spdx"),
         ] {
@@ -450,6 +449,7 @@ mod tests {
             (Command::Generate, "sarif"),
             (Command::Update, "sarif"),
             (Command::Run, "junit"),
+            (Command::Security, "spdx"),
         ] {
             let err = plan_reports(
                 command,

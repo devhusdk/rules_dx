@@ -14,7 +14,7 @@ targets. Args after `--` go to Bazel unchanged.
 
 ```text
 dx build [--here] [--debug|--release] [scope...] [-- bazel-options...]
-dx test [--here] [--debug|--release] [scope...] [-- bazel-options...]
+dx test [--here] [--debug|--release] [--report junit=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -72,7 +72,7 @@ failure. The target's own code is the exit code.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--min-coverage <percent>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--min-coverage <percent>] [--report lcov=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that

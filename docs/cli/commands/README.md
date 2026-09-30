@@ -37,7 +37,7 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
   `deploy`, `init`, `new`, `hooks`, `watch`, `completion`, and `bazel`, which
   take `text` only.
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
-  `sarif` and `spdx` for `security` and `license`; `sarif` for `lint`,
+  `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
   Every other command rejects `--report`.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.

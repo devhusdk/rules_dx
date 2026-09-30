@@ -339,22 +339,28 @@ fn report_formats(line: &str) -> Vec<String> {
 
 #[test]
 fn docs_report_formats_match_the_command_registry() {
-    for (name, page) in pages() {
-        for block in usage_blocks(&page) {
-            for line in &block {
-                let words: Vec<&str> = line.split_whitespace().collect();
-                let command = Command::parse(words[1]).unwrap_or_else(|| {
-                    panic!("{name}: usage line names an unknown command: {line}")
-                });
-                let supported = crate::plan::spec(command).reports;
-                for format in report_formats(line) {
-                    assert!(
-                        supported.contains(&format.as_str()),
-                        "{name}: dx {command:?} documents --report {format} but the registry allows only {supported:?}: {line}"
-                    );
-                }
-            }
-        }
+    for command in Command::value_variants() {
+        let command = *command;
+        let mut supported: Vec<String> = crate::plan::spec(command)
+            .reports
+            .iter()
+            .map(|format| (*format).to_owned())
+            .collect();
+        supported.sort();
+        let mut documented: Vec<String> = documented_usage_lines()
+            .iter()
+            .filter(|(_, owner, _)| *owner == command)
+            .flat_map(|(_, _, line)| report_formats(line))
+            .collect();
+        documented.sort();
+        documented.dedup();
+        assert_eq!(
+            documented,
+            supported,
+            "the docs usage line for dx {} must name every --report format the registry allows, \
+             and nothing else",
+            command.name()
+        );
     }
 }
 

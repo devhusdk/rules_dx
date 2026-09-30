@@ -97,7 +97,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         scope_policy: "default-//...",
         describe: "run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)",
         usage: "Usage: dx [global-options] security [--offline|--frozen] [--here] [scope ...]",
-        flags: "Per-command flags: --offline/--frozen (cache-only, no network fetches), --fail-on info|warning|error, --report sarif|spdx (security/license only; --check and `-- --bazel-options` do not apply; --output diff has no patch).",
+        flags: "Per-command flags: --offline/--frozen (cache-only, no network fetches), --fail-on info|warning|error, --report sarif (security/license only; --check and `-- --bazel-options` do not apply; --output diff has no patch).",
         scopes: "Scopes: dependency-set/package/target selectors; bare run audits //... (secrets plus vulnerabilities). Pass --here (--cwd alias) for the current directory tree instead; --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_umbrella: false,
         is_audit_update: true,

@@ -134,7 +134,14 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
             settings: &[],
         },
-        Command::Security | Command::License => CommandSpec {
+        Command::Security => CommandSpec {
+            command,
+            capability: "audit",
+            aspects: &[],
+            reports: &["sarif"],
+            settings: &[],
+        },
+        Command::License => CommandSpec {
             command,
             capability: "audit",
             aspects: &[],
@@ -267,10 +274,11 @@ mod tests {
             let entry = spec(command);
             assert_eq!(entry.capability, "audit");
             assert!(entry.aspects.is_empty());
-            assert_eq!(entry.reports, &["sarif", "spdx"]);
             assert_eq!(WorkflowVerb::of(command), None);
             assert!(command.is_audit_update());
         }
+        assert_eq!(spec(Command::Security).reports, &["sarif"]);
+        assert_eq!(spec(Command::License).reports, &["sarif", "spdx"]);
         let update = spec(Command::Update);
         assert_eq!(update.capability, "update");
         assert!(update.aspects.is_empty());

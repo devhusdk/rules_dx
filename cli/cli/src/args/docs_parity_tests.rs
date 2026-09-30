@@ -1200,6 +1200,81 @@ fn config_file_keys_are_the_underscore_spellings_the_parser_reads() {
     }
 }
 
+#[test]
+fn config_file_section_names_the_keys_and_files_the_parser_reads() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "Config File")
+        .map(|(_, body)| body)
+        .expect("docs/cli/commands/README.md has a Config File section");
+    for name in [
+        dx_adopt::defaults::CONFIG_TOML_REL,
+        dx_adopt::defaults::CONFIG_REL,
+    ] {
+        assert!(
+            body.contains(&format!("`{name}`")),
+            "the Config File section never names `{name}`, which the loader reads"
+        );
+    }
+    let mut shown: Vec<(String, String)> = fenced_blocks(&page, "```toml")
+        .into_iter()
+        .flatten()
+        .filter_map(|line| {
+            let (key, value) = line.trim().split_once('=')?;
+            Some((key.trim().to_owned(), value.trim().to_owned()))
+        })
+        .collect();
+    shown.sort();
+    for (key, literal) in &shown {
+        let text = format!("[dx]\n{key} = {literal}\n");
+        let parsed = dx_adopt::defaults::parse_file_text(&text).unwrap_or_else(|error| {
+            panic!("the Config File example sets {key}, which the parser rejects: {error}")
+        });
+        assert_ne!(
+            parsed,
+            dx_adopt::defaults::FileDefaults::default(),
+            "the Config File example sets {key}, which the parser ignores"
+        );
+    }
+    for (env, _, _) in dx_adopt::defaults::ENV_DEFAULTS {
+        let key = dx_adopt::defaults::config_key(env).expect("every default has a key");
+        let literal = literal_for(&key);
+        assert!(
+            shown.iter().any(|(shown_key, _)| shown_key == key),
+            "the Config File example never sets {key}, which the parser reads"
+        );
+        let hyphenated = format!("[dx]\n{key} = {literal}\n");
+        dx_adopt::defaults::parse_file_text(&hyphenated).unwrap_or_else(|error| {
+            panic!("the Config File section spells {key} a way the parser rejects: {error}")
+        });
+        let underscored = key.replace('-', "_");
+        if underscored != key {
+            assert!(
+                body.contains(&format!("`{underscored}`")),
+                "the Config File section never names the {underscored} spelling of {key}"
+            );
+            dx_adopt::defaults::parse_file_text(&format!("[dx]\n{underscored} = {literal}\n"))
+                .unwrap_or_else(|error| {
+                    panic!("the Config File section promises {underscored}: {error}")
+                });
+        }
+    }
+    for claim in [
+        "`[dx]` wins",
+        "boolean key takes",
+        "`true` or `false`",
+        "the `.toml` one wins",
+        "nearest file to the working directory wins",
+    ] {
+        assert!(
+            body.contains(claim),
+            "the Config File section never states: {claim}"
+        );
+    }
+}
+
 fn literal_for(key: &str) -> &'static str {
     match key {
         "dry-run" | "quiet" | "verbose" => "true",

@@ -78,6 +78,27 @@ Every variable below supplies a default. A flag on the command line wins.
 
 A `<bool>` is on for `1`, `true`, `yes`, `y`, or `on`.
 
-`.dx/config.toml` takes the same keys, without the `DX_` prefix and under a
-`[dx]` table or at the top level. The nearest file to the working directory
-wins, and its values sit below the environment. An empty value is unset.
+## Config File
+
+`.dx/config.toml` and `.dx/config` set the same defaults. A key is the flag
+name without `--`.
+
+```toml
+[dx]
+workspace = "/path/to/repo"
+dry-run = true
+quiet = true
+verbose = true
+color = "never"
+output = "json"
+fail-on = "error"
+```
+
+`dry_run` and `fail_on` also work. Values are TOML, so a boolean key takes
+`true` or `false`, not the `<bool>` spellings above. An empty value is unset.
+An unknown key is ignored.
+
+Keys go under `[dx]` or at the top level, and `[dx]` wins. When a directory
+holds both `.dx/config.toml` and `.dx/config`, the `.toml` one wins. The
+nearest file to the working directory wins, and its values sit below the
+environment. Under `bazel run` the search starts at the workspace root.

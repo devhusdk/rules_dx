@@ -1862,6 +1862,164 @@ fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
     );
 }
 
+fn workflow_exports() -> Vec<String> {
+    let build = std::fs::read_to_string(workspace_root().join(".github/BUILD.bazel"))
+        .expect(".github/BUILD.bazel ships as test data");
+    let mut names: Vec<String> = Vec::new();
+    let mut in_exports = false;
+    for line in build.lines() {
+        if line.starts_with("exports_files(") {
+            in_exports = true;
+            continue;
+        }
+        if !in_exports {
+            continue;
+        }
+        if !line.starts_with(' ') {
+            break;
+        }
+        let trimmed = line.trim();
+        if !trimmed.starts_with('"') {
+            continue;
+        }
+        let name = trimmed
+            .trim_start_matches('"')
+            .split('"')
+            .next()
+            .unwrap_or_default();
+        if name.ends_with(".yml") {
+            names.push(name.to_owned());
+        }
+    }
+    assert!(!names.is_empty(), ".github/BUILD.bazel exports no workflow");
+    names
+}
+
+fn workflows() -> Vec<(String, String)> {
+    workflow_exports()
+        .into_iter()
+        .map(|name| {
+            let text = std::fs::read_to_string(workspace_root().join(".github").join(&name))
+                .unwrap_or_else(|_| panic!("{name} must ship as dx_cli_test data"));
+            (name, text)
+        })
+        .collect()
+}
+
+fn label_chars(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '/' | ':' | '_' | '.' | '-')
+}
+
+fn package_labels(text: &str, package: &str) -> Vec<String> {
+    let needle = format!("//{package}:");
+    let mut found: Vec<String> = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(&needle) {
+        let tail = &rest[start + needle.len()..];
+        let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+        if end > 0 {
+            found.push(tail[..end].to_owned());
+        }
+        rest = &tail[end..];
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+fn preset_regeneration_label() -> String {
+    let fragment = std::fs::read_to_string(workspace_root().join("tools/bazelrc/preset.bazelrc"))
+        .expect("the vendored preset ships as test data");
+    let line = fragment
+        .lines()
+        .find(|line| line.starts_with("# Regenerate:"))
+        .expect("the vendored preset names its regeneration command");
+    let start = line
+        .find("//")
+        .expect("the regeneration command names a target");
+    let tail = &line[start..];
+    let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+    tail[..end].to_owned()
+}
+
+#[test]
+fn workflows_run_the_preset_target_the_vendored_fragment_names() {
+    let expected = preset_regeneration_label();
+    let target = expected
+        .rsplit_once(':')
+        .map(|(_, name)| name)
+        .expect("the regeneration command names a package and a target");
+    let build = std::fs::read_to_string(workspace_root().join("tools/bazelrc/BUILD.bazel"))
+        .expect("tools/bazelrc/BUILD.bazel ships as test data");
+    assert!(
+        build.contains(&format!("\"{target}\"")),
+        "{expected} is the label tools/bazelrc/preset.bazelrc advertises but its BUILD file never \
+         declares"
+    );
+    let mut runs = 0;
+    for (workflow, text) in workflows() {
+        for label in package_labels(&text, "tools/bazelrc") {
+            assert_eq!(
+                label, target,
+                "{workflow} runs //tools/bazelrc:{label}; the vendored fragment advertises {expected}"
+            );
+            runs += 1;
+        }
+    }
+    assert!(runs > 0, "no workflow runs the preset regeneration target");
+}
+
+fn coverage_floors(text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for line in text.lines() {
+        if !line.contains("coverage") {
+            continue;
+        }
+        let mut rest = line;
+        while let Some(start) = rest.find("--min-coverage") {
+            let tail = rest[start + "--min-coverage".len()..].trim_start_matches([' ', '=']);
+            let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+            if end > 0 {
+                found.push(tail[..end].to_owned());
+            }
+            rest = &tail[end..];
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+fn required_coverage_floor() -> String {
+    let ci = std::fs::read_to_string(workspace_root().join(".github/workflows/ci.yml"))
+        .expect("ci.yml ships as test data");
+    let line = ci
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with("min_coverage:"))
+        .expect("ci.yml passes a coverage floor to the required check");
+    line.trim_start_matches("min_coverage:")
+        .trim()
+        .trim_matches('"')
+        .to_owned()
+}
+
+#[test]
+fn every_workflow_coverage_floor_matches_the_required_check() {
+    let expected = required_coverage_floor();
+    let mut floors = 0;
+    for (workflow, text) in workflows() {
+        for floor in coverage_floors(&text) {
+            assert_eq!(
+                floor, expected,
+                "{workflow} enforces a coverage floor the required check does not"
+            );
+            floors += 1;
+        }
+    }
+    assert!(floors > 0, "no workflow runs dx coverage with a floor");
+}
+
 #[test]
 fn the_repin_wrapper_defers_to_dx_update() {
     let script =

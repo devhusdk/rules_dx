@@ -264,7 +264,11 @@ rust_test(
         "//:.bazelignore",
         "//:.gitignore",
         "//:biome.json",
+        "//.github:BUILD.bazel",
+        "//.github:workflows/bump.yml",
         "//.github:workflows/ci.yml",
+        "//.github:workflows/ghcr.yml",
+        "//.github:workflows/publish-dry-run.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//cli/cli/tests/fixtures/help_goldens:goldens",
@@ -276,6 +280,8 @@ rust_test(
         "//examples:docs-ci/caller.yml",
         "//modules:versions.bzl",
         "//tools:repin_all.sh",
+        "//tools/bazelrc:BUILD.bazel",
+        "//tools/bazelrc:preset.bazelrc",
     ],
     deps = crate_deps(
         [

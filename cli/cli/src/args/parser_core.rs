@@ -423,7 +423,6 @@ fn clean_parses_dry_run_and_bazel() {
     assert!(got.dry_run);
     assert!(got.bazel_clean);
     assert_eq!(Command::Clean.name(), "clean");
-    assert!(!Command::Clean.is_umbrella());
 }
 
 #[test]

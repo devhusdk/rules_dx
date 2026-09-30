@@ -68,44 +68,34 @@ impl Family {
     }
 }
 
-static FAMILIES: [Family; 33] = [
-    Family::Audit,
-    Family::Audit,
-    Family::Quality,
-    Family::Quality,
-    Family::Quality,
-    Family::Generate,
-    Family::Workflow,
-    Family::Workflow,
-    Family::Workflow,
-    Family::Workflow,
-    Family::Workflow,
-    Family::Umbrella,
-    Family::Umbrella,
-    Family::Clean,
-    Family::Update,
-    Family::Bump,
-    Family::Migrate,
-    Family::Managed,
-    Family::Managed,
-    Family::Managed,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Adoption,
-    Family::Docs,
-    Family::Bazel,
-];
-
 fn family(command: Command) -> Family {
-    FAMILIES[command as usize]
+    match command {
+        Command::Security | Command::License => Family::Audit,
+        Command::Lint | Command::Typecheck | Command::Format => Family::Quality,
+        Command::Generate => Family::Generate,
+        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
+            Family::Workflow
+        }
+        Command::Check | Command::Fix => Family::Umbrella,
+        Command::Clean => Family::Clean,
+        Command::Update => Family::Update,
+        Command::Bump => Family::Bump,
+        Command::Migrate => Family::Migrate,
+        Command::Codegen | Command::Env | Command::Setup => Family::Managed,
+        Command::Init
+        | Command::New
+        | Command::Upgrade
+        | Command::Hooks
+        | Command::Status
+        | Command::Version
+        | Command::Watch
+        | Command::Owners
+        | Command::Deps
+        | Command::Why
+        | Command::Completion => Family::Adoption,
+        Command::Docs => Family::Docs,
+        Command::Bazel => Family::Bazel,
+    }
 }
 
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -151,32 +141,22 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
 
 #[cfg(test)]
 mod tests {
+    use super::family;
     use super::test_support::Harness;
-    use super::{family, FAMILIES};
     use crate::args::Command;
 
     #[test]
-    fn dispatch_table_covers_every_command() {
+    fn every_command_has_exactly_one_family() {
         use clap::ValueEnum;
-        assert_eq!(FAMILIES.len(), 33, "every Command variant pinned");
-        assert_eq!(
-            FAMILIES.len(),
-            Command::value_variants().len(),
-            "every Command variant pinned"
-        );
-        for (index, command) in Command::value_variants().iter().enumerate() {
-            assert_eq!(*command as usize, index, "table order matches declaration");
-            assert_eq!(
-                family(*command),
-                FAMILIES[index],
-                "family for {}",
-                command.name()
-            );
-        }
         let mut counts = std::collections::BTreeMap::new();
-        for family in FAMILIES {
-            *counts.entry(family.name()).or_insert(0usize) += 1;
+        for command in Command::value_variants() {
+            *counts.entry(family(*command).name()).or_insert(0usize) += 1;
         }
+        assert_eq!(
+            counts.values().sum::<usize>(),
+            33,
+            "every variant classified"
+        );
         assert_eq!(counts.get("adoption"), Some(&11));
         assert_eq!(counts.get("workflow"), Some(&5));
         assert_eq!(counts.get("quality"), Some(&3));

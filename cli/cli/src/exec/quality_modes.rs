@@ -1,10 +1,7 @@
 use super::super::test_support::*;
-use crate::exec::{execute, Env};
 use dx_digest::blake3 as digest;
 use quality_result::proto;
 use quality_result::proto::FileSnapshot;
-use std::os::unix::ffi::OsStringExt;
-use std::path::PathBuf;
 
 #[test]
 fn check_mode_reports_findings_and_fails_on_changes() {
@@ -461,6 +458,9 @@ fn missing_bep_file_is_operational() {
 #[test]
 #[cfg(unix)]
 fn non_utf8_temp_path_is_operational() {
+    use crate::exec::{execute, Env};
+    use std::os::unix::ffi::OsStringExt;
+    use std::path::PathBuf;
     let harness = Harness::new("nonutf8-tmp");
     let mut raw = harness.temp.join("x").into_os_string().into_vec();
     raw.push(0xff);

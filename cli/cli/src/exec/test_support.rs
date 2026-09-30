@@ -538,6 +538,7 @@ pub(crate) fn env_entry(key: &str, value: &str, artifact: &Path) -> dx_env_plan:
     }
 }
 
+#[cfg(unix)]
 pub(crate) fn set_mode(path: &Path, mode: u32) {
     let mut permissions = std::fs::metadata(path)
         .expect("mode metadata")

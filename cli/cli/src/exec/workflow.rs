@@ -178,9 +178,6 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use std::ffi::OsString;
-    use std::os::unix::ffi::OsStringExt;
-    use std::path::PathBuf;
 
     #[test]
     fn build_preserves_bazel_status_verbatim() {
@@ -268,6 +265,9 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn workflow_non_utf8_bep_is_operational() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+        use std::path::PathBuf;
         let mut harness = Harness::new("wf-nonutf8");
         harness.temp = PathBuf::from(OsString::from_vec(vec![0xff]));
         let (code, _, err) = harness.run(&["build", "--output=text"]);

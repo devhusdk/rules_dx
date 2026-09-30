@@ -322,6 +322,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn managed_stage_env_filesystem_failures_fail_closed() {
         let fixture = managed_stage_fixture("managed-env-fs");
         let workspace = fixture.workspace().to_path_buf();

@@ -397,6 +397,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn managed_stage_codegen_filesystem_failures_fail_closed() {
         let fixture = managed_stage_fixture("managed-codegen-fs");
         let workspace = fixture.workspace().to_path_buf();

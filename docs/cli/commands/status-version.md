@@ -57,3 +57,27 @@ bazel run //cli/cli:dx -- version --check
 bazel run //cli/cli:dx -- version --pin 0.0.0
 bazel run //cli/cli:dx -- version --rollback
 ```
+
+## Version Skew
+
+Every command reads the pin in `.dx/version` and compares it with the
+`MODULE.bazel` pin before it runs. A mismatch is version skew.
+
+- Runs anyway: `version`, `status`, `completion`.
+- Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`.
+- Stops with exit code `1`: every other command.
+
+`--dry-run` turns a stop into a warning. `watch` answers for the command it
+wraps. A missing or empty `.dx/version` is not skew, so only the `pin` check
+in `dx status` fails on it.
+
+A stop prints `dx: version skew: binary <version> pin <pin> module <version>`
+on stderr and names the fix. Under `--output=json` it adds a `version_skew`
+error event, then `command_finished` with `exit_code` `1` and
+`results_complete` `false`.
+
+```sh
+bazel run //cli/cli:dx -- version --check
+bazel run //cli/cli:dx -- version --pin 0.0.0
+bazel run //cli/cli:dx -- build //...
+```

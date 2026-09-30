@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use clap::{CommandFactory, ValueEnum};
 
+use super::super::command::SkewKind;
 use super::super::grammar::Cli;
 use super::super::{parse, ArgsError, Command};
 
@@ -1240,6 +1241,59 @@ fn tool_path_env_vars_are_documented_where_the_command_needs_them() {
             );
         }
     }
+}
+
+fn skew_bullet_owners(page: &str, lead: &str) -> Vec<String> {
+    let section = sections(page)
+        .into_iter()
+        .find(|(name, _)| name == "Version Skew")
+        .map(|(_, body)| body)
+        .unwrap_or_else(|| panic!("status-version.md has no `Version Skew` section"));
+    let line = section
+        .lines()
+        .find(|line| line.starts_with(&format!("- {lead}")))
+        .unwrap_or_else(|| panic!("the Version Skew section has no `{lead}` bullet"));
+    let (_, list) = line
+        .split_once(':')
+        .expect("the bullet has a lead and a list");
+    sorted(backticked(list))
+}
+
+#[test]
+fn version_skew_page_names_exactly_the_registry_groups() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("status-version.md")).expect("page ships as data");
+    let proceed = skew_bullet_owners(&page, "Runs anyway");
+    let warn = skew_bullet_owners(&page, "Warns and runs");
+    for (lead, kind, found) in [
+        ("Runs anyway", SkewKind::Proceed, &proceed),
+        ("Warns and runs", SkewKind::Warn, &warn),
+    ] {
+        let expected = commands_where(|command| command.meta().skew == kind);
+        assert_eq!(
+            *found, expected,
+            "the `{lead}` bullet must name exactly the commands the registry marks {kind:?}"
+        );
+    }
+    let stray: Vec<String> = skew_bullet_owners(&page, "Stops with exit code")
+        .into_iter()
+        .filter(|token| Command::parse(token).is_some())
+        .collect();
+    assert!(
+        stray.is_empty(),
+        "the stop bullet covers the rest of the registry, so it must name no command: {stray:?}"
+    );
+    let mut rest: Vec<String> = Command::value_variants()
+        .iter()
+        .map(|command| command.name().to_owned())
+        .filter(|name| !proceed.contains(name) && !warn.contains(name))
+        .collect();
+    rest.sort();
+    assert_eq!(
+        commands_where(|command| command.meta().skew == SkewKind::Refuse),
+        rest,
+        "every command the two bullets do not name must be a SkewKind::Refuse one"
+    );
 }
 
 fn banner() -> String {

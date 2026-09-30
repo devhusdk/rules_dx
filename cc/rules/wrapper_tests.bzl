@@ -19,6 +19,16 @@ def cc_wrapper_contract_tests(name):
                 str(cc_copts_with_werror({})["copts"]),
                 "windows",
             ),
+            expect_match(
+                "macos disables profile generation",
+                str(cc_copts_with_werror({})["copts"]),
+                "macos",
+            ),
+            expect_match(
+                "macos select carries fno-profile-instr-generate",
+                str(cc_copts_with_werror({})["copts"]),
+                "fno-profile-instr-generate",
+            ),
             expect_equal(
                 "existing werror is kept without duplication",
                 cc_copts_with_werror({"copts": ["-Werror"]})["copts"],

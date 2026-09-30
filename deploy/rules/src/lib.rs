@@ -3,79 +3,43 @@
 use std::io::{self, Write};
 use std::path::Path;
 
-const BLOCK: usize = 512;
-const RECORDSIZE: usize = 20 * BLOCK;
+const RECORDSIZE: usize = 20 * 512;
 const MTIME: u64 = 0;
 const UID: u64 = 0;
 const GID: u64 = 0;
 
-fn octal_field(value: u64, digits: usize) -> io::Result<Vec<u8>> {
-    let max = 8u64.pow((digits - 1) as u32);
-    if value >= max {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("value {value} overflows {digits}-byte octal field"),
-        ));
-    }
-    let text = format!("{:0>width$o}", value, width = digits - 1);
-    let mut out = text.into_bytes();
-    out.push(0);
-    Ok(out)
-}
-
-fn tar_header(name: &str, size: u64, mode: u32) -> io::Result<[u8; BLOCK]> {
-    let name_bytes = name.as_bytes();
-    if name_bytes.is_empty() || name_bytes.len() > 100 || name_bytes.contains(&0) {
+/// Returns one ustar header whose numeric fields use the python tarfile encoding.
+fn ustar_header(name: &str, size: u64, mode: u32) -> io::Result<tar::Header> {
+    if name.is_empty() || name.len() > 100 || name.contains('\0') {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!("tar member name {name:?} must be 1-100 bytes with no NUL"),
         ));
     }
-    if name_bytes.contains(&b'/') {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("tar member name {name:?} must be a basename with no slash"),
-        ));
-    }
-    let mut header = [0u8; BLOCK];
-    header[0..name_bytes.len()].copy_from_slice(name_bytes);
-    let mode_field = octal_field(u64::from(mode & 0o7777), 8)?;
-    header[100..108].copy_from_slice(&mode_field);
-    let uid_field = octal_field(UID, 8)?;
-    header[108..116].copy_from_slice(&uid_field);
-    let gid_field = octal_field(GID, 8)?;
-    header[116..124].copy_from_slice(&gid_field);
-    let size_field = octal_field(size, 12)?;
-    header[124..136].copy_from_slice(&size_field);
-    let mtime_field = octal_field(MTIME, 12)?;
-    header[136..148].copy_from_slice(&mtime_field);
-    for slot in header.iter_mut().take(156).skip(148) {
-        *slot = b' ';
-    }
-    header[156] = b'0';
-    header[257..265].copy_from_slice(b"ustar\x0000");
-    let mut sum: u32 = 0;
-    for byte in header {
-        sum += u32::from(byte);
-    }
-    let checksum_text = format!("{sum:06o}\0 ");
-    let checksum_bytes = checksum_text.as_bytes();
-    header[148..156].copy_from_slice(checksum_bytes);
+    let mut header = tar::Header::new_ustar();
+    header.set_entry_type(tar::EntryType::Regular);
+    header.set_mode(mode & 0o7777);
+    header.set_uid(UID);
+    header.set_gid(GID);
+    header.set_size(size);
+    header.set_mtime(MTIME);
+    header.set_path(name)?;
+    header.set_cksum();
+    let field = format!("{:06o}\0 ", header.cksum()?);
+    header.as_old_mut().cksum.copy_from_slice(field.as_bytes());
     Ok(header)
 }
 
-fn tar_image(name: &str, data: &[u8], mode: u32) -> io::Result<Vec<u8>> {
-    let header = tar_header(name, data.len() as u64, mode)?;
-    let data_blocks = data.len().div_ceil(BLOCK) * BLOCK;
-    let used = BLOCK + data_blocks + 2 * BLOCK;
-    let padded = used.div_ceil(RECORDSIZE) * RECORDSIZE;
-    let mut out = Vec::with_capacity(padded);
-    out.extend_from_slice(&header);
-    out.extend_from_slice(data);
-    out.resize(out.len() + (data_blocks - data.len()), 0);
-    out.resize(out.len() + 2 * BLOCK, 0);
-    out.resize(padded, 0);
-    Ok(out)
+/// Returns one ustar image padded to a whole record.
+fn tar_archive<'a>(members: impl Iterator<Item = (&'a str, &'a [u8], u32)>) -> io::Result<Vec<u8>> {
+    let mut builder = tar::Builder::new(Vec::new());
+    for (name, data, mode) in members {
+        let header = ustar_header(name, data.len() as u64, mode)?;
+        builder.append(&header, data)?;
+    }
+    let mut image = builder.into_inner()?;
+    image.resize(image.len().div_ceil(RECORDSIZE) * RECORDSIZE, 0);
+    Ok(image)
 }
 
 fn gzip_compress(tar: &[u8]) -> io::Result<Vec<u8>> {
@@ -118,7 +82,7 @@ pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
     let data = std::fs::read(src)?;
     let name = basename(src)?;
     let mode = member_mode(src)?;
-    let tar = tar_image(&name, &data, mode)?;
+    let tar = tar_archive([(name.as_str(), data.as_slice(), mode)].into_iter())?;
     let gz = gzip_compress(&tar)?;
     std::fs::write(dst, gz)?;
     Ok(())
@@ -126,7 +90,7 @@ pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
 
 pub fn archive_bytes(data: &[u8], name: &str, executable: bool) -> io::Result<Vec<u8>> {
     let mode = if executable { 0o755 } else { 0o644 };
-    let tar = tar_image(name, data, mode)?;
+    let tar = tar_archive([(name, data, mode)].into_iter())?;
     gzip_compress(&tar)
 }
 
@@ -2142,40 +2106,6 @@ pub fn promotion_main(
     }
 }
 
-fn tar_header_path(name: &str, size: u64, mode: u32) -> io::Result<[u8; BLOCK]> {
-    let name_bytes = name.as_bytes();
-    if name_bytes.is_empty() || name_bytes.len() > 100 || name_bytes.contains(&0) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("tar member name {name:?} must be 1-100 bytes with no NUL"),
-        ));
-    }
-    let mut header = [0u8; BLOCK];
-    header[0..name_bytes.len()].copy_from_slice(name_bytes);
-    let mode_field = octal_field(u64::from(mode & 0o7777), 8)?;
-    header[100..108].copy_from_slice(&mode_field);
-    let uid_field = octal_field(UID, 8)?;
-    header[108..116].copy_from_slice(&uid_field);
-    let gid_field = octal_field(GID, 8)?;
-    header[116..124].copy_from_slice(&gid_field);
-    let size_field = octal_field(size, 12)?;
-    header[124..136].copy_from_slice(&size_field);
-    let mtime_field = octal_field(MTIME, 12)?;
-    header[136..148].copy_from_slice(&mtime_field);
-    for slot in header.iter_mut().take(156).skip(148) {
-        *slot = b' ';
-    }
-    header[156] = b'0';
-    header[257..265].copy_from_slice(b"ustar\x0000");
-    let mut sum: u32 = 0;
-    for byte in header {
-        sum += u32::from(byte);
-    }
-    let checksum_text = format!("{sum:06o}\0 ");
-    header[148..156].copy_from_slice(checksum_text.as_bytes());
-    Ok(header)
-}
-
 /// Creates one deterministic npm pack.
 pub fn npm_create_pack(
     package: &str,
@@ -2215,18 +2145,11 @@ pub fn npm_create_pack(
         };
         members.insert(member, (data, mode));
     }
-    let mut tar: Vec<u8> = Vec::new();
-    for (member, (data, mode)) in &members {
-        let header = tar_header_path(member, data.len() as u64, *mode)?;
-        tar.extend_from_slice(&header);
-        tar.extend_from_slice(data);
-        let pad = (BLOCK - data.len() % BLOCK) % BLOCK;
-        tar.extend(std::iter::repeat_n(0, pad));
-    }
-    tar.extend(std::iter::repeat_n(0, 2 * BLOCK));
-    while !tar.len().is_multiple_of(RECORDSIZE) {
-        tar.extend(std::iter::repeat_n(0, BLOCK));
-    }
+    let tar = tar_archive(
+        members
+            .iter()
+            .map(|(member, (data, mode))| (member.as_str(), data.as_slice(), *mode)),
+    )?;
     let gz = gzip_compress(&tar)?;
     if let Some(parent) = tgz_out.parent() {
         if !parent.as_os_str().is_empty() {
@@ -2265,27 +2188,12 @@ pub fn npm_create_pack(
 
 /// Lists one gzip tar member table.
 pub fn npm_tar_members(tgz_path: &Path) -> io::Result<Vec<String>> {
-    let gz = std::fs::read(tgz_path)?;
-    let mut decoder = flate2::read::GzDecoder::new(&gz[..]);
-    let mut tar = Vec::new();
-    use std::io::Read as _;
-    decoder.read_to_end(&mut tar)?;
+    let file = std::fs::File::open(tgz_path)?;
+    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
     let mut members = Vec::new();
-    let mut offset = 0;
-    while offset + BLOCK <= tar.len() {
-        let header = &tar[offset..offset + BLOCK];
-        if header.iter().all(|b| *b == 0) {
-            break;
-        }
-        let end = header.iter().position(|b| *b == 0).unwrap_or(100);
-        let name = String::from_utf8_lossy(&header[0..end]).into_owned();
-        let size_text = String::from_utf8_lossy(&header[124..136]).into_owned();
-        let size_text = size_text.trim_matches(|c| c == '\0' || c == ' ');
-        let size = u64::from_str_radix(size_text.trim(), 8).unwrap_or(0);
-        members.push(name);
-        offset += BLOCK;
-        let blocks = (size as usize).div_ceil(BLOCK);
-        offset += blocks * BLOCK;
+    for entry in archive.entries()? {
+        let entry = entry?;
+        members.push(String::from_utf8_lossy(&entry.path_bytes()).into_owned());
     }
     Ok(members)
 }
@@ -2740,57 +2648,63 @@ mod tests {
 
     #[test]
     fn octal_fields_match_python_tarfile() {
-        assert_eq!(octal_field(0o755, 8).expect("mode"), b"0000755\0");
-        assert_eq!(octal_field(0, 8).expect("uid"), b"0000000\0");
-        assert_eq!(octal_field(12, 12).expect("size"), b"00000000014\0");
-        assert_eq!(octal_field(0, 12).expect("mtime"), b"00000000000\0");
-        assert!(octal_field(8u64.pow(7), 8).is_err());
-        assert!(octal_field(8u64.pow(11), 12).is_err());
+        let header = ustar_header("hello", 12, 0o755).expect("header");
+        let bytes = header.as_bytes();
+        assert_eq!(&bytes[100..108], b"0000755\0");
+        assert_eq!(&bytes[108..116], b"0000000\0");
+        assert_eq!(&bytes[116..124], b"0000000\0");
+        assert_eq!(&bytes[124..136], b"00000000014\0");
+        assert_eq!(&bytes[136..148], b"00000000000\0");
+        assert_eq!(&bytes[148..156], b"006771\0 ");
     }
 
     #[test]
     fn header_bytes_match_python_ustar() {
-        let header = tar_header("hello", 12, 0o755).expect("header");
-        assert_eq!(&header[0..6], b"hello\0");
-        assert!(header[6..100].iter().all(|byte| *byte == 0));
-        assert_eq!(&header[100..108], b"0000755\0");
-        assert_eq!(&header[108..116], b"0000000\0");
-        assert_eq!(&header[116..124], b"0000000\0");
-        assert_eq!(&header[124..136], b"00000000014\0");
-        assert_eq!(&header[136..148], b"00000000000\0");
-        assert_eq!(&header[148..156], b"006771\0 ");
-        assert_eq!(header[156], b'0');
-        assert!(header[157..257].iter().all(|byte| *byte == 0));
-        assert_eq!(&header[257..265], b"ustar\x0000");
-        assert!(header[265..512].iter().all(|byte| *byte == 0));
-        let plain = tar_header("hello", 12, 0o644).expect("plain header");
-        assert_eq!(&plain[100..108], b"0000644\0");
-        assert_ne!(&plain[148..156], &header[148..156]);
+        let header = ustar_header("hello", 12, 0o755).expect("header");
+        let bytes = header.as_bytes();
+        assert_eq!(&bytes[0..6], b"hello\0");
+        assert!(bytes[6..100].iter().all(|byte| *byte == 0));
+        assert_eq!(&bytes[100..108], b"0000755\0");
+        assert_eq!(&bytes[108..116], b"0000000\0");
+        assert_eq!(&bytes[116..124], b"0000000\0");
+        assert_eq!(&bytes[124..136], b"00000000014\0");
+        assert_eq!(&bytes[136..148], b"00000000000\0");
+        assert_eq!(&bytes[148..156], b"006771\0 ");
+        assert_eq!(bytes[156], b'0');
+        assert!(bytes[157..257].iter().all(|byte| *byte == 0));
+        assert_eq!(&bytes[257..265], b"ustar\x0000");
+        assert!(bytes[265..512].iter().all(|byte| *byte == 0));
+        let plain = ustar_header("hello", 12, 0o644).expect("plain header");
+        let plain_bytes = plain.as_bytes();
+        assert_eq!(&plain_bytes[100..108], b"0000644\0");
+        assert_ne!(&plain_bytes[148..156], &bytes[148..156]);
     }
 
     #[test]
     fn header_rejects_bad_names() {
-        assert!(tar_header("", 0, 0o644).is_err());
-        assert!(tar_header(&"n".repeat(101), 0, 0o644).is_err());
-        assert!(tar_header("a/b", 0, 0o644).is_err());
-        assert!(tar_header("a\0b", 0, 0o644).is_err());
+        assert!(ustar_header("", 0, 0o644).is_err());
+        assert!(ustar_header(&"n".repeat(101), 0, 0o644).is_err());
+        assert!(ustar_header("a\0b", 0, 0o644).is_err());
+        assert!(ustar_header("../escape", 0, 0o644).is_err());
+        assert!(ustar_header("/absolute", 0, 0o644).is_err());
     }
 
     #[test]
     fn tar_image_pads_to_recordsize() {
-        let tiny = tar_image("f", b"hi", 0o644).expect("tiny");
+        let tiny = tar_archive([("f", b"hi".as_slice(), 0o644)].into_iter()).expect("tiny");
         assert_eq!(tiny.len(), RECORDSIZE);
         assert_eq!(&tiny[0..1], b"f");
         assert_eq!(&tiny[512..514], b"hi");
         assert!(tiny[514..].iter().all(|byte| *byte == 0));
         let big_data = vec![b'x'; 10240];
-        let big = tar_image("f", &big_data, 0o644).expect("big");
+        let big = tar_archive([("f", big_data.as_slice(), 0o644)].into_iter()).expect("big");
         assert_eq!(big.len(), 2 * RECORDSIZE);
     }
 
     #[test]
     fn gzip_header_matches_python_gzip() {
-        let tar = tar_image("hello", b"hello world\n", 0o755).expect("tar");
+        let tar =
+            tar_archive([("hello", b"hello world\n".as_slice(), 0o755)].into_iter()).expect("tar");
         let gz = gzip_compress(&tar).expect("gz");
         assert_eq!(
             &gz[0..10],
@@ -3191,6 +3105,34 @@ mod tests {
             npm_npmrc_line("registry.npmjs.org", "tok"),
             "//registry.npmjs.org/:_authToken=tok\n"
         );
+    }
+
+    #[test]
+    fn npm_tar_members_rejects_a_bad_header_checksum() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("package.json");
+        std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"0.0.0\"}\n")
+            .expect("write src");
+        let good = scratch.path().join("good.tgz");
+        npm_create_pack(
+            "npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            &good,
+            &scratch.path().join("good.feed.json"),
+            std::slice::from_ref(&src),
+        )
+        .expect("pack");
+        assert_eq!(npm_tar_members(&good).expect("members").len(), 1);
+        let mut tar = Vec::new();
+        use std::io::Read as _;
+        flate2::read::GzDecoder::new(std::fs::File::open(&good).expect("open tgz"))
+            .read_to_end(&mut tar)
+            .expect("decode");
+        tar[100] ^= 1;
+        let bad = scratch.path().join("bad.tgz");
+        std::fs::write(&bad, gzip_compress(&tar).expect("gz")).expect("write bad");
+        assert!(npm_tar_members(&bad).is_err());
     }
 
     #[test]

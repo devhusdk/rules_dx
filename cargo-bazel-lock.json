@@ -1,5 +1,5 @@
 {
-  "checksum": "f5c1e2497461c16966b5a708fb7dcdf26c02050f83b4fb3a235ee348cf3ceaec",
+  "checksum": "7d14cd93a3b7bb50c5c535763b8a461ebcee8dff3cfcc32e1d83b62f40aae82e",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -61,7 +61,14 @@
       "x86_64-unknown-linux-gnu",
       "x86_64-unknown-nixos-gnu"
     ],
+    "cfg(any(target_os = \"android\", target_os = \"linux\", target_os = \"macos\", target_os = \"hurd\"))": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-nixos-gnu"
+    ],
     "cfg(any(target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"hurd\", target_os = \"illumos\", target_os = \"cygwin\", all(target_os = \"horizon\", target_arch = \"arm\")))": [],
+    "cfg(any(target_os = \"freebsd\", target_os = \"netbsd\"))": [],
     "cfg(any(target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"dragonflybsd\", target_os = \"ios\"))": [],
     "cfg(any(target_os = \"haiku\", target_os = \"redox\", target_os = \"nto\", target_os = \"aix\"))": [],
     "cfg(any(target_os = \"ios\", target_os = \"visionos\", target_os = \"watchos\", target_os = \"tvos\"))": [],
@@ -2880,6 +2887,10 @@
           {
             "id": "sha2 0.10.9",
             "target": "sha2"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
           }
         ],
         "deps_dev": [
@@ -3647,6 +3658,51 @@
         }
       ],
       "version": "2.5.0"
+    },
+    "filetime 0.2.29": {
+      "common_attrs": {
+        "deps": {
+          "common": [
+            {
+              "id": "cfg-if 1.0.4",
+              "target": "cfg_if"
+            }
+          ],
+          "selects": {
+            "cfg(unix)": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ]
+          }
+        },
+        "edition": "2018"
+      },
+      "library_target_name": "filetime",
+      "license": "MIT/Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "filetime",
+      "package_url": "https://github.com/alexcrichton/filetime",
+      "repository": {
+        "Http": {
+          "sha256": "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759",
+          "url": "https://static.crates.io/crates/filetime/0.2.29/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "filetime",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.2.29"
     },
     "find-msvc-tools 0.1.12": {
       "common_attrs": {
@@ -5281,7 +5337,7 @@
           "selects": {
             "cfg(target_os = \"windows\")": [
               {
-                "id": "windows-sys 0.59.0",
+                "id": "windows-sys 0.61.2",
                 "target": "windows_sys"
               }
             ]
@@ -9443,6 +9499,79 @@
       ],
       "version": "0.14.0"
     },
+    "tar 0.4.46": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "xattr"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "filetime 0.2.29",
+              "target": "filetime"
+            }
+          ],
+          "selects": {
+            "aarch64-apple-darwin": [
+              {
+                "id": "xattr 1.6.1",
+                "target": "xattr"
+              }
+            ],
+            "aarch64-unknown-linux-gnu": [
+              {
+                "id": "xattr 1.6.1",
+                "target": "xattr"
+              }
+            ],
+            "cfg(unix)": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ],
+            "x86_64-unknown-linux-gnu": [
+              {
+                "id": "xattr 1.6.1",
+                "target": "xattr"
+              }
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              {
+                "id": "xattr 1.6.1",
+                "target": "xattr"
+              }
+            ]
+          }
+        },
+        "edition": "2021"
+      },
+      "library_target_name": "tar",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "tar",
+      "package_url": "https://github.com/composefs/tar-rs",
+      "repository": {
+        "Http": {
+          "sha256": "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840",
+          "url": "https://static.crates.io/crates/tar/0.4.46/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "tar",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.4.46"
+    },
     "tempfile 3.27.0": {
       "common_attrs": {
         "crate_features": [
@@ -12483,6 +12612,56 @@
       ],
       "version": "0.6.4"
     },
+    "xattr 1.6.1": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "unsupported"
+        ],
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(any(target_os = \"android\", target_os = \"linux\", target_os = \"macos\", target_os = \"hurd\"))": [
+              {
+                "id": "rustix 1.1.4",
+                "target": "rustix"
+              }
+            ],
+            "cfg(any(target_os = \"freebsd\", target_os = \"netbsd\"))": [
+              {
+                "id": "libc 0.2.189",
+                "target": "libc"
+              }
+            ]
+          }
+        },
+        "edition": "2021"
+      },
+      "library_target_name": "xattr",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "xattr",
+      "package_url": "https://github.com/Stebalien/xattr",
+      "repository": {
+        "Http": {
+          "sha256": "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156",
+          "url": "https://static.crates.io/crates/xattr/1.6.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "xattr",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.6.1"
+    },
     "yaml_serde 0.10.7": {
       "common_attrs": {
         "crate_features": [
@@ -13026,6 +13205,7 @@
     "similar 3.2.0",
     "slug 0.1.6",
     "spdx 0.13.5",
+    "tar 0.4.46",
     "tempfile 3.27.0",
     "thiserror 2.0.20",
     "toml 1.1.6+spec-1.1.0",

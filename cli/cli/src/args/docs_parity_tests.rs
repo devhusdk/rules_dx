@@ -470,6 +470,30 @@ fn global_flags_page_names_exactly_the_narrow_output_commands() {
 }
 
 #[test]
+fn global_flags_page_names_every_fail_on_command() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let bullet = flag_bullet(&page, "fail-on");
+    let mut documented: Vec<String> = backticked(&bullet)
+        .into_iter()
+        .filter(|token| Command::parse(token).is_some())
+        .collect();
+    documented.sort();
+    documented.dedup();
+    let mut thresholded: Vec<String> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| command.supports_fail_on())
+        .map(|command| command.name().to_owned())
+        .collect();
+    thresholded.sort();
+    assert_eq!(
+        documented, thresholded,
+        "docs/cli/commands/README.md --fail-on bullet must name every command that takes a threshold"
+    );
+}
+
+#[test]
 fn global_flags_page_documents_every_banner_option() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");

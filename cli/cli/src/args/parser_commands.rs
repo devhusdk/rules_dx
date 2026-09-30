@@ -156,8 +156,14 @@ fn an_owned_option_is_accepted_only_by_its_owner() {
     }
 }
 
-const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 4] = [
+const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
     ("--check", Command::supports_check, &["--check"]),
+    ("--fail-on", Command::supports_fail_on, &["--fail-on=info"]),
+    (
+        "--fail-on",
+        Command::supports_fail_on,
+        &["--fail-on=warning"],
+    ),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=error"]),
     ("--debug", Command::supports_profile, &["--debug"]),
     ("--release", Command::supports_profile, &["--release"]),

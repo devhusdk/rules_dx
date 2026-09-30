@@ -124,6 +124,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         file.output.clone(),
         "text",
     );
+    let fail_on_given = fail_on.is_some();
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_FAIL_ON_ENV),
@@ -220,7 +221,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
             option: "--check".to_owned(),
         });
     }
-    if fail_on_name != "warning" && !command.supports_fail_on() {
+    if (fail_on_given || fail_on_name != "warning") && !command.supports_fail_on() {
         return Err(ArgsError::UnsupportedOption {
             command: command.name(),
             option: "--fail-on".to_owned(),

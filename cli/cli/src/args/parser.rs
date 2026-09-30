@@ -635,12 +635,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     if debug && release {
         return Err(ArgsError::ConflictingProfiles);
     }
-    if (debug || release)
-        && !matches!(
-            command,
-            Command::Build | Command::Run | Command::Test | Command::Deploy
-        )
-    {
+    if (debug || release) && !command.supports_profile() {
         return Err(ArgsError::UnsupportedOption {
             command: command.name(),
             option: if debug {

@@ -56,6 +56,7 @@ pub fn resolve_profile(flag: Option<Profile>, attr: Option<Profile>, default: Pr
 mod tests {
     use super::super::{parse, ArgsError};
     use super::*;
+    use clap::ValueEnum;
 
     #[test]
     fn profile_vocabulary_maps_to_shared_configs() {
@@ -137,10 +138,16 @@ mod tests {
 
     #[test]
     fn profile_flags_reject_conflicts_and_foreign_commands() {
-        for command in ["build", "run", "test", "deploy"] {
+        for command in Command::value_variants() {
+            let command = *command;
+            if !command.supports_profile() {
+                continue;
+            }
             assert_eq!(
-                parse(&args(&[command, "--debug", "--release"])),
-                Err(ArgsError::ConflictingProfiles)
+                parse(&args(&[command.name(), "--debug", "--release"])),
+                Err(ArgsError::ConflictingProfiles),
+                "dx {} takes both profiles",
+                command.name()
             );
         }
         for words in [

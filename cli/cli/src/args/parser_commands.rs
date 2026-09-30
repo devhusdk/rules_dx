@@ -155,9 +155,11 @@ fn an_owned_option_is_accepted_only_by_its_owner() {
     }
 }
 
-const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 2] = [
+const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 4] = [
     ("--check", Command::supports_check, &["--check"]),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=error"]),
+    ("--debug", Command::supports_profile, &["--debug"]),
+    ("--release", Command::supports_profile, &["--release"]),
 ];
 
 #[test]
@@ -188,6 +190,18 @@ fn a_global_gate_is_accepted_exactly_where_the_registry_declares() {
                 Err(error) => panic!("dx {words:?} failed with {error} instead of naming {flag}"),
             }
         }
+    }
+}
+
+#[test]
+fn a_profile_flag_is_advertised_exactly_where_the_registry_declares_it() {
+    for command in Command::value_variants() {
+        assert_eq!(
+            command.flags().contains("--debug | --release"),
+            command.supports_profile(),
+            "dx {} help must match supports_profile",
+            command.name()
+        );
     }
 }
 

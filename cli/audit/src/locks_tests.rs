@@ -456,6 +456,78 @@ fn paket_lock_git_section_is_incomplete_never_dropped() {
 }
 
 #[test]
+fn gemfile_lock_parses_registry_specs_and_skips_dependency_lines() {
+    let text = "GEM\n  remote: https://rubygems.org/\n  specs:\n    diff-lcs (1.5.0)\n    rspec (3.13.0)\n      rspec-core (~> 3.13.0)\n      rspec-expectations (~> 3.13.0)\n    rspec-core (3.13.0)\n      rspec-support (~> 3.13.0)\n    rspec-support (3.13.1)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rspec (= 3.13.0)\n\nBUNDLED WITH\n   2.5.0\n";
+    let packages = parse_gemfile_lock(text).expect("parses");
+    assert_eq!(packages.len(), 4);
+    let names: Vec<&str> = packages
+        .iter()
+        .map(|package| package.name.as_str())
+        .collect();
+    assert_eq!(names, ["diff-lcs", "rspec", "rspec-core", "rspec-support"]);
+    assert!(packages
+        .iter()
+        .any(|package| package.name == "rspec" && package.version == "3.13.0"));
+    assert!(packages.iter().all(|package| package.set == "ruby"));
+    assert!(packages
+        .iter()
+        .all(|package| !package.is_git && !package.is_private));
+    assert!(!packages
+        .iter()
+        .any(|package| package.name == "rspec-support" && package.version.is_empty()));
+    assert_eq!(packages[0].version, "1.5.0");
+}
+
+#[test]
+fn gemfile_lock_keeps_platform_and_prerelease_versions_intact() {
+    let text = "GEM\n  remote: https://rubygems.org/\n  specs:\n    nokogiri (1.16.0-x86_64-linux)\n    rspec-support (3.13.1.pre.1)\n";
+    let packages = parse_gemfile_lock(text).expect("parses");
+    assert_eq!(packages.len(), 2);
+    let nokogiri = packages
+        .iter()
+        .find(|package| package.name == "nokogiri")
+        .expect("nokogiri");
+    assert_eq!(nokogiri.version, "1.16.0-x86_64-linux");
+    let support = packages
+        .iter()
+        .find(|package| package.name == "rspec-support")
+        .expect("rspec-support");
+    assert_eq!(support.version, "3.13.1.pre.1");
+}
+
+#[test]
+fn gemfile_lock_git_and_path_specs_are_incomplete_never_dropped() {
+    let text = "GIT\n  remote: https://github.com/example/lib.git\n  revision: 0123456789abcdef\n  specs:\n    git.lib (1.0.0)\n\nPATH\n  remote: ../local\n  specs:\n    local.gem (0.1.0)\n\nGEM\n  remote: https://rubygems.org/\n  specs:\n    diff-lcs (1.5.0)\n";
+    let packages = parse_gemfile_lock(text).expect("parses");
+    assert_eq!(packages.len(), 3);
+    let git = packages
+        .iter()
+        .find(|package| package.name == "git.lib")
+        .expect("git entry");
+    assert!(git.is_git);
+    let local = packages
+        .iter()
+        .find(|package| package.name == "local.gem")
+        .expect("path entry");
+    assert!(local.is_private);
+    let (findings, unassessed) = crate::vuln::match_packages(&packages, &[]);
+    assert!(findings.is_empty());
+    assert_eq!(unassessed.len(), 2);
+    assert_eq!(unassessed[0].package, "git.lib");
+    assert_eq!(unassessed[0].reason, crate::vuln::REASON_GIT);
+    assert_eq!(unassessed[1].package, "local.gem");
+    assert_eq!(unassessed[1].reason, crate::vuln::REASON_PRIVATE);
+}
+
+#[test]
+fn gemfile_lock_missing_gem_section_fails_closed() {
+    assert!(parse_gemfile_lock("pnpm-lock.yaml:\n  lockfileVersion: 9\n").is_err());
+    assert!(parse_gemfile_lock("").is_err());
+    assert!(parse_gemfile_lock("PLATFORMS\n  ruby\n").is_err());
+    assert!(parse_gemfile_lock("GEM\n  remote: https://rubygems.org/\n").is_ok());
+}
+
+#[test]
 fn go_mod_parses_require_block_and_single_line_with_comments() {
     let text = "module rules_dx/third_party/go\n\ngo 1.24.12\n\nrequire (\n\tgithub.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 // indirect\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/pmezard/go-difflib v1.0.0\n)\n\nrequire example.com/single v1.2.3 // indirect\n";
     let packages = parse_go_mod(text).expect("parses");

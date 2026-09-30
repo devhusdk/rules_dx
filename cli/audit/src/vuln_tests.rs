@@ -1048,6 +1048,43 @@ fn osv_typed_sets_project_to_native_scopes() {
 }
 
 #[test]
+fn osv_typed_rubygems_projects_concrete_versions_and_intervals() {
+    let text = r#"[{
+        "id": "GHSA-ruby-osv-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"name": "diff-lcs", "ecosystem": "RubyGems", "purl": "pkg:gem/diff-lcs"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "1.5.1"}]}],
+            "versions": ["1.4.0", "1.5.0"],
+            "database_specific": {"severity": "moderate"}
+        }]
+    }]"#;
+    let parsed = parse_snapshot(text).expect("osv parses");
+    assert!(parsed.iter().all(|entry| entry.set == "ruby"));
+    assert!(parsed.iter().any(|entry| entry.versions == "1.5.0"));
+    assert!(parsed.iter().any(|entry| entry.versions == "<1.5.1"));
+    assert_eq!(parsed[0].severity, "moderate");
+    assert_eq!(parsed[0].fixed, vec!["1.5.1".to_owned()]);
+    let affected = |version: &str| {
+        parsed
+            .iter()
+            .any(|entry| version_affected("ruby", &entry.versions, version))
+    };
+    assert!(affected("1.5.0"));
+    assert!(affected("1.4.0"));
+    assert!(!affected("1.5.1"));
+    assert!(
+        ruby_in_scope("1.16.0-x86_64-linux", "1.16.0-x86_64-linux"),
+        "a platform gem version matches itself"
+    );
+    assert!(!ruby_in_scope("1.5.0", "1.5.1"));
+    assert!(!ruby_in_scope("", "1.5.0"));
+    assert!(ruby_in_scope(">=1.0, <2.0", "1.5.0"));
+    assert!(!ruby_in_scope(">=2.0", "1.5.0"));
+    assert!(ruby_in_scope("*", "1.5.0"));
+}
+
+#[test]
 fn osv_typed_withdrawn_unsupported_and_git_skip() {
     let text = r#"[{
         "id": "GHSA-withdrawn-0001",

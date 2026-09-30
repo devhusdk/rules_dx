@@ -45,17 +45,19 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
         "maven" => Some("maven"),
         "nuget" => Some("nuget"),
         "go" => Some("go"),
+        "ruby" => Some("rubygems"),
         _ => None,
     }
 }
 
 pub fn advisory_source(set: &str) -> Option<&'static str> {
-    match advisory_family(set)? {
+    match family_of(set) {
         "cargo" => Some("https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"),
         "npm" => Some("https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"),
         "maven" => Some("https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip"),
         "nuget" => Some("https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip"),
         "go" => Some("https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"),
+        "rubygems" => Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
         _ => None,
     }
 }
@@ -358,6 +360,7 @@ mod tests {
             ("maven", "Maven"),
             ("nuget", "NuGet"),
             ("go", "Go"),
+            ("ruby", "RubyGems"),
         ] {
             let url = advisory_source(set).unwrap_or_else(|| panic!("{set} needs a source"));
             assert!(url.starts_with("https://"), "{set} must be https");
@@ -383,6 +386,8 @@ mod tests {
             assert_eq!(identity_rel(set), ".dx/advisory/npm.meta.json", "{set}");
         }
         assert_eq!(advisory_family("cargo"), Some("cargo"));
+        assert_eq!(advisory_family("ruby"), Some("rubygems"));
+        assert_eq!(snapshot_rel("ruby"), ".dx/advisory/rubygems.json");
         assert_eq!(advisory_family("uv"), None);
         assert_eq!(advisory_family("unknown-set"), None);
     }

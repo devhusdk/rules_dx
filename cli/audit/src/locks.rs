@@ -12,6 +12,8 @@ mod locks_npm;
 mod locks_paket;
 #[path = "locks_pnpm.rs"]
 mod locks_pnpm;
+#[path = "locks_ruby.rs"]
+mod locks_ruby;
 #[path = "locks_yarn.rs"]
 mod locks_yarn;
 
@@ -22,6 +24,7 @@ pub use locks_maven::*;
 pub use locks_npm::*;
 pub use locks_paket::*;
 pub use locks_pnpm::*;
+pub use locks_ruby::*;
 pub use locks_yarn::*;
 
 #[cfg(test)]

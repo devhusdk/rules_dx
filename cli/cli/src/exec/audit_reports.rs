@@ -391,6 +391,81 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
 }
 
 #[test]
+fn audit_live_names_the_gemfile_lock_each_ruby_finding_came_from() {
+    use crate::args::parse;
+    use crate::exec::{execute, Env};
+    let harness = Harness::new("audit-ruby-lock-paths");
+    harness.write_source(
+        "third_party/ruby/Gemfile.lock",
+        "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
+    );
+    harness.write_source(
+        "examples/adopt-ruby/Gemfile.lock",
+        "GEM\n  remote: https://rubygems.org/\n  specs:\n    rake (13.2.1)\n",
+    );
+    write_advisory(
+        &harness,
+        "rubygems",
+        r#"[{"id":"GHSA-ruby-aaaa","package":"rspec-core","versions":">=3.0.0, <3.13.1","severity":"high","fixed":["3.13.1"],"set":"ruby"},{"id":"GHSA-ruby-bbbb","package":"rake","versions":"13.2.1","severity":"moderate","fixed":[],"set":"ruby"}]"#,
+    );
+    let invocation = parse(&[
+        "security".to_owned(),
+        "//ruby/tests/fixtures/hello:hello".to_owned(),
+        "--report=sarif=vuln.sarif".to_owned(),
+    ])
+    .expect("parse");
+    let mut out = Vec::new();
+    let mut err = Vec::new();
+    let code = execute(
+        &invocation,
+        Env {
+            workspace: &harness.workspace,
+            runner: &AuditRunner::clean(),
+            query_runner: &harness.query,
+            temp_dir: &harness.temp,
+            pid: std::process::id(),
+            nonce: 0,
+            out: &mut out,
+            err: &mut err,
+            ci: false,
+        },
+    );
+    let out_text = String::from_utf8(out).expect("stdout");
+    let err_text = String::from_utf8(err).expect("stderr");
+    assert_eq!(code, 1, "{out_text}{err_text}");
+    let sarif = std::fs::read_to_string(harness.workspace.join("vuln.sarif")).expect("sarif");
+    let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
+    let run = value["runs"]
+        .as_array()
+        .expect("runs")
+        .iter()
+        .find(|run| run["tool"]["driver"]["name"] == serde_json::json!("vuln"))
+        .expect("vuln run");
+    let mut by_package: std::collections::BTreeMap<String, String> = Default::default();
+    for result in run["results"].as_array().expect("results") {
+        let message = result["message"]["text"].as_str().expect("message");
+        by_package.insert(
+            message.split('@').next().expect("package").to_owned(),
+            result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+                .as_str()
+                .expect("uri")
+                .to_owned(),
+        );
+    }
+    assert_eq!(
+        by_package.get("rspec-core").map(String::as_str),
+        Some("third_party/ruby/Gemfile.lock"),
+        "{by_package:?}"
+    );
+    assert_eq!(
+        by_package.get("rake").map(String::as_str),
+        Some("examples/adopt-ruby/Gemfile.lock"),
+        "{by_package:?}"
+    );
+    assert_eq!(by_package.len(), 2, "{by_package:?}");
+}
+
+#[test]
 fn audit_live_unowned_scope_fails_usage() {
     let harness = Harness::new("audit-unowned");
     let (code, _out, err) = harness.run(&["security", "docs/cli/README.md"]);
@@ -412,6 +487,7 @@ fn audit_live_json_emits_per_family_lifecycle() {
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
         );
         write_go_mod(harness);
+        write_ruby_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
@@ -449,6 +525,7 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
         );
         write_go_mod(harness);
+        write_ruby_locks(harness);
         write_all_empty_advisories(harness);
         harness.write_source(
             "cargo-bazel-lock.json",
@@ -708,6 +785,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
         "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
     );
     write_go_mod(&harness);
+    write_ruby_locks(&harness);
     write_all_empty_advisories(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
@@ -762,6 +840,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
         );
         write_go_mod(harness);
+        write_ruby_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1);
@@ -788,6 +867,7 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
         "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
     );
     write_go_mod(&harness);
+    write_ruby_locks(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
     let mut out = Vec::new();
@@ -1012,11 +1092,11 @@ fn audit_errors_stay_typed_with_stable_display() {
     use std::error::Error as _;
     assert_eq!(
         AuditError::NoOwningSet {
-            scope: "examples/adopt-ruby/greet".to_owned(),
+            scope: "examples/adopt-cpp/solo:solo".to_owned(),
             sets: super::audited_set_names().join(", "),
         }
         .to_string(),
-        "no owning dependency set for \"examples/adopt-ruby/greet\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget"
+        "no owning dependency set for \"examples/adopt-cpp/solo:solo\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget, ruby"
     );
     let read = AuditError::Read {
         rel: "pnpm-lock.yaml".to_owned(),
@@ -1186,6 +1266,8 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
         ("//csharp/tests/fixtures/hello:hello", vec![SetId::NuGet]),
         ("//scala/greet:greet", vec![SetId::Maven]),
         ("//python/tests/fixtures/hello/hello.py", vec![SetId::Uv]),
+        ("//ruby/tests/fixtures/hello:hello", vec![SetId::Ruby]),
+        ("//examples/adopt-ruby/greet:greet", vec![SetId::Ruby]),
     ] {
         assert_eq!(
             super::resolve_audit_sets(&[scope.to_owned()]).expect(scope),
@@ -1203,12 +1285,13 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
             "npm-adopt",
             "npm-adopt-polyglot",
             "npm-tools",
-            "nuget"
+            "nuget",
+            "ruby"
         ]
     );
     for scope in [
-        "//examples/adopt-ruby/greet:greet_spec",
         "//examples/adopt-cpp/solo:solo",
+        "//examples/adopt-powershell/greet:greet",
         "//third_party/powershell:PSGallery.lock.json",
     ] {
         let unowned = super::resolve_audit_sets(&[scope.to_owned()]).expect_err(scope);

@@ -446,7 +446,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         describe: "update dependencies per set through qualified resolvers (mutating without confirmation; --check is the preset stale gate)",
         usage: "Usage: dx [global-options] update [--offline|--frozen] [selector ...]",
         flags: "Per-command flags: --offline/--frozen (cache-only, no network fetches), --check (preset stale gate; selectors ignored) (update only; --fail-on/--report and `-- --bazel-options` do not apply; --output diff has no patch).",
-        scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run updates all sets.",
+        scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run updates all sets.",
         is_workflow: false,
         is_umbrella: false,
         is_audit_update: true,

@@ -250,6 +250,12 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
             }
             Ok(())
         }
+        SetId::Ruby => {
+            if !is_dotted_name(package) {
+                return Err(invalid("ruby gem names use [A-Za-z0-9_.-] only"));
+            }
+            Ok(())
+        }
         SetId::Go => {
             if package.is_empty()
                 || package.contains(':')
@@ -288,6 +294,9 @@ const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
     ("examples/adopt-csharp", &[SetId::NuGet]),
     ("examples/adopt-fsharp", &[SetId::NuGet]),
     ("examples/adopt-go", &[SetId::Go]),
+    ("third_party/ruby", &[SetId::Ruby]),
+    ("examples/adopt-ruby", &[SetId::Ruby]),
+    ("ruby", &[SetId::Ruby]),
     (
         "examples/adopt-polyglot",
         &[SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot],
@@ -755,10 +764,25 @@ mod tests {
 
     #[test]
     fn adopt_examples_without_a_dependency_set_stay_unowned() {
-        assert!(owning_sets("examples/adopt-ruby/greet").is_empty());
         assert!(owning_sets("//examples/adopt-cpp/solo:solo").is_empty());
         assert!(owning_sets("//examples/adopt-powershell/greet:greet").is_empty());
         assert!(owning_sets("//third_party/powershell:PSGallery.lock.json").is_empty());
+    }
+
+    #[test]
+    fn the_ruby_bundle_owns_its_shared_lock_and_the_adopted_copy() {
+        assert_eq!(owning_sets("//third_party/ruby:default"), vec![SetId::Ruby]);
+        assert_eq!(
+            owning_sets("third_party/ruby/Gemfile.lock"),
+            vec![SetId::Ruby]
+        );
+        assert_eq!(
+            owning_sets("examples/adopt-ruby/greet"),
+            vec![SetId::Ruby],
+            "the adopted Gemfile.lock is the same set"
+        );
+        assert_eq!(owning_sets("//examples/adopt-ruby/..."), vec![SetId::Ruby]);
+        assert_eq!(owning_sets("//ruby/greet"), vec![SetId::Ruby]);
     }
 
     #[test]
@@ -776,7 +800,7 @@ mod tests {
         assert_eq!(owning_sets("//javascript/..."), vec![SetId::Npm]);
         assert_eq!(
             owning_sets("//third_party/..."),
-            vec![SetId::Go, SetId::Maven, SetId::NuGet]
+            vec![SetId::Go, SetId::Maven, SetId::NuGet, SetId::Ruby]
         );
         assert_eq!(
             owning_sets("//docs/..."),
@@ -792,6 +816,7 @@ mod tests {
                 SetId::NpmAdopt,
                 SetId::NpmAdoptPolyglot,
                 SetId::NuGet,
+                SetId::Ruby,
                 SetId::UvAdopt,
                 SetId::UvAdoptPolyglot,
             ]
@@ -824,13 +849,12 @@ mod tests {
             vec![SetId::Cargo],
             "a recursive scope under a broad arm keeps that arm"
         );
-        assert!(owning_sets("//examples/adopt-ruby/...").is_empty());
     }
 
     #[test]
     fn bare_resolves_to_all_sets_full() {
         let resolved = resolve(&[]).expect("bare");
-        assert_eq!(resolved.len(), 12);
+        assert_eq!(resolved.len(), 13);
         for set in SetId::ALL {
             assert_eq!(resolved.get(&set), Some(&SetRequest::Full));
         }
@@ -914,7 +938,7 @@ mod tests {
         let resolved = resolve(&strings(&["//go/tests/fixtures/hello:hello"])).expect("target");
         assert_eq!(resolved.get(&SetId::Go), Some(&SetRequest::Full));
         let resolved = resolve(&strings(&["//..."])).expect("repo");
-        assert_eq!(resolved.len(), 12);
+        assert_eq!(resolved.len(), 13);
     }
 
     #[test]

@@ -32,9 +32,10 @@ do not apply.
 
 `dx security` reads the lockfile of each set it owns and matches it against
 `.dx/advisory/<family>.json`. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
-`npm-adopt-polyglot`, `npm-tools`, `nuget`. The `npm-adopt`,
-`npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot. Sets
-without a snapshot are listed as `no advisory coverage for <sets>`.
+`npm-adopt-polyglot`, `npm-tools`, `nuget`, `ruby`. The `npm-adopt`,
+`npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot, and the
+`ruby` set uses the `rubygems` snapshot. Sets without a snapshot are listed as
+`no advisory coverage for <sets>`.
 
 A scope selects sets by path, and a path can select more than one. A `...` scope
 selects its own set plus every set nested under it, so `//quality/...` selects
@@ -49,6 +50,7 @@ scope narrows which sets run, never which packages inside a lockfile.
 //examples/adopt-csharp/..., //examples/adopt-fsharp/...                              nuget
 //go/..., //third_party/go/...                                                         go
 //examples/adopt-go/...                                                               go
+//ruby/..., //third_party/ruby/..., //examples/adopt-ruby/...                        ruby
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
 //examples/adopt-java/..., //examples/adopt-kotlin/..., //examples/adopt-scala/...    maven
 //javascript/..., //typescript/..., //astro/..., //svelte/..., //vue/..., //mdx/...   npm
@@ -64,12 +66,13 @@ scope narrows which sets run, never which packages inside a lockfile.
 A scope that owns no set exits `2` and names the audited sets. `//...` and
 `MODULE.bazel` select every set. The four `uv` sets resolve but have no
 snapshot, so they report `no advisory coverage`. Paths with no set at all are
-`examples/adopt-ruby`, `examples/adopt-cpp`, `examples/adopt-powershell`, and
-`third_party/powershell`.
+`examples/adopt-cpp`, `examples/adopt-powershell`, and `third_party/powershell`.
 
 `dx security` and `dx license` read `pnpm-lock.yaml`, `package-lock.json`, and
-`yarn.lock` for the `npm` set, and the lockfile of every other set. Each finding
-names the lockfile it was read from.
+`yarn.lock` for the `npm` set, and the lockfile of every other set. The `ruby`
+set reads `third_party/ruby/Gemfile.lock` and
+`examples/adopt-ruby/Gemfile.lock`. Each finding names the lockfile it was read
+from.
 
 `dx security` reads `security.toml` from the workspace root. Without the file
 no finding is exempted. Each `[[exception]]` needs `advisory`, `package`, `set`,
@@ -109,17 +112,19 @@ dx update [--check] [--offline|--frozen] [set...]
 
 Updates dependencies per set through the qualified resolvers. No selector
 updates all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
-`npm-adopt-polyglot`, `npm-tools`, `nuget`, `uv`, `uv-adopt`,
+`npm-adopt-polyglot`, `npm-tools`, `nuget`, `ruby`, `uv`, `uv-adopt`,
 `uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`, or a
-label/path. `go` is a pinned no-op success. `--check` fails if the preset is
-stale and ignores selectors. `--offline` and `--frozen` run cache-only with
-no network fetches. `--fail-on`, `--report`, and Bazel options do not apply.
+label/path. `go` and `ruby` are pinned no-op successes; `ruby` pins come from
+`bundle lock` on the seed host. `--check` fails if the preset is stale and
+ignores selectors. `--offline` and `--frozen` run cache-only with no network
+fetches. `--fail-on`, `--report`, and Bazel options do not apply.
 Output: `--output text|json`. `json` reports per set plus a summary count.
 Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
 
 ```sh
 bazel run //cli/cli:dx -- update --check
 bazel run //cli/cli:dx -- update go
+bazel run //cli/cli:dx -- update ruby
 bazel run //cli/cli:dx -- update uv uv-tools
 bazel run //cli/cli:dx -- update npm-tools
 bazel run //cli/cli:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot

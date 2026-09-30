@@ -4,7 +4,7 @@ CURATOR_LABEL = "//:audit_curator"
 
 CURATOR_REL = "licenses.toml"
 
-CURATOR_ADVISORY_SETS = ["cargo", "npm", "maven", "nuget", "go"]
+CURATOR_ADVISORY_SETS = ["cargo", "npm", "maven", "nuget", "go", "rubygems"]
 
 CURATOR_SNAPSHOT_RELS = [
     ".dx/advisory/cargo.json",
@@ -17,6 +17,8 @@ CURATOR_SNAPSHOT_RELS = [
     ".dx/advisory/nuget.meta.json",
     ".dx/advisory/go.json",
     ".dx/advisory/go.meta.json",
+    ".dx/advisory/rubygems.json",
+    ".dx/advisory/rubygems.meta.json",
 ]
 
 INVENTORY_SHAPE = ["package", "set", "license", "versions", "text_present"]

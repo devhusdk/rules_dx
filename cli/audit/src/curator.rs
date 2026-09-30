@@ -2,7 +2,7 @@ pub const LICENSES_TOML_LABEL: &str = "//:audit_curator";
 
 pub const LICENSES_TOML_REL: &str = "licenses.toml";
 
-pub const CURATOR_ADVISORY_SETS: &[&str] = &["cargo", "npm", "maven", "nuget", "go"];
+pub const CURATOR_ADVISORY_SETS: &[&str] = &["cargo", "npm", "maven", "nuget", "go", "rubygems"];
 
 pub fn advisory_inputs(set: &str) -> [String; 2] {
     [
@@ -33,7 +33,7 @@ mod tests {
     fn advisory_sets_all_have_a_source_and_lock_coverage() {
         assert_eq!(
             CURATOR_ADVISORY_SETS,
-            &["cargo", "npm", "maven", "nuget", "go"]
+            &["cargo", "npm", "maven", "nuget", "go", "rubygems"]
         );
         for set in CURATOR_ADVISORY_SETS {
             assert!(

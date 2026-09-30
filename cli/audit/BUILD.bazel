@@ -28,6 +28,7 @@ dx_rust_crate(
         "src/locks_npm.rs",
         "src/locks_paket.rs",
         "src/locks_pnpm.rs",
+        "src/locks_ruby.rs",
         "src/locks_tests.rs",
         "src/locks_yarn.rs",
         "src/outcome.rs",

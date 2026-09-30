@@ -8,6 +8,7 @@ pub enum SetId {
     NpmAdoptPolyglot,
     NpmTools,
     NuGet,
+    Ruby,
     Uv,
     UvAdopt,
     UvAdoptPolyglot,
@@ -15,7 +16,7 @@ pub enum SetId {
 }
 
 impl SetId {
-    pub const ALL: [SetId; 12] = [
+    pub const ALL: [SetId; 13] = [
         SetId::Cargo,
         SetId::Go,
         SetId::Maven,
@@ -24,6 +25,7 @@ impl SetId {
         SetId::NpmAdoptPolyglot,
         SetId::NpmTools,
         SetId::NuGet,
+        SetId::Ruby,
         SetId::Uv,
         SetId::UvAdopt,
         SetId::UvAdoptPolyglot,
@@ -40,6 +42,7 @@ impl SetId {
             SetId::NpmAdoptPolyglot => "npm-adopt-polyglot",
             SetId::NpmTools => "npm-tools",
             SetId::NuGet => "nuget",
+            SetId::Ruby => "ruby",
             SetId::Uv => "uv",
             SetId::UvAdopt => "uv-adopt",
             SetId::UvAdoptPolyglot => "uv-adopt-polyglot",
@@ -69,6 +72,7 @@ impl SetId {
             "npm-adopt-polyglot" => Some(SetId::NpmAdoptPolyglot),
             "npm-tools" => Some(SetId::NpmTools),
             "nuget" => Some(SetId::NuGet),
+            "ruby" => Some(SetId::Ruby),
             "uv" => Some(SetId::Uv),
             "uv-adopt" => Some(SetId::UvAdopt),
             "uv-adopt-polyglot" => Some(SetId::UvAdoptPolyglot),
@@ -87,6 +91,7 @@ impl SetId {
             SetId::NpmAdoptPolyglot => &["examples/adopt-polyglot/package.json"],
             SetId::NpmTools => &["quality/tools/javascript/package.json"],
             SetId::NuGet => &["third_party/dotnet/paket.dependencies"],
+            SetId::Ruby => &["third_party/ruby/Gemfile"],
             SetId::Uv => &["python/tests/fixtures/hello/pyproject.toml"],
             SetId::UvAdopt => &["examples/adopt-python/pyproject.toml"],
             SetId::UvAdoptPolyglot => &["examples/adopt-polyglot/pyproject.toml"],
@@ -107,6 +112,10 @@ impl SetId {
             SetId::NpmAdoptPolyglot => &["examples/adopt-polyglot/pnpm-lock.yaml"],
             SetId::NpmTools => &["quality/tools/javascript/pnpm-lock.yaml"],
             SetId::NuGet => &["third_party/dotnet/paket.lock", "third_party/dotnet/deps"],
+            SetId::Ruby => &[
+                "third_party/ruby/Gemfile.lock",
+                "examples/adopt-ruby/Gemfile.lock",
+            ],
             SetId::Uv => &["python/tests/fixtures/hello/uv.lock"],
             SetId::UvAdopt => &["examples/adopt-python/uv.lock"],
             SetId::UvAdoptPolyglot => &["examples/adopt-polyglot/uv.lock"],
@@ -136,6 +145,9 @@ impl SetId {
             SetId::NuGet => {
                 "paket2bazel regeneration (bazel run @rules_dotnet//tools/paket2bazel -- ...)"
             }
+            SetId::Ruby => {
+                "pinned Gemfile.lock for the shared bundle hub (regenerate with `bundle lock` on the seed host)"
+            }
             SetId::Uv => "uv lock (uv lock --directory python/tests/fixtures/hello)",
             SetId::UvAdopt => "uv lock (uv lock --directory examples/adopt-python)",
             SetId::UvAdoptPolyglot => {
@@ -158,7 +170,7 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(SetId::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 12);
+        assert_eq!(seen.len(), 13);
         assert_eq!(SetId::parse("Cargo"), None);
         assert_eq!(SetId::parse("cargo-lock"), None);
         assert_eq!(SetId::parse(""), None);
@@ -178,6 +190,7 @@ mod tests {
                 "npm-adopt-polyglot",
                 "npm-tools",
                 "nuget",
+                "ruby",
                 "uv",
                 "uv-adopt",
                 "uv-adopt-polyglot",
@@ -264,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn repin_table_covers_twelve_dialects() {
+    fn repin_table_covers_thirteen_dialects() {
         let rows: Vec<(&str, &str, &str)> = SetId::ALL
             .iter()
             .map(|set| (set.name(), set.manifests()[0], set.locks()[0]))
@@ -303,6 +316,11 @@ mod tests {
                     "nuget",
                     "third_party/dotnet/paket.dependencies",
                     "third_party/dotnet/paket.lock"
+                ),
+                (
+                    "ruby",
+                    "third_party/ruby/Gemfile",
+                    "third_party/ruby/Gemfile.lock"
                 ),
                 (
                     "uv",

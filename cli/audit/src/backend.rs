@@ -93,6 +93,10 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
         "maven" => &["third_party/jvm/maven_install.json"],
         "nuget" => &["third_party/dotnet/paket.lock"],
         "go" => &["third_party/go/go.mod"],
+        "ruby" | "rubygems" => &[
+            "third_party/ruby/Gemfile.lock",
+            "examples/adopt-ruby/Gemfile.lock",
+        ],
         _ => &[],
     }
 }
@@ -241,6 +245,19 @@ mod tests {
         assert_eq!(vuln_locks("maven"), &["third_party/jvm/maven_install.json"]);
         assert_eq!(vuln_locks("nuget"), &["third_party/dotnet/paket.lock"]);
         assert_eq!(vuln_locks("go"), &["third_party/go/go.mod"]);
+        assert_eq!(
+            vuln_locks("ruby"),
+            &[
+                "third_party/ruby/Gemfile.lock",
+                "examples/adopt-ruby/Gemfile.lock",
+            ]
+        );
+        assert!(!is_empty_set("ruby"));
+        assert_eq!(
+            vuln_locks("rubygems"),
+            vuln_locks("ruby"),
+            "the family name resolves to the same locks as its set"
+        );
         assert!(!is_empty_set("go"));
         assert!(!is_empty_set("cargo"));
         assert!(!is_empty_set("npm-adopt"));
@@ -262,7 +279,8 @@ mod tests {
             "npm-tools",
             "maven",
             "nuget",
-            "go"
+            "go",
+            "ruby"
         ])
         .is_empty());
         assert_eq!(sets_without_coverage(["unknown-set"]), vec!["unknown-set"]);

@@ -177,7 +177,11 @@ pub(super) fn live_all_success_reports_per_set_and_exits_zero() {
         out.contains("updated go (pinned module lock; no-op success)"),
         "{out}"
     );
-    assert!(out.contains("12 succeeded, 0 failed, 0 blocked"), "{out}");
+    assert!(
+        out.contains("updated ruby (third_party/ruby/Gemfile.lock; no-op success)"),
+        "{out}"
+    );
+    assert!(out.contains("13 succeeded, 0 failed, 0 blocked"), "{out}");
     assert_eq!(err, "", "{err}");
     assert_eq!(runner.calls.borrow().len(), 11);
 }
@@ -189,7 +193,7 @@ pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("updated cargo ("), "{out}");
     assert!(out.contains("updated npm ("), "{out}");
-    assert!(out.contains("11 succeeded, 1 failed, 0 blocked"), "{out}");
+    assert!(out.contains("12 succeeded, 1 failed, 0 blocked"), "{out}");
     assert!(err.contains("update_failed"), "{err}");
     assert!(err.contains("failed to update maven"), "{err}");
     assert!(err.contains("update_recovery"), "{err}");

@@ -278,7 +278,7 @@ mod tests {
             "__fish_seen_subcommand_from hooks; and __fish_seen_subcommand_from run' -a 'pre-commit pre-push'",
             "__fish_seen_subcommand_from new' -a 'c cc cpp csharp fsharp go java javascript kotlin python rust scala typescript'",
             "__fish_seen_subcommand_from completion' -a 'bash fish powershell zsh'",
-            "__fish_seen_subcommand_from update bump' -a 'cargo go maven npm npm-adopt npm-adopt-polyglot npm-tools nuget uv uv-adopt uv-adopt-polyglot uv-tools'",
+            "__fish_seen_subcommand_from update bump' -a 'cargo go maven npm npm-adopt npm-adopt-polyglot npm-tools nuget ruby uv uv-adopt uv-adopt-polyglot uv-tools'",
             "(commandline -opc)",
         ] {
             assert!(

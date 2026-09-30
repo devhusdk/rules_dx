@@ -194,6 +194,11 @@ pub fn plan(set: SetId, request: &SetRequest, offline: bool) -> Result<BackendPl
             set: set.name(),
             reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump gomod:<module> <version>`",
         }),
+        (SetId::Ruby, SetRequest::Full) => Ok(BackendPlan::Noop),
+        (SetId::Ruby, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason: "ruby pins are exact in third_party/ruby/Gemfile; widen the requirement there and regenerate the lock with `bundle lock`",
+        }),
     }
 }
 
@@ -421,6 +426,25 @@ mod tests {
     }
 
     #[test]
+    fn ruby_full_is_pinned_noop_success() {
+        assert_eq!(
+            plan(SetId::Ruby, &SetRequest::Full, false).expect("ruby full"),
+            BackendPlan::Noop
+        );
+        let error = plan(
+            SetId::Ruby,
+            &SetRequest::Packages(vec!["rspec-core".to_owned()]),
+            false,
+        )
+        .expect_err("ruby selective is seed-host only");
+        assert!(
+            matches!(error, BackendError::Unsupported { .. }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("bundle lock"), "{error}");
+    }
+
+    #[test]
     fn non_npm_selective_reports_unsupported_never_full() {
         for (set, packages) in [
             (
@@ -438,6 +462,10 @@ mod tests {
             (
                 SetId::Go,
                 SetRequest::Packages(vec!["rules_dx/go/tests/fixtures/hello".to_owned()]),
+            ),
+            (
+                SetId::Ruby,
+                SetRequest::Packages(vec!["rspec-core".to_owned()]),
             ),
             (
                 SetId::NpmTools,
@@ -511,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn offline_forces_cache_only_except_go_noop() {
+    fn offline_forces_cache_only_except_pinned_noops() {
         for set in [
             SetId::Cargo,
             SetId::Npm,
@@ -543,10 +571,13 @@ mod tests {
             matches!(selective, BackendError::OfflineRequired { .. }),
             "{selective:?}"
         );
-        assert_eq!(
-            plan(SetId::Go, &SetRequest::Full, true).expect("go offline noop"),
-            BackendPlan::Noop
-        );
+        for set in [SetId::Go, SetId::Ruby] {
+            assert_eq!(
+                plan(set, &SetRequest::Full, true).expect("pinned noop offline"),
+                BackendPlan::Noop,
+                "{set:?}"
+            );
+        }
         for (set, packages) in [
             (
                 SetId::Cargo,
@@ -563,6 +594,10 @@ mod tests {
             (
                 SetId::Go,
                 SetRequest::Packages(vec!["example.com/mod".to_owned()]),
+            ),
+            (
+                SetId::Ruby,
+                SetRequest::Packages(vec!["rspec-core".to_owned()]),
             ),
             (
                 SetId::NpmTools,

@@ -14,8 +14,21 @@ pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
         "go" => go_in_scope(scope, version),
         "maven" => maven_in_scope(scope, version),
         "nuget" => nuget_in_scope(scope, version),
+        "ruby" => ruby_in_scope(scope, version),
         _ => scope.trim() == version.trim() && !scope.trim().is_empty(),
     }
+}
+
+pub fn ruby_in_scope(scope: &str, version: &str) -> bool {
+    let scope = scope.trim();
+    let version = version.trim();
+    if scope == version {
+        return true;
+    }
+    if scope.contains(',') || scope.contains(['<', '>', '=', '~', '^', '*']) {
+        return version_in_scope(scope, version);
+    }
+    false
 }
 
 pub fn match_packages(

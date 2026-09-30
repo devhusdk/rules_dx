@@ -36,16 +36,18 @@ do not apply.
 `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot. Sets
 without a snapshot are listed as `no advisory coverage for <sets>`.
 
-A scope selects sets by path, and a path can select more than one. Each set
-then reads its own lockfile, so a scope narrows which sets run, never which
-packages inside a lockfile.
+A scope selects sets by path, and a path can select more than one. A `...` scope
+selects its own set plus every set nested under it, so `//quality/...` selects
+`cargo`, `npm-tools`, and `uv-tools`. A scope without `...` names one package
+and selects only that package's set. Each set then reads its own lockfile, so a
+scope narrows which sets run, never which packages inside a lockfile.
 
 ```text
 //cli/..., //docs/ir/..., //env/..., //generation/..., //quality/..., //rust/...      cargo
 //examples/adopt-rust/...                                                             cargo
 //csharp/..., //fsharp/..., //third_party/dotnet/...                                  nuget
 //examples/adopt-csharp/..., //examples/adopt-fsharp/...                              nuget
-//go/...                                                                              go
+//go/..., //third_party/go/...                                                         go
 //examples/adopt-go/...                                                               go
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
 //examples/adopt-java/..., //examples/adopt-kotlin/..., //examples/adopt-scala/...    maven

@@ -275,6 +275,49 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
     }
 }
 
+const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
+    ("quality/tools/javascript", &[SetId::NpmTools]),
+    ("quality/tools/python", &[SetId::UvTools]),
+    ("python/tests/fixtures/hello", &[SetId::Uv]),
+    ("examples/adopt-python", &[SetId::UvAdopt]),
+    ("examples/adopt-js-ts", &[SetId::NpmAdopt]),
+    ("examples/adopt-rust", &[SetId::Cargo]),
+    ("examples/adopt-java", &[SetId::Maven]),
+    ("examples/adopt-kotlin", &[SetId::Maven]),
+    ("examples/adopt-scala", &[SetId::Maven]),
+    ("examples/adopt-csharp", &[SetId::NuGet]),
+    ("examples/adopt-fsharp", &[SetId::NuGet]),
+    ("examples/adopt-go", &[SetId::Go]),
+    (
+        "examples/adopt-polyglot",
+        &[SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot],
+    ),
+    ("python", &[SetId::Uv]),
+    ("docs/ir", &[SetId::Cargo]),
+    ("rust", &[SetId::Cargo]),
+    ("cli", &[SetId::Cargo]),
+    ("generation", &[SetId::Cargo]),
+    ("env", &[SetId::Cargo]),
+    ("quality", &[SetId::Cargo]),
+    ("javascript", &[SetId::Npm]),
+    ("typescript", &[SetId::Npm]),
+    ("astro", &[SetId::Npm]),
+    ("svelte", &[SetId::Npm]),
+    ("vue", &[SetId::Npm]),
+    ("mdx", &[SetId::Npm]),
+    ("java", &[SetId::Maven]),
+    ("kotlin", &[SetId::Maven]),
+    ("scala", &[SetId::Maven]),
+    ("third_party/jvm", &[SetId::Maven]),
+    ("csharp", &[SetId::NuGet]),
+    ("fsharp", &[SetId::NuGet]),
+    ("third_party/dotnet", &[SetId::NuGet]),
+    ("paket-files", &[SetId::NuGet]),
+    ("go", &[SetId::Go]),
+    ("third_party/go", &[SetId::Go]),
+];
+
+/// A `...` scope owns its own set plus every set nested under it.
 pub fn owning_sets(target: &str) -> Vec<SetId> {
     if target == "//..." {
         return SetId::ALL.to_vec();
@@ -288,71 +331,32 @@ pub fn owning_sets(target: &str) -> Vec<SetId> {
     {
         return root_owning_sets(target);
     }
-    if has_prefix(&package, "quality/tools/javascript") {
-        return vec![SetId::NpmTools];
-    }
-    if has_prefix(&package, "quality/tools/python") {
-        return vec![SetId::UvTools];
-    }
-    if has_prefix(&package, "python/tests/fixtures/hello") {
-        return vec![SetId::Uv];
-    }
-    if has_prefix(&package, "examples/adopt-python") {
-        return vec![SetId::UvAdopt];
-    }
-    if has_prefix(&package, "examples/adopt-js-ts") {
-        return vec![SetId::NpmAdopt];
-    }
-    if has_prefix(&package, "examples/adopt-rust") {
-        return vec![SetId::Cargo];
-    }
-    if has_prefix(&package, "examples/adopt-java")
-        || has_prefix(&package, "examples/adopt-kotlin")
-        || has_prefix(&package, "examples/adopt-scala")
-    {
-        return vec![SetId::Maven];
-    }
-    if has_prefix(&package, "examples/adopt-csharp")
-        || has_prefix(&package, "examples/adopt-fsharp")
-    {
-        return vec![SetId::NuGet];
-    }
-    if has_prefix(&package, "examples/adopt-go") {
-        return vec![SetId::Go];
-    }
-    if has_prefix(&package, "examples/adopt-polyglot") {
-        return vec![SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot];
-    }
-    if has_prefix(&package, "python") {
-        return vec![SetId::Uv];
-    }
-    if has_prefix(&package, "docs/ir") {
-        return vec![SetId::Cargo];
-    }
-    for prefix in ["rust", "cli", "generation", "env", "quality"] {
+    let mut owners: BTreeSet<SetId> = BTreeSet::new();
+    for (prefix, sets) in OWNING_PREFIXES {
         if has_prefix(&package, prefix) {
-            return vec![SetId::Cargo];
+            owners.extend(sets.iter().copied());
+            break;
         }
     }
-    for prefix in ["javascript", "typescript", "astro", "svelte", "vue", "mdx"] {
-        if has_prefix(&package, prefix) {
-            return vec![SetId::Npm];
+    if is_recursive(target) {
+        for (prefix, sets) in OWNING_PREFIXES {
+            if has_prefix(prefix, &package) {
+                owners.extend(sets.iter().copied());
+            }
         }
     }
-    for prefix in ["java", "kotlin", "scala", "third_party/jvm"] {
-        if has_prefix(&package, prefix) {
-            return vec![SetId::Maven];
-        }
+    SetId::ALL
+        .iter()
+        .copied()
+        .filter(|set| owners.contains(set))
+        .collect()
+}
+
+fn is_recursive(target: &str) -> bool {
+    if let Some(re) = recursive_suffix_re() {
+        return re.is_match(target);
     }
-    for prefix in ["csharp", "fsharp", "third_party/dotnet", "paket-files"] {
-        if has_prefix(&package, prefix) {
-            return vec![SetId::NuGet];
-        }
-    }
-    if has_prefix(&package, "go") {
-        return vec![SetId::Go];
-    }
-    vec![]
+    target.ends_with("/...")
 }
 
 fn recursive_suffix_re() -> Option<&'static Regex> {
@@ -755,6 +759,72 @@ mod tests {
         assert!(owning_sets("//examples/adopt-cpp/solo:solo").is_empty());
         assert!(owning_sets("//examples/adopt-powershell/greet:greet").is_empty());
         assert!(owning_sets("//third_party/powershell:PSGallery.lock.json").is_empty());
+    }
+
+    #[test]
+    fn a_recursive_scope_owns_the_sets_nested_under_it() {
+        assert_eq!(
+            owning_sets("//quality/..."),
+            vec![SetId::Cargo, SetId::NpmTools, SetId::UvTools]
+        );
+        assert_eq!(
+            owning_sets("//python/..."),
+            vec![SetId::Uv],
+            "the uv set and its nested fixture set are the same set"
+        );
+        assert_eq!(owning_sets("//rust/..."), vec![SetId::Cargo]);
+        assert_eq!(owning_sets("//javascript/..."), vec![SetId::Npm]);
+        assert_eq!(
+            owning_sets("//third_party/..."),
+            vec![SetId::Go, SetId::Maven, SetId::NuGet]
+        );
+        assert_eq!(
+            owning_sets("//docs/..."),
+            vec![SetId::Cargo],
+            "docs/ir is a cargo crate"
+        );
+        assert_eq!(
+            owning_sets("//examples/..."),
+            vec![
+                SetId::Cargo,
+                SetId::Go,
+                SetId::Maven,
+                SetId::NpmAdopt,
+                SetId::NpmAdoptPolyglot,
+                SetId::NuGet,
+                SetId::UvAdopt,
+                SetId::UvAdoptPolyglot,
+            ]
+        );
+    }
+
+    #[test]
+    fn a_single_package_scope_owns_only_its_own_set() {
+        assert_eq!(
+            owning_sets("//quality/tools/javascript"),
+            vec![SetId::NpmTools]
+        );
+        assert_eq!(
+            owning_sets("//quality/tools"),
+            vec![SetId::Cargo],
+            "a non-recursive scope names one package, so the broad arm wins"
+        );
+        assert_eq!(
+            owning_sets("//quality/tools/javascript/bin:dx"),
+            vec![SetId::NpmTools],
+            "a target below a nested set still resolves to that set"
+        );
+        assert_eq!(
+            owning_sets("//third_party/go/..."),
+            vec![SetId::Go],
+            "the go module path owns go, not the top-level go/ rules package"
+        );
+        assert_eq!(
+            owning_sets("//quality/markdown/..."),
+            vec![SetId::Cargo],
+            "a recursive scope under a broad arm keeps that arm"
+        );
+        assert!(owning_sets("//examples/adopt-ruby/...").is_empty());
     }
 
     #[test]

@@ -1217,6 +1217,11 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
             "{scope} has no dependency set"
         );
     }
+    assert_eq!(
+        super::resolve_audit_sets(&["//quality/...".to_owned()]).expect("quality tree"),
+        vec![SetId::Cargo, SetId::NpmTools, SetId::UvTools],
+        "a recursive scope must not skip the lockfiles nested under it"
+    );
 }
 
 #[test]

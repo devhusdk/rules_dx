@@ -1139,3 +1139,129 @@ fn the_usage_banner_names_every_command() {
         "the usage banner must list the registry commands as {marker}"
     );
 }
+
+const SCOPE_PAGE_POLICIES: [(&str, &[&str]); 7] = [
+    ("No Scope Means `//...`", &["default-//..."]),
+    ("No Scope Means The Repository", &["default-repo"]),
+    (
+        "Repository-Wide Or One Exact Label",
+        &["default-repo|exact-label"],
+    ),
+    (
+        "Set Selectors",
+        &["selector-default-all", "require-selector+version"],
+    ),
+    (
+        "Required Arguments",
+        &[
+            "require",
+            "require-label",
+            "require-file+label",
+            "optional-name",
+        ],
+    ),
+    ("No Scopes", &["reject"]),
+    ("Raw Bazel Args", &["passthrough"]),
+];
+
+fn scope_page() -> String {
+    std::fs::read_to_string(docs_dir().join("scope-defaults.md"))
+        .expect("scope-defaults.md ships as test data")
+}
+
+fn named_commands(text: &str) -> Vec<String> {
+    backticked(text)
+        .into_iter()
+        .filter_map(|token| token.strip_prefix("dx ").map(ToOwned::to_owned))
+        .collect()
+}
+
+fn scope_page_section(page: &str, heading: &str) -> String {
+    sections(page)
+        .into_iter()
+        .find(|(name, _)| name == heading)
+        .map(|(_, body)| body)
+        .unwrap_or_else(|| panic!("scope-defaults.md has no `{heading}` section"))
+}
+
+#[test]
+fn scope_page_sections_match_the_registry_policies() {
+    let page = scope_page();
+    for (heading, policies) in SCOPE_PAGE_POLICIES {
+        let mut expected: Vec<String> = Command::value_variants()
+            .iter()
+            .copied()
+            .filter(|command| policies.contains(&command.scope_policy()))
+            .map(|command| command.name().to_owned())
+            .collect();
+        expected.sort();
+        let mut found = named_commands(&scope_page_section(&page, heading));
+        found.sort();
+        assert_eq!(
+            found, expected,
+            "docs/cli/commands/scope-defaults.md section `{heading}` must name exactly the commands whose scope policy is {policies:?}"
+        );
+    }
+}
+
+#[test]
+fn scope_page_names_every_command_exactly_once() {
+    let page = scope_page();
+    let mut seen: Vec<String> = Vec::new();
+    for (heading, _) in SCOPE_PAGE_POLICIES {
+        seen.extend(named_commands(&scope_page_section(&page, heading)));
+    }
+    let mut expected: Vec<String> = Command::value_variants()
+        .iter()
+        .map(|command| command.name().to_owned())
+        .collect();
+    expected.sort();
+    seen.sort();
+    assert_eq!(
+        seen, expected,
+        "the scope-defaults.md policy sections must classify every command once"
+    );
+    let shapes = scope_page_section(&page, "Scope Shapes");
+    for name in named_commands(&shapes) {
+        assert!(
+            Command::parse(&name).is_some(),
+            "scope-defaults.md Scope Shapes names an unknown command `dx {name}`"
+        );
+    }
+}
+
+#[test]
+fn scope_page_here_bullet_names_exactly_the_here_commands() {
+    let page = scope_page();
+    let body = scope_page_section(&page, "Scope Shapes");
+    let mut bullets = body.lines().filter(|line| line.starts_with("- `--here`"));
+    let mut text = bullets
+        .next()
+        .expect("Scope Shapes documents `--here` in a bullet")
+        .to_owned();
+    assert!(
+        bullets.next().is_none(),
+        "Scope Shapes has two `--here` bullets"
+    );
+    let rest = body
+        .lines()
+        .skip_while(|line| !line.starts_with("- `--here`"))
+        .skip(1)
+        .take_while(|line| line.starts_with("  "));
+    for line in rest {
+        text.push_str(line);
+    }
+    let mut found = named_commands(&text);
+    found.sort();
+    let mut expected: Vec<String> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| command.supports_here())
+        .map(|command| command.name().to_owned())
+        .collect();
+    expected.sort();
+    assert_eq!(
+        found, expected,
+        "the scope-defaults.md `--here` bullet must name every command that accepts `--here`, and nothing else"
+    );
+}

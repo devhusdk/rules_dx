@@ -45,28 +45,71 @@ pub fn is_skewed(pin: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::args::command::SkewKind;
+    use clap::ValueEnum;
 
     const SKEWED: bool = true;
     const CLEAN: bool = false;
 
+    const PROCEED: &[Command] = &[Command::Version, Command::Status, Command::Completion];
+
+    const WARN: &[Command] = &[
+        Command::Check,
+        Command::Security,
+        Command::License,
+        Command::Owners,
+        Command::Deps,
+        Command::Why,
+    ];
+
+    const REFUSE: &[Command] = &[
+        Command::Build,
+        Command::Test,
+        Command::Coverage,
+        Command::Run,
+        Command::Deploy,
+        Command::Generate,
+        Command::Fix,
+        Command::Format,
+        Command::Lint,
+        Command::Typecheck,
+        Command::Clean,
+        Command::Update,
+        Command::Bump,
+        Command::Migrate,
+        Command::New,
+        Command::Upgrade,
+        Command::Codegen,
+        Command::Env,
+        Command::Setup,
+        Command::Init,
+        Command::Hooks,
+        Command::Watch,
+        Command::Docs,
+        Command::Bazel,
+    ];
+
+    fn with_skew(kind: SkewKind) -> Vec<Command> {
+        let mut found: Vec<Command> = Command::value_variants()
+            .into_iter()
+            .copied()
+            .filter(|command| command.meta().skew == kind)
+            .collect();
+        found.sort_by_key(|command| command.name());
+        found
+    }
+
+    fn sorted(list: &[Command]) -> Vec<Command> {
+        let mut found = list.to_vec();
+        found.sort_by_key(|command| command.name());
+        found
+    }
+
     #[test]
     fn clean_tree_proceeds_on_every_command() {
-        for command in [
-            Command::Build,
-            Command::Generate,
-            Command::Update,
-            Command::Bump,
-            Command::Check,
-            Command::Security,
-            Command::License,
-            Command::Owners,
-            Command::Version,
-            Command::Status,
-            Command::Completion,
-            Command::Bazel,
-        ] {
+        for command in Command::value_variants() {
             assert_eq!(
-                disposition(command, false, CLEAN),
+                disposition(*command, false, CLEAN),
                 SkewDisposition::Proceed,
                 "{command:?}"
             );
@@ -75,9 +118,9 @@ mod tests {
 
     #[test]
     fn repair_path_stays_usable_on_skew() {
-        for command in [Command::Version, Command::Status, Command::Completion] {
+        for command in PROCEED {
             assert_eq!(
-                disposition(command, false, SKEWED),
+                disposition(*command, false, SKEWED),
                 SkewDisposition::Proceed,
                 "{command:?}"
             );
@@ -86,16 +129,9 @@ mod tests {
 
     #[test]
     fn read_only_commands_warn_on_skew() {
-        for command in [
-            Command::Check,
-            Command::Security,
-            Command::License,
-            Command::Owners,
-            Command::Deps,
-            Command::Why,
-        ] {
+        for command in WARN {
             assert_eq!(
-                disposition(command, false, SKEWED),
+                disposition(*command, false, SKEWED),
                 SkewDisposition::Warn,
                 "{command:?}"
             );
@@ -104,37 +140,32 @@ mod tests {
 
     #[test]
     fn mutating_commands_refuse_on_skew() {
-        for command in [
-            Command::Build,
-            Command::Test,
-            Command::Coverage,
-            Command::Run,
-            Command::Generate,
-            Command::Fix,
-            Command::Format,
-            Command::Lint,
-            Command::Typecheck,
-            Command::Clean,
-            Command::Update,
-            Command::Bump,
-            Command::Migrate,
-            Command::New,
-            Command::Upgrade,
-            Command::Codegen,
-            Command::Env,
-            Command::Setup,
-            Command::Init,
-            Command::Hooks,
-            Command::Watch,
-            Command::Docs,
-            Command::Bazel,
-        ] {
+        for command in REFUSE {
             assert_eq!(
-                disposition(command, false, SKEWED),
+                disposition(*command, false, SKEWED),
                 SkewDisposition::Refuse,
                 "{command:?}"
             );
         }
+    }
+
+    #[test]
+    fn the_three_lists_are_exactly_the_registry_skew_kinds() {
+        assert_eq!(
+            with_skew(SkewKind::Proceed),
+            sorted(PROCEED),
+            "the PROCEED list must be every command the registry marks Proceed"
+        );
+        assert_eq!(
+            with_skew(SkewKind::Warn),
+            sorted(WARN),
+            "the WARN list must be every command the registry marks Warn"
+        );
+        assert_eq!(
+            with_skew(SkewKind::Refuse),
+            sorted(REFUSE),
+            "the REFUSE list must be every command the registry marks Refuse"
+        );
     }
 
     #[test]

@@ -48,6 +48,7 @@ dx_rust_crate(
     deps = [
         "cargo-lock",
         "chrono",
+        "mvn_version",
         "osv",
         "packageurl",
         "regex",

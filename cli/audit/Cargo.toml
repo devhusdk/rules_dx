@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 cargo-lock = "11"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+mvn_version = "0.1"
 osv = { version = "0.3", default-features = false, features = ["schema"] }
 packageurl = { version = "0.7", features = ["serde"] }
 regex = "1"

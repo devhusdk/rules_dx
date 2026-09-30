@@ -512,6 +512,31 @@ fn maven_version_ordering_follows_upstream_subset() {
 }
 
 #[test]
+fn maven_ordering_matches_comparable_version() {
+    assert_eq!(
+        maven_compare("1.0.0.beta", "1-beta"),
+        std::cmp::Ordering::Equal
+    );
+    assert_eq!(
+        maven_compare("2.0.0.beta", "2-beta"),
+        std::cmp::Ordering::Equal
+    );
+    assert_eq!(
+        maven_compare("1.0.0.X1", "1.0.0-X1"),
+        std::cmp::Ordering::Equal
+    );
+    assert!(maven_version_eq("1.0.0.Final", "1.0.0"));
+    assert!(maven_version_eq("2.4.0.RELEASE", "2.4.0"));
+    assert!(maven_version_eq("1.0.0-cr1", "1.0.0-rc1"));
+    assert!(maven_version_eq("1.0.0-M1", "1.0.0-milestone-1"));
+    assert!(maven_compare("1.0_rc1", "1.0") == std::cmp::Ordering::Greater);
+    assert!(maven_compare("1.0_rc1", "1.0-cr1") == std::cmp::Ordering::Greater);
+    assert!(maven_compare("0-rc", "0.milestone") == std::cmp::Ordering::Greater);
+    assert!(maven_compare("1.0.0.beta", "1-alpha") == std::cmp::Ordering::Greater);
+    assert!(maven_compare("1.0.0-beta", "1.0.0-alpha") == std::cmp::Ordering::Greater);
+}
+
+#[test]
 fn maven_ranges_cover_intervals_unions_and_edges() {
     assert!(maven_in_scope("[1.0,2.0]", "1.0"));
     assert!(maven_in_scope("[1.0,2.0]", "2.0"));

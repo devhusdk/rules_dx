@@ -98,6 +98,16 @@ pub fn is_empty_set(set: &str) -> bool {
     vuln_locks(set).is_empty()
 }
 
+pub fn sets_without_coverage<'a>(sets: impl IntoIterator<Item = &'a str>) -> Vec<&'a str> {
+    let mut out: Vec<&'a str> = Vec::new();
+    for set in sets {
+        if is_empty_set(set) && !out.contains(&set) {
+            out.push(set);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,6 +229,16 @@ mod tests {
         assert!(!is_empty_set("go"));
         assert!(!is_empty_set("cargo"));
         assert!(is_empty_set("unknown-set"));
+    }
+
+    #[test]
+    fn sets_without_coverage_names_each_gap_once() {
+        assert_eq!(
+            sets_without_coverage(["npm-adopt", "cargo", "npm-adopt", "uv", "npm"]),
+            vec!["npm-adopt", "uv"]
+        );
+        assert!(sets_without_coverage(["cargo", "npm", "maven", "nuget", "go"]).is_empty());
+        assert_eq!(sets_without_coverage(["unknown-set"]), vec!["unknown-set"]);
     }
 
     #[test]

@@ -209,6 +209,13 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running audit security for //..."), "{out}");
     assert!(out.contains("audit security: clean"), "{out}");
+    assert!(
+        out.contains(
+            "audit security: clean; no advisory coverage for npm-adopt, npm-adopt-polyglot, \
+             npm-tools, uv, uv-adopt, uv-adopt-polyglot, uv-tools"
+        ),
+        "{out}"
+    );
     assert_eq!(err, "", "{err}");
     assert_eq!(runner.calls.borrow().len(), 1);
     assert_eq!(runner.calls.borrow()[0][0], "/hermetic/gitleaks");
@@ -570,6 +577,36 @@ pub(super) fn audit_live_license_clean_and_denied() {
     );
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit license: clean"), "{out}");
+}
+
+#[test]
+fn audit_live_license_names_uncovered_dependency_sets() {
+    let runner = AuditRunner::clean();
+    let (code, out, err) = run_with(
+        &["license", "//go/tests/fixtures/hello:hello"],
+        &runner,
+        &|harness| {
+            write_go_mod(harness);
+            harness.write_source(
+                "licenses.toml",
+                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//go/tests/fixtures/hello:hello\"]\n",
+            );
+        },
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("audit license: clean"), "{out}");
+    assert!(!out.contains("no advisory coverage"), "{out}");
+
+    let runner = AuditRunner::clean();
+    let (code, _out, err) = run_with(&["license"], &runner, &clean_workspace);
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains(
+            "no advisory coverage for npm-adopt, npm-adopt-polyglot, npm-tools, uv, \
+             uv-adopt, uv-adopt-polyglot, uv-tools"
+        ),
+        "{err}"
+    );
 }
 
 #[test]

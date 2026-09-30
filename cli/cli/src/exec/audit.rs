@@ -402,6 +402,13 @@ fn meets_audit_threshold(level: &str, fail_on: Threshold) -> bool {
     dx_output::meets_threshold(severity, fail_on)
 }
 
+fn coverage_detail(base: String, uncovered: &[&str]) -> String {
+    if uncovered.is_empty() {
+        return base;
+    }
+    format!("{base}; no advisory coverage for {}", uncovered.join(", "))
+}
+
 struct SecurityResult {
     status: dx_audit::outcome::FamilyStatus,
     diagnostics: Vec<DiagnosticEvent>,
@@ -621,6 +628,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
+    let uncovered = dx_audit::backend::sets_without_coverage(sets.iter().map(|set| set.name()));
     for set in sets {
         if dx_audit::backend::is_empty_set(set.name()) {
             continue;
@@ -724,7 +732,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     } else {
         dx_audit::outcome::FamilyStatus::Clean
     };
-    let detail = if has_incomplete {
+    let base_detail = if has_incomplete {
         incomplete
             .clone()
             .unwrap_or_else(|| "incomplete assessment".to_owned())
@@ -740,6 +748,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     } else {
         "clean".to_owned()
     };
+    let detail = coverage_detail(base_detail, &uncovered);
     SecurityResult {
         status,
         diagnostics,
@@ -1080,11 +1089,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         let message = family_messages
             .get(family_name)
             .cloned()
-            .unwrap_or_default();
+            .unwrap_or_else(|| "clean".to_owned());
         match outcome.status {
             dx_audit::outcome::FamilyStatus::Clean => {
                 if verbose {
-                    let _ = writeln!(out, "audit {family_name}: clean");
+                    let _ = writeln!(out, "audit {family_name}: {message}");
                 }
             }
             dx_audit::outcome::FamilyStatus::Findings

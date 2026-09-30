@@ -824,6 +824,44 @@ fn audit_partial_reports_are_not_authoritative() {
 }
 
 #[test]
+fn audit_set_coverage_is_decided_once_and_matches_the_set_registry() {
+    let names: Vec<&str> = dx_update::sets::SetId::ALL
+        .iter()
+        .map(|set| set.name())
+        .collect();
+    for name in &names {
+        assert_eq!(
+            dx_audit::backend::is_empty_set(name),
+            dx_audit::advisory::advisory_source(name).is_none(),
+            "{name} needs lock coverage and an advisory source together"
+        );
+    }
+    let covered: std::collections::BTreeSet<&str> = names
+        .iter()
+        .copied()
+        .filter(|name| !dx_audit::backend::is_empty_set(name))
+        .collect();
+    let curated: std::collections::BTreeSet<&str> = dx_audit::curator::CURATOR_ADVISORY_SETS
+        .iter()
+        .copied()
+        .collect();
+    assert_eq!(curated, covered);
+    let uncovered = dx_audit::backend::sets_without_coverage(names.iter().copied());
+    assert_eq!(
+        uncovered,
+        names
+            .iter()
+            .copied()
+            .filter(|name| !covered.contains(name))
+            .collect::<Vec<&str>>()
+    );
+    assert!(
+        !uncovered.is_empty(),
+        "every uncovered set must be reported"
+    );
+}
+
+#[test]
 fn audit_errors_stay_typed_with_stable_display() {
     use super::AuditError;
     use std::error::Error as _;

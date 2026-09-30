@@ -30,7 +30,7 @@ mod tests {
     }
 
     #[test]
-    fn advisory_sets_cover_all_registry_sets() {
+    fn advisory_sets_all_have_a_source_and_lock_coverage() {
         assert_eq!(
             CURATOR_ADVISORY_SETS,
             &["cargo", "npm", "maven", "nuget", "go"]

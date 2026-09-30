@@ -57,6 +57,7 @@ pub(super) fn run_license(
     let mut licensed_all: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
     let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
         std::collections::BTreeMap::new();
+    let uncovered = dx_audit::backend::sets_without_coverage(sets.iter().map(|set| set.name()));
     for set in sets {
         if dx_audit::backend::is_empty_set(set.name()) {
             continue;
@@ -294,7 +295,7 @@ pub(super) fn run_license(
     } else {
         dx_audit::outcome::FamilyStatus::Clean
     };
-    let detail = if has_incomplete {
+    let base_detail = if has_incomplete {
         incomplete
             .clone()
             .unwrap_or_else(|| "incomplete assessment".to_owned())
@@ -303,6 +304,7 @@ pub(super) fn run_license(
     } else {
         "clean".to_owned()
     };
+    let detail = coverage_detail(base_detail, &uncovered);
     LicenseResult {
         status,
         packages: packages_all,

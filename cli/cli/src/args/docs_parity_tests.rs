@@ -1204,8 +1204,7 @@ fn security_docs_page_names_exactly_the_audited_sets() {
     );
 }
 
-#[test]
-fn security_docs_scope_table_matches_owning_sets() {
+fn security_scope_table() -> Vec<(String, String)> {
     let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
         .expect("audit page ships as test data");
     let body = sections(&page)
@@ -1253,6 +1252,28 @@ fn security_docs_scope_table_matches_owning_sets() {
         break;
     }
     assert!(!rows.is_empty(), "the scope table ships");
+    rows
+}
+
+fn documented_path(path: &str) -> String {
+    let trimmed = path.trim_start_matches('/');
+    trimmed.strip_suffix("/...").unwrap_or(trimmed).to_owned()
+}
+
+fn encloses(prefix: &str, path: &str) -> bool {
+    path == prefix || path.starts_with(&format!("{prefix}/"))
+}
+
+fn set_names(sets: &[dx_update::sets::SetId]) -> Vec<String> {
+    let mut names: Vec<String> = sets.iter().map(|set| (*set).name().to_owned()).collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
+#[test]
+fn security_docs_scope_table_matches_owning_sets() {
+    let rows = security_scope_table();
     for (path, set) in &rows {
         let expected = dx_update::sets::SetId::parse(set).expect("known set");
         assert!(
@@ -1284,6 +1305,66 @@ fn security_docs_scope_table_matches_owning_sets() {
                 .any(|path| path == prefix || path == &format!("{prefix}/...")),
             "OWNING_PREFIXES maps {prefix:?}, which the scope table does not name"
         );
+    }
+}
+
+#[test]
+fn security_scope_never_owns_a_set_the_scope_table_does_not_name() {
+    let rows = security_scope_table();
+    let table: Vec<(String, dx_update::sets::SetId)> = rows
+        .iter()
+        .map(|(path, set)| {
+            (
+                documented_path(path),
+                dx_update::sets::SetId::parse(set).expect("known set"),
+            )
+        })
+        .collect();
+    let mut scopes: Vec<String> = table.iter().map(|(path, _)| path.clone()).collect();
+    for (path, _) in &table {
+        let mut parent = path.as_str();
+        while let Some((head, _)) = parent.rsplit_once('/') {
+            parent = head;
+            scopes.push(parent.to_owned());
+        }
+    }
+    scopes.sort();
+    scopes.dedup();
+    for scope in &scopes {
+        let under = set_names(
+            &table
+                .iter()
+                .filter(|(path, _)| encloses(scope, path))
+                .map(|(_, set)| *set)
+                .collect::<Vec<_>>(),
+        );
+        let near = set_names(
+            &table
+                .iter()
+                .filter(|(path, _)| encloses(scope, path) || encloses(path, scope))
+                .map(|(_, set)| *set)
+                .collect::<Vec<_>>(),
+        );
+        let got = set_names(&dx_update::selector::owning_sets(&format!("//{scope}/...")));
+        for set in &got {
+            assert!(
+                near.contains(set),
+                "//{scope}/... selects {set}, which the scope table places at {scope}, under it, or above it"
+            );
+        }
+        for set in &under {
+            assert!(
+                got.contains(set),
+                "//{scope}/... must select {set}, which the scope table places under {scope}"
+            );
+        }
+        let plain = set_names(&dx_update::selector::owning_sets(&format!("//{scope}")));
+        for set in &plain {
+            assert!(
+                near.contains(set),
+                "//{scope} selects {set}, which no scope table path places at {scope}, under it, or above it"
+            );
+        }
     }
 }
 

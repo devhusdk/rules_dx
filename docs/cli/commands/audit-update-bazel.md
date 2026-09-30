@@ -39,10 +39,13 @@ the `ruby` set uses the `rubygems` snapshot, and the `powershell` set uses the
 `no advisory coverage for <sets>`.
 
 A scope selects sets by path, and a path can select more than one. A `...` scope
-selects its own set plus every set nested under it, so `//quality/...` selects
-`cargo`, `npm-tools`, and `uv-tools`. A scope without `...` names one package
-and selects only that package's set. Each set then reads its own lockfile, so a
-scope narrows which sets run, never which packages inside a lockfile.
+selects the set of the nearest path above it in the table plus every set nested
+under it, so `//quality/...` selects `cargo`, `npm-tools`, and `uv-tools`, and
+`//third_party/...`, a path the table does not name, selects `go`, `maven`,
+`nuget`, `powershell`, and `ruby`. A package under a path in the table selects
+that path's set, so `//cli/cli` selects `cargo`. Each set then reads its own
+lockfile, so a scope narrows which sets run, never which packages inside a
+lockfile.
 
 ```text
 //cli/..., //docs/ir/..., //env/..., //generation/..., //quality/..., //rust/...      cargo
@@ -67,8 +70,8 @@ scope narrows which sets run, never which packages inside a lockfile.
 
 A scope that owns no set exits `2` and names the audited sets. `//...` and
 `MODULE.bazel` select every set. The four `uv` sets resolve but have no
-snapshot, so they report `no advisory coverage`. Every path outside the table
-owns no set.
+snapshot, so they report `no advisory coverage`. A path the table does not name,
+and that has no path from the table under it, owns no set.
 
 `dx security` and `dx license` read `pnpm-lock.yaml`, `package-lock.json`, and
 `yarn.lock` for the `npm` set, and the lockfile of every other set. The `ruby`

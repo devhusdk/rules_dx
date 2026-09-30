@@ -217,6 +217,141 @@ fn a_profile_flag_is_advertised_exactly_where_the_registry_declares_it() {
     }
 }
 
+fn usage_banner() -> String {
+    super::super::help::usage_banner()
+}
+
+fn banner_flags(clause: &str) -> Vec<String> {
+    let chars: Vec<char> = clause.chars().collect();
+    let mut flags = Vec::new();
+    let mut index = 0;
+    while index + 2 < chars.len() {
+        if chars[index] == '-' && chars[index + 1] == '-' {
+            let mut end = index + 2;
+            while end < chars.len() && (chars[end].is_ascii_alphanumeric() || chars[end] == '-') {
+                end += 1;
+            }
+            if end > index + 2 {
+                flags.push(chars[index..end].iter().collect());
+            }
+            index = end;
+            continue;
+        }
+        index += 1;
+    }
+    flags
+}
+
+fn banner_flag_claims() -> Vec<(String, Vec<String>)> {
+    let text = usage_banner();
+    let section = text
+        .split_once("per-command flags: ")
+        .expect("the usage banner names the per-command flags")
+        .1;
+    let mut claims: Vec<(String, Vec<String>)> = Vec::new();
+    for clause in section.split(';') {
+        let clause = clause.trim();
+        let Some(start) = clause.find("--") else {
+            continue;
+        };
+        let names: Vec<String> = clause[..start]
+            .trim()
+            .split('|')
+            .map(str::to_owned)
+            .collect();
+        if !names
+            .iter()
+            .all(|name| Command::value_variants().iter().any(|it| it.name() == name))
+        {
+            continue;
+        }
+        for flag in banner_flags(&clause[start..]) {
+            match claims.iter_mut().find(|(claimed, _)| claimed == &flag) {
+                Some((_, owners)) => owners.extend(names.iter().cloned()),
+                None => claims.push((flag, names.clone())),
+            }
+        }
+    }
+    for (_, owners) in &mut claims {
+        owners.sort();
+        owners.dedup();
+    }
+    claims.sort();
+    claims
+}
+
+fn commands_supporting(supported: fn(Command) -> bool) -> Vec<String> {
+    let mut names: Vec<String> = Command::value_variants()
+        .iter()
+        .filter(|command| supported(**command))
+        .map(|command| command.name().to_owned())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn the_usage_banner_claims_exactly_the_flags_the_registry_gates() {
+    let profile = commands_supporting(Command::supports_profile);
+    let mut expected: Vec<(String, Vec<String>)> = OWNED_OPTIONS
+        .iter()
+        .map(|(option, _, owners)| {
+            let mut owners: Vec<String> = owners.iter().map(|name| (*name).to_owned()).collect();
+            owners.sort();
+            ((*option).to_owned(), owners)
+        })
+        .collect();
+    expected.push(("--debug".to_owned(), profile.clone()));
+    expected.push(("--release".to_owned(), profile));
+    expected.push((
+        "--check".to_owned(),
+        vec!["docs".to_owned(), "version".to_owned()],
+    ));
+    expected.sort();
+    assert_eq!(
+        banner_flag_claims(),
+        expected,
+        "the usage banner must claim every gated per-command flag for exactly its owners:\n{}",
+        usage_banner()
+    );
+}
+
+#[test]
+fn the_usage_banner_check_claim_matches_the_registry() {
+    let text = usage_banner();
+    let rest = text
+        .split_once("--check is per-command only (")
+        .expect("the usage banner scopes --check to a command list")
+        .1;
+    let list = rest
+        .split(';')
+        .next()
+        .expect("the --check claim ends its command list")
+        .trim();
+    let mut claimed: Vec<String> = Vec::new();
+    for name in list.split(['/', '|']) {
+        if name == "quality" {
+            claimed.extend(["lint", "typecheck", "format", "generate"].map(str::to_owned));
+        } else {
+            claimed.push(name.to_owned());
+        }
+    }
+    claimed.sort();
+    assert_eq!(
+        claimed,
+        commands_supporting(Command::supports_check),
+        "the usage banner --check list must name every command that takes it:\n{text}"
+    );
+    assert!(
+        text.contains("status rejects --check"),
+        "the usage banner must keep naming status as a --check holdout:\n{text}"
+    );
+    assert!(
+        !Command::Status.supports_check(),
+        "the usage banner says status rejects --check"
+    );
+}
+
 #[test]
 fn every_command_but_bazel_rejects_empty_and_relative_scopes() {
     for command in Command::value_variants() {

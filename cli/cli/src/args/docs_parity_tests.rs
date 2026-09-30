@@ -1829,6 +1829,39 @@ fn new_help_and_page_name_exactly_the_languages() {
     }
 }
 
+fn versions_pin(name: &str) -> String {
+    let source = std::fs::read_to_string(workspace_root().join("modules/versions.bzl"))
+        .expect("modules/versions.bzl ships as test data");
+    let prefix = format!("\n{name} = \"");
+    let start = source
+        .find(&prefix)
+        .unwrap_or_else(|| panic!("modules/versions.bzl has no {name} pin"))
+        + prefix.len();
+    let rest = &source[start..];
+    let end = rest.find('"').expect("the pin literal is closed");
+    rest[..end].to_owned()
+}
+
+#[test]
+fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
+    let expected = format!(
+        "rust {} via rules_rust {} (MODULE.bazel)",
+        versions_pin("RUST_VERSION"),
+        versions_pin("RULES_RUST_VERSION")
+    );
+    let toolchain = dx_adopt::default_status_checks("0.0.0")
+        .into_iter()
+        .find(|check| check.name == "toolchain")
+        .expect("dx status has a toolchain check");
+    assert_eq!(toolchain.detail, expected, "dx status toolchain detail");
+    let page = std::fs::read_to_string(docs_dir().join("status-version.md"))
+        .expect("status page ships as test data");
+    assert!(
+        page.contains(&expected),
+        "docs/cli/commands/status-version.md must show the canonical toolchain line: {expected}"
+    );
+}
+
 #[test]
 fn the_repin_wrapper_defers_to_dx_update() {
     let script =

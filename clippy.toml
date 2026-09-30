@@ -17,9 +17,9 @@
 # `.expect(`/`.unwrap(`/`unreachable!`/`todo!` in non-test code via `rg` before the `#[cfg(test)]`
 # marker, with `exec/test_support.rs` exempt as `#[cfg(test)]`-only):
 # `dx_digest`, `dx_diff`, `dx_bep`, `dx_atomic_fs`, `dx_fingerprint`,
-# `dx_path`, `dx_schema`, `dx_proto_validate`, `dx_qualification`,
-# `dx_docgen`, plus `dx_adopt`, `dx_apply`, `dx_audit`, `dx_ci`,
-# `dx_clean`, `dx_cli` (+ `dx`/`dx_man` binaries), `dx_codegen`, `dx_env`
+# `dx_path`, `dx_schema`, `dx_proto_validate`, plus `dx_adopt`,
+# `dx_apply`, `dx_audit`, `dx_clean`, `dx_cli`
+# (+ `dx`/`dx_man` binaries), `dx_codegen`, `dx_env`
 # (+ `env` binary), `dx_env_plan`, `dx_lcov`, `dx_output`, `dx_process`,
 # `dx_roots`, `dx_setup`, `dx_update`, and test-only `dx_test_scratch`.
 # Beyond `cli/*` (backfill checklist, same `rg` proof):

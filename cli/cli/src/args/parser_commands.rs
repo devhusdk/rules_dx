@@ -92,17 +92,8 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
     ("--bazel", &["--bazel"], &["clean"]),
 ];
 
-fn owned_option_words(command: Command, argv: &[&str]) -> Vec<String> {
-    let name = command.name();
-    if command == Command::Bazel {
-        return argv
-            .iter()
-            .copied()
-            .chain([name, "info"])
-            .map(ToOwned::to_owned)
-            .collect();
-    }
-    let required: &[&str] = match name {
+fn required_words(name: &str) -> &'static [&'static str] {
+    match name {
         "bump" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
@@ -113,11 +104,23 @@ fn owned_option_words(command: Command, argv: &[&str]) -> Vec<String> {
         "watch" => &["build"],
         "completion" => &["bash"],
         _ => &[],
-    };
+    }
+}
+
+fn owned_option_words(command: Command, argv: &[&str]) -> Vec<String> {
+    let name = command.name();
+    if command == Command::Bazel {
+        return argv
+            .iter()
+            .copied()
+            .chain([name, "info"])
+            .map(ToOwned::to_owned)
+            .collect();
+    }
     [name]
         .into_iter()
         .chain(argv.iter().copied())
-        .chain(required.iter().copied())
+        .chain(required_words(name).iter().copied())
         .map(ToOwned::to_owned)
         .collect()
 }
@@ -191,6 +194,50 @@ fn a_global_gate_is_accepted_exactly_where_the_registry_declares() {
                         named,
                         flag,
                         "dx {} rejects {words:?} as {named}, which names another option",
+                        command.name()
+                    );
+                    assert!(
+                        !supported(command),
+                        "dx {} rejects {flag} but the registry says it accepts it: {words:?}",
+                        command.name()
+                    );
+                }
+                Err(error) => panic!("dx {words:?} failed with {error} instead of naming {flag}"),
+            }
+        }
+    }
+}
+
+const OUTPUT_MODES: [(&str, &str, fn(Command) -> bool); 2] = [
+    ("--output=json", "json", Command::supports_json),
+    ("--output=diff", "diff", Command::supports_diff),
+];
+
+#[test]
+fn an_output_mode_is_gated_exactly_where_the_registry_declares_it() {
+    for command in Command::value_variants() {
+        let command = *command;
+        for (flag, name, supported) in OUTPUT_MODES {
+            let words = owned_option_words(command, &[flag]);
+            match parse(&words) {
+                Ok(got) => {
+                    assert!(
+                        supported(command),
+                        "dx {} accepts {flag}, which the registry says it does not: {words:?}",
+                        command.name()
+                    );
+                    let expected = if name == "diff" {
+                        OutputMode::Diff
+                    } else {
+                        OutputMode::Json
+                    };
+                    assert_eq!(got.output, expected, "dx {} {words:?}", command.name());
+                }
+                Err(ArgsError::UnsupportedOption { option, .. }) => {
+                    assert_eq!(
+                        option,
+                        flag,
+                        "dx {} rejects {words:?} as {option}, which names another option",
                         command.name()
                     );
                     assert!(

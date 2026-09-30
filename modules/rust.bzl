@@ -34,11 +34,8 @@ CRATE_CLI_MANIFESTS = [
     "//cli/fingerprint:Cargo.toml",
     "//cli/test_scratch:Cargo.toml",
     "//cli/roots:Cargo.toml",
-    "//cli/docgen:Cargo.toml",
     "//cli/update:Cargo.toml",
     "//cli/bump:Cargo.toml",
-    "//cli/ci:Cargo.toml",
-    "//cli/qualification:Cargo.toml",
 ]
 
 CRATE_DEPLOY_MANIFESTS = [

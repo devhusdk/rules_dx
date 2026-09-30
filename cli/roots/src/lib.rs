@@ -7,37 +7,6 @@ pub const REPOSITORY_PATTERN: &str = "//...";
 
 pub const PATTERN_FILE_FLAG: &str = "--target_pattern_file";
 
-pub const WARM_WEIGHT: u64 = 2;
-
-pub const FROZEN_STRATEGY: RootStrategy = RootStrategy::RecursivePattern;
-
-pub fn frozen_strategy() -> RootStrategy {
-    FROZEN_STRATEGY
-}
-
-pub const FROZEN_EVIDENCE: [(RootStrategy, bool, u64, u64); 4] = [
-    (RootStrategy::RecursivePattern, true, 8457, 372),
-    (RootStrategy::QueryPatternFile, true, 8983, 350),
-    (RootStrategy::MonolithicAggregate, false, 2300, 329),
-    (RootStrategy::PackageShards, false, 2000, 300),
-];
-
-pub const INCREMENTALITY_EVIDENCE: [(BenchmarkDimension, u64, u64, u64); 3] = [
-    (BenchmarkDimension::SourceEdit, 446, 471, 2),
-    (BenchmarkDimension::BuildEdit, 442, 469, 0),
-    (BenchmarkDimension::TargetAddRemove, 531, 542, 0),
-];
-
-pub const PLAN_MATERIALIZED_FILES: u64 = 3;
-
-pub const PLAN_MATERIALIZED_BYTES: u64 = 238;
-
-pub const PLAN_GROUP_WARM_MS: u64 = 413;
-
-pub const DEFAULT_OUTPUTS_WARM_MS: u64 = 502;
-
-pub const SERVER_PEAK_RSS_KB: u64 = 2628812;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum RootStrategy {
     RecursivePattern,
@@ -47,17 +16,6 @@ pub enum RootStrategy {
 }
 
 impl RootStrategy {
-    pub const ALL: [RootStrategy; 4] = [
-        RootStrategy::RecursivePattern,
-        RootStrategy::QueryPatternFile,
-        RootStrategy::MonolithicAggregate,
-        RootStrategy::PackageShards,
-    ];
-
-    pub fn baseline() -> RootStrategy {
-        RootStrategy::RecursivePattern
-    }
-
     pub fn name(&self) -> &'static str {
         match self {
             RootStrategy::RecursivePattern => "recursive-pattern",
@@ -116,7 +74,6 @@ impl RepositoryRootPlan {
 }
 
 pub fn repository_plan() -> RepositoryRootPlan {
-    debug_assert_eq!(frozen_strategy(), RootStrategy::baseline());
     RepositoryRootPlan::baseline()
 }
 
@@ -255,79 +212,6 @@ pub fn check_semantic_coverage(
     Ok(CoverageReport { missing, extra })
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BenchmarkDimension {
-    ColdBuild,
-    WarmBuild,
-    SourceEdit,
-    BuildEdit,
-    TargetAddRemove,
-    Actions,
-    MaterializedBytes,
-    ProjectionTime,
-    RetainedMemory,
-}
-
-impl BenchmarkDimension {
-    pub const ALL: [BenchmarkDimension; 9] = [
-        BenchmarkDimension::ColdBuild,
-        BenchmarkDimension::WarmBuild,
-        BenchmarkDimension::SourceEdit,
-        BenchmarkDimension::BuildEdit,
-        BenchmarkDimension::TargetAddRemove,
-        BenchmarkDimension::Actions,
-        BenchmarkDimension::MaterializedBytes,
-        BenchmarkDimension::ProjectionTime,
-        BenchmarkDimension::RetainedMemory,
-    ];
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            BenchmarkDimension::ColdBuild => "cold-build",
-            BenchmarkDimension::WarmBuild => "warm-build",
-            BenchmarkDimension::SourceEdit => "source-edit",
-            BenchmarkDimension::BuildEdit => "build-edit",
-            BenchmarkDimension::TargetAddRemove => "target-add-remove",
-            BenchmarkDimension::Actions => "actions",
-            BenchmarkDimension::MaterializedBytes => "materialized-bytes",
-            BenchmarkDimension::ProjectionTime => "projection-time",
-            BenchmarkDimension::RetainedMemory => "retained-memory",
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BenchmarkSample {
-    pub strategy: RootStrategy,
-    pub equivalent: bool,
-    pub cold_ms: u64,
-    pub warm_ms: u64,
-}
-
-pub fn weighted_score(sample: &BenchmarkSample) -> u128 {
-    u128::from(sample.cold_ms)
-        .saturating_add(u128::from(sample.warm_ms).saturating_mul(u128::from(WARM_WEIGHT)))
-}
-
-pub fn select_strategy(samples: &[BenchmarkSample]) -> RootStrategy {
-    let order = |strategy: &RootStrategy| {
-        RootStrategy::ALL
-            .iter()
-            .position(|candidate| candidate == strategy)
-            .unwrap_or(usize::MAX)
-    };
-    samples
-        .iter()
-        .filter(|sample| sample.equivalent)
-        .min_by(|left, right| {
-            weighted_score(left)
-                .cmp(&weighted_score(right))
-                .then_with(|| order(&left.strategy).cmp(&order(&right.strategy)))
-        })
-        .map(|sample| sample.strategy)
-        .unwrap_or_else(RootStrategy::baseline)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -339,21 +223,6 @@ mod tests {
     fn labels(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| label(value)).collect()
     }
-
-    fn sample(
-        strategy: RootStrategy,
-        equivalent: bool,
-        cold_ms: u64,
-        warm_ms: u64,
-    ) -> BenchmarkSample {
-        BenchmarkSample {
-            strategy,
-            equivalent,
-            cold_ms,
-            warm_ms,
-        }
-    }
-
     #[test]
     fn baseline_plan_applies_aspects_to_recursive_pattern() {
         let plan = RepositoryRootPlan::baseline();
@@ -361,37 +230,6 @@ mod tests {
         assert_eq!(plan.roots, vec![REPOSITORY_PATTERN.to_owned()]);
         assert_eq!(plan.pattern_file, None);
         assert_eq!(plan.pattern_file_arg(), None);
-    }
-
-    #[test]
-    fn baseline_constructor_matches_recursive_strategy() {
-        assert_eq!(RootStrategy::baseline(), RootStrategy::RecursivePattern);
-        assert_eq!(select_strategy(&[]), RootStrategy::RecursivePattern);
-    }
-
-    #[test]
-    fn strategy_names_are_stable_and_distinct() {
-        let names: Vec<&str> = RootStrategy::ALL.iter().map(RootStrategy::name).collect();
-        assert_eq!(
-            names,
-            vec![
-                "recursive-pattern",
-                "query-pattern-file",
-                "monolithic-aggregate",
-                "package-shards",
-            ]
-        );
-        let unique: BTreeSet<&str> = names.into_iter().collect();
-        assert_eq!(unique.len(), RootStrategy::ALL.len());
-    }
-
-    #[test]
-    fn all_lists_every_strategy_once() {
-        let mut seen = BTreeSet::new();
-        for strategy in RootStrategy::ALL {
-            assert!(seen.insert(strategy), "duplicate {strategy:?}");
-        }
-        assert_eq!(seen.len(), 4);
     }
 
     #[test]
@@ -465,150 +303,8 @@ mod tests {
     }
 
     #[test]
-    fn warm_is_weighted_above_cold() {
-        let cold_fast = sample(RootStrategy::RecursivePattern, true, 100, 100);
-        let warm_fast = sample(RootStrategy::QueryPatternFile, true, 150, 50);
-        assert_eq!(weighted_score(&cold_fast), 300);
-        assert_eq!(weighted_score(&warm_fast), 250);
-        assert_eq!(
-            select_strategy(&[cold_fast, warm_fast]),
-            RootStrategy::QueryPatternFile
-        );
-    }
-
-    #[test]
-    fn fastest_equivalent_candidate_wins() {
-        let samples = vec![
-            sample(RootStrategy::RecursivePattern, true, 200, 200),
-            sample(RootStrategy::MonolithicAggregate, true, 300, 300),
-            sample(RootStrategy::PackageShards, true, 100, 100),
-        ];
-        assert_eq!(select_strategy(&samples), RootStrategy::PackageShards);
-    }
-
-    #[test]
-    fn non_equivalent_fastest_never_wins() {
-        let samples = vec![
-            sample(RootStrategy::RecursivePattern, true, 500, 500),
-            sample(RootStrategy::QueryPatternFile, false, 1, 1),
-        ];
-        assert_eq!(select_strategy(&samples), RootStrategy::RecursivePattern);
-    }
-
-    #[test]
-    fn ties_and_empty_samples_keep_baseline() {
-        let tied = vec![
-            sample(RootStrategy::QueryPatternFile, true, 100, 100),
-            sample(RootStrategy::RecursivePattern, true, 100, 100),
-        ];
-        assert_eq!(select_strategy(&tied), RootStrategy::RecursivePattern);
-        let none_equivalent = vec![sample(RootStrategy::QueryPatternFile, false, 10, 10)];
-        assert_eq!(
-            select_strategy(&none_equivalent),
-            RootStrategy::RecursivePattern
-        );
-    }
-
-    #[test]
-    fn selection_dimensions_are_named() {
-        let names: Vec<&str> = BenchmarkDimension::ALL
-            .iter()
-            .map(BenchmarkDimension::name)
-            .collect();
-        assert_eq!(
-            names,
-            vec![
-                "cold-build",
-                "warm-build",
-                "source-edit",
-                "build-edit",
-                "target-add-remove",
-                "actions",
-                "materialized-bytes",
-                "projection-time",
-                "retained-memory",
-            ]
-        );
-        let unique: BTreeSet<&str> = names.into_iter().collect();
-        assert_eq!(unique.len(), BenchmarkDimension::ALL.len());
-    }
-
-    #[test]
     fn repository_plan_is_the_baseline() {
         assert_eq!(repository_plan(), RepositoryRootPlan::baseline());
-    }
-
-    #[test]
-    fn freeze_selects_the_recursive_pattern_baseline() {
-        assert_eq!(FROZEN_STRATEGY, RootStrategy::RecursivePattern);
-        assert_eq!(frozen_strategy(), RootStrategy::baseline());
-        assert_eq!(frozen_strategy().name(), "recursive-pattern");
-        assert_eq!(repository_plan(), RepositoryRootPlan::baseline());
-    }
-
-    #[test]
-    fn frozen_evidence_selects_the_frozen_strategy() {
-        let samples: Vec<BenchmarkSample> = FROZEN_EVIDENCE
-            .iter()
-            .map(|(strategy, equivalent, cold_ms, warm_ms)| BenchmarkSample {
-                strategy: *strategy,
-                equivalent: *equivalent,
-                cold_ms: *cold_ms,
-                warm_ms: *warm_ms,
-            })
-            .collect();
-        assert_eq!(samples.len(), RootStrategy::ALL.len());
-        for (index, strategy) in RootStrategy::ALL.iter().enumerate() {
-            assert_eq!(samples[index].strategy, *strategy);
-        }
-        assert_eq!(select_strategy(&samples), frozen_strategy());
-    }
-
-    #[test]
-    fn incrementality_evidence_covers_the_reference_dimensions_once() {
-        let dims: Vec<BenchmarkDimension> =
-            INCREMENTALITY_EVIDENCE.iter().map(|row| row.0).collect();
-        assert_eq!(
-            dims,
-            vec![
-                BenchmarkDimension::SourceEdit,
-                BenchmarkDimension::BuildEdit,
-                BenchmarkDimension::TargetAddRemove,
-            ]
-        );
-    }
-
-    #[test]
-    fn incrementality_control_matches_baseline_within_noise() {
-        for (dimension, baseline_ms, queryfile_ms, actions) in INCREMENTALITY_EVIDENCE {
-            let slower = baseline_ms.max(queryfile_ms);
-            let faster = baseline_ms.min(queryfile_ms);
-            assert!(
-                slower * 100 <= faster * 120,
-                "{dimension:?}: baseline {baseline_ms} ms vs query-file {queryfile_ms} ms diverge past 20%"
-            );
-            assert!(
-                actions <= 2,
-                "{dimension:?}: {actions} executed actions exceed the reference maximum"
-            );
-        }
-        assert_eq!(
-            INCREMENTALITY_EVIDENCE[0].3, 2,
-            "source edits re-execute 2 actions"
-        );
-    }
-
-    #[test]
-    fn plan_materialization_stays_cheaper_than_default_outputs() {
-        assert_eq!(PLAN_MATERIALIZED_FILES, 3);
-        assert_eq!(PLAN_MATERIALIZED_BYTES, 238);
-        assert!(
-            PLAN_GROUP_WARM_MS < DEFAULT_OUTPUTS_WARM_MS,
-            "plan group {} ms must stay cheaper than default outputs {} ms",
-            PLAN_GROUP_WARM_MS,
-            DEFAULT_OUTPUTS_WARM_MS
-        );
-        assert!(SERVER_PEAK_RSS_KB > 0);
     }
 
     #[test]

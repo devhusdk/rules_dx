@@ -1,5 +1,5 @@
 {
-  "checksum": "90d57f8a82c0595d7ce2aae8bab917c2c233ec74b2752c9f04c7b2eb91c6c66b",
+  "checksum": "2e69aaf2c723ff713e39925c8b1a98bb66ae929a66a9f65d062ee1543f720138",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2643,29 +2643,6 @@
       ],
       "version": "0.0.0"
     },
-    "dx_ci 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "thiserror 2.0.20",
-            "target": "thiserror"
-          }
-        ],
-        "edition": "2021"
-      },
-      "library_target_name": "dx_ci",
-      "name": "dx_ci",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_ci",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
     "dx_clean 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -2983,29 +2960,6 @@
       ],
       "version": "0.0.0"
     },
-    "dx_docs 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "thiserror 2.0.20",
-            "target": "thiserror"
-          }
-        ],
-        "edition": "2021"
-      },
-      "library_target_name": "dx_docs",
-      "name": "dx_docs",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_docs",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
     "dx_env 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -3300,23 +3254,6 @@
         {
           "Library": {
             "crate_name": "dx_proto_validate",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
-    "dx_qual 0.0.0": {
-      "common_attrs": {
-        "edition": "2021"
-      },
-      "library_target_name": "dx_qual",
-      "name": "dx_qual",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_qual",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13065,7 +13002,6 @@
     "dx_audit 0.0.0": "cli/dx_audit",
     "dx_bep 0.0.0": "cli/dx_bep",
     "dx_bump 0.0.0": "cli/dx_bump",
-    "dx_ci 0.0.0": "cli/dx_ci",
     "dx_clean 0.0.0": "cli/dx_clean",
     "dx_cli 0.0.0": "cli/dx_cli",
     "dx_codegen 0.0.0": "cli/dx_codegen",
@@ -13073,7 +13009,6 @@
     "dx_deploy_tools 0.0.0": "deploy/dx_deploy_tools",
     "dx_diff 0.0.0": "cli/dx_diff",
     "dx_digest 0.0.0": "cli/dx_digest",
-    "dx_docs 0.0.0": "cli/dx_docs",
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
@@ -13084,7 +13019,6 @@
     "dx_preset 0.0.0": "tools/dx_preset",
     "dx_process 0.0.0": "cli/dx_process",
     "dx_proto_validate 0.0.0": "cli/dx_proto_validate",
-    "dx_qual 0.0.0": "cli/dx_qual",
     "dx_release_tools 0.0.0": "deploy/dx_release_tools",
     "dx_roots 0.0.0": "cli/dx_roots",
     "dx_schema 0.0.0": "cli/dx_schema",

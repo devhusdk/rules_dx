@@ -537,13 +537,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dx_ci"
-version = "0.0.0"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
 name = "dx_clean"
 version = "0.0.0"
 dependencies = [
@@ -630,13 +623,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dx_docs"
-version = "0.0.0"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
 name = "dx_env"
 version = "0.0.0"
 dependencies = [
@@ -718,10 +704,6 @@ dependencies = [
 
 [[package]]
 name = "dx_proto_validate"
-version = "0.0.0"
-
-[[package]]
-name = "dx_qual"
 version = "0.0.0"
 
 [[package]]

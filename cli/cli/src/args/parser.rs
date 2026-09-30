@@ -284,18 +284,11 @@ pub fn parse_with<S: AsRef<OsStr>>(
             });
         }
     }
-    if command == Command::Security || command == Command::License {
-        if !bazel_options.is_empty() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--".to_owned(),
-            });
-        }
-        for scope in &targets {
-            if scope.is_empty() || scope.starts_with(':') {
-                return Err(scope_error(scope));
-            }
-        }
+    if (command == Command::Security || command == Command::License) && !bazel_options.is_empty() {
+        return Err(ArgsError::UnsupportedOption {
+            command: command.name(),
+            option: "--".to_owned(),
+        });
     }
     if command == Command::Update {
         if output_name == "diff" {
@@ -315,11 +308,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 command: command.name(),
                 option: "--".to_owned(),
             });
-        }
-        for scope in &targets {
-            if scope.is_empty() || scope.starts_with(':') {
-                return Err(scope_error(scope));
-            }
         }
     }
     if command == Command::Bump {
@@ -346,11 +334,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 option: "<selector> <version>".to_owned(),
             });
         }
-        for scope in &targets {
-            if scope.is_empty() || scope.starts_with(':') {
-                return Err(scope_error(scope));
-            }
-        }
     }
     if command == Command::Migrate {
         if output_name == "diff" {
@@ -375,11 +358,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(ArgsError::MissingValue {
                 option: "--from <version> --to <version>".to_owned(),
             });
-        }
-        for scope in &targets {
-            if scope.is_empty() || scope.starts_with(':') {
-                return Err(scope_error(scope));
-            }
         }
     }
     if command != Command::Migrate
@@ -456,11 +434,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 command: command.name(),
                 option: "--open".to_owned(),
             });
-        }
-        for scope in &targets {
-            if scope.is_empty() || scope.starts_with(':') {
-                return Err(scope_error(scope));
-            }
         }
     }
     if command != Command::Docs && serve {

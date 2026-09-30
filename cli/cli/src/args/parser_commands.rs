@@ -1,3 +1,4 @@
+use super::super::values::scope_error;
 use super::super::{ArgsError, Command};
 use super::parse;
 use clap::ValueEnum;
@@ -202,6 +203,25 @@ fn a_profile_flag_is_advertised_exactly_where_the_registry_declares_it() {
             "dx {} help must match supports_profile",
             command.name()
         );
+    }
+}
+
+#[test]
+fn every_command_but_bazel_rejects_empty_and_relative_scopes() {
+    for command in Command::value_variants() {
+        let command = *command;
+        if command == Command::Bazel {
+            continue;
+        }
+        for scope in ["", ":target"] {
+            let words = vec![command.name(), scope];
+            assert_eq!(
+                parse(&args(&words)),
+                Err(scope_error(scope)),
+                "dx {} must reject the scope through the shared check: {words:?}",
+                command.name()
+            );
+        }
     }
 }
 

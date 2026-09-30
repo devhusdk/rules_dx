@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use dx_output::{OutputMode, Threshold};
 
 use super::command::Command;
-use super::error::scope_error;
+use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
 
@@ -160,7 +160,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             if scope == "-" {
                 return Err(ArgsError::UnknownOption {
                     option: scope.clone(),
-                    suggestion: None,
                 });
             }
             if scope.is_empty() || scope.starts_with(':') {

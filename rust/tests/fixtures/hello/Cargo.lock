@@ -565,7 +565,6 @@ dependencies = [
  "serde",
  "serde-sarif",
  "serde_json",
- "strsim",
  "tempfile",
  "thiserror",
  "tracing",

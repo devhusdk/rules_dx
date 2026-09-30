@@ -1,4 +1,4 @@
-use super::super::{ArgsError, Command, ReportRequest};
+use super::super::{assert_usage, ArgsError, Command, ReportRequest};
 use super::parse;
 use dx_output::{OutputMode, Threshold};
 
@@ -41,23 +41,20 @@ fn min_coverage_parses_for_coverage_only() {
 
 #[test]
 fn min_coverage_rejects_bad_values_and_other_commands() {
-    assert_eq!(
-        parse(&args(&["coverage", "--min-coverage=eighty"])),
-        Err(ArgsError::BadMinCoverage {
-            value: "eighty".to_owned(),
-        })
+    assert_usage(
+        &["coverage", "--min-coverage=eighty"],
+        parse(&args(&["coverage", "--min-coverage=eighty"])).unwrap_err(),
+        &["min-coverage"],
     );
-    assert_eq!(
-        parse(&args(&["coverage", "--min-coverage=101"])),
-        Err(ArgsError::BadMinCoverage {
-            value: "101".to_owned(),
-        })
+    assert_usage(
+        &["coverage", "--min-coverage=101"],
+        parse(&args(&["coverage", "--min-coverage=101"])).unwrap_err(),
+        &["min-coverage"],
     );
-    assert_eq!(
-        parse(&args(&["coverage", "--min-coverage"])),
-        Err(ArgsError::MissingValue {
-            option: "--min-coverage".to_owned(),
-        })
+    assert_usage(
+        &["coverage", "--min-coverage"],
+        parse(&args(&["coverage", "--min-coverage"])).unwrap_err(),
+        &["min-coverage"],
     );
     assert_eq!(
         parse(&args(&["test", "--min-coverage=80"])),
@@ -174,19 +171,20 @@ fn log_level_parses_and_conflicts_with_verbose() {
             value: "DEBUG".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["lint", "--verbose", "--log-level=debug"])),
-        Err(ArgsError::ConflictingVerboseLogLevel)
+    assert_usage(
+        &["lint", "--verbose", "--log-level=debug"],
+        parse(&args(&["lint", "--verbose", "--log-level=debug"])).unwrap_err(),
+        &["--log-level"],
     );
-    assert_eq!(
-        parse(&args(&["lint", "-v", "--log-level=info"])),
-        Err(ArgsError::ConflictingVerboseLogLevel)
+    assert_usage(
+        &["lint", "-v", "--log-level=info"],
+        parse(&args(&["lint", "-v", "--log-level=info"])).unwrap_err(),
+        &["--log-level"],
     );
-    assert_eq!(
-        parse(&args(&["lint", "--log-level"])),
-        Err(ArgsError::MissingValue {
-            option: "--log-level".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--log-level"],
+        parse(&args(&["lint", "--log-level"])).unwrap_err(),
+        &["--log-level"],
     );
 }
 
@@ -228,12 +226,11 @@ fn missing_command_fails() {
 
 #[test]
 fn unknown_command_fails() {
-    assert_eq!(
-        parse(&args(&["bogus"])),
-        Err(ArgsError::UnknownCommand {
-            command: "bogus".to_owned(),
-            suggestion: None,
-        })
+    let words = ["lintt"];
+    assert_usage(
+        &words,
+        parse(&args(&words)).unwrap_err(),
+        &["lintt", "similar"],
     );
 }
 
@@ -312,49 +309,27 @@ fn workflow_commands_reject_quality_only_options() {
 
 #[test]
 fn unknown_options_fail() {
-    assert_eq!(
-        parse(&args(&["lint", "--jobs=4"])),
-        Err(ArgsError::UnknownOption {
-            option: "--jobs=4".to_owned(),
-            suggestion: None,
-        })
-    );
-    assert_eq!(
-        parse(&args(&["lint", "-q"])),
-        Err(ArgsError::UnknownOption {
-            option: "-q".to_owned(),
-            suggestion: None,
-        })
-    );
-    assert_eq!(
-        parse(&args(&["lint", "--dry-run=yes"])),
-        Err(ArgsError::UnknownOption {
-            option: "--dry-run=yes".to_owned(),
-            suggestion: None,
-        })
-    );
-    assert_eq!(
-        parse(&args(&["-"])),
-        Err(ArgsError::UnknownOption {
-            option: "-".to_owned(),
-            suggestion: None,
-        })
-    );
+    for (words, needle) in [
+        (vec!["lint", "--jobs=4"], "--jobs"),
+        (vec!["lint", "-q"], "-q"),
+        (vec!["lint", "--dry-run=yes"], "--dry-run"),
+        (vec!["-"], "-"),
+    ] {
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[needle]);
+    }
 }
 
 #[test]
 fn missing_values_fail() {
-    assert_eq!(
-        parse(&args(&["lint", "--output"])),
-        Err(ArgsError::MissingValue {
-            option: "--output".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--output"],
+        parse(&args(&["lint", "--output"])).unwrap_err(),
+        &["--output"],
     );
-    assert_eq!(
-        parse(&args(&["lint", "--workspace", "--quiet", "format"])),
-        Err(ArgsError::MissingValue {
-            option: "--workspace".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--workspace", "--quiet", "format"],
+        parse(&args(&["lint", "--workspace", "--quiet", "format"])).unwrap_err(),
+        &["--workspace"],
     );
     assert_eq!(
         parse(&args(&["lint", "--workspace="])),
@@ -378,13 +353,9 @@ fn bad_values_fail() {
             value: "never".to_owned(),
         })
     );
-    for bad in ["sarif", "=out.sarif", "sarif=", ""] {
-        assert_eq!(
-            parse(&args(&["lint", &format!("--report={bad}")])),
-            Err(ArgsError::BadReport {
-                value: bad.to_owned(),
-            })
-        );
+    for bad in ["sarif", "=out.sarif", "sarif="] {
+        let words = ["lint", &format!("--report={bad}")];
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["report"]);
     }
 }
 
@@ -396,20 +367,10 @@ fn inline_flag_values_and_empty_workspace_fail() {
             option: "--workspace".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["lint", "--quiet=x"])),
-        Err(ArgsError::UnknownOption {
-            option: "--quiet=x".to_owned(),
-            suggestion: None,
-        })
-    );
-    assert_eq!(
-        parse(&args(&["lint", "--check=x"])),
-        Err(ArgsError::UnknownOption {
-            option: "--check=x".to_owned(),
-            suggestion: None,
-        })
-    );
+    for words in [vec!["lint", "--quiet=x"], vec!["lint", "--check=x"]] {
+        let flag = words[1].split('=').next().expect("a flag");
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[flag]);
+    }
 }
 
 #[test]
@@ -472,12 +433,10 @@ fn clean_rejects_scopes_and_quality_options() {
             option: "--".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["clean", "--bazel=yes"])),
-        Err(ArgsError::UnknownOption {
-            option: "--bazel=yes".to_owned(),
-            suggestion: None,
-        })
+    assert_usage(
+        &["clean", "--bazel=yes"],
+        parse(&args(&["clean", "--bazel=yes"])).unwrap_err(),
+        &["--bazel"],
     );
     assert_eq!(
         parse(&args(&["lint", "--bazel"])),

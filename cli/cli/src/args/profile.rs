@@ -54,7 +54,7 @@ pub fn resolve_profile(flag: Option<Profile>, attr: Option<Profile>, default: Pr
 
 #[cfg(test)]
 mod tests {
-    use super::super::{parse, ArgsError};
+    use super::super::{assert_usage, parse, ArgsError};
     use super::*;
     use clap::ValueEnum;
 
@@ -143,12 +143,8 @@ mod tests {
             if !command.supports_profile() {
                 continue;
             }
-            assert_eq!(
-                parse(&args(&[command.name(), "--debug", "--release"])),
-                Err(ArgsError::ConflictingProfiles),
-                "dx {} takes both profiles",
-                command.name()
-            );
+            let words = [command.name(), "--debug", "--release"];
+            assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--debug"]);
         }
         for words in [
             vec!["coverage", "--debug"],

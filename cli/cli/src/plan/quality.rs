@@ -419,11 +419,11 @@ mod tests {
             !entry.accepts_report(&invocation.reports[0].format),
             "format has no standard report: {invocation:?}"
         );
-        assert_eq!(
-            parse(&options(&["lint", "--report=sarif"])),
-            Err(ArgsError::BadReport {
-                value: "sarif".to_owned(),
-            })
-        );
+        let words = ["lint", "--report=sarif"];
+        let error = parse(&options(&words)).unwrap_err();
+        let ArgsError::Usage { text } = &error else {
+            panic!("--report=sarif: want Usage, got {error:?}");
+        };
+        assert!(text.contains("report"), "{text}");
     }
 }

@@ -62,6 +62,9 @@ commands. See [Version Skew](status-version.md#version-skew).
 
 Exit codes: `0` success, `2` usage error, `1` failed check.
 
+A usage error names the offending token, prints a `tip: a similar ...` line when
+a near match exists, then prints the usage line above.
+
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an

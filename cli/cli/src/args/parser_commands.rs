@@ -1,5 +1,5 @@
-use super::super::error::scope_error;
-use super::super::{ArgsError, Command};
+use super::super::scope_error;
+use super::super::{assert_usage, ArgsError, Command};
 use super::parse;
 use clap::ValueEnum;
 use dx_output::OutputMode;
@@ -547,11 +547,10 @@ fn migrate_needs_from_and_to_versions() {
             option: "--from <version> --to <version>".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["migrate", "--from", "--to=2.0.0"])),
-        Err(ArgsError::MissingValue {
-            option: "--from".to_owned(),
-        })
+    assert_usage(
+        &["migrate", "--from", "--to=2.0.0"],
+        parse(&args(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
+        &["--from"],
     );
     assert_eq!(
         parse(&args(&["migrate", "--from=1.2.3", "--to=2.0.0", "--check"])),
@@ -974,6 +973,7 @@ fn docs_check_serve_port_parse() {
                 Err(ArgsError::UnsupportedOption { .. })
                     | Err(ArgsError::MissingValue { .. })
                     | Err(ArgsError::UnknownOption { .. })
+                    | Err(ArgsError::Usage { .. })
             ),
             "words: {words:?}"
         );
@@ -1000,11 +1000,10 @@ fn color_parses_globally_with_bad_values_rejected() {
             value: "bright".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["lint", "--color"])),
-        Err(ArgsError::MissingValue {
-            option: "--color".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--color"],
+        parse(&args(&["lint", "--color"])).unwrap_err(),
+        &["--color"],
     );
 }
 
@@ -1049,6 +1048,7 @@ fn managed_commands_parse_repo_and_exact_scopes() {
                     | Err(ArgsError::RelativeLabel { .. })
                     | Err(ArgsError::InvalidScope { .. })
                     | Err(ArgsError::UnknownOption { .. })
+                    | Err(ArgsError::Usage { .. })
             ),
             "words: {words:?}"
         );
@@ -1104,14 +1104,7 @@ fn init_and_hooks_have_no_force_flag() {
         vec!["init", "--force", "demo"],
         vec!["hooks", "install", "--force"],
     ] {
-        assert!(
-            matches!(
-                parse(&args(&words)),
-                Err(ArgsError::UnknownOption { option, .. }) if option == "--force"
-            ),
-            "words: {words:?} must reject --force as unknown, got {:?}",
-            parse(&args(&words))
-        );
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--force"]);
     }
 }
 
@@ -1273,11 +1266,9 @@ fn offline_forces_cache_only_on_audit_update_bump() {
             option: "--offline".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["security", "--offline=yes"])),
-        Err(ArgsError::UnknownOption {
-            option: "--offline=yes".to_owned(),
-            suggestion: None,
-        })
+    assert_usage(
+        &["security", "--offline=yes"],
+        parse(&args(&["security", "--offline=yes"])).unwrap_err(),
+        &["--offline"],
     );
 }

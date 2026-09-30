@@ -4,7 +4,7 @@ use clap::Parser;
 
 use super::command::Command;
 use super::grammar::{Cli, VALUE_OPTIONS};
-use super::{help, suggest, ArgsError};
+use super::{help, ArgsError};
 
 fn arg_text(arg: &OsStr) -> Option<&str> {
     arg.to_str()
@@ -40,146 +40,47 @@ fn split_bazel_verbatim<S: AsRef<OsStr>>(args: &[S]) -> Option<usize> {
     None
 }
 
-fn invalid_token(error: &clap::Error) -> Option<String> {
-    let token = dx_output::invalid_token(error);
-    if token.is_empty() {
-        None
-    } else {
-        Some(token)
-    }
-}
-
-fn invalid_value(error: &clap::Error) -> Option<String> {
-    dx_output::rejected_value(error)
-}
-
-fn rejected_token(error: &clap::Error) -> String {
-    match error.get(clap::error::ContextKind::InvalidValue) {
-        Some(clap::error::ContextValue::String(value)) => value.clone(),
-        Some(clap::error::ContextValue::Strings(values)) => {
-            values.first().cloned().unwrap_or_default()
+/// clap's error text with its own usage block dropped.
+pub(crate) fn without_usage(text: &str) -> String {
+    let mut out = String::new();
+    let mut skipping = false;
+    for line in text.lines() {
+        if line.starts_with("Usage: ") {
+            skipping = true;
+            continue;
         }
-        _ => String::new(),
-    }
-}
-
-fn argument_conflict(error: &clap::Error) -> ArgsError {
-    match invalid_token(error).unwrap_or_default().as_str() {
-        "--debug" | "--release" => ArgsError::ConflictingProfiles,
-        _ => ArgsError::ConflictingVerboseLogLevel,
-    }
-}
-
-fn value_validation(error: &clap::Error) -> ArgsError {
-    let token = invalid_token(error).unwrap_or_default();
-    let option = leading_flag(&token);
-    let value = rejected_token(error);
-    match option.as_str() {
-        "--min-coverage" => ArgsError::BadMinCoverage { value },
-        "--report" => ArgsError::BadReport { value },
-        _ => ArgsError::MissingValue {
-            option: option.to_owned(),
-        },
-    }
-}
-
-fn recover_token<S: AsRef<OsStr>>(args: &[S], token: Option<String>) -> String {
-    let token = token.unwrap_or_default();
-    for arg in args {
-        let text = arg.as_ref().to_string_lossy();
-        if text == token {
-            return text.into_owned();
+        if skipping {
+            if !line.trim().is_empty() {
+                continue;
+            }
+            skipping = false;
         }
-    }
-    for arg in args {
-        let text = arg.as_ref().to_string_lossy();
-        if text.starts_with(&format!("{token}=")) {
-            return text.into_owned();
+        if line.trim().is_empty() && out.ends_with("\n\n") {
+            continue;
         }
+        out.push_str(line);
+        out.push('\n');
     }
-    token
-}
-
-fn leading_flag(token: &str) -> String {
-    dx_output::leading_flag(token).to_owned()
-}
-
-fn is_command_positional(token: &str) -> bool {
-    token
-        .trim_matches(|cut| cut == '<' || cut == '>' || cut == '[' || cut == ']')
-        .eq_ignore_ascii_case("command")
+    out.trim_end().to_owned()
 }
 
 fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError {
-    use clap::error::ErrorKind;
     match error.kind() {
-        ErrorKind::DisplayHelp => {
+        clap::error::ErrorKind::DisplayHelp => {
             let text = match help::help_command_in(args) {
                 Some(command) => help::render_command_help(command),
                 None => help::render_top_help(),
             };
             ArgsError::Help { text }
         }
-        ErrorKind::DisplayVersion => {
+        clap::error::ErrorKind::DisplayVersion => {
             use clap::CommandFactory;
             ArgsError::Help {
                 text: Cli::command().render_version().to_string(),
             }
         }
-        ErrorKind::UnknownArgument | ErrorKind::TooManyValues => {
-            let option = recover_token(args, invalid_token(error));
-            let suggestion =
-                suggest::clap_suggestion(error).or_else(|| suggest::suggest_option(&option));
-            ArgsError::UnknownOption { option, suggestion }
-        }
-        ErrorKind::ValueValidation => value_validation(error),
-        ErrorKind::ArgumentConflict => argument_conflict(error),
-        ErrorKind::InvalidValue => {
-            let token = invalid_token(error).unwrap_or_default();
-            if invalid_value(error).is_none_or(|value| value.is_empty()) {
-                ArgsError::MissingValue {
-                    option: leading_flag(&token),
-                }
-            } else if is_command_positional(&token) {
-                let value = invalid_value(error).unwrap_or(token);
-                if value.starts_with('-') {
-                    let option = recover_token(args, Some(value.clone()));
-                    let suggestion = suggest::clap_suggestion(error)
-                        .or_else(|| suggest::suggest_option(&option));
-                    ArgsError::UnknownOption { option, suggestion }
-                } else {
-                    let command = recover_token(args, Some(value.clone()));
-                    let suggestion = if command.eq_ignore_ascii_case("doctor")
-                        || command.eq_ignore_ascii_case("configure")
-                    {
-                        Some("status".to_owned())
-                    } else {
-                        suggest::clap_command_suggestion(error)
-                            .or_else(|| suggest::suggest_command(&command))
-                    };
-                    ArgsError::UnknownCommand {
-                        command,
-                        suggestion,
-                    }
-                }
-            } else {
-                let option = recover_token(args, Some(token));
-                let suggestion =
-                    suggest::clap_suggestion(error).or_else(|| suggest::suggest_option(&option));
-                ArgsError::UnknownOption { option, suggestion }
-            }
-        }
-        _ => ArgsError::InvalidArguments {
-            message: error
-                .render()
-                .to_string()
-                .lines()
-                .next()
-                .unwrap_or("invalid arguments")
-                .trim()
-                .trim_start_matches("error:")
-                .trim()
-                .to_owned(),
+        _ => ArgsError::Usage {
+            text: without_usage(&error.render().to_string()),
         },
     }
 }

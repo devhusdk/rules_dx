@@ -1972,6 +1972,54 @@ fn every_usage_error_prints_the_same_banner() {
 }
 
 #[test]
+fn clap_renders_the_error_and_supplies_the_suggestion() {
+    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+    let binary = std::path::Path::new(&root)
+        .join(workspace)
+        .join("cli/cli/dx");
+    let scratch = dx_test_scratch::scratch("clap-error-");
+    std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("scratch workspace");
+    let rendered = |argv: &[&str]| -> String {
+        let output = assert_cmd::Command::new(&binary)
+            .current_dir(scratch.path())
+            .args(argv)
+            .assert()
+            .code(2)
+            .get_output()
+            .stderr
+            .clone();
+        String::from_utf8(output).expect("stderr is utf-8")
+    };
+    for (argv, needle) in [
+        (vec!["lintt"], "a similar value exists: 'lint'"),
+        (
+            vec!["--ouptut=json"],
+            "a similar argument exists: '--output'",
+        ),
+    ] {
+        let text = rendered(&argv);
+        assert!(
+            text.contains(needle),
+            "dx {argv:?} lost clap's suggestion:\n{text}"
+        );
+        assert!(
+            !text.contains("did you mean"),
+            "dx {argv:?} still renders its own suggestion:\n{text}"
+        );
+        assert!(
+            !text.contains("Usage: dx"),
+            "dx {argv:?} prints clap's usage line beside the banner:\n{text}"
+        );
+        assert_eq!(
+            text.matches("usage: dx").count(),
+            1,
+            "dx {argv:?} must print the banner once:\n{text}"
+        );
+    }
+}
+
+#[test]
 fn the_usage_banner_names_every_command() {
     let text = banner();
     let marker = format!("<{}>", Command::pipe_list());

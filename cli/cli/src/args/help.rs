@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use super::command::Command;
 use super::completion::COMPLETION_SHELLS;
 use super::grammar::{Cli, VALUE_OPTIONS};
-use super::{suggest, ArgsError};
+use super::ArgsError;
 
 fn skip_value_payload<S: AsRef<OsStr>>(args: &[S], index: usize) -> usize {
     match args.get(index + 1) {
@@ -103,15 +103,23 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
             Some(command) => Some(ArgsError::Help {
                 text: render_command_help(command),
             }),
-            None => {
-                let suggestion = suggest::suggest_command(&word);
-                Some(ArgsError::UnknownCommand {
-                    command: word,
-                    suggestion,
-                })
-            }
+            None => Some(ArgsError::Usage {
+                text: unknown_command_text(&word),
+            }),
         },
     }
+}
+
+/// Ask clap to render the failure for a word that names no command.
+pub(crate) fn unknown_command_text(word: &str) -> String {
+    use clap::CommandFactory;
+    Cli::command()
+        .try_get_matches_from(["dx", word])
+        .err()
+        .map_or_else(
+            || format!("unknown command {word:?}"),
+            |error| super::tokenizer::without_usage(&error.render().to_string()),
+        )
 }
 
 pub(crate) fn render_top_help() -> String {
@@ -235,7 +243,7 @@ mod docs_parity_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::super::{parse, ArgsError, Command};
+    use super::super::{assert_usage, parse, ArgsError, Command};
     use super::render_command_help;
 
     fn args(words: &[&str]) -> Vec<String> {
@@ -459,10 +467,11 @@ mod tests {
             };
             assert_eq!(verb, flag, "help {command} must match --help");
         }
-        assert!(matches!(
-            parse(&args(&["help", "bogus"])),
-            Err(ArgsError::UnknownCommand { .. })
-        ));
+        assert_usage(
+            &["help", "bogus"],
+            parse(&args(&["help", "bogus"])).unwrap_err(),
+            &["bogus"],
+        );
     }
 
     fn completing_words(command: Command) -> Vec<String> {

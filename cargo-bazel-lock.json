@@ -1,5 +1,5 @@
 {
-  "checksum": "2e69aaf2c723ff713e39925c8b1a98bb66ae929a66a9f65d062ee1543f720138",
+  "checksum": "614244628e8d424cb1307e424f45e8be3bfbad171b3ae526c92ef32b2f772da3",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2728,10 +2728,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "strsim 0.11.1",
-            "target": "strsim"
           },
           {
             "id": "tempfile 3.27.0",
@@ -12975,7 +12971,6 @@
     "similar 3.2.0",
     "slug 0.1.6",
     "spdx 0.13.5",
-    "strsim 0.11.1",
     "tempfile 3.27.0",
     "thiserror 2.0.20",
     "toml 1.1.6+spec-1.1.0",

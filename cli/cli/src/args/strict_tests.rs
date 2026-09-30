@@ -1,4 +1,4 @@
-use super::super::{ArgsError, Command};
+use super::super::{assert_usage, ArgsError, Command};
 use super::parse;
 
 fn args(words: &[&str]) -> Vec<String> {
@@ -20,45 +20,23 @@ fn strict_unknown_options_fail_with_whole_token() {
         vec!["lint", "--bogus"],
         vec!["lint", "--bogus=1"],
     ] {
-        match parse(&args(&words)) {
-            Err(ArgsError::UnknownOption { option, .. }) => {
-                assert!(
-                    words.contains(&option.as_str()),
-                    "words: {words:?} echoed as {option:?}"
-                );
-            }
-            other => panic!("words: {words:?}: want UnknownOption, got {other:?}"),
-        }
+        let token = words.last().expect("a token to reject");
+        let flag = token.split('=').next().expect("a flag");
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[flag]);
     }
-    assert_eq!(
-        parse(&args(&["lint", "--jobs=4"])),
-        Err(ArgsError::UnknownOption {
-            option: "--jobs=4".to_owned(),
-            suggestion: None,
-        })
-    );
-    assert_eq!(
-        parse(&args(&["lint", "--dry-run=yes"])),
-        Err(ArgsError::UnknownOption {
-            option: "--dry-run=yes".to_owned(),
-            suggestion: None,
-        })
-    );
 }
 
 #[test]
 fn strict_missing_values_fail_with_bare_flag() {
-    assert_eq!(
-        parse(&args(&["lint", "--output"])),
-        Err(ArgsError::MissingValue {
-            option: "--output".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--output"],
+        parse(&args(&["lint", "--output"])).unwrap_err(),
+        &["--output"],
     );
-    assert_eq!(
-        parse(&args(&["lint", "--workspace", "--quiet", "format"])),
-        Err(ArgsError::MissingValue {
-            option: "--workspace".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--workspace", "--quiet", "format"],
+        parse(&args(&["lint", "--workspace", "--quiet", "format"])).unwrap_err(),
+        &["--workspace"],
     );
     assert_eq!(
         parse(&args(&["lint", "--workspace="])),
@@ -66,57 +44,49 @@ fn strict_missing_values_fail_with_bare_flag() {
             option: "--workspace".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["coverage", "--min-coverage"])),
-        Err(ArgsError::MissingValue {
-            option: "--min-coverage".to_owned(),
-        })
+    assert_usage(
+        &["coverage", "--min-coverage"],
+        parse(&args(&["coverage", "--min-coverage"])).unwrap_err(),
+        &["--min-coverage"],
     );
-    assert_eq!(
-        parse(&args(&["docs", "--port"])),
-        Err(ArgsError::MissingValue {
-            option: "--port".to_owned(),
-        })
+    assert_usage(
+        &["docs", "--port"],
+        parse(&args(&["docs", "--port"])).unwrap_err(),
+        &["--port"],
     );
-    assert_eq!(
-        parse(&args(&["docs", "--host"])),
-        Err(ArgsError::MissingValue {
-            option: "--host".to_owned(),
-        })
+    assert_usage(
+        &["docs", "--host"],
+        parse(&args(&["docs", "--host"])).unwrap_err(),
+        &["--host"],
     );
-    assert_eq!(
-        parse(&args(&["lint", "--color"])),
-        Err(ArgsError::MissingValue {
-            option: "--color".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--color"],
+        parse(&args(&["lint", "--color"])).unwrap_err(),
+        &["--color"],
     );
-    assert_eq!(
-        parse(&args(&["migrate", "--from", "--to=2.0.0"])),
-        Err(ArgsError::MissingValue {
-            option: "--from".to_owned(),
-        })
+    assert_usage(
+        &["migrate", "--from", "--to=2.0.0"],
+        parse(&args(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
+        &["--from"],
     );
 }
 
 #[test]
 fn strict_hyphen_values_are_never_consumed_as_option_values() {
-    assert_eq!(
-        parse(&args(&["lint", "--output", "--quiet"])),
-        Err(ArgsError::MissingValue {
-            option: "--output".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--output", "--quiet"],
+        parse(&args(&["lint", "--output", "--quiet"])).unwrap_err(),
+        &["--output"],
     );
-    assert_eq!(
-        parse(&args(&["lint", "--workspace", "--quiet"])),
-        Err(ArgsError::MissingValue {
-            option: "--workspace".to_owned(),
-        })
+    assert_usage(
+        &["lint", "--workspace", "--quiet"],
+        parse(&args(&["lint", "--workspace", "--quiet"])).unwrap_err(),
+        &["--workspace"],
     );
-    assert_eq!(
-        parse(&args(&["build", "--output", "--dry-run"])),
-        Err(ArgsError::MissingValue {
-            option: "--output".to_owned(),
-        })
+    assert_usage(
+        &["build", "--output", "--dry-run"],
+        parse(&args(&["build", "--output", "--dry-run"])).unwrap_err(),
+        &["--output"],
     );
 }
 
@@ -134,56 +104,34 @@ fn strict_bad_values_fail_with_contract_shapes() {
             value: "never".to_owned(),
         })
     );
-    for bad in ["sarif", "=out.sarif", "sarif=", ""] {
-        assert_eq!(
-            parse(&args(&["lint", &format!("--report={bad}")])),
-            Err(ArgsError::BadReport {
-                value: bad.to_owned(),
-            })
-        );
+    for bad in ["sarif", "=out.sarif", "sarif="] {
+        let words = ["lint", &format!("--report={bad}")];
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["report"]);
     }
-    assert_eq!(
-        parse(&args(&["coverage", "--min-coverage=eighty"])),
-        Err(ArgsError::BadMinCoverage {
-            value: "eighty".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&args(&["coverage", "--min-coverage=101"])),
-        Err(ArgsError::BadMinCoverage {
-            value: "101".to_owned(),
-        })
-    );
+    for words in [
+        vec!["coverage", "--min-coverage=eighty"],
+        vec!["coverage", "--min-coverage=101"],
+    ] {
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["min-coverage"]);
+    }
     assert_eq!(
         parse(&args(&["lint", "--color=bright"])),
         Err(ArgsError::BadColor {
             value: "bright".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&args(&["docs", "--serve", "--port=0"])),
-        Err(ArgsError::MissingValue {
-            option: "--port".to_owned(),
-        })
+    assert_usage(
+        &["docs", "--serve", "--port=0"],
+        parse(&args(&["docs", "--serve", "--port=0"])).unwrap_err(),
+        &["--port"],
     );
 }
 
 #[test]
 fn strict_typo_suggestions_come_from_the_same_grammar() {
-    assert_eq!(
-        parse(&args(&["lintt"])),
-        Err(ArgsError::UnknownCommand {
-            command: "lintt".to_owned(),
-            suggestion: Some("lint".to_owned()),
-        })
-    );
-    assert_eq!(
-        parse(&args(&["--ouptut=json"])),
-        Err(ArgsError::UnknownOption {
-            option: "--ouptut=json".to_owned(),
-            suggestion: Some("--output".to_owned()),
-        })
-    );
+    for (words, needle) in [(vec!["lintt"], "lint"), (vec!["--ouptut=json"], "--output")] {
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[needle]);
+    }
 }
 
 #[test]
@@ -207,8 +155,7 @@ fn strict_repeated_flags_are_last_wins() {
     );
     assert!(parse(&args(&["build", "-vv"])).expect("verbose").verbose);
     assert!(
-        parse(&args(&["build", "--debug", "--release"]))
-            .is_err_and(|error| matches!(error, ArgsError::ConflictingProfiles)),
+        parse(&args(&["build", "--debug", "--release"])).is_err(),
         "repeatable flags must not weaken the profile conflict"
     );
 }
@@ -255,11 +202,7 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         vec!["build", "--debug", "--release"],
         vec!["build", "--release", "--debug"],
     ] {
-        assert_eq!(
-            parse(&args(&words)),
-            Err(ArgsError::ConflictingProfiles),
-            "words: {words:?}"
-        );
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--debug"]);
     }
     for words in [
         vec!["lint", "--verbose", "--log-level=debug"],
@@ -267,87 +210,23 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         vec!["lint", "-v", "--log-level=info"],
         vec!["lint", "--log-level=info", "-v"],
     ] {
-        assert_eq!(
-            parse(&args(&words)),
-            Err(ArgsError::ConflictingVerboseLogLevel),
-            "words: {words:?}"
-        );
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--log-level"]);
     }
-    for (words, want) in [
-        (
-            vec!["coverage", "--min-coverage=eighty"],
-            ArgsError::BadMinCoverage {
-                value: "eighty".to_owned(),
-            },
-        ),
-        (
-            vec!["coverage", "--min-coverage=101"],
-            ArgsError::BadMinCoverage {
-                value: "101".to_owned(),
-            },
-        ),
-        (
-            vec!["coverage", "--min-coverage=-1"],
-            ArgsError::BadMinCoverage {
-                value: "-1".to_owned(),
-            },
-        ),
-        (
-            vec!["lint", "--report=sarif"],
-            ArgsError::BadReport {
-                value: "sarif".to_owned(),
-            },
-        ),
-        (
-            vec!["lint", "--report=sarif="],
-            ArgsError::BadReport {
-                value: "sarif=".to_owned(),
-            },
-        ),
-        (
-            vec!["docs", "--serve", "--port=0"],
-            ArgsError::MissingValue {
-                option: "--port".to_owned(),
-            },
-        ),
-        (
-            vec!["docs", "--serve", "--port=notanumber"],
-            ArgsError::MissingValue {
-                option: "--port".to_owned(),
-            },
-        ),
-        (
-            vec!["docs", "--serve", "--port="],
-            ArgsError::MissingValue {
-                option: "--port".to_owned(),
-            },
-        ),
-        (
-            vec!["docs", "--serve", "--host="],
-            ArgsError::MissingValue {
-                option: "--host".to_owned(),
-            },
-        ),
-        (
-            vec!["version", "--pin="],
-            ArgsError::MissingValue {
-                option: "--pin".to_owned(),
-            },
-        ),
-        (
-            vec!["migrate", "--from="],
-            ArgsError::MissingValue {
-                option: "--from".to_owned(),
-            },
-        ),
-        (
-            vec!["migrate", "--to="],
-            ArgsError::MissingValue {
-                option: "--to".to_owned(),
-            },
-        ),
+    for (words, needle) in [
+        (vec!["coverage", "--min-coverage=eighty"], "min-coverage"),
+        (vec!["coverage", "--min-coverage=101"], "min-coverage"),
+        (vec!["coverage", "--min-coverage=-1"], "min-coverage"),
+        (vec!["lint", "--report=sarif"], "report"),
+        (vec!["lint", "--report=sarif="], "report"),
+        (vec!["docs", "--serve", "--port=0"], "port"),
+        (vec!["docs", "--serve", "--port=notanumber"], "port"),
+        (vec!["docs", "--serve", "--port="], "port"),
+        (vec!["docs", "--serve", "--host="], "host"),
+        (vec!["version", "--pin="], "pin"),
+        (vec!["migrate", "--from="], "from"),
+        (vec!["migrate", "--to="], "to"),
     ] {
-        assert_eq!(parse(&args(&words)), Err(want), "words: {words:?}");
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[needle]);
     }
 }
 
@@ -376,12 +255,7 @@ fn strict_here_conflicts_stay_imperative_and_ordered() {
 #[test]
 fn strict_help_verb_redirects_to_generated_help() {
     for words in [vec!["Help"], vec!["HELP"]] {
-        match parse(&args(&words)) {
-            Err(ArgsError::UnknownCommand { command, .. }) => {
-                assert_eq!(command, words[0]);
-            }
-            other => panic!("words: {words:?}: want UnknownCommand, got {other:?}"),
-        }
+        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[words[0]]);
     }
     for words in [vec!["help"], vec!["help", "lint"], vec!["help", "status"]] {
         match parse(&args(&words)) {

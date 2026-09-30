@@ -1394,20 +1394,19 @@ mod tests {
             33,
             "registry width changed; update scope matrix plus fallbacks"
         );
-        let missing_text = super::super::error::ArgsError::MissingCommand.to_string();
-        let unknown_text = super::super::error::ArgsError::UnknownCommand {
-            command: "bogus".to_owned(),
-            suggestion: None,
-        }
-        .to_string();
+        let missing_text = super::super::ArgsError::MissingCommand.to_string();
+        let unknown_text = super::super::help::unknown_command_text("bogus");
         assert!(
             missing_text.contains(&list),
             "ArgsError::MissingCommand drifted from pipe_list: {missing_text}"
         );
-        assert!(
-            unknown_text.contains(&list),
-            "ArgsError::UnknownCommand drifted from pipe_list: {unknown_text}"
-        );
+        for command in Command::value_variants() {
+            assert!(
+                unknown_text.contains(command.name()),
+                "clap must name {} when the command is unknown: {unknown_text}",
+                command.name()
+            );
+        }
         assert_eq!(
             list,
             "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel",
@@ -1474,7 +1473,7 @@ mod tests {
     #[test]
     fn value_sets_and_man_parity_are_pinned() {
         use clap::ValueEnum;
-        let bad_output = super::super::error::ArgsError::BadOutput {
+        let bad_output = super::super::ArgsError::BadOutput {
             value: "yaml".to_owned(),
         }
         .to_string();
@@ -1482,7 +1481,7 @@ mod tests {
             bad_output.contains("text|diff|json"),
             "output value set drifted: {bad_output}"
         );
-        let bad_fail = super::super::error::ArgsError::BadFailOn {
+        let bad_fail = super::super::ArgsError::BadFailOn {
             value: "never".to_owned(),
         }
         .to_string();
@@ -1490,7 +1489,7 @@ mod tests {
             bad_fail.contains("info|warning|error"),
             "fail-on value set drifted: {bad_fail}"
         );
-        let bad_color = super::super::error::ArgsError::BadColor {
+        let bad_color = super::super::ArgsError::BadColor {
             value: "bright".to_owned(),
         }
         .to_string();

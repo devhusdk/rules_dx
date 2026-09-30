@@ -120,10 +120,7 @@ pub(super) fn clean_workspace(harness: &Harness) {
         "cargo-bazel-lock.json",
         r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
     );
-    harness.write_source(
-        "pnpm-lock.yaml",
-        "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n",
-    );
+    write_npm_locks(harness);
     harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
     harness.write_source(
         "third_party/dotnet/paket.lock",
@@ -141,6 +138,22 @@ pub(super) fn write_go_mod(harness: &Harness) {
         "third_party/go/go.mod",
         "module rules_dx/third_party/go\n\ngo 1.24.12\n\nrequire (\n\tgithub.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 // indirect\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/pmezard/go-difflib v1.0.0\n)\n",
     );
+}
+
+const NPM_LOCK: &str =
+    "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
+
+const NPM_FAMILY_LOCKS: [&str; 3] = [
+    "examples/adopt-js-ts/pnpm-lock.yaml",
+    "examples/adopt-polyglot/pnpm-lock.yaml",
+    "quality/tools/javascript/pnpm-lock.yaml",
+];
+
+pub(super) fn write_npm_locks(harness: &Harness) {
+    harness.write_source("pnpm-lock.yaml", NPM_LOCK);
+    for rel in NPM_FAMILY_LOCKS {
+        harness.write_source(rel, NPM_LOCK);
+    }
 }
 
 pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
@@ -197,7 +210,7 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(harness);
         harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
         harness.write_source(
             "third_party/dotnet/paket.lock",
@@ -211,8 +224,8 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     assert!(out.contains("audit security: clean"), "{out}");
     assert!(
         out.contains(
-            "audit security: clean; no advisory coverage for npm-adopt, npm-adopt-polyglot, \
-             npm-tools, uv, uv-adopt, uv-adopt-polyglot, uv-tools"
+            "audit security: clean; no advisory coverage for uv, uv-adopt, uv-adopt-polyglot, \
+             uv-tools"
         ),
         "{out}"
     );
@@ -242,7 +255,7 @@ pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(harness);
         harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
         harness.write_source(
             "third_party/dotnet/paket.lock",
@@ -291,7 +304,7 @@ pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(&harness);
         harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
         harness.write_source(
             "third_party/dotnet/paket.lock",
@@ -335,7 +348,7 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"git-dep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/example/git-dep#abc123\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(harness);
         harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
         harness.write_source(
             "third_party/dotnet/paket.lock",
@@ -357,7 +370,7 @@ pub(super) fn audit_live_npm_git_and_sibling_locks_are_incomplete() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(harness);
         harness.write_source(
             "package-lock.json",
             r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/git-dep":{"version":"github:user/repo#abc123"}}}"#,
@@ -427,6 +440,58 @@ pub(super) fn audit_live_vendored_mirror_analyzes_offline_like_upstream() {
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("1 vulnerability findings"), "{err}");
+}
+
+#[test]
+pub(super) fn audit_live_npm_family_locks_are_assessed_against_the_shared_npm_snapshot() {
+    for (scope, rel) in [
+        (
+            "examples/adopt-js-ts/app",
+            "examples/adopt-js-ts/pnpm-lock.yaml",
+        ),
+        (
+            "examples/adopt-polyglot/frontend",
+            "examples/adopt-polyglot/pnpm-lock.yaml",
+        ),
+        (
+            "quality/tools/javascript/package.json",
+            "quality/tools/javascript/pnpm-lock.yaml",
+        ),
+    ] {
+        let runner = AuditRunner::clean();
+        let (code, _out, err) = run_with(&["security", scope], &runner, &|harness| {
+            harness.write_source(
+                rel,
+                "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n",
+            );
+            write_advisory(
+                harness,
+                "npm",
+                r#"[{"id":"GHSA-npm-test-0001","package":"react","versions":">=18.0.0, <18.3.0","severity":"high","fixed":["18.3.0"],"set":"npm"}]"#,
+            );
+        });
+        assert_eq!(code, 1, "{scope} must fail: {err}");
+        assert!(err.contains("audit_failed"), "{scope}: {err}");
+        assert!(
+            err.contains("1 vulnerability findings"),
+            "{scope} must be assessed: {err}"
+        );
+    }
+}
+
+#[test]
+pub(super) fn audit_live_npm_family_locks_are_clean_when_no_advisory_matches() {
+    let runner = AuditRunner::clean();
+    let (code, out, err) = run_with(&["security", "//..."], &runner, &|harness| {
+        clean_workspace(harness);
+        write_all_empty_advisories(harness);
+    });
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("audit security: clean"), "{out}");
+    assert!(
+        !out.contains("no advisory coverage for npm-adopt"),
+        "npm-adopt is covered: {out}"
+    );
 }
 
 #[test]
@@ -601,10 +666,7 @@ fn audit_live_license_names_uncovered_dependency_sets() {
     let (code, _out, err) = run_with(&["license"], &runner, &clean_workspace);
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.contains(
-            "no advisory coverage for npm-adopt, npm-adopt-polyglot, npm-tools, uv, \
-             uv-adopt, uv-adopt-polyglot, uv-tools"
-        ),
+        err.contains("no advisory coverage for uv, uv-adopt, uv-adopt-polyglot, uv-tools"),
         "{err}"
     );
 }

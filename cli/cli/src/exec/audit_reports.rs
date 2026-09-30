@@ -277,7 +277,7 @@ fn audit_live_json_emits_per_family_lifecycle() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(harness);
         harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
         harness.write_source(
             "third_party/dotnet/paket.lock",
@@ -314,7 +314,7 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(harness);
         harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
         harness.write_source(
             "third_party/dotnet/paket.lock",
@@ -573,7 +573,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
         "rust/tests/fixtures/hello/Cargo.lock",
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
-    harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+    write_npm_locks(&harness);
     harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
     harness.write_source(
         "third_party/dotnet/paket.lock",
@@ -627,7 +627,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
-        harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+        write_npm_locks(harness);
         harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
         harness.write_source(
             "third_party/dotnet/paket.lock",
@@ -653,7 +653,7 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
         "rust/tests/fixtures/hello/Cargo.lock",
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
-    harness.write_source("pnpm-lock.yaml", "lockfileVersion: '9.0'\n");
+    write_npm_locks(&harness);
     harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
     harness.write_source(
         "third_party/dotnet/paket.lock",
@@ -845,7 +845,24 @@ fn audit_set_coverage_is_decided_once_and_matches_the_set_registry() {
         .iter()
         .copied()
         .collect();
-    assert_eq!(curated, covered);
+    let covered_families: std::collections::BTreeSet<&str> = covered
+        .iter()
+        .filter_map(|name| dx_audit::advisory::advisory_family(name))
+        .collect();
+    assert_eq!(curated, covered_families);
+    let sibling_format_sets = ["npm"];
+    for set in dx_update::sets::SetId::ALL {
+        let name = set.name();
+        if sibling_format_sets.contains(&name) {
+            continue;
+        }
+        for rel in dx_audit::backend::vuln_locks(name) {
+            assert!(
+                set.locks().contains(rel),
+                "{name} is audited against {rel}, which its updater set does not own"
+            );
+        }
+    }
     let uncovered = dx_audit::backend::sets_without_coverage(names.iter().copied());
     assert_eq!(
         uncovered,

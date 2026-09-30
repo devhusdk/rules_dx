@@ -30,6 +30,12 @@ checks dependency licenses. No scope means `//...`. Use `--here` for the
 current dir tree. Neither command changes files. `--check` and Bazel options
 do not apply.
 
+`dx security` reads the lockfile of each set it owns and matches it against
+`.dx/advisory/<family>.json`. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
+`npm-adopt-polyglot`, `npm-tools`, `nuget`. The `npm-adopt`,
+`npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot. Sets
+without a snapshot are listed as `no advisory coverage for <sets>`.
+
 Output: `--output text|json`. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.

@@ -38,8 +38,19 @@ pub const CODE_ADVISORY_REFRESH_FAILED: &str = "advisory_refresh_failed";
 
 pub const CACHE_DAYS: u32 = 0;
 
-pub fn advisory_source(set: &str) -> Option<&'static str> {
+pub fn advisory_family(set: &str) -> Option<&'static str> {
     match set {
+        "cargo" => Some("cargo"),
+        "npm" | "npm-adopt" | "npm-adopt-polyglot" | "npm-tools" => Some("npm"),
+        "maven" => Some("maven"),
+        "nuget" => Some("nuget"),
+        "go" => Some("go"),
+        _ => None,
+    }
+}
+
+pub fn advisory_source(set: &str) -> Option<&'static str> {
+    match advisory_family(set)? {
         "cargo" => Some("https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"),
         "npm" => Some("https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"),
         "maven" => Some("https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip"),
@@ -58,11 +69,15 @@ pub fn is_accepted_url(url: &str) -> bool {
 }
 
 pub fn snapshot_rel(set: &str) -> String {
-    format!(".dx/advisory/{set}.json")
+    format!(".dx/advisory/{}.json", family_of(set))
 }
 
 pub fn identity_rel(set: &str) -> String {
-    format!(".dx/advisory/{set}.meta.json")
+    format!(".dx/advisory/{}.meta.json", family_of(set))
+}
+
+fn family_of(set: &str) -> &str {
+    advisory_family(set).unwrap_or(set)
 }
 
 pub fn parse_identity(text: &str) -> Result<AdvisorySnapshot, String> {
@@ -358,6 +373,18 @@ mod tests {
         }
         assert_eq!(advisory_source("unknown-set"), None);
         assert_eq!(advisory_source(""), None);
+    }
+
+    #[test]
+    fn every_npm_set_shares_the_npm_snapshot() {
+        for set in ["npm", "npm-adopt", "npm-adopt-polyglot", "npm-tools"] {
+            assert_eq!(advisory_family(set), Some("npm"), "{set} is npm");
+            assert_eq!(snapshot_rel(set), ".dx/advisory/npm.json", "{set}");
+            assert_eq!(identity_rel(set), ".dx/advisory/npm.meta.json", "{set}");
+        }
+        assert_eq!(advisory_family("cargo"), Some("cargo"));
+        assert_eq!(advisory_family("uv"), None);
+        assert_eq!(advisory_family("unknown-set"), None);
     }
 
     #[test]

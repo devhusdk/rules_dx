@@ -87,6 +87,9 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
     match set {
         "cargo" => &["rust/tests/fixtures/hello/Cargo.lock"],
         "npm" => &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
+        "npm-adopt" => &["examples/adopt-js-ts/pnpm-lock.yaml"],
+        "npm-adopt-polyglot" => &["examples/adopt-polyglot/pnpm-lock.yaml"],
+        "npm-tools" => &["quality/tools/javascript/pnpm-lock.yaml"],
         "maven" => &["third_party/jvm/maven_install.json"],
         "nuget" => &["third_party/dotnet/paket.lock"],
         "go" => &["third_party/go/go.mod"],
@@ -223,21 +226,45 @@ mod tests {
             vuln_locks("npm"),
             &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"]
         );
+        assert_eq!(
+            vuln_locks("npm-adopt"),
+            &["examples/adopt-js-ts/pnpm-lock.yaml"]
+        );
+        assert_eq!(
+            vuln_locks("npm-adopt-polyglot"),
+            &["examples/adopt-polyglot/pnpm-lock.yaml"]
+        );
+        assert_eq!(
+            vuln_locks("npm-tools"),
+            &["quality/tools/javascript/pnpm-lock.yaml"]
+        );
         assert_eq!(vuln_locks("maven"), &["third_party/jvm/maven_install.json"]);
         assert_eq!(vuln_locks("nuget"), &["third_party/dotnet/paket.lock"]);
         assert_eq!(vuln_locks("go"), &["third_party/go/go.mod"]);
         assert!(!is_empty_set("go"));
         assert!(!is_empty_set("cargo"));
+        assert!(!is_empty_set("npm-adopt"));
         assert!(is_empty_set("unknown-set"));
     }
 
     #[test]
     fn sets_without_coverage_names_each_gap_once() {
         assert_eq!(
-            sets_without_coverage(["npm-adopt", "cargo", "npm-adopt", "uv", "npm"]),
-            vec!["npm-adopt", "uv"]
+            sets_without_coverage(["uv", "cargo", "uv", "npm-adopt", "npm"]),
+            vec!["uv"]
         );
         assert!(sets_without_coverage(["cargo", "npm", "maven", "nuget", "go"]).is_empty());
+        assert!(sets_without_coverage([
+            "cargo",
+            "npm",
+            "npm-adopt",
+            "npm-adopt-polyglot",
+            "npm-tools",
+            "maven",
+            "nuget",
+            "go"
+        ])
+        .is_empty());
         assert_eq!(sets_without_coverage(["unknown-set"]), vec!["unknown-set"]);
     }
 

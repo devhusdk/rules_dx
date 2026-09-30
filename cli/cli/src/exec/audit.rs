@@ -159,6 +159,11 @@ fn load_advisories(
     today: &str,
 ) -> Result<Vec<dx_audit::vuln::Advisory>, AuditError> {
     let set_name = set.name().to_owned();
+    let family = dx_audit::advisory::advisory_family(set.name())
+        .ok_or_else(|| AuditError::AdvisoryUnsupported {
+            set: set_name.clone(),
+        })?
+        .to_owned();
     let source = dx_audit::advisory::advisory_source(set.name())
         .ok_or_else(|| AuditError::AdvisoryUnsupported {
             set: set_name.clone(),
@@ -226,7 +231,7 @@ fn load_advisories(
             error,
         }
     })?;
-    if snapshot.set != set.name() {
+    if snapshot.set != family {
         return Err(AuditError::AdvisorySetMismatch {
             set: set_name.clone(),
             actual: snapshot.set.clone(),

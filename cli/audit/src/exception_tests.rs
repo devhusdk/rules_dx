@@ -267,3 +267,64 @@ fn exception_schema_stays_versioned_without_allowlist() {
     novel.versions = ">=9.0.0, <10.0.0".to_owned();
     validate_exception(&novel, "2026-09-14").expect("novel data validates");
 }
+
+fn security_toml(entries: &[RiskException]) -> String {
+    let mut text = String::new();
+    for entry in entries {
+        text.push_str("[[exception]]\n");
+        for (key, value) in [
+            ("advisory", &entry.advisory),
+            ("package", &entry.package),
+            ("set", &entry.set),
+            ("versions", &entry.versions),
+            ("reason", &entry.reason),
+            ("expires", &entry.expires),
+        ] {
+            text.push_str(&format!("{key} = {value:?}\n"));
+        }
+    }
+    text
+}
+
+#[test]
+fn security_toml_loads_every_exception_in_file_order() {
+    let mut second = sample();
+    second.advisory = "GHSA-dddd-eeee-ffff".to_owned();
+    second.package = "another-copyleft-lib".to_owned();
+    let text = security_toml(&[sample(), second]);
+    let policy = load_security_toml(&text).expect("loads");
+    assert_eq!(policy.exceptions.len(), 2);
+    assert_eq!(policy.exceptions[0], sample());
+    assert_eq!(policy.exceptions[1].advisory, "GHSA-dddd-eeee-ffff");
+}
+
+#[test]
+fn security_toml_defaults_to_no_exceptions_and_the_current_schema() {
+    assert_eq!(
+        load_security_toml("").expect("empty file"),
+        SecurityPolicy::default()
+    );
+    assert_eq!(
+        load_security_toml(&format!("schema_version = {EXCEPTION_SCHEMA_VERSION}\n"))
+            .expect("pinned"),
+        SecurityPolicy::default()
+    );
+    assert_eq!(
+        load_security_toml("schema_version = 99\n"),
+        Err(SecurityProblem::UnsupportedSchema { version: 99 })
+    );
+}
+
+#[test]
+fn security_toml_rejects_missing_and_unknown_keys() {
+    let text = "[[exception]]\npackage = \"p\"\n";
+    assert!(matches!(
+        load_security_toml(text),
+        Err(SecurityProblem::InvalidToml { .. })
+    ));
+    let text = format!("{}\nextra = 1\n", security_toml(&[sample()]));
+    assert!(matches!(
+        load_security_toml(&text),
+        Err(SecurityProblem::InvalidToml { .. })
+    ));
+}

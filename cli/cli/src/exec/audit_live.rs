@@ -514,6 +514,109 @@ pub(super) fn audit_live_go_advisory_findings_fail_instead_of_empty_clean() {
     assert!(err.contains("1 vulnerability findings"), "{err}");
 }
 
+const GO_ADVISORY: &str = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
+const GO_PACKAGE: &str = "github.com/google/go-cmp";
+
+fn security_exception(set: &str, package: &str, versions: &str, expires: &str) -> String {
+    let mut text = String::from("[[exception]]\nadvisory = \"GHSA-go-test-0001\"\n");
+    for (key, value) in [
+        ("package", package),
+        ("set", set),
+        ("versions", versions),
+        ("reason", "reviewed"),
+        ("expires", expires),
+    ] {
+        text.push_str(&format!("{key} = {value:?}\n"));
+    }
+    text
+}
+
+fn go_exception(versions: &str, expires: &str) -> String {
+    security_exception("go", GO_PACKAGE, versions, expires)
+}
+
+fn security_with_go_advisory(security_toml: &str) -> (i32, String, String) {
+    run_with(
+        &["security", "//go/tests/fixtures/hello:hello"],
+        &AuditRunner::clean(),
+        &|harness| {
+            write_go_mod(harness);
+            write_advisory(harness, "go", GO_ADVISORY);
+            harness.write_source("security.toml", security_toml);
+        },
+    )
+}
+
+#[test]
+pub(super) fn audit_live_security_toml_exempts_only_a_matching_live_finding() {
+    for (name, security_toml, expected, detail) in [
+        (
+            "cover",
+            go_exception(">=v0.6.0, <v0.7.0", "2999-01-01"),
+            0,
+            "clean",
+        ),
+        (
+            "wrong-version",
+            go_exception(">=v0.7.0", "2999-01-01"),
+            1,
+            "1 vulnerability findings",
+        ),
+        (
+            "wrong-package",
+            security_exception("go", "other/module", ">=v0.6.0", "2999-01-01"),
+            1,
+            "on other/module matches no finding",
+        ),
+        (
+            "expired",
+            go_exception(">=v0.6.0, <v0.7.0", "2000-01-01"),
+            1,
+            "risk exception expired 2000-01-01",
+        ),
+    ] {
+        let (code, out, err) = security_with_go_advisory(&security_toml);
+        assert_eq!(code, expected, "{name}: {out}{err}");
+        assert!(
+            format!("{out}{err}").contains(detail),
+            "{name} must report {detail:?}: {out}{err}"
+        );
+    }
+}
+
+#[test]
+pub(super) fn audit_live_security_toml_exceptions_outside_the_scope_stay_unreported() {
+    let security_toml = format!(
+        "{}{}",
+        go_exception(">=v0.6.0, <v0.7.0", "2999-01-01"),
+        security_exception("npm", "react", ">=18.0.0", "2999-01-01")
+    );
+    let (code, out, err) = security_with_go_advisory(&security_toml);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("audit security: clean"), "{out}");
+    assert!(
+        !format!("{out}{err}").contains("matches no finding"),
+        "{out}{err}"
+    );
+}
+
+#[test]
+pub(super) fn audit_live_invalid_security_toml_fails_without_assessing() {
+    let (code, out, err) = security_with_go_advisory("schema_version = 99\n");
+    assert_eq!(code, 1, "{out}{err}");
+    let schema = "unsupported security.toml schema_version 99";
+    assert!(err.contains(schema), "{err}");
+    assert!(err.contains("security.toml"), "{err}");
+}
+
+#[test]
+pub(super) fn audit_live_obsolete_security_toml_exception_fails_the_run() {
+    let obsolete = security_exception("go", "github.com/spf13/cobra", ">=v1.0.0", "2999-01-01");
+    let (code, out, err) = security_with_go_advisory(&obsolete);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(err.contains("matches no finding"), "{err}");
+}
+
 #[test]
 pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
     let runner = AuditRunner::clean();

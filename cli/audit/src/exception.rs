@@ -1,8 +1,10 @@
 use chrono::{Datelike, NaiveDate};
+use serde::Deserialize;
 
 pub const EXCEPTION_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RiskException {
     pub advisory: String,
     pub package: String,
@@ -10,6 +12,21 @@ pub struct RiskException {
     pub versions: String,
     pub reason: String,
     pub expires: String,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct SecurityPolicy {
+    pub exceptions: Vec<RiskException>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum SecurityProblem {
+    #[error("security.toml is invalid: {message}")]
+    InvalidToml { message: String },
+    #[error(
+        "unsupported security.toml schema_version {version} (want {EXCEPTION_SCHEMA_VERSION})"
+    )]
+    UnsupportedSchema { version: u32 },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -92,6 +109,29 @@ fn is_date_shape(text: &str) -> bool {
         .iter()
         .enumerate()
         .all(|(index, byte)| index == 4 || index == 7 || byte.is_ascii_digit())
+}
+
+pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem> {
+    let file: SecurityFile =
+        toml::from_str(text).map_err(|error| SecurityProblem::InvalidToml {
+            message: error.to_string(),
+        })?;
+    let version = file.schema_version.unwrap_or(EXCEPTION_SCHEMA_VERSION);
+    if version != EXCEPTION_SCHEMA_VERSION {
+        return Err(SecurityProblem::UnsupportedSchema { version });
+    }
+    Ok(SecurityPolicy {
+        exceptions: file.exception,
+    })
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SecurityFile {
+    #[serde(default)]
+    schema_version: Option<u32>,
+    #[serde(default)]
+    exception: Vec<RiskException>,
 }
 
 #[path = "exception_apply.rs"]

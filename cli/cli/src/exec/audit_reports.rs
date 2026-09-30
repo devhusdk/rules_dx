@@ -59,6 +59,30 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
 }
 
 #[test]
+fn security_policy_read_failures_and_absent_file_are_explicit() {
+    let harness = Harness::new("security-policy-io");
+    assert!(super::load_security_policy(&harness.workspace)
+        .expect("absent file")
+        .is_empty());
+    let path = harness.workspace.join("security.toml");
+    std::fs::write(&path, " \n").expect("empty");
+    assert!(super::load_security_policy(&harness.workspace)
+        .expect("empty file")
+        .is_empty());
+    std::fs::write(&path, [0xff]).expect("invalid utf8");
+    assert!(matches!(
+        super::load_security_policy(&harness.workspace),
+        Err(super::AuditError::NotUtf8 { .. })
+    ));
+    std::fs::remove_file(&path).expect("remove");
+    std::fs::create_dir(&path).expect("directory");
+    assert!(matches!(
+        super::load_security_policy(&harness.workspace),
+        Err(super::AuditError::Read { .. })
+    ));
+}
+
+#[test]
 fn license_exceptions_only_approve_matching_current_findings() {
     for (license, exception, expected) in [
         ("AGPL-3.0-only", "", 1),
@@ -1019,6 +1043,14 @@ fn audit_errors_stay_typed_with_stable_display() {
         }
         .to_string(),
         "could not parse pnpm-lock.yaml: boom"
+    );
+    let security =
+        AuditError::SecurityInvalid(dx_audit::exception::SecurityProblem::UnsupportedSchema {
+            version: 99,
+        });
+    assert_eq!(
+        security.to_string(),
+        "unsupported security.toml schema_version 99 (want 1)"
     );
     let unowned = super::resolve_audit_sets(&["docs/cli/README.md".to_owned()])
         .expect_err("unowned scope fails");

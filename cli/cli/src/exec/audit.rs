@@ -104,6 +104,8 @@ pub(crate) enum AuditError {
         #[source]
         error: dx_audit::license_policy::PolicyProblem,
     },
+    #[error(transparent)]
+    SecurityInvalid(dx_audit::exception::SecurityProblem),
     #[error("offline_required: cannot obtain current advisory data for {set} without network: {detail} (re-run without --offline once connected)")]
     OfflineRequired { set: String, detail: String },
 }
@@ -381,6 +383,25 @@ fn load_license_policy(
         .map_err(|error| AuditError::LicenseInvalid { error })
 }
 
+fn load_security_policy(
+    workspace: &Path,
+) -> Result<Vec<dx_audit::exception::RiskException>, AuditError> {
+    let rel = "security.toml";
+    let text = match read_workspace_text(workspace, rel) {
+        Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(Vec::new());
+        }
+        Err(other) => return Err(other),
+        Ok(text) => text,
+    };
+    if text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    dx_audit::exception::load_security_toml(&text)
+        .map(|policy| policy.exceptions)
+        .map_err(AuditError::SecurityInvalid)
+}
+
 fn tier_for_roots(
     policy: &dx_audit::license_policy::LicensePolicy,
     roots: &[String],
@@ -633,7 +654,39 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
+    let exceptions = match load_security_policy(workspace) {
+        Ok(exceptions) => exceptions,
+        Err(error) => {
+            diagnostics.push(DiagnosticEvent {
+                severity: Severity::Error,
+                tool: "vuln".to_owned(),
+                message: error.to_string(),
+                rule: None,
+                path: Some("security.toml".to_owned()),
+                range: None,
+                snapshot: Snapshot::Terminal,
+                fixable: false,
+                resolution: None,
+            });
+            return SecurityResult {
+                status: dx_audit::outcome::FamilyStatus::Incomplete,
+                diagnostics,
+                detail: error.to_string(),
+            };
+        }
+    };
     let uncovered = dx_audit::backend::sets_without_coverage(sets.iter().map(|set| set.name()));
+    let mut live_exceptions: Vec<&dx_audit::exception::RiskException> = Vec::new();
+    for exception in &exceptions {
+        match dx_audit::exception::validate_exception(exception, today) {
+            Ok(()) => live_exceptions.push(exception),
+            Err(problem) => {
+                if incomplete.is_none() {
+                    incomplete = Some(format!("invalid security.toml: {problem}"));
+                }
+            }
+        }
+    }
     for set in sets {
         if dx_audit::backend::is_empty_set(set.name()) {
             continue;
@@ -675,7 +728,13 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             Ok(advisories) => advisories,
         };
         let (findings, unassessed) = dx_audit::vuln::match_packages(&packages, &advisories);
-        let (unexempted, problems) = dx_audit::vuln::apply_exceptions(&findings, &[], today);
+        let set_exceptions: Vec<dx_audit::exception::RiskException> = live_exceptions
+            .iter()
+            .filter(|exception| exception.set == set.name())
+            .map(|exception| (*exception).clone())
+            .collect();
+        let (unexempted, problems) =
+            dx_audit::vuln::apply_exceptions(&findings, &set_exceptions, today);
         if !problems.is_empty() {
             let first = problems
                 .first()

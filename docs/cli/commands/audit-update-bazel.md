@@ -36,6 +36,24 @@ do not apply.
 `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot. Sets
 without a snapshot are listed as `no advisory coverage for <sets>`.
 
+`dx security` reads `security.toml` from the workspace root. Without the file
+no finding is exempted. Each `[[exception]]` needs `advisory`, `package`, `set`,
+`versions`, `reason`, and `expires`. `schema_version` is `1`.
+
+```toml
+[[exception]]
+advisory = "GHSA-aaaa-bbbb-cccc"
+package = "some-package"
+set = "npm"
+versions = ">=1.2.0, <2.0.0"
+reason = "Reviewed; no reachable code path."
+expires = "2027-03-01"
+```
+
+An `expires` date on or before the audit date fails the run. An exception that
+matches no current finding in its own set fails the run, so remove it when the
+finding goes away. `versions` uses the range syntax of the `set` ecosystem.
+
 Output: `--output text|json`. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.

@@ -3,21 +3,11 @@ use super::{
     LockedPackage, Unassessed, VulnFinding, REASON_GIT, REASON_PRIVATE,
 };
 use crate::exception::{
-    check_expiry, npm_in_scope, version_in_scope, ExceptionProblem, FindingRef, RiskException,
+    check_expiry, npm_in_scope, validate_exception, version_in_scope, ExceptionProblem, FindingRef,
+    RiskException,
 };
 
 pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
-    match set {
-        "cargo" => version_in_scope(scope, version),
-        "npm" => npm_in_scope(scope, version),
-        "go" => go_in_scope(scope, version),
-        "maven" => maven_in_scope(scope, version),
-        "nuget" => nuget_in_scope(scope, version),
-        _ => scope.trim() == version.trim() && !scope.trim().is_empty(),
-    }
-}
-
-fn exception_version_in_scope(set: &str, scope: &str, version: &str) -> bool {
     match set {
         "cargo" => version_in_scope(scope, version),
         "npm" => npm_in_scope(scope, version),
@@ -87,7 +77,7 @@ pub fn apply_exceptions(
     let mut problems = Vec::new();
     let mut valid: Vec<&RiskException> = Vec::new();
     for exception in exceptions {
-        match crate::exception::validate_exception(exception, today) {
+        match validate_exception(exception, today) {
             Ok(()) => valid.push(exception),
             Err(problem) => problems.push(problem),
         }
@@ -113,11 +103,7 @@ pub fn apply_exceptions(
                 exception.advisory == finding.advisory
                     && exception.package == finding.package
                     && exception.set == finding.set
-                    && exception_version_in_scope(
-                        &finding.set,
-                        &exception.versions,
-                        &finding.version,
-                    )
+                    && version_affected(&finding.set, &exception.versions, &finding.version)
                     && check_expiry(&exception.expires, today).is_ok()
             })
         })

@@ -108,20 +108,12 @@ struct IntendedIgnored {
 }
 
 fn check_joinable(path: &str) -> Result<(), FinalizeError> {
-    if path.is_empty() || path.starts_with('/') {
-        return Err(FinalizeError::Malformed(format!(
-            "unsafe path {path:?}: must be workspace-relative"
-        )));
+    match dx_path::reject_reason(path) {
+        Some(reason) => Err(FinalizeError::Malformed(format!(
+            "unsafe path {path:?}: {reason}"
+        ))),
+        None => Ok(()),
     }
-    if path
-        .split('/')
-        .any(|part| part.is_empty() || part == "." || part == "..")
-    {
-        return Err(FinalizeError::Malformed(format!(
-            "unsafe path {path:?}: empty or dot component"
-        )));
-    }
-    Ok(())
 }
 
 fn default_outcome(workspace: &Path, path: &str, intended: &[u8]) -> (i32, String) {
@@ -525,11 +517,24 @@ mod tests {
         let dir = dx_test_scratch::scratch("dx-finalize-test-");
         std::fs::create_dir_all(dir.path().join("etc")).unwrap();
         std::fs::write(dir.path().join("etc/passwd"), b"xyz\n").unwrap();
-        for path in ["../etc/passwd", "/etc/passwd", "", "a//b", "a/./b"] {
+        for path in [
+            "../etc/passwd",
+            "/etc/passwd",
+            "",
+            "a//b",
+            "a/./b",
+            "..\\etc\\passwd",
+            "C:\\Windows\\passwd",
+            "\\Windows\\passwd",
+            "\\\\server\\share\\passwd",
+            "back\\slash",
+        ] {
             let json = format!(
                 concat!(
-                    r#"{{"schema_major":1,"schema_minor":0,"mode":"default","scopes":[],"#,
-                    r#""files":[{{"path":{path:?},"create_content":"eHl6Cg=="}}],"#,
+                    r#"{{"schema_major":1,"schema_minor":0,"mode":"default","#,
+                    r#""scopes":[{{"value":"//...","results_complete":true}}],"#,
+                    r#""files":[{{"path":{path:?},"scope_index":0,"#,
+                    r#""create_content":"eHl6Cg=="}}],"#,
                     r#""ignored_imports":[]}}"#
                 ),
                 path = path,
@@ -542,6 +547,14 @@ mod tests {
             })
             .unwrap_err();
             assert!(matches!(err, FinalizeError::Malformed(_)), "{path}: {err}");
+            assert_eq!(
+                format!("{err}"),
+                format!(
+                    "malformed intended manifest: unsafe path {path:?}: {}",
+                    dx_path::reject_reason(path).expect("rung")
+                ),
+                "reason does not come from the dx_path ladder: {path}"
+            );
         }
     }
 

@@ -180,7 +180,8 @@ const DEV_NULL: &str = "/dev/null";
 /// `gofumpt -d`, `shfmt -d`, `cue fmt --diff` and `buf format --diff` all write
 /// `--- x.orig` / `+++ x`, and `buf` adds a tab-separated timestamp. A header is a
 /// `---`/`+++` pair, and only the new side names a file that exists after the run,
-/// so that side wins and the old side covers a deletion.
+/// so that side wins and the old side covers a deletion. A leading `a/` or `b/` is a
+/// `git diff` prefix only when the pair uses both; otherwise it is a real directory.
 fn diff_paths(text: &str) -> Vec<String> {
     let mut paths: Vec<String> = Vec::new();
     let lines: Vec<&str> = text.lines().collect();
@@ -196,13 +197,16 @@ fn diff_paths(text: &str) -> Vec<String> {
             continue;
         };
         let new = index < lines.len() && lines[index].starts_with("+++ ");
-        if new {
+        let new = if new {
             index += 1;
-        }
-        let path = if new {
-            diff_path(&lines[index - 1][4..]).or_else(|| diff_path(old))
+            Some(&lines[index - 1][4..])
         } else {
-            diff_path(old)
+            None
+        };
+        let git = git_prefixed(Some(old), new);
+        let path = match new {
+            Some(new) => diff_path(new, git).or_else(|| diff_path(old, git)),
+            None => diff_path(old, git),
         };
         if let Some(path) = path {
             if !paths.contains(&path) {
@@ -250,12 +254,31 @@ fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize
     }
     index
 }
-fn diff_path(raw: &str) -> Option<String> {
+/// Whether the `a/` and `b/` in a header are `git diff` prefixes rather than directories.
+///
+/// `git diff` writes `a/x` and `b/x`, but a repo may hold a real `a/` directory, and the
+/// `.orig` producers name the path itself: `gofumpt -d a/x.go` writes `a/x.go.orig`. So the
+/// prefixes are git's only when the pair uses `a/` and `b/` together, or when the side that
+/// names a real file is prefixed and the other side is the `/dev/null` of a deletion or a
+/// creation. A lone `---` line proves neither, so it keeps its path.
+fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
+    match (old, new) {
+        (Some(old), Some(new)) if new == DEV_NULL => old.starts_with("a/"),
+        (Some(old), Some(new)) if old == DEV_NULL => new.starts_with("b/"),
+        (Some(old), Some(new)) => old.starts_with("a/") && new.starts_with("b/"),
+        _ => false,
+    }
+}
+
+fn diff_path(raw: &str, git: bool) -> Option<String> {
     let path = raw.split('\t').next().unwrap_or(raw).trim();
-    let path = path
-        .strip_prefix("a/")
-        .or_else(|| path.strip_prefix("b/"))
-        .unwrap_or(path);
+    let path = if git {
+        path.strip_prefix("a/")
+            .or_else(|| path.strip_prefix("b/"))
+            .unwrap_or(path)
+    } else {
+        path
+    };
     let path = path.strip_suffix(".orig").unwrap_or(path);
     if path.is_empty() || path == DEV_NULL {
         return None;
@@ -439,6 +462,50 @@ mod tests {
         );
         // A bare `.orig` reduces to nothing rather than an empty path.
         assert!(super::diff_paths("--- a/.orig\n+++ b/.orig\n@@ -1 +1 @@\n-a\n+b\n").is_empty());
+    }
+
+    #[test]
+    fn diff_headers_keep_a_real_a_directory_that_is_not_a_git_prefix() {
+        // `gofumpt -d a/x.go` names the path, so `a/` is a directory here, and both sides
+        // carry it: stripping it would name `x.go`, a file the run was never given.
+        assert_eq!(
+            super::diff_paths(
+                "diff a/x.go.orig a/x.go\n--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n"
+            ),
+            ["a/x.go"]
+        );
+        // One side alone is not a `git diff` header either.
+        assert_eq!(
+            super::diff_paths("--- a/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
+            ["a/x.go"]
+        );
+        assert_eq!(
+            super::diff_paths("--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
+            ["a/x.go"]
+        );
+        // A `b/` directory the same way, from the `.orig` side.
+        assert_eq!(
+            super::diff_paths("--- b/x.go.orig\n+++ b/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
+            ["b/x.go"]
+        );
+        // The git shape still strips: only a pair using `a/` and `b/` is a prefix.
+        assert_eq!(
+            super::diff_paths("--- a/a/x.go\n+++ b/a/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
+            ["a/x.go"]
+        );
+    }
+
+    #[test]
+    fn diff_format_rejects_a_header_naming_a_file_the_run_never_gave() {
+        // The old reader stripped `a/` and named `x.go`, so a real `a/x.go` passed.
+        let diff = b"--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n";
+        let err = super::diff_format("t", diff, Some(0), &["x.go"], super::DiffExit::Zero)
+            .expect_err("a/x.go was never checked");
+        assert!(matches!(err, super::ParseError::UnknownFile { path, .. } if path == "a/x.go"));
+        let findings = super::diff_format("t", diff, Some(0), &["a/x.go"], super::DiffExit::Zero)
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "a/x.go");
     }
 
     #[test]

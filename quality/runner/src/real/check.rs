@@ -533,9 +533,10 @@ impl RealBackend {
             "terraform" => {
                 let invocation = commands::terraform_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let cwd = scratch.root().join(&cwd_rel);
                 parsed(
                     tool_id,
-                    parsers::parse_terraform(&out.stdout, out.code, &strs),
+                    parsers::parse_terraform(&out.stdout, out.code, &strs, &cwd),
                 )
             }
             "yamlfmt" => {
@@ -543,7 +544,7 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_yamlfmt(&out.stdout, out.code, &strs),
+                    parsers::parse_yamlfmt(&out.stderr, out.code, &strs),
                 )
             }
             "shfmt" => {

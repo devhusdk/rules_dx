@@ -828,7 +828,7 @@ fn structured_checks_encode_pinned_shapes() {
 }
 
 #[test]
-fn file_family_format_checks_are_diff_and_fixes_are_write() {
+fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let cue_file = Path::new("/scratch/Sample.cue");
     assert_eq!(
         argv_strings(&cue_check(Path::new(BIN), &[cue_file])),
@@ -841,7 +841,7 @@ fn file_family_format_checks_are_diff_and_fixes_are_write() {
     let mod_file = Path::new("/scratch/go.mod");
     assert_eq!(
         argv_strings(&modfmt_check(Path::new(BIN), &[mod_file])),
-        vec![BIN, "-d", "/scratch/go.mod"]
+        vec![BIN, "-c", "-l", "/scratch/go.mod"]
     );
     assert_eq!(
         argv_strings(&modfmt_fix(Path::new(BIN), &[mod_file])),
@@ -850,7 +850,11 @@ fn file_family_format_checks_are_diff_and_fixes_are_write() {
     let tf = Path::new("/scratch/main.tf");
     assert_eq!(
         argv_strings(&terraform_check(Path::new(BIN), &[tf])),
-        vec![BIN, "fmt", "-check", "-diff", "/scratch/main.tf"]
+        vec![BIN, "fmt", "-check", "/scratch/main.tf"]
+    );
+    assert_eq!(
+        argv_strings(&terraform_fix(Path::new(BIN), &[tf])),
+        vec![BIN, "fmt", "/scratch/main.tf"]
     );
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(
@@ -869,6 +873,33 @@ fn file_family_format_checks_are_diff_and_fixes_are_write() {
     assert_eq!(
         argv_strings(&standardrb_fix(Path::new(BIN), &[rb])),
         vec![BIN, "--fix", "/scratch/Sample.rb"]
+    );
+    let jsonnet = Path::new("/scratch/Sample.jsonnet");
+    assert_eq!(
+        argv_strings(&jsonnetfmt_check(Path::new(BIN), &[jsonnet])),
+        vec![BIN, "--test", "/scratch/Sample.jsonnet"]
+    );
+    assert_eq!(
+        argv_strings(&jsonnetfmt_fix(Path::new(BIN), &[jsonnet])),
+        vec![BIN, "-i", "/scratch/Sample.jsonnet"]
+    );
+    let pkl = Path::new("/scratch/Sample.pkl");
+    assert_eq!(
+        argv_strings(&pkl_check(Path::new(BIN), &[pkl])),
+        vec![BIN, "format", "--diff-name-only", "/scratch/Sample.pkl"]
+    );
+    assert_eq!(
+        argv_strings(&pkl_fix(Path::new(BIN), &[pkl])),
+        vec![BIN, "format", "-w", "/scratch/Sample.pkl"]
+    );
+    let yaml = Path::new("/scratch/Sample.yaml");
+    assert_eq!(
+        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml])),
+        vec![BIN, "-lint", "-q", "/scratch/Sample.yaml"]
+    );
+    assert_eq!(
+        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml])),
+        vec![BIN, "/scratch/Sample.yaml"]
     );
 }
 

@@ -8,7 +8,7 @@ package(
 exports_files([
     "pins.bzl",
     "Sample.pkl",
-    "check_dirty.diff",
+    "check_dirty.txt",
 ])
 
 real_source_target(

@@ -107,6 +107,8 @@ pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
 
+use std::path::Path;
+
 use crate::{Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,6 +153,35 @@ fn known<'a>(tool: &'static str, files: &[&'a str], path: &str) -> Result<&'a st
         .iter()
         .find(|file| **file == path)
         .copied()
+        .ok_or_else(|| ParseError::UnknownFile {
+            tool,
+            path: path.to_owned(),
+        })
+}
+
+/// The checked file a tool named, accepting a path spelled from the tool's working directory.
+///
+/// `terraform fmt -check` names each file it would rewrite by its path from the directory it
+/// ran in, while the runner hands every tool an absolute path. A reported path therefore
+/// matches when it equals a checked path outright or when it is that path below `cwd`. Only
+/// paths below `cwd` can match, so a reported path that climbs out of the run names no file
+/// the run was given.
+fn known_relative<'a>(
+    tool: &'static str,
+    files: &[&'a str],
+    cwd: &Path,
+    path: &str,
+) -> Result<&'a str, ParseError> {
+    files
+        .iter()
+        .copied()
+        .find(|file| {
+            let file = Path::new(file);
+            file == Path::new(path)
+                || file
+                    .strip_prefix(cwd)
+                    .is_ok_and(|rest| rest == Path::new(path))
+        })
         .ok_or_else(|| ParseError::UnknownFile {
             tool,
             path: path.to_owned(),
@@ -301,7 +332,7 @@ fn diff_path(raw: &str, git: bool, orig: bool) -> Option<String> {
 }
 
 /// The exit codes a diff-reporting formatter is allowed to exit with when it named files.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum DiffExit {
     /// `-d`-style tools print a diff and still exit 0.
     Zero,
@@ -311,6 +342,18 @@ pub enum DiffExit {
     ZeroOrOne,
     /// The pinned tool pins no exit code beyond the clean case.
     Unpinned,
+}
+
+impl DiffExit {
+    /// Whether the tool may exit with `code` once it named files.
+    fn allows(self, code: Option<i32>) -> bool {
+        match self {
+            Self::Zero => code == Some(0),
+            Self::NonZero => code != Some(0),
+            Self::ZeroOrOne => code == Some(0) || code == Some(1),
+            Self::Unpinned => true,
+        }
+    }
 }
 
 /// Report the offenses in the RuboCop JSON grammar, which `rubocop` and `standardrb` share.
@@ -434,11 +477,7 @@ fn diff_format(
     files: &[&str],
     exit: DiffExit,
 ) -> Result<Vec<FileFinding>, ParseError> {
-    check_output_size(tool, bytes)?;
-    let text = std::str::from_utf8(bytes).map_err(|err| ParseError::Shape {
-        tool,
-        detail: err.to_string(),
-    })?;
+    let text = as_text(tool, bytes)?;
     let paths = diff_paths(text);
     if paths.is_empty() {
         if code == Some(0) {
@@ -449,18 +488,65 @@ fn diff_format(
             detail: format!("exit {} with no diff markers", code_name(code)),
         });
     }
-    let allowed = match exit {
-        DiffExit::Zero => code == Some(0),
-        DiffExit::NonZero => code != Some(0),
-        DiffExit::ZeroOrOne => code == Some(0) || code == Some(1),
-        DiffExit::Unpinned => true,
-    };
-    if !allowed {
+    if !exit.allows(code) {
         return Err(ParseError::Shape {
             tool,
             detail: format!("exit {} with diff markers", code_name(code)),
         });
     }
+    unformatted(tool, files, paths)
+}
+
+/// Report one "file is not formatted" finding per path a tool listed, one per line.
+///
+/// `jsonnetfmt --test`, `pkl format --diff-name-only` and `modfmt -c -l` name the files
+/// they would reformat instead of printing a diff. `yamlfmt -lint -q` writes the same list
+/// to stderr. The exit code is not pinned: `modfmt -l` lists and exits 0, while `pkl`
+/// exits 11, so only an empty list needs one.
+pub(super) fn listed_paths(
+    tool: &'static str,
+    bytes: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    let text = as_text(tool, bytes)?;
+    let mut paths = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if !paths.contains(&trimmed.to_owned()) {
+            paths.push(trimmed.to_owned());
+        }
+    }
+    if paths.is_empty() {
+        if code == Some(0) {
+            return Ok(Vec::new());
+        }
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("exit {} with no paths", code_name(code)),
+        });
+    }
+    unformatted(tool, files, paths)
+}
+
+/// The bytes as UTF-8 text, or a shape error naming the tool.
+fn as_text<'a>(tool: &'static str, bytes: &'a [u8]) -> Result<&'a str, ParseError> {
+    check_output_size(tool, bytes)?;
+    std::str::from_utf8(bytes).map_err(|err| ParseError::Shape {
+        tool,
+        detail: err.to_string(),
+    })
+}
+
+/// One "file is not formatted" finding per path, each path held to the run's own file set.
+fn unformatted(
+    tool: &'static str,
+    files: &[&str],
+    paths: Vec<String>,
+) -> Result<Vec<FileFinding>, ParseError> {
     let mut findings = Vec::with_capacity(paths.len());
     for path in paths {
         let checked = known(tool, files, &path)?;
@@ -1254,7 +1340,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::terraform::parse_terraform(input, code, files)
+        super::terraform::parse_terraform(input, code, files, std::path::Path::new("/"))
     }
 
     fn fuzz_tsc(

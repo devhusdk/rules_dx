@@ -1,0 +1,1 @@
+quality/tests/fixtures/file_family_adapters/jsonnetfmt/Sample.jsonnet

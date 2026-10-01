@@ -1,5 +1,0 @@
---- a/Sample.jsonnet
-+++ b/Sample.jsonnet
-@@ -1 +1 @@
--BADFMT
-+fixed

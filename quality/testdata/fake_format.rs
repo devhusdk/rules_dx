@@ -18,6 +18,9 @@ enum Mode {
     Diff0,
     Warn,
     Diff,
+    Listed,
+    ListedRel,
+    YamlReport,
 }
 
 /// The unified-diff header the real tool writes, which differs per tool.
@@ -52,6 +55,9 @@ fn mode_for(ext: &str) -> Mode {
         "rb" => Mode::Offenses,
         "go" => Mode::Diff0,
         "css" | "less" | "scss" | "feature" | "sql" | "xml" => Mode::Warn,
+        "jsonnet" | "pkl" | "mod" => Mode::Listed,
+        "tf" => Mode::ListedRel,
+        "yaml" => Mode::YamlReport,
         _ => Mode::Diff,
     }
 }
@@ -366,8 +372,58 @@ pub fn run(argv: &[String]) -> i32 {
             }
             0
         }
+        Mode::Listed => {
+            let mut dirty = false;
+            for file in &files {
+                if is_dirty(file) {
+                    println!("{file}");
+                    dirty = true;
+                }
+            }
+            if dirty {
+                1
+            } else {
+                0
+            }
+        }
+        Mode::ListedRel => {
+            let mut dirty = false;
+            for file in &files {
+                if is_dirty(file) {
+                    println!("{}", relpath(&cwd, file));
+                    dirty = true;
+                }
+            }
+            if dirty {
+                1
+            } else {
+                0
+            }
+        }
+        Mode::YamlReport => {
+            let mut dirty = false;
+            for file in &files {
+                if is_dirty(file) {
+                    dirty = true;
+                }
+            }
+            if dirty {
+                eprintln!("{}", YAMLFMT_HEADER);
+                for file in &files {
+                    if is_dirty(file) {
+                        eprintln!("{file}");
+                    }
+                }
+                1
+            } else {
+                0
+            }
+        }
     }
 }
+
+/// The report `yamlfmt -lint` writes to stderr above the paths it would rewrite.
+const YAMLFMT_HEADER: &str = "The following files had formatting differences:\n";
 
 #[cfg(test)]
 mod tests {
@@ -383,15 +439,39 @@ mod tests {
             ("proto", Header::OrigTimestamped),
             ("c", Header::Git),
             ("cs", Header::Git),
-            ("jsonnet", Header::Git),
-            ("mod", Header::Git),
-            ("pkl", Header::Git),
             ("scala", Header::Git),
-            ("tf", Header::Git),
-            ("yaml", Header::Git),
         ] {
             assert_eq!(header_for(ext), want, "{ext}");
         }
+    }
+
+    /// The tools that name the files they would rewrite print no diff header at all.
+    #[test]
+    fn the_listing_tools_never_print_a_diff_header() {
+        for ext in ["jsonnet", "pkl", "mod", "tf"] {
+            assert!(
+                matches!(mode_for(ext), Mode::Listed | Mode::ListedRel),
+                "{ext}"
+            );
+        }
+    }
+
+    /// `terraform fmt -check` names each file from its working directory, not as handed.
+    #[test]
+    fn terraform_names_its_files_relative_to_the_working_directory() {
+        assert!(matches!(mode_for("tf"), Mode::ListedRel));
+        assert_eq!(
+            relpath(Path::new("/tmp/dx"), "/tmp/dx/matrix/x.tf"),
+            "matrix/x.tf"
+        );
+        assert_eq!(relpath(Path::new("/tmp/dx/sub"), "/tmp/dx/x.tf"), "../x.tf");
+    }
+
+    /// `yamlfmt -lint` reports to stderr, so its shape only survives on stderr.
+    #[test]
+    fn yamlfmt_reports_on_stderr_rather_than_stdout() {
+        assert!(matches!(mode_for("yaml"), Mode::YamlReport));
+        assert!(YAMLFMT_HEADER.starts_with("The following files had"));
     }
 
     #[test]
@@ -409,13 +489,10 @@ mod tests {
     #[test]
     fn each_header_names_the_file_the_way_its_tool_does() {
         assert_eq!(
-            render_header("x.pkl", Header::Git),
-            "--- a/x.pkl\n+++ b/x.pkl"
-        );
-        assert_eq!(
             render_header("x.cue", Header::Orig),
             "--- x.cue.orig\n+++ x.cue"
         );
+        assert_eq!(render_header("x.tf", Header::Git), "--- a/x.tf\n+++ b/x.tf");
         assert_eq!(
             render_header("x.go", Header::OrigBanner),
             "diff x.go.orig x.go\n--- x.go.orig\n+++ x.go"

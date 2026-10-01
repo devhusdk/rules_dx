@@ -1,21 +1,25 @@
-use super::{diff_format, DiffExit, FileFinding, ParseError};
+use super::{listed_paths, FileFinding, ParseError};
 
 pub fn parse_modfmt(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    diff_format("modfmt", stdout, code, files, DiffExit::ZeroOrOne)
+    listed_paths("modfmt", stdout, code, files)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    const DIRTY: &str = "--- a/go.mod\n+++ b/go.mod\n@@ -1 +1 @@\n-BADFMT\n+fixed\n";
+
+    /// `modfmt -c -l` names each file it would rewrite, on stdout, and exits 1.
+    const DIRTY: &str = "go.mod\n";
+
     #[test]
-    fn modfmt_reports_diff_files() {
+    fn modfmt_reports_listed_files() {
         let findings = parse_modfmt(DIRTY.as_bytes(), Some(1), &["go.mod"]).expect("parsed");
         assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "go.mod");
         let clean = parse_modfmt(b"", Some(0), &["go.mod"]).expect("parsed");
         assert!(clean.is_empty());
         assert!(parse_modfmt(b"", Some(1), &["go.mod"]).is_err());

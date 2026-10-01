@@ -259,6 +259,7 @@ mod tests {
     fn exec_path_messages_are_pinned_to_dx_path_ladder() {
         for (path, reason) in [
             ("/out/rustc", "must not be absolute"),
+            ("C:/out/rustc", "must not be absolute"),
             ("tool\\chain", "must not contain '\\'"),
             ("src/./rustc", "must not contain '.' or '..' segments"),
             ("src/../rustc", "must not contain '.' or '..' segments"),

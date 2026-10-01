@@ -531,6 +531,7 @@ mod tests {
         for (path, reason) in [
             ("", "path must be non-empty"),
             ("/BUILD", "path must be workspace-relative"),
+            ("C:/BUILD", "path must be workspace-relative"),
             ("a\\BUILD", "path must use forward slashes"),
             ("a//BUILD", "path must have no empty component"),
             ("trailing/", "path must have no empty component"),

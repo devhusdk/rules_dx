@@ -23,11 +23,16 @@ impl PathProblem {
     }
 }
 
+fn has_drive_prefix(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+}
+
 pub fn classify(path: &str) -> Option<PathProblem> {
     if path.is_empty() {
         return Some(PathProblem::Empty);
     }
-    if path.starts_with('/') {
+    if path.starts_with('/') || has_drive_prefix(path) {
         return Some(PathProblem::Absolute);
     }
     if path.contains('\\') {
@@ -55,8 +60,39 @@ mod tests {
 
     #[test]
     fn valid_workspace_paths_pass() {
-        for path in ["src/lib.rs", "a", "a/b/c", "a..b", "a.b/c", ".hidden/x"] {
+        for path in [
+            "src/lib.rs",
+            "a",
+            "a/b/c",
+            "a..b",
+            "a.b/c",
+            ".hidden/x",
+            "src/a:b",
+            "9:/x",
+        ] {
             assert_eq!(classify(path), None, "path rejected: {path:?}");
+        }
+    }
+
+    #[test]
+    fn a_leading_drive_letter_is_absolute() {
+        for path in [
+            "C:/Windows/System32/drivers/etc/hosts",
+            "C:relative",
+            "c:/lowercase",
+            "C:",
+            "Z:/a/../../b",
+        ] {
+            assert_eq!(
+                classify(path),
+                Some(PathProblem::Absolute),
+                "drive prefix accepted: {path:?}"
+            );
+            assert_eq!(
+                reject_reason(path),
+                Some("path must be workspace-relative, not absolute"),
+                "path: {path:?}"
+            );
         }
     }
 
@@ -65,6 +101,13 @@ mod tests {
         for (path, problem) in [
             ("", PathProblem::Empty),
             ("/absolute", PathProblem::Absolute),
+            (
+                "C:/Windows/System32/drivers/etc/hosts",
+                PathProblem::Absolute,
+            ),
+            ("C:relative", PathProblem::Absolute),
+            ("c:/lowercase", PathProblem::Absolute),
+            ("C:", PathProblem::Absolute),
             ("back\\slash", PathProblem::Backslash),
             ("a//b", PathProblem::EmptyComponent),
             ("trailing/", PathProblem::EmptyComponent),
@@ -81,6 +124,7 @@ mod tests {
     #[test]
     fn first_problem_in_ladder_order_wins() {
         assert_eq!(classify("/a//b"), Some(PathProblem::Absolute));
+        assert_eq!(classify("C:\\a"), Some(PathProblem::Absolute));
         assert_eq!(classify("a\\//b"), Some(PathProblem::Backslash));
         assert_eq!(classify("a//./b"), Some(PathProblem::EmptyComponent));
         assert_eq!(classify("a/./../b"), Some(PathProblem::Dot));

@@ -292,7 +292,14 @@ mod tests {
 
     #[test]
     fn rejects_bad_paths() {
-        for path in ["", "/src/a.rs", "src\\a.rs", "src/./a.rs", "src/../a.rs"] {
+        for path in [
+            "",
+            "/src/a.rs",
+            "C:/src/a.rs",
+            "src\\a.rs",
+            "src/./a.rs",
+            "src/../a.rs",
+        ] {
             let mut shard = sample();
             shard.entries[0].logical_path = path.into();
             assert!(
@@ -325,6 +332,7 @@ mod tests {
         for (path, reason) in [
             ("", "must be a non-empty workspace-relative path"),
             ("/src/a.rs", "must not be absolute"),
+            ("C:/src/a.rs", "must not be absolute"),
             ("src\\a.rs", "must not contain '\\'"),
             ("src/./a.rs", "must not contain '.' or '..' segments"),
             ("src/../a.rs", "must not contain '.' or '..' segments"),

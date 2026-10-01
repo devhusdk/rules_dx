@@ -405,6 +405,10 @@ mod tests {
         for (path, reason) in [
             ("", "path must be non-empty"),
             ("/absolute", "path must be workspace-relative, not absolute"),
+            (
+                "C:/absolute",
+                "path must be workspace-relative, not absolute",
+            ),
             ("back\\slash", "path must use forward slashes"),
             ("a//b", "path must have no empty component"),
             ("trailing/", "path must have no empty component"),

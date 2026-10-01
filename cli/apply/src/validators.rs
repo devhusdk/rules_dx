@@ -135,6 +135,17 @@ mod tests {
     }
 
     #[test]
+    fn drive_prefixed_path_rejected() {
+        for path in ["C:/Windows/System32/drivers/etc/hosts", "C:hosts", "c:/x"] {
+            assert_eq!(
+                validate(&create(path, "hi\n"), None),
+                Err(ValidationError::AbsolutePath),
+                "path: {path:?}"
+            );
+        }
+    }
+
+    #[test]
     fn empty_path_rejected() {
         let mut empty = update("a.txt", "new\n");
         empty.path = String::new();
@@ -177,6 +188,7 @@ mod tests {
         for (path, expected) in [
             ("", ValidationError::EmptyPath),
             ("/etc/x", ValidationError::AbsolutePath),
+            ("C:/Windows/System32/x", ValidationError::AbsolutePath),
             ("a\\b", ValidationError::MalformedPath),
             ("a//b", ValidationError::MalformedPath),
             ("trailing/", ValidationError::MalformedPath),

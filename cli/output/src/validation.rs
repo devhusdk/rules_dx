@@ -138,6 +138,7 @@ mod tests {
         check_path("src/app.py").expect("valid");
         assert!(check_path("").is_err());
         assert!(check_path("/abs").is_err());
+        assert!(check_path("C:/Windows/System32/x").is_err());
         assert!(check_path("a\\b").is_err());
         assert!(check_path("a//b").is_err());
         assert!(check_path("./a").is_err());
@@ -149,6 +150,10 @@ mod tests {
         for (path, reason) in [
             ("", "path must be non-empty"),
             ("/abs", "path must be workspace-relative, not absolute"),
+            (
+                "C:/Windows/System32/x",
+                "path must be workspace-relative, not absolute",
+            ),
             ("a\\b", "path must use forward slashes"),
             ("a//b", "path must have no empty component"),
             ("trailing/", "path must have no empty component"),

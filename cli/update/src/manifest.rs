@@ -332,6 +332,7 @@ mod tests {
         for (path, reason) in [
             ("", "path must be non-empty"),
             ("/abs", "path must be workspace-relative, not absolute"),
+            ("C:/abs", "path must be workspace-relative, not absolute"),
             ("a\\b", "path must use forward slashes"),
             ("a//b", "path must have no empty component"),
             ("a/./b", "path must have no '.' or '..' component"),

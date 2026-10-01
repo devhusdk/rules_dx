@@ -5,6 +5,22 @@ use crate::{FileInput, StageSpec};
 
 pub(super) type Spawn = SpawnFn;
 
+/// Escapes a path for embedding in a JSON string literal.
+pub(super) fn json_escape(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    for char in raw.chars() {
+        match char {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(char),
+        }
+    }
+    out
+}
+
 pub(super) const BUILDIFIER_MIXED: &str = r#"{"success":false,"files":[{"filename":"FILE","formatted":false,"valid":true,"warnings":[{"start":{"line":1,"column":1},"end":{"line":1,"column":2},"category":"module-docstring","message":"The file has no module docstring."}]}]}"#;
 pub(super) const BUILDIFIER_FAR: &str = r#"{"success":false,"files":[{"filename":"FILE","formatted":true,"valid":true,"warnings":[{"start":{"line":99,"column":1},"end":{"line":99,"column":2},"category":"module-docstring","message":"Far away."}]}]}"#;
 pub(super) const TAPLO_BLOCK: &str = "error: invalid TOML\n  \u{250c}\u{2500} FILE:2:5\n  \u{2502}  \n2 \u{2502}   b = \n  \u{2502} \u{256d}\u{2500}\u{2500}\u{2500}\u{2500}^\n  \u{2502} \u{2570}^ expected value\n";
@@ -173,7 +189,7 @@ pub(super) fn buildifier_plain(
     env: &[(String, String)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    let stdout = BUILDIFIER_MIXED.replace("FILE", &last_file(argv));
+    let stdout = BUILDIFIER_MIXED.replace("FILE", &json_escape(&last_file(argv)));
     Ok(ChildOutput {
         code: Some(0),
         stdout: stdout.into_bytes(),
@@ -200,7 +216,7 @@ pub(super) fn buildifier_far(
     env: &[(String, String)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    let stdout = BUILDIFIER_FAR.replace("FILE", &last_file(argv));
+    let stdout = BUILDIFIER_FAR.replace("FILE", &json_escape(&last_file(argv)));
     Ok(ChildOutput {
         code: Some(0),
         stdout: stdout.into_bytes(),
@@ -275,7 +291,7 @@ pub(super) fn roundtrip_biome(
         let bytes = std::fs::read(&file).expect("checked file is materialized");
         let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
         if text.contains("unusedVar") {
-            let stdout = BIOME_LINT_DIRTY.replace("FILE", &reported);
+            let stdout = BIOME_LINT_DIRTY.replace("FILE", &json_escape(&reported));
             return Ok(ChildOutput {
                 code: Some(1),
                 stdout: stdout.into_bytes(),
@@ -307,7 +323,7 @@ pub(super) fn roundtrip_biome(
     let bytes = std::fs::read(&file).expect("checked file is materialized");
     let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
     if text.contains("BADFMT") {
-        let stdout = BIOME_FMT_DIRTY.replace("FILE", &reported);
+        let stdout = BIOME_FMT_DIRTY.replace("FILE", &json_escape(&reported));
         return Ok(ChildOutput {
             code: Some(1),
             stdout: stdout.into_bytes(),
@@ -390,15 +406,17 @@ pub(super) fn roundtrip_eslint(
     let bytes = std::fs::read(&file).expect("checked file is materialized");
     let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
     if text.contains("unusedVar") {
-        let stdout = ESLINT_DIRTY.replace("FILE", &file);
+        let stdout = ESLINT_DIRTY.replace("FILE", &json_escape(&file));
         return Ok(ChildOutput {
             code: Some(1),
             stdout: stdout.into_bytes(),
             stderr: Vec::new(),
         });
     }
-    let stdout =
-        format!(r#"[{{"filePath":"{file}","messages":[],"errorCount":0,"warningCount":0}}]"#);
+    let stdout = format!(
+        r#"[{{"filePath":"{}","messages":[],"errorCount":0,"warningCount":0}}]"#,
+        json_escape(&file)
+    );
     Ok(ChildOutput {
         code: Some(0),
         stdout: stdout.into_bytes(),
@@ -573,7 +591,7 @@ pub(super) fn ruff_behavior(argv: &[OsString]) -> io::Result<ChildOutput> {
                 .lines()
                 .any(|line| line.ends_with(' ') || line.ends_with('\t'));
             if dirty {
-                let stdout = RUFF_UNFORMATTED.replace("FILE", &file);
+                let stdout = RUFF_UNFORMATTED.replace("FILE", &json_escape(&file));
                 return Ok(ChildOutput {
                     code: Some(1),
                     stdout: stdout.into_bytes(),
@@ -623,7 +641,7 @@ pub(super) fn ruff_behavior(argv: &[OsString]) -> io::Result<ChildOutput> {
         });
     }
     if text.contains("import os") {
-        let stdout = RUFF_F401.replace("FILE", &file);
+        let stdout = RUFF_F401.replace("FILE", &json_escape(&file));
         return Ok(ChildOutput {
             code: Some(1),
             stdout: stdout.into_bytes(),
@@ -793,7 +811,7 @@ pub(super) fn vale_hinted(
         cwd.ends_with("vdir"),
         "hinted vale runs from the config dir"
     );
-    let stdout = VALE_ALERT.replace("FILE", &last_file(argv));
+    let stdout = VALE_ALERT.replace("FILE", &json_escape(&last_file(argv)));
     Ok(ChildOutput {
         code: Some(1),
         stdout: stdout.into_bytes(),

@@ -144,7 +144,7 @@ fn relpath(cwd: &Path, file: &str) -> String {
     if rel.as_os_str().is_empty() {
         return ".".to_owned();
     }
-    rel.to_string_lossy().into_owned()
+    rel.to_string_lossy().replace('\\', "/")
 }
 
 fn warn_rel(cwd: &str, file: &str) -> String {

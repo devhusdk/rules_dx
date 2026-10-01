@@ -421,6 +421,10 @@ def _unit_test_impl(ctx):
     body.extend(_file_check_lines(ctx.attr.file_checks))
     return _write_runner(ctx, body, files)
 
+def _observed_basename(name):
+    """Renders a basename without the Windows executable suffix."""
+    return name[:-4] if name.endswith(".exe") else name
+
 def _observe_subjects(subjects):
     """Renders one observation block per subject target."""
     lines = []
@@ -428,7 +432,7 @@ def _observe_subjects(subjects):
         lines.append("subject " + _display_label(target.label))
         info = target[DefaultInfo]
         for f in sorted(info.files.to_list(), key = lambda f: f.basename):
-            lines.append("file " + f.basename)
+            lines.append("file " + _observed_basename(f.basename))
         if DxSubjectInfo in target:
             fields = target[DxSubjectInfo].fields
             for key in sorted(fields.keys()):

@@ -40,7 +40,7 @@ message Returns {
 }
 
 message SourceRef {
-  // Workspace-relative path; absolute paths are rejected.
+  // Workspace-relative path; must be clean and stay inside the workspace.
   string file = 1;
   uint64 line = 2;
   reserved 3 to 7;

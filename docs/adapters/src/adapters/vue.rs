@@ -48,7 +48,7 @@ pub fn normalize_vue(input: &str, package: &str) -> Result<DocIr, AdapterError> 
             kind_name: "class",
             signature: format!("component {export}"),
             doc: description,
-            file,
+            file: file.clone(),
             line: 1,
         })?);
         for prop in component
@@ -66,7 +66,7 @@ pub fn normalize_vue(input: &str, package: &str) -> Result<DocIr, AdapterError> 
                 kind_name: "property",
                 signature: format!("prop {name}"),
                 doc,
-                file: String::new(),
+                file: file.clone(),
                 line: 1,
             })?);
         }

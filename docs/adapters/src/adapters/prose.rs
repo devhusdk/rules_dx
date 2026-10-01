@@ -15,11 +15,14 @@ pub fn confirm_prose_only(package: &str, files: &[&str]) -> Result<DocIr, Adapte
         {
             return Err(AdapterError::NonMarkdown((*file).to_owned()));
         }
-        if file.starts_with('/') {
-            return Err(AdapterError::AbsolutePath {
-                id: format!("markdown:{package}"),
-                path: (*file).to_owned(),
-            });
+        if !file.is_empty() {
+            if let Some(reason) = documentation_ir::source_path_reason(file) {
+                return Err(AdapterError::UnsafePath {
+                    id: format!("markdown:{package}"),
+                    path: (*file).to_owned(),
+                    reason,
+                });
+            }
         }
     }
     shard("markdown", package, Vec::new())

@@ -29,10 +29,11 @@ pub fn shard(language: &str, package: &str, symbols: Vec<Symbol>) -> Result<DocI
         }
         previous = Some(symbol.id.as_str());
         if let Some(source) = symbol.source.as_ref() {
-            if source.file.starts_with('/') {
-                return Err(AdapterError::AbsolutePath {
+            if let Some(reason) = documentation_ir::source_path_reason(&source.file) {
+                return Err(AdapterError::UnsafePath {
                     id: symbol.id.clone(),
                     path: source.file.clone(),
+                    reason,
                 });
             }
         }

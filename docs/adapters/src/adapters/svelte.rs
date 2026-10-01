@@ -37,7 +37,7 @@ pub fn normalize_svelte(input: &str, package: &str) -> Result<DocIr, AdapterErro
             kind_name: "class",
             signature: format!("component {name}"),
             doc,
-            file,
+            file: file.clone(),
             line: 1,
         })?);
         for prop in component
@@ -55,7 +55,7 @@ pub fn normalize_svelte(input: &str, package: &str) -> Result<DocIr, AdapterErro
                 kind_name: "property",
                 signature: format!("prop {prop_name}"),
                 doc: prop_doc,
-                file: String::new(),
+                file: file.clone(),
                 line: 1,
             })?);
         }

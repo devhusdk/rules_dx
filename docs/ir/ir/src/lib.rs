@@ -3,7 +3,7 @@
 pub use doc_ir_proto::dx::documentation::v1 as proto;
 use proto::{DocIr, Symbol};
 
-use dx_path::{classify, PathProblem};
+use dx_path::reject_reason;
 use dx_proto_validate::{
     check_sorted_next, decode_with_validation, encode_with_validation, OrderViolation,
 };
@@ -13,15 +13,36 @@ pub use dx_schema::SCHEMA_MINOR;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Decode(String),
-    UnsupportedMajor { found: u32 },
+    UnsupportedMajor {
+        found: u32,
+    },
     EmptyLanguage,
     EmptyPackage,
-    EmptySymbolId { index: usize },
-    DuplicateSymbolId { id: String },
-    UnsortedSymbols { id: String },
-    AbsoluteSourcePath { id: String, path: String },
-    UnsortedExtensions { id: String },
-    DuplicateExtension { id: String, key: String },
+    EmptySymbolId {
+        index: usize,
+    },
+    DuplicateSymbolId {
+        id: String,
+    },
+    UnsortedSymbols {
+        id: String,
+    },
+    UnsafeSourcePath {
+        id: String,
+        path: String,
+        reason: &'static str,
+    },
+    UnsortedExtensions {
+        id: String,
+    },
+    DuplicateExtension {
+        id: String,
+        key: String,
+    },
+}
+
+pub fn source_path_reason(file: &str) -> Option<&'static str> {
+    reject_reason(file)
 }
 
 pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
@@ -59,11 +80,11 @@ fn validate_symbol(symbol: &Symbol, index: usize) -> Result<(), Error> {
         return Err(Error::EmptySymbolId { index });
     }
     if let Some(source) = symbol.source.as_ref() {
-        let is_absolute = matches!(classify(&source.file), Some(PathProblem::Absolute));
-        if is_absolute {
-            return Err(Error::AbsoluteSourcePath {
+        if let Some(reason) = source_path_reason(&source.file) {
+            return Err(Error::UnsafeSourcePath {
                 id: symbol.id.clone(),
                 path: source.file.clone(),
+                reason,
             });
         }
     }
@@ -185,15 +206,64 @@ mod tests {
         });
         assert_eq!(
             encode_shard(&bad_path),
-            Err(Error::AbsoluteSourcePath {
+            Err(Error::UnsafeSourcePath {
                 id: "python:mylib:AccountService.create".to_owned(),
                 path: "/home/user/src/account.py".to_owned(),
+                reason: "path must be workspace-relative, not absolute",
             })
         );
 
         let raw = bad_id.encode_to_vec();
         assert_eq!(decode_shard(&raw), Err(Error::EmptySymbolId { index: 0 }));
         assert!(matches!(decode_shard(&[0xff; 5]), Err(Error::Decode(_))));
+    }
+
+    #[test]
+    fn every_unsafe_source_path_is_rejected_with_its_ladder_reason() {
+        for (file, reason) in [
+            ("", "path must be non-empty"),
+            ("/abs/a.py", "path must be workspace-relative, not absolute"),
+            ("..\\a.py", "path must use forward slashes"),
+            ("a//b.py", "path must have no empty component"),
+            ("a/./b.py", "path must have no '.' component"),
+            ("../a.py", "path must have no '..' component"),
+            ("a/../../b.py", "path must have no '..' component"),
+        ] {
+            assert_eq!(source_path_reason(file), Some(reason), "rung: {file:?}");
+            let mut shard = example_shard();
+            shard.symbols[0].source = Some(SourceRef {
+                file: file.to_owned(),
+                line: 42,
+            });
+            assert_eq!(
+                encode_shard(&shard),
+                Err(Error::UnsafeSourcePath {
+                    id: "python:mylib:AccountService.create".to_owned(),
+                    path: file.to_owned(),
+                    reason,
+                }),
+                "source path accepted: {file:?}"
+            );
+        }
+        assert_eq!(source_path_reason("src/account.py"), None);
+    }
+
+    #[test]
+    fn decoding_rejects_a_symbol_whose_source_path_escapes_the_workspace() {
+        let mut escaping = example_shard();
+        escaping.symbols[0].source = Some(SourceRef {
+            file: "../../../etc/passwd".to_owned(),
+            line: 1,
+        });
+        let bytes = escaping.encode_to_vec();
+        assert_eq!(
+            decode_shard(&bytes),
+            Err(Error::UnsafeSourcePath {
+                id: "python:mylib:AccountService.create".to_owned(),
+                path: "../../../etc/passwd".to_owned(),
+                reason: "path must have no '..' component",
+            })
+        );
     }
 
     #[test]

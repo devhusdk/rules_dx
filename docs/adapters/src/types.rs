@@ -8,8 +8,12 @@ pub enum AdapterError {
     InvalidJson(String),
     #[error("empty language or package")]
     EmptyIdentity,
-    #[error("absolute source path rejected for {id}: {path}")]
-    AbsolutePath { id: String, path: String },
+    #[error("unsafe source path rejected for {id}: {path}: {reason}")]
+    UnsafePath {
+        id: String,
+        path: String,
+        reason: &'static str,
+    },
     #[error("duplicate symbol id: {0}")]
     DuplicateId(String),
     #[error("missing or incompatible TASTy: empty inputs never inventory")]

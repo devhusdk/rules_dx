@@ -111,7 +111,7 @@ fn adapters_reject_empty_malformed_and_wrong_producer_inputs() {
     );
     assert!(matches!(
         confirm_prose_only("demo", &["/absolute.md"]),
-        Err(AdapterError::AbsolutePath { .. })
+        Err(AdapterError::UnsafePath { .. })
     ));
 }
 
@@ -343,8 +343,43 @@ fn adapters_reject_absolute_paths() {
     let bad = fixture("python/input.json").replace("src/account.py", "/abs/account.py");
     assert!(matches!(
         normalize_python(&bad, "mylib"),
-        Err(AdapterError::AbsolutePath { .. })
+        Err(AdapterError::UnsafePath { .. })
     ));
+}
+
+#[test]
+fn adapters_reject_source_paths_that_escape_the_workspace() {
+    for (file, reason) in [
+        ("../account.py", "path must have no '..' component"),
+        ("..\\account.py", "path must use forward slashes"),
+        ("src//account.py", "path must have no empty component"),
+    ] {
+        let mut value: serde_json::Value =
+            serde_json::from_str(&fixture("python/input.json")).expect("fixture");
+        value["members"][0]["file"] = serde_json::json!(file);
+        assert_eq!(
+            normalize_python(&value.to_string(), "mylib"),
+            Err(AdapterError::UnsafePath {
+                id: "python:mylib:mylib.AccountService".to_owned(),
+                path: file.to_owned(),
+                reason,
+            }),
+            "source path accepted: {file:?}"
+        );
+    }
+}
+
+#[test]
+fn prose_rejects_paths_that_escape_the_workspace() {
+    assert_eq!(
+        confirm_prose_only("site", &["../outside.md"]),
+        Err(AdapterError::UnsafePath {
+            id: "markdown:site".to_owned(),
+            path: "../outside.md".to_owned(),
+            reason: "path must have no '..' component",
+        })
+    );
+    assert!(confirm_prose_only("site", &[""]).is_ok());
 }
 
 #[test]

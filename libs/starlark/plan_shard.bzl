@@ -1,5 +1,13 @@
 """Shared normalized shard pipeline."""
 
+_PLAN_SHARD_ASCII_LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+def plan_shard_path_is_absolute(path):
+    """Reports whether a path is absolute or carries a Windows drive prefix."""
+    if path.startswith("/"):
+        return True
+    return len(path) >= 2 and path[0] in _PLAN_SHARD_ASCII_LETTERS and path[1] == ":"
+
 def plan_shard_exec_matches(file_path, exec_path):
     """Reports whether a Bazel file path satisfies an exec-path suffix."""
     return file_path == exec_path or file_path.endswith("/" + exec_path)

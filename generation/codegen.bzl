@@ -8,6 +8,7 @@ load(
     "plan_shard_exec_matches",
     "plan_shard_fingerprint",
     "plan_shard_merge_records",
+    "plan_shard_path_is_absolute",
     "plan_shard_record_error",
     "plan_shard_subject_files",
     "plan_shard_subject_records",
@@ -42,7 +43,7 @@ def codegen_path_error(path):
     """Validates one workspace-relative projection path."""
     if path == "":
         return "invalid codegen path '': must be a non-empty workspace-relative path"
-    if path.startswith("/"):
+    if plan_shard_path_is_absolute(path):
         return "invalid codegen path '" + path + "': must not be absolute"
     if "\\" in path:
         return "invalid codegen path '" + path + "': must not contain '\\'"

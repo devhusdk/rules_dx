@@ -77,10 +77,36 @@ def codegen_defs_unit_tests(name):
             ),
             expect_equal(
                 "codegen_path_error rejects empty and absolute paths",
-                [codegen_path_error(""), codegen_path_error("/src/a.rs")],
+                [
+                    codegen_path_error(""),
+                    codegen_path_error("/src/a.rs"),
+                    codegen_path_error("C:/src/a.rs"),
+                ],
                 [
                     "invalid codegen path '': must be a non-empty workspace-relative path",
                     "invalid codegen path '/src/a.rs': must not be absolute",
+                    "invalid codegen path 'C:/src/a.rs': must not be absolute",
+                ],
+            ),
+            expect_equal(
+                "codegen_path_error keeps the drive rung inside the absolute one",
+                [
+                    codegen_path_error("C:src/a.rs"),
+                    codegen_path_error("c:/src/a.rs"),
+                    codegen_path_error("C:"),
+                    codegen_path_error("C:\\src/a.rs"),
+                    codegen_path_error("9:/src/a.rs"),
+                    codegen_path_error("src/a:b"),
+                    codegen_path_error("src/a.rs"),
+                ],
+                [
+                    "invalid codegen path 'C:src/a.rs': must not be absolute",
+                    "invalid codegen path 'c:/src/a.rs': must not be absolute",
+                    "invalid codegen path 'C:': must not be absolute",
+                    "invalid codegen path 'C:\\src/a.rs': must not be absolute",
+                    "",
+                    "",
+                    "",
                 ],
             ),
             expect_equal(

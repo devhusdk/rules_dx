@@ -9,6 +9,7 @@ load(
     "plan_shard_exec_matches",
     "plan_shard_fingerprint",
     "plan_shard_merge_records",
+    "plan_shard_path_is_absolute",
     "plan_shard_record_error",
     "plan_shard_subject_files",
     "plan_shard_subject_records",
@@ -61,7 +62,7 @@ def env_plan_exec_error(path):
         return ""
     if path.endswith(DX_ENV_SHARD_SUFFIX):
         return "invalid env plan exec path '" + path + "': must not use the reserved shard suffix '" + DX_ENV_SHARD_SUFFIX + "'"
-    if path.startswith("/"):
+    if plan_shard_path_is_absolute(path):
         return "invalid env plan exec path '" + path + "': must not be absolute"
     if "\\" in path:
         return "invalid env plan exec path '" + path + "': must not contain '\\'"

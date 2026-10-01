@@ -103,6 +103,23 @@ def env_plan_defs_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "env_plan_exec_error keeps the drive rung inside the absolute one",
+                [
+                    env_plan_exec_error("C:/out/rustc"),
+                    env_plan_exec_error("C:out/rustc"),
+                    env_plan_exec_error("C:\\out\\rustc"),
+                    env_plan_exec_error("9:/out/rustc"),
+                    env_plan_exec_error("toolchain/rust:c"),
+                ],
+                [
+                    "invalid env plan exec path 'C:/out/rustc': must not be absolute",
+                    "invalid env plan exec path 'C:out/rustc': must not be absolute",
+                    "invalid env plan exec path 'C:\\out\\rustc': must not be absolute",
+                    "",
+                    "",
+                ],
+            ),
+            expect_equal(
                 "env_plan_record_error accepts a well-formed record",
                 env_plan_record_error(_record_a()),
                 "",

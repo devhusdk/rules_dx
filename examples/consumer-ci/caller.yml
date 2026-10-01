@@ -4,7 +4,7 @@
 # Required repository settings (see the GitHub CI docs, not configured here):
 # - approval policy: all_external_contributors for fork runs
 # - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)
-# - permissions: contents read; checks/write + PR write granted to reusable jobs only
+# - default workflow permissions: read-only
 name: ci
 on:
   pull_request: {}
@@ -21,3 +21,8 @@ jobs:
       scheduling_mode: "parallel"
       code_scanning_opt_in: false
     secrets: inherit
+    # A called workflow can only narrow this job's token.
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write

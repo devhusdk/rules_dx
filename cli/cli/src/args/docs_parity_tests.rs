@@ -1162,6 +1162,141 @@ fn workflow_callers() -> [(&'static str, &'static str); 2] {
     ]
 }
 
+fn job_blocks(text: &str) -> Vec<(String, Vec<&str>)> {
+    let mut jobs: Vec<(String, Vec<&str>)> = Vec::new();
+    let mut open: Option<(String, Vec<&str>)> = None;
+    let mut in_jobs = false;
+    for line in text.lines() {
+        if line == "jobs:" {
+            in_jobs = true;
+            continue;
+        }
+        if !in_jobs {
+            continue;
+        }
+        if !line.starts_with("  ") {
+            break;
+        }
+        if let Some(id) = line
+            .strip_prefix("  ")
+            .and_then(|rest| rest.strip_suffix(':'))
+        {
+            if !id.is_empty() && !id.contains(char::is_whitespace) {
+                if let Some(job) = open.take() {
+                    jobs.push(job);
+                }
+                open = Some((id.to_owned(), Vec::new()));
+                continue;
+            }
+        }
+        if let Some((_, body)) = open.as_mut() {
+            body.push(line);
+        }
+    }
+    if let Some(job) = open {
+        jobs.push(job);
+    }
+    jobs
+}
+
+fn indent_of(line: &str) -> usize {
+    line.len() - line.trim_start().len()
+}
+
+fn granted_scopes(lines: &[&str]) -> Vec<(String, String)> {
+    let mut scopes: Vec<(String, String)> = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        if line.trim() != "permissions:" {
+            continue;
+        }
+        let base = indent_of(line);
+        for entry in lines.iter().skip(index + 1) {
+            if entry.trim().is_empty() {
+                continue;
+            }
+            if indent_of(entry) <= base {
+                break;
+            }
+            if indent_of(entry) != base + 2 {
+                continue;
+            }
+            if let Some((scope, level)) = entry.trim().split_once(": ") {
+                let grant = (scope.to_owned(), level.trim().to_owned());
+                if !scopes.contains(&grant) {
+                    scopes.push(grant);
+                }
+            }
+        }
+    }
+    scopes
+}
+
+fn permission_rank(level: &str) -> u8 {
+    match level {
+        "write" => 2,
+        "read" => 1,
+        _ => 0,
+    }
+}
+
+#[test]
+fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
+    let root = workspace_root();
+    for (caller, text) in [
+        (
+            "examples/consumer-ci/caller.yml",
+            std::fs::read_to_string(root.join("examples/consumer-ci/caller.yml"))
+                .expect("caller ships as test data"),
+        ),
+        (
+            "examples/docs-ci/caller.yml",
+            std::fs::read_to_string(root.join("examples/docs-ci/caller.yml"))
+                .expect("caller ships as test data"),
+        ),
+        (
+            ".github/workflows/ci.yml",
+            std::fs::read_to_string(root.join(".github/workflows/ci.yml"))
+                .expect("caller ships as test data"),
+        ),
+    ] {
+        for (id, body) in job_blocks(&text) {
+            let Some(call) = body
+                .iter()
+                .find_map(|line| line.trim().strip_prefix("uses: "))
+            else {
+                continue;
+            };
+            if !call.contains("/.github/workflows/") {
+                continue;
+            }
+            let pinned = call.split('@').next().unwrap_or(call);
+            let name = pinned.rsplit('/').next().unwrap_or(pinned);
+            let workflow = std::fs::read_to_string(root.join(".github/workflows").join(name))
+                .unwrap_or_else(|_| panic!("{caller} job {id} calls a missing {name}"));
+            let requested = granted_scopes(&workflow.lines().collect::<Vec<&str>>());
+            assert!(
+                !requested.is_empty(),
+                "{name} requests no permissions, so {caller} job {id} grants none"
+            );
+            let granted = granted_scopes(&body);
+            for (scope, level) in requested {
+                let held = granted
+                    .iter()
+                    .find(|(name, _)| *name == scope)
+                    .map(|(_, level)| permission_rank(level));
+                assert!(
+                    held.is_some_and(|held| held >= permission_rank(&level)),
+                    "{caller} job {id} calls {name} but grants {scope} at {:?}, needs {level}",
+                    granted
+                        .iter()
+                        .find(|(name, _)| *name == scope)
+                        .map(|(_, level)| level.as_str())
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn callers_forward_every_workflow_secret() {
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))

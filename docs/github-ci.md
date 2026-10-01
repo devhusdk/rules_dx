@@ -44,7 +44,11 @@ Inputs:
 - `min_coverage`: fails below that percent. Coverage comes from `dx coverage`.
 
 The workflow needs `contents: read` plus `checks: write` for check runs.
+`coverage` also needs `pull-requests: write` for its pull-request comment.
 Pull requests use the read-only cache config automatically.
+
+A called workflow can only narrow the calling job's token, so grant those
+scopes on the calling job. `examples/consumer-ci/caller.yml` does.
 
 ## Docs Workflow
 
@@ -64,7 +68,8 @@ source GitHub Actions before the first publishing run.
 
 ## Repository Settings
 
-Neither caller configures these. Set them once in the repository.
+Set these once in the repository. Each caller already grants its job
+permissions, so a read-only repository default is fine.
 
 - Approval policy: `all_external_contributors`, so fork pull requests run.
 - Branch protection for the consumer workflow: require `dx-ci (aggregate)`.
@@ -73,9 +78,10 @@ Neither caller configures these. Set them once in the repository.
   `docs-publish (GitHub Pages)` once `publish` is true.
 - Merge gate: require branches to be up to date, or use a merge queue.
 - Pages source: GitHub Actions, before the first publishing run.
-- Workflow permissions: read-only by default. The nine check jobs need
-  `checks: write`; `coverage` and the `dx-ci` aggregate also need
-  `pull-requests: write`.
+- Workflow permissions: read-only by default. Each calling job then grants
+  what its reusable jobs request: the consumer caller `checks: write` plus
+  `pull-requests: write`, the docs caller `pages: write` plus
+  `id-token: write`.
 
 ## Caching
 

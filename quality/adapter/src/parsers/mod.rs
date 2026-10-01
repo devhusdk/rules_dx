@@ -182,6 +182,8 @@ const DEV_NULL: &str = "/dev/null";
 /// `---`/`+++` pair, and only the new side names a file that exists after the run,
 /// so that side wins and the old side covers a deletion. A leading `a/` or `b/` is a
 /// `git diff` prefix only when the pair uses both; otherwise it is a real directory.
+/// A trailing `.orig` likewise belongs to the producer that writes one, so it comes
+/// off the old side only, and never off a `git diff` pair.
 fn diff_paths(text: &str) -> Vec<String> {
     let mut paths: Vec<String> = Vec::new();
     let lines: Vec<&str> = text.lines().collect();
@@ -205,8 +207,8 @@ fn diff_paths(text: &str) -> Vec<String> {
         };
         let git = git_prefixed(Some(old), new);
         let path = match new {
-            Some(new) => diff_path(new, git).or_else(|| diff_path(old, git)),
-            None => diff_path(old, git),
+            Some(new) => diff_path(new, git, false).or_else(|| diff_path(old, git, !git)),
+            None => diff_path(old, git, !git),
         };
         if let Some(path) = path {
             if !paths.contains(&path) {
@@ -274,7 +276,11 @@ fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
     }
 }
 
-fn diff_path(raw: &str, git: bool) -> Option<String> {
+/// The path one side of a diff header names.
+///
+/// `git` marks an `a/`/`b/` prefix as `git diff`'s, and `orig` marks the `<path>.orig` copy
+/// that `gofumpt`, `shfmt`, `cue`, `djlint` and `buf` leave for the pre-run text.
+fn diff_path(raw: &str, git: bool, orig: bool) -> Option<String> {
     let path = raw.split('\t').next().unwrap_or(raw).trim();
     let path = if git {
         path.strip_prefix("a/")
@@ -283,7 +289,11 @@ fn diff_path(raw: &str, git: bool) -> Option<String> {
     } else {
         path
     };
-    let path = path.strip_suffix(".orig").unwrap_or(path);
+    let path = if orig {
+        path.strip_suffix(".orig").unwrap_or(path)
+    } else {
+        path
+    };
     if path.is_empty() || path == DEV_NULL {
         return None;
     }
@@ -473,7 +483,46 @@ mod tests {
             ["new.go"]
         );
         // A bare `.orig` reduces to nothing rather than an empty path.
-        assert!(super::diff_paths("--- a/.orig\n+++ b/.orig\n@@ -1 +1 @@\n-a\n+b\n").is_empty());
+        assert!(super::diff_paths("--- .orig\n@@ -1 +1 @@\n-a\n+b\n").is_empty());
+        // A `git diff` pair names the file, so a real `.orig` file is a path like any other.
+        assert_eq!(
+            super::diff_paths("--- a/.orig\n+++ b/.orig\n@@ -1 +1 @@\n-a\n+b\n"),
+            [".orig"]
+        );
+    }
+
+    #[test]
+    fn diff_headers_keep_a_file_whose_own_name_ends_in_orig() {
+        // `git diff` of a file that really is called `x.orig`: stripping the suffix would name
+        // `x`, a file the run was never given.
+        assert_eq!(
+            super::diff_paths("--- a/patch.orig\n+++ b/patch.orig\n@@ -1 +1 @@\n-a\n+b\n"),
+            ["patch.orig"]
+        );
+        // A `git diff` deletion of that file keeps the name too.
+        assert_eq!(
+            super::diff_paths("--- a/patch.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
+            ["patch.orig"]
+        );
+        // `gofumpt -d patch.orig` keeps its own copy at `patch.orig.orig`, so the new side is
+        // the file and the old side reduces to it.
+        assert_eq!(
+            super::diff_paths(
+                "diff patch.orig.orig patch.orig\n--- patch.orig.orig\n+++ patch.orig\n@@ -1 +1 @@\n-a\n+b\n"
+            ),
+            ["patch.orig"]
+        );
+        // A `.orig` producer's deletion still resolves, because that side is the copy.
+        assert_eq!(
+            super::diff_paths("--- patch.orig.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
+            ["patch.orig"]
+        );
+        // The producers that write `<path>.orig` write it on the old side only, so the new side
+        // of a plain pair is already the file.
+        assert_eq!(
+            super::diff_paths("--- run.sh.orig\n+++ run.sh\n@@ -1 +1 @@\n-a\n+b\n"),
+            ["run.sh"]
+        );
     }
 
     #[test]

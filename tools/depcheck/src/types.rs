@@ -10,6 +10,8 @@ pub enum DepcheckError {
     ManifestJson(#[source] serde_json::Error),
     #[error("unreadable manifest: {0}")]
     ManifestRegex(#[source] regex::Error),
+    #[error("unreadable manifest: {0}")]
+    ManifestParse(String),
     #[error("unreadable lock: {0}")]
     LockIo(#[source] std::io::Error),
     #[error("unreadable lock: {0}")]

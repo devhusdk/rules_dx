@@ -264,6 +264,7 @@ crate.from_cargo(
         "//docs/adapters:Cargo.toml",
         "//tools/bazelrc:Cargo.toml",
         "//tools/depcheck:Cargo.toml",
+        "//libs/gomod:Cargo.toml",
         "//tools/testing:Cargo.toml",
     ],
 )

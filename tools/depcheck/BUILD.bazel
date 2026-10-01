@@ -43,7 +43,9 @@ rust_library(
             "toml",
         ],
         package_name = "tools/dx_depcheck",
-    ),
+    ) + [
+        "//libs/gomod:dx_gomod",
+    ],
 )
 
 rust_binary(
@@ -67,7 +69,10 @@ rust_binary(
             "toml",
         ],
         package_name = "tools/dx_depcheck",
-    ) + [":depcheck_lib"],
+    ) + [
+        ":depcheck_lib",
+        "//libs/gomod:dx_gomod",
+    ],
 )
 
 rust_test(
@@ -104,7 +109,9 @@ rust_test(
             "toml",
         ],
         package_name = "tools/dx_depcheck",
-    ),
+    ) + [
+        "//libs/gomod:dx_gomod",
+    ],
 )
 
 rustfmt_test(

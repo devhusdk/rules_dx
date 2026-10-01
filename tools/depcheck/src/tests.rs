@@ -1037,6 +1037,15 @@ fn go_lock_skips_degenerate_lines() {
 }
 
 #[test]
+fn go_manifest_parse_failure_is_typed() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("go.mod");
+    write_file(&man, "module example.com/x\n\nrequire (\n\tlone-entry\n)\n");
+    let err = parse_go_manifest(&man).expect_err("malformed require block");
+    assert!(err.to_string().contains("invalid go.mod"), "{err}");
+}
+
+#[test]
 fn parser_error_paths_are_typed() {
     let dir = tempfile::tempdir().expect("scratch");
     let jvm = dir.path().join("jvm_deps.toml");

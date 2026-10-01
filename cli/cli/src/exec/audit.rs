@@ -336,7 +336,7 @@ fn parse_locked_for_set(
             dx_update::sets::SetId::NuGet => dx_audit::locks::parse_paket_lock(text),
             dx_update::sets::SetId::Ruby => dx_audit::locks::parse_gemfile_lock(text),
             dx_update::sets::SetId::PowerShell => dx_audit::locks::parse_psgallery_lock(text),
-            dx_update::sets::SetId::Go => dx_audit::locks::parse_go_mod(text),
+            dx_update::sets::SetId::Go => dx_audit::locks::go_locked_packages(text),
             dx_update::sets::SetId::Uv
             | dx_update::sets::SetId::UvTools
             | dx_update::sets::SetId::UvAdopt

@@ -43,7 +43,10 @@ dx_rust_crate(
         "src/vuln_tests.rs",
         "src/vuln_types.rs",
     ],
-    extra_deps = ["//cli/digest:dx_digest"],
+    extra_deps = [
+        "//cli/digest:dx_digest",
+        "//libs/gomod:dx_gomod",
+    ],
     deps = [
         "cargo-lock",
         "chrono",

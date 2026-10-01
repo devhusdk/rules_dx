@@ -1,5 +1,5 @@
 {
-  "checksum": "0cc21f9d80bf10ff1d168f5905ccc4c0f4bb170be0cca7f7711f8701d24c4a98",
+  "checksum": "289e9a2f32834a3e9abaffdb164f3d0d9fd6013992b0702d6542fbfbfff69a50",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3111,6 +3111,29 @@
       ],
       "version": "0.0.0"
     },
+    "dx_gomod 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "gomod-parser 0.5.3",
+            "target": "gomod_parser"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_gomod",
+      "name": "dx_gomod",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_gomod",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_install_tools 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -4428,6 +4451,40 @@
         }
       ],
       "version": "0.4.20"
+    },
+    "gomod-parser 0.5.3": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "winnow 1.0.4",
+            "target": "winnow"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "gomod_parser",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "gomod-parser",
+      "package_url": "https://github.com/baz-scm/gomod-parser",
+      "repository": {
+        "Http": {
+          "sha256": "a3ceaf76d012a676dced39fab3888a41dfcaeea3e07ae8926e37dc4f0874b985",
+          "url": "https://static.crates.io/crates/gomod-parser/0.5.3/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "gomod_parser",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.5.3"
     },
     "hashbrown 0.17.1": {
       "common_attrs": {
@@ -13575,6 +13632,7 @@
     "deunicode 1.6.2",
     "flate2 1.1.10",
     "globset 0.4.20",
+    "gomod-parser 0.5.3",
     "hex 0.4.3",
     "ignore 0.4.33",
     "lcov 0.8.2",
@@ -13638,6 +13696,7 @@
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
+    "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",
     "dx_lcov 0.0.0": "cli/dx_lcov",
     "dx_output 0.0.0": "cli/dx_output",

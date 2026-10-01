@@ -17,6 +17,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:resolve rust dx_env //cli/env:dx_env
 # gazelle:resolve rust dx_env_plan //cli/env_plan:dx_env_plan
 # gazelle:resolve rust dx_fingerprint //cli/fingerprint:dx_fingerprint
+# gazelle:resolve rust dx_gomod //libs/gomod:dx_gomod
 # gazelle:resolve rust dx_lcov //cli/lcov:dx_lcov
 # gazelle:resolve rust dx_output //cli/output:dx_output
 # gazelle:resolve rust dx_path //cli/path:dx_path

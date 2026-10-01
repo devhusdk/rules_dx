@@ -171,6 +171,7 @@ SCOPED_PACKAGES = {
     "env/env_shard": "VIS_ENV_SHARD",
     "generation/codegen_shard": "VIS_CLI_GENERATION",
     "generation/result": "VIS_CLI",
+    "libs/gomod": "VIS_CLI_TOOLS",
     "quality/adapter": "VIS_QUALITY",
     "quality/artifacts": "VIS_QUALITY",
     "quality/evaluator": "VIS_QUALITY",

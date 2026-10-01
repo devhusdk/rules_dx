@@ -60,6 +60,8 @@ CRATE_SHARED_MANIFESTS = [
     "//docs/adapters:Cargo.toml",
     "//tools/bazelrc:Cargo.toml",
     "//tools/depcheck:Cargo.toml",
+    "//libs/gomod:Cargo.toml",
+    "//tools/testing:Cargo.toml",
 ]
 
 RUST_CRATE_MANIFESTS = (

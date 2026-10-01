@@ -1,0 +1,11 @@
+[package]
+name = "dx_gomod"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_gomod"
+path = "src/lib.rs"
+
+[dependencies]
+gomod-parser = "0.5"

@@ -1,0 +1,28 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "dx_rust_crate")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
+
+package(default_visibility = VIS_CLI_TOOLS)
+
+dx_rust_crate(
+    name = "dx_gomod",
+    package_name = "libs/dx_gomod",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    deps = ["gomod-parser"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

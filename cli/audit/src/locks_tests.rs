@@ -569,7 +569,7 @@ fn psgallery_lock_missing_modules_or_versions_fails_closed() {
 #[test]
 fn go_mod_parses_require_block_and_single_line_with_comments() {
     let text = "module rules_dx/third_party/go\n\ngo 1.24.12\n\nrequire (\n\tgithub.com/bazelbuild/buildtools v0.0.0-20250930140053-2eb4fccefb52 // indirect\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/pmezard/go-difflib v1.0.0\n)\n\nrequire example.com/single v1.2.3 // indirect\n";
-    let packages = parse_go_mod(text).expect("parses");
+    let packages = go_locked_packages(text).expect("parses");
     assert_eq!(packages.len(), 4);
     assert!(packages
         .iter()
@@ -593,7 +593,7 @@ fn go_mod_parses_require_block_and_single_line_with_comments() {
 #[test]
 fn go_mod_replace_paths_skip_while_versioned_replacements_assess() {
     let text = "module example.com/root\n\ngo 1.24.12\n\nrequire (\n\texample.com/local v1.0.0\n\texample.com/forked v1.0.0\n\texample.com/kept v1.0.0\n)\n\nreplace example.com/local => ../local\n\nreplace example.com/forked => example.com/upstream v1.1.0\n";
-    let packages = parse_go_mod(text).expect("parses");
+    let packages = go_locked_packages(text).expect("parses");
     assert!(!packages
         .iter()
         .any(|package| package.name == "example.com/local"));
@@ -610,51 +610,50 @@ fn go_mod_replace_paths_skip_while_versioned_replacements_assess() {
 #[test]
 fn go_mod_replace_block_paths_skip() {
     let text = "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/local v1.0.0\n\nreplace (\n\texample.com/local => ./local\n)\n";
-    let packages = parse_go_mod(text).expect("parses");
+    let packages = go_locked_packages(text).expect("parses");
     assert!(packages.is_empty());
 }
 
 #[test]
 fn go_mod_ignores_non_dependency_directives_and_missing_module_fails() {
     let text = "module example.com/root\n\ngo 1.24.12\n\ntoolchain go1.24.12\n\nexclude example.com/bad v1.0.0\n\nretract v1.0.0-bad\n";
-    let packages = parse_go_mod(text).expect("parses");
+    let packages = go_locked_packages(text).expect("parses");
     assert!(packages.is_empty());
     let blocked = "module example.com/root\n\ngo 1.24.12\n\nexclude (\n\texample.com/bad v9.9.9\n)\n\nrequire example.com/kept v1.0.0\n";
-    let packages = parse_go_mod(blocked).expect("parses");
+    let packages = go_locked_packages(blocked).expect("parses");
     assert_eq!(packages.len(), 1);
     assert_eq!(packages[0].name, "example.com/kept");
-    assert!(parse_go_mod("go 1.24.12\n").is_err());
-    assert!(parse_go_mod("").is_err());
-    assert!(parse_go_mod("module example.com/root\n)").is_err());
+    assert!(go_locked_packages("go 1.24.12\n").is_err());
+    assert!(go_locked_packages("").is_err());
+    assert!(go_locked_packages("module example.com/root\n)").is_err());
 }
 
 #[test]
-fn go_mod_comment_stripping_keeps_bare_tokens() {
-    assert_eq!(strip_go_comment("// leading comment"), "");
+fn go_mod_keeps_comments_and_urls_out_of_the_parse() {
+    let text = "module example.com/root\n\ngo 1.24.12\n\nrequire (\n\thttps://example.com/a v1.0.0 // indirect\n\texample.com/b v1.0.0\n)\n\nreplace https://example.com/a => example.com/a v1.1.0\n";
+    let packages = go_locked_packages(text).expect("parses");
     assert_eq!(
-        strip_go_comment("require example.com/mod v1.2.3 // indirect"),
-        "require example.com/mod v1.2.3"
-    );
-    assert_eq!(
-        strip_go_comment("module example.com/root"),
-        "module example.com/root"
-    );
-    assert_eq!(
-        strip_go_comment("replace https://example.com => v1.0.0"),
-        "replace https://example.com => v1.0.0"
+        packages
+            .iter()
+            .map(|package| (package.name.as_str(), package.version.as_str()))
+            .collect::<Vec<_>>(),
+        vec![("example.com/a", "v1.1.0"), ("example.com/b", "v1.0.0")]
     );
 }
 
 #[test]
-fn go_mod_incomplete_require_and_replace_lines_are_skipped() {
+fn go_mod_incomplete_require_and_replace_lines_fail_closed() {
     let text = "module example.com/root\n\
         require (\n        lone-entry\n    )\n\
         require onlyname\n\
         replace (\n        example.com/a =>\n        example.com/b v1.0.0\n    )\n\
         replace example.com/c =>\n\
         replace example.com/d\n";
-    let packages = parse_go_mod(text).expect("parses");
-    assert!(packages.is_empty());
+    assert!(go_locked_packages(text).is_err());
+    let keep = "module example.com/root\n\
+        require (\n        lone-entry\n    )\n\
+        require example.com/kept v1.0.0\n";
+    assert!(go_locked_packages(keep).is_err());
 }
 
 #[test]

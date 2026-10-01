@@ -1,5 +1,5 @@
 {
-  "checksum": "65285b0cc5181f1e8cee9069c27ba437a50a43a8816e0a57d3250f46e2749367",
+  "checksum": "6c2fea89173c8df7db9d8ea855fc36bfe8d2e7eda127f719bcf10f61ebf6240f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2570,6 +2570,10 @@
           {
             "id": "yaml_serde 0.10.7",
             "target": "yaml_serde"
+          },
+          {
+            "id": "yarn-lock-parser 0.14.0",
+            "target": "yarn_lock_parser"
           }
         ],
         "edition": "2021"
@@ -6217,6 +6221,78 @@
         }
       ],
       "version": "0.2.0"
+    },
+    "nom 8.0.0": {
+      "common_attrs": {
+        "crate_features": [
+          "alloc",
+          "default",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "memchr 2.8.3",
+            "target": "memchr"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "nom",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "nom",
+      "package_url": "https://github.com/rust-bakery/nom",
+      "repository": {
+        "Http": {
+          "sha256": "df9761775871bdef83bee530e60050f7e54b1105350d6884eb0fb4f46c2f9405",
+          "url": "https://static.crates.io/crates/nom/8.0.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "nom",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "8.0.0"
+    },
+    "nom-language 0.1.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "nom 8.0.0",
+            "target": "nom"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "nom_language",
+      "license": "MIT",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "nom-language",
+      "package_url": "https://github.com/rust-bakery/nom",
+      "repository": {
+        "Http": {
+          "sha256": "2de2bc5b451bfedaef92c90b8939a8fff5770bdcc1fafd6239d086aab8fa6b29",
+          "url": "https://static.crates.io/crates/nom-language/0.1.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "nom_language",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.1.0"
     },
     "normalize-line-endings 0.3.0": {
       "common_attrs": {
@@ -12918,6 +12994,48 @@
       ],
       "version": "0.10.7"
     },
+    "yarn-lock-parser 0.14.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "nom 8.0.0",
+            "target": "nom"
+          },
+          {
+            "id": "nom-language 0.1.0",
+            "target": "nom_language"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "yarn_lock_parser",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "yarn-lock-parser",
+      "package_url": "https://github.com/robertohuertasm/yarn-lock-parser",
+      "repository": {
+        "Http": {
+          "sha256": "f903203119ded2bc5e8ba635fa8f3c54bddcc174f89d2b39637cf1be5c3f0944",
+          "url": "https://static.crates.io/crates/yarn-lock-parser/0.14.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "yarn_lock_parser",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.14.0"
+    },
     "yoke 0.8.3": {
       "common_attrs": {
         "crate_features": [
@@ -13417,7 +13535,8 @@
     "tracing-subscriber 0.3.23",
     "url 2.5.8",
     "walkdir 2.5.0",
-    "yaml_serde 0.10.7"
+    "yaml_serde 0.10.7",
+    "yarn-lock-parser 0.14.0"
   ],
   "direct_dev_deps": [
     "assert_cmd 2.2.2",

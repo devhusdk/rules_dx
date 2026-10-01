@@ -388,6 +388,14 @@ fn yarn_lock_parses_registry_skips_file_and_flags_git() {
 }
 
 #[test]
+fn yarn_lock_dependency_fields_do_not_override_the_entry_version() {
+    let text = "x@1:\n  version \"1.0.0\"\n  dependencies:\n    version \"^2.0.0\"\n    resolved \"^3.0.0\"\n";
+    let packages = parse_yarn_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].version, "1.0.0");
+}
+
+#[test]
 fn npm_private_packages_are_incomplete_never_clean() {
     let pkgs = vec![
         LockedPackage {

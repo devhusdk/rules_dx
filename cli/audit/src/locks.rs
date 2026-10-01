@@ -16,8 +16,6 @@ mod locks_pnpm;
 mod locks_powershell;
 #[path = "locks_ruby.rs"]
 mod locks_ruby;
-#[path = "locks_yarn.rs"]
-mod locks_yarn;
 
 pub use locks_cargo::*;
 pub use locks_go::*;
@@ -28,7 +26,6 @@ pub use locks_paket::*;
 pub use locks_pnpm::*;
 pub use locks_powershell::*;
 pub use locks_ruby::*;
-pub use locks_yarn::*;
 
 #[cfg(test)]
 pub(crate) use locks_npm::package_lock_name;

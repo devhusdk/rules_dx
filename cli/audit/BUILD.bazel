@@ -31,7 +31,6 @@ dx_rust_crate(
         "src/locks_powershell.rs",
         "src/locks_ruby.rs",
         "src/locks_tests.rs",
-        "src/locks_yarn.rs",
         "src/outcome.rs",
         "src/secrets.rs",
         "src/spdx.rs",
@@ -61,6 +60,7 @@ dx_rust_crate(
         "toml",
         "url",
         "yaml_serde",
+        "yarn-lock-parser",
     ],
 )
 

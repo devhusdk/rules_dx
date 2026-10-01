@@ -1,9 +1,4 @@
-# Hinted Ruff policy for the real-pipeline fixture (WP2, strict per
-# . Pins the strict lint selection plus the Python floor explicitly so
-# the hinted run proves the config closure reaches the tool instead of
-# `--isolated` defaults (same selection and floor as the workspace
-# `ruff.toml`; see `//tools/ci:config_consistency_test`). Ruff's floor
-# key is `target-version` only (`requires-python` is pyproject-only).
+# Hinted Ruff policy for the real-pipeline fixture, mirroring the workspace ruff.toml.
 target-version = "py312"
 
 [lint]

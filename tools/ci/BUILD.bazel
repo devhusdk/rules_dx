@@ -1,6 +1,25 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
+
+# keep
+rust_test(
+    name = "config_consistency_test",
+    size = "small",
+    srcs = ["config_consistency_test.rs"],
+    data = [
+        "//:.vale.ini",
+        "//:biome.json",
+        "//:ruff.toml",
+        "//quality:corpus_styles/Dx/Markers.yml",
+        "//quality:corpus_vale.ini",
+        "//quality/testdata:biome_cfg/biome.json",
+        "//quality/testdata:ruff.toml",
+        "//quality/testdata:styles/Dx/Markers.yml",
+        "//quality/testdata:vale_test.ini",
+    ],
+)
 
 real_source_target(
     name = "corpus_starlark",

@@ -1,18 +1,4 @@
-# Own-tree Ruff policy (lane A, strict): single source
-# of truth for Python lint/format in this workspace, shared by editors,
-# language servers, direct tool invocations, and Bazel quality actions.
-#
-# Strict selection for this repo: default-equivalent
-# E4/E7/E9/F plus W (pycodestyle warnings), I (isort), and B
-# (flake8-bugbear). E501 stays covered by `ruff format` (no E501 pin);
-# UP (pyupgrade percent-format) stays future work: 21 `%`-format sites
-# remain (see `quality/artifacts/update.py`, `tools/bazelrc/src/lib.rs`).
-# Pinned upstream defaults stay authoritative for omitted settings; this
-# file owns the lint selection plus the Python floor (same selection and
-# floor as the `quality/testdata` fixture; see
-# `//tools/ci:config_consistency_test`). The interpreter floor itself
-# lives in `pyproject.toml` (`requires-python`); Ruff only understands
-# `target-version` and rejects `requires-python`.
+# Own-tree Ruff lint selection and Python floor; quality/testdata/ruff.toml mirrors it.
 target-version = "py312"
 
 [lint]

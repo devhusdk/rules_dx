@@ -21,6 +21,7 @@ rust_library(
     edition = "2021",
     deps = crate_deps(
         [
+            "globset",
             "regex",
             "serde_json",
         ],
@@ -39,6 +40,7 @@ rust_test(
     crate = ":dx_testing",
     deps = crate_deps(
         [
+            "globset",
             "regex",
             "serde_json",
             "tempfile",

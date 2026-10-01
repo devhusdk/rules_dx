@@ -752,6 +752,7 @@ dependencies = [
 name = "dx_testing"
 version = "0.0.0"
 dependencies = [
+ "globset",
  "regex",
  "serde_json",
  "tempfile",

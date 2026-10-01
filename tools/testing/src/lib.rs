@@ -73,47 +73,16 @@ fn read_lines(path: &Path) -> std::io::Result<Vec<String>> {
     Ok(text.split('\n').map(str::to_owned).collect())
 }
 
-fn fnmatch(pattern: &str, name: &str) -> bool {
-    let pat: Vec<char> = pattern.chars().collect();
-    let s: Vec<char> = name.chars().collect();
-    let mut px = 0usize;
-    let mut sx = 0usize;
-    let mut star: Option<usize> = None;
-    let mut match_idx = 0usize;
-    while sx < s.len() {
-        if px < pat.len() && (pat[px] == '?' || pat[px] == s[sx]) {
-            px += 1;
-            sx += 1;
-        } else if px < pat.len() && pat[px] == '*' {
-            star = Some(px);
-            match_idx = sx;
-            px += 1;
-        } else if let Some(star_idx) = star {
-            px = star_idx + 1;
-            match_idx += 1;
-            sx = match_idx;
-        } else {
-            return false;
+fn glob_set<'a>(patterns: impl IntoIterator<Item = &'a str>) -> globset::GlobSet {
+    let mut builder = globset::GlobSetBuilder::new();
+    for pattern in patterns {
+        if let Ok(glob) = globset::Glob::new(pattern) {
+            builder.add(glob);
         }
     }
-    while px < pat.len() && pat[px] == '*' {
-        px += 1;
-    }
-    px == pat.len()
-}
-
-fn skip_dir(name: &str, extra: &BTreeSet<String>) -> bool {
-    if fnmatch("bazel-*", name) || name == ".git" {
-        return true;
-    }
-    extra.contains(name)
-}
-
-fn include_ok(basename: &str, includes: &[String]) -> bool {
-    if includes.is_empty() {
-        return true;
-    }
-    includes.iter().any(|pat| fnmatch(pat, basename))
+    builder
+        .build()
+        .unwrap_or_else(|_| globset::GlobSet::empty())
 }
 
 pub fn resolve_runfiles(rel: &str) -> PathBuf {
@@ -287,6 +256,8 @@ fn line_matches(line: &str, patterns: &[&str], fixed: bool) -> bool {
 pub fn hermetic_walk(roots: &[PathBuf], options: &TreeOptions) -> Vec<PathBuf> {
     let exclude_set: BTreeSet<String> = options.excludes.iter().cloned().collect();
     let extra_dirs: BTreeSet<String> = options.exclude_dirs.iter().cloned().collect();
+    let skip_dirs = glob_set(["bazel-*", ".git"]);
+    let includes = glob_set(options.includes.iter().map(String::as_str));
     let mut out = Vec::new();
     let mut stack: Vec<PathBuf> = roots.to_vec();
     while let Some(root) = stack.pop() {
@@ -295,7 +266,7 @@ pub fn hermetic_walk(roots: &[PathBuf], options: &TreeOptions) -> Vec<PathBuf> {
                 if exclude_set.contains(name) {
                     continue;
                 }
-                if include_ok(name, &options.includes) {
+                if options.includes.is_empty() || includes.is_match(name) {
                     out.push(root);
                 }
             }
@@ -314,14 +285,14 @@ pub fn hermetic_walk(roots: &[PathBuf], options: &TreeOptions) -> Vec<PathBuf> {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().into_owned();
             if path.is_dir() {
-                if !skip_dir(&name, &extra_dirs) {
+                if !skip_dirs.is_match(&name) && !extra_dirs.contains(&name) {
                     dirs.push(path);
                 }
             } else {
                 if exclude_set.contains(&name) {
                     continue;
                 }
-                if include_ok(&name, &options.includes) {
+                if options.includes.is_empty() || includes.is_match(&name) {
                     files.push(path);
                 }
             }
@@ -829,6 +800,46 @@ mod tests {
             true,
             &TreeOptions::default()
         ));
+    }
+
+    #[test]
+    fn tree_include_patterns_are_globset_globs() {
+        let dir = scratch("dx-testing-");
+        write(dir.path(), "a.yml", "pin\n");
+        write(dir.path(), "b.yml", "pin\n");
+        write(dir.path(), "c.yml", "pin\n");
+        write(dir.path(), "BUILD.bazel", "pin\n");
+        let roots = vec![dir.path().to_path_buf()];
+        for includes in [
+            vec!["[ab].yml".to_owned()],
+            vec!["{a,b}.yml".to_owned()],
+            vec!["?.yml".to_owned()],
+        ] {
+            let options = TreeOptions {
+                includes: includes.clone(),
+                ..Default::default()
+            };
+            assert_eq!(
+                tree_count(&roots, &["pin"], true, &options),
+                if includes[0] == "?.yml" { 3 } else { 2 },
+                "includes {includes:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn tree_exclude_dirs_still_match_by_name() {
+        let dir = scratch("dx-testing-");
+        write(dir.path(), "keep/victim.txt", "pin\n");
+        write(dir.path(), "drop/victim.txt", "pin\n");
+        let roots = vec![dir.path().to_path_buf()];
+        let options = TreeOptions {
+            exclude_dirs: vec!["drop".to_owned()],
+            ..Default::default()
+        };
+        let listed = tree_list(&roots, &["pin"], true, &options);
+        assert_eq!(listed.len(), 1);
+        assert!(listed[0].to_string_lossy().contains("keep"));
     }
 
     #[test]

@@ -1,5 +1,5 @@
 {
-  "checksum": "146c760ebaaf3f9103ae1591596dfcc714a6f8f9cd34be8a74a8c3481f02c15f",
+  "checksum": "f2292883480a9dfb3df5ae493a1614ca577d06fe5bd0d7a56fc38594a9fc2e4b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3426,6 +3426,10 @@
     "dx_testing 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "globset 0.4.20",
+            "target": "globset"
+          },
           {
             "id": "regex 1.13.1",
             "target": "regex"

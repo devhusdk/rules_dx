@@ -325,17 +325,40 @@ mod tests {
         let dir = std::path::Path::new(&root)
             .join(workspace)
             .join("cli/cli/tests/fixtures/help_goldens");
-        for (name, rendered) in [
+        let rendered = [
+            ("bazel_help.golden", render_command_help(Command::Bazel)),
             ("build_help.golden", render_command_help(Command::Build)),
             ("clean_help.golden", render_command_help(Command::Clean)),
             ("docs_help.golden", render_command_help(Command::Docs)),
             ("lint_help.golden", render_command_help(Command::Lint)),
             ("top_help.golden", super::render_top_help()),
-        ] {
+        ];
+        for (name, text) in &rendered {
             let expected =
                 std::fs::read_to_string(dir.join(name)).expect("golden ships as test data");
-            assert_eq!(rendered, expected, "{name} no longer matches dx help");
+            assert_eq!(*text, expected, "{name} no longer matches dx help");
         }
+        let mut shipped: Vec<String> = std::fs::read_dir(&dir)
+            .expect("readable goldens dir")
+            .map(|entry| {
+                entry
+                    .expect("readable dir entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .filter(|name| name.ends_with(".golden"))
+            .collect();
+        shipped.sort();
+        let mut covered: Vec<String> = rendered
+            .iter()
+            .map(|(name, _)| (*name).to_owned())
+            .collect();
+        covered.sort();
+        assert_eq!(
+            shipped, covered,
+            "every shipped help golden is asserted against rendered dx help"
+        );
     }
 
     #[test]

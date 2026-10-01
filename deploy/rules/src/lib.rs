@@ -242,30 +242,166 @@ pub fn minimal_env(
     env
 }
 
-/// Escapes one JSON string value.
-pub fn json_escape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len() + 2);
-    for c in text.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out
+/// Picks the whitespace a rendered JSON document uses.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum JsonLayout {
+    Compact,
+    InlineArrays,
+    BlockArrays,
 }
 
-/// Escapes one XML text value.
-pub fn xml_escape(text: &str) -> String {
-    text.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
+/// Tracks one open JSON container while rendering.
+struct JsonFrame {
+    inline: bool,
+    array: bool,
+}
+
+/// Renders one JSON document the way the deploy outputs are laid out.
+struct DeployJson {
+    layout: JsonLayout,
+    frames: Vec<JsonFrame>,
+    depth: usize,
+    has_value: bool,
+}
+
+impl DeployJson {
+    fn new(layout: JsonLayout) -> Self {
+        Self {
+            layout,
+            frames: Vec::new(),
+            depth: 0,
+            has_value: false,
+        }
+    }
+
+    fn opens(&mut self, array: bool) -> bool {
+        let inline = self.layout == JsonLayout::Compact
+            || match self.frames.last() {
+                None => false,
+                Some(parent) => parent.array || (array && self.layout == JsonLayout::InlineArrays),
+            };
+        if !inline {
+            self.depth += 1;
+        }
+        self.frames.push(JsonFrame { inline, array });
+        self.has_value = false;
+        inline
+    }
+
+    fn closes<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        close: &[u8],
+    ) -> std::io::Result<()> {
+        let frame = self.frames.pop().unwrap_or(JsonFrame {
+            inline: false,
+            array: false,
+        });
+        if frame.inline {
+            writer.write_all(close)?;
+            return Ok(());
+        }
+        self.depth -= 1;
+        if self.has_value {
+            writer.write_all(b"\n")?;
+            for _ in 0..self.depth {
+                writer.write_all(b"  ")?;
+            }
+        }
+        writer.write_all(close)
+    }
+
+    fn write_break<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> std::io::Result<()> {
+        if self.frames.last().is_some_and(|frame| frame.inline) {
+            if !first {
+                writer.write_all(if self.layout == JsonLayout::Compact {
+                    b","
+                } else {
+                    b", "
+                })?;
+            }
+            return Ok(());
+        }
+        writer.write_all(if first { b"\n" } else { b",\n" })?;
+        for _ in 0..self.depth {
+            writer.write_all(b"  ")?;
+        }
+        Ok(())
+    }
+}
+
+impl serde_json::ser::Formatter for DeployJson {
+    fn begin_array<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.opens(true);
+        writer.write_all(b"[")
+    }
+
+    fn end_array<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.closes(writer, b"]")
+    }
+
+    fn begin_array_value<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> std::io::Result<()> {
+        self.write_break(writer, first)
+    }
+
+    fn end_array_value<W: ?Sized + std::io::Write>(&mut self, _: &mut W) -> std::io::Result<()> {
+        self.has_value = true;
+        Ok(())
+    }
+
+    fn begin_object<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.opens(false);
+        writer.write_all(b"{")
+    }
+
+    fn end_object<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        self.closes(writer, b"}")
+    }
+
+    fn begin_object_key<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        first: bool,
+    ) -> std::io::Result<()> {
+        self.write_break(writer, first)
+    }
+
+    fn begin_object_value<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        writer.write_all(if self.layout == JsonLayout::Compact {
+            b":"
+        } else {
+            b": "
+        })
+    }
+
+    fn end_object_value<W: ?Sized + std::io::Write>(&mut self, _: &mut W) -> std::io::Result<()> {
+        self.has_value = true;
+        Ok(())
+    }
+}
+
+/// Serializes one JSON document plus a trailing newline.
+fn render_json(value: &serde_json::Value, layout: JsonLayout) -> String {
+    use serde::Serialize as _;
+    let mut serializer =
+        serde_json::Serializer::with_formatter(Vec::new(), DeployJson::new(layout));
+    if value.serialize(&mut serializer).is_err() {
+        return String::new();
+    }
+    let mut bytes = serializer.into_inner();
+    bytes.push(b'\n');
+    String::from_utf8(bytes).unwrap_or_default()
 }
 
 /// Writes one owner-only file.
@@ -682,42 +818,32 @@ pub fn crates_build_vendor(
         );
         hex::encode(hasher.finalize())
     };
-    let mut checksum_body = String::from("{\n  \"files\": {\n");
-    for (index, (base, digest)) in entries.iter().enumerate() {
-        checksum_body.push_str(&format!(
-            "    \"{}\": \"{}\"{}",
-            json_escape(base),
-            digest,
-            if index + 1 < entries.len() {
-                ",\n"
-            } else {
-                "\n"
-            },
-        ));
+    let mut files = serde_json::Map::new();
+    for (base, digest) in &entries {
+        files.insert(base.clone(), serde_json::Value::String(digest.clone()));
     }
-    checksum_body.push_str(&format!("  }},\n  \"package\": \"{package_digest}\"\n}}\n"));
+    let checksum_body = render_json(
+        &serde_json::json!({
+            "files": serde_json::Value::Object(files),
+            "package": package_digest,
+        }),
+        JsonLayout::InlineArrays,
+    );
     std::fs::write(
         vendor_dir.join(".cargo-checksum.json"),
         checksum_body.as_bytes(),
     )?;
-    let mut index_body = String::from("{\n  \"files\": [\n");
-    for (index, (base, digest)) in entries.iter().enumerate() {
-        index_body.push_str(&format!(
-            "    {{\"name\": \"{}\", \"sha256\": \"{}\"}}{}",
-            json_escape(base),
-            digest,
-            if index + 1 < entries.len() {
-                ",\n"
-            } else {
-                "\n"
-            },
-        ));
-    }
-    index_body.push_str(&format!(
-        "  ],\n  \"name\": \"{}\",\n  \"version\": \"{}\"\n}}\n",
-        json_escape(crate_name),
-        json_escape(version),
-    ));
+    let index_body = render_json(
+        &serde_json::json!({
+            "files": entries
+                .iter()
+                .map(|(base, digest)| serde_json::json!({"name": base, "sha256": digest}))
+                .collect::<Vec<_>>(),
+            "name": crate_name,
+            "version": version,
+        }),
+        JsonLayout::BlockArrays,
+    );
     std::fs::write(registry_dir.join("index.json"), index_body.as_bytes())?;
     Ok(house)
 }
@@ -1100,13 +1226,13 @@ pub fn maven_build_file_repo(
 pub fn maven_settings_xml(username: &str, password: &str, passphrase: &str) -> String {
     let mut body = format!(
         "<settings>\n  <servers>\n    <server>\n      <id>dx-staging</id>\n      <username>{}</username>\n      <password>{}</password>\n    </server>\n  </servers>\n",
-        xml_escape(username),
-        xml_escape(password),
+        quick_xml::escape::escape(username),
+        quick_xml::escape::escape(password),
     );
     if !passphrase.is_empty() {
         body.push_str(&format!(
             "  <profiles>\n    <profile>\n      <id>dx-gpg-passphrase</id>\n      <properties>\n        <gpg.passphrase>{}</gpg.passphrase>\n      </properties>\n    </profile>\n  </profiles>\n  <activeProfiles>\n    <activeProfile>dx-gpg-passphrase</activeProfile>\n  </activeProfiles>\n",
-            xml_escape(passphrase),
+            quick_xml::escape::escape(passphrase),
         ));
     }
     body.push_str("</settings>\n");
@@ -1320,11 +1446,23 @@ pub fn oci_build_layout(
         blobs.join(config_digest.replace("sha256:", "")),
         config_bytes.as_bytes(),
     )?;
-    let manifest_body = format!(
-        "{{\"config\":{{\"digest\":\"{config_digest}\",\"mediaType\":\"application/vnd.oci.image.config.v1+json\",\"size\":{}}},\"layers\":[{{\"digest\":\"{layer_digest}\",\"mediaType\":\"{layer_media}\",\"size\":{layer_size}}}],\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"schemaVersion\":2}}",
-        config_bytes.len(),
+    let manifest_bytes = render_json(
+        &serde_json::json!({
+            "config": {
+                "digest": config_digest,
+                "mediaType": "application/vnd.oci.image.config.v1+json",
+                "size": config_bytes.len(),
+            },
+            "layers": [{
+                "digest": layer_digest,
+                "mediaType": layer_media,
+                "size": layer_size,
+            }],
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "schemaVersion": 2,
+        }),
+        JsonLayout::Compact,
     );
-    let manifest_bytes = format!("{manifest_body}\n");
     let manifest_digest = {
         use sha2::Digest as _;
         let mut hasher = sha2::Sha256::new();
@@ -1336,10 +1474,18 @@ pub fn oci_build_layout(
         manifest_bytes.as_bytes(),
     )?;
     let reference = format!("{registry}/{repository}:{tag}");
-    let index_body = format!(
-        "{{\"manifests\":[{{\"annotations\":{{\"org.opencontainers.image.ref.name\":\"{}\"}},\"digest\":\"{manifest_digest}\",\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"size\":{}}}],\"mediaType\":\"application/vnd.oci.image.index.v1+json\",\"schemaVersion\":2}}\n",
-        json_escape(&reference),
-        manifest_bytes.len(),
+    let index_body = render_json(
+        &serde_json::json!({
+            "manifests": [{
+                "annotations": {"org.opencontainers.image.ref.name": reference},
+                "digest": manifest_digest,
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                "size": manifest_bytes.len(),
+            }],
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "schemaVersion": 2,
+        }),
+        JsonLayout::Compact,
     );
     std::fs::write(layout.join("index.json"), index_body.as_bytes())?;
     std::fs::write(
@@ -1762,35 +1908,20 @@ pub fn promotion_build(
     let digest = copy_verified(artifact_src, &dest)?;
     let mut refs: Vec<String> = secret_refs.to_vec();
     refs.sort();
-    let mut record = String::from("{\n");
-    record.push_str(&format!("  \"artifact\": \"{}\",\n", json_escape(&base)));
-    record.push_str(&format!("  \"artifact_sha256\": \"{digest}\",\n"));
-    record.push_str(&format!(
-        "  \"deploy\": \"{}\",\n",
-        json_escape(deploy_name)
-    ));
-    record.push_str(&format!(
-        "  \"from_environment\": \"{}\",\n",
-        json_escape(from_env)
-    ));
-    record.push_str("  \"health\": \"skipped-local\",\n");
-    record.push_str("  \"registry_auth\": \"env-only\",\n");
-    record.push_str("  \"secret_refs\": [");
-    for (index, r) in refs.iter().enumerate() {
-        if index > 0 {
-            record.push_str(", ");
-        }
-        record.push_str(&format!("\"{}\"", json_escape(r)));
-    }
-    record.push_str("],\n");
-    record.push_str(&format!(
-        "  \"to_environment\": \"{}\",\n",
-        json_escape(to_env)
-    ));
-    record.push_str(&format!(
-        "  \"version\": \"{}\"\n}}\n",
-        json_escape(version)
-    ));
+    let record = render_json(
+        &serde_json::json!({
+            "artifact": base,
+            "artifact_sha256": digest,
+            "deploy": deploy_name,
+            "from_environment": from_env,
+            "health": "skipped-local",
+            "registry_auth": "env-only",
+            "secret_refs": refs,
+            "to_environment": to_env,
+            "version": version,
+        }),
+        JsonLayout::InlineArrays,
+    );
     std::fs::write(promotion.join("promotion.json"), record.as_bytes())?;
     let refs_line = if refs.is_empty() {
         "secret-refs: none".to_owned()
@@ -2160,23 +2291,17 @@ pub fn npm_create_pack(
     let digest = sha256_file_hex(tgz_out)?;
     let names: Vec<String> = members.keys().cloned().collect();
     let tgz_base = basename(tgz_out)?;
-    let mut feed = String::from("{\n");
-    feed.push_str("  \"files\": [");
-    for (index, name) in names.iter().enumerate() {
-        if index > 0 {
-            feed.push_str(", ");
-        }
-        feed.push_str(&format!("\"{}\"", json_escape(name)));
-    }
-    feed.push_str("],\n");
-    feed.push_str(&format!("  \"name\": \"{}\",\n", json_escape(package)));
-    feed.push_str(&format!("  \"registry\": \"{}\",\n", json_escape(registry)));
-    feed.push_str(&format!("  \"sha256\": \"{digest}\",\n"));
-    feed.push_str(&format!("  \"tag\": \"{}\",\n", json_escape(tag)));
-    feed.push_str(&format!(
-        "  \"tarball\": \"{}\"\n}}\n",
-        json_escape(&tgz_base)
-    ));
+    let feed = render_json(
+        &serde_json::json!({
+            "files": names,
+            "name": package,
+            "registry": registry,
+            "sha256": digest,
+            "tag": tag,
+            "tarball": tgz_base,
+        }),
+        JsonLayout::InlineArrays,
+    );
     if let Some(parent) = feed_out.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)?;
@@ -2933,17 +3058,58 @@ mod tests {
         std::fs::create_dir_all(&outdir).expect("outdir");
         let files = vec![manifest.clone(), source.clone()];
         let house = crates_build_vendor(&files, &outdir, "crates_demo", "0.0.0").expect("vendor");
-        assert!(house
-            .join("vendor")
-            .join("crates_demo")
-            .join(".cargo-checksum.json")
-            .is_file());
-        assert!(house
-            .join("registry")
-            .join("crates_demo")
-            .join("0.0.0")
-            .join("index.json")
-            .is_file());
+        let checksum = std::fs::read_to_string(
+            house
+                .join("vendor")
+                .join("crates_demo")
+                .join(".cargo-checksum.json"),
+        )
+        .expect("checksum");
+        let pairs = files
+            .iter()
+            .map(|src| {
+                (
+                    basename(src).expect("base"),
+                    sha256_file_hex(src).expect("hex"),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let package = checksum
+            .rsplit_once("\"package\": \"")
+            .expect("package")
+            .1
+            .trim_end_matches("\"\n}\n");
+        let want = [
+            "{",
+            "  \"files\": {",
+            "    \"Cargo.toml\": \"a\",",
+            "    \"lib.rs\": \"b\"",
+            "  },",
+            "  \"package\": \"c\"",
+            "}",
+            "",
+        ]
+        .join("\n");
+        assert_eq!(
+            checksum,
+            want.replace("\"a\"", &format!("\"{}\"", pairs["Cargo.toml"]))
+                .replace("\"b\"", &format!("\"{}\"", pairs["lib.rs"]))
+                .replace("\"c\"", &format!("\"{package}\""))
+        );
+        let index = std::fs::read_to_string(
+            house
+                .join("registry")
+                .join("crates_demo")
+                .join("0.0.0")
+                .join("index.json"),
+        )
+        .expect("index");
+        assert!(
+            index.starts_with("{\n  \"files\": [\n    {\"name\": \"Cargo.toml\", \"sha256\": \"")
+                && index
+                    .ends_with("  ],\n  \"name\": \"crates_demo\",\n  \"version\": \"0.0.0\"\n}\n"),
+            "{index}"
+        );
         assert!(crates_build_vendor(&[], &outdir, "crates_demo", "0.0.0").is_err());
     }
 
@@ -3019,9 +3185,29 @@ mod tests {
             "1.2.3",
         )
         .expect("layout");
-        assert!(layout.join("index.json").is_file());
         assert!(layout.join("oci-layout").is_file());
         assert!(layout.join("blobs").join("sha256").is_dir());
+        let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
+        assert!(index.ends_with('\n'), "index ends with a newline");
+        assert_eq!(index.matches('\n').count(), 1, "index is one compact line");
+        let parsed: serde_json::Value = serde_json::from_str(&index).expect("index parses");
+        assert_eq!(parsed["schemaVersion"], 2);
+        assert_eq!(
+            parsed["mediaType"],
+            "application/vnd.oci.image.index.v1+json"
+        );
+        assert_eq!(
+            parsed["manifests"][0]["annotations"]["org.opencontainers.image.ref.name"],
+            "registry.example.invalid/demo/app:1.2.3"
+        );
+        let digest = parsed["manifests"][0]["digest"].as_str().expect("digest");
+        let manifest = layout.join("blobs").join("sha256").join(&digest[7..]);
+        let manifest_bytes = std::fs::read(&manifest).expect("manifest");
+        assert_eq!(parsed["manifests"][0]["size"], manifest_bytes.len());
+        assert_eq!(
+            digest,
+            format!("sha256:{}", sha256_file_hex(&manifest).expect("hex"))
+        );
     }
 
     #[test]
@@ -3066,7 +3252,29 @@ mod tests {
             &[],
         )
         .expect("promotion");
-        assert!(promotion.join("promotion.json").is_file());
+        let record = std::fs::read_to_string(promotion.join("promotion.json")).expect("record");
+        let artifact_digest = sha256_file_hex(&artifact).expect("hex");
+        assert_eq!(
+            record,
+            [
+                "{",
+                &format!(
+                    "  \"artifact\": \"{}\",",
+                    basename(&artifact).expect("base")
+                ),
+                &format!("  \"artifact_sha256\": \"{artifact_digest}\","),
+                "  \"deploy\": \"promotion_demo\",",
+                "  \"from_environment\": \"staging\",",
+                "  \"health\": \"skipped-local\",",
+                "  \"registry_auth\": \"env-only\",",
+                "  \"secret_refs\": [],",
+                "  \"to_environment\": \"production\",",
+                "  \"version\": \"1.2.3\"",
+                "}",
+                "",
+            ]
+            .join("\n")
+        );
         assert!(promotion.join("would-run.txt").is_file());
         let rollback =
             promotion_record_rollback(&promotion, "promotion_demo", "1.2.2", "").expect("rollback");
@@ -3104,6 +3312,22 @@ mod tests {
         assert_eq!(
             npm_npmrc_line("registry.npmjs.org", "tok"),
             "//registry.npmjs.org/:_authToken=tok\n"
+        );
+        let body = std::fs::read_to_string(&feed).expect("feed");
+        assert_eq!(
+            body,
+            [
+                "{",
+                "  \"files\": [\"package/package.json\"],",
+                "  \"name\": \"npm-demo\",",
+                "  \"registry\": \"https://registry.npmjs.org\",",
+                &format!("  \"sha256\": \"{digest}\","),
+                "  \"tag\": \"latest\",",
+                "  \"tarball\": \"npm_demo.tgz\"",
+                "}",
+                "",
+            ]
+            .join("\n")
         );
     }
 
@@ -3151,14 +3375,75 @@ mod tests {
     }
 
     #[test]
-    fn json_and_xml_escape_cover_control_and_markup() {
-        assert_eq!(json_escape("a\"b\\c"), "a\\\"b\\\\c");
-        assert_eq!(json_escape("n\r\nt"), "n\\r\\nt");
-        assert_eq!(json_escape("\u{1}"), "\\u0001");
-        assert_eq!(json_escape("plain"), "plain");
+    fn render_json_escapes_control_and_markup() {
+        let value = serde_json::json!({"k": "a\"b\\c\nd\u{1}<&>"});
+        let text = render_json(&value, JsonLayout::Compact);
+        assert_eq!(text, "{\"k\":\"a\\\"b\\\\c\\nd\\u0001<&>\"}\n");
         assert_eq!(
-            xml_escape("<a href=\"x\">&'</a>"),
+            serde_json::from_str::<serde_json::Value>(&text).expect("parses"),
+            value
+        );
+        assert_eq!(
+            quick_xml::escape::escape("<a href=\"x\">&'</a>"),
             "&lt;a href=&quot;x&quot;&gt;&amp;&apos;&lt;/a&gt;"
+        );
+    }
+
+    #[test]
+    fn render_json_matches_the_previous_hand_rolled_layout() {
+        let inline = serde_json::json!({
+            "files": ["a", "b\"q"],
+            "name": "n",
+            "registry": "r",
+            "sha256": "d",
+            "tag": "t",
+            "tarball": "tb",
+        });
+        assert_eq!(
+            render_json(&inline, JsonLayout::InlineArrays),
+            "{\n  \"files\": [\"a\", \"b\\\"q\"],\n  \"name\": \"n\",\n  \"registry\": \"r\",\n  \"sha256\": \"d\",\n  \"tag\": \"t\",\n  \"tarball\": \"tb\"\n}\n"
+        );
+        let block = serde_json::json!({
+            "files": [{"name": "a", "sha256": "d"}],
+            "name": "n",
+            "version": "1.0.0",
+        });
+        assert_eq!(
+            render_json(&block, JsonLayout::BlockArrays),
+            "{\n  \"files\": [\n    {\"name\": \"a\", \"sha256\": \"d\"}\n  ],\n  \"name\": \"n\",\n  \"version\": \"1.0.0\"\n}\n"
+        );
+        let empty = serde_json::json!({"files": {}, "package": "p"});
+        assert_eq!(
+            render_json(&empty, JsonLayout::InlineArrays),
+            "{\n  \"files\": {},\n  \"package\": \"p\"\n}\n"
+        );
+        let oci = serde_json::json!({
+            "manifests": [{
+                "annotations": {"org.opencontainers.image.ref.name": "r/i:1"},
+                "digest": "sha256:0",
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                "size": 7,
+            }],
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "schemaVersion": 2,
+        });
+        assert_eq!(
+            render_json(&oci, JsonLayout::Compact),
+            "{\"manifests\":[{\"annotations\":{\"org.opencontainers.image.ref.name\":\"r/i:1\"},\"digest\":\"sha256:0\",\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"size\":7}],\"mediaType\":\"application/vnd.oci.image.index.v1+json\",\"schemaVersion\":2}\n"
+        );
+    }
+
+    #[test]
+    fn render_json_orders_keys_and_keeps_empty_containers_tight() {
+        let value = serde_json::json!({"z": 1, "a": [], "m": {}});
+        assert_eq!(
+            render_json(&value, JsonLayout::InlineArrays),
+            "{\n  \"a\": [],\n  \"m\": {},\n  \"z\": 1\n}\n"
+        );
+        let nested = serde_json::json!({"outer": {"inner": [1, 2]}});
+        assert_eq!(
+            render_json(&nested, JsonLayout::BlockArrays),
+            "{\n  \"outer\": {\n    \"inner\": [\n      1,\n      2\n    ]\n  }\n}\n"
         );
     }
 

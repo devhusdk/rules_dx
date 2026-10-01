@@ -605,6 +605,9 @@ version = "0.0.0"
 dependencies = [
  "flate2",
  "hex",
+ "quick-xml",
+ "serde",
+ "serde_json",
  "sha2",
  "tar",
  "tempfile",

@@ -418,15 +418,11 @@ fn record_timings(workspace: &std::path::Path, measured: &[(String, f64)]) -> Re
 }
 
 fn first_line(bytes: &[u8]) -> String {
+    const LIMIT: usize = 200;
     let text = String::from_utf8_lossy(bytes);
-    let line = text.lines().next().unwrap_or("no Git diagnostic").trim();
-    if line.is_empty() {
-        return "no Git diagnostic".to_owned();
-    }
-    if line.len() > 200 {
-        format!("{}...", &line[..200])
-    } else {
-        line.to_owned()
+    match text.lines().next().map(str::trim) {
+        Some(line) if !line.is_empty() => dx_output::truncate_line(line, LIMIT),
+        _ => "no Git diagnostic".to_owned(),
     }
 }
 
@@ -580,6 +576,17 @@ mod tests {
             first_line("x".repeat(201).as_bytes()),
             format!("{}...", "x".repeat(200))
         );
+    }
+
+    #[test]
+    fn a_wide_character_on_the_truncation_edge_is_not_split() {
+        let mut stderr = "x".repeat(198);
+        stderr.push('€');
+        stderr.push_str("git: fatal: bad object HEAD");
+        let got = first_line(stderr.as_bytes());
+        assert_eq!(got, format!("{}...", "x".repeat(198)));
+        assert!(got.len() <= 203, "bounded: {}", got.len());
+        assert_eq!(first_line(b"  \nreal error"), "no Git diagnostic");
     }
 
     struct NullQuery;

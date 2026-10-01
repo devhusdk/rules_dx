@@ -166,6 +166,18 @@ pub fn emit_status(status: &str, message: &str) {
     tracing::info!(status, message, "dx status");
 }
 
+/// Shortens a tool's diagnostic line to at most `limit` bytes plus `...`.
+pub fn truncate_line(line: &str, limit: usize) -> String {
+    if line.len() <= limit {
+        return line.to_owned();
+    }
+    let mut end = limit;
+    while !line.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}...", &line[..end])
+}
+
 pub fn init_diagnostics_with_color(verbose: bool, level: Option<LogLevel>, color: ColorMode) {
     set_color_override(color);
     init_diagnostics_with_level(verbose, level);
@@ -203,6 +215,51 @@ mod tests {
         init_diagnostics_with_level(false, None);
         init_diagnostics_with_level(true, None);
         init_diagnostics_with_level(false, Some(LogLevel::Debug));
+    }
+
+    #[test]
+    fn a_short_line_is_returned_unchanged() {
+        assert_eq!(truncate_line("", 8), "");
+        assert_eq!(truncate_line("short", 8), "short");
+        assert_eq!(truncate_line("exactly8", 8), "exactly8");
+        assert_eq!(truncate_line("anything", 0), "...");
+    }
+
+    #[test]
+    fn truncation_stops_on_a_char_boundary() {
+        for wide in ["é", "€", "🌍"] {
+            let mut line = "x".repeat(7);
+            line.push_str(wide);
+            line.push_str("yyyyyyyyyyy");
+            assert!(line.len() > 8, "line must exceed the limit: {line:?}");
+            let got = truncate_line(&line, 8);
+            assert_eq!(got, "xxxxxxx...", "wide: {wide:?}");
+            let kept = got.strip_suffix("...").expect("truncated");
+            assert!(kept.len() <= 8, "budget: {}", kept.len());
+            assert!(
+                line.len() - kept.len() >= wide.len(),
+                "the straddling char is dropped whole: {wide:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn truncation_keeps_a_char_that_ends_on_the_limit() {
+        for (wide, limit) in [("é", 9), ("€", 10), ("🌍", 11)] {
+            let mut line = "x".repeat(7);
+            line.push_str(wide);
+            assert_eq!(line.len(), limit);
+            assert_eq!(truncate_line(&line, limit), line, "wide: {wide:?}");
+        }
+    }
+
+    #[test]
+    fn truncation_budget_counts_bytes_of_whole_chars() {
+        let line = "é".repeat(64);
+        assert_eq!(line.len(), 128);
+        assert_eq!(truncate_line(&line, 128), line);
+        assert_eq!(truncate_line(&line, 127), format!("{}...", "é".repeat(63)));
+        assert_eq!(truncate_line(&line, 1), "...");
     }
 
     #[test]

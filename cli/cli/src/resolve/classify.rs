@@ -41,11 +41,9 @@ pub(crate) fn first_line(bytes: &[u8]) -> String {
     const LIMIT: usize = 300;
     let text = String::from_utf8_lossy(bytes);
     let line = text.lines().map(str::trim).find(|line| !line.is_empty());
-    let line = line.unwrap_or("no Bazel diagnostic");
-    if line.len() > LIMIT {
-        format!("{}...", &line[..LIMIT])
-    } else {
-        line.to_owned()
+    match line {
+        Some(line) => dx_output::truncate_line(line, LIMIT),
+        None => "no Bazel diagnostic".to_owned(),
     }
 }
 

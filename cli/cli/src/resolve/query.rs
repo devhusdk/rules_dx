@@ -202,4 +202,14 @@ mod tests {
         assert!(got.len() <= 303, "bounded: {}", got.len());
         assert!(got.ends_with("..."));
     }
+
+    #[test]
+    fn a_wide_character_on_the_truncation_edge_is_not_split() {
+        let mut stderr = "x".repeat(298);
+        stderr.push('€');
+        stderr.push_str("ERROR: /home/u/pkg/BUILD.bazel");
+        let got = first_line(stderr.as_bytes());
+        assert_eq!(got, format!("{}...", "x".repeat(298)));
+        assert!(got.len() <= 301, "bounded: {}", got.len());
+    }
 }

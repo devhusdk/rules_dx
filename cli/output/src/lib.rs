@@ -17,7 +17,7 @@ pub use diagnostics::{
     color_enabled, color_enabled_for, color_override, colors_allowed, colors_allowed_for,
     emit_status, format_status, init_diagnostics, init_diagnostics_with_color,
     init_diagnostics_with_level, resolve_log_filter, set_color_override, styled_status,
-    styled_status_for, ColorMode, LogLevel, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
+    styled_status_for, truncate_line, ColorMode, LogLevel, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
 };
 pub use findings::{
     diagnostic_event, notice_event, sort_diagnostics, DiagnosticEvent, NoticeEvent, Resolution,

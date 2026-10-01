@@ -3,6 +3,7 @@
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
+load("@aspect_rules_ts//ts/private:ts_config.bzl", _write_tsconfig = "write_tsconfig")
 load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -52,12 +53,34 @@ def typescript_srcs_rejection(srcs):
                 ", ".join(sorted(bad)))
     return None
 
+def _dx_scoped_tsconfig(name, srcs, kwargs):
+    """Returns kwargs with a tsconfig that lists only this target's own sources."""
+    tsconfig = kwargs.get("tsconfig", None)
+    if tsconfig == None:
+        return kwargs
+
+    generated = "tsconfig_" + name
+    _write_tsconfig(
+        name = generated,
+        config = {},
+        files = srcs,
+        extends = tsconfig,
+        out = generated + ".json",
+        visibility = ["//visibility:private"],
+    )
+
+    out = dict(kwargs)
+    out["tsconfig"] = generated + ".json"
+    out["extends"] = tsconfig
+    out["isolated_typecheck"] = True
+    return out
+
 def _typescript_wrap_project(name, srcs, visibility = None, **kwargs):
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
 
-    dx_wrap(name, _ts_project, _typescript_project_forward, srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _ts_project, _typescript_project_forward, srcs, visibility = visibility, **_dx_scoped_tsconfig(name, srcs, kwargs))
 
 def typescript_project(name, srcs, visibility = None, **kwargs):
     """Experimental minimal wrapper over ts_project."""
@@ -129,7 +152,7 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
         srcs = srcs,
         testonly = True,
         visibility = ["//visibility:private"],
-        **ts_kwargs
+        **_dx_scoped_tsconfig(name + "_ts", srcs, ts_kwargs)
     )
 
     upstream_data = [":" + name + "_ts"] + list(deps or []) + list(data or [])

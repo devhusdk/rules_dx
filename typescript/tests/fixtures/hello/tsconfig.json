@@ -1,1 +1,1 @@
-{"compilerOptions": {"declaration": true, "module": "ESNext", "moduleResolution": "Bundler", "strict": true, "target": "ES2022"}}
+{"compilerOptions": {"declaration": true, "module": "ESNext", "moduleResolution": "Bundler", "strict": true, "target": "ES2022", "isolatedDeclarations": true}}

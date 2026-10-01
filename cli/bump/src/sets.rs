@@ -103,7 +103,9 @@ impl BumpSet {
                 "pinned go_deps.from_file module lock (pins track Gazelle; explicit widen via `dx bump` plus the pinned SDK tidy)"
             }
             BumpSet::Maven => "rules_jvm_external pin (REPIN=1 bazel run @maven//:pin)",
-            BumpSet::Npm => "Bazel-pinned pnpm update (bazel run @pnpm//:pnpm -- update)",
+            BumpSet::Npm => {
+                "Bazel-pinned pnpm lockfile-only update (bazel run @pnpm//:pnpm -- --dir <workspace> update --lockfile-only)"
+            }
             BumpSet::NuGet => {
                 "paket2bazel regeneration (bazel run @rules_dotnet//tools/paket2bazel -- ...)"
             }

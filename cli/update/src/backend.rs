@@ -1,5 +1,6 @@
 use super::selector::SetRequest;
 use super::sets::SetId;
+use std::path::Path;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BackendPlan {
@@ -21,7 +22,12 @@ pub enum BackendError {
     OfflineRequired { set: &'static str },
 }
 
-pub fn plan(set: SetId, request: &SetRequest, offline: bool) -> Result<BackendPlan, BackendError> {
+pub fn plan(
+    workspace: &Path,
+    set: SetId,
+    request: &SetRequest,
+    offline: bool,
+) -> Result<BackendPlan, BackendError> {
     if offline {
         match (set, request) {
             (SetId::Go, SetRequest::Full) => return Ok(BackendPlan::Noop),
@@ -67,28 +73,23 @@ pub fn plan(set: SetId, request: &SetRequest, offline: bool) -> Result<BackendPl
             reason: "crate_universe repin refreshes the whole Cargo lock; use `dx update cargo` for the set",
         }),
         (SetId::Npm, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: strings(&["bazel", "run", "@pnpm//:pnpm", "--", "update"]),
+            argv: pnpm_argv(workspace, &["update", "--lockfile-only"]),
             env: vec![],
         }),
         (SetId::Npm, SetRequest::Packages(packages)) => Ok(BackendPlan::Run {
             argv: [
-                strings(&["bazel", "run", "@pnpm//:pnpm", "--", "update"]),
+                pnpm_argv(workspace, &["update"]),
                 packages.clone(),
+                strings(&["--lockfile-only"]),
             ]
             .concat(),
             env: vec![],
         }),
         (SetId::NpmTools, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: strings(&[
-                "bazel",
-                "run",
-                "@pnpm//:pnpm",
-                "--",
-                "--dir",
-                "quality/tools/javascript",
-                "install",
-                "--lockfile-only",
-            ]),
+            argv: pnpm_argv(
+                &workspace.join("quality/tools/javascript"),
+                &["install", "--lockfile-only"],
+            ),
             env: vec![],
         }),
         (SetId::NpmTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
@@ -211,13 +212,34 @@ fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
 
+fn pnpm_argv(dir: &Path, command: &[&str]) -> Vec<String> {
+    [
+        strings(&["bazel", "run", "@pnpm//:pnpm", "--", "--dir"]),
+        strings(&[&dir.to_string_lossy()]),
+        strings(command),
+    ]
+    .concat()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn ws() -> &'static Path {
+        Path::new("/dx-workspace")
+    }
+
+    fn ws_arg() -> String {
+        ws().to_string_lossy().into_owned()
+    }
+
+    fn dir_arg(rel: &str) -> String {
+        ws().join(rel).to_string_lossy().into_owned()
+    }
+
     #[test]
     fn full_plans_are_pinned_and_hermetic() {
-        let cargo = plan(SetId::Cargo, &SetRequest::Full, false).expect("cargo");
+        let cargo = plan(ws(), SetId::Cargo, &SetRequest::Full, false).expect("cargo");
         assert_eq!(
             cargo,
             BackendPlan::Run {
@@ -229,7 +251,7 @@ mod tests {
                 env: vec![("CARGO_BAZEL_REPIN".to_owned(), "1".to_owned())],
             }
         );
-        let npm = plan(SetId::Npm, &SetRequest::Full, false).expect("npm");
+        let npm = plan(ws(), SetId::Npm, &SetRequest::Full, false).expect("npm");
         assert_eq!(
             npm,
             BackendPlan::Run {
@@ -238,12 +260,15 @@ mod tests {
                     "run".to_owned(),
                     "@pnpm//:pnpm".to_owned(),
                     "--".to_owned(),
+                    "--dir".to_owned(),
+                    ws_arg(),
                     "update".to_owned(),
+                    "--lockfile-only".to_owned(),
                 ],
                 env: vec![],
             }
         );
-        let maven = plan(SetId::Maven, &SetRequest::Full, false).expect("maven");
+        let maven = plan(ws(), SetId::Maven, &SetRequest::Full, false).expect("maven");
         assert_eq!(
             maven,
             BackendPlan::Run {
@@ -255,7 +280,7 @@ mod tests {
                 env: vec![("REPIN".to_owned(), "1".to_owned())],
             }
         );
-        let nuget = plan(SetId::NuGet, &SetRequest::Full, false).expect("nuget");
+        let nuget = plan(ws(), SetId::NuGet, &SetRequest::Full, false).expect("nuget");
         match nuget {
             BackendPlan::Run { argv, env } => {
                 assert_eq!(argv[0], "bazel");
@@ -267,10 +292,10 @@ mod tests {
             BackendPlan::Noop => panic!("nuget runs paket2bazel"),
         }
         assert_eq!(
-            plan(SetId::Go, &SetRequest::Full, false).expect("go"),
+            plan(ws(), SetId::Go, &SetRequest::Full, false).expect("go"),
             BackendPlan::Noop
         );
-        let npm_tools = plan(SetId::NpmTools, &SetRequest::Full, false).expect("npm-tools");
+        let npm_tools = plan(ws(), SetId::NpmTools, &SetRequest::Full, false).expect("npm-tools");
         match npm_tools {
             BackendPlan::Run { argv, env } => {
                 assert_eq!(
@@ -281,7 +306,7 @@ mod tests {
                         "@pnpm//:pnpm".to_owned(),
                         "--".to_owned(),
                         "--dir".to_owned(),
-                        "quality/tools/javascript".to_owned(),
+                        dir_arg("quality/tools/javascript"),
                         "install".to_owned(),
                         "--lockfile-only".to_owned(),
                     ]
@@ -290,7 +315,7 @@ mod tests {
             }
             BackendPlan::Noop => panic!("npm-tools runs pnpm"),
         }
-        let uv = plan(SetId::Uv, &SetRequest::Full, false).expect("uv");
+        let uv = plan(ws(), SetId::Uv, &SetRequest::Full, false).expect("uv");
         assert_eq!(
             uv,
             BackendPlan::Run {
@@ -303,7 +328,7 @@ mod tests {
                 env: vec![],
             }
         );
-        let uv_tools = plan(SetId::UvTools, &SetRequest::Full, false).expect("uv-tools");
+        let uv_tools = plan(ws(), SetId::UvTools, &SetRequest::Full, false).expect("uv-tools");
         assert_eq!(
             uv_tools,
             BackendPlan::Run {
@@ -316,7 +341,7 @@ mod tests {
                 env: vec![],
             }
         );
-        let npm_adopt = plan(SetId::NpmAdopt, &SetRequest::Full, false).expect("npm-adopt");
+        let npm_adopt = plan(ws(), SetId::NpmAdopt, &SetRequest::Full, false).expect("npm-adopt");
         assert_eq!(
             npm_adopt,
             BackendPlan::Run {
@@ -330,7 +355,7 @@ mod tests {
                 env: vec![],
             }
         );
-        let uv_adopt = plan(SetId::UvAdopt, &SetRequest::Full, false).expect("uv-adopt");
+        let uv_adopt = plan(ws(), SetId::UvAdopt, &SetRequest::Full, false).expect("uv-adopt");
         assert_eq!(
             uv_adopt,
             BackendPlan::Run {
@@ -348,6 +373,7 @@ mod tests {
     #[test]
     fn npm_selective_delegates_packages_to_pnpm() {
         let selective = plan(
+            ws(),
             SetId::Npm,
             &SetRequest::Packages(vec!["jest".to_owned(), "react".to_owned()]),
             false,
@@ -361,9 +387,12 @@ mod tests {
                     "run".to_owned(),
                     "@pnpm//:pnpm".to_owned(),
                     "--".to_owned(),
+                    "--dir".to_owned(),
+                    ws_arg(),
                     "update".to_owned(),
                     "jest".to_owned(),
                     "react".to_owned(),
+                    "--lockfile-only".to_owned(),
                 ],
                 env: vec![],
             }
@@ -371,8 +400,40 @@ mod tests {
     }
 
     #[test]
+    fn pnpm_plans_name_the_workspace_bazels_run_cwd_loses() {
+        for (set, request, expected) in [
+            (SetId::Npm, SetRequest::Full, ws_arg()),
+            (
+                SetId::Npm,
+                SetRequest::Packages(vec!["devalue".to_owned()]),
+                ws_arg(),
+            ),
+            (
+                SetId::NpmTools,
+                SetRequest::Full,
+                dir_arg("quality/tools/javascript"),
+            ),
+        ] {
+            let argv = match plan(ws(), set, &request, false).expect(set.name()) {
+                BackendPlan::Run { argv, .. } => argv,
+                BackendPlan::Noop => panic!("{} runs pnpm", set.name()),
+            };
+            let at = argv
+                .iter()
+                .position(|arg| arg == "--dir")
+                .unwrap_or_else(|| panic!("{} names --dir", set.name()));
+            assert_eq!(argv[at + 1], expected, "{set:?}");
+            assert!(
+                argv.contains(&"--lockfile-only".to_owned()),
+                "{set:?} must not populate node_modules"
+            );
+        }
+    }
+
+    #[test]
     fn cargo_selective_reports_unsupported_never_full() {
         let error = plan(
+            ws(),
             SetId::Cargo,
             &SetRequest::Packages(vec!["anyhow".to_owned()]),
             false,
@@ -391,6 +452,7 @@ mod tests {
     #[test]
     fn nuget_selective_reports_unsupported_never_full() {
         let error = plan(
+            ws(),
             SetId::NuGet,
             &SetRequest::Packages(vec!["FSharp.Core".to_owned()]),
             false,
@@ -409,6 +471,7 @@ mod tests {
     #[test]
     fn go_selective_reports_unsupported_never_full() {
         let error = plan(
+            ws(),
             SetId::Go,
             &SetRequest::Packages(vec!["github.com/google/go-cmp/cmp".to_owned()]),
             false,
@@ -425,7 +488,7 @@ mod tests {
     #[test]
     fn go_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(SetId::Go, &SetRequest::Full, false).expect("go full"),
+            plan(ws(), SetId::Go, &SetRequest::Full, false).expect("go full"),
             BackendPlan::Noop
         );
     }
@@ -433,10 +496,11 @@ mod tests {
     #[test]
     fn ruby_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(SetId::Ruby, &SetRequest::Full, false).expect("ruby full"),
+            plan(ws(), SetId::Ruby, &SetRequest::Full, false).expect("ruby full"),
             BackendPlan::Noop
         );
         let error = plan(
+            ws(),
             SetId::Ruby,
             &SetRequest::Packages(vec!["rspec-core".to_owned()]),
             false,
@@ -452,10 +516,11 @@ mod tests {
     #[test]
     fn powershell_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(SetId::PowerShell, &SetRequest::Full, false).expect("powershell full"),
+            plan(ws(), SetId::PowerShell, &SetRequest::Full, false).expect("powershell full"),
             BackendPlan::Noop
         );
         let error = plan(
+            ws(),
             SetId::PowerShell,
             &SetRequest::Packages(vec!["Pester".to_owned()]),
             false,
@@ -521,7 +586,7 @@ mod tests {
                 SetRequest::Packages(vec!["pytest".to_owned()]),
             ),
         ] {
-            let error = plan(set, &packages, false).expect_err("unsupported");
+            let error = plan(ws(), set, &packages, false).expect_err("unsupported");
             assert!(matches!(error, BackendError::Unsupported { .. }), "{set:?}");
             assert!(error.to_string().contains(set.name()));
         }
@@ -534,6 +599,7 @@ mod tests {
             "org.junit.jupiter:junit-jupiter-api".to_owned(),
         ] {
             let error = plan(
+                ws(),
                 SetId::Maven,
                 &SetRequest::Packages(vec![artifact.clone()]),
                 false,
@@ -555,7 +621,7 @@ mod tests {
     #[test]
     fn argv_never_names_a_dx_lockfile() {
         for set in SetId::ALL {
-            if let Ok(BackendPlan::Run { argv, .. }) = plan(set, &SetRequest::Full, false) {
+            if let Ok(BackendPlan::Run { argv, .. }) = plan(ws(), set, &SetRequest::Full, false) {
                 for arg in argv {
                     assert!(
                         !arg.contains("dx.lock"),
@@ -581,7 +647,8 @@ mod tests {
             SetId::UvAdopt,
             SetId::UvAdoptPolyglot,
         ] {
-            let error = plan(set, &SetRequest::Full, true).expect_err("offline needs network");
+            let error =
+                plan(ws(), set, &SetRequest::Full, true).expect_err("offline needs network");
             assert!(
                 matches!(error, BackendError::OfflineRequired { .. }),
                 "{set:?}: {error:?}"
@@ -590,6 +657,7 @@ mod tests {
             assert!(error.to_string().contains(set.name()), "{error}");
         }
         let selective = plan(
+            ws(),
             SetId::Npm,
             &SetRequest::Packages(vec!["jest".to_owned()]),
             true,
@@ -601,7 +669,7 @@ mod tests {
         );
         for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
-                plan(set, &SetRequest::Full, true).expect("pinned noop offline"),
+                plan(ws(), set, &SetRequest::Full, true).expect("pinned noop offline"),
                 BackendPlan::Noop,
                 "{set:?}"
             );
@@ -657,7 +725,8 @@ mod tests {
                 SetRequest::Packages(vec!["pytest".to_owned()]),
             ),
         ] {
-            let error = plan(set, &packages, true).expect_err("unsupported stays unsupported");
+            let error =
+                plan(ws(), set, &packages, true).expect_err("unsupported stays unsupported");
             assert!(
                 matches!(error, BackendError::Unsupported { .. }),
                 "{set:?}: {error:?}"

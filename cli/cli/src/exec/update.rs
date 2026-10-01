@@ -189,7 +189,7 @@ fn run_update_backends(
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<dx_update::sets::SetId, SetDetail> = BTreeMap::new();
     for (set, request) in resolved {
-        let plan = match dx_update::backend::plan(*set, request, offline) {
+        let plan = match dx_update::backend::plan(workspace, *set, request, offline) {
             Ok(plan) => plan,
             Err(error) => {
                 match error {

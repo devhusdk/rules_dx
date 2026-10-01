@@ -75,7 +75,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.offline && request.needs_update_refresh() {
         if let Some((set, req, _)) = refresh_target(&request) {
             if let Err(dx_update::backend::BackendError::OfflineRequired { .. }) =
-                dx_update::backend::plan(set, &req, true)
+                dx_update::backend::plan(workspace, set, &req, true)
             {
                 return operational(
                     invocation,
@@ -197,7 +197,12 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             );
         }
     };
-    let plan = match dx_update::backend::plan(update_set, &update_request, invocation.offline) {
+    let plan = match dx_update::backend::plan(
+        workspace,
+        update_set,
+        &update_request,
+        invocation.offline,
+    ) {
         Ok(plan) => plan,
         Err(error) => match error {
             dx_update::backend::BackendError::Unsupported { reason, .. } => {

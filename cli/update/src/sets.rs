@@ -138,7 +138,9 @@ impl SetId {
                 "pinned go_deps.from_file module lock (pins track Gazelle; explicit widen via `dx bump` plus the pinned SDK tidy)"
             }
             SetId::Maven => "rules_jvm_external pin (REPIN=1 bazel run @maven//:pin)",
-            SetId::Npm => "Bazel-pinned pnpm update (bazel run @pnpm//:pnpm -- update)",
+            SetId::Npm => {
+                "Bazel-pinned pnpm lockfile-only update (bazel run @pnpm//:pnpm -- --dir <workspace> update --lockfile-only)"
+            }
             SetId::NpmAdopt => {
                 "pnpm lockfile-only install (pnpm --dir examples/adopt-js-ts install --lockfile-only)"
             }
@@ -146,7 +148,7 @@ impl SetId {
                 "pnpm lockfile-only install (pnpm --dir examples/adopt-polyglot install --lockfile-only)"
             }
             SetId::NpmTools => {
-                "Bazel-pinned pnpm lockfile-only install (bazel run @pnpm//:pnpm -- --dir quality/tools/javascript install --lockfile-only)"
+                "Bazel-pinned pnpm lockfile-only install (bazel run @pnpm//:pnpm -- --dir <workspace>/quality/tools/javascript install --lockfile-only)"
             }
             SetId::NuGet => {
                 "paket2bazel regeneration (bazel run @rules_dotnet//tools/paket2bazel -- ...)"

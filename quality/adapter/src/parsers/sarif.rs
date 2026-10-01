@@ -56,6 +56,39 @@ fn native(path: &str) -> String {
     path.replace('/', MAIN_SEPARATOR_STR)
 }
 
+fn percent_decode(path: &str) -> Option<String> {
+    if !path.contains('%') {
+        return None;
+    }
+    let bytes = path.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let pair = str::from_utf8(bytes.get(index + 1..index + 3)?).ok()?;
+            out.push(u8::from_str_radix(pair, 16).ok()?);
+            index += 3;
+        } else {
+            out.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+fn match_spelling<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
+    if let Some(hit) = files.iter().find(|file| **file == path) {
+        return Some(*hit);
+    }
+    unique_suffix(files, &suffix_for(path))
+}
+
+fn unique_suffix<'a>(files: &[&'a str], suffix: &str) -> Option<&'a str> {
+    let mut hits = files.iter().filter(|file| file.ends_with(suffix));
+    let hit = hits.next()?;
+    hits.next().is_none().then_some(*hit)
+}
+
 fn resolve_file<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -77,28 +110,21 @@ fn resolve_file<'a>(
         joined.push_str(strip_file_uri(uri));
     }
     let normalized = normalize_path(&joined);
-    let path = normalized.as_str();
-    if let Some(hit) = files.iter().find(|file| **file == path) {
-        return Ok(*hit);
+    if let Some(hit) = match_spelling(files, &normalized) {
+        return Ok(hit);
     }
-    let suffix = suffix_for(path);
-    {
-        let mut hits = files.iter().filter(|file| file.ends_with(suffix.as_str()));
-        if let Some(hit) = hits.next() {
-            if hits.next().is_none() {
-                return Ok(*hit);
-            }
-        }
-    }
-    if dx_path::is_absolute(path) {
+    if dx_path::is_absolute(&normalized) {
         let raw = strip_file_uri(uri);
         let raw_suffix = suffix_for(&native(raw));
-        let mut hits = files
-            .iter()
-            .filter(|file| file.ends_with(raw_suffix.as_str()));
-        if let Some(hit) = hits.next() {
-            if hits.next().is_none() {
-                return Ok(*hit);
+        if let Some(hit) = unique_suffix(files, &raw_suffix) {
+            return Ok(hit);
+        }
+    }
+    if let Some(decoded) = percent_decode(&joined) {
+        let decoded = normalize_path(&decoded);
+        if decoded != normalized {
+            if let Some(hit) = match_spelling(files, &decoded) {
+                return Ok(hit);
             }
         }
     }
@@ -296,6 +322,61 @@ mod tests {
         let other = format!("C:{sep}other{sep}a.cs");
         let findings = parse_sarif(TOOL, based, Some(1), &[&other]).expect("drive base join");
         assert_eq!(findings[0].file, other);
+    }
+
+    #[test]
+    fn a_percent_encoded_uri_resolves_to_the_native_file_name() {
+        assert_eq!(
+            percent_decode("src/my%20file.cs").as_deref(),
+            Some("src/my file.cs")
+        );
+        assert_eq!(
+            percent_decode("src/caf%C3%A9.cs").as_deref(),
+            Some("src/café.cs")
+        );
+        assert_eq!(
+            percent_decode("src/a%2Fb.cs").as_deref(),
+            Some("src/a/b.cs")
+        );
+        for raw in [
+            "src/a.cs",
+            "src/100%/a.cs",
+            "src/a%.cs",
+            "src/a%2.cs",
+            "src/a%zz.cs",
+        ] {
+            assert_eq!(percent_decode(raw), None, "raw: {raw:?}");
+        }
+        let sep = std::path::MAIN_SEPARATOR;
+        let drive = format!("C:{sep}src{sep}my file.cs");
+        let stdout = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///C:/src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let findings = parse_sarif(TOOL, &stdout, Some(1), &[&drive]).expect("encoded drive uri");
+        assert_eq!(findings[0].file, drive);
+        let relative = format!("/scratch{sep}src{sep}my file.cs");
+        let relative_uri = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let findings =
+            parse_sarif(TOOL, &relative_uri, Some(1), &[&relative]).expect("encoded relative uri");
+        assert_eq!(findings[0].file, relative);
+        let literal = format!("/scratch{sep}src{sep}my%20file.cs");
+        let both = [literal.as_str(), relative.as_str()];
+        let findings = parse_sarif(TOOL, &relative_uri, Some(1), &both).expect("both spellings");
+        assert_eq!(
+            findings[0].file, literal,
+            "the raw spelling names the file that holds it"
+        );
+        let ambiguous = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"my%20file.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let other = format!("/other{sep}src{sep}my file.cs");
+        let checked = [relative.as_str(), other.as_str()];
+        assert!(
+            parse_sarif(TOOL, &ambiguous, Some(1), &checked).is_err(),
+            "an ambiguous suffix names no one file"
+        );
     }
 
     #[test]

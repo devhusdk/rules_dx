@@ -65,7 +65,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         (
             "roslyn",
-            r#"{"version":"2.1.0","runs":[{"results":[{"ruleId":"CA1822","level":"warning","message":{"text":"finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.scala"},"region":{"startLine":1,"startColumn":1,"endLine":1,"endColumn":2}}}]}]}]}"#,
+            r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CA1822","level":"warning","message":{"text":"finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.scala"},"region":{"startLine":1,"startColumn":1,"endLine":1,"endColumn":2}}}]}]}]}"#,
         ),
         ("shellcheck", "src/a.scala:1:1: warning: finding [SC2086]\n"),
         ("yamllint", "src/a.scala:1:1: [trailing-spaces] finding\n"),

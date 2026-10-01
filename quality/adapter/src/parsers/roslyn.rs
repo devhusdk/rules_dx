@@ -1,193 +1,16 @@
-use serde::Deserialize;
-
-use super::{check_output_size, known, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
-
-#[derive(Debug, Deserialize)]
-struct SarifLog {
-    #[serde(default)]
-    runs: Vec<SarifRun>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifRun {
-    #[serde(default)]
-    results: Vec<SarifResult>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifResult {
-    #[serde(rename = "ruleId")]
-    rule_id: String,
-    #[serde(default)]
-    level: Option<String>,
-    #[serde(default)]
-    message: Option<SarifMessage>,
-    #[serde(default)]
-    locations: Vec<SarifLocation>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifMessage {
-    #[serde(default)]
-    text: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifLocation {
-    #[serde(rename = "physicalLocation")]
-    #[serde(default)]
-    physical: Option<SarifPhysical>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifPhysical {
-    #[serde(rename = "artifactLocation")]
-    #[serde(default)]
-    artifact: Option<SarifArtifact>,
-    #[serde(default)]
-    region: Option<SarifRegion>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifArtifact {
-    #[serde(default)]
-    uri: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifRegion {
-    #[serde(rename = "startLine")]
-    start_line: u64,
-    #[serde(rename = "startColumn")]
-    #[serde(default = "default_column")]
-    start_column: u64,
-    #[serde(rename = "endLine")]
-    #[serde(default)]
-    end_line: Option<u64>,
-    #[serde(rename = "endColumn")]
-    #[serde(default)]
-    end_column: Option<u64>,
-}
-
-fn default_column() -> u64 {
-    1
-}
-
-fn roslyn_severity(level: Option<&str>) -> Result<ToolSeverity, ParseError> {
-    match level.unwrap_or("warning") {
-        "error" => Ok(ToolSeverity::Error),
-        "warning" => Ok(ToolSeverity::Warning),
-        "note" | "info" | "none" => Ok(ToolSeverity::Info),
-        other => Err(ParseError::Shape {
-            tool: "roslyn",
-            detail: format!("unknown level: {other}"),
-        }),
-    }
-}
+use super::sarif::parse_sarif;
+use super::{FileFinding, ParseError};
 
 pub fn parse_roslyn(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "roslyn";
-    check_output_size(TOOL, sarif)?;
-    let text = std::str::from_utf8(sarif).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
-    let log: SarifLog = serde_json::from_str(text).map_err(|err| ParseError::Json {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
-    let mut findings = Vec::new();
-    for run in &log.runs {
-        for result in &run.results {
-            if result.rule_id.is_empty() {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: "result without ruleId".to_owned(),
-                });
-            }
-            let location = result.locations.first().ok_or_else(|| ParseError::Shape {
-                tool: TOOL,
-                detail: format!("result {} without location", result.rule_id),
-            })?;
-            let physical = location
-                .physical
-                .as_ref()
-                .ok_or_else(|| ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!("result {} without physicalLocation", result.rule_id),
-                })?;
-            let uri = physical
-                .artifact
-                .as_ref()
-                .map(|artifact| artifact.uri.as_str())
-                .unwrap_or("");
-            if uri.is_empty() {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!("result {} without artifact uri", result.rule_id),
-                });
-            }
-            let normalized = uri.strip_prefix("./").unwrap_or(uri);
-            let checked = known(TOOL, files, normalized)?;
-            let region = physical.region.as_ref().ok_or_else(|| ParseError::Shape {
-                tool: TOOL,
-                detail: format!("result {} without region", result.rule_id),
-            })?;
-            if region.start_line == 0 || region.start_column == 0 {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!("result {} with zero start", result.rule_id),
-                });
-            }
-            let end = match (region.end_line, region.end_column) {
-                (Some(line), Some(column)) => {
-                    if line == 0 || column == 0 {
-                        return Err(ParseError::Shape {
-                            tool: TOOL,
-                            detail: format!("result {} with zero end", result.rule_id),
-                        });
-                    }
-                    Some(TextPosition { line, column })
-                }
-                (None, None) => None,
-                _ => {
-                    return Err(ParseError::Shape {
-                        tool: TOOL,
-                        detail: format!("result {} with partial end", result.rule_id),
-                    });
-                }
-            };
-            let message = result
-                .message
-                .as_ref()
-                .map(|message| message.text.clone())
-                .unwrap_or_default();
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: result.rule_id.clone(),
-                    message,
-                    severity: roslyn_severity(result.level.as_deref())?,
-                    start: TextPosition {
-                        line: region.start_line,
-                        column: region.start_column,
-                    },
-                    end,
-                    suggestions: Vec::new(),
-                },
-            });
-        }
-    }
-    Ok(findings)
+    parse_sarif("roslyn", sarif, Some(0), files)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{TextPosition, ToolSeverity};
 
-    const SINGLE: &str = r#"{"version": "2.1.0", "runs": [{"results": [{"ruleId": "CA1822", "level": "warning", "message": {"text": "Member 'Greet' does not access instance data"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "csharp/tests/fixtures/roslyn/Sample.cs"}, "region": {"startLine": 7, "startColumn": 19, "endLine": 7, "endColumn": 24}}}]}]}]}"#;
+    const SINGLE: &str = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "csc"}}, "results": [{"ruleId": "CA1822", "level": "warning", "message": {"text": "Member 'Greet' does not access instance data"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "csharp/tests/fixtures/roslyn/Sample.cs"}, "region": {"startLine": 7, "startColumn": 19, "endLine": 7, "endColumn": 24}}}]}]}]}"#;
 
     #[test]
     fn roslyn_reports_sarif_results() {
@@ -206,6 +29,8 @@ mod tests {
                 column: 19
             }
         );
+        let end = findings[0].finding.end.expect("extent");
+        assert_eq!((end.line, end.column), (7, 24));
         let clean = parse_roslyn(
             r#"{"version": "2.1.0", "runs": []}"#.as_bytes(),
             &["csharp/tests/fixtures/roslyn/Sample.cs"],
@@ -215,7 +40,20 @@ mod tests {
         assert!(parse_roslyn(SINGLE.as_bytes(), &["other.cs"]).is_err());
         assert!(parse_roslyn(b"not json", &["x"]).is_err());
         assert!(parse_roslyn(&[0xff], &["x"]).is_err());
-        let no_rule = r#"{"runs": [{"results": [{"ruleId": "", "locations": []}]}]}"#;
+        let no_rule = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"","locations":[]}]}]}"#;
         assert!(parse_roslyn(no_rule.as_bytes(), &["x"]).is_err());
+    }
+
+    #[test]
+    fn roslyn_resolves_base_ids_and_every_location() {
+        let log = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"originalUriBaseIds":{"%SRCROOT%":{"uri":"file:///src/"}},"results":[{"ruleId":"CA1822","level":"warning","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"Sample.cs","uriBaseId":"%SRCROOT%"},"region":{"startLine":7,"startColumn":19}}},{"physicalLocation":{"artifactLocation":{"uri":"Other.cs"},"region":{"startLine":9,"startColumn":1}}}]}]}]}"#;
+        let findings =
+            parse_roslyn(log.as_bytes(), &["/src/Sample.cs", "/src/Other.cs"]).expect("parsed");
+        let files: Vec<&str> = findings.iter().map(|found| found.file.as_str()).collect();
+        assert_eq!(files, vec!["/src/Sample.cs", "/src/Other.cs"]);
+        assert_eq!(
+            findings[1].finding.start,
+            TextPosition { line: 9, column: 1 }
+        );
     }
 }

@@ -1619,6 +1619,7 @@ dependencies = [
  "line-index",
  "normpath",
  "serde",
+ "serde-sarif",
  "serde_json",
  "tempfile",
  "thiserror",

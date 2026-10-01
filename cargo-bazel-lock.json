@@ -1,5 +1,5 @@
 {
-  "checksum": "6c2fea89173c8df7db9d8ea855fc36bfe8d2e7eda127f719bcf10f61ebf6240f",
+  "checksum": "146c760ebaaf3f9103ae1591596dfcc714a6f8f9cd34be8a74a8c3481f02c15f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7474,6 +7474,10 @@
           {
             "id": "serde 1.0.229",
             "target": "serde"
+          },
+          {
+            "id": "serde-sarif 0.8.0",
+            "target": "serde_sarif"
           },
           {
             "id": "serde_json 1.0.151",

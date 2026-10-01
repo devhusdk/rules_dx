@@ -1,90 +1,13 @@
-use serde::Deserialize;
+use serde_sarif::sarif::{ArtifactLocation, Region, ResultLevel, Sarif};
 
 use super::{check_output_size, code_name, FileFinding, ParseError};
 use crate::{Finding, TextPosition, ToolSeverity};
 
-#[derive(Debug, Deserialize)]
-struct SarifLog {
-    #[serde(default)]
-    runs: Vec<SarifRun>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifRun {
-    #[serde(default, rename = "originalUriBaseIds")]
-    bases: std::collections::BTreeMap<String, SarifBase>,
-    #[serde(default)]
-    results: Vec<SarifResult>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifBase {
-    #[serde(default)]
-    uri: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifResult {
-    #[serde(rename = "ruleId", default)]
-    rule_id: Option<String>,
-    #[serde(default)]
-    level: Option<String>,
-    #[serde(default)]
-    message: SarifMessage,
-    #[serde(default)]
-    locations: Vec<SarifLocation>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct SarifMessage {
-    #[serde(default)]
-    text: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifLocation {
-    #[serde(rename = "physicalLocation", default)]
-    physical: Option<SarifPhysical>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifPhysical {
-    #[serde(rename = "artifactLocation", default)]
-    artifact: Option<SarifArtifact>,
-    #[serde(default)]
-    region: Option<SarifRegion>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifArtifact {
-    #[serde(default)]
-    uri: String,
-    #[serde(default, rename = "uriBaseId")]
-    base_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SarifRegion {
-    #[serde(rename = "startLine")]
-    start_line: u64,
-    #[serde(rename = "startColumn", default)]
-    start_column: Option<u64>,
-    #[serde(rename = "endLine", default)]
-    end_line: Option<u64>,
-    #[serde(rename = "endColumn", default)]
-    end_column: Option<u64>,
-}
-
-fn sarif_severity(tool: &'static str, level: Option<&str>) -> Result<ToolSeverity, ParseError> {
+fn sarif_severity(level: Option<ResultLevel>) -> ToolSeverity {
     match level {
-        None => Ok(ToolSeverity::Warning),
-        Some("error") => Ok(ToolSeverity::Error),
-        Some("warning") => Ok(ToolSeverity::Warning),
-        Some("note") | Some("none") => Ok(ToolSeverity::Info),
-        Some(other) => Err(ParseError::Shape {
-            tool,
-            detail: format!("unknown level: {other}"),
-        }),
+        None | Some(ResultLevel::Warning) => ToolSeverity::Warning,
+        Some(ResultLevel::Error) => ToolSeverity::Error,
+        Some(ResultLevel::Note) | Some(ResultLevel::None) => ToolSeverity::Info,
     }
 }
 
@@ -119,7 +42,7 @@ fn resolve_file<'a>(
     files: &[&'a str],
     uri: &str,
     base_id: Option<&str>,
-    bases: &std::collections::BTreeMap<String, SarifBase>,
+    bases: &std::collections::BTreeMap<String, ArtifactLocation>,
 ) -> Result<&'a str, ParseError> {
     let mut joined = String::new();
     if let Some(id) = base_id {
@@ -127,7 +50,7 @@ fn resolve_file<'a>(
             tool,
             detail: format!("unknown uriBaseId: {id}"),
         })?;
-        let base_path = strip_file_uri(&base.uri);
+        let base_path = strip_file_uri(base.uri.as_deref().unwrap_or_default());
         joined.push_str(base_path.strip_suffix('/').unwrap_or(base_path));
         joined.push('/');
         joined.push_str(strip_file_uri(uri));
@@ -170,6 +93,46 @@ fn resolve_file<'a>(
     })
 }
 
+fn start(tool: &'static str, region: &Region) -> Result<TextPosition, ParseError> {
+    let line = region.start_line.ok_or_else(|| ParseError::Shape {
+        tool,
+        detail: "location without start line".to_owned(),
+    })?;
+    let column = region.start_column.unwrap_or(1);
+    if line < 1 || column < 1 {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("bad start position {line}:{column}"),
+        });
+    }
+    Ok(TextPosition {
+        line: line as u64,
+        column: column as u64,
+    })
+}
+
+fn end(tool: &'static str, region: &Region) -> Result<Option<TextPosition>, ParseError> {
+    match (region.end_line, region.end_column) {
+        (Some(line), Some(column)) => {
+            if line < 1 || column < 1 {
+                return Err(ParseError::Shape {
+                    tool,
+                    detail: format!("bad end position {line}:{column}"),
+                });
+            }
+            Ok(Some(TextPosition {
+                line: line as u64,
+                column: column as u64,
+            }))
+        }
+        (None, None) => Ok(None),
+        _ => Err(ParseError::Shape {
+            tool,
+            detail: "partial end position".to_owned(),
+        }),
+    }
+}
+
 pub fn parse_sarif(
     tool: &'static str,
     stdout: &[u8],
@@ -177,37 +140,45 @@ pub fn parse_sarif(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(tool, stdout)?;
-    let log: SarifLog = serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
+    let log: Sarif = serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
         tool,
         detail: err.to_string(),
     })?;
     let mut findings = Vec::new();
     for run in &log.runs {
-        for result in &run.results {
-            if result.message.text.is_empty() {
+        let bases = run.original_uri_base_ids.as_ref();
+        let empty = std::collections::BTreeMap::new();
+        let bases = bases.unwrap_or(&empty);
+        for result in run.results.iter().flatten() {
+            let text = result.message.text.as_deref().unwrap_or_default();
+            if text.is_empty() {
                 return Err(ParseError::Shape {
                     tool,
                     detail: "result with empty message".to_owned(),
                 });
             }
-            let severity = sarif_severity(tool, result.level.as_deref())?;
+            let severity = sarif_severity(result.level);
             let rule_id = result.rule_id.clone().unwrap_or_default();
-            if result.locations.is_empty() {
+            let locations = result.locations.as_deref().unwrap_or_default();
+            if locations.is_empty() {
                 return Err(ParseError::Shape {
                     tool,
                     detail: "result with no locations".to_owned(),
                 });
             }
-            for location in &result.locations {
-                let physical = location.physical.as_ref().ok_or(ParseError::Shape {
-                    tool,
-                    detail: "location without physicalLocation".to_owned(),
-                })?;
-                let artifact = physical.artifact.as_ref().ok_or(ParseError::Shape {
-                    tool,
-                    detail: "location without artifact uri".to_owned(),
-                })?;
-                if artifact.uri.is_empty() {
+            for location in locations {
+                let physical = location
+                    .physical_location
+                    .as_ref()
+                    .ok_or(ParseError::Shape {
+                        tool,
+                        detail: "location without physicalLocation".to_owned(),
+                    })?;
+                let artifact = physical.artifact_location.as_ref();
+                let uri = artifact
+                    .and_then(|artifact| artifact.uri.as_deref())
+                    .unwrap_or_default();
+                if uri.is_empty() {
                     return Err(ParseError::Shape {
                         tool,
                         detail: "location without artifact uri".to_owned(),
@@ -217,55 +188,23 @@ pub fn parse_sarif(
                     tool,
                     detail: "location without region".to_owned(),
                 })?;
-                if region.start_line < 1 {
-                    return Err(ParseError::Shape {
-                        tool,
-                        detail: format!("bad start line {}", region.start_line),
-                    });
-                }
-                let start_column = region.start_column.unwrap_or(1);
-                if start_column < 1 {
-                    return Err(ParseError::Shape {
-                        tool,
-                        detail: format!("bad start column {start_column}"),
-                    });
-                }
-                let end = match (region.end_line, region.end_column) {
-                    (Some(line), Some(column)) => {
-                        if line < 1 || column < 1 {
-                            return Err(ParseError::Shape {
-                                tool,
-                                detail: "bad end position".to_owned(),
-                            });
-                        }
-                        Some(TextPosition { line, column })
-                    }
-                    (None, None) => None,
-                    _ => {
-                        return Err(ParseError::Shape {
-                            tool,
-                            detail: "partial end position".to_owned(),
-                        });
-                    }
-                };
+                let start = start(tool, region)?;
+                let end = end(tool, region)?;
                 let checked = resolve_file(
                     tool,
                     files,
-                    &artifact.uri,
-                    artifact.base_id.as_deref(),
-                    &run.bases,
+                    uri,
+                    artifact.and_then(|artifact| artifact.uri_base_id.as_deref()),
+                    bases,
                 )?;
                 findings.push(FileFinding {
                     file: checked.to_owned(),
                     finding: Finding {
                         tool_id: tool.to_owned(),
                         rule_id: rule_id.clone(),
-                        message: result.message.text.clone(),
+                        message: text.to_owned(),
                         severity,
-                        start: TextPosition {
-                            line: region.start_line,
-                            column: start_column,
-                        },
+                        start,
                         end,
                         suggestions: Vec::new(),
                     },
@@ -359,5 +298,9 @@ mod tests {
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":0,"startColumn":1}}}]}"#,
         );
         assert!(parse_sarif(TOOL, &bad_line, Some(1), &["/s/a.java"]).is_err());
+        let partial_end = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"endLine":2}}}]}"#,
+        );
+        assert!(parse_sarif(TOOL, &partial_end, Some(1), &["/s/a.java"]).is_err());
     }
 }

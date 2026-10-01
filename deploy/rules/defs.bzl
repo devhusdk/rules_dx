@@ -1,7 +1,7 @@
 """Deploy boundary for dx deploy."""
 
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
-load("//libs/starlark:wrapper.bzl", "dx_symlink_executable", "dx_symlink_windows_attr")
+load("//libs/starlark:wrapper.bzl", "dx_symlink_executable")
 
 DxDeployInfo = provider(
     doc = "Deploy entrypoint identity and default profile for dx deploy dispatch.",
@@ -70,5 +70,5 @@ dx_deployment = rule(
             default = "release",
             values = VALID_DEPLOY_PROFILES,
         ),
-    } | dx_symlink_windows_attr(),
+    },
 )

@@ -356,9 +356,12 @@ mod tests {
 
     #[test]
     fn hook_git_path_needs_absolute() {
-        assert!(hook_git_path_is_hermetic(std::path::Path::new(
-            "/hermetic/git"
-        )));
+        let absolute = if cfg!(windows) {
+            std::path::Path::new(r"C:\hermetic\git")
+        } else {
+            std::path::Path::new("/hermetic/git")
+        };
+        assert!(hook_git_path_is_hermetic(absolute));
         assert!(!hook_git_path_is_hermetic(std::path::Path::new("git")));
         assert!(!hook_git_path_is_hermetic(std::path::Path::new(
             "tools/git"

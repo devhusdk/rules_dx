@@ -295,18 +295,30 @@ _RUNNER_PRELUDE = [
     "        fail_count=$((fail_count + 1))",
     "    fi",
     "}",
+    "rloc() {",
+    '    p="$TEST_SRCDIR/$TEST_WORKSPACE/$1"',
+    '    if [ -f "$p" ]; then',
+    '        echo "$p"',
+    "        return 0",
+    "    fi",
+    '    p="$0.runfiles/$TEST_WORKSPACE/$1"',
+    '    if [ -f "$p" ]; then',
+    '        echo "$p"',
+    "        return 0",
+    "    fi",
+    '    m="$TEST_SRCDIR/MANIFEST"',
+    '    [ -f "$m" ] || m="$0.runfiles/MANIFEST"',
+    '    [ -f "$m" ] || m="$0.runfiles_manifest"',
+    '    r=$(awk -v k="$TEST_WORKSPACE/$1" \'$1 == k { print $2; exit }\' "$m")',
+    '    if [ -n "$r" ]; then',
+    '        echo "$r"',
+    "        return 0",
+    "    fi",
+    "    return 1",
+    "}",
     "check_file() {",
     '    label="$1"; short_path="$2"; ordinal="$3"; want="$4"',
-    '    path="$TEST_SRCDIR/$TEST_WORKSPACE/$short_path"',
-    '    if [ ! -f "$path" ]; then',
-    '        case "$0" in',
-    '            */*) self_runfiles="$0.runfiles/$TEST_WORKSPACE/$short_path";;',
-    '            *) self_runfiles="$TEST_SRCDIR/$TEST_WORKSPACE/$short_path";;',
-    "        esac",
-    '        if [ -f "$self_runfiles" ]; then',
-    '            path="$self_runfiles"',
-    "        fi",
-    "    fi",
+    "    path=$(rloc \"$short_path\")",
     '    if grep -q -F -e "$want" "$path"; then',
     '        echo "PASS: file $label contains substring $ordinal"',
     "        pass_count=$((pass_count + 1))",
@@ -325,6 +337,29 @@ _RUNNER_EPILOGUE = [
     "exit $fail",
 ]
 
+def _target_is_windows(ctx):
+    """Returns whether this target builds for a Windows target platform."""
+    return ctx.target_platform_has_constraint(
+        ctx.attr._windows_os[platform_common.ConstraintValueInfo],
+    )
+
+def _write_windows_launcher(ctx, runner):
+    """Writes the .bat launcher that runs the runner under Git's sh."""
+    launcher = ctx.actions.declare_file(ctx.label.name + ".bat")
+    key = ctx.workspace_name + "/" + runner.short_path
+    body = "@echo off\r\n" + "setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION\r\n" + \
+           "set \"RUNNER=" + key.replace("\\", "/") + "\"\r\n" + \
+           "if exist \"%TEST_SRCDIR%\\MANIFEST\" set \"M=%TEST_SRCDIR%\\MANIFEST\"\r\n" + \
+           "if not defined M if exist \"%~f0.runfiles\\MANIFEST\" set \"M=%~f0.runfiles\\MANIFEST\"\r\n" + \
+           "if not defined M set \"M=%~f0.runfiles_manifest\"\r\n" + \
+           "for /F \"tokens=2* usebackq\" %%i in (`%SYSTEMROOT%\\system32\\findstr.exe /b /l /c:\"!RUNNER! \" \"%M%\"`) do set \"SCRIPT=%%i\"\r\n" + \
+           "if not defined SCRIPT echo>&2 ERROR: !RUNNER! not found in the runfiles manifest & exit /b 1\r\n" + \
+           "set \"PATH=C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\bin;%PATH%\"\r\n" + \
+           "sh \"%SCRIPT:\\=/%\" %*\r\n" + \
+           "exit /b %ERRORLEVEL%\r\n"
+    ctx.actions.write(launcher, body, is_executable = True)
+    return launcher
+
 def _write_runner(ctx, body_lines, runfiles_files):
     """Writes the executable runner and stages its runfiles closure."""
     runner = ctx.actions.declare_file(ctx.label.name + ".sh")
@@ -336,13 +371,13 @@ def _write_runner(ctx, body_lines, runfiles_files):
     transitive = []
     for target in ctx.attr.file_checks.keys():
         transitive.append(target[DefaultInfo].default_runfiles.files)
-    return [DefaultInfo(
-        executable = runner,
-        runfiles = ctx.runfiles(
-            files = runfiles_files,
-            transitive_files = depset(transitive = transitive),
-        ),
-    )]
+    runfiles = ctx.runfiles(
+        files = runfiles_files + [runner],
+        transitive_files = depset(transitive = transitive),
+    )
+    if _target_is_windows(ctx):
+        return [DefaultInfo(executable = _write_windows_launcher(ctx, runner), runfiles = runfiles)]
+    return [DefaultInfo(executable = runner, runfiles = runfiles)]
 
 def _validate_common(mode, checks, subjects, file_checks):
     """Fails analysis when a test declares no evidence in any channel."""
@@ -441,8 +476,7 @@ def _analysis_test_impl(ctx):
                     _shell_quote(ctx.attr.expected_observations.strip()) + " " +
                     _shell_quote("\n".join(observed)))
     body.append("echo '--- observations ---'")
-    body.append("obs=\"$TEST_SRCDIR/$TEST_WORKSPACE/" + observations.short_path + "\"")
-    body.append("if [ ! -f \"$obs\" ]; then obs=\"$0.runfiles/$TEST_WORKSPACE/" + observations.short_path + "\"; fi")
+    body.append("obs=$(rloc " + _shell_quote(observations.short_path) + ")")
     body.append("cat \"$obs\"")
     files = _file_check_files(ctx.attr.file_checks)
     files.append(observations)
@@ -462,6 +496,7 @@ def _execution_test_impl(ctx):
     return _write_runner(ctx, body, files)
 
 _common_attrs = {
+    "_windows_os": attr.label(default = "@platforms//os:windows"),
     "checks": attr.string_list(),
     "expected_observations": attr.string(
         default = "",

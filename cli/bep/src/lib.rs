@@ -83,8 +83,18 @@ pub fn is_bytestream_uri(uri: &str) -> bool {
     uri.starts_with("bytestream://")
 }
 
+const VERBATIM_PREFIX: &str = r"\\?\";
+
+fn strip_verbatim_prefix(path: &Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    match text.strip_prefix(VERBATIM_PREFIX) {
+        Some(rest) => PathBuf::from(rest),
+        None => path.to_path_buf(),
+    }
+}
+
 pub fn local_path_for_bep_file(workspace: &Path, path_prefix: &[String], name: &str) -> PathBuf {
-    let mut path = workspace.to_path_buf();
+    let mut path = strip_verbatim_prefix(workspace);
     for part in path_prefix {
         path.push(part);
     }
@@ -115,7 +125,7 @@ pub fn testlog_path_for_label(workspace: &Path, label: &str, name: &str) -> Opti
     if target.is_empty() {
         return None;
     }
-    let mut path = workspace.to_path_buf();
+    let mut path = strip_verbatim_prefix(workspace);
     path.push("bazel-testlogs");
     if !package.is_empty() {
         path.push(package);
@@ -220,6 +230,24 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn verbatim_windows_workspaces_extend_normally() {
+        let ws = Path::new(r"\\?\D:\a\rules_dx\rules_dx");
+        let base = PathBuf::from(r"D:\a\rules_dx\rules_dx");
+        assert_eq!(
+            testlog_path_for_label(ws, "//csharp/x:hello", "test.lcov").expect("path"),
+            base.join("bazel-testlogs")
+                .join("csharp")
+                .join("x")
+                .join("hello")
+                .join("coverage.dat")
+        );
+        assert_eq!(
+            local_path_for_bep_file(ws, &["bazel-out".to_owned()], "a.pb"),
+            base.join("bazel-out").join("a.pb")
+        );
     }
 
     #[test]

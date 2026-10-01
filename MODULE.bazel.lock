@@ -406,7 +406,7 @@
   "moduleExtensions": {
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "5khM7a1sh8K/+q8vDeg5KrYpYiuIbOENmUf5MgeK1Jg=",
+        "bzlTransitiveDigest": "tC5W0eDN2lxfbmfXLFUPwV4jVnTcu+oFvZH+av7e21Q=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"

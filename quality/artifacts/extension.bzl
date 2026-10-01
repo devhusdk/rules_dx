@@ -81,7 +81,7 @@ def _sha256_of(ctx, path):
     ):
         result = ctx.execute(argv)
         if result.return_code == 0:
-            return result.stdout.split(" ")[0].split("\n")[0]
+            return result.stdout.split(" ")[0].strip()
     return ""
 
 def _verify_executable_sha256(ctx, executable, want):

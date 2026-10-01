@@ -163,22 +163,27 @@ def wrapper_symlink_naming_tests(name):
         mode = "unit",
         checks = [
             expect_equal(
-                "posix keeps the forwarder name",
-                dx_symlink_executable_name("hello", False),
+                "extensionless upstream keeps the forwarder name",
+                dx_symlink_executable_name("hello", struct(basename = "hello")),
                 "hello",
             ),
             expect_equal(
-                "windows appends the executable suffix",
-                dx_symlink_executable_name("hello", True),
+                "windows executables stay .exe",
+                dx_symlink_executable_name("hello", struct(basename = "hello.exe")),
                 "hello.exe",
             ),
             expect_equal(
-                "dotted names keep their stem on both platforms",
+                "windows batch launchers stay .bat",
+                dx_symlink_executable_name("hello", struct(basename = "hello.bat")),
+                "hello.bat",
+            ),
+            expect_equal(
+                "powershell and py launchers keep their own suffix",
                 [
-                    dx_symlink_executable_name("my-tool.cli", False),
-                    dx_symlink_executable_name("my-tool.cli", True),
+                    dx_symlink_executable_name("greet", struct(basename = "greet.ps1")),
+                    dx_symlink_executable_name("greet", struct(basename = "greet.py")),
                 ],
-                ["my-tool.cli", "my-tool.cli.exe"],
+                ["greet.ps1", "greet.py"],
             ),
         ],
     )

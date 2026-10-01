@@ -3,7 +3,7 @@
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_symlink_windows_attr", "dx_test_forward_kwargs", "dx_wrap")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_JS_LIBRARY_PROVIDES = [
@@ -103,7 +103,7 @@ _javascript_test = rule(
         upstream_providers = [[DefaultInfo]],
         extra_attrs = {
             "env_inherit": attr.string_list(),
-        } | dx_lcov_merger_attr() | dx_symlink_windows_attr(),
+        } | dx_lcov_merger_attr(),
     ),
 )
 

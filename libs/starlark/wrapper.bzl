@@ -100,30 +100,18 @@ def _has_excluded_suffix(basename, excludes):
             return True
     return False
 
-def dx_symlink_executable_name(name, is_windows):
-    """Maps one forwarder output name to its host-native filename."""
-    if is_windows:
-        return name + ".exe"
+def dx_symlink_executable_name(name, upstream_executable):
+    """Maps one forwarder output name to the upstream's own filename suffix."""
+    basename = upstream_executable.basename
+    dot = basename.rfind(".")
+    if dot > 0:
+        return name + basename[dot:]
     return name
 
-def dx_symlink_windows_attr():
-    """Returns the _windows_os attribute detecting Windows target platforms."""
-    return {
-        "_windows_os": attr.label(
-            default = "@platforms//os:windows",
-        ),
-    }
-
-def dx_symlink_is_windows(ctx):
-    """Returns whether the forwarder builds for a Windows target platform."""
-    return ctx.target_platform_has_constraint(
-        ctx.attr._windows_os[platform_common.ConstraintValueInfo],
-    )
-
 def dx_symlink_executable(ctx, target_file):
-    """Symlinks one upstream executable with platform-aware naming and attrs."""
+    """Symlinks one upstream executable under the forwarder's own name."""
     link = ctx.actions.declare_file(
-        dx_symlink_executable_name(ctx.label.name, dx_symlink_is_windows(ctx)),
+        dx_symlink_executable_name(ctx.label.name, target_file),
     )
     ctx.actions.symlink(output = link, target_file = target_file, is_executable = True)
     return link
@@ -240,7 +228,6 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         upstream_providers = upstream_providers,
         extra_attrs = extra_attrs,
     )
-    attrs.update(dx_symlink_windows_attr())
     if kind == "executable":
         return rule(
             implementation = _impl,

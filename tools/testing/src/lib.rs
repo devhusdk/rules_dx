@@ -85,33 +85,79 @@ fn glob_set<'a>(patterns: impl IntoIterator<Item = &'a str>) -> globset::GlobSet
         .unwrap_or_else(|_| globset::GlobSet::empty())
 }
 
+const WINDOWS_SUFFIXES: [&str; 4] = [".bat", ".cmd", ".exe", ".ps1"];
+
+fn suffixes() -> &'static [&'static str] {
+    if cfg!(windows) {
+        &WINDOWS_SUFFIXES
+    } else {
+        &[]
+    }
+}
+
+fn candidates(rel: &Path) -> Vec<PathBuf> {
+    let mut out = vec![rel.to_path_buf()];
+    if rel.extension().is_none() {
+        out.extend(suffixes().iter().map(|suffix| {
+            let mut name = rel.as_os_str().to_os_string();
+            name.push(suffix);
+            PathBuf::from(name)
+        }));
+    }
+    out
+}
+
+fn first_existing(base: &Path) -> Option<PathBuf> {
+    candidates(base).into_iter().find(|path| path.exists())
+}
+
+fn manifest_lookup(root: &Path, workspace: &str, rel: &Path) -> Option<PathBuf> {
+    let text = std::fs::read_to_string(root.join("MANIFEST")).ok()?;
+    for candidate in candidates(rel) {
+        let prefix = format!(
+            "{workspace}/{} ",
+            candidate.to_string_lossy().replace('\\', "/")
+        );
+        if let Some(entry) = text.lines().find(|line| line.starts_with(&prefix)) {
+            let resolved = Path::new(entry[prefix.len()..].trim());
+            if resolved.exists() {
+                return Some(resolved.to_path_buf());
+            }
+        }
+    }
+    None
+}
+
 pub fn resolve_runfiles(rel: &str) -> PathBuf {
     let direct = PathBuf::from(rel);
     if direct.is_absolute() {
         return direct;
     }
+    let rel = Path::new(rel);
+    let workspace = std::env::var("TEST_WORKSPACE").unwrap_or_else(|_| "_main".to_owned());
     if let Ok(cwd) = std::env::current_dir() {
-        let abs = cwd.join(&direct);
-        if abs.exists() {
-            return abs;
+        if let Some(found) = first_existing(&cwd.join(rel)) {
+            return found;
         }
     }
     for key in ["TEST_SRCDIR", "RUNFILES_DIR"] {
-        if let Ok(root) = std::env::var(key) {
-            let root = PathBuf::from(root);
-            for candidate in [
-                root.join("_main").join(rel),
-                root.join("rules_dx").join(rel),
-                root.join(rel),
-            ] {
-                if candidate.exists() {
-                    return candidate;
-                }
+        let Ok(root) = std::env::var(key) else {
+            continue;
+        };
+        let root = PathBuf::from(root);
+        for prefix in [workspace.as_str(), "rules_dx", "_main"] {
+            if let Some(found) = first_existing(&root.join(prefix).join(rel)) {
+                return found;
+            }
+        }
+        for prefix in [workspace.as_str(), "rules_dx", "_main"] {
+            if let Some(found) = manifest_lookup(&root, prefix, rel) {
+                return found;
             }
         }
     }
     if let Ok(cwd) = std::env::current_dir() {
-        return cwd.join(direct);
+        return cwd.join(rel);
     }
     direct
 }
@@ -724,6 +770,32 @@ mod tests {
         let missing = dir.path().join("nope.txt");
         assert!(file_contains(&missing, &["x"], true).is_err());
         assert!(file_absent(&missing, &["x"], true).is_err());
+    }
+
+    #[test]
+    fn runfiles_resolution_prefers_an_existing_file() {
+        let dir = scratch("dx-testing-runfiles-");
+        let direct = write(dir.path(), "pkg/tool", "#!/bin/sh\n");
+        assert_eq!(resolve_runfiles(&direct.to_string_lossy()), direct);
+    }
+
+    #[test]
+    fn runfiles_resolution_reads_the_manifest() {
+        let dir = scratch("dx-testing-manifest-");
+        let real = write(dir.path(), "real/tool", "#!/bin/sh\n");
+        write(
+            dir.path(),
+            "MANIFEST",
+            &format!("_main/pkg/tool {}\n", real.display()),
+        );
+        unsafe {
+            std::env::set_var("TEST_SRCDIR", dir.path());
+        }
+        let resolved = resolve_runfiles("pkg/tool");
+        unsafe {
+            std::env::remove_var("TEST_SRCDIR");
+        }
+        assert_eq!(resolved, real);
     }
 
     #[test]

@@ -11,6 +11,10 @@
 use std::io;
 use std::path::Path;
 
+mod spdx;
+
+use spdx::SpdxDocument;
+
 fn basename(path: &Path) -> io::Result<String> {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -59,46 +63,48 @@ pub fn bin_error(diagnostic: impl std::fmt::Display) -> i32 {
 }
 
 pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> String {
-    render_pretty(&serde_json::json!({
-        "SPDXID": "SPDXRef-DOCUMENT",
-        "creationInfo": {
-            "created": "1970-01-01T00:00:00Z",
-            "creators": ["Tool: rules_dx-sbom-1.0"],
-        },
-        "dataLicense": "CC0-1.0",
-        "documentNamespace": format!("https://github.com/ralvik/rules_dx/releases/{base}-{digest}"),
-        "files": [
-            {
-                "SPDXID": "SPDXRef-File",
-                "checksums": [
-                    {"algorithm": "SHA256", "checksumValue": digest}
-                ],
-                "fileName": base,
-            }
-        ],
-        "name": format!("{package}-{base}"),
-        "packages": [
-            {
-                "SPDXID": "SPDXRef-Package",
-                "checksums": [
-                    {"algorithm": "SHA256", "checksumValue": digest}
-                ],
-                "downloadLocation": "NOASSERTION",
-                "externalRefs": [
-                    {
-                        "referenceCategory": "PACKAGE-MANAGER",
-                        "referenceLocator": format!("pkg:generic/{package}@{digest}"),
-                        "referenceType": "purl",
-                    }
-                ],
-                "filesAnalyzed": false,
-                "name": package,
-                "supplier": format!("Organization: {supplier}"),
-                "verificationCode": {"packageVerificationCodeValue": digest},
-            }
-        ],
-        "spdxVersion": "SPDX-2.3",
-    }))
+    let document = SpdxDocument {
+        version: spdx::SPDX_VERSION.to_owned(),
+        data_license: spdx::DATA_LICENSE.to_owned(),
+        id: spdx::DOCUMENT_ID.to_owned(),
+        name: format!("{package}-{base}"),
+        namespace: format!("https://github.com/ralvik/rules_dx/releases/{base}-{digest}"),
+        creation_info: Some(spdx::SpdxCreationInfo {
+            created: "1970-01-01T00:00:00Z".to_owned(),
+            creators: vec!["Tool: rules_dx-sbom-1.0".to_owned()],
+        }),
+        files: vec![spdx::SpdxFile {
+            id: "SPDXRef-File".to_owned(),
+            name: base.to_owned(),
+            checksums: vec![spdx::SpdxChecksum {
+                algorithm: spdx::SHA256.to_owned(),
+                value: digest.to_owned(),
+            }],
+        }],
+        packages: vec![spdx::SpdxPackage {
+            id: "SPDXRef-Package".to_owned(),
+            name: package.to_owned(),
+            supplier: format!("Organization: {supplier}"),
+            download_location: spdx::NOASSERTION.to_owned(),
+            files_analyzed: Some(false),
+            verification_code: Some(spdx::SpdxVerificationCode {
+                value: digest.to_owned(),
+            }),
+            checksums: vec![spdx::SpdxChecksum {
+                algorithm: spdx::SHA256.to_owned(),
+                value: digest.to_owned(),
+            }],
+            external_refs: vec![spdx::SpdxExternalRef {
+                category: "PACKAGE-MANAGER".to_owned(),
+                ref_type: "purl".to_owned(),
+                locator: format!("pkg:generic/{package}@{digest}"),
+            }],
+            ..spdx::SpdxPackage::default()
+        }],
+        relationships: Vec::new(),
+    };
+    let value = serde_json::to_value(&document).unwrap_or(serde_json::Value::Null);
+    render_pretty(&value)
 }
 
 pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
@@ -453,22 +459,18 @@ pub fn release_run(
     Ok(out)
 }
 
-pub fn sbom_verify_files(artifact: &Path, spdx: &Path, prov: &Path) -> io::Result<String> {
+pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::Result<String> {
     let digest = sha256_file(artifact)?;
-    let spdx_text = std::fs::read_to_string(spdx)?;
+    let base = basename(artifact)?;
+    let spdx_text = std::fs::read_to_string(spdx_path)?;
     let prov_text = std::fs::read_to_string(prov)?;
-    if !spdx_text.contains("\"spdxVersion\": \"SPDX-2.3\"") {
-        return Err(io::Error::new(
+    let document: SpdxDocument = serde_json::from_str(&spdx_text).map_err(|error| {
+        io::Error::new(
             io::ErrorKind::InvalidData,
-            "sbom spdxVersion not SPDX-2.3",
-        ));
-    }
-    if !spdx_text.contains(&digest) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("sbom SPDX missing artifact digest {digest}"),
-        ));
-    }
+            format!("sbom SPDX is not a document: {error}"),
+        )
+    })?;
+    spdx::document_error(&document, &base, &digest).map_err(io::Error::other)?;
     if !prov_text.contains("\"_type\": \"https://in-toto.io/Statement/v1\"") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -943,6 +945,65 @@ mod tests {
         assert!(ok.contains(&digest));
         std::fs::write(&spdx, b"{\"spdxVersion\": \"SPDX-3.0\"}").expect("rewrite");
         assert!(sbom_verify_files(&artifact, &spdx, &prov).is_err());
+    }
+
+    #[test]
+    fn sbom_verify_reads_spdx_fields_not_text() {
+        let scratch = scratch_dir();
+        let artifact = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
+        let digest = sha256_file(&artifact).expect("digest");
+        let spdx_path = scratch.path().join("artifact.spdx.json");
+        write_spdx(&artifact, &spdx_path, "dx", "rules_dx").expect("spdx");
+        let prov = scratch.path().join("artifact.prov.json");
+        write_provenance(&artifact, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("prov");
+        let value: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&spdx_path).expect("read"))
+                .expect("json");
+        let compact = serde_json::to_string(&value).expect("compact");
+        assert!(
+            !compact.contains("\"spdxVersion\": \"SPDX-2.3\""),
+            "compact differs"
+        );
+        let others = scratch.path().join("artifact.prov.json");
+        for (label, text, ok) in [
+            ("reordered", reordered_spdx(&value), true),
+            ("compact", compact, true),
+            (
+                "reordered wrong digest",
+                reordered_spdx(&replaced_digest(&value, &digest, &"0".repeat(64))),
+                false,
+            ),
+        ] {
+            std::fs::write(&spdx_path, text.as_bytes()).expect("rewrite");
+            let result = sbom_verify_files(&artifact, &spdx_path, &others);
+            assert_eq!(result.is_ok(), ok, "{label}: {result:?}");
+        }
+    }
+
+    /// Renders a document with its top-level keys in reverse order and compact values.
+    fn reordered_spdx(value: &serde_json::Value) -> String {
+        let entries: Vec<String> = value
+            .as_object()
+            .expect("object")
+            .iter()
+            .rev()
+            .map(|(key, field)| {
+                format!(
+                    "  {key:?}: {}",
+                    serde_json::to_string(field).expect("field")
+                )
+            })
+            .collect();
+        format!("{{\n{}\n}}", entries.join(",\n"))
+    }
+
+    fn replaced_digest(
+        value: &serde_json::Value,
+        digest: &str,
+        replacement: &str,
+    ) -> serde_json::Value {
+        let text = serde_json::to_string(value).expect("compact");
+        serde_json::from_str(&text.replace(digest, replacement)).expect("json")
     }
 
     #[test]

@@ -31,7 +31,10 @@ exports_files([
 
 rust_library(
     name = "dx_release_tools",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/spdx.rs",
+    ],
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
@@ -42,8 +45,10 @@ rust_library(
     deps = crate_deps(
         [
             "hex",
+            "serde",
             "serde_json",
             "sha2",
+            "spdx",
         ],
         package_name = "deploy/dx_release_tools",
     ) + [
@@ -65,8 +70,10 @@ rust_binary(
     deps = crate_deps(
         [
             "hex",
+            "serde",
             "serde_json",
             "sha2",
+            "spdx",
         ],
         package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
@@ -85,8 +92,10 @@ rust_binary(
     deps = crate_deps(
         [
             "hex",
+            "serde",
             "serde_json",
             "sha2",
+            "spdx",
         ],
         package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
@@ -105,8 +114,10 @@ rust_binary(
     deps = crate_deps(
         [
             "hex",
+            "serde",
             "serde_json",
             "sha2",
+            "spdx",
         ],
         package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
@@ -125,8 +136,10 @@ rust_binary(
     deps = crate_deps(
         [
             "hex",
+            "serde",
             "serde_json",
             "sha2",
+            "spdx",
         ],
         package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
@@ -144,8 +157,10 @@ rust_test(
     deps = crate_deps(
         [
             "hex",
+            "serde",
             "serde_json",
             "sha2",
+            "spdx",
             "tempfile",
         ],
         package_name = "deploy/dx_release_tools",
@@ -191,8 +206,10 @@ rust_binary(
     deps = crate_deps(
         [
             "hex",
+            "serde",
             "serde_json",
             "sha2",
+            "spdx",
         ],
         package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],

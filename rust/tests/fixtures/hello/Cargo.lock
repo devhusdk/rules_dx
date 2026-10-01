@@ -717,8 +717,10 @@ name = "dx_release_tools"
 version = "0.0.0"
 dependencies = [
  "hex",
+ "serde",
  "serde_json",
  "sha2",
+ "spdx",
  "tempfile",
 ]
 

@@ -786,7 +786,8 @@ pub(super) fn roundtrip_pylint(
     let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
     if text.contains("import os") {
         let stdout = format!(
-            "[{{\"type\": \"warning\", \"module\": \"a\", \"obj\": \"\", \"line\": 1, \"column\": 0, \"endLine\": 1, \"endColumn\": 9, \"path\": \"{reported}\", \"symbol\": \"unused-import\", \"message\": \"Unused import os\", \"message-id\": \"W0611\"}}]"
+            "[{{\"type\": \"warning\", \"module\": \"a\", \"obj\": \"\", \"line\": 1, \"column\": 0, \"endLine\": 1, \"endColumn\": 9, \"path\": \"{}\", \"symbol\": \"unused-import\", \"message\": \"Unused import os\", \"message-id\": \"W0611\"}}]",
+            json_escape(&reported)
         );
         return Ok(ChildOutput {
             code: Some(4),

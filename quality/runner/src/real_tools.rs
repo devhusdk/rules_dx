@@ -2,6 +2,7 @@ use super::real_core::*;
 use super::real_fixtures::*;
 use super::*;
 use crate::run_convergence;
+use quality_adapter::parsers;
 use quality_result::proto::Convergence;
 use quality_result::MAX_COMPLETED_ROUNDS;
 
@@ -805,4 +806,72 @@ fn reanchor_reports_unstaged_file_without_panicking() {
     let pairs = vec![("a.py".to_owned(), PathBuf::from("/scratch/a.py"))];
     let err = reanchor("ty", &pairs, "b.py").expect_err("unknown path fails");
     assert!(matches!(err, RunnerError::UnplaceableFinding { .. }));
+}
+
+/// The fixtures that report a path inside JSON must escape it, because a Windows path holds
+/// backslashes and a bare one either fails the parse or decodes as an escape such as `\b`.
+#[test]
+fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
+    let dir = tempfile::Builder::new()
+        .prefix("dx-backslash-")
+        .tempdir_in(std::env::temp_dir())
+        .expect("claim backslash fixture");
+    let file = dir.path().join("a\\b.py");
+    std::fs::write(&file, "import os\nlet unusedVar = 1;\n").expect("write backslash fixture");
+    let absolute = file.to_string_lossy().into_owned();
+    let relative = "a\\b.py";
+    let env = quality_adapter::exec::hermetic_env(dir.path(), &[]);
+    let path = file.as_os_str().to_owned();
+    let buildifier_argv = [OsString::from("buildifier"), path.clone()];
+    let pylint_argv = [
+        OsString::from("pylint"),
+        OsString::from("--persistent=n"),
+        OsString::from("--reports=n"),
+        OsString::from("--score=n"),
+        OsString::from("--output-format=json"),
+        path.clone(),
+    ];
+    let eslint_argv = [
+        OsString::from("eslint"),
+        OsString::from("-f"),
+        OsString::from("json"),
+        OsString::from("-c"),
+        path.clone(),
+        path.clone(),
+    ];
+    let ruff_argv = [OsString::from("ruff"), path];
+
+    let pylint = roundtrip_pylint(&pylint_argv, dir.path(), &env).expect("pylint fixture runs");
+    let eslint = roundtrip_eslint(&eslint_argv, dir.path(), &env).expect("eslint fixture runs");
+    let buildifier =
+        buildifier_plain(&buildifier_argv, dir.path(), &env).expect("buildifier fixture runs");
+    let ruff = ruff_behavior(&ruff_argv).expect("ruff fixture runs");
+
+    let reports = [
+        (
+            "pylint",
+            parsers::parse_pylint(&pylint.stdout, Some(4), &[relative]),
+            relative,
+        ),
+        (
+            "eslint",
+            parsers::parse_eslint(&eslint.stdout, Some(1), &[absolute.as_str()]),
+            absolute.as_str(),
+        ),
+        (
+            "buildifier",
+            parsers::parse_buildifier(&buildifier.stdout, &[], &[absolute.as_str()]),
+            absolute.as_str(),
+        ),
+        (
+            "ruff",
+            parsers::parse_ruff(&ruff.stdout, Some(1), &[absolute.as_str()]),
+            absolute.as_str(),
+        ),
+    ];
+    for (tool, parsed, want) in reports {
+        let findings =
+            parsed.unwrap_or_else(|err| panic!("{tool} fixture wrote unparseable JSON: {err}"));
+        assert_eq!(findings[0].file, want, "{tool} lost the path");
+    }
 }

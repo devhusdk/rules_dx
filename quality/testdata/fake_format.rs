@@ -166,6 +166,22 @@ fn is_dirty(path: &str) -> bool {
     }
 }
 
+/// Escapes a path for embedding in a JSON string literal.
+fn json_escape(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    for char in raw.chars() {
+        match char {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(char),
+        }
+    }
+    out
+}
+
 const MARKER: &[u8] = b"BADFMT";
 const FIXED: &[u8] = b"fixed";
 
@@ -215,7 +231,8 @@ fn emit_offenses(files: &[String]) -> i32 {
             None => String::new(),
         };
         entries.push(format!(
-            "{{\"path\": \"{file}\", \"offenses\": [{offense}]}}"
+            "{{\"path\": \"{}\", \"offenses\": [{offense}]}}",
+            json_escape(file)
         ));
     }
     let count = files.len();
@@ -484,6 +501,24 @@ mod tests {
         assert_eq!(marker_position(b"puts BADFMT\n"), Some((1, 6)));
         assert_eq!(marker_position(b"puts ok\nx = BADFMT\n"), Some((2, 5)));
         assert_eq!(marker_position(b"puts ok\n"), None);
+    }
+
+    /// A reported path goes inside a JSON string literal, so a backslash in it must be escaped
+    /// or the report stops being JSON.
+    #[test]
+    fn a_reported_path_is_escaped_for_the_json_it_sits_in() {
+        assert_eq!(json_escape(r#"C:\a\b.py"#), r#"C:\\a\\b.py"#);
+        assert_eq!(json_escape("a\"b.py"), "a\\\"b.py");
+        assert_eq!(json_escape("a\nb"), "a\\nb");
+        assert_eq!(json_escape("plain/a.py"), "plain/a.py");
+    }
+
+    /// `Mode::Relpath` and `Mode::ListedRel` print paths the runner matches against its own
+    /// absolute names, so they must spell separators the way the checked-in paths do.
+    #[test]
+    fn a_relative_report_never_names_a_backslash() {
+        let rel = relpath(Path::new("/tmp/dx"), "/tmp/dx/sub\\x.tf");
+        assert!(!rel.contains('\\'), "{rel}");
     }
 
     #[test]

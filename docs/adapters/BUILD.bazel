@@ -50,6 +50,7 @@ rust_library(
     edition = "2021",
     deps = crate_deps(
         [
+            "quick-xml",
             "serde",
             "serde_json",
             "thiserror",
@@ -84,6 +85,7 @@ rust_test(
     crate = ":docs_adapters",
     deps = crate_deps(
         [
+            "quick-xml",
             "serde",
             "serde_json",
             "thiserror",

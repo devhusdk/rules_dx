@@ -457,6 +457,7 @@ dependencies = [
 name = "docs_adapters"
 version = "0.0.0"
 dependencies = [
+ "quick-xml",
  "serde",
  "serde_json",
  "thiserror",

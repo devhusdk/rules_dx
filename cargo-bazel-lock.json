@@ -1,5 +1,5 @@
 {
-  "checksum": "64c063b807cba95fc67267d83c0df57ab60fc4f60d7cd426ceed3a6391f28e3f",
+  "checksum": "50cf3c70d6538df8cd4b974a989ea15a72cd0386bf1d77aaf53f6e4580bc7aa6",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2356,6 +2356,10 @@
     "docs_adapters 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "quick-xml 0.41.0",
+            "target": "quick_xml"
+          },
           {
             "id": "serde 1.0.229",
             "target": "serde"

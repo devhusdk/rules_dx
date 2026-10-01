@@ -1,8 +1,41 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
 <doxygen version="1.18.0">
-  <compounddef>
-    <memberdef kind="class"><name>AccountService</name><briefdescription>Account aggregate root.</briefdescription><location file="src/account.h" line="10"/></memberdef>
-    <memberdef kind="function"><name>create</name><briefdescription>Creates a new account.</briefdescription><location file="src/account.h" line="42"/></memberdef>
-    <memberdef kind="function"><name>createWithOptions</name><briefdescription>Overload with options.</briefdescription><location file="src/account.h" line="58"/></memberdef>
+  <compounddef id="classAccountService" kind="class" prot="public">
+    <compoundname>AccountService</compoundname>
+    <sectiondef kind="public-type">
+      <memberdef kind="class" id="classAccountService" prot="public" static="no">
+        <type></type>
+        <name>AccountService</name>
+        <qualifiedname>AccountService</qualifiedname>
+        <briefdescription><para>Account aggregate root.</para></briefdescription>
+        <location file="src/account.h" line="10" column="7" scope="public"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="public-func">
+      <memberdef kind="function" id="create_1" prot="public" static="no">
+        <type>AccountRef</type>
+        <definition>AccountRef AccountService::create</definition>
+        <argsstring>(const Request &amp;request)</argsstring>
+        <name>create</name>
+        <qualifiedname>AccountService::create</qualifiedname>
+        <param><type>const Request &amp;request</type><declname>request</declname></param>
+        <briefdescription><para>Creates a new account &amp; returns it.</para></briefdescription>
+        <detaileddescription><para>Rejects a request without an owner.</para></detaileddescription>
+        <location file="src/account.h" line="42" column="14" scope="public"/>
+        <references>
+          <ref refid="classAccountService_1a1" kindref="member">AccountService::refresh</ref>
+        </references>
+      </memberdef>
+      <memberdef kind="function" id="createWithOptions_1" prot="public" static="no">
+        <type>AccountRef</type>
+        <argsstring>(const Request &amp;request, const Options &amp;options)</argsstring>
+        <name>createWithOptions</name>
+        <briefdescription>
+          <para>Overload with options.</para>
+          <para>Passes &#169;2026 defaults when options is empty.</para>
+        </briefdescription>
+        <location file="src/account.h" line="58" column="14" scope="public"/>
+      </memberdef>
+    </sectiondef>
   </compounddef>
 </doxygen>

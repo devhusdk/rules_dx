@@ -212,8 +212,67 @@ fn go_normalizes_packages_with_positions() {
 fn cpp_normalizes_doxygen_xml() {
     let shard = normalize_cpp(&fixture("cpp/input.xml"), "native").unwrap();
     assert_eq!(shard.symbols.len(), 3);
+    let create = shard
+        .symbols
+        .iter()
+        .find(|symbol| symbol.id == "cpp:native:create")
+        .expect("create");
+    assert_eq!(create.signature_text, "function create");
+    assert_eq!(create.doc_markdown, "Creates a new account & returns it.");
+    assert_eq!(
+        create.source.as_ref().expect("source").file,
+        "src/account.h"
+    );
+    assert_eq!(create.source.as_ref().expect("source").line, 42);
+    let overload = shard
+        .symbols
+        .iter()
+        .find(|symbol| symbol.id == "cpp:native:createWithOptions")
+        .expect("createWithOptions");
+    assert_eq!(
+        overload.doc_markdown,
+        "Overload with options.\n\nPasses \u{a9}2026 defaults when options is empty."
+    );
     let bytes = encode_ir(&shard).unwrap();
     assert_eq!(encode_ir(&shard).unwrap(), bytes);
+}
+
+#[test]
+fn cpp_rejects_a_version_that_only_starts_with_the_pin() {
+    let xml = format!(
+        "<doxygen version=\"{CPP_DOXYGEN_PIN}-rc1\"><memberdef kind=\"function\"><name>x</name></memberdef></doxygen>"
+    );
+    assert!(matches!(
+        normalize_cpp(&xml, "demo"),
+        Err(AdapterError::VersionMismatch { .. })
+    ));
+}
+
+#[test]
+fn cpp_requires_the_doxygen_root_element() {
+    for xml in [
+        r#"<other version="1.18.0"/>"#,
+        r#"<notdoxygen note="<doxygen version="1.18.0"/>"/>"#,
+    ] {
+        assert!(
+            matches!(
+                normalize_cpp(xml, "demo"),
+                Err(AdapterError::InvalidJson(_))
+            ),
+            "{xml}"
+        );
+    }
+}
+
+#[test]
+fn cpp_does_not_let_an_unterminated_memberdef_swallow_the_next() {
+    let xml = format!(
+        "<doxygen version=\"{CPP_DOXYGEN_PIN}\"><memberdef kind=\"function\"><name>x</name><memberdef kind=\"variable\"><name>y</name></memberdef></doxygen>"
+    );
+    assert!(matches!(
+        normalize_cpp(&xml, "demo"),
+        Err(AdapterError::InvalidJson(_))
+    ));
 }
 
 #[test]

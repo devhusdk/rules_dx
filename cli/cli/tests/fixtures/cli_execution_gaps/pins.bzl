@@ -13,7 +13,6 @@ WATCHABLE_COMMANDS = [
 WATCHABLE_COUNT = 8
 
 NOT_WATCHABLE_COMMANDS = [
-    "audit",
     "bazel",
     "bump",
     "clean",
@@ -27,16 +26,20 @@ NOT_WATCHABLE_COMMANDS = [
     "generate",
     "hooks",
     "init",
+    "license",
     "migrate",
+    "new",
     "owners",
+    "security",
     "setup",
     "status",
     "update",
+    "upgrade",
     "version",
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 22
+NOT_WATCHABLE_COUNT = 25
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -84,6 +87,7 @@ REPORT_NONE = [
     "env",
     "setup",
     "init",
+    "new",
     "hooks",
     "status",
     "version",
@@ -91,6 +95,7 @@ REPORT_NONE = [
     "owners",
     "deps",
     "why",
+    "upgrade",
     "completion",
     "bazel",
 ]

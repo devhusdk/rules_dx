@@ -7,7 +7,7 @@ typo suggestions come from the same grammar
 known flags on wrong commands rejected as unsupported
 dx bazel tails forward verbatim with prefix options rejected
 help verb redirect with help flags (dx help [command] matches --help)
-generated help from the same grammar for all 32 commands
+generated help from the same grammar for all 33 commands
 prefix inference rejected
 hyphen-value consumption rejected
 silent ignore rejected

@@ -1,6 +1,6 @@
 CLI execution/reporting gaps (issue #590)
 watch stays 8 watchable (build test run lint typecheck format check fix)
-watch stays 22 not watchable with fail-closed not watchable errors
+watch stays 25 not watchable with fail-closed not watchable errors
 watch refuses CI local-only with 200ms debounce
 watch reuses wrapped command verbatim each iteration
 startup options rejected on workflow commands use dx bazel

@@ -252,6 +252,10 @@ pub(crate) fn render_command_help(command: Command) -> String {
 mod docs_parity_tests;
 
 #[cfg(test)]
+#[path = "fixture_pins_tests.rs"]
+mod fixture_pins_tests;
+
+#[cfg(test)]
 mod tests {
     use super::super::{assert_usage, parse, ArgsError, Command};
     use super::render_command_help;

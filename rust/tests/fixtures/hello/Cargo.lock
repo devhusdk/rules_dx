@@ -503,6 +503,7 @@ dependencies = [
  "cargo-lock",
  "chrono",
  "mvn_version",
+ "nodejs-semver",
  "osv",
  "packageurl",
  "regex",
@@ -1336,6 +1337,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fa56da58097c7ae893c4097bb6d91bb5f7fa330053e07e033349db4d5f83ba8"
 dependencies = [
  "uuid",
+]
+
+[[package]]
+name = "nodejs-semver"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "938185814d480ac0eff0ac4676d27deef920cbd2b83df83603a873af5b7c8fc9"
+dependencies = [
+ "smallvec",
+ "thiserror",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 {
-  "checksum": "b543b8e66c1dd883df1907d7ae2b9c0fb2ee243aee6e3e510ab55c0f1226af23",
+  "checksum": "96ff1a946c8464a08e71b9ebc4837c34a862d24b48436eb463c6883f1c344e51",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2522,6 +2522,10 @@
           {
             "id": "mvn_version 0.1.0",
             "target": "mvn_version"
+          },
+          {
+            "id": "nodejs-semver 7.0.0",
+            "target": "nodejs_semver"
           },
           {
             "id": "osv 0.3.0",
@@ -6200,6 +6204,47 @@
         }
       ],
       "version": "1.4.0"
+    },
+    "nodejs-semver 7.0.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default"
+        ],
+        "deps": [
+          {
+            "id": "smallvec 1.16.1",
+            "target": "smallvec"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "nodejs_semver",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "nodejs-semver",
+      "package_url": "https://github.com/cijiugechu/nodejs-semver",
+      "repository": {
+        "Http": {
+          "sha256": "938185814d480ac0eff0ac4676d27deef920cbd2b83df83603a873af5b7c8fc9",
+          "url": "https://static.crates.io/crates/nodejs-semver/7.0.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "nodejs_semver",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "7.0.0"
     },
     "nohash-hasher 0.2.0": {
       "common_attrs": {
@@ -13524,6 +13569,7 @@
     "libc 0.2.189",
     "line-index 0.1.2",
     "mvn_version 0.1.0",
+    "nodejs-semver 7.0.0",
     "normpath 1.5.2",
     "notify 8.2.0",
     "notify-debouncer-mini 0.6.0",

@@ -48,6 +48,7 @@ dx_rust_crate(
         "cargo-lock",
         "chrono",
         "mvn_version",
+        "nodejs-semver",
         "osv",
         "packageurl",
         "regex",

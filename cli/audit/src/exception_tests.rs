@@ -259,6 +259,23 @@ fn npm_caret_and_tilde_expand_each_upstream_branch() {
 }
 
 #[test]
+fn npm_prerelease_comparators_only_allow_prereleases_on_the_same_tuple() {
+    assert!(npm_in_scope(">=1.0.0-alpha <2.0.0", "1.0.0-alpha"));
+    assert!(npm_in_scope(">=1.0.0-alpha <2.0.0", "1.0.0"));
+    assert!(!npm_in_scope(">=1.0.0-alpha <2.0.0", "1.5.0-beta"));
+    assert!(!npm_in_scope(">=1.0.0 <2.0.0", "1.5.0-beta"));
+    assert!(!npm_in_scope(">1.2", "1.3.0-beta"));
+}
+
+#[test]
+fn npm_partial_upper_bounds_are_inclusive_of_everything_below_them() {
+    assert!(npm_in_scope(">1.2", "1.3.0"));
+    assert!(!npm_in_scope(">1.2", "1.2.9"));
+    assert!(npm_in_scope("<=1.2", "1.2.9"));
+    assert!(!npm_in_scope("<=1.2", "1.3.0"));
+}
+
+#[test]
 fn exception_schema_stays_versioned_without_allowlist() {
     assert_eq!(EXCEPTION_SCHEMA_VERSION, 1);
     let mut novel = sample();

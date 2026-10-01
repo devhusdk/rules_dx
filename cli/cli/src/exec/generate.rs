@@ -225,7 +225,6 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
             Ok(patch) => {
                 env.out.write_all(patch.as_bytes()).ok();
             }
-            // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
             Err(error) => {
                 return operational(
                     invocation,
@@ -234,7 +233,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
                     CODE_DIFF_FAILED,
                     &format!("failed to render generate patch: {error}"),
                 );
-            } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+            }
         }
     } else {
         for line in text_lines(&projected) {
@@ -472,6 +471,44 @@ mod tests {
         assert!(out.contains("+xyz"), "{out}");
         assert!(!out.contains("Running generate"), "{out}");
         assert!(!out.contains("Ignored import"), "{out}");
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn generate_diff_reports_an_empty_create_instead_of_an_unappliable_patch() {
+        let mut harness = Harness::new("generate-diff-empty-create");
+        harness.intended = Some(intended_witness(
+            "default",
+            true,
+            &intended_create("new/BUILD.bazel", b""),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["generate", "--output=diff"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(out, "", "{out}");
+        assert!(
+            err.contains("cannot create empty \"new/BUILD.bazel\""),
+            "{err}"
+        );
+        assert!(err.contains(CODE_DIFF_FAILED), "{err}");
+    }
+
+    #[test]
+    fn generate_diff_renders_a_non_empty_create() {
+        let mut harness = Harness::new("generate-diff-create");
+        harness.write_source("new/BUILD.bazel", "# created\n");
+        harness.intended = Some(intended_witness(
+            "default",
+            true,
+            &intended_create("new/BUILD.bazel", b"# created\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["generate", "--output=diff"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            out,
+            "--- /dev/null\n+++ b/new/BUILD.bazel\n@@ -0,0 +1,1 @@\n+# created\n"
+        );
         assert_eq!(err, "", "{err}");
     }
 

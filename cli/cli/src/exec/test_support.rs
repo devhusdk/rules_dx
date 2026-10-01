@@ -364,6 +364,15 @@ pub(crate) fn intended_modify(path: &str, original: &[u8], candidate: &[u8]) -> 
     .to_string()
 }
 
+pub(crate) fn intended_create(path: &str, content: &[u8]) -> String {
+    serde_json::json!({
+        "path": path,
+        "scope_index": 0,
+        "create_content": STANDARD.encode(content),
+    })
+    .to_string()
+}
+
 pub(crate) fn intended_ignored(path: &str, language: &str, import: &str) -> String {
     serde_json::json!({
         "path": path,

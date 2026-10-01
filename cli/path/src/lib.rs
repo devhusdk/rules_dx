@@ -32,6 +32,13 @@ pub fn is_absolute(path: &str) -> bool {
     path.starts_with('/') || drive_prefix(path)
 }
 
+/// Whether a path is rooted at a drive root, in either slash spelling.
+///
+/// A drive prefix alone names the drive, not a root, so `C:notes` is not rooted.
+pub fn drive_rooted(path: &str) -> bool {
+    drive_prefix(path) && matches!(path.as_bytes().get(2), Some(b'/' | b'\\'))
+}
+
 pub fn classify(path: &str) -> Option<PathProblem> {
     if path.is_empty() {
         return Some(PathProblem::Empty);
@@ -141,6 +148,24 @@ mod tests {
         }
         for path in ["", "C", ":", "/C:/a", "1:/a", "src/a:b", "CC:/a"] {
             assert!(!drive_prefix(path), "drive prefix accepted: {path:?}");
+        }
+    }
+
+    #[test]
+    fn drive_rooted_is_the_prefix_and_a_separator() {
+        for path in ["C:/a", "c:/lowercase", "Z:/a", "C:\\a"] {
+            assert!(drive_rooted(path), "drive rooted missed: {path:?}");
+        }
+        for path in [
+            "C:",
+            "C:notes",
+            "C:notes/notes.md",
+            "a:b/c",
+            "/C:/a",
+            "src/a:b",
+            "",
+        ] {
+            assert!(!drive_rooted(path), "drive rooted accepted: {path:?}");
         }
     }
 

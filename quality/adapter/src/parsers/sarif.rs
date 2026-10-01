@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR_STR;
+use std::path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
 use serde_sarif::sarif::{ArtifactLocation, Region, ResultLevel, Sarif};
 
@@ -20,7 +20,11 @@ fn strip_file_uri(uri: &str) -> &str {
 }
 
 fn drive_rooted(path: &str) -> bool {
-    dx_path::drive_prefix(path.trim_start_matches('/'))
+    dx_path::drive_rooted(path.trim_start_matches('/'))
+}
+
+fn rooted(path: &str) -> bool {
+    path.starts_with(['/', MAIN_SEPARATOR]) || drive_rooted(path)
 }
 
 fn normalize_path(path: &str) -> String {
@@ -45,7 +49,7 @@ fn normalize_path(path: &str) -> String {
 }
 
 fn suffix_for(path: &str) -> String {
-    if dx_path::is_absolute(path) {
+    if rooted(path) {
         path.to_owned()
     } else {
         format!("{MAIN_SEPARATOR_STR}{path}")
@@ -113,7 +117,7 @@ fn resolve_file<'a>(
     if let Some(hit) = match_spelling(files, &normalized) {
         return Ok(hit);
     }
-    if dx_path::is_absolute(&normalized) {
+    if rooted(&normalized) {
         let raw = strip_file_uri(uri);
         let raw_suffix = suffix_for(&native(raw));
         if let Some(hit) = unique_suffix(files, &raw_suffix) {
@@ -377,6 +381,39 @@ mod tests {
             parse_sarif(TOOL, &ambiguous, Some(1), &checked).is_err(),
             "an ambiguous suffix names no one file"
         );
+    }
+
+    #[test]
+    fn a_drive_relative_uri_names_no_other_file() {
+        let sep = std::path::MAIN_SEPARATOR;
+        assert!(!drive_rooted("a:b/c.cs"));
+        assert!(!drive_rooted("C:notes/notes.md"));
+        assert_eq!(
+            suffix_for("a:b/c.cs"),
+            format!("{MAIN_SEPARATOR_STR}a:b{sep}c.cs")
+        );
+        assert_eq!(
+            suffix_for("C:notes"),
+            format!("{MAIN_SEPARATOR_STR}C:notes")
+        );
+        let stdout = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"a:b/c.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let sibling = format!("/proj{sep}za:b{sep}c.cs");
+        assert!(
+            parse_sarif(TOOL, &stdout, Some(1), &[&sibling]).is_err(),
+            "the colon belongs to the name, so za:b/c.cs is a different file"
+        );
+        let checked = format!("/proj{sep}a:b{sep}c.cs");
+        let findings =
+            parse_sarif(TOOL, &stdout, Some(1), &[&checked]).expect("drive relative uri");
+        assert_eq!(findings[0].file, checked);
+        let notes = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"C:notes/notes.md"},"region":{"startLine":1}}}]}"#,
+        );
+        let notes_file = format!("/proj{sep}C:notes{sep}notes.md");
+        let findings = parse_sarif(TOOL, &notes, Some(1), &[&notes_file]).expect("drive relative");
+        assert_eq!(findings[0].file, notes_file);
     }
 
     #[test]

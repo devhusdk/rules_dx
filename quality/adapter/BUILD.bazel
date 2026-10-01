@@ -79,6 +79,7 @@ rust_library(
         [
             "line-index",
             "normpath",
+            "quick-xml",
             "serde",
             "serde-sarif",
             "serde_json",
@@ -102,6 +103,7 @@ rust_test(
         [
             "line-index",
             "normpath",
+            "quick-xml",
             "serde",
             "serde-sarif",
             "serde_json",

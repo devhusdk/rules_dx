@@ -1,5 +1,5 @@
 {
-  "checksum": "441d9e9e9f9c68a71aa3349fed153cf70f60e2ac94abe8b3ee5efb669eeeea96",
+  "checksum": "64c063b807cba95fc67267d83c0df57ab60fc4f60d7cd426ceed3a6391f28e3f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7600,6 +7600,10 @@
           {
             "id": "normpath 1.5.2",
             "target": "normpath"
+          },
+          {
+            "id": "quick-xml 0.41.0",
+            "target": "quick_xml"
           },
           {
             "id": "serde 1.0.229",

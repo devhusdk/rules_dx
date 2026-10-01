@@ -246,6 +246,7 @@ mod tests {
             b"--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a\n+b\n",
             b"{\"path\":\"x.proto\",\"start_line\":1,\"start_column\":1,\"type\":\"T\",\"message\":\"m\"}\n",
             b"/s/Hello.java:3: error: [DeadException] msg\n1 error\n",
+            b"<results version=\"2\"><errors><error id=\"a\" severity=\"error\" msg=\"m\"><location file=\"/s/a.c\" line=\"1\"/></error></errors></results>",
             b"\xff\xfe\x00",
         ];
         let mut state = 0x9E37_79B9_7F4A_7C15u64;
@@ -306,6 +307,7 @@ mod tests {
             let _ = super::gofumpt::parse_gofumpt(&input, Some(1), &files);
             let _ = super::markdown::parse_markdown_findings(&input, Some(0), &files);
             let _ = super::spotbugs::parse_spotbugs(&input, Some(1), &files);
+            let _ = super::cppcheck::parse_cppcheck(&input, Some(1), &files);
         }
     }
 }

@@ -1652,6 +1652,7 @@ version = "0.0.0"
 dependencies = [
  "line-index",
  "normpath",
+ "quick-xml",
  "serde",
  "serde-sarif",
  "serde_json",

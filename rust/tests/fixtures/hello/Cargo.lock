@@ -592,6 +592,7 @@ dependencies = [
  "clap",
  "pep440_rs",
  "regex",
+ "semver",
  "serde",
  "serde_json",
  "tempfile",

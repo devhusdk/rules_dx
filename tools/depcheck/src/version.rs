@@ -1,3 +1,58 @@
+//! Version satisfaction, one grammar per ecosystem.
+
+use semver::{Version, VersionReq};
+
+use crate::ecosystem::python;
+use crate::Ecosystem;
+
+/// Settles `spec` against `locked` in the grammar `eco` declares requirements in.
+pub fn satisfies_for(eco: Ecosystem, spec: &str, locked: &str) -> bool {
+    if eco == Ecosystem::Python {
+        if let Some(matched) = python::satisfies_py(spec, locked) {
+            return matched;
+        }
+    }
+    if eco.uses_semver_grammar() {
+        if let Some(matched) = satisfies_semver(spec, locked) {
+            return matched;
+        }
+    }
+    satisfies_non_semver(spec, locked)
+}
+
+/// Settles a semver requirement, or `None` when either side is outside the semver grammar.
+fn satisfies_semver(spec: &str, locked: &str) -> Option<bool> {
+    let requirement = VersionReq::parse(normalize(spec).as_str()).ok()?;
+    let version = Version::parse(strip_v_prefix(locked.trim()).as_str()).ok()?;
+    Some(requirement.matches(&version))
+}
+
+fn strip_v_prefix(value: &str) -> String {
+    if value.len() > 1
+        && value.starts_with('v')
+        && value[1..]
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_digit())
+    {
+        value[1..].to_owned()
+    } else {
+        value.to_owned()
+    }
+}
+
+fn normalize(spec: &str) -> String {
+    let mut text = spec
+        .trim()
+        .trim_matches(|c| c == '"' || c == '\'')
+        .trim()
+        .to_owned();
+    if let Some(head) = text.split(';').next() {
+        text = head.trim().to_owned();
+    }
+    strip_v_prefix(&text)
+}
+
 fn split_version_parts(value: &str, count: usize) -> Vec<String> {
     value
         .split(['.', '-'])
@@ -58,33 +113,10 @@ fn is_full_version(text: &str) -> bool {
         && c.chars().next().is_some_and(|c| c.is_ascii_digit())
 }
 
-pub fn satisfies(spec: &str, locked: &str) -> bool {
-    let mut s = spec
-        .trim()
-        .trim_matches(|c| c == '"' || c == '\'')
-        .trim()
-        .to_owned();
-    if let Some(first) = s.split(';').next() {
-        s = first.trim().to_owned();
-    }
-    if s.len() > 1
-        && s.starts_with('v')
-        && s[1..].chars().next().is_some_and(|c| c.is_ascii_digit())
-    {
-        s = s[1..].to_owned();
-    }
-    let locked_trim = locked.trim().to_owned();
-    let locked_norm = if locked_trim.len() > 1
-        && locked_trim.starts_with('v')
-        && locked_trim[1..]
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_digit())
-    {
-        locked_trim[1..].to_owned()
-    } else {
-        locked_trim
-    };
+/// Settles the grammars semver does not model: Maven, NuGet, RubyGems, Conan, PEP 440.
+pub(crate) fn satisfies_non_semver(spec: &str, locked: &str) -> bool {
+    let mut s = normalize(spec);
+    let locked_norm = strip_v_prefix(locked.trim());
     let mut exact = false;
     if let Some(rest) = s.strip_prefix("==") {
         s = rest.trim().to_owned();

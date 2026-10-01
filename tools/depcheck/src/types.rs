@@ -113,6 +113,11 @@ impl Ecosystem {
             Self::Ruby => "ruby",
         }
     }
+
+    /// Whether this ecosystem states its requirements in the semver grammar.
+    pub fn uses_semver_grammar(self) -> bool {
+        matches!(self, Self::Rust | Self::Js | Self::Ts | Self::Go)
+    }
 }
 
 pub struct WorkspaceLocks<'a> {

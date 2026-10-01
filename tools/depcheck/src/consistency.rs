@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::ecosystem::{cc, dotnet, go, js, jvm, python, ruby, rust};
-use crate::version::satisfies;
+use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem, WorkspaceLocks};
 
 pub(crate) fn load_manifest(
@@ -82,15 +82,6 @@ pub fn cmd_consistency(
     check_maps(eco, &deps, &pkgs, &cc_lock_sha, stdout, stderr)
 }
 
-fn spec_matched(eco: Ecosystem, spec: &str, locked: &str) -> bool {
-    if eco == Ecosystem::Python {
-        if let Some(matched) = python::satisfies_py(spec, locked) {
-            return matched;
-        }
-    }
-    satisfies(spec, locked)
-}
-
 fn check_maps(
     eco: Ecosystem,
     deps: &BTreeMap<String, DepInfo>,
@@ -117,7 +108,7 @@ fn check_maps(
             ));
             continue;
         };
-        if !spec_matched(eco, &info.spec, &locked) {
+        if !satisfies_for(eco, &info.spec, &locked) {
             failures.push(format!(
                 "stale lock entry for '{}': manifest requires {}, lock has {locked}",
                 info.raw, info.spec

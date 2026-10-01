@@ -31,10 +31,10 @@ pub use ecosystem::rust::{normalize_rs, parse_rust_lock, parse_rust_manifest};
 pub use exceptions::parse_exceptions;
 pub use types::{DepInfo, DepcheckError, Ecosystem, Exception, Usage, WorkspaceLocks};
 pub use usage::{cmd_usage, find_usages, is_test_file};
-pub use version::satisfies;
+pub use version::satisfies_for;
 
 #[cfg(test)]
-pub(crate) use version::versions_equal;
+pub(crate) use version::{satisfies_non_semver, versions_equal};
 
 #[cfg(test)]
 mod tests;

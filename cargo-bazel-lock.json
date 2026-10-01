@@ -1,5 +1,5 @@
 {
-  "checksum": "289e9a2f32834a3e9abaffdb164f3d0d9fd6013992b0702d6542fbfbfff69a50",
+  "checksum": "441d9e9e9f9c68a71aa3349fed153cf70f60e2ac94abe8b3ee5efb669eeeea96",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2850,6 +2850,10 @@
           {
             "id": "regex 1.13.1",
             "target": "regex"
+          },
+          {
+            "id": "semver 1.0.27",
+            "target": "semver"
           },
           {
             "id": "serde 1.0.229",

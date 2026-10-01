@@ -44,28 +44,78 @@ fn normalizes_match_python() {
 }
 
 #[test]
-fn satisfies_caret_and_exact() {
-    assert!(satisfies("1", "1.0.0"));
-    assert!(!satisfies("^1.2.3", "1.9.0"));
-    assert!(satisfies("^1", "1.9.0"));
-    assert!(!satisfies("1", "0.9.0"));
-    assert!(satisfies("*", "9.9.9"));
-    assert!(satisfies("", "1.0.0"));
-    assert!(satisfies("==1.0.0", "1.0.0"));
-    assert!(!satisfies("==1.0.0", "1.0.1"));
-    assert!(satisfies("=1.0.0", "1.0.0"));
-    assert!(satisfies("30.2.0", "30.2.0"));
-    assert!(!satisfies("30.2.0", "30.3.0"));
+fn non_semver_grammar_settles_caret_and_exact() {
+    assert!(satisfies_non_semver("1", "1.0.0"));
+    assert!(!satisfies_non_semver("^1.2.3", "1.9.0"));
+    assert!(satisfies_non_semver("^1", "1.9.0"));
+    assert!(!satisfies_non_semver("1", "0.9.0"));
+    assert!(satisfies_non_semver("*", "9.9.9"));
+    assert!(satisfies_non_semver("", "1.0.0"));
+    assert!(satisfies_non_semver("==1.0.0", "1.0.0"));
+    assert!(!satisfies_non_semver("==1.0.0", "1.0.1"));
+    assert!(satisfies_non_semver("=1.0.0", "1.0.0"));
+    assert!(satisfies_non_semver("30.2.0", "30.2.0"));
+    assert!(!satisfies_non_semver("30.2.0", "30.3.0"));
 }
 
 #[test]
-fn satisfies_tilde_and_range() {
-    assert!(satisfies("~1.2.3", "1.2.9"));
-    assert!(!satisfies("~1.2.3", "1.3.0"));
-    assert!(satisfies(">=7", "8.0.0"));
-    assert!(!satisfies(">=7", "6.0.0"));
-    assert!(satisfies("v1.2.3", "1.2.3"));
-    assert!(satisfies("1.2.3", "v1.2.3"));
+fn non_semver_grammar_settles_tilde_and_range() {
+    assert!(satisfies_non_semver("~1.2.3", "1.2.9"));
+    assert!(!satisfies_non_semver("~1.2.3", "1.3.0"));
+    assert!(satisfies_non_semver(">=7", "8.0.0"));
+    assert!(!satisfies_non_semver(">=7", "6.0.0"));
+    assert!(satisfies_non_semver("v1.2.3", "1.2.3"));
+    assert!(satisfies_non_semver("1.2.3", "v1.2.3"));
+}
+
+#[test]
+fn semver_ecosystems_delegate_to_semver() {
+    for eco in [Ecosystem::Rust, Ecosystem::Js, Ecosystem::Ts, Ecosystem::Go] {
+        let name = eco.name();
+        assert!(eco.uses_semver_grammar(), "{name}");
+        assert!(satisfies_for(eco, "^1.2.3", "1.9.0"), "{name} caret");
+        assert!(!satisfies_for(eco, "^1.2.3", "2.0.0"), "{name} caret major");
+        assert!(satisfies_for(eco, "~1.2.3", "1.2.9"), "{name} tilde");
+        assert!(!satisfies_for(eco, "~1.2.3", "1.3.0"), "{name} tilde minor");
+        assert!(satisfies_for(eco, "1", "1.0.104"), "{name} bare major");
+        assert!(!satisfies_for(eco, "1", "0.9.0"), "{name} bare major");
+        assert!(satisfies_for(eco, ">=7", "8.0.0"), "{name} lower bound");
+        assert!(!satisfies_for(eco, ">=7", "6.0.0"), "{name} lower bound");
+        assert!(satisfies_for(eco, "v1.0.0", "v1.0.0"), "{name} go v prefix");
+    }
+}
+
+#[test]
+fn semver_ecosystems_keep_the_fallback_when_semver_cannot_parse() {
+    for eco in [Ecosystem::Rust, Ecosystem::Js, Ecosystem::Ts, Ecosystem::Go] {
+        assert!(satisfies_for(eco, "foo", "foo"), "{}", eco.name());
+        assert!(!satisfies_for(eco, "foo", "bar"), "{}", eco.name());
+        assert!(satisfies_for(eco, "", "1.0.0"), "{}", eco.name());
+        assert!(satisfies_for(eco, "==1.0.0", "1.0.0"), "{}", eco.name());
+        assert!(!satisfies_for(eco, "==1.0.0", "1.0.1"), "{}", eco.name());
+    }
+}
+
+#[test]
+fn non_semver_ecosystems_keep_their_own_grammar() {
+    for eco in [
+        Ecosystem::Java,
+        Ecosystem::Kotlin,
+        Ecosystem::Scala,
+        Ecosystem::Csharp,
+        Ecosystem::Fsharp,
+        Ecosystem::Cc,
+        Ecosystem::Ruby,
+    ] {
+        let name = eco.name();
+        assert!(!eco.uses_semver_grammar(), "{name}");
+        assert!(!satisfies_for(eco, "^1.2.3", "1.9.0"), "{name}");
+        assert!(satisfies_for(eco, "1.0.0", "1.0.0"), "{name}");
+        assert!(!satisfies_for(eco, "1.0.0", "1.0.1"), "{name}");
+    }
+    assert!(!Ecosystem::Python.uses_semver_grammar());
+    assert!(satisfies_for(Ecosystem::Python, ">=8", "8.4.0"));
+    assert!(!satisfies_for(Ecosystem::Python, ">=8", "7.0.0"));
 }
 
 #[test]
@@ -803,15 +853,15 @@ fn ecosystem_parse_covers_every_name() {
 }
 
 #[test]
-fn satisfies_fallback_arms() {
+fn non_semver_grammar_fallback_arms() {
     assert!(versions_equal("x", "x"));
     assert!(!versions_equal("x", "y"));
-    assert!(!satisfies("~1", "1.0.0"));
-    assert!(satisfies("~1.x", "1.x"));
-    assert!(satisfies("<=2.0.0", "1.0.0"));
-    assert!(!satisfies("<=1.0.0", "2.0.0"));
-    assert!(satisfies("foo", "foo"));
-    assert!(!satisfies("foo", "bar"));
+    assert!(!satisfies_non_semver("~1", "1.0.0"));
+    assert!(satisfies_non_semver("~1.x", "1.x"));
+    assert!(satisfies_non_semver("<=2.0.0", "1.0.0"));
+    assert!(!satisfies_non_semver("<=1.0.0", "2.0.0"));
+    assert!(satisfies_non_semver("foo", "foo"));
+    assert!(!satisfies_non_semver("foo", "bar"));
 }
 
 #[test]

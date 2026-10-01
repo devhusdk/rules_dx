@@ -5,6 +5,15 @@ use std::io;
 use std::path::Path;
 use std::rc::Rc;
 
+/// Returns the pinned gitleaks path the fakes hand to the backend.
+pub(super) fn hermetic_gitleaks() -> String {
+    if cfg!(windows) {
+        r"C:\hermetic\gitleaks.exe".to_owned()
+    } else {
+        "/hermetic/gitleaks".to_owned()
+    }
+}
+
 pub(super) struct AuditRunner {
     pub(super) calls: Rc<RefCell<Vec<Vec<String>>>>,
     pub(super) envs: Rc<RefCell<Vec<Vec<(String, String)>>>>,
@@ -62,7 +71,7 @@ impl Runner for AuditRunner {
     }
 
     fn gitleaks_tool(&self) -> Option<std::path::PathBuf> {
-        Some(std::path::PathBuf::from("/hermetic/gitleaks"))
+        Some(std::path::PathBuf::from(hermetic_gitleaks()))
     }
 }
 
@@ -254,7 +263,7 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     );
     assert_eq!(err, "", "{err}");
     assert_eq!(runner.calls.borrow().len(), 1);
-    assert_eq!(runner.calls.borrow()[0][0], "/hermetic/gitleaks");
+    assert_eq!(runner.calls.borrow()[0][0], hermetic_gitleaks());
     assert!(runner.calls.borrow()[0].contains(&"--redact".to_owned()));
     assert_eq!(runner.envs.borrow().len(), 1);
     assert_eq!(runner.envs.borrow()[0].len(), 1);

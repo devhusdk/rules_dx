@@ -6,7 +6,7 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
     struct Unavailable;
     impl dx_process::Runner for Unavailable {
         fn gitleaks_tool(&self) -> Option<std::path::PathBuf> {
-            Some(std::path::PathBuf::from("/hermetic/gitleaks"))
+            Some(std::path::PathBuf::from(hermetic_gitleaks()))
         }
         fn run(
             &self,

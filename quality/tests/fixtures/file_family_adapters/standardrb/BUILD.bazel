@@ -9,7 +9,7 @@ package(
 exports_files([
     "pins.bzl",
     "Sample.rb",
-    "check_dirty.diff",
+    "check_dirty.json",
 ])
 
 real_source_target(

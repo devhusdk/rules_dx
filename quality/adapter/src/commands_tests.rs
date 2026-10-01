@@ -864,7 +864,11 @@ fn file_family_format_checks_are_diff_and_fixes_are_write() {
     let rb = Path::new("/scratch/Sample.rb");
     assert_eq!(
         argv_strings(&standardrb_check(Path::new(BIN), &[rb])),
-        vec![BIN, "--check", "/scratch/Sample.rb"]
+        vec![BIN, "--format", "json", "/scratch/Sample.rb"]
+    );
+    assert_eq!(
+        argv_strings(&standardrb_fix(Path::new(BIN), &[rb])),
+        vec![BIN, "--fix", "/scratch/Sample.rb"]
     );
 }
 

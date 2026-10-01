@@ -5,7 +5,7 @@ stage standardrb classes=ruby sources=matrix/standardrb_dirty.rb
 completed_rounds 2
 convergence STABLE
 initial 1
-initial WARNING standardrb - matrix/standardrb_dirty.rb 0 0 fixable=true "file is not formatted"
+initial WARNING standardrb Style/StringLiterals matrix/standardrb_dirty.rb 5 5 fixable=true "Prefer double-quoted strings."
 terminal 0
 replacements 1
 replacement matrix/standardrb_dirty.rb 5 11 "fixed"

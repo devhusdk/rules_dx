@@ -10,10 +10,11 @@
 
 use std::path::{Component, Path, PathBuf};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Relpath,
     Json,
+    Offenses,
     Diff0,
     Warn,
     Diff,
@@ -48,6 +49,7 @@ fn mode_for(ext: &str) -> Mode {
     match ext {
         "cs" | "qml" => Mode::Relpath,
         "fs" => Mode::Json,
+        "rb" => Mode::Offenses,
         "go" => Mode::Diff0,
         "css" | "less" | "scss" | "feature" | "sql" | "xml" => Mode::Warn,
         _ => Mode::Diff,
@@ -153,8 +155,79 @@ fn warn_rel(cwd: &str, file: &str) -> String {
 
 fn is_dirty(path: &str) -> bool {
     match std::fs::read(path) {
-        Ok(bytes) => bytes.windows(6).any(|win| win == b"BADFMT"),
+        Ok(bytes) => bytes.windows(MARKER.len()).any(|win| win == MARKER),
         Err(_) => false,
+    }
+}
+
+const MARKER: &[u8] = b"BADFMT";
+const FIXED: &[u8] = b"fixed";
+
+/// The 1-based line and column of the dirty marker, the way RuboCop reports an offense.
+fn marker_position(bytes: &[u8]) -> Option<(u64, u64)> {
+    let at = bytes.windows(MARKER.len()).position(|win| win == MARKER)?;
+    let before = &bytes[..at];
+    let line = 1 + before.iter().filter(|byte| **byte == b'\n').count() as u64;
+    let column = match before.iter().rposition(|byte| *byte == b'\n') {
+        Some(newline) => String::from_utf8_lossy(&before[newline + 1..])
+            .chars()
+            .count() as u64,
+        None => before.len() as u64,
+    };
+    Some((line, column + 1))
+}
+
+/// The RuboCop JSON report that `standardrb --format json` writes.
+///
+/// RuboCop reports each path as it was handed on the command line, so the fake keeps the
+/// argument instead of shortening it.
+fn emit_offenses(files: &[String]) -> i32 {
+    let mut entries = Vec::new();
+    let mut offenses = 0;
+    for file in files {
+        let offense = match std::fs::read(file)
+            .ok()
+            .as_deref()
+            .and_then(marker_position)
+        {
+            Some((line, column)) => {
+                offenses += 1;
+                let last = column + MARKER.len() as u64;
+                format!(
+                    concat!(
+                        r#"{{"severity": "convention", "message": "Prefer double-quoted strings.", "#,
+                        r#""cop_name": "Style/StringLiterals", "correctable": true, "status": "uncorrected", "#,
+                        r#""location": {{"start_line": {line}, "start_column": {column}, "last_line": {line}, "#,
+                        r#""last_column": {last}, "length": {length}, "line": {line}, "column": {column}}}}}"#
+                    ),
+                    line = line,
+                    column = column,
+                    last = last,
+                    length = MARKER.len()
+                )
+            }
+            None => String::new(),
+        };
+        entries.push(format!(
+            "{{\"path\": \"{file}\", \"offenses\": [{offense}]}}"
+        ));
+    }
+    let count = files.len();
+    println!(
+        concat!(
+            r#"{{"metadata": {{"rubocop_version": "1.75.5", "ruby_engine": "ruby", "#,
+            r#""ruby_version": "3.3.6", "ruby_patchlevel": "100"}}, "files": [{}], "#,
+            r#""summary": {{"offense_count": {}, "target_file_count": {}, "inspected_file_count": {}}}}}"#
+        ),
+        entries.join(", "),
+        offenses,
+        count,
+        count
+    );
+    if offenses > 0 {
+        1
+    } else {
+        0
     }
 }
 
@@ -166,9 +239,9 @@ fn rewrite_fixed(path: &str) {
     let mut out = Vec::with_capacity(bytes.len());
     let mut idx = 0;
     while idx < bytes.len() {
-        if bytes[idx..].starts_with(b"BADFMT") {
-            out.extend_from_slice(b"fixed");
-            idx += 6;
+        if bytes[idx..].starts_with(MARKER) {
+            out.extend_from_slice(FIXED);
+            idx += MARKER.len();
         } else {
             out.push(bytes[idx]);
             idx += 1;
@@ -255,6 +328,7 @@ pub fn run(argv: &[String]) -> i32 {
                 0
             }
         }
+        Mode::Offenses => emit_offenses(&files),
         Mode::Warn => {
             let cwd_text = cwd.to_string_lossy().into_owned();
             let mut dirty = false;
@@ -312,13 +386,24 @@ mod tests {
             ("jsonnet", Header::Git),
             ("mod", Header::Git),
             ("pkl", Header::Git),
-            ("rb", Header::Git),
             ("scala", Header::Git),
             ("tf", Header::Git),
             ("yaml", Header::Git),
         ] {
             assert_eq!(header_for(ext), want, "{ext}");
         }
+    }
+
+    #[test]
+    fn ruby_reports_rubocop_offenses_rather_than_a_diff() {
+        assert_eq!(mode_for("rb"), Mode::Offenses);
+    }
+
+    #[test]
+    fn the_offense_column_counts_from_the_start_of_its_line() {
+        assert_eq!(marker_position(b"puts BADFMT\n"), Some((1, 6)));
+        assert_eq!(marker_position(b"puts ok\nx = BADFMT\n"), Some((2, 5)));
+        assert_eq!(marker_position(b"puts ok\n"), None);
     }
 
     #[test]

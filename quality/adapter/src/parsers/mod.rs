@@ -313,6 +313,119 @@ pub enum DiffExit {
     Unpinned,
 }
 
+/// Report the offenses in the RuboCop JSON grammar, which `rubocop` and `standardrb` share.
+///
+/// `standardrb` wraps RuboCop and its `--format json` is RuboCop's own JSON formatter, so both
+/// tools name every offense with the same `cop_name`, `severity` and `location` fields.
+pub(super) fn rubocop_json(
+    tool: &'static str,
+    stdout: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    check_output_size(tool, stdout)?;
+    let value: serde_json::Value =
+        serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
+            tool,
+            detail: err.to_string(),
+        })?;
+    let entries = value
+        .get("files")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ParseError::Shape {
+            tool,
+            detail: "missing files".to_owned(),
+        })?;
+    let mut findings = Vec::new();
+    for entry in entries {
+        let path = entry
+            .get("path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ParseError::Shape {
+                tool,
+                detail: "missing path".to_owned(),
+            })?;
+        let checked = known(tool, files, path)?;
+        let offenses = entry
+            .get("offenses")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| ParseError::Shape {
+                tool,
+                detail: "missing offenses".to_owned(),
+            })?;
+        for off in offenses {
+            let line = off
+                .get("location")
+                .and_then(|l| l.get("line"))
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| ParseError::Shape {
+                    tool,
+                    detail: "missing line".to_owned(),
+                })?;
+            let col = off
+                .get("location")
+                .and_then(|l| l.get("column"))
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| ParseError::Shape {
+                    tool,
+                    detail: "missing column".to_owned(),
+                })?;
+            let message = off
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_owned();
+            if message.is_empty() {
+                return Err(ParseError::Shape {
+                    tool,
+                    detail: "missing message".to_owned(),
+                });
+            }
+            let rule = off
+                .get("cop_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_owned();
+            let severity = match off.get("severity").and_then(|v| v.as_str()) {
+                Some("error") | Some("fatal") => ToolSeverity::Error,
+                Some("warning") | Some("convention") | Some("refactor") => ToolSeverity::Warning,
+                other => {
+                    return Err(ParseError::Shape {
+                        tool,
+                        detail: format!("unknown severity {other:?}"),
+                    })
+                }
+            };
+            if line == 0 || col == 0 {
+                return Err(ParseError::Shape {
+                    tool,
+                    detail: "positions must be nonzero".to_owned(),
+                });
+            }
+            let (start, end) = point(line, col);
+            findings.push(FileFinding {
+                file: checked.to_owned(),
+                finding: Finding {
+                    tool_id: tool.to_owned(),
+                    rule_id: rule,
+                    message,
+                    severity,
+                    start,
+                    end,
+                    suggestions: Vec::new(),
+                },
+            });
+        }
+    }
+    if findings.is_empty() && code != Some(0) {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("exit {} with no diagnostics", code_name(code)),
+        });
+    }
+    Ok(findings)
+}
+
 /// Report one "file is not formatted" finding per path in a unified diff.
 fn diff_format(
     tool: &'static str,

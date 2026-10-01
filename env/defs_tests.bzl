@@ -211,12 +211,27 @@ aspect_field has_subject=True
 aspect_field subject_label=//env:tree_under_test
 aspect_field transitive_count=0"""
 
+WINDOWS_TREE_OBSERVATIONS = """subject //env:tree_under_test
+file a
+file alpha
+file beta
+file tree_under_test.metadata.json
+field count=2
+field host_names=a.exe,alpha.exe,beta.exe
+field platform=windows
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//env:tree_under_test
+aspect_field transitive_count=0"""
+
 def env_tree_analysis_tests(name):
     starlark_test(
         name = name,
         mode = "analysis",
         subjects = [":tree_under_test"],
         expected_observations = EXPECTED_TREE_OBSERVATIONS,
+        windows_expected_observations = WINDOWS_TREE_OBSERVATIONS,
     )
 
 EXPECTED_DEFAULT_CONFIG_OBSERVATIONS = """subject //env:default_config
@@ -250,10 +265,25 @@ aspect_field has_subject=True
 aspect_field subject_label=//env:default_tree
 aspect_field transitive_count=0"""
 
+WINDOWS_DEFAULT_TREE_OBSERVATIONS = """subject //env:default_tree
+file default_tree.metadata.json
+file doctor
+file dx
+file quality_markdown
+field count=3
+field host_names=doctor.exe,dx.exe,quality_markdown.exe
+field platform=windows
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//env:default_tree
+aspect_field transitive_count=0"""
+
 def env_default_tree_analysis_tests(name):
     starlark_test(
         name = name,
         mode = "analysis",
         subjects = [":default_tree"],
         expected_observations = EXPECTED_DEFAULT_TREE_OBSERVATIONS,
+        windows_expected_observations = WINDOWS_DEFAULT_TREE_OBSERVATIONS,
     )

@@ -476,8 +476,11 @@ def _analysis_test_impl(ctx):
     body = _check_lines(ctx.attr.checks)
     body.extend(_file_check_lines(ctx.attr.file_checks))
     if ctx.attr.expected_observations != "":
+        expected = ctx.attr.expected_observations
+        if _target_is_windows(ctx) and ctx.attr.windows_expected_observations != "":
+            expected = ctx.attr.windows_expected_observations
         body.append("check " + _shell_quote("observations") + " " +
-                    _shell_quote(ctx.attr.expected_observations.strip()) + " " +
+                    _shell_quote(expected.strip()) + " " +
                     _shell_quote("\n".join(observed)))
     body.append("echo '--- observations ---'")
     body.append("obs=$(rloc " + _shell_quote(observations.short_path) + ")")
@@ -503,6 +506,9 @@ _common_attrs = {
     "_windows_os": attr.label(default = "@platforms//os:windows"),
     "checks": attr.string_list(),
     "expected_observations": attr.string(
+        default = "",
+    ),
+    "windows_expected_observations": attr.string(
         default = "",
     ),
     "file_checks": attr.label_keyed_string_dict(
@@ -547,7 +553,7 @@ _MODES = {
     "unit": _starlark_unit_test,
 }
 
-def starlark_test(name, mode, checks = [], subjects = [], expected_observations = "", file_checks = {}, observe_output_groups = False, **kwargs):
+def starlark_test(name, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, observe_output_groups = False, **kwargs):
     """Instantiates one test target in the given mode."""
     if mode not in _MODES:
         fail("starlark_test: unknown mode '" + mode + "': want one of " +
@@ -558,6 +564,7 @@ def starlark_test(name, mode, checks = [], subjects = [], expected_observations 
         checks = checks,
         subjects = subjects,
         expected_observations = expected_observations,
+        windows_expected_observations = windows_expected_observations,
         file_checks = file_checks,
         observe_output_groups = observe_output_groups,
         **kwargs

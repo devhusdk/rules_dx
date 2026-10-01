@@ -822,6 +822,103 @@ fn every_command_has_a_docs_page() {
     }
 }
 
+fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
+    let mut rows: Vec<(Vec<String>, String)> = Vec::new();
+    for line in readme.lines() {
+        let Some(rest) = line.strip_prefix("- [`dx ") else {
+            continue;
+        };
+        let (_, target) = rest
+            .rsplit_once("](")
+            .unwrap_or_else(|| panic!("command index bullet has no page link: {line}"));
+        let target = target
+            .strip_suffix(')')
+            .unwrap_or_else(|| panic!("command index bullet has an unclosed link: {line}"));
+        let mut commands: Vec<String> = backticked(line)
+            .into_iter()
+            .filter_map(|token| token.strip_prefix("dx ").map(ToOwned::to_owned))
+            .collect();
+        assert!(
+            !commands.is_empty(),
+            "the command index links {target} but names no command: {line}"
+        );
+        commands.sort();
+        rows.push((commands, target.to_owned()));
+    }
+    rows
+}
+
+fn link_targets(page: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut rest = page;
+    while let Some(start) = rest.find("](") {
+        let tail = &rest[start + 2..];
+        let Some(end) = tail.find(')') else {
+            break;
+        };
+        let file = tail[..end].split('#').next().unwrap_or_default();
+        if file.ends_with(".md") {
+            out.push(file.to_owned());
+        }
+        rest = &tail[end + 1..];
+    }
+    out
+}
+
+#[test]
+fn command_index_names_every_command_exactly_once() {
+    let readme =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let index = command_index(&readme);
+    assert!(
+        !index.is_empty(),
+        "docs/cli/commands/README.md has no command index bullets"
+    );
+    let named: Vec<String> = index
+        .iter()
+        .flat_map(|(commands, _)| commands.clone())
+        .collect();
+    assert_eq!(
+        sorted(named),
+        commands_where(|_| true),
+        "the docs/cli/commands/README.md index must name every dx command exactly once"
+    );
+    for (commands, target) in &index {
+        assert!(
+            docs_dir().join(target).is_file(),
+            "the command index bullet for dx {} links {target}, which is not a page in \
+             docs/cli/commands",
+            commands.join(", ")
+        );
+    }
+}
+
+#[test]
+fn command_reference_links_every_page_and_only_real_pages() {
+    let readme =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let mut linked = link_targets(&readme);
+    linked.sort();
+    linked.dedup();
+    for target in &linked {
+        assert!(
+            docs_dir().join(target).is_file(),
+            "docs/cli/commands/README.md links {target}, which is not a page in docs/cli/commands"
+        );
+    }
+    assert_eq!(
+        sorted(linked),
+        sorted(
+            pages()
+                .iter()
+                .map(|(name, _)| format!("{name}.md"))
+                .filter(|name| name != "README.md")
+                .collect()
+        ),
+        "docs/cli/commands/README.md must link every page it ships, and nothing else"
+    );
+}
+
 #[test]
 fn help_doc_anchors_resolve() {
     for command in Command::value_variants() {

@@ -1,3 +1,5 @@
+use std::path::MAIN_SEPARATOR_STR;
+
 use serde_sarif::sarif::{ArtifactLocation, Region, ResultLevel, Sarif};
 
 use super::{check_output_size, code_name, FileFinding, ParseError};
@@ -17,8 +19,11 @@ fn strip_file_uri(uri: &str) -> &str {
         .unwrap_or(uri)
 }
 
+fn drive_rooted(path: &str) -> bool {
+    dx_path::drive_prefix(path.trim_start_matches('/'))
+}
+
 fn normalize_path(path: &str) -> String {
-    let absolute = path.starts_with('/');
     let mut parts: Vec<&str> = Vec::new();
     for segment in path.split('/') {
         match segment {
@@ -29,12 +34,26 @@ fn normalize_path(path: &str) -> String {
             other => parts.push(other),
         }
     }
-    let joined = parts.join("/");
-    if absolute {
-        format!("/{joined}")
+    let joined = parts.join(MAIN_SEPARATOR_STR);
+    if drive_rooted(path) {
+        joined
+    } else if path.starts_with('/') {
+        format!("{MAIN_SEPARATOR_STR}{joined}")
     } else {
         joined
     }
+}
+
+fn suffix_for(path: &str) -> String {
+    if dx_path::is_absolute(path) {
+        path.to_owned()
+    } else {
+        format!("{MAIN_SEPARATOR_STR}{path}")
+    }
+}
+
+fn native(path: &str) -> String {
+    path.replace('/', MAIN_SEPARATOR_STR)
 }
 
 fn resolve_file<'a>(
@@ -58,15 +77,11 @@ fn resolve_file<'a>(
         joined.push_str(strip_file_uri(uri));
     }
     let normalized = normalize_path(&joined);
-    let path = normalized.strip_prefix("./").unwrap_or(&normalized);
+    let path = normalized.as_str();
     if let Some(hit) = files.iter().find(|file| **file == path) {
         return Ok(*hit);
     }
-    let suffix = if path.starts_with('/') {
-        path.to_owned()
-    } else {
-        format!("/{path}")
-    };
+    let suffix = suffix_for(path);
     {
         let mut hits = files.iter().filter(|file| file.ends_with(suffix.as_str()));
         if let Some(hit) = hits.next() {
@@ -75,9 +90,9 @@ fn resolve_file<'a>(
             }
         }
     }
-    if path.starts_with('/') {
+    if dx_path::is_absolute(path) {
         let raw = strip_file_uri(uri);
-        let raw_suffix = format!("/{raw}");
+        let raw_suffix = suffix_for(&native(raw));
         let mut hits = files
             .iter()
             .filter(|file| file.ends_with(raw_suffix.as_str()));
@@ -248,6 +263,39 @@ mod tests {
         assert!(clean.is_empty());
         assert!(parse_sarif(TOOL, &clean_json, Some(1), &["/s/a.java"]).is_err());
         assert!(parse_sarif(TOOL, b"not json", Some(1), &["/s/a.java"]).is_err());
+    }
+
+    #[test]
+    fn a_windows_uri_resolves_to_the_native_file_name() {
+        let sep = std::path::MAIN_SEPARATOR;
+        let drive = format!("C:{sep}src{sep}a.cs");
+        let rooted = format!("{sep}src{sep}a.cs");
+        let relative = format!("src{sep}a.cs");
+        assert!(drive_rooted("C:/src/a.cs"));
+        assert!(drive_rooted("/C:/src/a.cs"));
+        assert!(!drive_rooted("/src/a.cs"));
+        assert_eq!(normalize_path("C:/src/a.cs"), drive);
+        assert_eq!(normalize_path("/C:/src/a.cs"), drive);
+        assert_eq!(normalize_path("/src/a.cs"), rooted);
+        assert_eq!(suffix_for("C:/src/a.cs"), native("C:/src/a.cs"));
+        assert_eq!(
+            suffix_for("src/a.cs"),
+            format!("{MAIN_SEPARATOR_STR}{relative}")
+        );
+        let stdout = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///C:/src/a.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let findings = parse_sarif(TOOL, &stdout, Some(1), &[&drive]).expect("drive uri");
+        assert_eq!(findings[0].file, drive);
+        let relative_uri = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let findings = parse_sarif(TOOL, &relative_uri, Some(1), &[&drive]).expect("relative uri");
+        assert_eq!(findings[0].file, drive);
+        let based = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"k"}},"originalUriBaseIds":{"%SRCROOT%":{"uri":"file:///C:/src/"}},"results":[{"ruleId":"R","level":"error","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"../other/a.cs","uriBaseId":"%SRCROOT%"},"region":{"startLine":1}}}]}]}]}"#;
+        let other = format!("C:{sep}other{sep}a.cs");
+        let findings = parse_sarif(TOOL, based, Some(1), &[&other]).expect("drive base join");
+        assert_eq!(findings[0].file, other);
     }
 
     #[test]

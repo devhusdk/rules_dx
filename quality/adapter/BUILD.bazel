@@ -87,7 +87,10 @@ rust_library(
             "thiserror",
         ],
         package_name = "quality/quality_adapter",
-    ) + ["//quality/result:quality_result"],
+    ) + [
+        "//cli/path:dx_path",
+        "//quality/result:quality_result",
+    ],
 )
 
 rust_test(

@@ -23,16 +23,20 @@ impl PathProblem {
     }
 }
 
-fn has_drive_prefix(path: &str) -> bool {
+pub fn drive_prefix(path: &str) -> bool {
     let bytes = path.as_bytes();
     bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+}
+
+pub fn is_absolute(path: &str) -> bool {
+    path.starts_with('/') || drive_prefix(path)
 }
 
 pub fn classify(path: &str) -> Option<PathProblem> {
     if path.is_empty() {
         return Some(PathProblem::Empty);
     }
-    if path.starts_with('/') || has_drive_prefix(path) {
+    if is_absolute(path) {
         return Some(PathProblem::Absolute);
     }
     if path.contains('\\') {
@@ -128,6 +132,44 @@ mod tests {
         assert_eq!(classify("a\\//b"), Some(PathProblem::Backslash));
         assert_eq!(classify("a//./b"), Some(PathProblem::EmptyComponent));
         assert_eq!(classify("a/./../b"), Some(PathProblem::Dot));
+    }
+
+    #[test]
+    fn drive_prefix_is_the_two_byte_rule() {
+        for path in ["C:", "C:/a", "C:relative", "c:/lowercase", "Z:/a"] {
+            assert!(drive_prefix(path), "drive prefix missed: {path:?}");
+        }
+        for path in ["", "C", ":", "/C:/a", "1:/a", "src/a:b", "CC:/a"] {
+            assert!(!drive_prefix(path), "drive prefix accepted: {path:?}");
+        }
+    }
+
+    #[test]
+    fn is_absolute_agrees_with_the_ladder() {
+        for path in [
+            "/absolute",
+            "C:/Windows/System32/drivers/etc/hosts",
+            "C:relative",
+            "c:/lowercase",
+            "C:",
+            "",
+            "src/lib.rs",
+            "src/a:b",
+            "a:b/c",
+            "back\\slash",
+            "a//b",
+            "a/./b",
+            "a/../b",
+        ] {
+            assert_eq!(
+                is_absolute(path),
+                classify(path) == Some(PathProblem::Absolute),
+                "path: {path:?}"
+            );
+        }
+        assert!(is_absolute("/"));
+        assert!(is_absolute("C:"));
+        assert!(!is_absolute("src/lib.rs"));
     }
 
     #[test]

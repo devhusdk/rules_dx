@@ -1,5 +1,8 @@
 use super::junit_types::{JunitCase, JunitMessage};
 use super::ReportError;
+use quick_xml::events::attributes::Attribute;
+use quick_xml::events::BytesStart;
+use std::borrow::Cow;
 
 fn junit_error(detail: impl Into<String>) -> ReportError {
     ReportError::InvalidJunit {
@@ -79,9 +82,7 @@ pub fn parse_test_xml(
 }
 
 fn deserialize_report(text: &str) -> Result<quick_junit::Report, ReportError> {
-    let without_ts = strip_timestamp_attrs(text);
-    let without_negative = clamp_negative_times(&without_ts);
-    let normalized = without_negative
+    let normalized = normalize_document(text)
         .replace("<testsuite>", "<testsuite name=\"dx\">")
         .replace("<testsuite/>", "<testsuite name=\"dx\"/>");
     match quick_junit::Report::deserialize_from_str(&normalized) {
@@ -120,13 +121,14 @@ fn strip_leading_decl(text: &str) -> &str {
     text
 }
 
-fn strip_timestamp_attrs(text: &str) -> String {
-    use quick_xml::events::{BytesStart, Event};
+/// Drops `timestamp` attributes and clamps negative `time` values, failing open on bad XML.
+fn normalize_document(text: &str) -> String {
+    use quick_xml::events::Event;
     use quick_xml::reader::Reader;
     use quick_xml::writer::Writer;
     use std::io::Cursor;
 
-    if !text.contains("timestamp") {
+    if !text.contains("timestamp") && !text.contains("=\"-") && !text.contains("='-") {
         return text.to_owned();
     }
 
@@ -136,252 +138,102 @@ fn strip_timestamp_attrs(text: &str) -> String {
     reader.config_mut().expand_empty_elements = false;
 
     let mut writer = Writer::new(Cursor::new(Vec::with_capacity(text.len())));
-    let mut stripped_any = false;
+    let mut changed = false;
 
     loop {
         match reader.read_event() {
-            Ok(Event::Start(e)) => {
-                let content: &[u8] = &e;
-                let name_len = e.name().as_ref().len();
-                if let Some(filtered) = remove_timestamp_from_tag(content, name_len) {
-                    stripped_any = true;
-                    match String::from_utf8(filtered) {
-                        Ok(s) => {
-                            let elem = BytesStart::from_content(s, name_len);
-                            if writer.write_event(Event::Start(elem)).is_err() {
-                                return text.to_owned();
-                            }
-                        }
-                        Err(_) => {
-                            if writer.write_event(Event::Start(e)).is_err() {
-                                return text.to_owned();
-                            }
-                        }
-                    }
-                } else if writer.write_event(Event::Start(e)).is_err() {
-                    return text.to_owned();
-                }
-            }
-            Ok(Event::Empty(e)) => {
-                let content: &[u8] = &e;
-                let name_len = e.name().as_ref().len();
-                if let Some(filtered) = remove_timestamp_from_tag(content, name_len) {
-                    stripped_any = true;
-                    match String::from_utf8(filtered) {
-                        Ok(s) => {
-                            let elem = BytesStart::from_content(s, name_len);
-                            if writer.write_event(Event::Empty(elem)).is_err() {
-                                return text.to_owned();
-                            }
-                        }
-                        Err(_) => {
-                            if writer.write_event(Event::Empty(e)).is_err() {
-                                return text.to_owned();
-                            }
-                        }
-                    }
-                } else if writer.write_event(Event::Empty(e)).is_err() {
-                    return text.to_owned();
-                }
-            }
             Ok(Event::Eof) => break,
+            Ok(Event::Start(e)) => match rewrite_attributes(&e) {
+                Ok(Some(elem)) => {
+                    changed = true;
+                    if writer.write_event(Event::Start(elem)).is_err() {
+                        return text.to_owned();
+                    }
+                }
+                Ok(None) => {
+                    if writer.write_event(Event::Start(e)).is_err() {
+                        return text.to_owned();
+                    }
+                }
+                Err(()) => return text.to_owned(),
+            },
+            Ok(Event::Empty(e)) => match rewrite_attributes(&e) {
+                Ok(Some(elem)) => {
+                    changed = true;
+                    if writer.write_event(Event::Empty(elem)).is_err() {
+                        return text.to_owned();
+                    }
+                }
+                Ok(None) => {
+                    if writer.write_event(Event::Empty(e)).is_err() {
+                        return text.to_owned();
+                    }
+                }
+                Err(()) => return text.to_owned(),
+            },
             Ok(event) => {
                 if writer.write_event(event).is_err() {
                     return text.to_owned();
                 }
             }
-            Err(_) => {
-                return text.to_owned();
-            }
+            Err(_) => return text.to_owned(),
         }
     }
 
-    if !stripped_any {
+    if !changed {
         return text.to_owned();
     }
     let bytes = writer.into_inner().into_inner();
     String::from_utf8(bytes).unwrap_or_else(|_| text.to_owned())
 }
 
-fn is_xml_whitespace(byte: u8) -> bool {
-    matches!(byte, b' ' | b'\r' | b'\n' | b'\t')
+/// Rebuilds a tag without its `timestamp` attributes and with negative `time` values clamped.
+fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'static>>, ()> {
+    let mut kept: Vec<Attribute<'a>> = Vec::new();
+    let mut changed = false;
+    for attr in e.attributes() {
+        let Attribute { key, value } = attr.map_err(|_| ())?;
+        if key.as_ref() == b"timestamp" {
+            changed = true;
+        } else if key.as_ref() == b"time" && value.starts_with(b"-") {
+            changed = true;
+            kept.push(Attribute {
+                key,
+                value: Cow::Borrowed(&b"0"[..]),
+            });
+        } else {
+            kept.push(Attribute {
+                key,
+                value: escape_inner_quotes(value),
+            });
+        }
+    }
+    if !changed {
+        return Ok(None);
+    }
+    let name = e.name();
+    let name = std::str::from_utf8(name.as_ref()).map_err(|_| ())?;
+    let mut elem = BytesStart::new(name).into_owned();
+    for attr in kept {
+        elem.push_attribute(attr);
+    }
+    Ok(Some(elem))
 }
 
-fn remove_timestamp_from_tag(content: &[u8], name_len: usize) -> Option<Vec<u8>> {
-    if name_len > content.len() {
-        return None;
+/// Attribute values keep their raw escaping, so only the quote that delimits them needs care.
+fn escape_inner_quotes(value: Cow<'_, [u8]>) -> Cow<'_, [u8]> {
+    if !value.contains(&b'"') {
+        return value;
     }
-    let mut has_candidate = false;
-    if content.len() >= b"timestamp".len() {
-        for window in content.windows(b"timestamp".len()) {
-            if window == b"timestamp" {
-                has_candidate = true;
-                break;
-            }
-        }
+    let mut out = Vec::with_capacity(value.len());
+    let mut rest = value.as_ref();
+    while let Some(at) = rest.iter().position(|b| *b == b'"') {
+        out.extend_from_slice(&rest[..at]);
+        out.extend_from_slice(b"&quot;");
+        rest = &rest[at + 1..];
     }
-    if !has_candidate {
-        return None;
-    }
-
-    let mut remove_ranges: Vec<(usize, usize)> = Vec::new();
-    let mut pos = name_len;
-    while pos < content.len() {
-        let ws_start = pos;
-        while pos < content.len() && is_xml_whitespace(content[pos]) {
-            pos += 1;
-        }
-        if pos >= content.len() {
-            break;
-        }
-        if content[pos] == b'/' || content[pos] == b'>' || content[pos] == b'?' {
-            break;
-        }
-        let key_start = pos;
-        while pos < content.len()
-            && content[pos] != b'='
-            && !is_xml_whitespace(content[pos])
-            && content[pos] != b'/'
-            && content[pos] != b'>'
-        {
-            pos += 1;
-        }
-        let key_end = pos;
-        if key_start == key_end {
-            pos += 1;
-            continue;
-        }
-        let key = &content[key_start..key_end];
-        while pos < content.len() && is_xml_whitespace(content[pos]) {
-            pos += 1;
-        }
-        if pos >= content.len() || content[pos] != b'=' {
-            continue;
-        }
-        pos += 1;
-        while pos < content.len() && is_xml_whitespace(content[pos]) {
-            pos += 1;
-        }
-        if pos >= content.len() {
-            break;
-        }
-        let quote = content[pos];
-        if quote != b'"' && quote != b'\'' {
-            while pos < content.len()
-                && !is_xml_whitespace(content[pos])
-                && content[pos] != b'>'
-                && content[pos] != b'/'
-            {
-                pos += 1;
-            }
-            continue;
-        }
-        pos += 1;
-        let mut closed = false;
-        while pos < content.len() {
-            if content[pos] == quote {
-                closed = true;
-                break;
-            }
-            pos += 1;
-        }
-        if !closed {
-            return None;
-        }
-        pos += 1;
-        let attr_end = pos;
-        if key == b"timestamp" {
-            remove_ranges.push((ws_start, attr_end));
-        }
-    }
-
-    if remove_ranges.is_empty() {
-        return None;
-    }
-    let mut out = Vec::with_capacity(content.len());
-    let mut cursor = 0;
-    for (start, end) in remove_ranges {
-        if start > cursor {
-            out.extend_from_slice(&content[cursor..start]);
-        }
-        cursor = end;
-    }
-    if cursor < content.len() {
-        out.extend_from_slice(&content[cursor..]);
-    }
-    Some(out)
-}
-
-fn clamp_negative_times(text: &str) -> String {
-    fn clamp_one(tag: &mut String) -> bool {
-        let mut search_from = 0;
-        while let Some(rel) = tag[search_from..].find("time") {
-            let pos = search_from + rel;
-            if pos > 0 && !tag.as_bytes()[pos - 1].is_ascii_whitespace() {
-                search_from = pos + 1;
-                continue;
-            }
-            let mut j = pos + "time".len();
-            while j < tag.len() && tag.as_bytes()[j].is_ascii_whitespace() {
-                j += 1;
-            }
-            if j >= tag.len() || tag.as_bytes()[j] != b'=' {
-                search_from = pos + 1;
-                continue;
-            }
-            j += 1;
-            while j < tag.len() && tag.as_bytes()[j].is_ascii_whitespace() {
-                j += 1;
-            }
-            if j >= tag.len() || tag.as_bytes()[j] != b'"' {
-                search_from = pos + 1;
-                continue;
-            }
-            j += 1;
-            if j < tag.len() && tag.as_bytes()[j] == b'-' {
-                let value_start = j;
-                while j < tag.len() && tag.as_bytes()[j] != b'"' {
-                    j += 1;
-                }
-                if j >= tag.len() {
-                    return false;
-                }
-                tag.replace_range(value_start..j, "0");
-                return true;
-            }
-            search_from = pos + 1;
-        }
-        false
-    }
-
-    let mut out = String::with_capacity(text.len());
-    let mut rest = text;
-    loop {
-        let suite_pos = rest.find("<testsuite");
-        let case_pos = rest.find("<testcase");
-        let tag_start = match (suite_pos, case_pos) {
-            (Some(s), Some(c)) => Some(s.min(c)),
-            (Some(s), None) => Some(s),
-            (None, Some(c)) => Some(c),
-            (None, None) => None,
-        };
-        let Some(tag_start) = tag_start else {
-            out.push_str(rest);
-            break;
-        };
-        out.push_str(&rest[..tag_start]);
-        let tag_rest = &rest[tag_start..];
-        let Some(tag_end_rel) = tag_rest.find('>') else {
-            out.push_str(tag_rest);
-            break;
-        };
-        let tag_end = tag_end_rel + 1;
-        let mut tag = tag_rest[..tag_end].to_owned();
-        while clamp_one(&mut tag) {}
-        out.push_str(&tag);
-        rest = &rest[tag_start + tag_end..];
-    }
-    out
+    out.extend_from_slice(rest);
+    Cow::Owned(out)
 }
 
 #[cfg(test)]
@@ -389,7 +241,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn timestamp_attribute_scanner_preserves_unrelated_and_truncated_bytes() {
+    fn normalize_document_keeps_unrelated_and_malformed_input() {
         for input in [
             "testcase timestamp",
             "testcase timestamp=",
@@ -401,17 +253,16 @@ mod tests {
             "testcase timestamp ?",
             "testcase = timestamp",
             "testcase timestamp   ",
+            "<short",
+            "<testcase name=\"a\" timestamp",
+            "<testcase name=\"a\" timestamp='unterminated",
+            "<testcase name=\"a\" time='-1'",
         ] {
-            assert_eq!(
-                remove_timestamp_from_tag(input.as_bytes(), 8),
-                None,
-                "{input}"
-            );
+            assert_eq!(normalize_document(input), input, "{input}");
         }
-        assert_eq!(remove_timestamp_from_tag(b"short", 99), None);
         assert_eq!(
-            remove_timestamp_from_tag(b"testcase timestamp='ignored' name='kept'", 8),
-            Some(b"testcase name='kept'".to_vec())
+            normalize_document("<testcase timestamp='ignored' name='kept'/>"),
+            r#"<testcase name="kept"/>"#
         );
     }
 
@@ -428,16 +279,16 @@ mod tests {
         for (input, expected) in [
             (
                 "<testcase runtime=\"-1\" time = \"-2\"/>",
-                "<testcase runtime=\"-1\" time = \"0\"/>",
+                "<testcase runtime=\"-1\" time=\"0\"/>",
             ),
-            ("<testcase time='-1'/>", "<testcase time='-1'/>"),
+            ("<testcase time='-1'/>", "<testcase time=\"0\"/>"),
             ("<testcase time=\"-1>", "<testcase time=\"-1>"),
             (
                 "<testcase time other=\"x\"/>",
                 "<testcase time other=\"x\"/>",
             ),
         ] {
-            assert_eq!(clamp_negative_times(input), expected);
+            assert_eq!(normalize_document(input), expected, "{input}");
         }
         assert_eq!(
             strip_leading_decl("<?xml unterminated"),
@@ -634,26 +485,30 @@ mod tests {
     #[test]
     fn junit_strip_timestamp_uses_typed_events() {
         let single = r#"<testsuite name="a" timestamp = '2026-09-19T21:10:02'><testcase name="a"/></testsuite>"#;
-        let stripped = strip_timestamp_attrs(single);
+        let stripped = normalize_document(single);
         assert!(!stripped.contains("2026-09-19T21:10:02"));
         assert!(stripped.contains(r#"name="a""#));
         assert!(parse_test_xml(single.as_bytes(), 0, 0).is_ok());
 
         let gt = r#"<testsuite name="a>b" timestamp="2026-09-19T21:10:02"><testcase name="a"/></testsuite>"#;
-        let stripped = strip_timestamp_attrs(gt);
+        let stripped = normalize_document(gt);
         assert!(!stripped.contains("2026-09-19T21:10:02"));
         assert!(stripped.contains(r#"name="a>b""#));
         assert!(parse_test_xml(gt.as_bytes(), 0, 0).is_ok());
 
         let value_lookalike = r#"<testsuite name='a timestamp="kept" b' timestamp="2026-09-19T21:10:02"><testcase name="a"/></testsuite>"#;
-        let stripped = strip_timestamp_attrs(value_lookalike);
+        let stripped = normalize_document(value_lookalike);
         assert!(!stripped.contains("2026-09-19T21:10:02"));
-        assert!(stripped.contains(r#"timestamp="kept""#));
+        assert!(stripped.contains("&quot;kept&quot;"));
         assert!(parse_test_xml(value_lookalike.as_bytes(), 0, 0).is_ok());
+
+        let lookalike_name = r#"<testsuite><testcase name='a timestamp="kept" b' timestamp="2026-09-19T21:10:02"/></testsuite>"#;
+        let cases = parse_test_xml(lookalike_name.as_bytes(), 0, 0).expect("lookalike name");
+        assert_eq!(cases[0].name, r#"a timestamp="kept" b"#);
 
         let cdata_inner = r#"<testsuite timestamp="2026-09-19T21:10:02">"#;
         let cdata = r#"<testsuite name="a" timestamp="2026-09-19T21:10:02"><testcase name="a"><failure><![CDATA[<testsuite timestamp="2026-09-19T21:10:02">]]></failure></testcase></testsuite>"#;
-        let stripped = strip_timestamp_attrs(cdata);
+        let stripped = normalize_document(cdata);
         assert!(stripped.contains(cdata_inner));
         let cases = parse_test_xml(cdata.as_bytes(), 0, 0).expect("cdata");
         assert!(cases[0]
@@ -667,7 +522,7 @@ mod tests {
         let with_comment = format!(
             r#"<testsuite name="a" timestamp="2026-09-19T21:10:02">{comment}<testcase name="a"/></testsuite>"#
         );
-        let stripped = strip_timestamp_attrs(&with_comment);
+        let stripped = normalize_document(&with_comment);
         assert!(stripped.contains(comment));
         assert!(parse_test_xml(with_comment.as_bytes(), 0, 0).is_ok());
 

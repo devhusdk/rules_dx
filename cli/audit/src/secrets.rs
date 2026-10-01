@@ -2,53 +2,9 @@ pub const GITLEAKS_TOOL: &str = "gitleaks";
 
 pub const TRUFFLEHOG_V1: &str = "wont-fix";
 
-pub const OBSERVED_VERSION: &str = "8.30.1";
-
-pub const GITLEAKS_VERSION: &str = "8.30.1";
-
 pub const TOOL_ENV_VAR: &str = "DX_GITLEAKS_BIN";
 
 pub const TOOL_LABEL: &str = "@dx_tools//:gitleaks";
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct HostArtifact {
-    pub platform: &'static str,
-    pub url: &'static str,
-    pub sha256: &'static str,
-    pub size: u64,
-    pub executable: &'static str,
-}
-
-pub const HOST_ARTIFACTS: &[HostArtifact] = &[
-    HostArtifact {
-        platform: "linux_x86_64",
-        url: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
-        sha256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
-        size: 8230402,
-        executable: "gitleaks",
-    },
-    HostArtifact {
-        platform: "linux_arm64",
-        url: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz",
-        sha256: "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080",
-        size: 7601421,
-        executable: "gitleaks",
-    },
-    HostArtifact {
-        platform: "macos_arm64",
-        url: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz",
-        sha256: "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
-        size: 7897593,
-        executable: "gitleaks",
-    },
-    HostArtifact {
-        platform: "windows_x86_64",
-        url: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip",
-        sha256: "d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e",
-        size: 8438883,
-        executable: "gitleaks.exe",
-    },
-];
 
 pub fn hermetic_env(temp_dir: &std::path::Path) -> Vec<(String, String)> {
     vec![("TMPDIR".to_owned(), temp_dir.to_string_lossy().into_owned())]
@@ -73,61 +29,6 @@ pub const CONFIG_DISCOVERY_ORDER: &[&str] = &[
     ".gitleaks.toml",
     "built-in defaults",
 ];
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ArtifactPin {
-    pub tool: String,
-    pub upstream_version: String,
-    pub url: String,
-    pub sha256: String,
-    pub size: u64,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum PinProblem {
-    #[error("gitleaks pin names wrong tool {tool:?}")]
-    WrongTool { tool: String },
-    #[error("gitleaks pin missing {field}")]
-    MissingField { field: &'static str },
-    #[error("gitleaks pin has non-https URL {url:?}")]
-    BadUrl { url: String },
-    #[error("gitleaks pin has invalid sha256 {value:?}; want 64 lowercase hex")]
-    BadDigest { value: String },
-    #[error("gitleaks pin has invalid size {size}; want nonzero")]
-    BadSize { size: u64 },
-}
-
-pub fn validate_pin(pin: &ArtifactPin) -> Result<(), PinProblem> {
-    if pin.tool != GITLEAKS_TOOL {
-        return Err(PinProblem::WrongTool {
-            tool: pin.tool.clone(),
-        });
-    }
-    for (field, value) in [
-        ("upstream_version", pin.upstream_version.as_str()),
-        ("url", pin.url.as_str()),
-        ("sha256", pin.sha256.as_str()),
-    ] {
-        if value.trim().is_empty() {
-            return Err(PinProblem::MissingField { field });
-        }
-    }
-    if !(pin.url.starts_with("https://") && url::Url::parse(&pin.url).is_ok()) {
-        return Err(PinProblem::BadUrl {
-            url: pin.url.clone(),
-        });
-    }
-    let valid_digest = dx_digest::is_hex(&pin.sha256);
-    if !valid_digest {
-        return Err(PinProblem::BadDigest {
-            value: pin.sha256.clone(),
-        });
-    }
-    if pin.size == 0 {
-        return Err(PinProblem::BadSize { size: pin.size });
-    }
-    Ok(())
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SecretsReport {
@@ -225,94 +126,6 @@ pub fn triage_sarif(text: &str) -> Result<Vec<SecretFinding>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn pin() -> ArtifactPin {
-        ArtifactPin {
-            tool: "gitleaks".to_owned(),
-            upstream_version: "8.30.1".to_owned(),
-            url: "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz".to_owned(),
-            sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-                .to_owned(),
-            size: 12345678,
-        }
-    }
-
-    #[test]
-    fn valid_pin_passes() {
-        validate_pin(&pin()).expect("valid pin qualifies");
-    }
-
-    #[test]
-    fn wrong_tool_fails() {
-        let mut bad = pin();
-        bad.tool = "trufflehog".to_owned();
-        assert_eq!(
-            validate_pin(&bad),
-            Err(PinProblem::WrongTool {
-                tool: "trufflehog".to_owned()
-            })
-        );
-    }
-
-    #[test]
-    fn trufflehog_v1_stays_wont_fix() {
-        assert_eq!(TRUFFLEHOG_V1, "wont-fix");
-        assert_eq!(GITLEAKS_TOOL, "gitleaks");
-    }
-
-    #[test]
-    fn empty_fields_fail() {
-        let mut bad = pin();
-        bad.upstream_version = "  ".to_owned();
-        assert_eq!(
-            validate_pin(&bad),
-            Err(PinProblem::MissingField {
-                field: "upstream_version"
-            })
-        );
-        let mut bad = pin();
-        bad.url = String::new();
-        assert!(validate_pin(&bad).is_err());
-        let mut bad = pin();
-        bad.sha256 = String::new();
-        assert!(validate_pin(&bad).is_err());
-    }
-
-    #[test]
-    fn non_https_url_fails() {
-        let mut bad = pin();
-        bad.url = "http://example.com/gitleaks.tar.gz".to_owned();
-        assert_eq!(
-            validate_pin(&bad),
-            Err(PinProblem::BadUrl {
-                url: "http://example.com/gitleaks.tar.gz".to_owned()
-            })
-        );
-    }
-
-    #[test]
-    fn malformed_digests_fail() {
-        for digest in [
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85",
-            "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
-            "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
-            "not-a-digest",
-        ] {
-            let mut bad = pin();
-            bad.sha256 = digest.to_owned();
-            assert!(
-                matches!(validate_pin(&bad), Err(PinProblem::BadDigest { .. })),
-                "{digest} must fail"
-            );
-        }
-    }
-
-    #[test]
-    fn zero_size_fails() {
-        let mut bad = pin();
-        bad.size = 0;
-        assert_eq!(validate_pin(&bad), Err(PinProblem::BadSize { size: 0 }));
-    }
 
     #[test]
     fn report_argv_pins_sarif_redact_and_path() {
@@ -486,46 +299,6 @@ mod tests {
                 ".gitleaks.toml",
                 "built-in defaults",
             ]
-        );
-    }
-
-    #[test]
-    fn hermetic_hosts_pin_five_platforms() {
-        assert_eq!(GITLEAKS_VERSION, "8.30.1");
-        assert_eq!(TOOL_ENV_VAR, "DX_GITLEAKS_BIN");
-        assert_eq!(TOOL_LABEL, "@dx_tools//:gitleaks");
-        let platforms: Vec<&str> = HOST_ARTIFACTS.iter().map(|host| host.platform).collect();
-        assert_eq!(
-            platforms,
-            vec![
-                "linux_x86_64",
-                "linux_arm64",
-                "macos_arm64",
-                "windows_x86_64",
-            ]
-        );
-        for host in HOST_ARTIFACTS {
-            let pin = ArtifactPin {
-                tool: GITLEAKS_TOOL.to_owned(),
-                upstream_version: GITLEAKS_VERSION.to_owned(),
-                url: host.url.to_owned(),
-                sha256: host.sha256.to_owned(),
-                size: host.size,
-            };
-            validate_pin(&pin).expect("host pin qualifies");
-            assert!(host
-                .url
-                .starts_with("https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/"));
-            assert_eq!(host.sha256.len(), 64);
-            assert!(host.size > 7_000_000);
-        }
-        assert_eq!(
-            HOST_ARTIFACTS
-                .iter()
-                .find(|host| host.platform == "windows_x86_64")
-                .expect("windows pin")
-                .executable,
-            "gitleaks.exe"
         );
     }
 

@@ -1056,10 +1056,6 @@ pub fn fantomas_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, FANTOMAS_FIX_ARGS, files, "")
 }
 
-pub fn roslyn_errorlog(sarif: &Path) -> OsString {
-    OsString::from(format!("/errorlog:{}", sarif.to_string_lossy()))
-}
-
 pub fn fsharplint_check(
     binary: &Path,
     files: &[&Path],

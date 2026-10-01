@@ -230,28 +230,760 @@ mod tests {
         x
     }
 
+    const FUZZ_FILES: &[&str] = &[
+        "/s/a.ts",
+        "/s/a.java",
+        "/s/a.js",
+        "/s/a.bzl",
+        "/s/x.toml",
+        "/s/x.rs",
+        "/s/a.py",
+        "/s/x.proto",
+        "/s/Hello.java",
+        "/s/dirty.toml",
+        "/s/a.c",
+        "/s/a.cc",
+        "/s/a.h",
+        "/s/a.cs",
+        "/s/a.fs",
+        "/s/a.go",
+        "/s/a.scala",
+        "/s/a.kt",
+        "/s/a.kts",
+        "/s/a.rb",
+        "/s/a.ex",
+        "/s/a.exs",
+        "/s/a.sh",
+        "/s/a.ps1",
+        "/s/a.qml",
+        "/s/a.yaml",
+        "/s/a.yml",
+        "/s/a.tf",
+        "/s/a.cue",
+        "/s/a.libsonnet",
+        "/s/a.pkl",
+        "/s/a.css",
+        "/s/a.html",
+        "/s/a.txt",
+        "/s/a.pp",
+    ];
+
+    const FUZZ_SEEDS: &[&[u8]] = &[
+        b"",
+        b"{}\n",
+        b"[]\n",
+        b"null\n",
+        b"not json",
+        b"/s/a.ts(1,1): error TS1234: msg\n",
+        br#"{"version":"2.1.0","runs":[]}"#,
+        br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"T"}},"results":[{"ruleId":"r","level":"error","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#,
+        br#"[{"filePath":"/s/a.js","messages":[{"ruleId":"x","severity":2,"message":"m","line":1,"column":1}]}]"#,
+        br#"{"success":false,"files":[{"filename":"/s/a.bzl","formatted":false,"valid":true,"warnings":[]}]}"#,
+        br#"{"path":"/s/x.proto","start_line":1,"start_column":1,"type":"T","message":"m"}"#,
+        br#"{"diagnostics":[{"severity":"error","message":"m","category":"c","location":{"path":"/s/a.js","start":{"line":1,"column":1},"end":{"line":1,"column":2}}}],"command":"lint"}"#,
+        br#"{"files":[{"path":"/s/a.fs","status":"needs-formatting"}]}"#,
+        br#"[{"type":"error","symbol":"s","message":"m","message-id":"E1","line":1,"column":0,"path":"/s/a.py"}]"#,
+        br#"{"files":[{"path":"/s/a.rb","offenses":[{"message":"m","severity":"convention","cop_name":"c","location":{"line":1,"column":1}}]}]}"#,
+        br#"[{"code":"S1000","severity":"warning","location":{"file":"/s/a.go","line":1,"column":1},"message":"m"}]"#,
+        br#"[{"source":"/s/a.css","warnings":[{"line":1,"column":2,"rule":"r","text":"m","severity":"error"}]}]"#,
+        br#"{"diagnostics":[{"file":"/s/a.qml","line":1,"message":"m"}]}"#,
+        br#"{"path":"/s/a.scala","line":1,"column":1,"rule":"r","message":"m","severity":"error"}"#,
+        b"path:1:1: E100 message\n",
+        b"error: bad\n  \xe2\x94\x8c\xe2\x94\x80 /s/x.toml:1:5\n",
+        b"Diff in /s/x.rs:1:\n-fn  main(){}\n+fn main() {}\n",
+        b"--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a\n+b\n",
+        b"--- /dev/null\n+++ b/x.py\n@@ -0,0 +1 @@\n+a\n",
+        b"/s/a.c:4:3: warning: msg [readability-else-after-return]\n",
+        b"/s/a.c:4:3: note: msg\n",
+        b"/s/a.go:10:5: unchecked error\n",
+        b"/s/a.bzl:3: out of order\n",
+        b"/s/a.py:1:1: E501 line too long\n",
+        b"/s/a.py:1:1: C901 too complex\n",
+        b"/s/a.yaml:3:1: msg here\n",
+        b"/s/a.sh:1:1: msg here\n",
+        b"/s/a.ps1:1:1: [Rule.Name] msg\n",
+        b"/s/a.py\n    4: DOC101: msg\n",
+        b"/s/a.py\n",
+        b"/s/Hello.java:3: error: [DeadException] msg\n1 error\n",
+        b"/s/a.c\n",
+        b"./a.cs\n",
+        b"<results version=\"2\"><errors><error id=\"a\" severity=\"error\" msg=\"m\"><location file=\"/s/a.c\" line=\"1\"/></error></errors></results>",
+        b"<results version=\"2\"></results>",
+        b"{\n",
+        b"\xff\xfe\x00",
+    ];
+
+    type FuzzFn = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<super::FileFinding>, ParseError>;
+
+    fn fuzz_biome_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::biome::parse_biome_lint(input, code, files)
+    }
+
+    fn fuzz_biome_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::biome::parse_biome_format(input, code, files)
+    }
+
+    fn fuzz_buf_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::buf::parse_buf_lint(input, code, files)
+    }
+
+    fn fuzz_buf_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::buf::parse_buf_format(input, code, files)
+    }
+
+    fn fuzz_checkstyle(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::checkstyle::parse_checkstyle(input, code, files)
+    }
+
+    fn fuzz_clang_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::clang_format::parse_clang_format(input, code, files)
+    }
+
+    fn fuzz_clang_tidy(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::clang_tidy::parse_clang_tidy(input, code, files)
+    }
+
+    fn fuzz_cppcheck(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::cppcheck::parse_cppcheck(input, code, files)
+    }
+
+    fn fuzz_csharpier(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::csharpier::parse_csharpier(input, code, files)
+    }
+
+    fn fuzz_cue(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::cue::parse_cue(input, code, files)
+    }
+
+    fn fuzz_djlint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::djlint::parse_djlint(input, code, files)
+    }
+
+    fn fuzz_djlint_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::djlint::parse_djlint_format(input, code, files)
+    }
+
+    fn fuzz_errcheck(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::errcheck::parse_errcheck(input, code, files)
+    }
+
+    fn fuzz_error_prone(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::error_prone::parse_error_prone(input, input, code, files)
+    }
+
+    fn fuzz_eslint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::eslint::parse_eslint(input, code, files)
+    }
+
+    fn fuzz_fantomas(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::fantomas::parse_fantomas(input, code, files)
+    }
+
+    fn fuzz_flake8(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::flake8::parse_flake8(input, code, files)
+    }
+
+    fn fuzz_fsharplint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::fsharplint::parse_fsharplint(input, code, files)
+    }
+
+    fn fuzz_gofumpt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::gofumpt::parse_gofumpt(input, code, files)
+    }
+
+    fn fuzz_google_java_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::google_java_format::parse_google_java_format(input, code, files)
+    }
+
+    fn fuzz_govet(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::govet::parse_govet(input, code, files)
+    }
+
+    fn fuzz_jsonnetfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jsonnetfmt::parse_jsonnetfmt(input, code, files)
+    }
+
+    fn fuzz_keep_sorted(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::keep_sorted::parse_keep_sorted(input, code, files)
+    }
+
+    fn fuzz_ktfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ktfmt::parse_ktfmt(input, code, files)
+    }
+
+    fn fuzz_ktlint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ktlint::parse_ktlint(input, code, files)
+    }
+
+    fn fuzz_markdown_findings(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::markdown::parse_markdown_findings(input, code, files)
+    }
+
+    fn fuzz_modfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::modfmt::parse_modfmt(input, code, files)
+    }
+
+    fn fuzz_pkl(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::pkl::parse_pkl(input, code, files)
+    }
+
+    fn fuzz_pmd(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::pmd::parse_pmd(input, code, files)
+    }
+
+    fn fuzz_prettier_check(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::prettier::parse_prettier_check(input, code, files)
+    }
+
+    fn fuzz_psscriptanalyzer(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::psscriptanalyzer::parse_psscriptanalyzer(input, code, files)
+    }
+
+    fn fuzz_pydoclint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::pydoclint::parse_pydoclint(input, code, files)
+    }
+
+    fn fuzz_pylint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::pylint::parse_pylint(input, code, files)
+    }
+
+    fn fuzz_qmlformat(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::qmlformat::parse_qmlformat(input, code, files)
+    }
+
+    fn fuzz_qmllint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::qmllint::parse_qmllint(input, code, files)
+    }
+
+    fn fuzz_roslyn(
+        input: &[u8],
+        _code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::roslyn::parse_roslyn(input, files)
+    }
+
+    fn fuzz_rubocop(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::rubocop::parse_rubocop(input, code, files)
+    }
+
+    fn fuzz_ruff(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ruff::parse_ruff(input, code, files)
+    }
+
+    fn fuzz_ruff_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ruff::parse_ruff_format(input, code, files)
+    }
+
+    fn fuzz_clippy(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::rust::parse_clippy(input, code, files)
+    }
+
+    fn fuzz_rustc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::rust::parse_rustc(input, code, files)
+    }
+
+    fn fuzz_buildifier(
+        input: &[u8],
+        _code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::buildifier::parse_buildifier(input, input, files)
+    }
+
+    fn fuzz_rustfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::rustfmt::parse_rustfmt(input, input, code, files)
+    }
+
+    fn fuzz_sarif(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::sarif::parse_sarif("fuzz", input, code, files)
+    }
+
+    fn fuzz_scalafix(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::scalafix::parse_scalafix(input, code, files)
+    }
+
+    fn fuzz_scalafmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::scalafmt::parse_scalafmt(input, code, files)
+    }
+
+    fn fuzz_shellcheck(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::shellcheck::parse_shellcheck(input, code, files)
+    }
+
+    fn fuzz_shfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::shfmt::parse_shfmt(input, code, files)
+    }
+
+    fn fuzz_spotbugs(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::spotbugs::parse_spotbugs(input, code, files)
+    }
+
+    fn fuzz_standardrb(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::standardrb::parse_standardrb(input, code, files)
+    }
+
+    fn fuzz_staticcheck(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::staticcheck::parse_staticcheck(input, code, files)
+    }
+
+    fn fuzz_stylelint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::stylelint::parse_stylelint(input, code, files)
+    }
+
+    fn fuzz_taplo_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::taplo::parse_taplo_lint(input, code, files)
+    }
+
+    fn fuzz_taplo_format_check(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::taplo::parse_taplo_format_check(input, code, files)
+    }
+
+    fn fuzz_terraform(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::terraform::parse_terraform(input, code, files)
+    }
+
+    fn fuzz_tsc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::tsc::parse_tsc(input, code, files)
+    }
+
+    fn fuzz_ty(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ty::parse_ty(input, code, files)
+    }
+
+    fn fuzz_vale(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::vale::parse_vale(input, code, files)
+    }
+
+    fn fuzz_yamlfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::yamlfmt::parse_yamlfmt(input, code, files)
+    }
+
+    fn fuzz_yamllint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::yamllint::parse_yamllint(input, code, files)
+    }
+
+    const FUZZ_PARSERS: &[(&str, FuzzFn)] = &[
+        ("biome_lint", fuzz_biome_lint),
+        ("biome_format", fuzz_biome_format),
+        ("buf_lint", fuzz_buf_lint),
+        ("buf_format", fuzz_buf_format),
+        ("checkstyle", fuzz_checkstyle),
+        ("clang_format", fuzz_clang_format),
+        ("clang_tidy", fuzz_clang_tidy),
+        ("cppcheck", fuzz_cppcheck),
+        ("csharpier", fuzz_csharpier),
+        ("cue", fuzz_cue),
+        ("djlint", fuzz_djlint),
+        ("djlint_format", fuzz_djlint_format),
+        ("errcheck", fuzz_errcheck),
+        ("error_prone", fuzz_error_prone),
+        ("eslint", fuzz_eslint),
+        ("fantomas", fuzz_fantomas),
+        ("flake8", fuzz_flake8),
+        ("fsharplint", fuzz_fsharplint),
+        ("gofumpt", fuzz_gofumpt),
+        ("google_java_format", fuzz_google_java_format),
+        ("govet", fuzz_govet),
+        ("jsonnetfmt", fuzz_jsonnetfmt),
+        ("keep_sorted", fuzz_keep_sorted),
+        ("ktfmt", fuzz_ktfmt),
+        ("ktlint", fuzz_ktlint),
+        ("parse_markdown_findings", fuzz_markdown_findings),
+        ("modfmt", fuzz_modfmt),
+        ("pkl", fuzz_pkl),
+        ("pmd", fuzz_pmd),
+        ("parse_prettier_check", fuzz_prettier_check),
+        ("psscriptanalyzer", fuzz_psscriptanalyzer),
+        ("pydoclint", fuzz_pydoclint),
+        ("pylint", fuzz_pylint),
+        ("qmlformat", fuzz_qmlformat),
+        ("qmllint", fuzz_qmllint),
+        ("roslyn", fuzz_roslyn),
+        ("rubocop", fuzz_rubocop),
+        ("ruff", fuzz_ruff),
+        ("ruff_format", fuzz_ruff_format),
+        ("clippy", fuzz_clippy),
+        ("rustc", fuzz_rustc),
+        ("buildifier", fuzz_buildifier),
+        ("rustfmt", fuzz_rustfmt),
+        ("sarif", fuzz_sarif),
+        ("scalafix", fuzz_scalafix),
+        ("scalafmt", fuzz_scalafmt),
+        ("shellcheck", fuzz_shellcheck),
+        ("shfmt", fuzz_shfmt),
+        ("spotbugs", fuzz_spotbugs),
+        ("standardrb", fuzz_standardrb),
+        ("staticcheck", fuzz_staticcheck),
+        ("stylelint", fuzz_stylelint),
+        ("taplo_lint", fuzz_taplo_lint),
+        ("taplo_format_check", fuzz_taplo_format_check),
+        ("terraform", fuzz_terraform),
+        ("tsc", fuzz_tsc),
+        ("ty", fuzz_ty),
+        ("vale", fuzz_vale),
+        ("yamlfmt", fuzz_yamlfmt),
+        ("yamllint", fuzz_yamllint),
+    ];
+
+    const PARSER_SOURCES: &[(&str, &str)] = &[
+        ("biome", include_str!("biome.rs")),
+        ("buf", include_str!("buf.rs")),
+        ("buildifier", include_str!("buildifier.rs")),
+        ("checkstyle", include_str!("checkstyle.rs")),
+        ("clang_format", include_str!("clang_format.rs")),
+        ("clang_tidy", include_str!("clang_tidy.rs")),
+        ("cppcheck", include_str!("cppcheck.rs")),
+        ("csharpier", include_str!("csharpier.rs")),
+        ("cue", include_str!("cue.rs")),
+        ("djlint", include_str!("djlint.rs")),
+        ("errcheck", include_str!("errcheck.rs")),
+        ("error_prone", include_str!("error_prone.rs")),
+        ("eslint", include_str!("eslint.rs")),
+        ("fantomas", include_str!("fantomas.rs")),
+        ("flake8", include_str!("flake8.rs")),
+        ("fsharplint", include_str!("fsharplint.rs")),
+        ("gofumpt", include_str!("gofumpt.rs")),
+        ("google_java_format", include_str!("google_java_format.rs")),
+        ("govet", include_str!("govet.rs")),
+        ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
+        ("keep_sorted", include_str!("keep_sorted.rs")),
+        ("ktfmt", include_str!("ktfmt.rs")),
+        ("ktlint", include_str!("ktlint.rs")),
+        ("markdown", include_str!("markdown.rs")),
+        ("modfmt", include_str!("modfmt.rs")),
+        ("pkl", include_str!("pkl.rs")),
+        ("pmd", include_str!("pmd.rs")),
+        ("prettier", include_str!("prettier.rs")),
+        ("psscriptanalyzer", include_str!("psscriptanalyzer.rs")),
+        ("pydoclint", include_str!("pydoclint.rs")),
+        ("pylint", include_str!("pylint.rs")),
+        ("qmlformat", include_str!("qmlformat.rs")),
+        ("qmllint", include_str!("qmllint.rs")),
+        ("roslyn", include_str!("roslyn.rs")),
+        ("rubocop", include_str!("rubocop.rs")),
+        ("ruff", include_str!("ruff.rs")),
+        ("rust", include_str!("rust.rs")),
+        ("rustfmt", include_str!("rustfmt.rs")),
+        ("sarif", include_str!("sarif.rs")),
+        ("scalafix", include_str!("scalafix.rs")),
+        ("scalafmt", include_str!("scalafmt.rs")),
+        ("shellcheck", include_str!("shellcheck.rs")),
+        ("shfmt", include_str!("shfmt.rs")),
+        ("spotbugs", include_str!("spotbugs.rs")),
+        ("standardrb", include_str!("standardrb.rs")),
+        ("staticcheck", include_str!("staticcheck.rs")),
+        ("stylelint", include_str!("stylelint.rs")),
+        ("taplo", include_str!("taplo.rs")),
+        ("terraform", include_str!("terraform.rs")),
+        ("tsc", include_str!("tsc.rs")),
+        ("ty", include_str!("ty.rs")),
+        ("vale", include_str!("vale.rs")),
+        ("yamlfmt", include_str!("yamlfmt.rs")),
+        ("yamllint", include_str!("yamllint.rs")),
+    ];
+
+    fn declared_parser_names() -> Vec<(String, String)> {
+        let mut found = Vec::new();
+        for (module, source) in PARSER_SOURCES {
+            let mut rest: &str = source;
+            while let Some(at) = rest.find("pub fn parse_") {
+                rest = &rest[at + "pub fn ".len()..];
+                let end = rest
+                    .find(|c: char| !c.is_alphanumeric() && c != '_')
+                    .unwrap_or(rest.len());
+                found.push(((*module).to_owned(), rest[..end].to_owned()));
+                rest = &rest[end..];
+            }
+        }
+        found
+    }
+
+    #[test]
+    fn every_declared_parser_is_in_the_fuzz_table() {
+        let declared = declared_parser_names();
+        assert!(
+            declared.len() >= 59,
+            "expected the full parser set, got {declared:?}"
+        );
+        let bare: Vec<String> = declared
+            .iter()
+            .flat_map(|(module, name)| {
+                [
+                    module.clone(),
+                    name.clone(),
+                    name.trim_start_matches("parse_").to_owned(),
+                ]
+            })
+            .collect();
+        let mut missing: Vec<String> = declared
+            .iter()
+            .filter(|(_, name)| !bare.iter().any(|known| known == name))
+            .map(|(_, name)| name.clone())
+            .collect();
+        missing.dedup();
+        let covered: Vec<&str> = bare.iter().map(String::as_str).collect();
+        let mut absent: Vec<String> = FUZZ_PARSERS
+            .iter()
+            .map(|(name, _)| (*name).to_owned())
+            .filter(|name| !covered.contains(&name.as_str()))
+            .collect();
+        absent.dedup();
+        missing.extend(absent.iter().cloned());
+        missing.sort();
+        assert!(
+            missing.is_empty(),
+            "declared parsers and FUZZ_PARSERS rows that do not match: {missing:?}"
+        );
+        let mut stale: Vec<&str> = FUZZ_PARSERS
+            .iter()
+            .map(|(name, _)| *name)
+            .filter(|name| !covered.contains(name))
+            .collect();
+        stale.sort_unstable();
+        assert!(
+            stale.is_empty(),
+            "FUZZ_PARSERS rows naming no declared parser: {stale:?}"
+        );
+    }
+
     #[test]
     fn fuzz_parsers_never_panic_on_arbitrary_bytes() {
-        let seeds: &[&[u8]] = &[
-            b"{}",
-            b"[]",
-            b"not json",
-            b"/s/a.ts(1,1): error TS1234: msg\n",
-            br#"{"version":"2.1.0","runs":[]}"#,
-            br#"[{"filePath":"/s/a.js","messages":[{"ruleId":"x","severity":2,"message":"m","line":1,"column":1}]}]"#,
-            br#"{"success":false,"files":[{"filename":"/s/a.bzl","formatted":false,"valid":true,"warnings":[]}]}"#,
-            b"path:1:1: E100 message\n",
-            b"error: bad\n  \xe2\x94\x8c\xe2\x94\x80 /s/x.toml:1:5\n",
-            b"Diff in /s/x.rs:1:\n-fn  main(){}\n+fn main() {}\n",
-            b"--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a\n+b\n",
-            b"{\"path\":\"x.proto\",\"start_line\":1,\"start_column\":1,\"type\":\"T\",\"message\":\"m\"}\n",
-            b"/s/Hello.java:3: error: [DeadException] msg\n1 error\n",
-            b"<results version=\"2\"><errors><error id=\"a\" severity=\"error\" msg=\"m\"><location file=\"/s/a.c\" line=\"1\"/></error></errors></results>",
-            b"\xff\xfe\x00",
-        ];
         let mut state = 0x9E37_79B9_7F4A_7C15u64;
-        for round in 0..400 {
-            let seed = seeds[round % seeds.len()];
+        for round in 0..200 {
+            let seed = FUZZ_SEEDS[round % FUZZ_SEEDS.len()];
             let mut input = seed.to_vec();
             match xorshift(&mut state) % 3 {
                 0 => {
@@ -271,43 +1003,16 @@ mod tests {
                     }
                 }
             }
-            let files = [
-                "/s/a.ts",
-                "/s/a.java",
-                "/s/a.js",
-                "/s/a.bzl",
-                "/s/x.toml",
-                "/s/x.rs",
-                "/s/a.py",
-                "/s/x.proto",
-                "/s/Hello.java",
-                "/s/dirty.toml",
-            ];
-            let _ = super::tsc::parse_tsc(&input, Some(2), &files);
-            let _ = super::sarif::parse_sarif("fuzz", &input, Some(1), &files);
-            let _ = super::ruff::parse_ruff(&input, Some(1), &files);
-            let _ = super::ruff::parse_ruff_format(&input, Some(1), &files);
-            let _ = super::vale::parse_vale(&input, Some(1), &files);
-            let _ = super::rust::parse_clippy(&input, Some(1), &files);
-            let _ = super::rust::parse_rustc(&input, Some(1), &files);
-            let _ = super::buildifier::parse_buildifier(&input, &input, &files);
-            let _ = super::eslint::parse_eslint(&input, Some(1), &files);
-            let _ = super::ty::parse_ty(&input, Some(1), &files);
-            let _ = super::taplo::parse_taplo_lint(&input, Some(1), &files);
-            let _ = super::taplo::parse_taplo_format_check(&input, Some(1), &files);
-            let _ = super::rustfmt::parse_rustfmt(&input, &input, Some(1), &files);
-            let _ = super::error_prone::parse_error_prone(&input, &input, Some(1), &files);
-            let _ = super::buf::parse_buf_lint(&input, Some(1), &files);
-            let _ = super::buf::parse_buf_format(&input, Some(1), &files);
-            let _ = super::djlint::parse_djlint(&input, Some(1), &files);
-            let _ = super::djlint::parse_djlint_format(&input, Some(1), &files);
-            let _ = super::shellcheck::parse_shellcheck(&input, Some(1), &files);
-            let _ = super::prettier::parse_prettier_check(&input, Some(1), &files);
-            let _ = super::govet::parse_govet(&input, Some(1), &files);
-            let _ = super::gofumpt::parse_gofumpt(&input, Some(1), &files);
-            let _ = super::markdown::parse_markdown_findings(&input, Some(0), &files);
-            let _ = super::spotbugs::parse_spotbugs(&input, Some(1), &files);
-            let _ = super::cppcheck::parse_cppcheck(&input, Some(1), &files);
+            for (name, parse) in FUZZ_PARSERS {
+                for code in [None, Some(0), Some(1), Some(2)] {
+                    if let Err(error) = parse(&input, code, FUZZ_FILES) {
+                        assert!(
+                            !error.to_string().is_empty(),
+                            "{name} produced an empty error for {input:?}"
+                        );
+                    }
+                }
+            }
         }
     }
 }

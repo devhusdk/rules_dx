@@ -218,10 +218,14 @@ fn diff_paths(text: &str) -> Vec<String> {
 }
 
 /// The old-side and new-side line counts a `@@` header declares, absent counts meaning 1.
+///
+/// A unified diff may name the enclosing section after the counts, as `git diff` does for
+/// every Go, C, Java or Ruby hunk: `@@ -8,5 +8,5 @@ func main() {`. Everything past the
+/// closing ` @@` is that name, so the counts end at the ` @@` and not at the end of the line.
 fn hunk_counts(line: &str) -> Option<(usize, usize)> {
     let rest = line.strip_prefix("@@ -")?;
     let (old, rest) = rest.split_once(" +")?;
-    let new = rest.strip_suffix(" @@")?;
+    let new = rest.split_once(" @@").map_or(rest, |(new, _)| new);
     Some((range_count(old)?, range_count(new)?))
 }
 
@@ -430,6 +434,14 @@ mod tests {
                 "--- a/q.sql\n+++ b/q.sql\n@@ -1,2 +1,2 @@\n CREATE TABLE t (id int);\n--- drop the old table\n+-- drop the legacy table\n"
             ),
             ["q.sql"]
+        );
+        // `git diff` names the enclosing section after the counts, and every Go, C, Java,
+        // Ruby or Python hunk has one. The counts still end the hunk there.
+        assert_eq!(
+            super::diff_paths(
+                "--- a/k.go\n+++ b/k.go\n@@ -5,5 +5,5 @@ import \"fmt\"\n func main() {\n \tfmt.Println(\"a\")\n \tfmt.Println(\"b\")\n--- keep\n+--- other\n }\n"
+            ),
+            ["k.go"]
         );
         // A second file after a hunk is still found.
         assert_eq!(

@@ -2,7 +2,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
 load("//quality:native_config.bzl", "biome_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "vale_config")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":aspect_tests.bzl", "aspect_fixture_tests")
 load(":real_aspect_subject.bzl", "real_aspect_subject")
@@ -486,6 +486,12 @@ rust_library(
     )
     for tool in _FAKE_FORMAT_TOOLS
 ]
+
+rust_test(
+    name = "fake_format_test",
+    size = "small",
+    crate = ":fake_format",
+)
 
 rustfmt_test(
     name = "fake_format_fmt_test",

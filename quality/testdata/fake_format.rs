@@ -19,6 +19,15 @@ enum Mode {
     Diff,
 }
 
+/// The unified-diff header the real tool writes, which differs per tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Header {
+    Git,
+    Orig,
+    OrigBanner,
+    OrigTimestamped,
+}
+
 #[derive(Default)]
 struct Flags {
     fix: bool,
@@ -42,6 +51,19 @@ fn mode_for(ext: &str) -> Mode {
         "go" => Mode::Diff0,
         "css" | "less" | "scss" | "feature" | "sql" | "xml" => Mode::Warn,
         _ => Mode::Diff,
+    }
+}
+
+/// The header shape each real producer writes.
+///
+/// `git diff` prefixes both sides, but the `diff -u` tools name the file itself and
+/// `gofumpt` and `buf` print the `diff` command line above the header.
+fn header_for(ext: &str) -> Header {
+    match ext {
+        "go" => Header::OrigBanner,
+        "cue" | "html" | "sh" => Header::Orig,
+        "proto" => Header::OrigTimestamped,
+        _ => Header::Git,
     }
 }
 
@@ -158,8 +180,23 @@ fn rewrite_fixed(path: &str) {
     }
 }
 
-fn emit_diff(file: &str) {
-    println!("--- a/{file}\n+++ b/{file}\n@@ -1 +1 @@\n-BADFMT\n+fixed");
+/// The header lines a tool prints above the hunk.
+fn render_header(file: &str, header: Header) -> String {
+    match header {
+        Header::Git => format!("--- a/{file}\n+++ b/{file}"),
+        Header::Orig => format!("--- {file}.orig\n+++ {file}"),
+        Header::OrigBanner => format!("diff {file}.orig {file}\n--- {file}.orig\n+++ {file}"),
+        Header::OrigTimestamped => format!(
+            "diff -u {file}.orig {file}\n--- {file}.orig\t2026-01-02 03:04:05.0 +0000\n+++ {file}\t2026-01-02 03:04:06.0 +0000"
+        ),
+    }
+}
+
+fn emit_diff(file: &str, header: Header) {
+    println!(
+        "{}\n@@ -1 +1 @@\n-BADFMT\n+fixed",
+        render_header(file, header)
+    );
 }
 
 pub fn run(argv: &[String]) -> i32 {
@@ -237,7 +274,7 @@ pub fn run(argv: &[String]) -> i32 {
             let mut dirty = false;
             for file in &files {
                 if is_dirty(file) {
-                    emit_diff(file);
+                    emit_diff(file, header_for(ext));
                     dirty = true;
                 }
             }
@@ -250,10 +287,57 @@ pub fn run(argv: &[String]) -> i32 {
         Mode::Diff0 => {
             for file in &files {
                 if is_dirty(file) {
-                    emit_diff(file);
+                    emit_diff(file, header_for(ext));
                 }
             }
             0
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_diff_reporting_extension_keeps_its_own_header() {
+        for (ext, want) in [
+            ("go", Header::OrigBanner),
+            ("cue", Header::Orig),
+            ("html", Header::Orig),
+            ("sh", Header::Orig),
+            ("proto", Header::OrigTimestamped),
+            ("c", Header::Git),
+            ("cs", Header::Git),
+            ("jsonnet", Header::Git),
+            ("mod", Header::Git),
+            ("pkl", Header::Git),
+            ("rb", Header::Git),
+            ("scala", Header::Git),
+            ("tf", Header::Git),
+            ("yaml", Header::Git),
+        ] {
+            assert_eq!(header_for(ext), want, "{ext}");
+        }
+    }
+
+    #[test]
+    fn each_header_names_the_file_the_way_its_tool_does() {
+        assert_eq!(
+            render_header("x.pkl", Header::Git),
+            "--- a/x.pkl\n+++ b/x.pkl"
+        );
+        assert_eq!(
+            render_header("x.cue", Header::Orig),
+            "--- x.cue.orig\n+++ x.cue"
+        );
+        assert_eq!(
+            render_header("x.go", Header::OrigBanner),
+            "diff x.go.orig x.go\n--- x.go.orig\n+++ x.go"
+        );
+        assert_eq!(
+            render_header("x.proto", Header::OrigTimestamped),
+            "diff -u x.proto.orig x.proto\n--- x.proto.orig\t2026-01-02 03:04:05.0 +0000\n+++ x.proto\t2026-01-02 03:04:06.0 +0000"
+        );
     }
 }

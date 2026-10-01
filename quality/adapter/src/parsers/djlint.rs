@@ -1,4 +1,7 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
+use super::{
+    check_output_size, code_name, diff_format, known, missing, point, DiffExit, FileFinding,
+    ParseError,
+};
 use crate::{Finding, ToolSeverity};
 
 pub fn parse_djlint(
@@ -74,64 +77,14 @@ pub fn parse_djlint_format(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "djlint";
-    check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
-    let mut mentioned: Vec<String> = Vec::new();
-    for line in text.lines() {
-        if let Some(path) = line.strip_prefix("--- ") {
-            let path = path.strip_prefix("a/").unwrap_or(path).trim();
-            if path.is_empty() || path == "/dev/null" {
-                continue;
-            }
-            if !mentioned.iter().any(|known| known == path) {
-                mentioned.push(path.to_owned());
-            }
-        }
-    }
-    if mentioned.is_empty() {
-        if code == Some(0) {
-            return Ok(Vec::new());
-        }
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diff markers", code_name(code)),
-        });
-    }
-    if code == Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with diff markers", code_name(code)),
-        });
-    }
-    let mut findings = Vec::with_capacity(mentioned.len());
-    for path in mentioned {
-        let checked = known(TOOL, files, &path)?;
-        let (start, end) = point(1, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: String::new(),
-                message: "file is not formatted".to_owned(),
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
-    }
-    Ok(findings)
+    diff_format("djlint", stdout, code, files, DiffExit::NonZero)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     const LINT_DIRTY: &str = "base.html:3:1: H006 img tags require alt text\n";
-    const FMT_DIRTY: &str = "--- a/base.html\n+++ b/base.html\n@@ -1 +1 @@\n-BADFMT\n+fixed\n";
+    const DIRTY: &str = "--- base.html.orig\n+++ base.html\n@@ -1 +1 @@\n-BADFMT\n+fixed";
     #[test]
     fn djlint_reports_lint_and_format() {
         let findings =
@@ -141,8 +94,7 @@ mod tests {
         let clean = parse_djlint(b"", Some(0), &["base.html"]).expect("parsed");
         assert!(clean.is_empty());
         assert!(parse_djlint(b"", Some(1), &["base.html"]).is_err());
-        let fmt =
-            parse_djlint_format(FMT_DIRTY.as_bytes(), Some(1), &["base.html"]).expect("parsed");
+        let fmt = parse_djlint_format(DIRTY.as_bytes(), Some(1), &["base.html"]).expect("parsed");
         assert_eq!(fmt.len(), 1);
         let fmt_clean = parse_djlint_format(b"", Some(0), &["base.html"]).expect("parsed");
         assert!(fmt_clean.is_empty());

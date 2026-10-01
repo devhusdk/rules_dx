@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
+use super::{check_output_size, code_name, diff_format, known, DiffExit, FileFinding, ParseError};
 use crate::{Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -120,51 +120,7 @@ pub fn parse_buf_format(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "buf";
-    check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
-    let mut mentioned: Vec<String> = Vec::new();
-    for line in text.lines() {
-        if let Some(path) = line.strip_prefix("--- ") {
-            let path = path.strip_prefix("a/").unwrap_or(path).trim();
-            if path.is_empty() || path == "/dev/null" {
-                continue;
-            }
-            if !mentioned.iter().any(|known| known == path) {
-                mentioned.push(path.to_owned());
-            }
-        }
-    }
-    if mentioned.is_empty() {
-        if code == Some(0) {
-            return Ok(Vec::new());
-        }
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diff markers", code_name(code)),
-        });
-    }
-    let mut findings = Vec::with_capacity(mentioned.len());
-    for path in mentioned {
-        let checked = known(TOOL, files, &path)?;
-        let (start, end) = point(1, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: String::new(),
-                message: "file is not formatted".to_owned(),
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
-    }
-    Ok(findings)
+    diff_format("buf", stdout, code, files, DiffExit::Unpinned)
 }
 
 #[cfg(test)]
@@ -172,7 +128,7 @@ mod tests {
     use super::*;
 
     const LINT: &str = "{\"path\": \"proto/hello.proto\", \"start_line\": 4, \"start_column\": 3, \"end_line\": 4, \"end_column\": 12, \"type\": \"PACKAGE_DIRECTORY_MATCH\", \"message\": \"Files with package foo must be in a directory foo.\"}\n";
-    const DIFF: &str = "--- a/proto/hello.proto\n+++ b/proto/hello.proto\n@@ -1 +1 @@\n-syntax = \"proto3\";\n+syntax = \"proto3\";\n";
+    const DIFF: &str = "diff -u proto/hello.proto.orig proto/hello.proto\n--- proto/hello.proto.orig\t2025-01-02 03:04:05.0 +0000\n+++ proto/hello.proto\t2025-01-02 03:04:06.0 +0000\n@@ -1 +1 @@\n-syntax = \"proto3\";\n+syntax = \"proto3\";\n";
 
     #[test]
     fn buf_lint_reports_jsonl_records() {

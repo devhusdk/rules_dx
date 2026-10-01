@@ -1,5 +1,3 @@
---- a/run.sh
-+++ b/run.sh
-@@ -1 +1 @@
--BADFMT
-+fixed
+#!/usr/bin/env bash
+set -euo pipefail
+echo"hello"

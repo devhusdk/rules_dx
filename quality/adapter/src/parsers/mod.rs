@@ -107,7 +107,7 @@ pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
 
-use crate::{Finding, TextPosition};
+use crate::{Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFinding {
@@ -172,6 +172,165 @@ fn code_name(code: Option<i32>) -> String {
     code.map_or_else(|| "signal".to_owned(), |code| code.to_string())
 }
 
+const DEV_NULL: &str = "/dev/null";
+
+/// The paths a unified diff says were reformatted, in the order the diff names them.
+///
+/// Real producers disagree on the header. `git diff` writes `--- a/x` / `+++ b/x`;
+/// `gofumpt -d`, `shfmt -d`, `cue fmt --diff` and `buf format --diff` all write
+/// `--- x.orig` / `+++ x`, and `buf` adds a tab-separated timestamp. A header is a
+/// `---`/`+++` pair, and only the new side names a file that exists after the run,
+/// so that side wins and the old side covers a deletion.
+fn diff_paths(text: &str) -> Vec<String> {
+    let mut paths: Vec<String> = Vec::new();
+    let lines: Vec<&str> = text.lines().collect();
+    let mut index = 0;
+    while index < lines.len() {
+        let old = lines[index].strip_prefix("--- ");
+        index += 1;
+        if let Some((old_count, new_count)) = hunk_counts(lines[index - 1]) {
+            index = hunk_end(&lines, index, old_count, new_count);
+            continue;
+        }
+        let Some(old) = old else {
+            continue;
+        };
+        let new = index < lines.len() && lines[index].starts_with("+++ ");
+        if new {
+            index += 1;
+        }
+        let path = if new {
+            diff_path(&lines[index - 1][4..]).or_else(|| diff_path(old))
+        } else {
+            diff_path(old)
+        };
+        if let Some(path) = path {
+            if !paths.contains(&path) {
+                paths.push(path);
+            }
+        }
+    }
+    paths
+}
+
+/// The old-side and new-side line counts a `@@` header declares, absent counts meaning 1.
+fn hunk_counts(line: &str) -> Option<(usize, usize)> {
+    let rest = line.strip_prefix("@@ -")?;
+    let (old, rest) = rest.split_once(" +")?;
+    let new = rest.strip_suffix(" @@")?;
+    Some((range_count(old)?, range_count(new)?))
+}
+
+fn range_count(range: &str) -> Option<usize> {
+    match range.split_once(',') {
+        Some((_, count)) => count.parse().ok(),
+        None => Some(1),
+    }
+}
+
+/// The index just past the hunk that starts at `index` with the given side counts.
+///
+/// The counts are what end a hunk, not the line prefixes: a removed line whose own
+/// text starts with `-` or `--- ` is body, and the next file's header must not be eaten.
+fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize) -> usize {
+    let mut old_seen = 0;
+    let mut new_seen = 0;
+    while index < lines.len() && (old_seen < old_count || new_seen < new_count) {
+        match lines[index].as_bytes().first() {
+            Some(b' ') => {
+                old_seen += 1;
+                new_seen += 1;
+            }
+            Some(b'-') => old_seen += 1,
+            Some(b'+') => new_seen += 1,
+            Some(b'\\') => {}
+            _ => break,
+        }
+        index += 1;
+    }
+    index
+}
+fn diff_path(raw: &str) -> Option<String> {
+    let path = raw.split('\t').next().unwrap_or(raw).trim();
+    let path = path
+        .strip_prefix("a/")
+        .or_else(|| path.strip_prefix("b/"))
+        .unwrap_or(path);
+    let path = path.strip_suffix(".orig").unwrap_or(path);
+    if path.is_empty() || path == DEV_NULL {
+        return None;
+    }
+    Some(path.to_owned())
+}
+
+/// The exit codes a diff-reporting formatter is allowed to exit with when it named files.
+#[derive(Debug)]
+pub enum DiffExit {
+    /// `-d`-style tools print a diff and still exit 0.
+    Zero,
+    /// `--check`-style tools exit non-zero once the diff exists.
+    NonZero,
+    /// `--check --diff` tools exit 1, but 0 is also pinned.
+    ZeroOrOne,
+    /// The pinned tool pins no exit code beyond the clean case.
+    Unpinned,
+}
+
+/// Report one "file is not formatted" finding per path in a unified diff.
+fn diff_format(
+    tool: &'static str,
+    bytes: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+    exit: DiffExit,
+) -> Result<Vec<FileFinding>, ParseError> {
+    check_output_size(tool, bytes)?;
+    let text = std::str::from_utf8(bytes).map_err(|err| ParseError::Shape {
+        tool,
+        detail: err.to_string(),
+    })?;
+    let paths = diff_paths(text);
+    if paths.is_empty() {
+        if code == Some(0) {
+            return Ok(Vec::new());
+        }
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("exit {} with no diff markers", code_name(code)),
+        });
+    }
+    let allowed = match exit {
+        DiffExit::Zero => code == Some(0),
+        DiffExit::NonZero => code != Some(0),
+        DiffExit::ZeroOrOne => code == Some(0) || code == Some(1),
+        DiffExit::Unpinned => true,
+    };
+    if !allowed {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("exit {} with diff markers", code_name(code)),
+        });
+    }
+    let mut findings = Vec::with_capacity(paths.len());
+    for path in paths {
+        let checked = known(tool, files, &path)?;
+        let (start, end) = point(1, 1);
+        findings.push(FileFinding {
+            file: checked.to_owned(),
+            finding: Finding {
+                tool_id: tool.to_owned(),
+                rule_id: String::new(),
+                message: "file is not formatted".to_owned(),
+                severity: ToolSeverity::Warning,
+                start,
+                end,
+                suggestions: Vec::new(),
+            },
+        });
+    }
+    Ok(findings)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{check_output_size, ParseError, MAX_OUTPUT_BYTES};
@@ -219,6 +378,108 @@ mod tests {
         );
         assert!(super::tsc::parse_tsc(&big, Some(2), &["/s/a.ts"]).is_err());
         assert!(super::sarif::parse_sarif("sarif-test", &big, Some(1), &["/s/a.java"]).is_err());
+    }
+
+    #[test]
+    fn diff_headers_resolve_every_real_producer_shape() {
+        // git diff, and the `a/` prefix the fixtures were written with.
+        assert_eq!(
+            super::diff_paths("--- a/x.go\n+++ b/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
+            ["x.go"]
+        );
+        // gofumpt -d, shfmt -d, cue fmt --diff: the OLD side is "<path>.orig".
+        assert_eq!(
+            super::diff_paths(
+                "diff x.go.orig x.go\n--- x.go.orig\n+++ x.go\n@@ -1 +1 @@\n-a\n+b\n"
+            ),
+            ["x.go"]
+        );
+        // buf format --diff: `.orig` plus a tab-separated timestamp, from `diff -u`.
+        assert_eq!(
+            super::diff_paths(
+                "diff -u x.proto.orig x.proto\n--- x.proto.orig\t2024-01-02 03:04:05.0 +0000\n+++ x.proto\t2024-01-02 03:04:06.0 +0000\n@@ -1 +1 @@\n-a\n+b\n"
+            ),
+            ["x.proto"]
+        );
+        // A hunk may remove a line whose own text starts with `-- `; that is body, not a header.
+        assert_eq!(
+            super::diff_paths(
+                "--- a/q.sql\n+++ b/q.sql\n@@ -1,2 +1,2 @@\n CREATE TABLE t (id int);\n--- drop the old table\n+-- drop the legacy table\n"
+            ),
+            ["q.sql"]
+        );
+        // A second file after a hunk is still found.
+        assert_eq!(
+            super::diff_paths(
+                "--- a/x.go.orig\n+++ x.go\n@@ -1 +1 @@\n-a\n+b\n--- a/y.go.orig\n+++ y.go\n@@ -1 +1 @@\n-c\n+d\n"
+            ),
+            ["x.go", "y.go"]
+        );
+        // A blank line inside a hunk ends it, so the next header is a header and not body.
+        assert_eq!(
+            super::diff_paths(
+                "--- a/x.go\n+++ b/x.go\n@@ -1,2 +1,2 @@\n-a\n\n+b\n--- a/y.go\n+++ b/y.go\n@@ -1 +1 @@\n-c\n+d\n"
+            ),
+            ["x.go", "y.go"]
+        );
+        // `/dev/null` on the new side is a deletion, so the old side names the file.
+        assert_eq!(
+            super::diff_paths("--- a/gone.go\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
+            ["gone.go"]
+        );
+        // A deletion from a producer that also names the old side `<path>.orig`.
+        assert_eq!(
+            super::diff_paths("--- gone.go.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
+            ["gone.go"]
+        );
+        // Whichever side is not `/dev/null` names the file, whichever side that is.
+        assert_eq!(
+            super::diff_paths("--- /dev/null\n+++ b/new.go\n@@ -0,0 +1 @@\n+a\n"),
+            ["new.go"]
+        );
+        // A bare `.orig` reduces to nothing rather than an empty path.
+        assert!(super::diff_paths("--- a/.orig\n+++ b/.orig\n@@ -1 +1 @@\n-a\n+b\n").is_empty());
+    }
+
+    #[test]
+    fn diff_format_reports_each_named_file_once() {
+        let diff = b"--- a/x.go.orig\n+++ x.go\n@@ -1 +1 @@\n-a\n+b\n";
+        let findings = super::diff_format("t", diff, Some(0), &["x.go"], super::DiffExit::Zero)
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "x.go");
+        assert_eq!(findings[0].finding.message, "file is not formatted");
+    }
+
+    #[test]
+    fn diff_format_holds_each_tool_to_its_own_exit_code() {
+        let diff = b"--- a/x.go.orig\n+++ x.go\n@@ -1 +1 @@\n-a\n+b\n";
+        for (exit, code, ok) in [
+            (super::DiffExit::Zero, Some(0), true),
+            (super::DiffExit::Zero, Some(1), false),
+            (super::DiffExit::NonZero, Some(1), true),
+            (super::DiffExit::NonZero, Some(0), false),
+            (super::DiffExit::ZeroOrOne, Some(0), true),
+            (super::DiffExit::ZeroOrOne, Some(1), true),
+            (super::DiffExit::ZeroOrOne, Some(3), false),
+            (super::DiffExit::Unpinned, Some(0), true),
+            (super::DiffExit::Unpinned, Some(1), true),
+        ] {
+            let name = format!("{exit:?}");
+            let got = super::diff_format("t", diff, code, &["x.go"], exit).is_ok();
+            assert_eq!(got, ok, "{name} at {code:?}");
+        }
+        // A clean exit with no diff is fine for every policy.
+        for exit in [
+            super::DiffExit::Zero,
+            super::DiffExit::NonZero,
+            super::DiffExit::ZeroOrOne,
+            super::DiffExit::Unpinned,
+        ] {
+            assert!(super::diff_format("t", b"", Some(0), &["x.go"], exit)
+                .expect("clean")
+                .is_empty());
+        }
     }
 
     fn xorshift(state: &mut u64) -> u64 {

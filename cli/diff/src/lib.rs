@@ -22,6 +22,8 @@ pub enum DiffError {
     DuplicatePath { path: String },
     #[error("create {path:?} carries original bytes")]
     CreateWithOriginal { path: String },
+    #[error("cannot create empty {path:?}: a unified diff has no hunk for a file with no content")]
+    EmptyCreate { path: String },
     #[error("no change for {path:?}: candidate is identical to original")]
     NoopPatch { path: String },
 }
@@ -52,6 +54,11 @@ pub fn render_patch(files: &[FilePatch<'_>]) -> Result<String, DiffError> {
         match file.kind {
             PatchKind::Create if !file.original.is_empty() => {
                 return Err(DiffError::CreateWithOriginal {
+                    path: file.path.to_owned(),
+                });
+            }
+            PatchKind::Create if file.candidate.is_empty() => {
+                return Err(DiffError::EmptyCreate {
                     path: file.path.to_owned(),
                 });
             }
@@ -170,15 +177,21 @@ mod tests {
     }
 
     #[test]
-    fn empty_create_renders_headers_only() {
+    fn empty_create_is_rejected() {
+        // git and patch both reject a header pair with no hunk, and the only plain hunk that
+        // applies writes a byte the file does not have.
         let patch = FilePatch {
             path: "empty/BUILD.bazel",
             kind: PatchKind::Create,
             original: "",
             candidate: "",
         };
-        let got = render_patch(&[patch]).expect("patch");
-        assert_eq!(got, "--- /dev/null\n+++ b/empty/BUILD.bazel\n");
+        assert_eq!(
+            render_patch(&[patch]).expect_err("must fail"),
+            DiffError::EmptyCreate {
+                path: "empty/BUILD.bazel".to_owned()
+            }
+        );
     }
 
     #[test]
@@ -345,6 +358,13 @@ mod tests {
             }
             .to_string(),
             "create \"n\" carries original bytes"
+        );
+        assert_eq!(
+            DiffError::EmptyCreate {
+                path: "e".to_owned()
+            }
+            .to_string(),
+            "cannot create empty \"e\": a unified diff has no hunk for a file with no content"
         );
         assert_eq!(
             DiffError::NoopPatch {

@@ -561,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_create_renders_headers_only() {
+    fn empty_create_fails_to_render_a_diff() {
         let manifest = GenerationManifest {
             schema_major: generation_result::SCHEMA_MAJOR,
             schema_minor: generation_result::SCHEMA_MINOR,
@@ -572,9 +572,12 @@ mod tests {
         };
         let projected = project(&manifest).unwrap();
         assert_eq!(projected.files[0].candidate, "");
-        let diff = render_diff(&projected).unwrap();
-        assert!(diff.contains("--- /dev/null"));
-        assert!(diff.contains("+++ b/e/BUILD.bazel"));
+        assert_eq!(
+            render_diff(&projected).expect_err("no hunk can express an empty file"),
+            DiffError::EmptyCreate {
+                path: "e/BUILD.bazel".to_owned()
+            }
+        );
         assert_eq!(projected.exit_code(0), 0);
     }
 

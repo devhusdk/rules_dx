@@ -103,6 +103,25 @@ pub fn real_spawn(
     exec::spawn(argv, cwd, env)
 }
 
+/// The invocation with its binary spelled as an absolute path.
+///
+/// A tool reads its own runfiles from `argv[0]`, and the runner starts every tool in a
+/// scratch directory it has just created. A relative binary therefore names its runfiles
+/// relative to that scratch directory, where nothing was ever built. Windows leans on this
+/// hardest: a batch launcher resolves `%~f0` against the working directory it was handed.
+fn absolute_argv(argv: &[OsString]) -> Vec<OsString> {
+    let mut out = argv.to_vec();
+    if let Some(first) = out.first_mut() {
+        let path = PathBuf::from(&*first);
+        if !path.is_absolute() {
+            if let Ok(cwd) = std::env::current_dir() {
+                *first = cwd.join(path).into_os_string();
+            }
+        }
+    }
+    out
+}
+
 /// The runfiles manifest that sits beside a tool.
 ///
 /// A launcher that guesses its own manifest can land on an unrelated runfiles tree, so
@@ -231,7 +250,7 @@ impl RealBackend {
         if reads_own_manifest(tool_id, cfg!(windows)) {
             env.extend(own_runfiles_manifest(&tool.binary));
         }
-        (self.spawn)(&invocation.argv, &cwd, &env)
+        (self.spawn)(&absolute_argv(&invocation.argv), &cwd, &env)
             .map_err(|err| execution(tool_id, format!("spawn: {err}")))
     }
 }
@@ -263,8 +282,24 @@ mod real_tools;
 
 #[cfg(test)]
 mod tests {
-    use super::{own_runfiles_manifest, reads_own_manifest};
+    use super::{absolute_argv, own_runfiles_manifest, reads_own_manifest};
+    use std::ffi::OsString;
     use std::path::Path;
+
+    /// A tool starts in a scratch directory, so its own name is not enough to find runfiles.
+    #[test]
+    fn a_tool_is_always_given_its_binary_as_an_absolute_path() {
+        let relative = [
+            OsString::from("bazel-out/bin/tool"),
+            OsString::from("--check"),
+        ];
+        let absolute = absolute_argv(&relative);
+        assert!(Path::new(&absolute[0]).is_absolute());
+        assert_eq!(absolute[1], relative[1]);
+        let already = [OsString::from("/out/bin/tool")];
+        assert_eq!(absolute_argv(&already)[0], already[0]);
+        assert!(absolute_argv(&[]).is_empty());
+    }
 
     /// The manifest sits beside the tool that reads it.
     #[test]

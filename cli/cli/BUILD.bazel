@@ -276,6 +276,7 @@ rust_test(
         "//deploy/offline:offline.bzl",
         "//docs:command_docs",
         "//docs:github-ci.md",
+        "//examples:adopt_readmes",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
         "//modules:versions.bzl",

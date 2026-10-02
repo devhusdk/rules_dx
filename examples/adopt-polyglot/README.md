@@ -9,4 +9,6 @@ bazel build //examples/adopt-polyglot/...
 bazel test //examples/adopt-polyglot/...
 ```
 
-Build covers 45 targets. All 4 tests pass (`shapes_test`, `widgets_test`, `totals_test`, `native_test`).
+All 4 tests pass (`shapes_test`, `widgets_test`, `totals_test`, `native_test`).
+The TypeScript wrapper emits its own typecheck tests, so `bazel test` runs more
+targets than the example declares.

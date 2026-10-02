@@ -7,6 +7,9 @@ use super::super::grammar::Cli;
 use super::super::{parse, ArgsError, Command};
 use super::render_command_help;
 
+const DX_PREFIX: &str = "bazel run //cli/cli:dx --";
+const ENV_LAUNCHER: &str = "bazel run //dx:env";
+
 fn args(words: &[&str]) -> Vec<String> {
     words.iter().map(ToString::to_string).collect()
 }
@@ -38,6 +41,32 @@ fn pages() -> Vec<(String, String)> {
         .collect();
     got.sort();
     assert!(!got.is_empty(), "no command docs found");
+    got
+}
+
+fn example_readmes() -> Vec<(String, String)> {
+    let dir = workspace_root().join("examples");
+    let mut got: Vec<(String, String)> = std::fs::read_dir(&dir)
+        .expect("examples must ship as test data")
+        .map(|entry| entry.expect("readable dir entry").path())
+        .filter(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with("adopt-"))
+                && path.join("README.md").is_file()
+        })
+        .map(|path| {
+            let readme = path.join("README.md");
+            (
+                path.file_name()
+                    .expect("example dir name")
+                    .to_string_lossy()
+                    .into_owned(),
+                std::fs::read_to_string(&readme).expect("readable example README"),
+            )
+        })
+        .collect();
+    got.sort();
+    assert!(!got.is_empty(), "no adoption example READMEs found");
     got
 }
 
@@ -508,8 +537,6 @@ fn docs_usage_blocks_document_every_advertised_flag() {
 
 #[test]
 fn docs_shell_examples_parse() {
-    const DX_PREFIX: &str = "bazel run //cli/cli:dx --";
-    const ENV_LAUNCHER: &str = "bazel run //dx:env";
     for (name, page) in pages() {
         for block in shell_blocks(&page) {
             for line in &block {
@@ -538,6 +565,120 @@ fn docs_shell_examples_parse() {
                     "{name}: example does not parse: {line}\n{parsed:?}"
                 );
             }
+        }
+    }
+}
+
+fn evidence_paragraph(page: &str) -> Option<String> {
+    page.split("\n\n")
+        .find(|paragraph| paragraph.contains("tests pass"))
+        .map(|paragraph| {
+            paragraph
+                .split_whitespace()
+                .collect::<Vec<&str>>()
+                .join(" ")
+        })
+}
+
+#[test]
+fn example_readme_shell_examples_run_dx_or_bazel_on_the_example() {
+    for (name, page) in example_readmes() {
+        let scope = format!("//examples/{name}/...");
+        for block in shell_blocks(&page) {
+            for line in &block {
+                let trimmed = line.trim();
+                if let Some(words) = trimmed.strip_prefix(DX_PREFIX) {
+                    let words: Vec<String> = words
+                        .split_whitespace()
+                        .take_while(|word| *word != ">")
+                        .map(ToOwned::to_owned)
+                        .collect();
+                    let parsed = parse(&words);
+                    assert!(
+                        parsed.is_ok(),
+                        "{name}: example does not parse: {line}\n{parsed:?}"
+                    );
+                    continue;
+                }
+                let words: Vec<&str> = trimmed.split_whitespace().collect();
+                assert_eq!(
+                    words.first(),
+                    Some(&"bazel"),
+                    "{name}: shell example must run dx or bazel: {line}"
+                );
+                for word in &words {
+                    if word.starts_with("//") {
+                        assert_eq!(
+                            *word, scope,
+                            "{name}: shell example must act on {scope}: {line}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn example_readmes_name_the_tests_they_declare() {
+    for (name, page) in example_readmes() {
+        let sentence = evidence_paragraph(&page)
+            .unwrap_or_else(|| panic!("{name}: the README must name the tests that pass"));
+        let (claim, rest) = sentence.split_once(" tests pass (").unwrap_or_else(|| {
+            panic!("{name}: the test evidence must read 'tests pass (`a_test`)': {sentence}")
+        });
+        let listed = rest
+            .split_once(')')
+            .unwrap_or_else(|| panic!("{name}: the test list never closes: {sentence}"))
+            .0;
+        let names: Vec<String> = listed
+            .split(", ")
+            .map(|test| test.trim_matches('`').to_owned())
+            .collect();
+        let claimed = match claim {
+            "Both" => 2,
+            other => other
+                .strip_prefix("All ")
+                .and_then(|count| count.parse::<usize>().ok())
+                .unwrap_or_else(|| {
+                    panic!("{name}: the test count must read 'Both' or 'All N': {sentence}")
+                }),
+        };
+        assert_eq!(
+            claimed,
+            names.len(),
+            "{name}: the sentence claims {claimed} tests and names {}: {sentence}",
+            names.len()
+        );
+        for test in &names {
+            assert!(
+                test.ends_with("_test") || test.ends_with("_spec"),
+                "{name}: {test} is not a test target name"
+            );
+        }
+        let mut unique = names.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(
+            unique.len(),
+            names.len(),
+            "{name}: the README names a test twice: {sentence}"
+        );
+    }
+}
+
+#[test]
+fn example_readmes_state_no_target_counts() {
+    for (name, page) in example_readmes() {
+        for sentence in page.lines().map(str::trim) {
+            let words: Vec<&str> = sentence.split_whitespace().collect();
+            let counted = words.windows(2).any(|pair| {
+                pair[0].chars().all(|ch| ch.is_ascii_digit()) && pair[1].starts_with("target")
+            });
+            assert!(
+                !counted,
+                "{name}: drop the target count, it counts the repo lint corpus and wrapper targets: {sentence}"
+            );
         }
     }
 }

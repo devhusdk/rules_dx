@@ -113,7 +113,7 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
     } else {
         std::env::current_dir().unwrap_or_default().join(binary)
     };
-    let manifest = format!("{}.runfiles_manifest", path.with_extension("").display());
+    let manifest = format!("{}.runfiles_manifest", path.display());
     vec![("RUNFILES_MANIFEST_FILE".to_owned(), manifest)]
 }
 
@@ -270,17 +270,19 @@ mod tests {
         );
     }
 
-    /// A Windows executable suffix is dropped so only one runfiles suffix is added.
+    /// Bazel names the manifest after the executable file, so a suffix stays part of it.
     #[test]
-    fn a_windows_suffix_keeps_one_runfiles_suffix() {
-        let env = own_runfiles_manifest(Path::new("/out/bin/prettier.exe"));
-        assert_eq!(
-            env,
-            vec![(
-                "RUNFILES_MANIFEST_FILE".to_owned(),
-                "/out/bin/prettier.runfiles_manifest".to_owned()
-            )]
-        );
+    fn a_windows_launcher_keeps_its_own_suffix() {
+        for name in ["/out/bin/prettier_/prettier.bat", "/out/bin/prettier.exe"] {
+            let env = own_runfiles_manifest(Path::new(name));
+            assert_eq!(
+                env,
+                vec![(
+                    "RUNFILES_MANIFEST_FILE".to_owned(),
+                    format!("{name}.runfiles_manifest")
+                )]
+            );
+        }
     }
 
     /// The Python launchers read wheels from the manifest on every platform.

@@ -191,6 +191,9 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
             {
                 return Err(invalid("maven identities are group:artifact"));
             }
+            if !is_dotted_name(group) || !is_dotted_name(artifact) {
+                return Err(invalid("maven group/artifact use [A-Za-z0-9_.-] only"));
+            }
             Ok(())
         }
         SetId::NuGet => {
@@ -556,6 +559,19 @@ mod tests {
                     "@scope/bad!",
                     "a/b",
                     "bad!",
+                ],
+            ),
+            (
+                SetId::Maven,
+                vec![
+                    "junit",
+                    ":artifact",
+                    "group:",
+                    "group:art:ifact",
+                    "gr oup:artifact",
+                    "group:arti fact",
+                    "gr@oup:artifact",
+                    "group:artifact!",
                 ],
             ),
             (SetId::NuGet, vec!["bad!", ""]),

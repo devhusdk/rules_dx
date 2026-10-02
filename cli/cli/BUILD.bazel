@@ -53,6 +53,7 @@ rust_library(
         "src/exec/managed_prepare.rs",
         "src/exec/managed_staging.rs",
         "src/exec/migrate.rs",
+        "src/exec/package_identity.rs",
         "src/exec/quality.rs",
         "src/exec/quality_apply.rs",
         "src/exec/quality_edits.rs",

@@ -12,6 +12,8 @@ mod managed_env;
 mod managed_prepare;
 mod managed_staging;
 mod migrate;
+#[cfg(test)]
+mod package_identity;
 mod quality;
 mod quality_apply;
 mod quality_emit;

@@ -282,6 +282,31 @@ fn error_display_names_every_variant() {
 }
 
 #[test]
+fn acquire_lock_reports_only_the_two_lock_failures() {
+    let dir = PathBuf::from("/ws/.dx");
+    let busy = LockError::Busy {
+        path: dir.join(LOCK_FILE_NAME),
+    };
+    let failed = LockError::LockFailed {
+        path: dir.join(LOCK_FILE_NAME),
+        reason: "r".to_string(),
+    };
+    for error in [&busy, &failed] {
+        let text = error.to_string();
+        assert!(text.contains(".commit.lock"), "{text}");
+    }
+    assert!(matches!(
+        Error::from(busy),
+        Error::Busy { path } if path == PathBuf::from("/ws/.dx/.commit.lock")
+    ));
+    assert!(matches!(
+        Error::from(failed),
+        Error::LockFailed { path, reason }
+            if path == PathBuf::from("/ws/.dx/.commit.lock") && reason == "r"
+    ));
+}
+
+#[test]
 fn workspace_missing() {
     let scratch = dx_test_scratch::scratch("dx-env-test-ws-missing-");
     let root = scratch.path().to_path_buf();

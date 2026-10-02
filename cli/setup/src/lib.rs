@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use dx_digest::blake3 as digest;
-use dx_env::{acquire_lock, Error, DX_DIR_NAME};
+use dx_env::{acquire_lock, LockError, DX_DIR_NAME};
 use dx_roots::{
     build_argv_union, invocation_targets_union, repository_plan, resolve_exact_target,
     ExactScopeError, RepositoryRootPlan,
@@ -269,14 +269,10 @@ fn symlink_dir(target: &Path, link: &Path) -> io::Result<()> {
     std::os::unix::fs::symlink(target, link)
 }
 
-fn map_lock_error(error: Error) -> CommitError {
+fn map_lock_error(error: LockError) -> CommitError {
     match error {
-        Error::Busy { path } => CommitError::Busy { path },
-        Error::LockFailed { path, reason } => CommitError::LockFailed { path, reason },
-        other => CommitError::LockFailed {
-            path: PathBuf::from(DX_DIR_NAME),
-            reason: other.to_string(),
-        },
+        LockError::Busy { path } => CommitError::Busy { path },
+        LockError::LockFailed { path, reason } => CommitError::LockFailed { path, reason },
     }
 }
 

@@ -86,6 +86,26 @@ pub enum Error {
     Install { reason: String },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum LockError {
+    #[error(
+        "another refresh holds {path}; giving up after the commit-lock deadline",
+        path = path.display()
+    )]
+    Busy { path: PathBuf },
+    #[error("cannot lock {path}: {reason}", path = path.display())]
+    LockFailed { path: PathBuf, reason: String },
+}
+
+impl From<LockError> for Error {
+    fn from(error: LockError) -> Self {
+        match error {
+            LockError::Busy { path } => Error::Busy { path },
+            LockError::LockFailed { path, reason } => Error::LockFailed { path, reason },
+        }
+    }
+}
+
 pub struct RefreshOptions {
     pub workspace_root: PathBuf,
     pub staged_bin: PathBuf,
@@ -233,7 +253,7 @@ fn validate_host_name(bin_name: &str, name: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn acquire_lock(dx_dir: &Path, timeout: Duration) -> Result<File, Error> {
+pub fn acquire_lock(dx_dir: &Path, timeout: Duration) -> Result<File, LockError> {
     let path = dx_dir.join(LOCK_FILE_NAME);
     let file = OpenOptions::new()
         .read(true)
@@ -241,19 +261,17 @@ pub fn acquire_lock(dx_dir: &Path, timeout: Duration) -> Result<File, Error> {
         .create(true)
         .truncate(false)
         .open(&path)
-        .map_err(|e| Error::LockFailed {
+        .map_err(|e| LockError::LockFailed {
             path: path.clone(),
             reason: format!("cannot open commit lock: {e}"),
         })?;
     match dx_atomic_fs::lock_exclusive(&file, timeout) {
         Ok(()) => Ok(file),
-        Err(std::fs::TryLockError::WouldBlock) => Err(Error::Busy { path: path.clone() }),
-        // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        Err(e) => Err(Error::LockFailed {
+        Err(std::fs::TryLockError::WouldBlock) => Err(LockError::Busy { path: path.clone() }),
+        Err(e) => Err(LockError::LockFailed {
             path: path.clone(),
             reason: format!("cannot lock commit lock: {e}"),
         }),
-        // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 

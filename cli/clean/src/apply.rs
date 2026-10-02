@@ -1,9 +1,9 @@
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
-use dx_env::{acquire_lock, Error, DX_DIR_NAME};
+use dx_env::{acquire_lock, LockError, DX_DIR_NAME};
 use dx_setup::{read_current_pair, GenerationId, SETUPS_DIR_NAME};
 
 use super::inventory::collect_inventory;
@@ -13,14 +13,10 @@ use super::CleanError;
 
 pub const CLEAN_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
-fn map_lock_error(error: Error) -> CleanError {
+fn map_lock_error(error: LockError) -> CleanError {
     match error {
-        Error::Busy { path } => CleanError::Busy { path },
-        Error::LockFailed { path, reason } => CleanError::LockFailed { path, reason },
-        other => CleanError::LockFailed {
-            path: PathBuf::from(DX_DIR_NAME),
-            reason: other.to_string(),
-        },
+        LockError::Busy { path } => CleanError::Busy { path },
+        LockError::LockFailed { path, reason } => CleanError::LockFailed { path, reason },
     }
 }
 

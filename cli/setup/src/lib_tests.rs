@@ -35,7 +35,7 @@ fn malformed_records_and_foreign_parent_files_fail_closed() {
         Err(CommitError::Install { .. })
     ));
     assert!(matches!(
-        map_lock_error(Error::Busy { path: file.clone() }),
+        map_lock_error(LockError::Busy { path: file.clone() }),
         CommitError::Busy { .. }
     ));
     let sides = || PreparedSides {

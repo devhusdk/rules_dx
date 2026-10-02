@@ -150,7 +150,7 @@ _signing_launcher = rule(
     },
 )
 
-def signed_release(name, artifacts, identity, issuer = "https://token.actions.githubusercontent.com", profile = "release", cosign_version = SIGNING_COSIGN_VERSION):
+def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile = "release", cosign_version = SIGNING_COSIGN_VERSION):
     """Creates an owner-gated signing deploy target for pinned artifacts."""
     err = signing_identity_error(identity, issuer)
     if err != "":

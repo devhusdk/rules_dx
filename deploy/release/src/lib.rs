@@ -890,12 +890,12 @@ mod tests {
         assert!(out.contains(
             "signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:"
         ));
-        assert!(out.contains("trust root: https://tuf-repo-cdn.sigstore.dev"));
+        assert!(out.contains(&format!("trust root: {SIGNING_TRUST_ROOT}")));
         assert!(out.contains("cosign sign-blob"));
         assert!(out.contains("gh attestation create"));
         assert!(out.contains("cosign verify-blob"));
-        assert!(out.contains("v2.4.1"));
-        assert!(out.contains("application/vnd.dev.sigstore.bundle.v0.3+json"));
+        assert!(out.contains(SIGNING_COSIGN_VERSION));
+        assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));
         assert!(signing_run("", "ISSUER", &assets, true, true).is_err());
         assert!(signing_run("ID", "ISS", &[], true, true).is_err());
         assert!(signing_run("ID", "ISS", &assets, false, false).is_err());

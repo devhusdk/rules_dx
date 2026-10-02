@@ -21,6 +21,18 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "signing_pins_test",
+    size = "small",
+    srcs = ["signing_pins_test.rs"],
+    data = [
+        "//deploy/install:src/lib.rs",
+        "//deploy/release:signing.bzl",
+        "//deploy/release:src/lib.rs",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

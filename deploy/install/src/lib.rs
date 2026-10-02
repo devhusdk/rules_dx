@@ -125,9 +125,9 @@ pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
         ));
     }
     if args.issuer.is_empty() {
-        return Err(ArgsError(
-            "dx_verify: missing --issuer ISSUER (expected OIDC issuer, e.g. https://token.actions.githubusercontent.com)".to_owned(),
-        ));
+        return Err(ArgsError(format!(
+            "dx_verify: missing --issuer ISSUER (expected OIDC issuer, e.g. {DEFAULT_ISSUER})"
+        )));
     }
     if !args.sbom.is_empty() && args.sbom_bundle.is_empty() {
         return Err(ArgsError(

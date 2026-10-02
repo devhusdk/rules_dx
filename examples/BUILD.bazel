@@ -31,7 +31,21 @@ filegroup(
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
-    markdown_siblings = ADOPT_READMES,
+    markdown_siblings = [
+        "//examples/adopt-cpp:README.md",
+        "//examples/adopt-csharp:README.md",
+        "//examples/adopt-fsharp:README.md",
+        "//examples/adopt-go:README.md",
+        "//examples/adopt-java:README.md",
+        "//examples/adopt-js-ts:README.md",
+        "//examples/adopt-kotlin:README.md",
+        "//examples/adopt-polyglot:README.md",
+        "//examples/adopt-powershell:README.md",
+        "//examples/adopt-python:README.md",
+        "//examples/adopt-ruby:README.md",
+        "//examples/adopt-rust:README.md",
+        "//examples/adopt-scala:README.md",
+    ],
     markdown_srcs = [
         "README.md",
         "consumer-ci/README.md",

@@ -134,6 +134,19 @@ fn ruff_policy_matches_the_hinted_fixture() {
 }
 
 #[test]
+fn buildifier_policy_matches_the_hinted_fixture() {
+    let workspace = read(".buildifier.json");
+    let fixture = read("quality/testdata/buildifier_cfg/.buildifier.json");
+    let selected = json_strings(&json_array(&workspace, "warningsList"));
+    assert!(!selected.is_empty(), ".buildifier.json enables no warning");
+    assert_eq!(
+        selected,
+        json_strings(&json_array(&fixture, "warningsList")),
+        ".buildifier.json and the hinted fixture disagree on warningsList"
+    );
+}
+
+#[test]
 fn vale_policy_agrees_across_the_root_shim_the_corpus_and_the_fixture() {
     let shim = read(".vale.ini");
     let corpus = read("quality/corpus_vale.ini");

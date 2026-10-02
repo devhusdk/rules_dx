@@ -9,6 +9,12 @@ DxNativeConfigInfo = provider(
     },
 )
 
+CONFIG_REQUIRED_TOOLS = {
+    "buildifier": "Buildifier",
+    "checkstyle": "Checkstyle",
+    "vale": "Vale",
+}
+
 _NATIVE_CONFIG_EXTENSIONS = {
     "biome": ".json",
     "buf": ".yaml",
@@ -70,6 +76,14 @@ def collect_native_configs(hints, stage_tools, what):
                  "for tool '" + hint.tool_id + "'")
         by_tool[hint.tool_id] = hint
     return {tool: by_tool[tool] for tool in stage_tools if tool in by_tool}
+
+def missing_required_config_error(tool, configs_by_tool, what):
+    """Returns the error for a required tool with no bound config, or ""."""
+    if tool not in CONFIG_REQUIRED_TOOLS or tool in configs_by_tool:
+        return ""
+    return ("real_aspect (" + what + "): applicable " + CONFIG_REQUIRED_TOOLS[tool] +
+            " requires declared config; supply and bind native policy via " +
+            "aspect_hints (no usable upstream default)")
 
 def _native_config_impl(ctx):
     tool_id = ctx.attr._tool_id

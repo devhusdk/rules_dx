@@ -9,7 +9,7 @@ load(
     "REAL_CLASS_TO_FAMILY",
 )
 load("//quality:execution_requirements.bzl", "dx_execution_requirements")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "resolve_pipeline", "stage_flag")
 load("//quality:policy.bzl", "QualityPolicyInfo")
@@ -152,10 +152,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label))
 
     for stage in resolved:
-        if stage["tool"] == "vale" and stage["tool"] not in configs_by_tool:
-            fail("real_aspect (" + str(target.label) + "): applicable Vale requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)")
-        if stage["tool"] == "checkstyle" and stage["tool"] not in configs_by_tool:
-            fail("real_aspect (" + str(target.label) + "): applicable Checkstyle requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)")
+        config_error = missing_required_config_error(stage["tool"], configs_by_tool, str(target.label))
+        if config_error != "":
+            fail(config_error)
 
     tool_binaries = {}
     if "biome" in stage_tools:

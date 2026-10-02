@@ -34,6 +34,7 @@ py_binary(
 
 real_source_target(
     name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

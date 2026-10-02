@@ -1,7 +1,7 @@
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
-load("//quality:native_config.bzl", "biome_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "vale_config")
+load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "vale_config")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":aspect_tests.bzl", "aspect_fixture_tests")
@@ -44,6 +44,7 @@ filegroup(
 exports_files(
     [
         "biome_cfg/biome.json",
+        "buildifier_cfg/.buildifier.json",
         "ruff.toml",
         "styles/Dx/Markers.yml",
         "vale_test.ini",
@@ -97,6 +98,11 @@ vale_config(
     data = ["styles/Dx/Markers.yml"],
 )
 
+buildifier_config(
+    name = "buildifier_cfg",
+    src = "buildifier_cfg/.buildifier.json",
+)
+
 rustfmt_config(
     name = "rustfmt_config",
     src = "rustfmt.toml",
@@ -124,7 +130,14 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_starlark",
+    aspect_hints = [":buildifier_cfg"],
     starlark_srcs = ["real_clean.bzl"],
+)
+
+real_source_target(
+    name = "fixture_real_starlark_no_config",
+    starlark_srcs = ["real_clean.bzl"],
+    tags = ["manual"],
 )
 
 real_source_target(
@@ -140,6 +153,7 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_mixed",
+    aspect_hints = [":buildifier_cfg"],
     rust_srcs = ["clean.rs"],
     starlark_srcs = ["real_clean.bzl"],
     toml_srcs = ["real_clean.toml"],
@@ -147,6 +161,7 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_no_lint",
+    aspect_hints = [":buildifier_cfg"],
     rust_srcs = ["clean.rs"],
     starlark_srcs = ["real_clean.bzl"],
     tags = ["no-lint"],
@@ -154,6 +169,7 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_no_format",
+    aspect_hints = [":buildifier_cfg"],
     rust_srcs = ["clean.rs"],
     starlark_srcs = ["real_clean.bzl"],
     tags = ["no-format"],
@@ -372,6 +388,18 @@ failure_test(
     name = "fixture_real_markdown_no_config_test",
     expected_failure_substring = "applicable Vale requires declared config",
     target = ":fixture_real_markdown_no_config_subject",
+)
+
+real_aspect_subject(
+    name = "fixture_real_starlark_no_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_starlark_no_config",
+)
+
+failure_test(
+    name = "fixture_real_starlark_no_config_test",
+    expected_failure_substring = "applicable Buildifier requires declared config",
+    target = ":fixture_real_starlark_no_config_subject",
 )
 
 real_aspect_fixture_tests(

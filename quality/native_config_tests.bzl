@@ -4,6 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":native_config.bzl",
     "collect_native_configs",
+    "missing_required_config_error",
     "native_config_error",
     "native_config_extension",
 )
@@ -169,6 +170,32 @@ def native_config_unit_tests(name):
                 "collect_native_configs is empty without hints",
                 collect_native_configs([], ["taplo"], "//q:t"),
                 {},
+            ),
+            expect_equal(
+                "missing_required_config_error names an unbound buildifier stage",
+                missing_required_config_error("buildifier", {}, "//q:t"),
+                "real_aspect (//q:t): applicable Buildifier requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+            ),
+            expect_equal(
+                "missing_required_config_error keeps the Vale and Checkstyle names",
+                [
+                    missing_required_config_error("vale", {}, "//q:t"),
+                    missing_required_config_error("checkstyle", {}, "//q:t"),
+                ],
+                [
+                    "real_aspect (//q:t): applicable Vale requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+                    "real_aspect (//q:t): applicable Checkstyle requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+                ],
+            ),
+            expect_equal(
+                "missing_required_config_error accepts bound and default-only tools",
+                [
+                    missing_required_config_error("buildifier", {"buildifier": _HINTS[0]}, "//q:t"),
+                    missing_required_config_error("biome", {}, "//q:t"),
+                    missing_required_config_error("taplo", {}, "//q:t"),
+                    missing_required_config_error("prettier", {}, "//q:t"),
+                ],
+                ["", "", "", ""],
             ),
         ],
     )

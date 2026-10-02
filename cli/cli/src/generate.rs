@@ -1,9 +1,9 @@
 use dx_diff::{render_patch, DiffError, FilePatch, PatchKind};
 use dx_output::{ChangeEvent, ChangeKind, Edit, FinishedCounts, MutationOutcome, NoticeEvent};
 use generation_result::{
-    candidate,
-    proto::{file_result, GenerationManifest, Mode, WriteOutcome},
-    validate, Error,
+    file_text,
+    proto::{GenerationManifest, Mode, WriteOutcome},
+    validate, Error, FileText,
 };
 
 pub const IGNORED_IMPORT_CODE: &str = "ignored_import";
@@ -152,66 +152,39 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
         .all(|scope| scope.results_complete == Some(true));
     let mut files = Vec::with_capacity(manifest.files.len());
     for file in &manifest.files {
-        let candidate_bytes = candidate(file)?;
-        // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        let change_ref = file.change.as_ref().ok_or(Error::MissingChange {
-            path: file.path.clone(),
-        })?;
-        // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        let (change, original, candidate_text) = match change_ref {
-            file_result::Change::CreateContent(content) => {
-                // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                let text = String::from_utf8(content.clone()).map_err(|_| Error::InvalidUtf8 {
-                    at: file.path.clone(),
-                })?;
-                // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                let change = ChangeEvent {
+        let (original, candidate, change) = match file_text(file)? {
+            FileText::Created { content } => (
+                String::new(),
+                content.to_owned(),
+                ChangeEvent {
                     path: file.path.clone(),
                     kind: ChangeKind::Create,
                     source_digest: None,
                     edits: vec![Edit {
                         start: 0,
                         end: 0,
-                        replacement: text.clone(),
+                        replacement: content.to_owned(),
                     }],
-                };
-                (change, String::new(), text)
-            }
-            file_result::Change::Modification(modification) => {
-                // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                let original_text = String::from_utf8(modification.original_content.clone())
-                    .map_err(|_| Error::InvalidUtf8 {
-                        at: file.path.clone(),
-                    })?;
-                let candidate_text =
-                    String::from_utf8(candidate_bytes.clone()).map_err(|_| Error::InvalidUtf8 {
-                        at: file.path.clone(),
-                    })?;
-                // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                let mut edits = Vec::with_capacity(modification.edits.len());
-                for edit in &modification.edits {
-                    // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    let replacement =
-                        String::from_utf8(edit.replacement.clone()).map_err(|_| {
-                            Error::InvalidUtf8 {
-                                at: file.path.clone(),
-                            }
-                        })?;
-                    // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    edits.push(Edit {
-                        start: edit.start_byte,
-                        end: edit.end_byte,
-                        replacement,
-                    });
-                }
-                let change = ChangeEvent {
+                },
+            ),
+            FileText::Modified(text) => (
+                text.original.to_owned(),
+                text.candidate,
+                ChangeEvent {
                     path: file.path.clone(),
                     kind: ChangeKind::Modify,
-                    source_digest: Some(hex_digest(&modification.original_digest)),
-                    edits,
-                };
-                (change, original_text, candidate_text)
-            }
+                    source_digest: Some(hex_digest(text.original_digest)),
+                    edits: text
+                        .edits
+                        .iter()
+                        .map(|edit| Edit {
+                            start: edit.start_byte,
+                            end: edit.end_byte,
+                            replacement: edit.text.to_owned(),
+                        })
+                        .collect(),
+                },
+            ),
         };
         let (outcome, failure_code) = if is_check {
             (None, None)
@@ -221,7 +194,7 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
         files.push(ProjectedFile {
             change,
             original,
-            candidate: candidate_text,
+            candidate,
             outcome,
             failure_code,
         });
@@ -289,7 +262,7 @@ mod tests {
     use dx_digest::blake3 as digest;
     use dx_output::{change_event, mutation_event, notice_event};
     use generation_result::proto::{
-        Edit as ProtoEdit, FileResult, IgnoredImport, Modification, Scope,
+        file_result, Edit as ProtoEdit, FileResult, IgnoredImport, Modification, Scope,
     };
 
     fn scope(value: &str, complete: bool) -> Scope {

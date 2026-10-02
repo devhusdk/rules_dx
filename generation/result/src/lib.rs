@@ -132,7 +132,31 @@ fn validate_scopes(scopes: &[Scope]) -> Result<(), Error> {
     Ok(())
 }
 
-fn apply_modification(path: &str, modification: &Modification) -> Result<Vec<u8>, Error> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Replacement<'a> {
+    pub start_byte: u64,
+    pub end_byte: u64,
+    pub text: &'a str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModificationText<'a> {
+    pub original: &'a str,
+    pub original_digest: &'a [u8],
+    pub edits: Vec<Replacement<'a>>,
+    pub candidate: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileText<'a> {
+    Created { content: &'a str },
+    Modified(ModificationText<'a>),
+}
+
+fn modification_text<'a>(
+    path: &str,
+    modification: &'a Modification,
+) -> Result<ModificationText<'a>, Error> {
     let original =
         str::from_utf8(&modification.original_content).map_err(|_| Error::InvalidUtf8 {
             at: path.to_owned(),
@@ -156,6 +180,7 @@ fn apply_modification(path: &str, modification: &Modification) -> Result<Vec<u8>
 
     let mut previous_end = 0_u64;
     let mut previous_start = None;
+    let mut edits = Vec::with_capacity(modification.edits.len());
     for (index, edit) in modification.edits.iter().enumerate() {
         if edit.start_byte > edit.end_byte {
             return Err(Error::InvertedEdit {
@@ -189,12 +214,11 @@ fn apply_modification(path: &str, modification: &Modification) -> Result<Vec<u8>
                 index,
             });
         }
-        if str::from_utf8(&edit.replacement).is_err() {
-            return Err(Error::InvalidUtf8Replacement {
+        let text =
+            str::from_utf8(&edit.replacement).map_err(|_| Error::InvalidUtf8Replacement {
                 path: path.to_owned(),
                 index,
-            });
-        }
+            })?;
         if &original.as_bytes()[start..end] == edit.replacement.as_slice() {
             return Err(Error::NoopEdit {
                 path: path.to_owned(),
@@ -211,6 +235,11 @@ fn apply_modification(path: &str, modification: &Modification) -> Result<Vec<u8>
         }
         previous_start = Some(edit.start_byte);
         previous_end = edit.end_byte;
+        edits.push(Replacement {
+            start_byte: edit.start_byte,
+            end_byte: edit.end_byte,
+            text,
+        });
     }
 
     let capacity = original.len()
@@ -219,39 +248,48 @@ fn apply_modification(path: &str, modification: &Modification) -> Result<Vec<u8>
             .iter()
             .map(|edit| edit.replacement.len())
             .sum::<usize>();
-    let mut candidate = Vec::with_capacity(capacity);
+    let mut candidate = String::with_capacity(capacity);
     let mut cursor = 0;
-    for edit in &modification.edits {
-        let start = edit.start_byte as usize;
-        let end = edit.end_byte as usize;
-        candidate.extend_from_slice(&original.as_bytes()[cursor..start]);
-        candidate.extend_from_slice(&edit.replacement);
-        cursor = end;
+    for (edit, replacement) in modification.edits.iter().zip(&edits) {
+        candidate.push_str(&original[cursor..edit.start_byte as usize]);
+        candidate.push_str(replacement.text);
+        cursor = edit.end_byte as usize;
     }
-    candidate.extend_from_slice(&original.as_bytes()[cursor..]);
-    if candidate == original.as_bytes() {
+    candidate.push_str(&original[cursor..]);
+    if candidate == original {
         return Err(Error::UnchangedCandidate {
             path: path.to_owned(),
         });
     }
-    Ok(candidate)
+    Ok(ModificationText {
+        original,
+        original_digest: &modification.original_digest,
+        edits,
+        candidate,
+    })
+}
+
+pub fn file_text(file: &FileResult) -> Result<FileText<'_>, Error> {
+    let change = file.change.as_ref().ok_or_else(|| Error::MissingChange {
+        path: file.path.clone(),
+    })?;
+    match change {
+        file_result::Change::CreateContent(content) => Ok(FileText::Created {
+            content: str::from_utf8(content).map_err(|_| Error::InvalidUtf8 {
+                at: file.path.clone(),
+            })?,
+        }),
+        file_result::Change::Modification(modification) => Ok(FileText::Modified(
+            modification_text(&file.path, modification)?,
+        )),
+    }
 }
 
 pub fn candidate(file: &FileResult) -> Result<Vec<u8>, Error> {
-    match &file.change {
-        Some(file_result::Change::CreateContent(content)) => {
-            str::from_utf8(content).map_err(|_| Error::InvalidUtf8 {
-                at: file.path.clone(),
-            })?;
-            Ok(content.clone())
-        }
-        Some(file_result::Change::Modification(modification)) => {
-            apply_modification(&file.path, modification)
-        }
-        None => Err(Error::MissingChange {
-            path: file.path.clone(),
-        }),
-    }
+    Ok(match file_text(file)? {
+        FileText::Created { content } => content.as_bytes().to_vec(),
+        FileText::Modified(text) => text.candidate.into_bytes(),
+    })
 }
 
 fn validate_file(file: &FileResult, mode: Mode, scope_count: usize) -> Result<(), Error> {
@@ -588,6 +626,68 @@ mod tests {
         assert!(matches!(
             validate(&manifest),
             Err(Error::MissingChange { .. })
+        ));
+    }
+
+    #[test]
+    fn file_text_hands_out_only_utf8() {
+        let mut manifest = sample(Mode::Check);
+        manifest.files[0].change = Some(file_result::Change::CreateContent(b"x\n".to_vec()));
+        assert_eq!(
+            file_text(&manifest.files[0]).unwrap(),
+            FileText::Created { content: "x\n" }
+        );
+        manifest.files[0].change = Some(file_result::Change::CreateContent(vec![0xff]));
+        assert!(matches!(
+            file_text(&manifest.files[0]),
+            Err(Error::InvalidUtf8 { .. })
+        ));
+        manifest.files[0].change = None;
+        assert!(matches!(
+            file_text(&manifest.files[0]),
+            Err(Error::MissingChange { .. })
+        ));
+
+        let mut inner = modification(b"abc\n");
+        inner.edits.push(Edit {
+            start_byte: 4,
+            end_byte: 4,
+            replacement: b"q".to_vec(),
+        });
+        let manifest = sample_with(Mode::Check, inner);
+        assert_eq!(
+            file_text(&manifest.files[0]).unwrap(),
+            FileText::Modified(ModificationText {
+                original: "abc\n",
+                original_digest: digest(b"abc\n").as_slice(),
+                edits: vec![
+                    Replacement {
+                        start_byte: 0,
+                        end_byte: 1,
+                        text: "z",
+                    },
+                    Replacement {
+                        start_byte: 4,
+                        end_byte: 4,
+                        text: "q",
+                    },
+                ],
+                candidate: "zbc\nq".to_owned(),
+            })
+        );
+        assert_eq!(candidate(&manifest.files[0]).unwrap(), b"zbc\nq");
+
+        let mut invalid = modification(b"abc\n");
+        invalid.original_content = vec![0xff];
+        assert!(matches!(
+            file_text(&sample_with(Mode::Check, invalid).files[0]),
+            Err(Error::InvalidUtf8 { .. })
+        ));
+        let mut invalid = modification(b"abc\n");
+        invalid.edits[0].replacement = vec![0xff];
+        assert!(matches!(
+            file_text(&sample_with(Mode::Check, invalid).files[0]),
+            Err(Error::InvalidUtf8Replacement { .. })
         ));
     }
 

@@ -5,6 +5,19 @@ package(default_visibility = ["//:__subpackages__"])
 
 # keep
 rust_test(
+    name = "artifact_writes_test",
+    size = "small",
+    srcs = ["artifact_writes_test.rs"],
+    data = [
+        "//env/env_shard:src/main.rs",
+        "//generation/codegen_shard:src/main.rs",
+        "//quality/evaluator:src/main.rs",
+        "//quality/runner:src/main.rs",
+    ],
+)
+
+# keep
+rust_test(
     name = "action_pins_test",
     size = "small",
     srcs = ["action_pins_test.rs"],

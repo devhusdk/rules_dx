@@ -52,6 +52,7 @@ rust_binary(
         package_name = "generation/codegen_shard",
     ) + [
         ":codegen_shard",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/output:dx_output",
     ],
 )

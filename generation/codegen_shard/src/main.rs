@@ -124,7 +124,7 @@ fn run(args: &[String]) -> Result<(), WriterError> {
     // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let bytes = encode_validated(&shard).map_err(WriterError::Codec)?;
     decode_validated(&bytes).map_err(WriterError::Codec)?;
-    std::fs::write(output.ok_or_else(|| WriterError::Usage(usage()))?, bytes)
+    dx_atomic_fs::write_atomic(&output.ok_or_else(|| WriterError::Usage(usage()))?, &bytes)
         .map_err(WriterError::Io)
 }
 

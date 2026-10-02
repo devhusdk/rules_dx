@@ -57,6 +57,8 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//:ruff.toml",
+        "//deploy/offline:bootstrap-offline.sh",
+        "//deploy/rules:launcher.bzl",
         "//quality:corpus_styles/Dx/Markers.yml",
         "//quality:corpus_vale.ini",
         "//quality:native_config.bzl",

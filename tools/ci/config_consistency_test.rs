@@ -355,11 +355,76 @@ fn the_shell_configs_never_restate_the_shfmt_invocation() {
     }
 }
 
+/// Every code named on the shellcheckrc disable line.
+fn disabled_shellcheck_codes(text: &str) -> Vec<&str> {
+    let list = text
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix("disable="))
+        .expect("disable= is unset");
+    list.split(',')
+        .map(str::trim)
+        .filter(|code| !code.is_empty())
+        .collect()
+}
+
+#[test]
+fn every_disabled_shellcheck_code_has_a_rationale() {
+    let text = read(".shellcheckrc");
+    let codes = disabled_shellcheck_codes(&text);
+    assert!(!codes.is_empty(), ".shellcheckrc disables no code");
+    let comments: Vec<&str> = text.lines().filter(|line| is_comment(line)).collect();
+    for code in codes {
+        assert!(
+            comments.iter().any(|comment| comment.contains(code)),
+            ".shellcheckrc disables {code} and no comment names it"
+        );
+    }
+}
+
+#[test]
+fn every_shellcheck_rationale_names_a_disabled_code() {
+    let text = read(".shellcheckrc");
+    let codes = disabled_shellcheck_codes(&text);
+    for (index, line) in text.lines().enumerate() {
+        if !is_comment(line) {
+            continue;
+        }
+        assert!(
+            codes.iter().any(|code| line.contains(code)),
+            ".shellcheckrc:{}: the comment names no disabled code, so it wraps another: {line:?}",
+            index + 1
+        );
+    }
+}
+
 /// Words AGENTS.md bans from a comment: issue references, design documents, and pointers at another page.
 const BANNED_COMMENT_WORDS: [&str; 6] = ["issue", "ADR", "RFC", "Contract", "See:", "dedup"];
 
 fn is_comment(line: &str) -> bool {
     line.trim_start().starts_with('#')
+}
+
+/// Asserts every comment in `text` stays free of the banned vocabulary.
+fn assert_comments_bare(name: &str, text: &str) {
+    for (index, line) in text.lines().enumerate() {
+        if !is_comment(line) {
+            continue;
+        }
+        let body = line.trim_start().trim_start_matches('#').trim();
+        for word in BANNED_COMMENT_WORDS {
+            assert!(
+                !body.contains(word),
+                "{name}:{}: the comment says {word:?}, which AGENTS.md bans: {body:?}",
+                index + 1
+            );
+        }
+        assert!(
+            !body.contains(".md"),
+            "{name}:{}: the comment points at a page instead of the code: {body:?}",
+            index + 1
+        );
+    }
 }
 
 /// The line number of every comment that directly follows another comment.
@@ -424,23 +489,14 @@ fn every_workflow_comment_is_one_line() {
 fn no_workflow_comment_names_an_issue_or_another_page() {
     for name in workflow_exports() {
         let rel = format!(".github/{name}");
-        for (index, line) in read(&rel).lines().enumerate() {
-            if !is_comment(line) {
-                continue;
-            }
-            let body = line.trim_start().trim_start_matches('#').trim();
-            for word in BANNED_COMMENT_WORDS {
-                assert!(
-                    !body.contains(word),
-                    "{rel}:{}: the comment says {word:?}, which AGENTS.md bans: {body:?}",
-                    index + 1
-                );
-            }
-            assert!(
-                !body.contains(".md"),
-                "{rel}:{}: the comment points at a page instead of the code: {body:?}",
-                index + 1
-            );
-        }
+        assert_comments_bare(&rel, &read(&rel));
     }
+}
+
+#[test]
+fn the_emitted_runfiles_block_names_no_issue_or_another_page() {
+    assert_comments_bare(
+        "deploy/rules/launcher.bzl",
+        &read("deploy/rules/launcher.bzl"),
+    );
 }

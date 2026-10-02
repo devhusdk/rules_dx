@@ -8,16 +8,13 @@ fn hello_output_matches_fixture() {
         .and_then(|value| value.parse().ok())
         .unwrap_or(0);
     let binary = dx_testing::resolve_runfiles(&rel);
-    let output = std::process::Command::new(&binary)
-        .output()
-        .expect("fixture binary must execute");
+    let run = dx_testing::run(&binary, &[], &[]).expect("fixture binary must execute");
     assert_eq!(
-        output.status.code(),
+        run.status.code(),
         Some(expected_code),
         "unexpected exit code for {}",
         binary.display()
     );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let actual = stdout.trim_end_matches(['\r', '\n']);
+    let actual = run.stdout.trim_end_matches(['\r', '\n']);
     assert_eq!(actual, expected, "unexpected hello output");
 }

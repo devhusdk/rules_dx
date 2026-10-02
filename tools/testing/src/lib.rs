@@ -27,8 +27,32 @@ impl Run {
     }
 }
 
+/// Runs one tool, pointing it at the runfiles that sit beside it.
+///
+/// A tool reads its own runfiles from `argv[0]` and the environment it inherits, and a test
+/// hands its child the test's own tree. A child staged somewhere else then looks for its
+/// runfiles where they were never built. The manifest beside the child describes it exactly,
+/// so name that and take the inherited tree away.
+fn command_for(bin: &Path) -> std::process::Command {
+    let mut command = std::process::Command::new(bin);
+    let manifest = manifest_beside(bin);
+    if let Some(manifest) = manifest {
+        command.env("RUNFILES_MANIFEST_FILE", manifest);
+        command.env_remove("RUNFILES_DIR");
+    }
+    command
+}
+
+fn manifest_beside(bin: &Path) -> Option<String> {
+    let bare = bin.with_extension("");
+    [bin.display().to_string(), bare.display().to_string()]
+        .into_iter()
+        .map(|name| format!("{name}.runfiles_manifest"))
+        .find(|candidate| Path::new(candidate).is_file())
+}
+
 pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {
-    let output = std::process::Command::new(bin)
+    let output = command_for(bin)
         .args(args)
         .envs(envs.iter().copied())
         .output()?;

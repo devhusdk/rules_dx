@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use dx_testing::{read_runfiles, runfiles_root};
 
 const CALLERS: [(&str, &str); 2] = [
     ("examples/consumer-ci/caller.yml", "reusable-consumer.yml"),
@@ -9,20 +9,9 @@ const REUSABLE: [&str; 2] = ["reusable-consumer.yml", "reusable-docs.yml"];
 
 const PIN_STEP: &str = "- name: Verify rules_dx pin";
 
-fn workspace_root() -> PathBuf {
-    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-    Path::new(&root).join(workspace)
-}
-
-fn read(rel: &str) -> String {
-    let path = workspace_root().join(rel);
-    std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
-}
-
 fn pinned_commit(caller: &str, workflow: &str) -> String {
     let want = format!("rules_dx/.github/workflows/{workflow}@");
-    let text = read(caller);
+    let text = read_runfiles(caller);
     let line = text
         .lines()
         .map(str::trim)
@@ -46,7 +35,7 @@ fn pinned_commit(caller: &str, workflow: &str) -> String {
 #[test]
 fn every_starter_pins_its_reusable_workflow_at_a_full_commit() {
     for (caller, workflow) in CALLERS {
-        let path = workspace_root().join(".github/workflows").join(workflow);
+        let path = runfiles_root().join(".github/workflows").join(workflow);
         assert!(
             path.is_file(),
             "{caller} pins {workflow}, which this workspace does not ship"
@@ -73,7 +62,7 @@ fn both_starters_pin_one_reviewed_commit() {
 
 /// Returns each job block of a workflow file with its name, after the jobs: key.
 fn jobs(workflow: &str) -> Vec<(String, String)> {
-    let text = read(&format!(".github/workflows/{workflow}"));
+    let text = read_runfiles(&format!(".github/workflows/{workflow}"));
     let lines: Vec<&str> = text.lines().collect();
     let start = lines
         .iter()

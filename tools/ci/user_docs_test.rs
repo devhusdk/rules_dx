@@ -1,22 +1,13 @@
 use std::path::{Component, Path, PathBuf};
 
+use dx_testing::{read_runfiles, runfiles_root};
+
 const INDEXES: [&str; 4] = [
     "README.md",
     "docs/README.md",
     "docs/cli/commands/README.md",
     "examples/README.md",
 ];
-
-fn workspace_root() -> PathBuf {
-    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-    Path::new(&root).join(workspace)
-}
-
-fn read(rel: &str) -> String {
-    let path = workspace_root().join(rel);
-    std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
-}
 
 fn normalize(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
@@ -45,7 +36,7 @@ fn unique(mut names: Vec<String>) -> Vec<String> {
 
 /// Returns USER_PROSE from docs/site/BUILD.bazel as workspace-relative paths.
 fn published() -> Vec<String> {
-    let build = read("docs/site/BUILD.bazel");
+    let build = read_runfiles("docs/site/BUILD.bazel");
     let mut names = Vec::new();
     let mut inside = false;
     for line in build.lines() {
@@ -145,7 +136,7 @@ fn files_under(dir: &Path, keep: &dyn Fn(&str) -> bool) -> Vec<String> {
                 continue;
             }
             let rel = path
-                .strip_prefix(workspace_root())
+                .strip_prefix(runfiles_root())
                 .expect("path under the workspace");
             out.push(rel.to_string_lossy().replace('\\', "/"));
         }
@@ -166,7 +157,7 @@ fn workspace_of(readme: &str) -> String {
 fn every_published_user_doc_ships_in_the_workspace() {
     for doc in published() {
         assert!(
-            workspace_root().join(&doc).is_file(),
+            runfiles_root().join(&doc).is_file(),
             "docs/site/BUILD.bazel publishes {doc}, which the tree does not ship"
         );
     }
@@ -176,7 +167,7 @@ fn every_published_user_doc_ships_in_the_workspace() {
 fn every_indexed_user_doc_is_published() {
     let published = published();
     for page_rel in INDEXES {
-        for doc in indexed_docs(&read(page_rel), page_rel) {
+        for doc in indexed_docs(&read_runfiles(page_rel), page_rel) {
             assert!(
                 published.contains(&doc),
                 "{page_rel} links {doc}, which docs/site/BUILD.bazel does not publish"
@@ -188,7 +179,7 @@ fn every_indexed_user_doc_is_published() {
 #[test]
 fn every_command_page_is_published() {
     let published = published();
-    for page in files_under(&workspace_root().join("docs/cli/commands"), &|name| {
+    for page in files_under(&runfiles_root().join("docs/cli/commands"), &|name| {
         name.ends_with(".md")
     }) {
         assert!(
@@ -200,7 +191,7 @@ fn every_command_page_is_published() {
 
 #[test]
 fn the_examples_index_names_every_example_workspace_once() {
-    let index = read("examples/README.md");
+    let index = read_runfiles("examples/README.md");
     let named: Vec<String> = sorted(
         indexed_docs(&index, "examples/README.md")
             .iter()
@@ -211,7 +202,7 @@ fn the_examples_index_names_every_example_workspace_once() {
         !named.is_empty(),
         "examples/README.md names no example workspace"
     );
-    let workspaces: Vec<String> = files_under(&workspace_root().join("examples"), &|name| {
+    let workspaces: Vec<String> = files_under(&runfiles_root().join("examples"), &|name| {
         name == "README.md"
     })
     .iter()

@@ -1,15 +1,6 @@
-use std::path::{Path, PathBuf};
+use dx_testing::{read_runfiles, runfiles_root};
 
-fn workspace_root() -> PathBuf {
-    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-    Path::new(&root).join(workspace)
-}
-
-fn read(rel: &str) -> String {
-    let path = workspace_root().join(rel);
-    std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
-}
+const GITHUB_BUILD: &str = ".github/BUILD.bazel";
 
 fn squeezed(text: &str) -> String {
     text.chars().filter(|ch| !ch.is_whitespace()).collect()
@@ -169,12 +160,12 @@ fn defaulted_config_tools(source: &str) -> Vec<String> {
 
 #[test]
 fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default() {
-    let refusals = runner_config_refusals(&read("quality/runner/src/real/check.rs"));
+    let refusals = runner_config_refusals(&read_runfiles("quality/runner/src/real/check.rs"));
     assert!(
         !refusals.is_empty(),
         "the runner refuses no tool without a config"
     );
-    let defaulted = defaulted_config_tools(&read("quality/runner/src/real/staging.rs"));
+    let defaulted = defaulted_config_tools(&read_runfiles("quality/runner/src/real/staging.rs"));
     let effective: Vec<String> = refusals
         .iter()
         .filter(|tool| !defaulted.contains(tool))
@@ -183,13 +174,16 @@ fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default
     assert_eq!(
         effective,
         starlark_list_items(
-            &read("quality/native_config_tests.bzl"),
+            &read_runfiles("quality/native_config_tests.bzl"),
             "_RUNNER_CONFIG_REQUIRED_TOOLS",
         ),
         "the tools the runner refuses without a config no longer match the set \
          quality/native_config_tests.bzl pins"
     );
-    let required = starlark_dict_keys(&read("quality/native_config.bzl"), "CONFIG_REQUIRED_TOOLS");
+    let required = starlark_dict_keys(
+        &read_runfiles("quality/native_config.bzl"),
+        "CONFIG_REQUIRED_TOOLS",
+    );
     for tool in &effective {
         assert!(
             required.contains(tool),
@@ -201,8 +195,8 @@ fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default
 
 #[test]
 fn ruff_policy_matches_the_hinted_fixture() {
-    let workspace = read("ruff.toml");
-    let fixture = read("quality/testdata/ruff.toml");
+    let workspace = read_runfiles("ruff.toml");
+    let fixture = read_runfiles("quality/testdata/ruff.toml");
     let selected = toml_list(&workspace, "select");
     assert!(!selected.is_empty(), "ruff.toml selects no lint");
     assert_eq!(
@@ -219,8 +213,8 @@ fn ruff_policy_matches_the_hinted_fixture() {
 
 #[test]
 fn buildifier_policy_matches_the_hinted_fixture() {
-    let workspace = read(".buildifier.json");
-    let fixture = read("quality/testdata/buildifier_cfg/.buildifier.json");
+    let workspace = read_runfiles(".buildifier.json");
+    let fixture = read_runfiles("quality/testdata/buildifier_cfg/.buildifier.json");
     let selected = json_strings(&json_array(&workspace, "warningsList"));
     assert!(!selected.is_empty(), ".buildifier.json enables no warning");
     assert_eq!(
@@ -232,9 +226,9 @@ fn buildifier_policy_matches_the_hinted_fixture() {
 
 #[test]
 fn vale_policy_agrees_across_the_root_shim_the_corpus_and_the_fixture() {
-    let shim = read(".vale.ini");
-    let corpus = read("quality/corpus_vale.ini");
-    let fixture = read("quality/testdata/vale_test.ini");
+    let shim = read_runfiles(".vale.ini");
+    let corpus = read_runfiles("quality/corpus_vale.ini");
+    let fixture = read_runfiles("quality/testdata/vale_test.ini");
     for key in ["MinAlertLevel", "BasedOnStyles"] {
         assert_eq!(
             ini_value(&shim, key),
@@ -269,11 +263,11 @@ fn every_vale_config_resolves_its_marker_style() {
         ),
     ] {
         assert_eq!(
-            ini_value(&read(config), "StylesPath"),
+            ini_value(&read_runfiles(config), "StylesPath"),
             declared,
             "{config} declares a StylesPath this workspace does not ship"
         );
-        let style = workspace_root().join(styles).join("Dx/Markers.yml");
+        let style = runfiles_root().join(styles).join("Dx/Markers.yml");
         assert!(
             style.is_file(),
             "{config} resolves StylesPath to {styles}, which ships no Dx/Markers.yml"
@@ -283,8 +277,8 @@ fn every_vale_config_resolves_its_marker_style() {
 
 #[test]
 fn the_hinted_marker_style_matches_the_corpus() {
-    let fixture = read("quality/testdata/styles/Dx/Markers.yml");
-    let corpus = read("quality/corpus_styles/Dx/Markers.yml");
+    let fixture = read_runfiles("quality/testdata/styles/Dx/Markers.yml");
+    let corpus = read_runfiles("quality/corpus_styles/Dx/Markers.yml");
     assert_eq!(
         yaml_body(&fixture),
         yaml_body(&corpus),
@@ -294,8 +288,8 @@ fn the_hinted_marker_style_matches_the_corpus() {
 
 #[test]
 fn biome_policy_matches_the_hinted_fixture() {
-    let workspace = read("biome.json");
-    let fixture = read("quality/testdata/biome_cfg/biome.json");
+    let workspace = read_runfiles("biome.json");
+    let fixture = read_runfiles("quality/testdata/biome_cfg/biome.json");
     for key in ["linter", "formatter"] {
         assert_eq!(
             squeezed(&json_object(&workspace, key)),
@@ -334,9 +328,9 @@ fn named_files(text: &str) -> Vec<String> {
 
 #[test]
 fn the_shell_configs_name_only_files_the_workspace_ships() {
-    let root = workspace_root();
+    let root = runfiles_root();
     for config in SHELL_CONFIGS {
-        for name in named_files(&read(config)) {
+        for name in named_files(&read_runfiles(config)) {
             assert!(
                 root.join(&name).exists(),
                 "{config} names {name}, which this workspace does not ship"
@@ -349,7 +343,7 @@ fn the_shell_configs_name_only_files_the_workspace_ships() {
 fn the_shell_configs_never_restate_the_shfmt_invocation() {
     for config in SHELL_CONFIGS {
         assert!(
-            !read(config).contains("shfmt"),
+            !read_runfiles(config).contains("shfmt"),
             "{config} names shfmt; quality/adapter/src/commands.rs owns that invocation"
         );
     }
@@ -370,7 +364,7 @@ fn disabled_shellcheck_codes(text: &str) -> Vec<&str> {
 
 #[test]
 fn every_disabled_shellcheck_code_has_a_rationale() {
-    let text = read(".shellcheckrc");
+    let text = read_runfiles(".shellcheckrc");
     let codes = disabled_shellcheck_codes(&text);
     assert!(!codes.is_empty(), ".shellcheckrc disables no code");
     let comments: Vec<&str> = text.lines().filter(|line| is_comment(line)).collect();
@@ -384,7 +378,7 @@ fn every_disabled_shellcheck_code_has_a_rationale() {
 
 #[test]
 fn every_shellcheck_rationale_names_a_disabled_code() {
-    let text = read(".shellcheckrc");
+    let text = read_runfiles(".shellcheckrc");
     let codes = disabled_shellcheck_codes(&text);
     for (index, line) in text.lines().enumerate() {
         if !is_comment(line) {
@@ -442,29 +436,7 @@ fn stacked_comments(name: &str, text: &str) -> Vec<String> {
 }
 
 fn workflow_exports() -> Vec<String> {
-    let mut names = Vec::new();
-    let mut inside = false;
-    for line in read(".github/BUILD.bazel").lines() {
-        if line.starts_with("exports_files(") {
-            inside = true;
-            continue;
-        }
-        if inside && !line.starts_with(' ') {
-            break;
-        }
-        if !inside {
-            continue;
-        }
-        let trimmed = line.trim();
-        if let Some(name) = trimmed.strip_prefix('"') {
-            let name = name.split('"').next().unwrap_or_default();
-            if name.ends_with(".yml") {
-                names.push(name.to_owned());
-            }
-        }
-    }
-    assert!(!names.is_empty(), ".github/BUILD.bazel exports no workflow");
-    names
+    dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD)
 }
 
 #[test]
@@ -472,7 +444,7 @@ fn every_workflow_comment_is_one_line() {
     let mut comments = 0usize;
     for name in workflow_exports() {
         let rel = format!(".github/{name}");
-        let text = read(&rel);
+        let text = read_runfiles(&rel);
         let stacked = stacked_comments(&rel, &text);
         assert!(
             stacked.is_empty(),
@@ -489,7 +461,7 @@ fn every_workflow_comment_is_one_line() {
 fn no_workflow_comment_names_an_issue_or_another_page() {
     for name in workflow_exports() {
         let rel = format!(".github/{name}");
-        assert_comments_bare(&rel, &read(&rel));
+        assert_comments_bare(&rel, &read_runfiles(&rel));
     }
 }
 
@@ -497,6 +469,6 @@ fn no_workflow_comment_names_an_issue_or_another_page() {
 fn the_emitted_runfiles_block_names_no_issue_or_another_page() {
     assert_comments_bare(
         "deploy/rules/launcher.bzl",
-        &read("deploy/rules/launcher.bzl"),
+        &read_runfiles("deploy/rules/launcher.bzl"),
     );
 }

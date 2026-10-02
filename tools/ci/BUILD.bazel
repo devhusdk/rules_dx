@@ -14,6 +14,7 @@ rust_test(
         "//quality/evaluator:src/main.rs",
         "//quality/runner:src/main.rs",
     ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep
@@ -30,6 +31,7 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
     ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep
@@ -49,6 +51,7 @@ rust_test(
         "//.github:workflows/reusable-docs.yml",
         "//modules:versions.bzl",
     ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep
@@ -84,6 +87,7 @@ rust_test(
         "//quality/testdata:styles/Dx/Markers.yml",
         "//quality/testdata:vale_test.ini",
     ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep
@@ -97,6 +101,7 @@ rust_test(
         "//deploy/release:signing.bzl",
         "//deploy/release:src/lib.rs",
     ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep
@@ -115,6 +120,7 @@ rust_test(
         "//examples:README.md",
         "//examples:example_readmes",
     ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep
@@ -128,6 +134,7 @@ rust_test(
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

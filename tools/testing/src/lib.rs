@@ -162,6 +162,60 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
     direct
 }
 
+pub fn runfiles_root() -> PathBuf {
+    let root =
+        std::env::var("TEST_SRCDIR").unwrap_or_else(|_| panic!("TEST_SRCDIR is set under Bazel"));
+    let workspace = std::env::var("TEST_WORKSPACE")
+        .unwrap_or_else(|_| panic!("TEST_WORKSPACE is set under Bazel"));
+    Path::new(&root).join(workspace)
+}
+
+pub fn read_runfiles(rel: &str) -> String {
+    let path = runfiles_root().join(rel);
+    std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
+}
+
+pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
+    let prefix = format!("{name} = \"");
+    text.lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(prefix.as_str()))
+        .unwrap_or_else(|| panic!("{file} has no {name}"))
+        .trim_end_matches('"')
+        .to_owned()
+}
+
+pub fn workflow_exports(text: &str, file: &str) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    let mut in_exports = false;
+    for line in text.lines() {
+        if line.starts_with("exports_files(") {
+            in_exports = true;
+            continue;
+        }
+        if !in_exports {
+            continue;
+        }
+        if !line.starts_with(' ') {
+            break;
+        }
+        let trimmed = line.trim();
+        if !trimmed.starts_with('"') {
+            continue;
+        }
+        let name = trimmed
+            .trim_start_matches('"')
+            .split('"')
+            .next()
+            .unwrap_or_default();
+        if name.ends_with(".yml") {
+            names.push(name.to_owned());
+        }
+    }
+    assert!(!names.is_empty(), "{file} exports no workflow");
+    names
+}
+
 pub fn file_contains(path: &Path, patterns: &[&str], fixed: bool) -> std::io::Result<bool> {
     let lines = read_lines(path)?;
     if fixed {
@@ -1073,5 +1127,40 @@ mod tests {
         .expect("run");
         assert!(echo.status.success());
         assert!(echo.combined().contains("hello"));
+    }
+
+    #[test]
+    fn starlark_const_reads_one_quoted_assignment() {
+        let text = "exports_files([\"a.yml\"])\n\nVERSION = \"1.26.6\"\n";
+        assert_eq!(starlark_const(text, "VERSION", "versions.bzl"), "1.26.6");
+        let empty = "BAZELISK_VERSION = \"\"\n";
+        assert_eq!(
+            starlark_const(empty, "BAZELISK_VERSION", "versions.bzl"),
+            ""
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "versions.bzl has no MISSING")]
+    fn starlark_const_names_the_file_it_read() {
+        starlark_const("VERSION = \"1\"\n", "MISSING", "versions.bzl");
+    }
+
+    #[test]
+    fn workflow_exports_lists_only_the_exported_workflows() {
+        let build = "exports_files([\n    \".bazelignore\",\n    \"workflows/bump.yml\",\n    \"workflows/ci.yml\",\n])\n\nfilegroup(\n    name = \"later\",\n    srcs = [\"workflows/ghcr.yml\"],\n)\n";
+        assert_eq!(
+            workflow_exports(build, ".github/BUILD.bazel"),
+            ["workflows/bump.yml", "workflows/ci.yml"]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "exports no workflow")]
+    fn workflow_exports_rejects_a_build_that_exports_none() {
+        workflow_exports(
+            "exports_files([\n    \".bazelignore\",\n])\n",
+            ".github/BUILD.bazel",
+        );
     }
 }

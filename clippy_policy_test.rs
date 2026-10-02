@@ -1,11 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-fn workspace_root() -> PathBuf {
-    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-    Path::new(&root).join(workspace)
-}
+use dx_testing::runfiles_root;
 
 fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).expect("readable runfiles dir") {
@@ -19,7 +15,7 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 fn relative(path: &Path) -> String {
-    path.strip_prefix(workspace_root())
+    path.strip_prefix(runfiles_root())
         .expect("runfiles path under the workspace")
         .to_string_lossy()
         .replace('\\', "/")
@@ -48,7 +44,7 @@ fn denied_lints(text: &str) -> Option<BTreeSet<String>> {
 }
 
 fn policy_lints() -> BTreeSet<String> {
-    let toml = std::fs::read_to_string(workspace_root().join("clippy.toml"))
+    let toml = std::fs::read_to_string(runfiles_root().join("clippy.toml"))
         .expect("clippy.toml must ship as test data");
     let sentence = toml
         .lines()
@@ -89,7 +85,7 @@ fn every_crate_root_denies_the_lints_clippy_toml_documents() {
     );
 
     let mut sources = Vec::new();
-    rust_sources(&workspace_root(), &mut sources);
+    rust_sources(&runfiles_root(), &mut sources);
     sources.sort();
     let mut roots = 0usize;
     for path in &sources {
@@ -115,7 +111,7 @@ fn every_crate_root_denies_the_lints_clippy_toml_documents() {
 fn every_denied_lint_list_matches_the_documented_policy() {
     let policy = policy_lints();
     let mut sources = Vec::new();
-    rust_sources(&workspace_root(), &mut sources);
+    rust_sources(&runfiles_root(), &mut sources);
     sources.sort();
     let mut annotated = 0usize;
     for path in &sources {

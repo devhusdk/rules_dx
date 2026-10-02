@@ -196,6 +196,7 @@ rust_test(
         "//tools/testing:src/lib.rs",
     ],
     tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep

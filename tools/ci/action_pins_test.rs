@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+
+use dx_testing::read_runfiles;
 
 const GITHUB_BUILD: &str = ".github/BUILD.bazel";
 
@@ -11,47 +12,8 @@ struct ActionPin {
     tag: String,
 }
 
-fn workspace_root() -> PathBuf {
-    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-    Path::new(&root).join(workspace)
-}
-
-fn read(rel: &str) -> String {
-    let path = workspace_root().join(rel);
-    std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
-}
-
 fn workflow_exports() -> Vec<String> {
-    let build = read(GITHUB_BUILD);
-    let mut names: Vec<String> = Vec::new();
-    let mut in_exports = false;
-    for line in build.lines() {
-        if line.starts_with("exports_files(") {
-            in_exports = true;
-            continue;
-        }
-        if !in_exports {
-            continue;
-        }
-        if !line.starts_with(' ') {
-            break;
-        }
-        let trimmed = line.trim();
-        if !trimmed.starts_with('"') {
-            continue;
-        }
-        let name = trimmed
-            .trim_start_matches('"')
-            .split('"')
-            .next()
-            .unwrap_or_default();
-        if name.ends_with(".yml") {
-            names.push(name.to_owned());
-        }
-    }
-    assert!(!names.is_empty(), "{GITHUB_BUILD} exports no workflow");
-    names
+    dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD)
 }
 
 fn uses_lines(text: &str) -> Vec<(usize, String)> {
@@ -72,7 +34,7 @@ fn uses_lines(text: &str) -> Vec<(usize, String)> {
 fn action_pins() -> Vec<ActionPin> {
     let mut pins = Vec::new();
     for name in workflow_exports() {
-        let text = read(&format!(".github/{name}"));
+        let text = read_runfiles(&format!(".github/{name}"));
         for (line, uses) in uses_lines(&text) {
             if uses.starts_with("./") || uses.starts_with("docker://") {
                 continue;

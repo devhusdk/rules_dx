@@ -1,6 +1,7 @@
 """Single source of truth for toolchain and ruleset versions."""
 
 BAZEL_VERSION = "9.2.0"
+BAZELISK_VERSION = "1.29.0"
 
 RULES_RUST_VERSION = "0.74.0"
 RULES_RUST_PROST_VERSION = "0.74.0"

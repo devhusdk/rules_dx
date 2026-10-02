@@ -82,8 +82,6 @@ env:
   # Windows binaries, while still converting MSYS paths (`/c/...`) for
   # tools like tsc.bat. Exclude only `//`, not `*`.
   MSYS2_ARG_CONV_EXCL: "//"
-  # Single-sourced Bazelisk pin for every setup-bazel step in this
-  # workflow (kept in sync with .devcontainer/Dockerfile.prebuilt).
   BAZELISK_VERSION: "1.29.0"
 
 concurrency:

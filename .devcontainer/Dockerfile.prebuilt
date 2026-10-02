@@ -1,7 +1,7 @@
 # Prebuilt devcontainer image (issue #460, live successor to closed #184, seed slice).
 #
 # Seed-host first (linux amd64): pinned Ubuntu base digest, pre-installed
-# Bazelisk (pinned sha256, Bazel 9.2.0 via USE_BAZEL_VERSION), no ambient
+# Bazelisk (pinned sha256, Bazel via USE_BAZEL_VERSION), no ambient
 # language toolchains (tools resolve via Bazel at container runtime, keeping
 # one toolchain source of truth). Must stay admissible per
 # `devcontainer_is_admissible` (cli/adopt/src/policy.rs): pinned bootstrap,
@@ -34,11 +34,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl git \
     && rm -rf /var/lib/apt/lists/*
 
-# Pinned Bazelisk launcher (linux amd64; this file is the canonical
-# version plus sha pair): Bazelisk reads the
-# canonical `.bazelversion` (9.2.0), so container create skips feature-install
-# Bazel fetch. Keep both pins in sync with the canonical source
-# (`.bazelversion` plus the `BAZELISK_VERSION` workflow env).
+# Pinned Bazelisk launcher (linux amd64), the only Bazelisk fetch in the tree.
 # arm64/macOS/Windows matrix follows platform qualification (#5).
 RUN curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 -o /tmp/bazelisk \
       "https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64" \

@@ -68,8 +68,6 @@ env:
   # `ci-pr` and the header rides inline (never in a committed rc file).
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
   BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
-  # Single-sourced Bazelisk pin for the setup-bazel step in this
-  # workflow (kept in sync with .devcontainer/Dockerfile.prebuilt).
   BAZELISK_VERSION: "1.29.0"
 
 concurrency:

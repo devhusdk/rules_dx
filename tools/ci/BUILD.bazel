@@ -5,6 +5,25 @@ package(default_visibility = ["//:__subpackages__"])
 
 # keep
 rust_test(
+    name = "bazelisk_pins_test",
+    size = "small",
+    srcs = ["bazelisk_pins_test.rs"],
+    data = [
+        "//:.bazelversion",
+        "//.devcontainer:Dockerfile.prebuilt",
+        "//.github:BUILD.bazel",
+        "//.github:workflows/bump.yml",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/ghcr.yml",
+        "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+        "//modules:versions.bzl",
+    ],
+)
+
+# keep
+rust_test(
     name = "config_consistency_test",
     size = "small",
     srcs = ["config_consistency_test.rs"],
@@ -27,6 +46,7 @@ rust_test(
     size = "small",
     srcs = ["signing_pins_test.rs"],
     data = [
+        "//.github:workflows/ghcr.yml",
         "//deploy/install:src/lib.rs",
         "//deploy/release:signing.bzl",
         "//deploy/release:src/lib.rs",

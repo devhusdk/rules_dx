@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 const SIGNING_BZL: &str = "deploy/release/signing.bzl";
 const RELEASE_LIB: &str = "deploy/release/src/lib.rs";
 const INSTALL_LIB: &str = "deploy/install/src/lib.rs";
+const GHCR_WORKFLOW: &str = ".github/workflows/ghcr.yml";
 
 fn workspace_root() -> PathBuf {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
@@ -77,6 +78,21 @@ fn the_cosign_version_and_bundle_media_type_match_the_starlark_pins() {
             rust_const(&release, RELEASE_LIB, name),
             starlark_const(&signing, name),
             "{RELEASE_LIB} names {SIGNING_BZL} {name} as the pin it enforces"
+        );
+    }
+}
+
+#[test]
+fn the_ghcr_cosign_fetch_matches_the_starlark_pins() {
+    let signing = read(SIGNING_BZL);
+    let ghcr = read(GHCR_WORKFLOW);
+    for name in ["COSIGN_VERSION", "COSIGN_SHA256_LINUX_AMD64"] {
+        let value = starlark_const(&signing, format!("SIGNING_{name}").as_str());
+        let declaration = format!("{name}=\"{value}\"");
+        assert_eq!(
+            ghcr.matches(&declaration).count(),
+            1,
+            "{GHCR_WORKFLOW} must fetch the {SIGNING_BZL} {name} pin {value}"
         );
     }
 }

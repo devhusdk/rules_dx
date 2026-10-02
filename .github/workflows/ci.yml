@@ -21,8 +21,6 @@ env:
   # `C:\...`) that tools like tsc.bat require. Excluding only the `//`
   # prefix (not `*`, not `MSYS_NO_PATHCONV`) keeps both working.
   MSYS2_ARG_CONV_EXCL: "//"
-  # Single-sourced Bazelisk pin for every setup-bazel step in this
-  # workflow (kept in sync with .devcontainer/Dockerfile.prebuilt).
   BAZELISK_VERSION: "1.29.0"
 
 concurrency:

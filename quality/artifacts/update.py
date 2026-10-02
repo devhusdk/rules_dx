@@ -24,10 +24,12 @@ TOOLS = {
     "buildifier": {
         "upstream_version": "8.5.1",
         "release_page": "https://github.com/bazel-contrib/buildtools/releases/tag/v8.5.1",
-        "licenses": [{
-            "name": "Apache-2.0",
-            "source": "https://github.com/bazel-contrib/buildtools/blob/v8.5.1/LICENSE",
-        }],
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/bazel-contrib/buildtools/blob/v8.5.1/LICENSE",
+            }
+        ],
         "platforms": {
             "linux_x86_64": {
                 "os": "linux",
@@ -66,13 +68,16 @@ TOOLS = {
     "biome": {
         "upstream_version": "2.5.12",
         "release_page": "https://github.com/biomejs/biome/releases/tag/@biomejs/biome@2.5.12",
-        "licenses": [{
-            "name": "MIT",
-            "source": "https://github.com/biomejs/biome/blob/main/LICENSE-MIT",
-        }, {
-            "name": "Apache-2.0",
-            "source": "https://github.com/biomejs/biome/blob/main/LICENSE-APACHE",
-        }],
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/biomejs/biome/blob/main/LICENSE-MIT",
+            },
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/biomejs/biome/blob/main/LICENSE-APACHE",
+            },
+        ],
         "platforms": {
             "linux_x86_64": {
                 "os": "linux",
@@ -111,10 +116,12 @@ TOOLS = {
     "taplo": {
         "upstream_version": "0.10.0",
         "release_page": "https://github.com/tamasfe/taplo/releases/tag/0.10.0",
-        "licenses": [{
-            "name": "MIT",
-            "source": "https://github.com/tamasfe/taplo/blob/0.10.0/LICENSE",
-        }],
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/tamasfe/taplo/blob/0.10.0/LICENSE",
+            }
+        ],
         "platforms": {
             "linux_x86_64": {
                 "os": "linux",
@@ -153,10 +160,12 @@ TOOLS = {
     "vale": {
         "upstream_version": "3.20.0",
         "release_page": "https://github.com/vale-cli/vale/releases/tag/v3.20.0",
-        "licenses": [{
-            "name": "MIT",
-            "source": "https://github.com/vale-cli/vale/blob/v3.20.0/LICENSE",
-        }],
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/vale-cli/vale/blob/v3.20.0/LICENSE",
+            }
+        ],
         "platforms": {
             "linux_x86_64": {
                 "os": "linux",
@@ -199,10 +208,12 @@ TOOLS = {
     "ruff": {
         "upstream_version": "0.16.7",
         "release_page": "https://github.com/astral-sh/ruff/releases/tag/0.16.7",
-        "licenses": [{
-            "name": "MIT",
-            "source": "https://github.com/astral-sh/ruff/blob/0.16.7/LICENSE",
-        }],
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/astral-sh/ruff/blob/0.16.7/LICENSE",
+            }
+        ],
         "platforms": {
             "linux_x86_64": {
                 "os": "linux",
@@ -245,10 +256,12 @@ TOOLS = {
     "gitleaks": {
         "upstream_version": "8.30.1",
         "release_page": "https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1",
-        "licenses": [{
-            "name": "MIT",
-            "source": "https://github.com/gitleaks/gitleaks/blob/v8.30.1/LICENSE",
-        }],
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/gitleaks/gitleaks/blob/v8.30.1/LICENSE",
+            }
+        ],
         "platforms": {
             "linux_x86_64": {
                 "os": "linux",
@@ -291,10 +304,12 @@ TOOLS = {
     "ty": {
         "upstream_version": "0.0.80",
         "release_page": "https://github.com/astral-sh/ty/releases/tag/0.0.80",
-        "licenses": [{
-            "name": "MIT",
-            "source": "https://github.com/astral-sh/ty/blob/0.0.80/LICENSE",
-        }],
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/astral-sh/ty/blob/0.0.80/LICENSE",
+            }
+        ],
         "platforms": {
             "linux_x86_64": {
                 "os": "linux",
@@ -362,7 +377,10 @@ def _download(url, path):
             request = urllib.request.Request(
                 url, headers={"User-Agent": "rules_dx-artifact-update"}
             )
-            with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT) as response, open(path, "wb") as out:
+            with (
+                urllib.request.urlopen(request, timeout=FETCH_TIMEOUT) as response,
+                open(path, "wb") as out,
+            ):
                 for chunk in iter(lambda: response.read(65536), b""):
                     out.write(chunk)
             return
@@ -370,8 +388,10 @@ def _download(url, path):
             last_error = error
             if attempt < FETCH_RETRIES:
                 time.sleep(FETCH_BACKOFF_SECONDS * attempt)
-    sys.exit("update: download failed after %d attempts for %r: %s"
-             % (FETCH_RETRIES, url, last_error))
+    sys.exit(
+        "update: download failed after %d attempts for %r: %s"
+        % (FETCH_RETRIES, url, last_error)
+    )
 
 
 def _sha256(path):
@@ -452,8 +472,10 @@ def _starlark(value, indent=4):
     if isinstance(value, dict):
         if not value:
             return "{}"
-        items = ["%s%s: %s" % (pad, _starlark(key), _starlark(item, indent + 4))
-                 for key, item in sorted(value.items())]
+        items = [
+            "%s%s: %s" % (pad, _starlark(key), _starlark(item, indent + 4))
+            for key, item in sorted(value.items())
+        ]
         return "{\n%s,\n%s}" % (",\n".join(items), " " * (indent - 4))
     raise TypeError("unsupported metadata value: %r" % (value,))
 
@@ -470,7 +492,9 @@ def _collect(tool, platform_key, spec, workdir):
     _download(spec["url"], asset_path)
     size = os.path.getsize(asset_path)
     digest = _sha256(asset_path)
-    checksum_source = "maintainer-established byte identity (upstream publishes no asset digests)"
+    checksum_source = (
+        "maintainer-established byte identity (upstream publishes no asset digests)"
+    )
     if "checksums_url" in spec:
         checksums_path = os.path.join(workdir, "checksums.txt")
         _download(spec["checksums_url"], checksums_path)
@@ -482,8 +506,10 @@ def _collect(tool, platform_key, spec, workdir):
                     published[parts[1].lstrip("*")] = parts[0]
         expected = published.get(spec["asset"])
         if expected != digest:
-            sys.exit("update: %s digest %s does not match published %s"
-                     % (spec["asset"], digest, expected))
+            sys.exit(
+                "update: %s digest %s does not match published %s"
+                % (spec["asset"], digest, expected)
+            )
         checksum_source = "upstream published checksums file"
 
     kind = spec["kind"]
@@ -508,12 +534,14 @@ def _collect(tool, platform_key, spec, workdir):
         with tarfile.open(asset_path, "r:gz") as archive_file:
             archive_file.extractall(workdir)
             for member in archive_file.getmembers():
-                members.append({
-                    "name": member.name,
-                    "size": member.size,
-                    "mode": oct(member.mode),
-                    "is_executable": bool(member.mode & 0o111) and member.isfile(),
-                })
+                members.append(
+                    {
+                        "name": member.name,
+                        "size": member.size,
+                        "mode": oct(member.mode),
+                        "is_executable": bool(member.mode & 0o111) and member.isfile(),
+                    }
+                )
         exe_path = os.path.join(workdir, spec["executable"])
         exe_digest = _sha256(exe_path)
         archive = {"format": "tar.gz", "members": members}
@@ -527,12 +555,14 @@ def _collect(tool, platform_key, spec, workdir):
                 is_exe = (not is_dir) and (
                     info.filename.endswith(".exe") or bool(mode & 0o111)
                 )
-                members.append({
-                    "name": info.filename,
-                    "size": info.file_size,
-                    "mode": oct(mode),
-                    "is_executable": is_exe,
-                })
+                members.append(
+                    {
+                        "name": info.filename,
+                        "size": info.file_size,
+                        "mode": oct(mode),
+                        "is_executable": is_exe,
+                    }
+                )
         exe_path = os.path.join(workdir, spec["executable"])
         exe_digest = _sha256(exe_path)
         archive = {"format": "zip", "members": members}
@@ -579,9 +609,8 @@ def _emit(artifact, tool, platform_key):
         '"""\n'
         "\n"
         "# buildifier: disable=attr-licenses\n"
-        "ARTIFACT = %s\n"
-        % (tool, platform_key,
-           _starlark(artifact)))
+        "ARTIFACT = %s\n" % (tool, platform_key, _starlark(artifact))
+    )
     return path, content
 
 
@@ -608,8 +637,10 @@ def main(argv):
             else:
                 with open(path, "w", encoding="utf-8") as handle:
                     handle.write(content)
-                print("update: wrote %s (%d bytes, sha256 %s...)"
-                      % (path, artifact["size"], artifact["sha256"][:16]))
+                print(
+                    "update: wrote %s (%d bytes, sha256 %s...)"
+                    % (path, artifact["size"], artifact["sha256"][:16])
+                )
     if failed:
         sys.exit(1)
 

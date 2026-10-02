@@ -104,6 +104,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- typecheck --check //... -- $BAZEL_CONFIG $BB_ARGS
   format:
     if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',format,') }}
@@ -128,6 +132,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- format --check //... -- $BAZEL_CONFIG $BB_ARGS
   generate:
     if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',generate,') }}
@@ -152,6 +160,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- generate --check //... -- $BAZEL_CONFIG $BB_ARGS
   security-audit:
     if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',security-audit,') }}
@@ -176,6 +188,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       - name: Resolve hermetic Gitleaks
         run: |
           rel="$(bazel cquery --output=files @dx_tools//:gitleaks $BAZEL_CONFIG $BB_ARGS 2>/dev/null | tail -1)"
@@ -255,6 +271,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       # Audit backends run no Bazel and take no passthrough flags.
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- license //...
   test:
@@ -280,6 +300,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- test //... -- $BAZEL_CONFIG $BB_ARGS
   build:
     if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',build,') }}
@@ -304,6 +328,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- build //... -- $BAZEL_CONFIG $BB_ARGS
   coverage:
     if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',coverage,') }}
@@ -329,6 +357,10 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: test -f MODULE.bazel && grep -F -q "version = \"$RULES_DX_PIN\"" MODULE.bazel
       - name: Run coverage with optional threshold
         env:
           DX_MIN_COVERAGE: ${{ inputs.min_coverage }}

@@ -5,6 +5,10 @@ const CALLERS: [(&str, &str); 2] = [
     ("examples/docs-ci/caller.yml", "reusable-docs.yml"),
 ];
 
+const REUSABLE: [&str; 2] = ["reusable-consumer.yml", "reusable-docs.yml"];
+
+const PIN_STEP: &str = "- name: Verify rules_dx pin";
+
 fn workspace_root() -> PathBuf {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
     let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
@@ -64,5 +68,63 @@ fn both_starters_pin_one_reviewed_commit() {
             "{caller} pins a different commit than {}; bump them together",
             CALLERS[0].0
         );
+    }
+}
+
+/// Returns each job block of a workflow file with its name, after the jobs: key.
+fn jobs(workflow: &str) -> Vec<(String, String)> {
+    let text = read(&format!(".github/workflows/{workflow}"));
+    let lines: Vec<&str> = text.lines().collect();
+    let start = lines
+        .iter()
+        .position(|line| *line == "jobs:")
+        .unwrap_or_else(|| panic!("{workflow} has no jobs: key"));
+    let mut starts: Vec<(usize, String)> = Vec::new();
+    for (index, line) in lines.iter().enumerate().skip(start + 1) {
+        let Some(name) = line
+            .strip_prefix("  ")
+            .and_then(|rest| rest.strip_suffix(':'))
+            .filter(|name| !name.is_empty() && name.chars().all(is_job_key_char))
+        else {
+            continue;
+        };
+        starts.push((index, name.to_owned()));
+    }
+    assert!(
+        !starts.is_empty(),
+        "{workflow} names no job after its jobs: key"
+    );
+    let mut out = Vec::with_capacity(starts.len());
+    for (slot, (index, name)) in starts.iter().enumerate() {
+        let end = starts.get(slot + 1).map_or(lines.len(), |(next, _)| *next);
+        out.push((name.clone(), lines[*index..end].join("\n")));
+    }
+    out
+}
+
+/// Returns whether a character may appear in a top-level job key.
+fn is_job_key_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_')
+}
+
+#[test]
+fn every_checkout_job_verifies_the_rules_dx_pin() {
+    for workflow in REUSABLE {
+        let jobs = jobs(workflow);
+        let checkout_jobs: Vec<&(String, String)> = jobs
+            .iter()
+            .filter(|(_, body)| body.contains("uses: actions/checkout@"))
+            .collect();
+        assert!(
+            !checkout_jobs.is_empty(),
+            "{workflow} has no job that checks out the tree"
+        );
+        for (name, body) in checkout_jobs {
+            let pins = body.matches(PIN_STEP).count();
+            assert_eq!(
+                pins, 1,
+                "{workflow} job {name} must carry exactly one {PIN_STEP:?} step, found {pins}"
+            );
+        }
     }
 }

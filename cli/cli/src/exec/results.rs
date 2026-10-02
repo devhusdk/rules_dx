@@ -7,6 +7,56 @@ use quality_result::{decode_validated, proto};
 
 use super::common::{collect_targets, FileChange};
 
+#[derive(Default)]
+struct Staged {
+    tools: Vec<String>,
+    initial: Vec<DiagnosticEvent>,
+    terminal: Vec<DiagnosticEvent>,
+    changes: Vec<FileChange>,
+    digests: Vec<(String, [u8; 32])>,
+}
+
+impl Staged {
+    fn absorb(&mut self, other: Staged) {
+        self.tools.extend(other.tools);
+        self.initial.extend(other.initial);
+        self.terminal.extend(other.terminal);
+        self.changes.extend(other.changes);
+        self.digests.extend(other.digests);
+    }
+}
+
+/// Decodes one result artifact into the collected shape, or None when it is not one.
+fn stage_artifact(bytes: &[u8]) -> Option<Staged> {
+    stage_result(&decode_validated(bytes).ok()?)
+}
+
+/// Maps one decoded result, or None when a field is outside what the report can carry.
+fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
+    let mut staged = Staged::default();
+    for stage in &result.stages {
+        staged.tools.push(stage.tool_id.clone());
+    }
+    for snapshot in &result.terminal_snapshot {
+        let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
+        staged.digests.push((snapshot.path.clone(), digest));
+    }
+    for diagnostic in &result.initial_diagnostics {
+        staged
+            .initial
+            .push(map_diagnostic(diagnostic, Snapshot::Initial)?);
+    }
+    for diagnostic in &result.terminal_diagnostics {
+        staged
+            .terminal
+            .push(map_diagnostic(diagnostic, Snapshot::Terminal)?);
+    }
+    for file in &result.replacements {
+        staged.changes.push(map_change(file)?);
+    }
+    Some(staged)
+}
+
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
     pub(crate) initial: Vec<DiagnosticEvent>,
@@ -16,7 +66,7 @@ pub(crate) struct Collected {
     pub(crate) complete: bool,
 }
 
-pub(crate) fn map_severity(value: i32) -> Option<Severity> {
+fn map_severity(value: i32) -> Option<Severity> {
     match proto::Severity::try_from(value).ok()? {
         proto::Severity::Unspecified => None,
         proto::Severity::Info => Some(Severity::Info),
@@ -25,10 +75,7 @@ pub(crate) fn map_severity(value: i32) -> Option<Severity> {
     }
 }
 
-pub(crate) fn map_diagnostic(
-    diagnostic: &proto::Diagnostic,
-    snapshot: Snapshot,
-) -> Option<DiagnosticEvent> {
+fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<DiagnosticEvent> {
     let range = match (diagnostic.start_byte, diagnostic.end_byte) {
         (Some(start), Some(end)) => Some((start, end)),
         (None, None) => None,
@@ -51,7 +98,7 @@ pub(crate) fn map_diagnostic(
     })
 }
 
-pub(crate) fn map_change(change: &proto::FileEdits) -> Option<FileChange> {
+fn map_change(change: &proto::FileEdits) -> Option<FileChange> {
     let original_digest: [u8; 32] = change.original_digest.as_slice().try_into().ok()?;
     let mut edits = Vec::with_capacity(change.edits.len());
     for edit in &change.edits {
@@ -85,81 +132,24 @@ pub(crate) fn collect_results_in(
             complete = false;
             continue;
         }
-        let mut staged_initial = Vec::new();
-        let mut staged_terminal = Vec::new();
-        let mut staged_changes = Vec::new();
-        let mut staged_digests = Vec::new();
-        let mut staged_tools = Vec::new();
-        let mut target_ok = true;
+        let mut staged = Staged::default();
+        let mut staged_ok = true;
         for artifact in &target.artifacts {
-            let result = match decode_validated(&artifact.bytes) {
-                Ok(result) => result,
-                Err(_) => {
-                    target_ok = false;
-                    break;
-                }
+            let Some(part) = stage_artifact(&artifact.bytes) else {
+                staged_ok = false;
+                break;
             };
-            for stage in &result.stages {
-                staged_tools.push(stage.tool_id.clone());
-            }
-            for snapshot in &result.terminal_snapshot {
-                match snapshot.digest.as_slice().try_into() {
-                    Ok(digest) => staged_digests.push((snapshot.path.clone(), digest)),
-                    Err(_) => {
-                        target_ok = false; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                        break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    }
-                }
-            }
-            if !target_ok {
-                break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
-            for diagnostic in &result.initial_diagnostics {
-                match map_diagnostic(diagnostic, Snapshot::Initial) {
-                    Some(mapped) => staged_initial.push(mapped),
-                    None => {
-                        target_ok = false; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                        break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    }
-                }
-            }
-            if !target_ok {
-                break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
-            for diagnostic in &result.terminal_diagnostics {
-                match map_diagnostic(diagnostic, Snapshot::Terminal) {
-                    Some(mapped) => staged_terminal.push(mapped),
-                    None => {
-                        target_ok = false; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                        break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    }
-                }
-            }
-            if !target_ok {
-                break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
-            for file in &result.replacements {
-                match map_change(file) {
-                    Some(mapped) => staged_changes.push(mapped),
-                    None => {
-                        target_ok = false; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                        break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    }
-                }
-            }
-            if !target_ok {
-                break; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
+            staged.absorb(part);
         }
-        if !target_ok {
+        if !staged_ok {
             complete = false;
             continue;
         }
-        tools.extend(staged_tools);
-        initial.extend(staged_initial);
-        terminal.extend(staged_terminal);
-        changes.extend(staged_changes);
-        terminal_digests.extend(staged_digests);
+        tools.extend(staged.tools);
+        initial.extend(staged.initial);
+        terminal.extend(staged.terminal);
+        changes.extend(staged.changes);
+        terminal_digests.extend(staged.digests);
     }
     Ok(Collected {
         tools: tools.into_iter().collect(),
@@ -176,7 +166,7 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use crate::exec::common::CODE_INVALID_BEP;
-    use quality_result::proto;
+    use quality_result::{encode_validated, proto};
 
     #[test]
     fn severity_mapping_covers_all_arms() {
@@ -210,6 +200,37 @@ mod tests {
         bare.start_byte = None;
         bare.end_byte = None;
         assert!(map_diagnostic(&bare, Snapshot::Terminal).is_some());
+    }
+
+    #[test]
+    fn staging_rejects_results_the_report_cannot_carry() {
+        let harness = Harness::new("stage-reject");
+        harness.write_source("src/a.py", "x = 1\n");
+        let bytes = harness.valid_result(
+            vec![Harness::diagnostic("unused", false)],
+            vec![harness.replacement(b"y")],
+        );
+        let mut result = decode_validated(&bytes).expect("valid result");
+        result.terminal_diagnostics = result.initial_diagnostics.clone();
+        assert!(stage_artifact(&bytes).is_some(), "a valid artifact stages");
+        assert!(stage_result(&result).is_some(), "a valid result stages");
+        assert!(stage_artifact(b"not-a-validated-result").is_none());
+
+        let mut short_snapshot = result.clone();
+        short_snapshot.terminal_snapshot[0].digest.pop();
+        let mut no_severity = result.clone();
+        no_severity.initial_diagnostics[0].severity = proto::Severity::Unspecified as i32;
+        let mut no_end = result.clone();
+        no_end.terminal_diagnostics[0].end_byte = None;
+        let mut short_original = result.clone();
+        short_original.replacements[0].original_digest.pop();
+        for broken in [short_snapshot, no_severity, no_end, short_original] {
+            assert!(stage_result(&broken).is_none());
+            assert!(
+                encode_validated(&broken).is_err(),
+                "a producer cannot send what staging rejects"
+            );
+        }
     }
 
     #[test]

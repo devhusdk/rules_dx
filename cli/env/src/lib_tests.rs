@@ -669,6 +669,88 @@ fn probe_failure_reports_before_mutation() {
     let _ = fs::remove_dir_all(&root);
 }
 
+#[cfg(unix)]
+#[test]
+fn blocked_installed_tree_reports_unmanaged() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-blocked-bin-");
+    let root = scratch.path().to_path_buf();
+    let blocker = root.join("blocker");
+    fs::write(&blocker, "file blocks dir").expect("blocker file");
+    let bin = blocker.join(BIN_DIR_NAME);
+    let error = read_current_identity(&bin).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Unmanaged { path, detail }
+            if path == bin && detail.contains("cannot inspect installed tree")
+    ));
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn crash_restore_failure_reports_install() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-crash-fail-");
+    let root = scratch.path().to_path_buf();
+    let prev = root.join(PREV_DIR_NAME);
+    fs::create_dir_all(&prev).expect("prev dir");
+    let blocker = root.join("blocker");
+    fs::write(&blocker, "file blocks dir").expect("blocker file");
+    let error = recover_crashed_swap(&prev, &blocker.join(BIN_DIR_NAME)).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason } if reason.contains("cannot restore interrupted tree")
+    ));
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn uncreatable_staging_reports_install() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-stage-fail-");
+    let root = scratch.path().to_path_buf();
+    let target = root.join("tool");
+    fs::write(&target, b"tool").expect("tool");
+    let staged = vec![("a".to_string(), target)];
+    let blocker = root.join("blocker");
+    fs::write(&blocker, "file blocks dir").expect("blocker file");
+    let error = stage_tree(&blocker.join(STAGE_DIR_NAME), &staged, &[7u8; 32]).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason } if reason.contains("cannot create staging")
+    ));
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn commit_swap_failures_report_install() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-swap-fail-");
+    let root = scratch.path().to_path_buf();
+    let bin = root.join(BIN_DIR_NAME);
+    fs::create_dir_all(&bin).expect("bin dir");
+    let occupied = root.join(PREV_DIR_NAME);
+    fs::create_dir_all(&occupied).expect("prev dir");
+    fs::write(occupied.join("keep"), "keep").expect("occupied prev");
+    let stage = root.join(STAGE_DIR_NAME);
+    fs::create_dir_all(&stage).expect("stage dir");
+    let error = commit_swap(&bin, &occupied, &stage).unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason } if reason.contains("cannot retire current tree")
+    ));
+
+    let blocker = root.join("blocker");
+    fs::write(&blocker, "file blocks dir").expect("blocker file");
+    let error = commit_swap(
+        &blocker.join(BIN_DIR_NAME),
+        &root.join(PREV_DIR_NAME),
+        &stage,
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason } if reason.contains("cannot publish staged tree")
+    ));
+    let _ = fs::remove_dir_all(&root);
+}
+
 #[test]
 fn default_probe_accepts_writable_dir() {
     let scratch = dx_test_scratch::scratch("dx-env-test-probe-ok-");

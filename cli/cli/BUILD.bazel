@@ -347,7 +347,10 @@ rust_clippy_test(
 )
 
 exports_files(
-    ["Cargo.toml"],
+    [
+        "Cargo.toml",
+        "src/bin_man.rs",
+    ],
     visibility = ["//visibility:public"],
 )
 

@@ -41,7 +41,10 @@ dx_rust_crate(
     ],
 )
 
-exports_files(["src/version.rs"])
+exports_files([
+    "src/lib.rs",
+    "src/version.rs",
+])
 
 real_source_target(
     name = "corpus_starlark",

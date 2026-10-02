@@ -1,4 +1,12 @@
-#![cfg_attr(not(test), deny(clippy::expect_used, clippy::unwrap_used))]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
 
 pub const SCHEMA_MAJOR: u32 = 1;
 pub const SCHEMA_MINOR: u32 = 1;

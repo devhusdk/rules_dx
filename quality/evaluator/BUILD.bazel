@@ -68,7 +68,11 @@ rust_clippy_test(
     ],
 )
 
-exports_files(["Cargo.toml"])
+exports_files([
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/main.rs",
+])
 
 rust_test(
     name = "quality_evaluator_test",

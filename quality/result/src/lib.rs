@@ -1,4 +1,12 @@
-#![cfg_attr(not(test), deny(clippy::expect_used, clippy::unwrap_used))]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
 
 use proto::{
     Capability, Convergence, Diagnostic, Edit, FileEdits, FileSnapshot, QualityResult, Severity,

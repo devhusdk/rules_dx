@@ -1,4 +1,12 @@
-#![cfg_attr(not(test), deny(clippy::expect_used, clippy::unwrap_used))]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
 
 pub use doc_ir_proto::dx::documentation::v1 as proto;
 use proto::{DocIr, Symbol};

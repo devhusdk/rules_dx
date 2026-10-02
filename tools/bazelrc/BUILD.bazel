@@ -53,6 +53,7 @@ rust_clippy_test(
 exports_files([
     "Cargo.toml",
     "preset.bazelrc",
+    "src/bin_preset_update.rs",
     "src/lib.rs",
 ])
 

@@ -30,12 +30,12 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "archive.bzl",
     "archive_tests.bzl",
+    "crates.bzl",
+    "crates_tests.bzl",
     "defs.bzl",
     "deploy_tests.bzl",
     "github.bzl",
     "github_tests.bzl",
-    "crates.bzl",
-    "crates_tests.bzl",
     "launcher.bzl",
     "maven.bzl",
     "maven_tests.bzl",
@@ -51,6 +51,10 @@ exports_files([
     "promotion_tests.bzl",
     "pypi.bzl",
     "pypi_tests.bzl",
+    "src/bin_archiver.rs",
+    "src/bin_hasher.rs",
+    "src/bin_npm_pack.rs",
+    "src/lib.rs",
     "verify_test.rs",
 ])
 

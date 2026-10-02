@@ -129,7 +129,10 @@ rust_clippy_test(
     targets = [":quality_adapter"],
 )
 
-exports_files(["Cargo.toml"])
+exports_files([
+    "Cargo.toml",
+    "src/lib.rs",
+])
 
 real_source_target(
     name = "corpus_starlark",

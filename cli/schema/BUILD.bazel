@@ -4,6 +4,10 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_DOCS_GENERATION_QUALITY")
 
 package(default_visibility = VIS_CLI_DOCS_GENERATION_QUALITY)
 
+exports_files([
+    "src/lib.rs",
+])
+
 dx_rust_crate(
     name = "dx_schema",
     package_name = "cli/dx_schema",

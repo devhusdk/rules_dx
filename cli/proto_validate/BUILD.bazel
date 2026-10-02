@@ -4,6 +4,10 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_WIDE")
 
 package(default_visibility = VIS_CLI_WIDE)
 
+exports_files([
+    "src/lib.rs",
+])
+
 dx_rust_crate(
     name = "dx_proto_validate",
     package_name = "cli/dx_proto_validate",

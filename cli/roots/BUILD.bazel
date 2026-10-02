@@ -11,7 +11,10 @@ dx_rust_crate(
     deps = ["thiserror"],
 )
 
-exports_files(["roots.bzl"])
+exports_files([
+    "roots.bzl",
+    "src/lib.rs",
+])
 
 repository_roots_file(
     name = "roots_pattern_fixture",

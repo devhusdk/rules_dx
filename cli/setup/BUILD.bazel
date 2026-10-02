@@ -6,6 +6,10 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
 
+exports_files([
+    "src/lib.rs",
+])
+
 dx_rust_crate(
     name = "dx_setup",
     package_name = "cli/dx_setup",

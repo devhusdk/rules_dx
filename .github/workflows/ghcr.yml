@@ -1,34 +1,3 @@
-# Prebuilt devcontainer images on GHCR (issue #460, live successor to closed
-# #184 for the GHCR route; trust root shared with #311).
-#
-# Separate workflow from releases per owner decision (different lifecycle:
-# per-scaffold-change, not per-tag; base-image rebuilds never block/couple
-# a `dx` release). Build on PR (paths below), push gated on explicit owner
-# approval until standing approval exists. Signing runs owner-gated after
-# push: `cosign sign --yes <image>@<digest>` keyless on the #311 trust root
-# (https://tuf-repo-cdn.sigstore.dev, same as //deploy/release:signing_demo)
-# plus `cosign verify` and `gh attestation` on the same root; PRs print the
-# dry-run would-sign and sign nothing. Image tags track the single-version
-# `dx` == module pin (`0.0.0`, see cli/adopt/src/version.rs DX_VERSION ==
-# MODULE_VERSION): push tag is `0.0.0-sha-<sha>`, digest pin
-# (`ghcr.io/...@sha256:<digest>`, never `latest`) is the scaffold reference
-# that lands with the first push. GHCR container storage/bandwidth is
-# currently free for public repos (1-month notice before pricing changes per
-# GitHub Packages billing; private Packages quotas 500MB/1GB do not apply
-# to containers today) — not assumed. Build-only PRs consume no quota.
-#
-# Hygiene (issue #80): where Bazel is needed, Bazelisk installs go
-# through the pinned `bazel-contrib/setup-bazel` action (commit SHA plus
-# trailing tag comment);
-# this workflow builds Docker only, so the sole third-party action
-# (checkout) is pinned to a commit SHA with its tag trailing. No
-# `docker/*` actions and no `sigstore/*` installer actions: plain
-# `docker build`/`push` plus a pinned `curl` cosign fetch keeps the push
-# gate explicit in `run:` steps. `dist/`/`release/` stay git-ignored per #5.
-# Least privilege: top-level permissions stay read-only; only the build
-# job below carries `packages: write` + `id-token: write` (push + keyless
-# signing), so a future job without explicit permissions never inherits
-# push or OIDC scope.
 name: ghcr-prebuilt
 
 on:
@@ -66,9 +35,7 @@ jobs:
       - name: Build prebuilt image (no push on PR)
         run: |
           set -euo pipefail
-          # Single-version pin (issue #460, live successor to closed #184):
-          # tag tracks dx == module
-          # (cli/adopt/src/version.rs DX_VERSION == MODULE_VERSION == 0.0.0).
+          # Tag tracks the single-version dx == module pin.
           docker build \
             -f .devcontainer/Dockerfile.prebuilt \
             -t "ghcr.io/${{ github.repository }}/devcontainer:0.0.0-ci-${{ github.sha }}" \
@@ -86,7 +53,7 @@ jobs:
             || { echo "admissibility: pre-installed Bazelisk (Bazel delegation) required"; exit 1; }
           grep -q "sha256sum -c" "$df" \
             || { echo "admissibility: Bazelisk fetch must be sha256-checked (pinned bootstrap)"; exit 1; }
-          # No ambient language toolchains: tools resolve via Bazel at runtime.
+          # No ambient language toolchains; tools resolve via Bazel.
           ! grep -qiE 'pip install|uv pip|npm install -g|pnpm add -g|cargo install|dotnet tool install|go install' "$df" \
             || { echo "admissibility: language toolchains must not be baked in"; exit 1; }
           echo "admissibility: pinned bootstrap + Bazel delegation + no ambient tools (devcontainer_is_admissible(true, true, false))"
@@ -102,7 +69,7 @@ jobs:
             exit 0
           fi
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          # Single-version pin: tag carries dx == module (0.0.0) plus sha.
+          # Tag carries the single-version dx == module pin plus sha.
           tag="ghcr.io/${{ github.repository }}/devcontainer:0.0.0-sha-${{ github.sha }}"
           docker build -f .devcontainer/Dockerfile.prebuilt -t "$tag" .
           docker push "$tag"
@@ -115,14 +82,7 @@ jobs:
             ref="$tag@$digest"
           fi
           echo "digest pin (never latest): $ref"
-          # Pinned cosign fetch (no sigstore/* action, plain curl like
-          # Bazelisk): version plus linux-amd64 sha pinned out-of-band,
-          # retried https-only curl, verified before use before any sign
-          # runs. The pre-pinned COSIGN_SHA256_LINUX_AMD64 is the trust
-          # anchor (canonical `SIGNING_COSIGN_SHA256_LINUX_AMD64` in
-          # deploy/release/signing.bzl, issue #1058): cosign_checksums.txt
-          # arrives over the same channel, so it is a cross-check only,
-          # never the authority (fail-closed on mismatch either way).
+          # Pinned cosign fetch; cosign_checksums.txt is a cross-check only.
           COSIGN_VERSION="v2.4.1"
           COSIGN_SHA256_LINUX_AMD64="8b24b946dd5809c6bd93de08033bcf6bc0ed7d336b7785787c080f574b89249b"
           curl --version

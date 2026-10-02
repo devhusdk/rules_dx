@@ -1,44 +1,8 @@
-# Widen-one-requirement PR loop (issue #260): scheduled first-party
-# apply/verify path as the sole updater (native-only, issue #461). One explicit widen operation per run
-# (`dx bump <set:package> <version>`), one dep per PR, never batch, with an
-# automerge on/off toggle only -- no grouping, schedule, or dashboard knobs.
-#
-# Loop (widen-one): discover outdated (stable only, prerelease follows
-# upstream resolver/project config) via upstream registry clients (BCR /
-# crates.io / npm registry / Go proxy / Maven Central / NuGet / GitHub releases,
-# never custom HTTP; planned in `dx_bump::discovery`, issue #639) → auto-resolve
-# GitHub Actions tags to SHA via the upstream GitHub releases client
-# (`gh api`, never custom HTTP; planned in `dx_bump::gha`, issue #640,
-# fixtures in `cli/bump/tests/fixtures/bump_gha/`) → widen
-# one requirement with `dx bump` → run `dx update <that-set>` for
-# resolver-owned lock refresh (transitives stay resolver-governed, no forcing
-# newest) → run the bump-PR verification (regen evidence,
-# `preset_update --verify-only` flag-diff, `bazel build //...`,
-# `bazel test //...` with CI flaky/timeout flags, `dx coverage
-# --min-coverage 96 //...` seed gate plus `dx lint/typecheck/format --check
-# //...` plus `dx security/license //...` dogfood gates; seed host only, full
-# host matrix stays in CI on the opened PR, issue #641) → if green open one
-# PR, if red discard and record → reset to clean tree → next dep.
-#
-# Runner: scheduled weekly plus manual dispatch, `GITHUB_TOKEN` for PR
-# creation, concurrency control so N open PRs do not stampede CI; failures
-# never retry-until-green; fork-safety (fork runs plan only, never push or
-# open PRs with write credentials) and the human merge path preserved.
-#
-# Hygiene (issue #80, deduped under #915): the bootstrap is an inline
-# no-secrets `actions/checkout` (step 1) plus the pinned
-# `bazel-contrib/setup-bazel` action (commit SHA plus trailing tag
-# comment); every third-party action
-# is pinned to a commit SHA with its tag in a trailing comment. The
-# optional BuildBuddy remote cache comes from the repository
-# `BUILDBUDDY_API_KEY` secret; absent it, Bazel stays local-cache only.
-
 name: bump
 
 on:
   schedule:
-    # Weekly Monday before 5am for the native widen-one loop
-    # (sole updater, native-only per issue #461).
+    # Weekly Monday before 5am.
     - cron: "0 4 * * 1"
   workflow_dispatch:
     inputs:
@@ -64,12 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # CI flag set (the workspace `.bazelrc` `ci` plus `ci-pr` configs) and
-  # the optional BuildBuddy key, passed inline on every Bazel and dx call.
-  # No key (fork pull request, or a caller that passes no secret): both
-  # stay empty, so no remote-cache flag is set at all and Bazel runs
-  # local-cache only. With a key, pull requests stay read-only via
-  # `ci-pr` and the header rides inline (never in a committed rc file).
+  # Both stay empty unless the repository sets BUILDBUDDY_API_KEY.
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
   BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
   BAZELISK_VERSION: "1.29.0"
@@ -194,13 +153,7 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          # Explicit widen owns the single-requirement rewrite; dx update
-          # keeps its never-rewrites contract and refreshes locks only.
-          # GHA tag auto-resolution (issue #640, planned in dx_bump::gha):
-          # direct tags fail closed in dx bump (NeedsSha); the runner
-          # resolves via the upstream GitHub releases client (gh api, never
-          # custom HTTP) before the file edit. Unknown tags fail closed
-          # (nothing widened, never invent a SHA); manual SHA only rejected.
+          # Unknown tags fail closed; never invent a SHA.
           RESOLVED_VERSION="$VERSION"
           set_name="${SELECTOR%%:*}"
           if [[ "$set_name" == "github-actions" || "$set_name" == "gha" ]]; then
@@ -265,8 +218,7 @@ jobs:
           # One dep per PR, never batch.
           gh pr create --title "bump $SELECTOR to $VERSION" --body "Widen-one-requirement loop (issue #260): one dep per PR, never batch. Verification: regen, preset flag-diff, bazel build //..., bazel test //... (with CI flaky/timeout flags), dx coverage --min-coverage 96 //... plus dx lint/typecheck/format --check //... plus dx security/license //... dogfood gates (seed host; full host matrix in CI). Automerge toggle: $AUTOMERGE (on merges solely on the full required-check set; off leaves the PR open). Human merge path preserved." --label dependencies
           if [[ "$AUTOMERGE" == "true" ]]; then
-            # Automerge toggle only: auto-merge solely on the full
-            # required-check set; no other knobs.
+            # Automerge only on the full required-check set.
             gh pr merge --auto --squash "$branch"
           else
             echo "Automerge off: leaving the PR open for human merge."

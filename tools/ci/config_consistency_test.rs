@@ -354,3 +354,93 @@ fn the_shell_configs_never_restate_the_shfmt_invocation() {
         );
     }
 }
+
+/// Words AGENTS.md bans from a comment: issue references, design documents, and pointers at another page.
+const BANNED_COMMENT_WORDS: [&str; 6] = ["issue", "ADR", "RFC", "Contract", "See:", "dedup"];
+
+fn is_comment(line: &str) -> bool {
+    line.trim_start().starts_with('#')
+}
+
+/// The line number of every comment that directly follows another comment.
+fn stacked_comments(name: &str, text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut previous = false;
+    for (index, line) in text.lines().enumerate() {
+        let here = is_comment(line);
+        if here && previous {
+            out.push(format!("{name}:{}", index + 1));
+        }
+        previous = here;
+    }
+    out
+}
+
+fn workflow_exports() -> Vec<String> {
+    let mut names = Vec::new();
+    let mut inside = false;
+    for line in read(".github/BUILD.bazel").lines() {
+        if line.starts_with("exports_files(") {
+            inside = true;
+            continue;
+        }
+        if inside && !line.starts_with(' ') {
+            break;
+        }
+        if !inside {
+            continue;
+        }
+        let trimmed = line.trim();
+        if let Some(name) = trimmed.strip_prefix('"') {
+            let name = name.split('"').next().unwrap_or_default();
+            if name.ends_with(".yml") {
+                names.push(name.to_owned());
+            }
+        }
+    }
+    assert!(!names.is_empty(), ".github/BUILD.bazel exports no workflow");
+    names
+}
+
+#[test]
+fn every_workflow_comment_is_one_line() {
+    let mut comments = 0usize;
+    for name in workflow_exports() {
+        let rel = format!(".github/{name}");
+        let text = read(&rel);
+        let stacked = stacked_comments(&rel, &text);
+        assert!(
+            stacked.is_empty(),
+            "{} stacks a comment on the line above; AGENTS.md allows one line: {}",
+            rel,
+            stacked.join(", ")
+        );
+        comments += text.lines().filter(|line| is_comment(line)).count();
+    }
+    assert!(comments > 0, "the workflow sweep found no comment to check");
+}
+
+#[test]
+fn no_workflow_comment_names_an_issue_or_another_page() {
+    for name in workflow_exports() {
+        let rel = format!(".github/{name}");
+        for (index, line) in read(&rel).lines().enumerate() {
+            if !is_comment(line) {
+                continue;
+            }
+            let body = line.trim_start().trim_start_matches('#').trim();
+            for word in BANNED_COMMENT_WORDS {
+                assert!(
+                    !body.contains(word),
+                    "{rel}:{}: the comment says {word:?}, which AGENTS.md bans: {body:?}",
+                    index + 1
+                );
+            }
+            assert!(
+                !body.contains(".md"),
+                "{rel}:{}: the comment points at a page instead of the code: {body:?}",
+                index + 1
+            );
+        }
+    }
+}

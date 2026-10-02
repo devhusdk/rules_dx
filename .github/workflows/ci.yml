@@ -1,5 +1,3 @@
-# CI policy notes live in `.github/workflows/README.md` (split from header comments, no behavior change).
-
 name: ci
 
 on:
@@ -8,18 +6,10 @@ on:
   pull_request:
 
 env:
-  # CI flag set (the workspace `.bazelrc` `ci` plus `ci-pr` configs) and
-  # the optional BuildBuddy key, passed inline on every Bazel and dx call.
-  # No key (fork pull request, or a caller that passes no secret): both
-  # stay empty, so no remote-cache flag is set at all and Bazel runs
-  # local-cache only. With a key, pull requests stay read-only via
-  # `ci-pr` and the header rides inline (never in a committed rc file).
+  # Both stay empty unless the repository sets BUILDBUDDY_API_KEY.
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
   BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
-  # Preserve Bazel labels (`//...`) passed through Git Bash to native
-  # Windows binaries, while still converting MSYS paths (`/c/...` to
-  # `C:\...`) that tools like tsc.bat require. Excluding only the `//`
-  # prefix (not `*`, not `MSYS_NO_PATHCONV`) keeps both working.
+  # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
   BAZELISK_VERSION: "1.29.0"
 
@@ -30,18 +20,7 @@ concurrency:
 jobs:
   dogfood:
     name: dogfood (self-call reusable consumer workflow)
-    # Dogfood-like consumer (issue #408, Phase 1 issue #607): proves the
-    # reusable file parses, the pin check passes, and the checks execute
-    # end-to-end on the working tree (local path: no version-pin
-    # chicken-and-egg; rules_dx_version matches MODULE.bazel). This is the
-    # single per-platform stack: `dx build`, `dx test`, and `dx coverage`
-    # (min 96, the highest integer gate the measured 88013/90737 tree passes) run on all four qualified hosts, fully parallel with every
-    # other job (no per-cell raw duplicate build/test/coverage jobs; each
-    # cell compiles once and executes its tests under `dx test` plus
-    # `dx coverage`). Verbatim `//...` scope, same entrypoints as external
-    # consumers. Runs on all qualified hosts (seed plus arm64 native plus
-    # macOS arm64 plus Windows x86_64
-    # MSVC-compatible, issues #410/#412/#414).
+    # Dogfoods the reusable file end to end on the working tree.
     uses: ./.github/workflows/reusable-consumer.yml
     with:
       rules_dx_version: "0.0.0"
@@ -101,10 +80,7 @@ jobs:
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
-    # Single required status check for branch protection: aggregates every
-    # job in this workflow so one green gate covers the whole matrix.
-    # `if: always()` keeps the gate reporting when a need is cancelled or
-    # fails; skipped needs count as non-failing.
+    # One green gate covers every job in this workflow.
     if: ${{ always() }}
     needs:
       [
@@ -140,6 +116,3 @@ jobs:
         run: |
           echo "### ci — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Aggregate required check over every ci.yml job (branch-protection single gate; skipped needs are non-failing)." >> "$GITHUB_STEP_SUMMARY"
-# Host matrix: Linux x86_64 (ubuntu-latest), Linux arm64 (ubuntu-24.04-arm),
-# macOS arm64 (macos-14), Windows x86_64 (windows-latest). Every host runs
-# inside .github/workflows/reusable-consumer.yml (consumer self-call).

@@ -1,32 +1,3 @@
-# Reusable consumer CI. This repository cuts no releases; the
-# consumer-owned caller pins this file at a reviewed commit:
-#   uses: rules_dx/.github/workflows/reusable-consumer.yml@<commit>
-# Reviewed pin bumps only; no silent upgrades. Consumers never copy
-# per-check execution, parsing, review, or comment-management logic.
-#
-# Contract: docs/github-ci.md. Nine checks, all per-platform (lint,
-# typecheck, format, generate, security-audit, license-audit, test,
-# build, coverage): every enabled check runs on every selected platform.
-# Starter enables all nine; callers disable individual checks by ID.
-# `platforms` selects the matrix; empty selects Linux x86_64 only.
-# Checks run in parallel. Aggregate `dx-ci` is the single stable
-# required check.
-# Reporting is first-party dx code; no reviewdog. No SARIF upload step
-# ships here; `code_scanning_opt_in` is accepted and ignored.
-#
-# Hygiene (issue #80, deduped under #915): job bootstraps are an inline
-# no-secrets `actions/checkout` (must be step 1) plus the pinned
-# `bazel-contrib/setup-bazel` action (commit SHA plus trailing tag
-# comment); every third-party action is pinned to a commit SHA with its
-# tag in a trailing comment. The optional BuildBuddy remote cache rides
-# the caller-provided `BUILDBUDDY_API_KEY` secret through the workflow
-# `BAZEL_CONFIG` plus `BB_ARGS` env on every Bazel plus dx call.
-# Inner dx Bazel invocations share the cache: dx resolves `bytestream://`
-# BEP artifacts through workspace-local copies materialized by
-# `--remote_download_outputs=all`.
-# Platform labels map to runners through the fixed table in each job's
-# `runs-on`; unknown labels fail the workflow when the matrix expands.
-
 name: rules-dx-consumer
 
 on:
@@ -70,17 +41,10 @@ permissions:
   contents: read
 
 env:
-  # CI flag set (the workspace `.bazelrc` `ci` plus `ci-pr` configs) and
-  # the optional BuildBuddy key, passed inline on every Bazel and dx call.
-  # No key (fork pull request, or a caller that passes no secret): both
-  # stay empty, so no remote-cache flag is set at all and Bazel runs
-  # local-cache only. With a key, pull requests stay read-only via
-  # `ci-pr` and the header rides inline (never in a committed rc file).
+  # Both stay empty unless the caller passes BUILDBUDDY_API_KEY.
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
   BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
-  # Git Bash must preserve Bazel labels (`//...`) when invoking native
-  # Windows binaries, while still converting MSYS paths (`/c/...`) for
-  # tools like tsc.bat. Exclude only `//`, not `*`.
+  # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
   BAZELISK_VERSION: "1.29.0"
 
@@ -217,11 +181,7 @@ jobs:
           rel="$(bazel cquery --output=files @dx_tools//:gitleaks $BAZEL_CONFIG $BB_ARGS 2>/dev/null | tail -1)"
           echo "DX_GITLEAKS_BIN=$(bazel info output_base)/$rel" >> "$GITHUB_ENV"
       - name: Populate advisory snapshots (OSV offline sets)
-        # dx audit security loads `.dx/advisory/<set>.json` plus identity
-        # offline (no network in the audit itself). Populate every curated
-        # advisory set from the OSV GCS zips, merge each zip's per-vuln
-        # JSON files into one array, and write same-day identities. A set
-        # with a lockfile and no snapshot fails the audit.
+        # A set with a lockfile and no snapshot fails the audit.
         run: |
           set -euo pipefail
           mkdir -p .dx/advisory
@@ -270,8 +230,7 @@ jobs:
           populate nuget "https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip"
           populate go "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"
           populate rubygems "https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"
-      # Audit backends run no Bazel (live Gitleaks plus lockfile/advisory
-      # analysis over the checkout), so this call takes no `--` forwards.
+      # Audit backends run no Bazel and take no passthrough flags.
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- security //...
   license-audit:
     if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',license-audit,') }}
@@ -296,8 +255,7 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
-      # Audit backends run no Bazel (live Gitleaks plus lockfile/advisory
-      # analysis over the checkout), so this call takes no `--` forwards.
+      # Audit backends run no Bazel and take no passthrough flags.
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- license //...
   test:
     if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',test,') }}
@@ -383,20 +341,13 @@ jobs:
             esac
             extra=(--min-coverage "$DX_MIN_COVERAGE")
           fi
-          # Array on purpose (issue #914): empty stays zero words, a
-          # validated numeric threshold stays one flag plus one value.
-          # Input travels via env and is numeric-validated above, never
-          # interpolated into the script.
+          # Bash array keeps an empty threshold at zero words.
           bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- coverage "${extra[@]}" //... -- $BAZEL_CONFIG $BB_ARGS 2>&1 | tee ${RUNNER_TEMP:-/tmp}/dx_coverage.log
           rc=${PIPESTATUS[0]}
           echo "$rc" > ${RUNNER_TEMP:-/tmp}/dx_coverage.rc
           exit $rc
       - name: Render first-party coverage summary (per-cell, no union)
-        # First-party PR reporting (issue #254): same comment contract as
-        # this repo's seed cell, per platform cell. Bazel-owned dx coverage
-        # stays the gate; this step only presents its counts. No cross-cell
-        # union, no averaged percentages, no rounding up. Findings stay in
-        # counts only with no invented locations.
+        # Presents this cell's counts; the gate above stays authoritative.
         if: always()
         run: |
           set -euo pipefail
@@ -421,11 +372,7 @@ jobs:
           } > ${RUNNER_TEMP:-/tmp}/coverage_comment.md
           cat ${RUNNER_TEMP:-/tmp}/coverage_comment.md >> "$GITHUB_STEP_SUMMARY"
       - name: Publish PR summary comment (dedup marker, fork-safe)
-        # One updated comment per PR per cell marker; human comments never
-        # touched; stale runs never overwrite current (concurrency cancels
-        # superseded runs). Fork PRs skip so fork code never gets write
-        # credentials. Publication failure fails separately while the gate
-        # outcome above stays preserved.
+        # One comment per PR per cell marker; forks skip.
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -471,9 +418,7 @@ jobs:
           needs = json.loads(os.environ["NEEDS"])
           results = {name: info.get("result") for name, info in needs.items()}
           print(json.dumps({"aggregate": "dx-ci", "needs": results}))
-          # Disabled checks report skipped and stay green; every other
-          # non-success (failure, cancelled) fails the aggregate so the
-          # stable required check never hides a failing selection.
+          # Skipped needs stay green; everything else fails the aggregate.
           bad = sorted(
               name for name, result in results.items()
               if result not in ("success", "skipped")

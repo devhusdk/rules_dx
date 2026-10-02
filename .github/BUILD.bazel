@@ -4,9 +4,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# Consumer CI template harness.
-# All workflows are exported: reusable callers plus the
-# self-called ci/bump/ghcr routes share one export list.
+# Reusable callers plus the self-called routes share one export list.
 exports_files([
     "workflows/README.md",
     "workflows/bump.yml",

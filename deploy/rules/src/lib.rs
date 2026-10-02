@@ -1415,13 +1415,7 @@ pub fn oci_build_layout(
             "oci layout: want a non-empty tag",
         ));
     }
-    let base = repository.split('/').next_back().unwrap_or("");
-    if base.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("oci layout: want a non-empty repository basename, got '{repository}'"),
-        ));
-    }
+    let base = repository.rsplit('/').next().unwrap_or(repository);
     let layout = outdir.join(base.to_owned() + "-oci-layout");
     let blobs = layout.join("blobs").join("sha256");
     std::fs::create_dir_all(&blobs)?;

@@ -6,7 +6,6 @@ pub mod outcome;
 pub mod recovery;
 pub mod report;
 pub mod selector;
-pub mod semantics;
 pub mod sets;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

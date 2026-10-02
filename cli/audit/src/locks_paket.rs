@@ -87,12 +87,7 @@ pub(crate) fn split_paket_line_fallback(trimmed: &str) -> Option<(String, String
     }
     let name = trimmed[..open].trim().to_owned();
     let version = trimmed[open + 1..close].trim().to_owned();
-    if (name.is_empty() || version.is_empty() || name.contains(' ') && name.contains(':'))
-        && name.contains("remote")
-    {
-        return None;
-    }
-    if name.is_empty() || version.is_empty() {
+    if name.is_empty() || version.is_empty() || name.contains("remote") {
         return None;
     }
     Some((name, version))

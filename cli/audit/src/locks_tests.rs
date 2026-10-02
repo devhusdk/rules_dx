@@ -37,6 +37,12 @@ fn lock_fallback_parsers_match_normal_paths() {
         "Demo )1.0.0(",
         "Demo",
         "remote: foo (1.0.0)",
+        "remote (1.0.0)",
+        "remote:foo (1.0.0)",
+        "Demo remote (1.0.0)",
+        "Demo remote: (1.0.0)",
+        "Demo (1.0.0) remote",
+        "Demo (1.0.0) (2.0.0)",
     ] {
         assert_eq!(
             split_paket_line_fallback(line),

@@ -455,23 +455,6 @@ fn summary_carries_major_bump_migrate_hint_for_semver() {
 }
 
 #[test]
-fn major_bump_hint_needs_old_major_crossing() {
-    let bump = BumpRequest::parse("cargo:anyhow", "2.0.0").expect("major");
-    let hint = bump.major_bump_hint("1.2.3").expect("hint");
-    assert!(hint.contains("major bump 1.2.3 -> 2.0.0"), "{hint}");
-    assert!(hint.contains("migrate-v1-to-v2.json"), "{hint}");
-    assert!(hint.contains("migrate_failed"), "{hint}");
-    assert!(hint.contains("missing-versions"), "{hint}");
-    let bump = BumpRequest::parse("cargo:anyhow", "1.3.0").expect("minor");
-    assert!(bump.major_bump_hint("1.2.3").is_none());
-    let bump = BumpRequest::parse("npm:jest", "30.3.0").expect("npm minor");
-    assert!(bump.major_bump_hint("30.2.0").is_none());
-    let sha = "3d3c42e5aac5ba805825da76410c181273ba90b1";
-    let bump = BumpRequest::parse("github-actions:actions/checkout", sha).expect("gha");
-    assert!(bump.major_bump_hint("v4").is_none());
-}
-
-#[test]
 fn refresh_selector_chains_automatically_per_set() {
     let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     assert_eq!(bump.refresh_selector(), "cargo");

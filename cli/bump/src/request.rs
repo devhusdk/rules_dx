@@ -154,30 +154,6 @@ impl BumpRequest {
         }
     }
 
-    pub fn major_bump_hint(&self, old: &str) -> Option<String> {
-        let new = match &self.version {
-            version::WidenVersion::Semver(new) => new,
-            _ => return None,
-        };
-        let old_trimmed = old.trim().strip_prefix('v').unwrap_or(old.trim());
-        let old_trimmed = old_trimmed.strip_prefix('=').unwrap_or(old_trimmed);
-        let old_trimmed = old_trimmed.strip_prefix('=').unwrap_or(old_trimmed);
-        let old_parsed: semver::Version = old_trimmed.trim().parse().ok()?;
-        if !version::is_major_bump(&old_parsed, new) {
-            return None;
-        }
-        let manifest = if new.major > old_parsed.major {
-            format!("migrate-v{}-to-v{}.json", old_parsed.major, new.major)
-        } else {
-            format!("migrate-v{old}-to-v{}.json", new)
-        };
-        Some(version::major_bump_migrate_hint(
-            &old_parsed.to_string(),
-            &new.to_string(),
-            &manifest,
-        ))
-    }
-
     pub fn plan_edit(&self, content: &str) -> Result<String, BumpError> {
         match self.set {
             BumpSet::Bazel => {

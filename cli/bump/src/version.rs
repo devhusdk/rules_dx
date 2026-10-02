@@ -43,16 +43,6 @@ pub fn compare(left: &semver::Version, right: &semver::Version) -> std::cmp::Ord
     left.cmp(right)
 }
 
-pub fn is_major_bump(from: &semver::Version, to: &semver::Version) -> bool {
-    to.major > from.major
-}
-
-pub fn major_bump_migrate_hint(from: &str, to: &str, manifest: &str) -> String {
-    format!(
-        "major bump {from} -> {to} via {manifest}; no manifest yet => migrate_failed (exit 1); missing --from/--to => exit 2 (missing-versions)"
-    )
-}
-
 pub fn generic_major_bump_hint() -> &'static str {
     "if major bump, run `dx migrate --from <old> --to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 missing-versions)"
 }
@@ -257,18 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn major_bump_hint_pins_exit_mapping() {
-        let old: semver::Version = "1.2.3".parse().expect("old");
-        let new: semver::Version = "2.0.0".parse().expect("new");
-        let minor: semver::Version = "1.3.0".parse().expect("minor");
-        assert!(is_major_bump(&old, &new));
-        assert!(!is_major_bump(&old, &minor));
-        assert!(!is_major_bump(&old, &old));
-        let hint = major_bump_migrate_hint("1.2.3", "2.0.0", "migrate-v1-to-v2.json");
-        assert!(hint.contains("major bump"), "{hint}");
-        assert!(hint.contains("migrate-v1-to-v2.json"), "{hint}");
-        assert!(hint.contains("migrate_failed"), "{hint}");
-        assert!(hint.contains("missing-versions"), "{hint}");
+    fn generic_major_bump_hint_pins_exit_mapping() {
         let generic = generic_major_bump_hint();
         assert!(generic.contains("dx migrate --from"), "{generic}");
         assert!(generic.contains("migrate_failed"), "{generic}");

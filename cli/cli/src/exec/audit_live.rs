@@ -121,26 +121,73 @@ pub(super) fn run_with(
 }
 
 pub(super) fn clean_workspace(harness: &Harness) {
+    write_all_lock_families(harness);
+    write_cargo_license_lock(harness);
+    write_mit_licenses(harness);
+}
+
+pub(super) fn clean_workspace_with_advisories(harness: &Harness) {
+    clean_workspace(harness);
+    write_all_empty_advisories(harness);
+}
+
+pub(super) fn write_all_lock_families(harness: &Harness) {
+    write_cargo_lock(harness);
+    write_npm_locks(harness);
+    write_maven_lock(harness);
+    write_nuget_lock(harness);
+    write_go_mod(harness);
+    write_ruby_locks(harness);
+    write_powershell_locks(harness);
+}
+
+pub(super) fn write_all_lock_families_with_advisories(harness: &Harness) {
+    write_all_lock_families(harness);
+    write_all_empty_advisories(harness);
+}
+
+pub(super) fn write_cargo_license_set(harness: &Harness) {
+    write_cargo_lock(harness);
+    write_cargo_license_lock(harness);
+    write_cargo_inventory_licenses(harness);
+}
+
+pub(super) fn write_cargo_lock(harness: &Harness) {
     harness.write_source(
         "rust/tests/fixtures/hello/Cargo.lock",
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
+}
+
+pub(super) fn write_cargo_license_lock(harness: &Harness) {
     harness.write_source(
         "cargo-bazel-lock.json",
         r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
     );
-    write_npm_locks(harness);
+}
+
+pub(super) fn write_maven_lock(harness: &Harness) {
     harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
+}
+
+pub(super) fn write_nuget_lock(harness: &Harness) {
     harness.write_source(
         "third_party/dotnet/paket.lock",
         "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
     );
-    write_go_mod(harness);
-    write_ruby_locks(harness);
-    write_powershell_locks(harness);
+}
+
+pub(super) fn write_mit_licenses(harness: &Harness) {
     harness.write_source(
         "licenses.toml",
         "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n",
+    );
+}
+
+pub(super) fn write_cargo_inventory_licenses(harness: &Harness) {
+    harness.write_source(
+        "licenses.toml",
+        "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
     );
 }
 
@@ -236,20 +283,7 @@ pub(super) fn audit_dry_run_plans_families_without_launching() {
 pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["security"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        write_npm_locks(harness);
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
-        write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
-        write_all_empty_advisories(harness);
+        write_all_lock_families_with_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running audit security for //..."), "{out}");
@@ -283,20 +317,7 @@ pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
     );
     let runner = AuditRunner::with_sarif(Some(1), &sarif);
     let (code, out, err) = run_with(&["security"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        write_npm_locks(harness);
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
-        write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
-        write_all_empty_advisories(harness);
+        write_all_lock_families_with_advisories(harness);
     });
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("audit_failed"), "{err}");
@@ -334,20 +355,7 @@ pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
         let words: Vec<String> = ["security"].iter().map(ToString::to_string).collect();
         let invocation = parse(&words).expect("parse");
         let harness = Harness::new("audit-no-tool");
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        write_npm_locks(&harness);
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
-        write_go_mod(&harness);
-        write_ruby_locks(&harness);
-        write_powershell_locks(&harness);
-        write_all_empty_advisories(&harness);
+        write_all_lock_families_with_advisories(&harness);
         let mut out = Vec::new();
         let mut err = Vec::new();
         let code = execute(
@@ -385,11 +393,8 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
             "[[package]]\nname = \"git-dep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/example/git-dep#abc123\"\n",
         );
         write_npm_locks(harness);
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
+        write_maven_lock(harness);
+        write_nuget_lock(harness);
         write_go_mod(harness);
         write_ruby_locks(harness);
         write_powershell_locks(harness);
@@ -404,20 +409,14 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
 pub(super) fn audit_live_npm_git_and_sibling_locks_are_incomplete() {
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
+        write_cargo_lock(harness);
         write_npm_locks(harness);
         harness.write_source(
             "package-lock.json",
             r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/git-dep":{"version":"github:user/repo#abc123"}}}"#,
         );
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
+        write_maven_lock(harness);
+        write_nuget_lock(harness);
         write_go_mod(harness);
         write_ruby_locks(harness);
         write_powershell_locks(harness);
@@ -433,19 +432,13 @@ pub(super) fn audit_live_npm_git_and_sibling_locks_are_incomplete() {
 pub(super) fn audit_live_npm_pnpm_git_resolution_is_incomplete() {
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
+        write_cargo_lock(harness);
         harness.write_source(
             "pnpm-lock.yaml",
             "lockfileVersion: '9.0'\npackages:\n  'git-dep@github:user/repo#abc123':\n    resolution: {repo: 'https://github.com/user/repo.git', commit: abc123}\n",
         );
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
+        write_maven_lock(harness);
+        write_nuget_lock(harness);
         write_go_mod(harness);
         write_ruby_locks(harness);
         write_powershell_locks(harness);
@@ -525,8 +518,7 @@ pub(super) fn audit_live_npm_family_locks_are_assessed_against_the_shared_npm_sn
 pub(super) fn audit_live_npm_family_locks_are_clean_when_no_advisory_matches() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["security", "//..."], &runner, &|harness| {
-        clean_workspace(harness);
-        write_all_empty_advisories(harness);
+        clean_workspace_with_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit security: clean"), "{out}");
@@ -714,10 +706,7 @@ pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
         &["security", "//rust/tests/fixtures/hello:hello"],
         &runner,
         &|harness| {
-            harness.write_source(
-                "rust/tests/fixtures/hello/Cargo.lock",
-                "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-            );
+            write_cargo_lock(harness);
         },
     );
     assert_eq!(code, 1, "{out}{err}");
@@ -736,10 +725,7 @@ pub(super) fn audit_live_stale_advisory_fails_without_stale_fallback() {
         &["security", "//rust/tests/fixtures/hello:hello"],
         &runner,
         &|harness| {
-            harness.write_source(
-                "rust/tests/fixtures/hello/Cargo.lock",
-                "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-            );
+            write_cargo_lock(harness);
             let json = "[]";
             let url = dx_audit::advisory::advisory_source("cargo")
                 .expect("source")
@@ -773,10 +759,7 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
         &["security", "//rust/tests/fixtures/hello:hello"],
         &runner,
         &|harness| {
-            harness.write_source(
-                "rust/tests/fixtures/hello/Cargo.lock",
-                "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-            );
+            write_cargo_lock(harness);
             harness.write_source(".dx/advisory/cargo.json", "[]");
             let today = super::today_utc();
             let url = dx_audit::advisory::advisory_source("cargo")
@@ -819,18 +802,7 @@ pub(super) fn audit_live_license_clean_and_denied() {
         &["license", "//rust/tests/fixtures/hello:hello"],
         &runner,
         &|harness| {
-            harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-            harness.write_source(
-                "cargo-bazel-lock.json",
-                r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
-            );
-            harness.write_source(
-                "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
-            );
+            write_cargo_license_set(harness);
         },
     );
     assert_eq!(code, 0, "{out}{err}");
@@ -893,10 +865,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
                 "package-lock.json",
                 r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/react":{"version":"18.2.0","license":"MIT"}}}"#,
             );
-            harness.write_source(
-                "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n",
-            );
+            write_mit_licenses(harness);
         },
     );
     assert_eq!(code, 1, "{err}");

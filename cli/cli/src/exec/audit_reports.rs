@@ -221,8 +221,7 @@ fn secrets_process_status_and_report_content_are_both_authoritative() {
             ..AuditRunner::clean()
         };
         let (code, out, err) = run_with(&["security", "--output=json"], &runner, &|h| {
-            clean_workspace(h);
-            write_all_empty_advisories(h);
+            clean_workspace_with_advisories(h);
         });
         assert_eq!(
             code, expected,
@@ -242,8 +241,7 @@ fn audit_stdout_reports_are_single_machine_documents() {
     for (family, format) in [("security", "sarif"), ("license", "spdx")] {
         let report = format!("--report={format}=-");
         let (code, out, err) = run_with(&[family, &report], &AuditRunner::clean(), &|h| {
-            clean_workspace(h);
-            write_all_empty_advisories(h);
+            clean_workspace_with_advisories(h);
         });
         assert_eq!(code, if family == "license" { 1 } else { 0 }, "{out}{err}");
         let value: serde_json::Value = serde_json::from_str(&out).expect("one JSON document");
@@ -263,8 +261,7 @@ fn committed_gitleaks_config_produces_a_trust_warning() {
             r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}"#,
         );
         let (code, out, err) = run_with(&["security", "--report=sarif=-"], &runner, &|h| {
-            clean_workspace(h);
-            write_all_empty_advisories(h);
+            clean_workspace_with_advisories(h);
             h.write_source(config, "title = \"local rules\"\n");
         });
         assert_eq!(code, 0, "{out}{err}");
@@ -567,20 +564,7 @@ fn audit_live_unowned_scope_fails_usage() {
 fn audit_live_json_emits_per_family_lifecycle() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["security", "--output=json"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        write_npm_locks(harness);
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
-        write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
-        write_all_empty_advisories(harness);
+        write_all_lock_families_with_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
     let events: Vec<serde_json::Value> = out
@@ -606,28 +590,9 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
     let sarif = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "gitleaks"}}, "results": [{"ruleId": "gitleaks/aws-key", "message": {"text": "AWS key"}}]}]}"#;
     let runner = AuditRunner::with_sarif(Some(1), sarif);
     let (code, out, err) = run_with(&["security", "--output=json"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        write_npm_locks(harness);
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
-        write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
-        write_all_empty_advisories(harness);
-        harness.write_source(
-            "cargo-bazel-lock.json",
-            r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
-        );
-        harness.write_source(
-            "licenses.toml",
-            "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n",
-        );
+        write_all_lock_families_with_advisories(harness);
+        write_cargo_license_lock(harness);
+        write_mit_licenses(harness);
     });
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("audit_failed"), "{err}");
@@ -700,18 +665,7 @@ fn audit_reports_sarif_and_spdx_to_files() {
     use crate::exec::{execute, Env};
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-reports-cargo");
-    harness.write_source(
-        "rust/tests/fixtures/hello/Cargo.lock",
-        "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    );
-    harness.write_source(
-        "cargo-bazel-lock.json",
-        r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
-    );
-    harness.write_source(
-        "licenses.toml",
-        "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
-    );
+    write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
         "//rust/tests/fixtures/hello:hello".to_owned(),
@@ -815,18 +769,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     use crate::exec::{execute, Env};
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-sarif-license-shape");
-    harness.write_source(
-        "rust/tests/fixtures/hello/Cargo.lock",
-        "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    );
-    harness.write_source(
-        "cargo-bazel-lock.json",
-        r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
-    );
-    harness.write_source(
-        "licenses.toml",
-        "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
-    );
+    write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
         "//rust/tests/fixtures/hello:hello".to_owned(),
@@ -867,20 +810,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     assert_eq!(names, vec!["license"]);
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-sarif-security-shape");
-    harness.write_source(
-        "rust/tests/fixtures/hello/Cargo.lock",
-        "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    );
-    write_npm_locks(&harness);
-    harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-    harness.write_source(
-        "third_party/dotnet/paket.lock",
-        "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-    );
-    write_go_mod(&harness);
-    write_ruby_locks(&harness);
-    write_powershell_locks(&harness);
-    write_all_empty_advisories(&harness);
+    write_all_lock_families_with_advisories(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
     let mut out = Vec::new();
@@ -923,20 +853,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     let sarif_text = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "gitleaks"}}, "results": [{"ruleId": "gitleaks/aws-key", "message": {"text": "AWS key"}}]}]}"#;
     let runner = AuditRunner::with_sarif(Some(1), sarif_text);
     let (code, _out, _err) = run_with(&["security"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        write_npm_locks(harness);
-        harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-        harness.write_source(
-            "third_party/dotnet/paket.lock",
-            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-        );
-        write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
-        write_all_empty_advisories(harness);
+        write_all_lock_families_with_advisories(harness);
     });
     assert_eq!(code, 1);
 }
@@ -951,19 +868,7 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
     );
     let runner = AuditRunner::with_sarif(Some(1), &sarif_in);
     let harness = Harness::new("audit-sarif-partial");
-    harness.write_source(
-        "rust/tests/fixtures/hello/Cargo.lock",
-        "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    );
-    write_npm_locks(&harness);
-    harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
-    harness.write_source(
-        "third_party/dotnet/paket.lock",
-        "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
-    );
-    write_go_mod(&harness);
-    write_ruby_locks(&harness);
-    write_powershell_locks(&harness);
+    write_all_lock_families(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
     let mut out = Vec::new();
@@ -1030,18 +935,7 @@ fn audit_spdx_live_golden_is_single_deterministic_document() {
     fn emit(nonce: u64) -> (serde_json::Value, i32, String) {
         let runner = AuditRunner::clean();
         let harness = Harness::new(&format!("audit-spdx-determinism-{nonce}"));
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        harness.write_source(
-            "cargo-bazel-lock.json",
-            r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
-        );
-        harness.write_source(
-            "licenses.toml",
-            "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
-        );
+        write_cargo_license_set(&harness);
         let invocation = parse(&[
             "license".to_owned(),
             "//rust/tests/fixtures/hello:hello".to_owned(),
@@ -1103,10 +997,7 @@ fn audit_partial_reports_are_not_authoritative() {
         &["security", "--output=json", "--report=sarif=out.sarif"],
         &runner,
         &|harness| {
-            harness.write_source(
-                "rust/tests/fixtures/hello/Cargo.lock",
-                "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-            );
+            write_cargo_lock(harness);
         },
     );
     assert_eq!(code, 1, "{out}{err}");
@@ -1421,18 +1312,7 @@ fn audit_sarif_spdx_write_failures_are_fail_closed() {
     ] {
         let runner = AuditRunner::clean();
         let harness = Harness::new(&format!("audit-report-fail-{format}"));
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
-        harness.write_source(
-            "cargo-bazel-lock.json",
-            r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
-        );
-        harness.write_source(
-            "licenses.toml",
-            "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
-        );
+        write_cargo_license_set(&harness);
         let invocation = parse(&[
             "license".to_owned(),
             "//rust/tests/fixtures/hello:hello".to_owned(),
@@ -1472,18 +1352,7 @@ fn audit_report_write_failure_json_reports_error_event() {
     use crate::exec::{execute, Env};
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-report-fail-json");
-    harness.write_source(
-        "rust/tests/fixtures/hello/Cargo.lock",
-        "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    );
-    harness.write_source(
-        "cargo-bazel-lock.json",
-        r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
-    );
-    harness.write_source(
-        "licenses.toml",
-        "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"serde\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"1.0.100\"\ntext_present = true\n",
-    );
+    write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
         "//rust/tests/fixtures/hello:hello".to_owned(),
@@ -1537,10 +1406,7 @@ fn offline_dry_run_plans_cache_only_without_launching() {
 fn offline_live_missing_advisory_fails_with_offline_required() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["security", "--offline"], &runner, &|harness| {
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
-            "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        );
+        write_cargo_lock(harness);
     });
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("offline_required"), "{err}");
@@ -1550,10 +1416,7 @@ fn offline_live_missing_advisory_fails_with_offline_required() {
         &["security", "--offline", "--output=json"],
         &AuditRunner::clean(),
         &|harness| {
-            harness.write_source(
-                "rust/tests/fixtures/hello/Cargo.lock",
-                "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-            );
+            write_cargo_lock(harness);
         },
     );
     assert_eq!(code, 1, "{out}{err}");

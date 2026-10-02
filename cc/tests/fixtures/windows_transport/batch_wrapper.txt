@@ -1,5 +1,0 @@
-@echo off
-REM Declared batch wrapper (issue #497): forwards response file verbatim.
-REM Preserves spaces plus .lib/.obj plus SDK system libraries without host Visual Studio state.
-REM Compiler-target availability alone is not proof of target execution.
-lld-link @response.rsp /OUT:helper.lib

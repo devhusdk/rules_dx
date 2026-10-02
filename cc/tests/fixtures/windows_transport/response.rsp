@@ -1,9 +1,0 @@
-# Declared response file (issue #497): preserves /external:I plus /imsvc
-# plus .lib/.obj bare paths plus spaces plus SDK system libraries
-# without host Visual Studio state: relative declared inputs only.
- /external:I "third party/include with spaces"
- /imsvc "third party/sdk/include"
- "third party/lib with spaces/helper.lib"
- helper.obj
- kernel32.lib
- advapi32.lib

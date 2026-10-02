@@ -1,6 +1,0 @@
-Per-host strict laziness plus Windows host-compat (issue #917).
-Bzlmod boundary: version-resolution cost, not payload; MODULE.bazel.lock size is metadata; extension manifests fetch during evaluation; deferred EULA failure never proves laziness.
-Consumer graph: adding unused foundation pulls no EULA/SDK payload on linux_x86_64 plus linux_arm64 plus macos_arm64 plus windows_x86_64 via adopt-rust plus adopt-python plus adopt-js-ts plus adopt-go plus adopt-cpp plus adopt-java plus adopt-kotlin plus adopt-scala plus adopt-csharp plus adopt-fsharp; override matrix default plus root-override stays lazy with no special CLI policy.
-Symlink UX: probe_symlink before mutation with SymlinkUnsupported plus Developer Mode guidance; Enterprise hosts that cannot grant it are unsupported with failure before mutation; junction plus launcher plus copy fallback rejected since fallback breaks atomic replacement and ownership validation.
-Backends: hermetic-llvm Apple-SDK plus toolchains_msvc clang-cl/Microsoft-STL stay provisional with provisional-backend exception; hosts Platform-qualified with qualifier; full adoption owned under issues #494-#505 plus release evidence #803-#807; no Supported claim.
-Qualified seed-executed with static per-host pins; no Supported claim.

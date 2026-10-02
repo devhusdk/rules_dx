@@ -520,6 +520,27 @@ fn max_length_reason_passes_at_boundary() {
 }
 
 #[test]
+fn multibyte_reason_at_the_character_limit_passes() {
+    let suffix = ", issue: 1055";
+    let exact = "é".repeat(MAX_REASON_LEN - suffix.len());
+    let source = file_lines(&[format!("// {} - reason: {exact}{suffix}", marker("_LINE"))]);
+    assert!(find_ignores("t.rs", &source).is_ok());
+}
+
+#[test]
+fn multibyte_reason_reports_its_length_in_characters() {
+    let suffix = ", issue: 1055";
+    let long = "é".repeat(MAX_REASON_LEN - suffix.len() + 1);
+    let source = file_lines(&[format!("// {} - reason: {long}{suffix}", marker("_LINE"))]);
+    let err = find_ignores("t.rs", &source).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains(&format!("reason is {} chars", MAX_REASON_LEN + 1)),
+        "{err}"
+    );
+}
+
+#[test]
 fn empty_policy_reason_fails() {
     let source = file_lines(&[
         "    // policy:   ".to_string(),

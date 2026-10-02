@@ -72,12 +72,13 @@ pub(crate) fn nearby_reason(
             directive: directive.to_string(),
         });
     };
-    if reason.len() > MAX_REASON_LEN {
+    let len = reason.chars().count();
+    if len > MAX_REASON_LEN {
         return Err(LcovError::ReasonTooLong {
             path: path.to_string(),
             lineno,
             directive: directive.to_string(),
-            len: reason.len(),
+            len,
             max: MAX_REASON_LEN,
         });
     }

@@ -11,7 +11,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use clap::{error::ErrorKind, Parser};
+use clap::Parser;
 use dx_env::{identity_hex, parse_staged, probe_symlink, refresh, RefreshOptions, RefreshOutcome};
 
 const METADATA_CANDIDATES: &[(&str, &str)] = &[
@@ -42,28 +42,9 @@ struct Cli {
     help: bool,
 }
 
-fn invalid_token(error: &clap::Error) -> String {
-    dx_output::invalid_token(error)
-}
-
-fn parse_error(error: clap::Error, args: &[String]) -> String {
-    let token = invalid_token(&error);
-    match error.kind() {
-        ErrorKind::UnknownArgument => {
-            let echoed = dx_output::recover_unknown_token(args, &token);
-            format!("unknown flag {echoed:?}")
-        }
-        ErrorKind::InvalidValue => {
-            let flag = dx_output::leading_flag(&token);
-            format!("missing value for {flag}")
-        }
-        _ => dx_output::first_line(&error),
-    }
-}
-
 fn parse_args(args: &[String]) -> Result<Cli, String> {
     Cli::try_parse_from(std::iter::once("env").chain(args.iter().map(|arg| arg as &str)))
-        .map_err(|error| parse_error(error, args))
+        .map_err(|error| dx_output::parse_error(&error, args))
 }
 
 #[derive(Debug)]

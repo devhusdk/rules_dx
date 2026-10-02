@@ -18,9 +18,7 @@ pub mod severity;
 pub mod validation;
 
 pub use changes::{change_event, mutation_event, ChangeEvent, ChangeKind, MutationOutcome};
-pub use clap_errors::{
-    first_line, invalid_token, leading_flag, recover_unknown_token, rejected_value,
-};
+pub use clap_errors::{first_line, missing_value_flag, parse_error, rejected_value, unknown_token};
 pub use diagnostics::{
     color_enabled, color_enabled_for, color_override, colors_allowed, colors_allowed_for,
     emit_status, format_status, init_diagnostics, init_diagnostics_with_color,

@@ -29,21 +29,15 @@ struct Cli {
     output: Option<String>,
 }
 
-fn invalid_token(error: &clap::Error) -> String {
-    dx_output::invalid_token(error)
-}
-
 fn parse_error(error: clap::Error, args: &[String]) -> String {
-    let token = invalid_token(&error);
     match error.kind() {
         ErrorKind::UnknownArgument => {
-            let echoed = dx_output::recover_unknown_token(args, &token);
-            format!("unknown flag {echoed:?}")
+            format!("unknown flag {:?}", dx_output::unknown_token(&error, args))
         }
         ErrorKind::InvalidValue => {
-            let flag = dx_output::leading_flag(&token);
+            let flag = dx_output::missing_value_flag(&error);
             if flag == "--fail_on" {
-                if let Some(raw) = rejected_value(&error) {
+                if let Some(raw) = dx_output::rejected_value(&error) {
                     if let Err(legacy) = parse_threshold(&raw) {
                         return legacy.to_string();
                     }
@@ -52,7 +46,7 @@ fn parse_error(error: clap::Error, args: &[String]) -> String {
             format!("missing value for {flag}")
         }
         ErrorKind::ValueValidation => {
-            let raw = rejected_value(&error).unwrap_or_default();
+            let raw = dx_output::rejected_value(&error).unwrap_or_default();
             match parse_threshold(&raw) {
                 Err(legacy) => legacy.to_string(),
                 Ok(_) => dx_output::first_line(&error),
@@ -60,10 +54,6 @@ fn parse_error(error: clap::Error, args: &[String]) -> String {
         }
         _ => dx_output::first_line(&error),
     }
-}
-
-fn rejected_value(error: &clap::Error) -> Option<String> {
-    dx_output::rejected_value(error)
 }
 
 fn parse_fail_on(raw: &str) -> Result<Threshold, String> {

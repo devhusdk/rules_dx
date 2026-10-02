@@ -46,20 +46,16 @@ struct Cli {
     output: Option<String>,
 }
 
-fn invalid_token(error: &clap::Error) -> String {
-    dx_output::invalid_token(error)
-}
-
 fn parse_error(error: clap::Error, args: &[String]) -> WriterError {
-    let token = invalid_token(&error);
     match error.kind() {
-        ErrorKind::UnknownArgument => {
-            let echoed = dx_output::recover_unknown_token(args, &token);
-            WriterError::Usage(format!("unknown argument {echoed:?}\n{}", usage()))
-        }
+        ErrorKind::UnknownArgument => WriterError::Usage(format!(
+            "unknown argument {:?}\n{}",
+            dx_output::unknown_token(&error, args),
+            usage()
+        )),
         ErrorKind::InvalidValue => WriterError::Usage(usage()),
         ErrorKind::ValueValidation => {
-            let raw = rejected_value(&error).unwrap_or_default();
+            let raw = dx_output::rejected_value(&error).unwrap_or_default();
             match parse_entry_value(&raw) {
                 Err(legacy) => legacy,
                 Ok(_) => WriterError::Usage(dx_output::first_line(&error)),
@@ -67,10 +63,6 @@ fn parse_error(error: clap::Error, args: &[String]) -> WriterError {
         }
         _ => WriterError::Usage(dx_output::first_line(&error)),
     }
-}
-
-fn rejected_value(error: &clap::Error) -> Option<String> {
-    dx_output::rejected_value(error)
 }
 
 fn parse_args(args: &[String]) -> Result<Cli, WriterError> {

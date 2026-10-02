@@ -20,19 +20,16 @@ struct Cli {
     help: bool,
 }
 
-fn invalid_token(error: &clap::Error) -> String {
-    dx_output::invalid_token(error)
-}
-
 fn parse_error(error: clap::Error, args: &[String]) -> String {
-    let token = invalid_token(&error);
     match error.kind() {
         ErrorKind::UnknownArgument => {
-            let echoed = dx_output::recover_unknown_token(args, &token);
-            format!("unknown argument: {echoed}")
+            format!(
+                "unknown argument: {}",
+                dx_output::unknown_token(&error, args)
+            )
         }
         ErrorKind::InvalidValue => {
-            let flag = dx_output::leading_flag(&token);
+            let flag = dx_output::missing_value_flag(&error);
             format!("missing value for {flag}")
         }
         _ => dx_output::first_line(&error), // LCOV_EXCL_LINE - reason: first line keeps CLI error stable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

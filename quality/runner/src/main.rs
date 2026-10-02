@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use clap::{error::ErrorKind, Parser};
+use clap::Parser;
 use quality_result::encode_validated;
 use quality_runner::{
     real::{RealBackend, RealTool},
@@ -122,29 +122,10 @@ struct Cli {
     upstream_diagnostics: Vec<String>,
 }
 
-fn invalid_token(error: &clap::Error) -> String {
-    dx_output::invalid_token(error)
-}
-
-fn parse_error(error: clap::Error, args: &[String]) -> String {
-    let token = invalid_token(&error);
-    match error.kind() {
-        ErrorKind::UnknownArgument => {
-            let echoed = dx_output::recover_unknown_token(args, &token);
-            format!("unknown flag {echoed:?}")
-        }
-        ErrorKind::InvalidValue => {
-            let flag = dx_output::leading_flag(&token);
-            format!("missing value for {flag}")
-        }
-        _ => dx_output::first_line(&error),
-    }
-}
-
 fn parse_args(args: &[String]) -> Result<Cli, RunnerError> {
     Cli::try_parse_from(std::iter::once("quality_runner").chain(args.iter().map(|arg| arg as &str)))
         .map_err(|error| RunnerError::Args {
-            message: parse_error(error, args),
+            message: dx_output::parse_error(&error, args),
         })
 }
 

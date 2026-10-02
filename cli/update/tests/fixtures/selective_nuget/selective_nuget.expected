@@ -1,9 +1,0 @@
-Selective NuGet per-package update (issue #635)
-nuget full supported (bazel run @rules_dotnet//tools/paket2bazel -- --dependencies-file third_party/dotnet/paket.dependencies --output-folder third_party/dotnet/deps)
-nuget selective wont-fix (whole-folder paket2bazel regen; use `dx update nuget`)
-nuget:FSharp.Core parses then fails closed unsupported with no launch
-silent full-update substitution rejected
-private paket.lock surgery rejected
-bump follow-up automatic (dx update nuget)
-qualified seed-only under issue #635
-no Supported claim

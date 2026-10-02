@@ -1,9 +1,0 @@
-Selective Cargo per-crate update (issue #633)
-cargo full supported (CARGO_BAZEL_REPIN=1 bazel build //rust/tests/fixtures/hello:hello)
-cargo selective wont-fix (whole-lock crate_universe repin; use `dx update cargo`)
-cargo:anyhow parses then fails closed unsupported with no launch
-silent full-update substitution rejected
-private cargo update -p rejected
-bump follow-up automatic (dx update cargo)
-qualified seed-only under issue #633
-no Supported claim

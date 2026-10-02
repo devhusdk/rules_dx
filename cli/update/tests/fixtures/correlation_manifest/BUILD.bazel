@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "correlation_manifest.expected",
 ])
 
 real_source_target(

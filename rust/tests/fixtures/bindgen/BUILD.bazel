@@ -13,7 +13,6 @@ cc_library(
 
 exports_files([
     "bindgen.h",
-    "bindgen.expected",
     "pins.bzl",
 ])
 

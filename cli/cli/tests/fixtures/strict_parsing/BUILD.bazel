@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "strict_parsing.expected",
 ])
 
 real_source_target(

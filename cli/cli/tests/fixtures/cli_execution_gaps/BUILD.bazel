@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "cli_execution_gaps.expected",
 ])
 
 real_source_target(

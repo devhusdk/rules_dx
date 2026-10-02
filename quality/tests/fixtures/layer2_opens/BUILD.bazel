@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "layer2_opens.expected",
 ])
 
 real_source_target(

@@ -8,7 +8,6 @@ package(
 exports_files([
     "apple_frameworks.txt",
     "current_host.txt",
-    "floors.expected",
     "loader_deps.txt",
     "oldest_target.txt",
     "pins.bzl",

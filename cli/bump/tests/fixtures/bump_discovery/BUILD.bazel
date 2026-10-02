@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "bump_discovery.expected",
 ])
 
 real_source_target(

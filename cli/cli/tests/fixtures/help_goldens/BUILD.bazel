@@ -8,7 +8,6 @@ package(
 exports_files(
     [
         "pins.bzl",
-        "help_goldens.expected",
         "top_help.golden",
         "lint_help.golden",
         "build_help.golden",

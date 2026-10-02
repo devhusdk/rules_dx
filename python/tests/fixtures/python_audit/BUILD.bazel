@@ -8,7 +8,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "python_audit.expected",
     "Sample_audit_clean.py",
     "Sample_audit_dirty.py",
 ])

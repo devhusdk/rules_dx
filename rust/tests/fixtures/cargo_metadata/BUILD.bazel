@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "Cargo.toml",
-    "cargo_metadata.expected",
     "pins.bzl",
 ])
 

@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "layer4_loss.expected",
 ])
 
 real_source_target(

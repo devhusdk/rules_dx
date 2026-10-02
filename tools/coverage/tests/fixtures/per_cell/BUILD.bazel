@@ -6,8 +6,6 @@ package(
 )
 
 exports_files([
-    "codecov_remote.expected",
-    "per_cell.expected",
     "pins.bzl",
 ])
 

@@ -13,7 +13,6 @@ exports_files([
     "matchers.bzl",
     "output_group_subjects.bzl",
     "pins.bzl",
-    "starlark_futures.expected",
     "toolchain_subjects.bzl",
 ])
 

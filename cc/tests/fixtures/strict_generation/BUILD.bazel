@@ -21,7 +21,6 @@ cc_test(
 exports_files(
     [
         "pins.bzl",
-        "includes.expected",
         "resolution.txt",
         "disposition.txt",
     ],

@@ -47,7 +47,6 @@ REJECTED_ALTERNATIVES = [
 ]
 
 CARGO_METADATA_FIXTURE_MANIFEST = "//rust/tests/fixtures/cargo_metadata:Cargo.toml"
-CARGO_METADATA_FIXTURE_EXPECTED = "//rust/tests/fixtures/cargo_metadata:cargo_metadata.expected"
 CARGO_METADATA_LIVE_HELLO = "//rust/tests/fixtures/hello:hello"
 CARGO_METADATA_LIVE_CC_OPTOUT = "//rust/tests/fixtures/cc_optout:cc_optout"
 CARGO_METADATA_TESTDATA_APP = "gazelle/rust/testdata/cargo/crates/app"

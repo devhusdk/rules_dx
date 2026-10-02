@@ -1,7 +1,0 @@
-audit curator declared inputs qualified seed-only under issue #812
-curator label //:audit_curator declares licenses.toml bytes
-advisory snapshots ride declared snapshot plus identity inputs
-per-package inventory shape unchanged for hermetic NOTICE aggregation
-semantics preserved: policy plus freshness plus reporting unchanged
-stale fallback rejected, untracked database rejected, shape drift rejected
-no Supported claim

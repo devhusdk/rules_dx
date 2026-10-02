@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "selective_update.expected",
 ])
 
 real_source_target(

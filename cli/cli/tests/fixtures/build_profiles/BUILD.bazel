@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "build_profiles.expected",
 ])
 
 real_source_target(

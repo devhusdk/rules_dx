@@ -24,4 +24,3 @@ BINDGEN_PREBUILT_SHA256 = {
 BINDGEN_FLAGS = ["--no-include-path-detection", "--formatter=none"]
 
 BINDGEN_FIXTURE_HEADER = "//rust/tests/fixtures/bindgen:bindgen.h"
-BINDGEN_FIXTURE_EXPECTED = "//rust/tests/fixtures/bindgen:bindgen.expected"

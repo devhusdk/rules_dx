@@ -7,7 +7,6 @@ package(
 
 exports_files([
     "pins.bzl",
-    "selective_nuget.expected",
 ])
 
 real_source_target(

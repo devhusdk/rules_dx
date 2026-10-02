@@ -1,9 +1,0 @@
-Help-output goldens (issue #810) plus help verb redirect (issue #951)
-top help golden from the same grammar (dx --help)
-representative per-command goldens (lint build clean bazel docs)
-every command help pins Usage plus Scopes plus Exit codes plus Output plus Per-command flags
-help via flags plus dx help verb redirect (dx help [command] matches --help)
-dx bazel --help forwards verbatim with golden from generated command help
-generated from the same grammar as parsing plus completions plus man pages
-qualified seed-only under issue #810
-no Supported claim

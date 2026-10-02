@@ -157,18 +157,21 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(config_error)
 
     tool_binaries = {}
+    tool_extra = {}
     if "biome" in stage_tools:
         tool_binaries["biome"] = ctx.file._biome
     if "buildifier" in stage_tools:
         tool_binaries["buildifier"] = ctx.file._buildifier
     if "eslint" in stage_tools:
         tool_binaries["eslint"] = ctx.executable._eslint
+        tool_extra["eslint"] = ctx.attr._eslint[DefaultInfo].files.to_list()
     if "flake8" in stage_tools:
         tool_binaries["flake8"] = ctx.executable._flake8
     if "markdown_check" in stage_tools:
         tool_binaries["markdown_check"] = ctx.file._markdown_check
     if "prettier" in stage_tools:
         tool_binaries["prettier"] = ctx.executable._prettier
+        tool_extra["prettier"] = ctx.attr._prettier[DefaultInfo].files.to_list()
     if "pydoclint" in stage_tools:
         tool_binaries["pydoclint"] = ctx.executable._pydoclint
     if "pylint" in stage_tools:
@@ -265,6 +268,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         binary = tool_binaries[tool]
         args.add("--tool-binary", tool + "=" + binary.path)
         inputs.append(binary)
+        inputs.extend(tool_extra.get(tool, []))
         if tool == "spotbugs":
             for jar in spotbugs_jars:
                 args.add("--tool-file", "spotbugs=" + jar.short_path + "=" + jar.path)

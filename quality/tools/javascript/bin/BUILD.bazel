@@ -1,12 +1,23 @@
 load("@npm_tools//quality/tools/javascript:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm_tools//quality/tools/javascript:prettier/package_json.bzl", prettier_bin = "bin")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality/tools/javascript:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
-eslint_bin.eslint_binary(name = "eslint")
+eslint_bin.eslint_binary(name = "eslint_generated")
 
-prettier_bin.prettier_binary(name = "prettier")
+prettier_bin.prettier_binary(name = "prettier_generated")
+
+js_tool(
+    name = "eslint",
+    js_binary = ":eslint_generated",
+)
+
+js_tool(
+    name = "prettier",
+    js_binary = ":prettier_generated",
+)
 
 real_source_target(
     name = "corpus_starlark",

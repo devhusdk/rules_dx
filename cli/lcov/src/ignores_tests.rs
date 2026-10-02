@@ -356,7 +356,7 @@ fn regex_hash_scan_skips_char_literal_hash() {
 }
 
 #[test]
-fn regex_word_boundary_rejects_glued_suffixes() {
+fn word_boundary_rejects_glued_suffixes() {
     for suffix in ["_LINES", "_LINE2", "_LINE_", "_STARTX", "_STOPPED"] {
         let source = file_lines(&[format!("// {} - reason: glued.", marker(suffix))]);
         let err = find_ignores("t.rs", &source).unwrap_err();
@@ -365,7 +365,7 @@ fn regex_word_boundary_rejects_glued_suffixes() {
 }
 
 #[test]
-fn regex_word_boundary_accepts_punctuation_suffix() {
+fn word_boundary_accepts_punctuation_suffix() {
     for suffix in ["_LINE", "_START", "_STOP"] {
         let open = marker(suffix);
         let source = if suffix == "_STOP" {

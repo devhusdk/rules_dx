@@ -41,12 +41,6 @@ fn hash_scan() -> Option<&'static Regex> {
     SCAN.as_ref()
 }
 
-fn directive_suffix() -> Option<&'static Regex> {
-    static SUFFIX: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"^_(LINE|START|STOP)\b").ok());
-    SUFFIX.as_ref()
-}
-
 fn scan_with(line: &str, compiled: Option<&Regex>) -> Option<usize> {
     let re = compiled?;
     for captures in re.captures_iter(line) {
@@ -57,69 +51,12 @@ fn scan_with(line: &str, compiled: Option<&Regex>) -> Option<usize> {
     None
 }
 
-fn line_comment_with<'a>(line: &'a str, opener: &[u8]) -> Option<&'a str> {
-    if opener == b"//" {
-        if let Some(end) = scan_with(line, slash_scan()) {
-            return Some(&line[end..]);
-        }
-        if slash_scan().is_some() {
-            return None;
-        } // LCOV_EXCL_LINE - reason: fallback handles compile-fail path, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    } else if opener == b"#" {
-        if let Some(end) = scan_with(line, hash_scan()) {
-            return Some(&line[end..]);
-        }
-        if hash_scan().is_some() {
-            return None;
-        } // LCOV_EXCL_LINE - reason: fallback handles compile-fail path, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    } // LCOV_EXCL_LINE - reason: fallback handles compile-fail path, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    line_comment_with_fallback(line, opener) // LCOV_EXCL_LINE - reason: fallback handles compile-fail path, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-}
-
-// LCOV_EXCL_START - reason: compile-fail fallback is unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-fn line_comment_with_fallback<'a>(line: &'a str, opener: &[u8]) -> Option<&'a str> {
-    let bytes = line.as_bytes();
-    let mut index = 0;
-    let mut in_string = false;
-    let mut in_char = false;
-    let mut escaped = false;
-    while index < bytes.len() {
-        let byte = bytes[index];
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == b'"' {
-                in_string = false;
-            }
-        } else if in_char {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == b'\'' {
-                in_char = false;
-            }
-        } else if byte == b'"' {
-            in_string = true;
-        } else if byte == b'\'' {
-            in_char = true;
-        } else if bytes[index..].starts_with(opener) {
-            return Some(&line[index + opener.len()..]);
-        }
-        index += 1;
-    }
-    None
-}
-// LCOV_EXCL_STOP - reason: end compile-fail fallback, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-
 fn line_comment(line: &str) -> Option<&str> {
-    line_comment_with(line, b"//")
+    scan_with(line, slash_scan()).map(|end| &line[end..])
 }
 
 fn hash_comment(line: &str) -> Option<&str> {
-    line_comment_with(line, b"#")
+    scan_with(line, hash_scan()).map(|end| &line[end..])
 }
 
 fn html_comments(line: &str) -> String {
@@ -156,17 +93,8 @@ pub(crate) fn comment_text(path: &str, line: &str) -> String {
 }
 
 pub(crate) fn take_word(rest: &str, word: &str) -> bool {
-    if let Some(re) = directive_suffix() {
-        return match re.find(rest) {
-            Some(matched) => matched.as_str() == word,
-            None => false,
-        };
-    } // LCOV_EXCL_LINE - reason: fallback handles compile-fail path, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-      // LCOV_EXCL_START - reason: fallback handles compile-fail path, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    if let Some(tail) = rest.strip_prefix(word) {
-        !tail.starts_with(|c: char| c == '_' || c.is_alphanumeric())
-    } else {
-        false
+    match rest.strip_prefix(word) {
+        Some(tail) => !tail.starts_with(|c: char| c == '_' || c.is_alphanumeric()),
+        None => false,
     }
-    // LCOV_EXCL_STOP - reason: end compile-fail fallback, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 }

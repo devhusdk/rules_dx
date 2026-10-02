@@ -105,14 +105,6 @@ pub fn real_spawn(
 
 /// The runfiles manifest that sits beside a tool.
 ///
-/// Every tool launcher here reads its runfiles from a manifest, and each one guesses
-/// which. The Python launchers are left without the pinned venv on Windows, so the
-/// manifest beside the binary is the only place their wheels can come from. The Windows
-/// batch launchers probe `<tool>.runfiles\MANIFEST` before `<tool>.runfiles_manifest`,
-/// and an unrelated tree can sit at the first path, so they are pointed at the manifest
-/// beside the binary. Only the batch launcher needs naming: the POSIX one reads its own
-/// tree without a hint, and a manifest here sends it looking in the wrong place.
-///
 /// `RUNFILES_DIR` is never rewritten: pointing it at the runner's own tree would break
 /// every tool whose runfiles the runner does not carry.
 fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
@@ -123,6 +115,15 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
     };
     let manifest = format!("{}.runfiles_manifest", path.with_extension("").display());
     vec![("RUNFILES_MANIFEST_FILE".to_owned(), manifest)]
+}
+
+/// Whether a tool's launcher reads the runfiles manifest beside its own binary.
+fn reads_own_manifest(tool_id: &str, windows: bool) -> bool {
+    match tool_id {
+        "pydoclint" | "flake8" | "pylint" => true,
+        "eslint" | "prettier" => windows,
+        _ => false,
+    }
 }
 
 fn execution(tool_id: &str, detail: String) -> RunnerError {
@@ -218,9 +219,7 @@ impl RealBackend {
             .map(|(key, value)| (key.as_str(), value.as_str()))
             .collect();
         let mut env = exec::hermetic_env(scratch.root(), &extra);
-        let needs_own_wheels = matches!(tool_id, "pydoclint" | "flake8" | "pylint");
-        let windows_batch_launcher = cfg!(windows) && matches!(tool_id, "eslint" | "prettier");
-        if needs_own_wheels || windows_batch_launcher {
+        if reads_own_manifest(tool_id, cfg!(windows)) {
             env.extend(own_runfiles_manifest(&tool.binary));
         }
         (self.spawn)(&invocation.argv, &cwd, &env)
@@ -255,12 +254,12 @@ mod real_tools;
 
 #[cfg(test)]
 mod tests {
-    use super::own_runfiles_manifest;
+    use super::{own_runfiles_manifest, reads_own_manifest};
     use std::path::Path;
 
     /// The manifest sits beside the tool that reads it.
     #[test]
-    fn python_tools_read_the_manifest_beside_their_binary() {
+    fn the_manifest_sits_beside_the_binary() {
         let env = own_runfiles_manifest(Path::new("/out/bin/quality/tools/python/pydoclint"));
         assert_eq!(
             env,
@@ -273,7 +272,7 @@ mod tests {
 
     /// A Windows executable suffix is dropped so only one runfiles suffix is added.
     #[test]
-    fn python_tools_with_a_windows_suffix_keep_one_runfiles_suffix() {
+    fn a_windows_suffix_keeps_one_runfiles_suffix() {
         let env = own_runfiles_manifest(Path::new("/out/bin/prettier.exe"));
         assert_eq!(
             env,
@@ -282,5 +281,33 @@ mod tests {
                 "/out/bin/prettier.runfiles_manifest".to_owned()
             )]
         );
+    }
+
+    /// The Python launchers read wheels from the manifest on every platform.
+    #[test]
+    fn python_tools_read_their_own_manifest_everywhere() {
+        for windows in [false, true] {
+            for tool_id in ["pydoclint", "flake8", "pylint"] {
+                assert!(reads_own_manifest(tool_id, windows), "{tool_id}");
+            }
+        }
+    }
+
+    /// The batch launcher reads its own manifest only on Windows.
+    #[test]
+    fn the_batch_launcher_reads_its_own_manifest_on_windows() {
+        for tool_id in ["eslint", "prettier"] {
+            assert!(reads_own_manifest(tool_id, true), "{tool_id}");
+            assert!(!reads_own_manifest(tool_id, false), "{tool_id}");
+        }
+    }
+
+    /// A tool whose launcher finds its own tree is left alone.
+    #[test]
+    fn a_tool_that_finds_its_own_tree_is_left_alone() {
+        for windows in [false, true] {
+            assert!(!reads_own_manifest("buildifier", windows));
+            assert!(!reads_own_manifest("biome", windows));
+        }
     }
 }

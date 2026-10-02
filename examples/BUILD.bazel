@@ -28,6 +28,16 @@ filegroup(
     srcs = ADOPT_READMES,
 )
 
+filegroup(
+    name = "example_readmes",
+    srcs = ADOPT_READMES + [
+        "README.md",
+        "consumer-ci/README.md",
+        "docs-ci/README.md",
+        "//examples/mixed/hello:README.md",
+    ],
+)
+
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
@@ -45,6 +55,7 @@ real_source_target(
         "//examples/adopt-ruby:README.md",
         "//examples/adopt-rust:README.md",
         "//examples/adopt-scala:README.md",
+        "//examples/mixed/hello:README.md",
     ],
     markdown_srcs = [
         "README.md",

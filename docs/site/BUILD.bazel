@@ -4,10 +4,13 @@ load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_te
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files([
-    "site.bzl",
-    "site_tests.bzl",
-])
+exports_files(
+    [
+        "BUILD.bazel",
+        "site.bzl",
+        "site_tests.bzl",
+    ],
+)
 
 exports_files(
     [
@@ -90,6 +93,7 @@ USER_PROSE = [
     "//examples/adopt-ruby:README.md",
     "//examples/adopt-rust:README.md",
     "//examples/adopt-scala:README.md",
+    "//examples/mixed/hello:README.md",
 ]
 
 docs_user_site(

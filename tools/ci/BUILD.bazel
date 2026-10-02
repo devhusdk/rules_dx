@@ -71,6 +71,24 @@ rust_test(
 
 # keep
 rust_test(
+    name = "user_docs_test",
+    size = "small",
+    srcs = ["user_docs_test.rs"],
+    data = [
+        "//:AGENTS.md",
+        "//:CONTRIBUTING.md",
+        "//:README.md",
+        "//docs:README.md",
+        "//docs:command_docs",
+        "//docs:github-ci.md",
+        "//docs/site:BUILD.bazel",
+        "//examples:README.md",
+        "//examples:example_readmes",
+    ],
+)
+
+# keep
+rust_test(
     name = "workflow_pins_test",
     size = "small",
     srcs = ["workflow_pins_test.rs"],

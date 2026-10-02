@@ -22,7 +22,8 @@ bazel run //cli/cli:dx -- build //...
 bazel run //cli/cli:dx -- test //...
 ```
 
-Next: [Command reference](docs/cli/commands/README.md),
+Next: [docs index](docs/README.md),
+[command reference](docs/cli/commands/README.md),
 [examples](examples/README.md), [CI](docs/github-ci.md), and the
 [docs site](https://ralvik.github.io/rules_dx/).
 

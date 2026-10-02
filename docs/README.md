@@ -1,7 +1,8 @@
 # Documentation
 
-Start here to use `dx`. Install once, run `dx` through Bazel, and follow the
-command and CI guides below.
+Start here to use `dx`. There is no `dx` install step: `dx` runs through Bazel.
+Install Bazel via Bazelisk (see `.bazelversion`), then follow the command and CI
+guides below.
 
 ## Commands
 

@@ -88,3 +88,18 @@ permissions, so a read-only repository default is fine.
 Both callers forward repository secrets with `secrets: inherit`. Set
 `BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Fork pull
 requests run local-cache only. Codecov is optional.
+
+With that secret set, every Bazel and `dx` call in both workflows runs with
+`--config=ci`, plus `--config=ci-pr` on pull requests. Define both configs in
+the repository `.bazelrc` before setting the secret. An undefined config fails
+the run: `Config value 'ci' is not defined in any .rc file`.
+
+```ini
+common:ci --remote_cache=grpcs://remote.buildbuddy.io
+common:ci --remote_cache_compression
+common:ci --remote_timeout=10m
+common:ci --remote_download_outputs=all
+common:ci-pr --noremote_upload_local_results
+```
+
+Without the secret, no config flag is passed and no stanza is needed.

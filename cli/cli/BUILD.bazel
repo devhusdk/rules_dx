@@ -258,6 +258,7 @@ rust_test(
         ":dx",
         ":man_pages",
         "//:.bazelignore",
+        "//:.bazelrc",
         "//:.gitignore",
         "//:biome.json",
         "//.github:BUILD.bazel",

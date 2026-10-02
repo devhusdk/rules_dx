@@ -3065,6 +3065,66 @@ fn every_workflow_coverage_floor_matches_the_required_check() {
     assert!(floors > 0, "no workflow runs dx coverage with a floor");
 }
 
+fn workflow_bazel_configs(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("--config=") {
+        let tail = &rest[start + "--config=".len()..];
+        let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+        if end > 0 {
+            found.push(tail[..end].to_owned());
+        }
+        rest = &tail[end..];
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+fn bazelrc_configs(rc: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for line in rc.lines() {
+        let trimmed = line.trim();
+        let Some((command, rest)) = trimmed.split_once(':') else {
+            continue;
+        };
+        if command.is_empty() || !command.chars().all(|ch| ch.is_ascii_lowercase()) {
+            continue;
+        }
+        let name = rest.split(' ').next().unwrap_or_default();
+        if !name.is_empty() {
+            found.push(name.to_owned());
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+#[test]
+fn every_workflow_bazel_config_is_defined_and_documented() {
+    let rc = std::fs::read_to_string(workspace_root().join(".bazelrc"))
+        .expect(".bazelrc ships as test data");
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    let defined = bazelrc_configs(&rc);
+    let mut passes = 0;
+    for (workflow, text) in workflows() {
+        for config in workflow_bazel_configs(&text) {
+            assert!(
+                defined.contains(&config),
+                "{workflow} runs --config={config}; no .bazelrc line defines it"
+            );
+            assert!(
+                page.contains(&format!("common:{config} ")),
+                "docs/github-ci.md never shows the common:{config} stanza --config={config} needs"
+            );
+            passes += 1;
+        }
+    }
+    assert!(passes > 0, "no workflow passes a Bazel config");
+}
+
 #[test]
 fn the_repin_wrapper_defers_to_dx_update() {
     let script =

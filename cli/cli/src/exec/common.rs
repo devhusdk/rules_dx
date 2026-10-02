@@ -181,6 +181,21 @@ pub(crate) fn pre_exec(err: &mut dyn Write, message: &str) -> i32 {
     pre_exec_code()
 }
 
+/// Reports one failed report as a `dx: report_failed:` line and, in JSON mode, an error event.
+pub(crate) fn report_failed(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    output: OutputMode,
+    detail: &str,
+) {
+    let _ = writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}");
+    if output == OutputMode::Json {
+        if let Ok(event) = dx_output::error_event(CODE_REPORT_FAILED, detail, None, None, None) {
+            let _ = write_event(out, &event);
+        }
+    }
+}
+
 pub(crate) fn operational(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -516,6 +531,34 @@ mod tests {
             "broken pipe"
         )))
         .is_err());
+    }
+
+    #[test]
+    fn report_failed_writes_the_line_and_only_json_emits_the_event() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        report_failed(
+            &mut out,
+            &mut err,
+            OutputMode::Text { quiet: false },
+            "boom",
+        );
+        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\n");
+        assert!(out.is_empty());
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        report_failed(&mut out, &mut err, OutputMode::Diff, "boom");
+        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\n");
+        assert!(out.is_empty());
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        report_failed(&mut out, &mut err, OutputMode::Json, "boom");
+        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\n");
+        let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(event["code"], CODE_REPORT_FAILED);
+        assert_eq!(event["message"], "boom");
     }
 
     #[test]

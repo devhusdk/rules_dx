@@ -194,18 +194,15 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
         if !(parent_ok && fs.write_atomic(&target, document.as_bytes()).is_ok()) {
             reports_ok = false;
-            let detail = format!(
-                "failed to write {} report to {}",
-                request.format, request.destination
+            report_failed(
+                out,
+                err,
+                invocation.output,
+                &format!(
+                    "failed to write {} report to {}",
+                    request.format, request.destination
+                ),
             );
-            let _ = writeln!(err, "dx: report_failed: {detail}");
-            if invocation.output == OutputMode::Json {
-                if let Ok(event) =
-                    dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                {
-                    let _ = write_event(out, &event);
-                }
-            }
             continue;
         }
         if invocation.output == OutputMode::Json {

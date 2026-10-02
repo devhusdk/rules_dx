@@ -6,7 +6,7 @@ use dx_apply::{FileSystem, RealFileSystem};
 use dx_digest::blake3 as digest;
 use dx_output::{report_event, write_event, DiagnosticEvent, OutputMode};
 
-use super::common::CODE_REPORT_FAILED;
+use super::common::report_failed;
 use super::results::Collected;
 use crate::reports::{render_sarif, Destination, PlannedReport, ReportError};
 
@@ -97,19 +97,16 @@ pub(crate) fn write_standard_reports(
                 };
                 if !written {
                     reports_ok = false;
-                    let detail = format!(
-                        "failed to write {} report to {}",
-                        planned.format.name(),
-                        planned.destination.display()
+                    report_failed(
+                        out,
+                        err,
+                        *output,
+                        &format!(
+                            "failed to write {} report to {}",
+                            planned.format.name(),
+                            planned.destination.display()
+                        ),
                     );
-                    let _ = writeln!(err, "dx: report_failed: {detail}");
-                    if *output == OutputMode::Json {
-                        if let Ok(event) =
-                            dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                        {
-                            let _ = write_event(out, &event);
-                        }
-                    }
                     continue;
                 }
                 if *output == OutputMode::Json {
@@ -138,15 +135,12 @@ pub(crate) fn write_standard_reports(
             }
             Err(error) => {
                 reports_ok = false;
-                let detail = format!("failed to render SARIF report: {error}");
-                let _ = writeln!(err, "dx: report_failed: {detail}");
-                if *output == OutputMode::Json {
-                    if let Ok(event) =
-                        dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                    {
-                        let _ = write_event(out, &event);
-                    }
-                }
+                report_failed(
+                    out,
+                    err,
+                    *output,
+                    &format!("failed to render SARIF report: {error}"),
+                );
             }
         }
     }

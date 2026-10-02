@@ -1000,15 +1000,12 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 Ok(document) => document,
                 Err(error) => {
                     reports_ok = false;
-                    let detail = format!("failed to render SARIF report: {error}");
-                    let _ = writeln!(err, "dx: report_failed: {detail}");
-                    if invocation.output == OutputMode::Json {
-                        if let Ok(event) =
-                            dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                        {
-                            let _ = write_event(out, &event);
-                        }
-                    }
+                    report_failed(
+                        out,
+                        err,
+                        invocation.output,
+                        &format!("failed to render SARIF report: {error}"),
+                    );
                     continue;
                 }
             };
@@ -1027,18 +1024,15 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             };
             if !written {
                 reports_ok = false;
-                let detail = format!(
-                    "failed to write sarif report to {}",
-                    planned.destination.display()
+                report_failed(
+                    out,
+                    err,
+                    invocation.output,
+                    &format!(
+                        "failed to write sarif report to {}",
+                        planned.destination.display()
+                    ),
                 );
-                let _ = writeln!(err, "dx: report_failed: {detail}");
-                if invocation.output == OutputMode::Json {
-                    if let Ok(event) =
-                        dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                    {
-                        let _ = write_event(out, &event);
-                    }
-                }
                 continue;
             }
             if invocation.output == OutputMode::Json {
@@ -1074,18 +1068,15 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             };
             if !written {
                 reports_ok = false;
-                let detail = format!(
-                    "failed to write spdx report to {}",
-                    planned.destination.display()
+                report_failed(
+                    out,
+                    err,
+                    invocation.output,
+                    &format!(
+                        "failed to write spdx report to {}",
+                        planned.destination.display()
+                    ),
                 );
-                let _ = writeln!(err, "dx: report_failed: {detail}");
-                if invocation.output == OutputMode::Json {
-                    if let Ok(event) =
-                        dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                    {
-                        let _ = write_event(out, &event);
-                    }
-                }
                 continue;
             }
             if invocation.output == OutputMode::Json {

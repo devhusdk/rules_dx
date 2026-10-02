@@ -207,16 +207,12 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 Ok(document) => Some(document),
                 Err(error) => {
                     reports_ok = false;
-                    let detail =
-                        format!("failed to render {} report: {error}", planned.format.name());
-                    let _ = writeln!(err, "dx: report_failed: {detail}");
-                    if invocation.output == OutputMode::Json {
-                        if let Ok(event) =
-                            dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                        {
-                            let _ = write_event(out, &event);
-                        }
-                    }
+                    report_failed(
+                        out,
+                        err,
+                        invocation.output,
+                        &format!("failed to render {} report: {error}", planned.format.name()),
+                    );
                     continue;
                 }
             },
@@ -235,18 +231,15 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         };
         let Some(document) = document else {
             reports_ok = false;
-            let detail = format!(
-                "failed to render {} report: {detail}",
-                planned.format.name()
+            report_failed(
+                out,
+                err,
+                invocation.output,
+                &format!(
+                    "failed to render {} report: {detail}",
+                    planned.format.name()
+                ),
             );
-            let _ = writeln!(err, "dx: report_failed: {detail}");
-            if invocation.output == OutputMode::Json {
-                if let Ok(event) =
-                    dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                {
-                    let _ = write_event(out, &event);
-                }
-            }
             continue;
         };
         let written = match &planned.destination {
@@ -264,19 +257,16 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         };
         if !written {
             reports_ok = false;
-            let detail = format!(
-                "failed to write {} report to {}",
-                planned.format.name(),
-                planned.destination.display()
+            report_failed(
+                out,
+                err,
+                invocation.output,
+                &format!(
+                    "failed to write {} report to {}",
+                    planned.format.name(),
+                    planned.destination.display()
+                ),
             );
-            let _ = writeln!(err, "dx: report_failed: {detail}");
-            if invocation.output == OutputMode::Json {
-                if let Ok(event) =
-                    dx_output::error_event(CODE_REPORT_FAILED, &detail, None, None, None)
-                {
-                    let _ = write_event(out, &event);
-                }
-            }
             continue;
         }
         if invocation.output == OutputMode::Json {

@@ -1196,16 +1196,16 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
     ids
 }
 
+fn runner_table(line: &str) -> Option<String> {
+    let (_, table) = line.split_once("fromJSON('{")?;
+    let (body, _) = table.split_once('}')?;
+    Some(body.to_owned())
+}
+
 fn platform_labels(workflow: &str) -> Vec<String> {
     let mut labels: Vec<String> = Vec::new();
-    for line in workflow.lines() {
-        let Some((_, table)) = line.split_once("fromJSON('{") else {
-            continue;
-        };
-        let Some((body, _)) = table.split_once('}') else {
-            continue;
-        };
-        for entry in body.split(',') {
+    for table in workflow.lines().filter_map(runner_table) {
+        for entry in table.split(',') {
             if let Some((label, _)) = entry.split_once(':') {
                 let label = label.trim().trim_matches('"');
                 if !label.is_empty() && !label.contains(char::is_whitespace) {
@@ -1217,6 +1217,37 @@ fn platform_labels(workflow: &str) -> Vec<String> {
     labels.sort();
     labels.dedup();
     labels
+}
+
+#[test]
+fn every_platform_job_maps_labels_through_one_runner_table() {
+    let workflow =
+        std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
+            .expect("reusable-consumer.yml ships as test data");
+    let gated = gated_check_ids(&workflow);
+    let tables: Vec<(String, String)> = job_blocks(&workflow)
+        .into_iter()
+        .filter(|(id, _)| gated.contains(id))
+        .map(|(id, body)| {
+            let table = body
+                .iter()
+                .find_map(|line| runner_table(line))
+                .unwrap_or_else(|| panic!("{id} job runs no platform runner table"));
+            (id, table)
+        })
+        .collect();
+    assert_eq!(
+        tables.len(),
+        gated.len(),
+        "every gated check job must run on the platform matrix"
+    );
+    let (first, table) = &tables[0];
+    for (id, other) in &tables[1..] {
+        assert_eq!(
+            other, table,
+            "{id} maps platforms to a runner table other than {first}'s"
+        );
+    }
 }
 
 #[test]
@@ -1235,37 +1266,47 @@ fn docs_page_names_every_platform_label() {
     }
 }
 
-#[test]
-fn caller_passes_platforms_as_a_json_array() {
-    let template =
-        std::fs::read_to_string(workspace_root().join("examples/consumer-ci/caller.yml"))
-            .expect("caller ships as test data");
-    let value = template
+fn requested_platforms(caller: &str) -> Vec<String> {
+    let value = caller
         .lines()
         .skip_while(|line| line.trim() != "with:")
         .find_map(|line| line.trim().strip_prefix("platforms:"))
-        .expect("caller sets platforms");
-    let value = value.trim();
+        .expect("caller sets platforms")
+        .trim()
+        .to_owned();
     assert!(
         value.starts_with("'[\"") && value.ends_with("]'"),
         "caller platforms must be a quoted JSON array, got {value}"
     );
-    let requested = value
+    value
         .trim_matches('\'')
         .trim_start_matches('[')
         .trim_end_matches(']')
         .split(',')
         .map(|label| label.trim().trim_matches('"').to_owned())
         .filter(|label| !label.is_empty())
-        .collect::<Vec<_>>();
-    assert!(!requested.is_empty(), "caller requests no platforms");
-    let path = workspace_root().join(".github/workflows/reusable-consumer.yml");
-    let workflow = std::fs::read_to_string(&path).expect("workflow ships as test data");
-    for label in requested {
-        assert!(
-            platform_labels(&workflow).contains(&label),
-            "caller platform {label} is not in the workflow label table"
+        .collect()
+}
+
+#[test]
+fn every_caller_requests_only_platforms_the_workflow_maps() {
+    let root = workspace_root();
+    let workflow = std::fs::read_to_string(root.join(".github/workflows/reusable-consumer.yml"))
+        .expect("workflow ships as test data");
+    for caller in [
+        "examples/consumer-ci/caller.yml",
+        ".github/workflows/ci.yml",
+    ] {
+        let requested = requested_platforms(
+            &std::fs::read_to_string(root.join(caller)).expect("caller ships as test data"),
         );
+        assert!(!requested.is_empty(), "{caller} requests no platforms");
+        for label in requested {
+            assert!(
+                platform_labels(&workflow).contains(&label),
+                "{caller} platform {label} is not in the workflow label table"
+            );
+        }
     }
 }
 

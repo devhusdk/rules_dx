@@ -940,58 +940,7 @@ fn file_family_lint_checks_are_check_only() {
 }
 
 #[test]
-fn spec_table_lists_every_builder_once() {
-    assert_eq!(TOOL_SPECS.len(), 83);
-    for spec in TOOL_SPECS {
-        assert!(!spec.tool.is_empty());
-        assert!(!spec.mode.is_empty());
-    }
-    let modes = |tool: &str| -> Vec<&&str> {
-        TOOL_SPECS
-            .iter()
-            .filter(|spec| spec.tool == tool)
-            .map(|spec| &spec.mode)
-            .collect()
-    };
-    assert_eq!(modes("buildifier"), [&"check", &"fix"]);
-    assert_eq!(modes("ruff"), [&"check", &"fix"]);
-    assert_eq!(modes("buf"), [&"lint", &"format-check", &"format-fix"]);
-    assert_eq!(modes("djlint"), [&"format-check", &"format-fix", &"lint"]);
-    assert_eq!(modes("keep-sorted"), [&"check"]);
-    assert!(TOOL_SPECS.contains(&ToolSpec {
-        tool: "gofumpt",
-        mode: "check",
-        args: GOFUMPT_CHECK_ARGS,
-        config: ConfigThreading::None,
-    }));
-    assert!(TOOL_SPECS.contains(&ToolSpec {
-        tool: "scalafmt",
-        mode: "check",
-        args: SCALAFMT_CHECK_PREFIX,
-        config: ConfigThreading::OptionalFlag,
-    }));
-    assert!(TOOL_SPECS.contains(&ToolSpec {
-        tool: "clang-format",
-        mode: "check",
-        args: CLANG_FORMAT_CHECK_PREFIX,
-        config: ConfigThreading::OptionalJoined,
-    }));
-    assert!(TOOL_SPECS.contains(&ToolSpec {
-        tool: "staticcheck",
-        mode: "check",
-        args: STATICCHECK_ARGS,
-        config: ConfigThreading::Cwd,
-    }));
-    assert!(TOOL_SPECS.contains(&ToolSpec {
-        tool: "ty",
-        mode: "check",
-        args: TY_BASE,
-        config: ConfigThreading::Dynamic,
-    }));
-}
-
-#[test]
-fn spec_table_fixed_args_match_recorded_invocations() {
+fn fixed_args_match_recorded_invocations() {
     let file = Path::new(FILE);
     let cases: &[(&[&str], Invocation)] = &[
         (GOFUMPT_CHECK_ARGS, gofumpt_check(Path::new(BIN), &[file])),

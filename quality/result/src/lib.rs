@@ -98,6 +98,27 @@ fn check_path(at: &str, path: &str) -> Result<(), Error> {
     }
 }
 
+fn known_severity(value: i32) -> bool {
+    !matches!(
+        Severity::try_from(value),
+        Ok(Severity::Unspecified) | Err(_)
+    )
+}
+
+fn known_capability(value: i32) -> bool {
+    !matches!(
+        Capability::try_from(value),
+        Ok(Capability::Unspecified) | Err(_)
+    )
+}
+
+fn known_convergence(value: i32) -> bool {
+    !matches!(
+        Convergence::try_from(value),
+        Ok(Convergence::Unspecified) | Err(_)
+    )
+}
+
 fn check_snapshot(snapshot: &FileSnapshot, at: &str) -> Result<(), Error> {
     check_path(at, &snapshot.path)?;
     if snapshot.digest.len() != DIGEST_LEN {
@@ -124,7 +145,7 @@ fn check_unique_paths(
 }
 
 fn check_diagnostic(diagnostic: &Diagnostic, index: usize) -> Result<(), Error> {
-    if diagnostic.severity == Severity::Unspecified as i32 {
+    if !known_severity(diagnostic.severity) {
         return Err(Error::BadSeverity { index });
     }
     if diagnostic.message.is_empty() {
@@ -204,10 +225,10 @@ pub fn validate(result: &QualityResult) -> Result<(), Error> {
     if result.producer.is_empty() {
         return Err(Error::EmptyProducer);
     }
-    if result.capability == Capability::Unspecified as i32 {
+    if !known_capability(result.capability) {
         return Err(Error::InvalidCapability);
     }
-    if result.convergence == Convergence::Unspecified as i32 {
+    if !known_convergence(result.convergence) {
         return Err(Error::InvalidConvergence);
     }
     if result.completed_rounds > MAX_COMPLETED_ROUNDS {
@@ -623,6 +644,30 @@ mod tests {
         let mut result = sample();
         result.stages = vec![];
         assert_eq!(validate(&result), Err(Error::EmptyStages));
+    }
+
+    #[test]
+    fn unknown_enum_values_are_rejected() {
+        let mut result = sample();
+        result.capability = 5;
+        assert_eq!(validate(&result), Err(Error::InvalidCapability));
+
+        let mut result = sample();
+        result.convergence = 4;
+        assert_eq!(validate(&result), Err(Error::InvalidConvergence));
+
+        let mut result = sample();
+        result.initial_diagnostics[0].severity = 7;
+        assert_eq!(validate(&result), Err(Error::BadSeverity { index: 0 }));
+
+        let mut result = sample();
+        result.terminal_diagnostics = vec![Diagnostic {
+            severity: 4,
+            message: "m".to_owned(),
+            tool_id: "t".to_owned(),
+            ..Default::default()
+        }];
+        assert_eq!(validate(&result), Err(Error::BadSeverity { index: 0 }));
     }
 
     #[test]

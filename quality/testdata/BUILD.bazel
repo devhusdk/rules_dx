@@ -281,13 +281,14 @@ real_aspect_subject(
 
 real_source_target(
     name = "fixture_real_javascript",
+    aspect_hints = [":biome_cfg"],
     javascript_srcs = ["real_clean.js"],
 )
 
 real_source_target(
-    name = "fixture_real_javascript_hinted",
-    aspect_hints = [":biome_cfg"],
+    name = "fixture_real_javascript_no_config",
     javascript_srcs = ["real_clean.js"],
+    tags = ["manual"],
 )
 
 real_aspect_subject(
@@ -296,12 +297,20 @@ real_aspect_subject(
 )
 
 real_aspect_subject(
-    name = "fixture_real_javascript_hinted_subject",
-    target = ":fixture_real_javascript_hinted",
+    name = "fixture_real_javascript_no_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_javascript_no_config",
+)
+
+failure_test(
+    name = "fixture_real_javascript_no_config_test",
+    expected_failure_substring = "applicable Biome requires declared config",
+    target = ":fixture_real_javascript_no_config_subject",
 )
 
 real_source_target(
     name = "fixture_real_json",
+    aspect_hints = [":biome_cfg"],
     json_srcs = ["real_clean.json"],
 )
 
@@ -312,16 +321,19 @@ real_aspect_subject(
 
 real_source_target(
     name = "fixture_real_typescript",
+    aspect_hints = [":biome_cfg"],
     typescript_srcs = ["real_clean.ts"],
 )
 
 real_source_target(
     name = "fixture_real_jsx",
+    aspect_hints = [":biome_cfg"],
     jsx_srcs = ["real_clean.jsx"],
 )
 
 real_source_target(
     name = "fixture_real_tsx",
+    aspect_hints = [":biome_cfg"],
     tsx_srcs = ["real_clean.tsx"],
 )
 
@@ -429,7 +441,6 @@ real_aspect_fixture_tests(
     name = "real_aspect_presence",
     subjects = [
         ":fixture_real_java_hinted_subject",
-        ":fixture_real_javascript_hinted_subject",
         ":fixture_real_javascript_subject",
         ":fixture_real_json_subject",
         ":fixture_real_jsx_subject",

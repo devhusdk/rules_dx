@@ -14,6 +14,7 @@ typescript_project(
         "hello.ts",
         "main.ts",
     ],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -28,6 +29,7 @@ javascript_binary(
 typescript_test(
     name = "hello_test",
     srcs = ["hello_test.ts"],
+    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
     node_modules = "//:node_modules",

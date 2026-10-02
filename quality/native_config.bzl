@@ -10,6 +10,7 @@ DxNativeConfigInfo = provider(
 )
 
 CONFIG_REQUIRED_TOOLS = {
+    "biome": "Biome",
     "buildifier": "Buildifier",
     "checkstyle": "Checkstyle",
     "ruff": "Ruff",

@@ -30,11 +30,13 @@ mdx_library(
 javascript_library(
     name = "helper_lib",
     srcs = ["helper.js"],
+    aspect_hints = ["//:biome_config"],
 )
 
 javascript_test(
     name = "hello_test",
     srcs = ["Hello.test.js"],
+    aspect_hints = ["//:biome_config"],
     data = [
         ":Hello.astro",
         ":Hello.mdx",

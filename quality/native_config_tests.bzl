@@ -10,6 +10,7 @@ load(
 )
 
 _HINTS = [
+    struct(tool_id = "biome"),
     struct(tool_id = "buildifier"),
     struct(tool_id = "taplo"),
     struct(tool_id = "ruff"),
@@ -155,17 +156,17 @@ def native_config_unit_tests(name):
                     ["taplo", "buildifier"],
                     "//q:t",
                 ),
-                {"buildifier": _HINTS[0], "taplo": _HINTS[1]},
+                {"buildifier": _HINTS[1], "taplo": _HINTS[2]},
             ),
             expect_equal(
                 "collect_native_configs omits stage tools without a hint",
                 collect_native_configs(_HINTS, ["vale", "taplo"], "//q:t"),
-                {"taplo": _HINTS[1]},
+                {"taplo": _HINTS[2]},
             ),
             expect_equal(
                 "collect_native_configs ignores hints outside the stages",
                 collect_native_configs(_HINTS, ["taplo"], "//q:t"),
-                {"taplo": _HINTS[1]},
+                {"taplo": _HINTS[2]},
             ),
             expect_equal(
                 "collect_native_configs is empty without hints",
@@ -194,11 +195,16 @@ def native_config_unit_tests(name):
                 "real_aspect (//q:t): applicable Ruff requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
             ),
             expect_equal(
+                "missing_required_config_error names an unbound biome stage",
+                missing_required_config_error("biome", {}, "//q:t"),
+                "real_aspect (//q:t): applicable Biome requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+            ),
+            expect_equal(
                 "missing_required_config_error accepts bound and default-only tools",
                 [
-                    missing_required_config_error("buildifier", {"buildifier": _HINTS[0]}, "//q:t"),
-                    missing_required_config_error("ruff", {"ruff": _HINTS[2]}, "//q:t"),
-                    missing_required_config_error("biome", {}, "//q:t"),
+                    missing_required_config_error("buildifier", {"buildifier": _HINTS[1]}, "//q:t"),
+                    missing_required_config_error("ruff", {"ruff": _HINTS[3]}, "//q:t"),
+                    missing_required_config_error("biome", {"biome": _HINTS[0]}, "//q:t"),
                     missing_required_config_error("taplo", {}, "//q:t"),
                     missing_required_config_error("prettier", {}, "//q:t"),
                 ],

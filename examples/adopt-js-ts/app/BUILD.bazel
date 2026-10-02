@@ -5,17 +5,20 @@ load("//quality:fixtures.bzl", "real_source_target")
 javascript_library(
     name = "format",
     srcs = ["format.js"],
+    aspect_hints = ["//:biome_config"],
 )
 
 javascript_library(
     name = "greet",
     srcs = ["greet.js"],
+    aspect_hints = ["//:biome_config"],
     deps = [":format"],
 )
 
 javascript_test(
     name = "greet_test",
     srcs = ["greet_test.js"],
+    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     data = [":greet"],
     node_modules = "//:node_modules",
@@ -25,11 +28,13 @@ javascript_test(
 javascript_library(
     name = "jest_config",
     srcs = ["jest.config.cjs"],
+    aspect_hints = ["//:biome_config"],
 )
 
 javascript_library(
     name = "test_helpers",
     srcs = ["test_helpers.js"],
+    aspect_hints = ["//:biome_config"],
     deps = [":format"],
 )
 

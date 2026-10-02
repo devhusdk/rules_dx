@@ -4,6 +4,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 javascript_library(
     name = "data",
     srcs = ["data.js"],
+    aspect_hints = ["//:biome_config"],
 )
 
 real_source_target(

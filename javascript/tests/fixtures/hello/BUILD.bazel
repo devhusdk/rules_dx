@@ -22,6 +22,7 @@ javascript_binary(
 javascript_test(
     name = "hello_test",
     srcs = ["hello.test.js"],
+    aspect_hints = ["//:biome_config"],
     data = [":hello_lib"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],

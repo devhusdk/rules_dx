@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "ruff_config")
+load("//quality:native_config.bzl", "biome_config", "ruff_config")
 
 package(
     default_testonly = True,
@@ -7,15 +7,15 @@ package(
 )
 
 exports_files([
+    "biome_loose/biome.json",
+    "biome_strict.json",
+    "loose_pass_strict_fail.py",
+    "loose_pass_strict_fail.ts",
     "pins.bzl",
     "ruff_loose.toml",
     "ruff_strict.toml",
-    "biome_loose.json",
-    "biome_strict.json",
     "tsconfig_loose.json",
     "tsconfig_strict.json",
-    "loose_pass_strict_fail.py",
-    "loose_pass_strict_fail.ts",
 ])
 
 real_source_target(
@@ -56,6 +56,13 @@ real_source_target(
 real_source_target(
     name = "strict_example_typescript",
     testonly = True,
+    aspect_hints = [":biome_loose"],
     tags = ["no-lint"],
     typescript_srcs = ["loose_pass_strict_fail.ts"],
+)
+
+biome_config(
+    name = "biome_loose",
+    testonly = True,
+    src = "biome_loose/biome.json",
 )

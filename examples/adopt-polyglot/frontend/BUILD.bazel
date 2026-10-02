@@ -5,6 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 typescript_project(
     name = "sums",
     srcs = ["sums.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -13,6 +14,7 @@ typescript_project(
 typescript_project(
     name = "totals",
     srcs = ["totals.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -22,6 +24,7 @@ typescript_project(
 typescript_test(
     name = "totals_test",
     srcs = ["totals_test.ts"],
+    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
     node_modules = "//:node_modules",
@@ -41,4 +44,5 @@ real_source_target(
 javascript_library(
     name = "jest_config",
     srcs = ["jest.config.cjs"],
+    aspect_hints = ["//:biome_config"],
 )

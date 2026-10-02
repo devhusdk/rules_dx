@@ -17,11 +17,21 @@ const corpusValeHint = "//quality:corpus_vale_config"
 
 const corpusBuildifierHint = "//:buildifier_config"
 
+const corpusBiomeHint = "//:biome_config"
+
 func rootBuildifierConfig(repoRoot string) bool {
 	if repoRoot == "" {
 		return false
 	}
 	_, err := os.Stat(filepath.Join(repoRoot, ".buildifier.json"))
+	return err == nil
+}
+
+func rootBiomeConfig(repoRoot string) bool {
+	if repoRoot == "" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(repoRoot, "biome.json"))
 	return err == nil
 }
 
@@ -227,6 +237,7 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 		return plan
 	}
 	bindBuildifier := rootBuildifierConfig(args.Config.RepoRoot)
+	bindBiome := rootBiomeConfig(args.Config.RepoRoot)
 	emit := func(typ, attr string, srcs []string) {
 		if len(srcs) == 0 {
 			return
@@ -241,6 +252,8 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 			}
 		} else if typ == "starlark" && bindBuildifier {
 			r.SetAttr("aspect_hints", []string{corpusBuildifierHint})
+		} else if typ == "json" && bindBiome {
+			r.SetAttr("aspect_hints", []string{corpusBiomeHint})
 		}
 		plan.gen = append(plan.gen, r)
 	}

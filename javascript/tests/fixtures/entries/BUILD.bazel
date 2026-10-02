@@ -9,11 +9,13 @@ package(
 javascript_library(
     name = "helper",
     srcs = ["helper.js"],
+    aspect_hints = ["//:biome_config"],
 )
 
 javascript_library(
     name = "main",
     srcs = ["main.js"],
+    aspect_hints = ["//:biome_config"],
     deps = [":helper"],
 )
 
@@ -26,6 +28,7 @@ javascript_binary(
 javascript_test(
     name = "helper_test",
     srcs = ["helper_test.js"],
+    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     data = [":helper"],
     node_modules = "//:node_modules",

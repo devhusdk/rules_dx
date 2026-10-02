@@ -617,6 +617,7 @@ real_source_target(
 
 real_source_target(
     name = "corpus_json",
+    aspect_hints = ["//:biome_config"],
     json_srcs = ["npm_demo/package.json"],
     tags = ["corpus"],
 )

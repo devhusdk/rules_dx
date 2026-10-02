@@ -5,6 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 typescript_project(
     name = "app",
     srcs = ["app.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -14,6 +15,7 @@ typescript_project(
 typescript_test(
     name = "app_test",
     srcs = ["app_test.ts"],
+    aspect_hints = ["//:biome_config"],
     config = "jest.config.cjs",
     declaration = True,
     node_modules = "//:node_modules",
@@ -26,6 +28,7 @@ typescript_test(
 typescript_project(
     name = "test_setup",
     srcs = ["test_setup.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -35,6 +38,7 @@ typescript_project(
 typescript_project(
     name = "util",
     srcs = ["util.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
@@ -50,4 +54,5 @@ real_source_target(
 javascript_library(
     name = "jest_config",
     srcs = ["jest.config.cjs"],
+    aspect_hints = ["//:biome_config"],
 )

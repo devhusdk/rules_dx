@@ -19,6 +19,7 @@ func TestCorpusSplitPreservesSiblingsAndFixtureOwnership(t *testing.T) {
 		writeFixture(t, root, name, "")
 	}
 	writeFixture(t, root, ".buildifier.json", "{}")
+	writeFixture(t, root, "biome.json", "{}")
 	file := rule.EmptyFile(filepath.Join(root, "BUILD.bazel"), "")
 	legacy := rule.NewRule(corpusKind, "corpus")
 	legacy.SetAttr("markdown_siblings", []string{"sibling.md", "//other:doc", ":local", "@repo//:doc", "*.md", ""})
@@ -47,9 +48,34 @@ func TestCorpusSplitPreservesSiblingsAndFixtureOwnership(t *testing.T) {
 	if got := byName["corpus_starlark"].AttrStrings("aspect_hints"); len(got) != 1 || got[0] != corpusBuildifierHint {
 		t.Fatalf("buildifier hints: %v", got)
 	}
+	if got := byName["corpus_json"].AttrStrings("aspect_hints"); len(got) != 1 || got[0] != corpusBiomeHint {
+		t.Fatalf("biome hints: %v", got)
+	}
 	if len(plan.empty) != 1 || plan.empty[0].Name() != "corpus" {
 		t.Fatalf("legacy deletion: %v", plan.empty)
 	}
+}
+
+func TestCorpusJsonBiomeHintNeedsRootConfig(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "BUILD.bazel", "")
+	writeFixture(t, root, ".buildifier.json", "{}")
+	file := rule.EmptyFile(filepath.Join(root, "BUILD.bazel"), "")
+	legacy := rule.NewRule(corpusKind, "corpus")
+	legacy.SetAttr("json_srcs", []string{"keep.json"})
+	legacy.Insert(file)
+	cfg := config.New()
+	cfg.RepoRoot = root
+	plan := planCorpus(language.GenerateArgs{Config: cfg, Dir: root, File: file}, false)
+	for _, r := range plan.gen {
+		if r.Name() == "corpus_json" {
+			if got := r.AttrStrings("aspect_hints"); len(got) != 0 {
+				t.Fatalf("biome hints without a root biome.json: %v", got)
+			}
+			return
+		}
+	}
+	t.Fatal("missing corpus_json")
 }
 
 func TestCorpusSkipsToolTreesAndKeepsSiblingOnlyTargets(t *testing.T) {

@@ -113,14 +113,11 @@ pub fn validate_npm(package: &str) -> Result<(), &'static str> {
 
 /// Accepts a go module path or reports why it is refused.
 pub fn validate_go(package: &str) -> Result<(), &'static str> {
-    if package.is_empty()
-        || package.contains(':')
-        || package.contains(' ')
-        || package.starts_with('/')
-        || package.ends_with('/')
-        || package.contains("//")
-    {
+    if package.is_empty() || package.contains(':') || package.contains(' ') {
         return Err("go module paths never contain ':' or spaces");
+    }
+    if package.starts_with('/') || package.ends_with('/') || package.contains("//") {
+        return Err("go module paths use single '/' segments");
     }
     let charset_ok = if let Some(re) = go_charset_re() {
         re.is_match(package)
@@ -244,22 +241,20 @@ mod tests {
         ] {
             assert_eq!(validate_go(path), Ok(()), "{path}");
         }
-        assert_eq!(
-            validate_go("/leading"),
-            Err("go module paths never contain ':' or spaces")
-        );
-        assert_eq!(
-            validate_go("trailing/"),
-            Err("go module paths never contain ':' or spaces")
-        );
-        assert_eq!(
-            validate_go("double//slash"),
-            Err("go module paths never contain ':' or spaces")
-        );
-        assert_eq!(
-            validate_go("with:colon"),
-            Err("go module paths never contain ':' or spaces")
-        );
+        for path in ["/leading", "trailing/", "double//slash"] {
+            assert_eq!(
+                validate_go(path),
+                Err("go module paths use single '/' segments"),
+                "{path}"
+            );
+        }
+        for path in ["with:colon", "with space", ""] {
+            assert_eq!(
+                validate_go(path),
+                Err("go module paths never contain ':' or spaces"),
+                "{path}"
+            );
+        }
         assert_eq!(
             validate_go("bad!name"),
             Err("go module paths use [A-Za-z0-9/_.-~+] only")

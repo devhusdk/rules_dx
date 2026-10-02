@@ -103,14 +103,19 @@ pub fn real_spawn(
     exec::spawn(argv, cwd, env)
 }
 
-/// The runfiles manifest that sits beside a pinned Python tool.
+/// The runfiles manifest that sits beside a tool.
 ///
-/// The hermetic launcher leaves the interpreter without the pinned venv on Windows,
-/// where the runfile link tree is never materialized, so the tool reads its wheels
-/// from the manifest instead. `RUNFILES_DIR` stays as the caller set it: pointing it
-/// at the runner's own tree would break every tool whose runfiles the runner does
-/// not carry.
-fn pinned_wheel_manifest(binary: &Path) -> Vec<(String, String)> {
+/// Every tool launcher here reads its runfiles from a manifest, and each one guesses
+/// which. The Python launchers are left without the pinned venv on Windows, so the
+/// manifest beside the binary is the only place their wheels can come from. The Windows
+/// batch launchers probe `<tool>.runfiles\MANIFEST` before `<tool>.runfiles_manifest`,
+/// and an unrelated tree can sit at the first path, so they are pointed at the manifest
+/// beside the binary. Only the batch launcher needs naming: the POSIX one reads its own
+/// tree without a hint, and a manifest here sends it looking in the wrong place.
+///
+/// `RUNFILES_DIR` is never rewritten: pointing it at the runner's own tree would break
+/// every tool whose runfiles the runner does not carry.
+fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
     let path = if binary.is_absolute() {
         binary.to_owned()
     } else {
@@ -213,8 +218,10 @@ impl RealBackend {
             .map(|(key, value)| (key.as_str(), value.as_str()))
             .collect();
         let mut env = exec::hermetic_env(scratch.root(), &extra);
-        if matches!(tool_id, "pydoclint" | "flake8" | "pylint") {
-            env.extend(pinned_wheel_manifest(&tool.binary));
+        let needs_own_wheels = matches!(tool_id, "pydoclint" | "flake8" | "pylint");
+        let windows_batch_launcher = cfg!(windows) && matches!(tool_id, "eslint" | "prettier");
+        if needs_own_wheels || windows_batch_launcher {
+            env.extend(own_runfiles_manifest(&tool.binary));
         }
         (self.spawn)(&invocation.argv, &cwd, &env)
             .map_err(|err| execution(tool_id, format!("spawn: {err}")))
@@ -248,13 +255,13 @@ mod real_tools;
 
 #[cfg(test)]
 mod tests {
-    use super::pinned_wheel_manifest;
+    use super::own_runfiles_manifest;
     use std::path::Path;
 
     /// The manifest sits beside the tool that reads it.
     #[test]
     fn python_tools_read_the_manifest_beside_their_binary() {
-        let env = pinned_wheel_manifest(Path::new("/out/bin/quality/tools/python/pydoclint"));
+        let env = own_runfiles_manifest(Path::new("/out/bin/quality/tools/python/pydoclint"));
         assert_eq!(
             env,
             vec![(
@@ -267,7 +274,7 @@ mod tests {
     /// A Windows executable suffix is dropped so only one runfiles suffix is added.
     #[test]
     fn python_tools_with_a_windows_suffix_keep_one_runfiles_suffix() {
-        let env = pinned_wheel_manifest(Path::new("/out/bin/prettier.exe"));
+        let env = own_runfiles_manifest(Path::new("/out/bin/prettier.exe"));
         assert_eq!(
             env,
             vec![(

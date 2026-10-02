@@ -5,6 +5,7 @@ use clap::{CommandFactory, ValueEnum};
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
 use super::super::{parse, ArgsError, Command};
+use super::render_command_help;
 
 fn args(words: &[&str]) -> Vec<String> {
     words.iter().map(ToString::to_string).collect()
@@ -90,6 +91,110 @@ fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
         Err(ArgsError::UnsupportedOption { option, .. }) => option == flag,
         Err(ArgsError::UnknownOption { option, .. }) => option == flag,
         _ => false,
+    }
+}
+
+fn required_words(command: Command) -> Vec<String> {
+    let required: &[&str] = match command.name() {
+        "bump" => &["cargo:demo", "1.0.0"],
+        "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
+        "run" | "deploy" => &["//:demo"],
+        "owners" | "deps" => &["//:demo"],
+        "why" => &["a.rs", "//:demo"],
+        "hooks" => &["status"],
+        "new" => &["rust"],
+        "watch" => &["build"],
+        "completion" => &["bash"],
+        "bazel" => &["info"],
+        _ => &[],
+    };
+    required.iter().map(ToString::to_string).collect()
+}
+
+fn probe_rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
+    let inline = payload.map_or_else(|| flag.to_owned(), |payload| format!("{flag}={payload}"));
+    if flag == "-- <bazel-options>" {
+        let mut words = vec![command.name().to_owned()];
+        words.extend(required_words(command));
+        words.push("--".to_owned());
+        words.push("--jobs=1".to_owned());
+        return matches!(parse(&words), Err(ArgsError::UnsupportedOption { .. }));
+    }
+    if command == Command::Bazel {
+        return parse(&[inline, command.name().to_owned()]).is_err();
+    }
+    let mut words = vec![command.name().to_owned()];
+    words.extend(required_words(command));
+    if command == Command::Docs && matches!(flag, "--port" | "--host" | "--open") {
+        words.push("--serve".to_owned());
+    }
+    words.push(flag.to_owned());
+    if let Some(payload) = payload {
+        words.push(payload.to_owned());
+    }
+    match parse(&words) {
+        Err(ArgsError::UnsupportedOption { option, .. }) => option == flag,
+        Err(ArgsError::UnknownOption { option, .. }) => option == flag,
+        _ => false,
+    }
+}
+
+const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
+    ("--fail-on", Some("error")),
+    ("--min-coverage", Some("80")),
+    ("--check", None),
+    ("--debug", None),
+    ("--release", None),
+    ("--bazel", None),
+    ("--pin", Some("1.0.0")),
+    ("--rollback", None),
+    ("--configured", None),
+    ("--from", Some("2.0.0")),
+    ("--to", Some("2.0.0")),
+    ("--here", None),
+    ("--serve", None),
+    ("--port", Some("1")),
+    ("--host", Some("example.test")),
+    ("--open", None),
+    ("--offline", None),
+    ("-- <bazel-options>", None),
+];
+
+#[test]
+fn help_rejected_line_names_exactly_the_flags_the_parser_refuses() {
+    for command in Command::value_variants() {
+        let command = *command;
+        let listed = super::rejected_flags(command);
+        for (flag, payload) in SHARED_FLAGS {
+            let refused = probe_rejects(command, flag, *payload);
+            assert_eq!(
+                refused,
+                listed.contains(flag),
+                "dx {} help {flag}: parser refuses={refused} listed={}",
+                command.name(),
+                listed.contains(flag)
+            );
+        }
+        assert_eq!(
+            listed.contains(&"--report"),
+            super::output_line(command).contains("no standard format"),
+            "dx {} help lists --report against what the Output line promises:\n{}\n{}",
+            command.name(),
+            super::output_line(command),
+            super::rejected_line(command)
+        );
+        let line = super::rejected_line(command);
+        assert_eq!(
+            line,
+            format!("Rejected: {}.", listed.join(", ")),
+            "dx {} rejected line",
+            command.name()
+        );
+        assert!(
+            render_command_help(command).contains(&line),
+            "dx {} help omits its rejected line:\n{line}",
+            command.name()
+        );
     }
 }
 
@@ -277,27 +382,11 @@ fn usage_strings_and_docs_put_dx_flags_after_the_command() {
 }
 
 fn words_taking_bazel_options(command: Command) -> Vec<String> {
-    let name = command.name();
-    if command == Command::Bazel {
-        return args(&[name, "info"]);
-    }
-    let required: &[&str] = match name {
-        "bump" => &["cargo:demo", "1.0.0"],
-        "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
-        "run" | "deploy" => &["//:demo"],
-        "owners" | "deps" => &["//:demo"],
-        "why" => &["a.rs", "//:demo"],
-        "hooks" => &["status"],
-        "new" => &["rust"],
-        "watch" => &["build"],
-        "completion" => &["bash"],
-        _ => &[],
-    };
-    let mut words = vec![name];
-    words.extend_from_slice(required);
-    words.push("--");
-    words.push("--jobs=1");
-    args(&words)
+    let mut words = vec![command.name().to_owned()];
+    words.extend(required_words(command));
+    words.push("--".to_owned());
+    words.push("--jobs=1".to_owned());
+    words
 }
 
 #[test]

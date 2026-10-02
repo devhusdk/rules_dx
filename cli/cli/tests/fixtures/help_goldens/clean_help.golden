@@ -99,6 +99,7 @@ Per-command flags: --bazel (also run `bazel clean` after pruning; default never 
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json; --report has no standard format for this command.
+Rejected: --report, --fail-on, --min-coverage, --check, --debug, --release, --pin, --rollback, --configured, --from, --to, --here, --serve, --port, --host, --open, --offline, -- <bazel-options>.
 
 dx - Run Bazel workflows
 

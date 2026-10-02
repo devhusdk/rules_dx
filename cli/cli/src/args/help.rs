@@ -212,6 +212,79 @@ pub(crate) fn output_line(command: Command) -> String {
         report_clause(command)
     )
 }
+
+/// Shared options the grammar lists for every command but this one refuses.
+pub(crate) fn rejected_flags(command: Command) -> Vec<&'static str> {
+    let mut flags = Vec::new();
+    if crate::plan::spec(command).reports.is_empty() {
+        flags.push("--report");
+    }
+    if !command.supports_fail_on() {
+        flags.push("--fail-on");
+    }
+    if !command.supports_min_coverage() {
+        flags.push("--min-coverage");
+    }
+    if !command.supports_check() {
+        flags.push("--check");
+    }
+    if !command.supports_profile() {
+        flags.push("--debug");
+        flags.push("--release");
+    }
+    if command != Command::Clean {
+        flags.push("--bazel");
+    }
+    if command != Command::Version {
+        flags.push("--pin");
+        flags.push("--rollback");
+    }
+    if !matches!(command, Command::Owners | Command::Deps | Command::Why) {
+        flags.push("--configured");
+    }
+    if !matches!(command, Command::Migrate | Command::Upgrade) {
+        flags.push("--from");
+        flags.push("--to");
+    }
+    if !command.supports_here() {
+        flags.push("--here");
+    }
+    if command != Command::Docs {
+        flags.push("--serve");
+        flags.push("--port");
+        flags.push("--host");
+        flags.push("--open");
+    }
+    if !command.supports_offline() {
+        flags.push("--offline");
+    }
+    if !accepts_bazel_options(command) {
+        flags.push("-- <bazel-options>");
+    }
+    flags
+}
+
+/// Whether `dx <command> -- <bazel-options>` passes them through.
+pub(crate) fn accepts_bazel_options(command: Command) -> bool {
+    if command.is_adoption() {
+        return false;
+    }
+    !matches!(
+        command,
+        Command::Security
+            | Command::License
+            | Command::Clean
+            | Command::Update
+            | Command::Bump
+            | Command::Migrate
+            | Command::Upgrade
+    )
+}
+
+pub(crate) fn rejected_line(command: Command) -> String {
+    format!("Rejected: {}.", rejected_flags(command).join(", "))
+}
+
 /// The prose clap appends to each command's long help.
 pub(crate) fn after_long_help(command: Command) -> String {
     let mut out = String::new();
@@ -221,6 +294,8 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out.push_str(&format!("\n{EXIT_CODES}"));
     out.push('\n');
     out.push_str(&output_line(command));
+    out.push('\n');
+    out.push_str(&rejected_line(command));
     out
 }
 

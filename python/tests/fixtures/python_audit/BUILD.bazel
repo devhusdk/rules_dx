@@ -28,6 +28,7 @@ python_library(
     name = "Sample_audit_clean",
     testonly = True,
     srcs = ["Sample_audit_clean.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
 )
 
@@ -35,6 +36,7 @@ python_library(
     name = "Sample_audit_dirty",
     testonly = True,
     srcs = ["Sample_audit_dirty.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     tags = ["no-lint"],
 )

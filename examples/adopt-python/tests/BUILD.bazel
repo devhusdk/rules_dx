@@ -5,6 +5,7 @@ python_test(
     name = "login_test",
     testonly = True,
     srcs = ["login_test.py"],
+    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [
@@ -18,6 +19,7 @@ python_library(
     name = "logins",
     testonly = True,
     srcs = ["logins.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
 )
 
@@ -25,6 +27,7 @@ python_library(
     name = "test_login",
     testonly = True,
     srcs = ["test_login.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     deps = [":logins"],
 )

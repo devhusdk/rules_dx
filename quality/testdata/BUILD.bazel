@@ -20,17 +20,20 @@ quality_source_target(
 
 quality_source_target(
     name = "fixture_python",
+    aspect_hints = [":ruff_cfg"],
     python_srcs = ["clean.py"],
 )
 
 quality_source_target(
     name = "fixture_mixed_clean",
+    aspect_hints = [":ruff_cfg"],
     python_srcs = ["clean.py"],
     rust_srcs = ["clean.rs"],
 )
 
 quality_source_target(
     name = "fixture_no_lint",
+    aspect_hints = [":ruff_cfg"],
     python_srcs = ["clean.py"],
     rust_srcs = ["clean.rs"],
     tags = ["no-lint"],
@@ -177,6 +180,7 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_python",
+    aspect_hints = [":ruff_cfg"],
     python_srcs = ["real_clean.py"],
 )
 
@@ -187,7 +191,14 @@ real_source_target(
 )
 
 real_source_target(
+    name = "fixture_real_python_no_config",
+    python_srcs = ["real_clean.py"],
+    tags = ["manual"],
+)
+
+real_source_target(
     name = "fixture_real_python_no_typecheck",
+    aspect_hints = [":ruff_cfg"],
     python_srcs = ["real_clean.py"],
     tags = ["no-typecheck"],
 )
@@ -400,6 +411,18 @@ failure_test(
     name = "fixture_real_starlark_no_config_test",
     expected_failure_substring = "applicable Buildifier requires declared config",
     target = ":fixture_real_starlark_no_config_subject",
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_no_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_python_no_config",
+)
+
+failure_test(
+    name = "fixture_real_python_no_config_test",
+    expected_failure_substring = "applicable Ruff requires declared config",
+    target = ":fixture_real_python_no_config_subject",
 )
 
 real_aspect_fixture_tests(

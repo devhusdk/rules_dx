@@ -17,6 +17,7 @@ python_library(
 python_binary(
     name = "hello",
     srcs = ["main.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     main = "main.py",
     deps = [":hello_lib"],
@@ -25,6 +26,7 @@ python_binary(
 python_test(
     name = "hello_test",
     srcs = ["hello_test.py"],
+    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [
@@ -37,6 +39,7 @@ python_test(
 python_test(
     name = "flaky_passthrough_fixture",
     srcs = ["flaky_passthrough_test.py"],
+    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     flaky = True,
     imports = ["."],

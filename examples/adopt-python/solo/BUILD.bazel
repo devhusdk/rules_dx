@@ -4,12 +4,14 @@ load("//quality:fixtures.bzl", "real_source_target")
 python_library(
     name = "pure",
     srcs = ["pure.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
 )
 
 python_test(
     name = "pure_test",
     srcs = ["pure_test.py"],
+    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [

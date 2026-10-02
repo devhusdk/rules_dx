@@ -12,6 +12,7 @@ load(
 _HINTS = [
     struct(tool_id = "buildifier"),
     struct(tool_id = "taplo"),
+    struct(tool_id = "ruff"),
 ]
 
 def native_config_unit_tests(name):
@@ -188,14 +189,20 @@ def native_config_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "missing_required_config_error names an unbound ruff stage",
+                missing_required_config_error("ruff", {}, "//q:t"),
+                "real_aspect (//q:t): applicable Ruff requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+            ),
+            expect_equal(
                 "missing_required_config_error accepts bound and default-only tools",
                 [
                     missing_required_config_error("buildifier", {"buildifier": _HINTS[0]}, "//q:t"),
+                    missing_required_config_error("ruff", {"ruff": _HINTS[2]}, "//q:t"),
                     missing_required_config_error("biome", {}, "//q:t"),
                     missing_required_config_error("taplo", {}, "//q:t"),
                     missing_required_config_error("prettier", {}, "//q:t"),
                 ],
-                ["", "", "", ""],
+                ["", "", "", "", ""],
             ),
         ],
     )

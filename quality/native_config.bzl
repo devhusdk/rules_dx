@@ -12,6 +12,7 @@ DxNativeConfigInfo = provider(
 CONFIG_REQUIRED_TOOLS = {
     "buildifier": "Buildifier",
     "checkstyle": "Checkstyle",
+    "ruff": "Ruff",
     "vale": "Vale",
 }
 

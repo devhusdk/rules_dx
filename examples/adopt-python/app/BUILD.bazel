@@ -4,6 +4,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 python_library(
     name = "envelopes",
     srcs = ["envelopes.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     deps = [":handlers"],
 )
@@ -11,12 +12,14 @@ python_library(
 python_library(
     name = "handlers",
     srcs = ["handlers.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
 )
 
 python_test(
     name = "handlers_test",
     srcs = ["handlers_test.py"],
+    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [
@@ -30,6 +33,7 @@ python_test(
 python_library(
     name = "test_helpers",
     srcs = ["test_helpers.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     deps = [":envelopes"],
 )

@@ -10,6 +10,7 @@ python_library(
     name = "helper",
     testonly = True,
     srcs = ["helper.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
 )
 
@@ -17,6 +18,7 @@ python_library(
     name = "main",
     testonly = True,
     srcs = ["main.py"],
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     deps = [":helper"],
 )
@@ -24,6 +26,7 @@ python_library(
 python_binary(
     name = "main_bin",
     testonly = True,
+    aspect_hints = ["//:ruff_config"],
     imports = ["."],
     main = "main.py",
     deps = [":main"],
@@ -33,6 +36,7 @@ python_test(
     name = "helper_test",
     testonly = True,
     srcs = ["helper_test.py"],
+    aspect_hints = ["//:ruff_config"],
     dep_group = "hello",
     imports = ["."],
     deps = [

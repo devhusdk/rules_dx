@@ -54,18 +54,7 @@ pub enum ManifestError {
 }
 
 fn check_path_shape(path: &str) -> Result<(), &'static str> {
-    match dx_path::classify(path) {
-        None => Ok(()),
-        Some(dx_path::PathProblem::Empty) => Err("path must be non-empty"),
-        Some(dx_path::PathProblem::Absolute) => {
-            Err("path must be workspace-relative, not absolute")
-        }
-        Some(dx_path::PathProblem::Backslash) => Err("path must use forward slashes"),
-        Some(dx_path::PathProblem::EmptyComponent) => Err("path must have no empty component"),
-        Some(dx_path::PathProblem::Dot) | Some(dx_path::PathProblem::DotDot) => {
-            Err("path must have no '.' or '..' component")
-        }
-    }
+    dx_path::reject_reason(path).map_or(Ok(()), Err)
 }
 
 fn is_directory_hub(path: &str) -> bool {
@@ -335,8 +324,8 @@ mod tests {
             ("C:/abs", "path must be workspace-relative, not absolute"),
             ("a\\b", "path must use forward slashes"),
             ("a//b", "path must have no empty component"),
-            ("a/./b", "path must have no '.' or '..' component"),
-            ("a/../b", "path must have no '.' or '..' component"),
+            ("a/./b", "path must have no '.' component"),
+            ("a/../b", "path must have no '..' component"),
         ] {
             assert_eq!(check_path_shape(path), Err(reason), "path: {path:?}");
         }
@@ -351,7 +340,7 @@ mod tests {
         );
         assert_eq!(
             check_path_shape("a/./../b"),
-            Err("path must have no '.' or '..' component")
+            Err("path must have no '.' component")
         );
     }
 

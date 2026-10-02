@@ -1,20 +1,16 @@
-# ShellCheck config (issue #323): bash-only Linux harness, shfmt -i 2 -ci.
 shell=bash
 enable=all
 # SC1090/SC1091: Bazel runfiles bootstrap sources via RUNFILES_DIR /
 # TEST_SRCDIR / $0.runfiles layouts that only exist under `bazel run` /
-# `bazel test`; static resolution is impossible by design (issue #319).
+# `bazel test`; static resolution is impossible by design.
 # SC2016: grep -F -e '$...' / '$(...)' patterns intentionally use single
-# quotes so the banned form stays literal (issues #299, #323).
-# SC2154: harness counters/scratch/workspace come from tools/sh/lib.sh via
-# the runfiles bootstrap above, which shellcheck cannot resolve.
+# quotes so the banned form stays literal.
 # SC2250: repo style uses $var without braces; enforcing ${var} would churn
-# hundreds of lines with no behavior change (issue #323).
+# hundreds of lines with no behavior change.
 # SC2310/SC2312: harness guards intentionally use $(...) in [[ ... ]] / if
-# conditions and check output (not exit status); set -e masking is by design
-# (issues #299, #323).
+# conditions and check output (not exit status); set -e masking is by design.
 # SC2126: grep -rl ... | wc -l counts files; grep -c would count per-file
-# matches and change semantics (issue #323 dedup guards).
+# matches and change semantics.
 # SC2249: framework/hello loops enumerate a closed set (vue/svelte/astro/mdx);
 # the case covers all members, a default would be dead code.
 disable=SC1090,SC1091,SC2016,SC2154,SC2250,SC2310,SC2312,SC2126,SC2249

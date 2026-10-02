@@ -311,3 +311,46 @@ fn biome_policy_matches_the_hinted_fixture() {
         );
     }
 }
+
+const SHELL_CONFIGS: [&str; 2] = [".editorconfig", ".shellcheckrc"];
+
+/// Comment words that name a file inside the workspace.
+fn named_files(text: &str) -> Vec<String> {
+    text.lines()
+        .map(str::trim)
+        .filter_map(|line| line.strip_prefix('#'))
+        .flat_map(|line| line.split_whitespace())
+        .map(|token| token.trim_matches(|c: char| !c.is_ascii_alphanumeric() && !".-_".contains(c)))
+        .filter(|token| {
+            token.contains('/')
+                && token
+                    .rsplit('/')
+                    .next()
+                    .is_some_and(|name| name.contains('.'))
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn the_shell_configs_name_only_files_the_workspace_ships() {
+    let root = workspace_root();
+    for config in SHELL_CONFIGS {
+        for name in named_files(&read(config)) {
+            assert!(
+                root.join(&name).exists(),
+                "{config} names {name}, which this workspace does not ship"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_shell_configs_never_restate_the_shfmt_invocation() {
+    for config in SHELL_CONFIGS {
+        assert!(
+            !read(config).contains("shfmt"),
+            "{config} names shfmt; quality/adapter/src/commands.rs owns that invocation"
+        );
+    }
+}

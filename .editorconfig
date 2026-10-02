@@ -1,7 +1,3 @@
-# Editor shell-indent mirror for `shfmt -i 2`: editors format shell like the
-# harness. Bazel shfmt/shellcheck actions never read this (explicit
-# `-d`/`-w` plus `--format=gcc`; Prettier passes `--no-editorconfig`).
-# `-ci` stays CLI-only.
 root = true
 
 [*.sh]

@@ -45,6 +45,8 @@ rust_test(
     srcs = ["config_consistency_test.rs"],
     data = [
         "//:.buildifier.json",
+        "//:.editorconfig",
+        "//:.shellcheckrc",
         "//:.vale.ini",
         "//:biome.json",
         "//:ruff.toml",

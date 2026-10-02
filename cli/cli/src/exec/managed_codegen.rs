@@ -1,5 +1,5 @@
 use super::common::*;
-use super::managed_staging::{collect_managed_group, ensure_generation_dir, symlink_leaf};
+use super::managed_staging::{ensure_generation_dir, symlink_leaf};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -13,7 +13,7 @@ pub(crate) fn collect_managed_codegen(
     bep: &Path,
     workspace: &Path,
 ) -> Result<ManagedCodegenCollection, (String, String)> {
-    let outputs = collect_managed_group(bep, dx_codegen::OUTPUT_GROUP, workspace)?;
+    let outputs = collect_targets(bep, dx_codegen::OUTPUT_GROUP, workspace)?;
     let plan = dx_codegen::collect_plan(&outputs).map_err(|err| {
         (
             CODE_INVALID_RESULT.to_owned(),

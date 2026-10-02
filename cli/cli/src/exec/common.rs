@@ -9,7 +9,7 @@ use dx_output::{
     FinishedCounts, OutputMode,
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
-use std::io::{self, Write};
+use std::io::{self, BufReader, Write};
 use std::path::Path;
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
@@ -95,6 +95,33 @@ impl ArtifactReader for FsArtifacts {
     fn read_artifact(&self, path: &Path) -> io::Result<Vec<u8>> {
         std::fs::read(path)
     }
+}
+
+/// Reads one build event file and returns the target outputs of one output group.
+pub(crate) fn collect_targets(
+    bep: &Path,
+    group: &str,
+    workspace: &Path,
+) -> Result<Vec<dx_bep::TargetOutput>, (String, String)> {
+    let file = std::fs::File::open(bep).map_err(|err| {
+        (
+            CODE_UNREADABLE_BEP.to_owned(),
+            format!("failed to read build events: {err}"),
+        )
+    })?;
+    let config = dx_bep::CollectorConfig::new(group).map_err(|err| {
+        (
+            CODE_INVALID_BEP.to_owned(),
+            format!("invalid BEP config: {err}"),
+        )
+    })?;
+    dx_bep::collect_with_workspace(BufReader::new(file), &config, &FsArtifacts, Some(workspace))
+        .map_err(|err| {
+            (
+                CODE_INVALID_BEP.to_owned(),
+                format!("invalid build events: {err}"),
+            )
+        })
 }
 
 pub(crate) struct FileChange {
@@ -635,6 +662,25 @@ mod tests {
             "{}\n"
         );
         assert!(!write_report_file(dir.path(), "nested", "{}\n"));
+    }
+
+    #[test]
+    fn collect_targets_names_the_failure_by_stage() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let bep = dir.path().join("missing.json");
+        let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("absent");
+        assert_eq!(code, CODE_UNREADABLE_BEP);
+        assert!(message.contains("failed to read build events"), "{message}");
+
+        std::fs::write(&bep, "").expect("bep");
+        let (code, message) = collect_targets(&bep, "", dir.path()).expect_err("empty group");
+        assert_eq!(code, CODE_INVALID_BEP);
+        assert!(message.contains("invalid BEP config"), "{message}");
+
+        std::fs::write(&bep, "{not json").expect("bep");
+        let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("bad");
+        assert_eq!(code, CODE_INVALID_BEP);
+        assert!(message.contains("invalid build events"), "{message}");
     }
 
     #[test]

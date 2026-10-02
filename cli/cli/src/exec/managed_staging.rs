@@ -1,35 +1,7 @@
 use super::common::*;
-use dx_bep::CollectorConfig;
 use dx_env::DX_DIR_NAME;
 use std::io;
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
-
-pub(crate) fn collect_managed_group(
-    bep: &Path,
-    group: &str,
-    workspace: &Path,
-) -> Result<Vec<dx_bep::TargetOutput>, (String, String)> {
-    let file = std::fs::File::open(bep).map_err(|err| {
-        (
-            CODE_UNREADABLE_BEP.to_owned(),
-            format!("failed to read build events: {err}"),
-        )
-    })?;
-    let config = CollectorConfig::new(group).map_err(|err| {
-        (
-            CODE_INVALID_BEP.to_owned(),
-            format!("invalid BEP config: {err}"),
-        )
-    })?;
-    dx_bep::collect_with_workspace(BufReader::new(file), &config, &FsArtifacts, Some(workspace))
-        .map_err(|err| {
-            (
-                CODE_INVALID_BEP.to_owned(),
-                format!("invalid build events: {err}"),
-            )
-        })
-}
 
 pub(crate) fn ensure_generation_dir(
     workspace: &Path,
@@ -83,17 +55,6 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use dx_setup::GENERATED_DIR_NAME;
-
-    #[test]
-    fn managed_group_config_failure_is_operational() {
-        let harness = Harness::new("managed-bad-group");
-        let bep = harness.temp.join("empty.json");
-        std::fs::write(&bep, "").expect("bep");
-        let (code, message) =
-            collect_managed_group(&bep, "", &harness.workspace).expect_err("empty group");
-        assert_eq!(code, CODE_INVALID_BEP);
-        assert!(message.contains("invalid BEP config"), "{message}");
-    }
 
     #[test]
     fn managed_generation_dir_guards_foreign_state() {

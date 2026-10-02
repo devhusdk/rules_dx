@@ -1,13 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::BufReader;
 use std::path::Path;
 
 use crate::plan::OUTPUT_GROUP;
-use dx_bep::CollectorConfig;
 use dx_output::{DiagnosticEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
-use super::common::{FileChange, FsArtifacts, CODE_INVALID_BEP, CODE_UNREADABLE_BEP};
+use super::common::{collect_targets, FileChange};
 
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
@@ -75,30 +73,7 @@ pub(crate) fn collect_results_in(
     group: &str,
     workspace: &Path,
 ) -> Result<Collected, (String, String)> {
-    let file = std::fs::File::open(bep).map_err(|err| {
-        (
-            CODE_UNREADABLE_BEP.to_owned(),
-            format!("failed to read build events: {err}"),
-        )
-    })?;
-    let config = CollectorConfig::new(group).map_err(|err| {
-        (
-            CODE_INVALID_BEP.to_owned(),
-            format!("invalid BEP config: {err}"),
-        )
-    })?;
-    let targets = dx_bep::collect_with_workspace(
-        BufReader::new(file),
-        &config,
-        &FsArtifacts,
-        Some(workspace),
-    )
-    .map_err(|err| {
-        (
-            CODE_INVALID_BEP.to_owned(),
-            format!("invalid build events: {err}"),
-        )
-    })?;
+    let targets = collect_targets(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
     let mut initial = Vec::new();
     let mut terminal = Vec::new();
@@ -200,6 +175,7 @@ pub(crate) fn collect_results_in(
 mod tests {
     use super::super::test_support::*;
     use super::*;
+    use crate::exec::common::CODE_INVALID_BEP;
     use quality_result::proto;
 
     #[test]

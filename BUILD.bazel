@@ -148,6 +148,7 @@ rust_test(
         "//cli/env:src/main.rs",
         "//cli/env_plan:src/lib.rs",
         "//cli/fingerprint:src/lib.rs",
+        "//cli/identity:src/lib.rs",
         "//cli/lcov:src/lib.rs",
         "//cli/output:src/clap_errors.rs",
         "//cli/output:src/lib.rs",

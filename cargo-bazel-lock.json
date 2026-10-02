@@ -1,5 +1,5 @@
 {
-  "checksum": "d3c0ef1f61c9b792dee3f3a952ab955b58bd2c3127f3e12cdbed3a871a4108f1",
+  "checksum": "2b05f05f9b28a058f4d1c63532496464bfe261b3977ee865b7da85ec6d6b4313",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3136,6 +3136,29 @@
         {
           "Library": {
             "crate_name": "dx_gomod",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_identity 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "regex 1.13.1",
+            "target": "regex"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_identity",
+      "name": "dx_identity",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_identity",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13705,6 +13728,7 @@
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_gomod 0.0.0": "libs/dx_gomod",
+    "dx_identity 0.0.0": "cli/dx_identity",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",
     "dx_lcov 0.0.0": "cli/dx_lcov",
     "dx_output 0.0.0": "cli/dx_output",

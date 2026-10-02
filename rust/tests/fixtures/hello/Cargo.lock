@@ -671,6 +671,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_identity"
+version = "0.0.0"
+dependencies = [
+ "regex",
+]
+
+[[package]]
 name = "dx_install_tools"
 version = "0.0.0"
 dependencies = [

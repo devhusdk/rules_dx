@@ -616,45 +616,15 @@ pub(super) fn is_target_shape(text: &str) -> bool {
         || text == "Cargo.toml"
 }
 
-pub(super) fn dotted_name_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_.-]+$").ok());
-    RE.as_ref()
-}
+const BAZEL_CHARSET: &str = "bazel modules use [A-Za-z0-9_.-] only (or .bazelversion)";
+const GITHUB_ACTIONS_CHARSET: &str = "github-actions owner/repo use [A-Za-z0-9_.-] only";
 
-pub(super) fn cargo_name_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_-]+$").ok());
-    RE.as_ref()
-}
-
-pub(super) fn scoped_npm_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"^@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").ok());
-    RE.as_ref()
-}
-
-pub(super) fn go_charset_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9/._~+-]+$").ok());
-    RE.as_ref()
-}
-
-pub(super) fn is_dotted_name(text: &str) -> bool {
-    if let Some(re) = dotted_name_re() {
-        return re.is_match(text);
+fn dotted_package(package: &str, reason: &'static str) -> Result<(), &'static str> {
+    if dx_identity::dotted_name(package) {
+        Ok(())
+    } else {
+        Err(reason)
     }
-    !text.is_empty()
-        && text
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
-}
-
-pub(super) fn is_cargo_name(text: &str) -> bool {
-    if let Some(re) = cargo_name_re() {
-        return re.is_match(text);
-    }
-    !text.is_empty()
-        && text
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpError> {
@@ -663,131 +633,42 @@ pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpEr
         package: package.to_owned(),
         reason,
     };
-    match set {
+    let reason = match set {
         BumpSet::Bazel => {
             if package == ".bazelversion" {
-                return Ok(());
-            }
-            if !is_dotted_name(package) {
-                return Err(invalid(
-                    "bazel modules use [A-Za-z0-9_.-] only (or .bazelversion)",
-                ));
-            }
-            Ok(())
-        }
-        BumpSet::Cargo => {
-            if !is_cargo_name(package) {
-                return Err(invalid("cargo crate names use [A-Za-z0-9_-] only"));
-            }
-            Ok(())
-        }
-        BumpSet::Npm => {
-            if package.is_empty() || package.contains(':') || package.contains(' ') {
-                return Err(invalid("npm package names never contain ':' or spaces"));
-            }
-            if let Some(rest) = package.strip_prefix('@') {
-                if let Some(re) = scoped_npm_re() {
-                    if re.is_match(package) {
-                        return Ok(());
-                    }
-                    let (scope, slash, name) = match rest.find('/') {
-                        Some(idx) => (&rest[..idx], true, &rest[idx + 1..]),
-                        None => ("", false, ""),
-                    };
-                    let _ = slash;
-                    if scope.is_empty() || name.is_empty() || !slash {
-                        return Err(invalid("scoped npm names are @scope/name"));
-                    }
-                    return Err(invalid("npm scope/name use [A-Za-z0-9_.-] only"));
-                }
-                let (scope, slash, name) = match rest.find('/') {
-                    Some(idx) => (&rest[..idx], true, &rest[idx + 1..]),
-                    None => ("", false, ""),
-                };
-                let _ = slash;
-                if scope.is_empty() || name.is_empty() || !slash {
-                    return Err(invalid("scoped npm names are @scope/name"));
-                }
-                if !is_dotted_name(scope) || !is_dotted_name(name) {
-                    return Err(invalid("npm scope/name use [A-Za-z0-9_.-] only"));
-                }
-                return Ok(());
-            }
-            if package.contains('/') {
-                return Err(invalid("unscoped npm names never contain '/'"));
-            }
-            if !is_dotted_name(package) {
-                return Err(invalid("npm names use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
-        BumpSet::Go => {
-            if package.is_empty()
-                || package.contains(':')
-                || package.contains(' ')
-                || package.starts_with('/')
-                || package.ends_with('/')
-                || package.contains("//")
-            {
-                return Err(invalid("go module paths never contain ':' or spaces"));
-            }
-            let charset_ok = if let Some(re) = go_charset_re() {
-                re.is_match(package)
+                Ok(())
             } else {
-                package.chars().all(|c| {
-                    c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '-' | '_' | '~' | '+')
-                })
-            };
-            if !charset_ok {
-                return Err(invalid("go module paths use [A-Za-z0-9/_.-~+] only"));
+                dotted_package(package, BAZEL_CHARSET)
             }
-            Ok(())
         }
-        BumpSet::GithubActions => {
-            let (owner, repo) = match package.split_once('/') {
-                Some((owner, repo)) => (owner, repo),
-                None => {
-                    return Err(invalid("github-actions identities are owner/repo"));
+        BumpSet::Cargo => dx_identity::validate_cargo(package),
+        BumpSet::Npm => dx_identity::validate_npm(package),
+        BumpSet::Go => dx_identity::validate_go(package),
+        BumpSet::Maven => dx_identity::validate_maven(package),
+        BumpSet::NuGet => dx_identity::validate_nuget(package),
+        BumpSet::GithubActions => match package.split_once('/') {
+            None => Err("github-actions identities are owner/repo"),
+            Some((owner, repo)) => {
+                if owner.is_empty()
+                    || repo.is_empty()
+                    || repo.contains('/')
+                    || repo.contains(' ')
+                    || owner.contains(' ')
+                {
+                    Err("github-actions identities are owner/repo")
+                } else {
+                    dotted_pair(owner, repo, GITHUB_ACTIONS_CHARSET)
                 }
-            };
-            if owner.is_empty()
-                || repo.is_empty()
-                || repo.contains('/')
-                || repo.contains(' ')
-                || owner.contains(' ')
-            {
-                return Err(invalid("github-actions identities are owner/repo"));
             }
-            if !is_dotted_name(owner) || !is_dotted_name(repo) {
-                return Err(invalid("github-actions owner/repo use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
-        BumpSet::Maven => {
-            let (group, artifact) = match package.split_once(':') {
-                Some((group, artifact)) => (group, artifact),
-                None => {
-                    return Err(invalid("maven identities are group:artifact"));
-                }
-            };
-            if group.is_empty()
-                || artifact.is_empty()
-                || artifact.contains(':')
-                || group.contains(' ')
-                || artifact.contains(' ')
-            {
-                return Err(invalid("maven identities are group:artifact"));
-            }
-            if !is_dotted_name(group) || !is_dotted_name(artifact) {
-                return Err(invalid("maven group/artifact use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
-        BumpSet::NuGet => {
-            if !is_dotted_name(package) {
-                return Err(invalid("nuget ids use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
+        },
+    };
+    reason.map_err(invalid)
+}
+
+fn dotted_pair(left: &str, right: &str, reason: &'static str) -> Result<(), &'static str> {
+    if dx_identity::dotted_name(left) && dx_identity::dotted_name(right) {
+        Ok(())
+    } else {
+        Err(reason)
     }
 }

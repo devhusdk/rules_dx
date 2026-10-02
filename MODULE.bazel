@@ -249,6 +249,7 @@ crate.from_cargo(
         "//cli/roots:Cargo.toml",
         "//cli/update:Cargo.toml",
         "//cli/bump:Cargo.toml",
+        "//cli/identity:Cargo.toml",
         "//deploy/rules:Cargo.toml",
         "//deploy/release:Cargo.toml",
         "//deploy/install:Cargo.toml",

@@ -158,6 +158,7 @@ SCOPED_PACKAGES = {
     "cli/env": "VIS_CLI",
     "cli/env_plan": "VIS_CLI",
     "cli/fingerprint": "VIS_CLI_DEPLOY_QUALITY",
+    "cli/identity": "VIS_CLI",
     "cli/lcov": "VIS_CLI_TOOLS",
     "cli/output": "VIS_CLI_ENV_GENERATION_QUALITY",
     "cli/path": "VIS_CLI_WIDE",

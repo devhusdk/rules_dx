@@ -36,6 +36,7 @@ CRATE_CLI_MANIFESTS = [
     "//cli/roots:Cargo.toml",
     "//cli/update:Cargo.toml",
     "//cli/bump:Cargo.toml",
+    "//cli/identity:Cargo.toml",
 ]
 
 CRATE_DEPLOY_MANIFESTS = [

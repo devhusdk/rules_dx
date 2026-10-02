@@ -22,7 +22,10 @@ dx_rust_crate(
         "src/sets.rs",
         "src/version.rs",
     ],
-    extra_deps = ["//cli/digest:dx_digest"],
+    extra_deps = [
+        "//cli/digest:dx_digest",
+        "//cli/identity:dx_identity",
+    ],
     deps = [
         "regex",
         "semver",

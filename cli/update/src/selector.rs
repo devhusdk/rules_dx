@@ -82,46 +82,9 @@ fn is_target_shape(text: &str) -> bool {
         || text == "..."
 }
 
-fn dotted_name_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_.-]+$").ok());
-    RE.as_ref()
-}
-
-fn cargo_name_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_-]+$").ok());
-    RE.as_ref()
-}
-
-fn scoped_npm_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"^@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").ok());
-    RE.as_ref()
-}
-
-fn go_charset_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9/._~+-]+$").ok());
-    RE.as_ref()
-}
-
-fn is_dotted_name(text: &str) -> bool {
-    if let Some(re) = dotted_name_re() {
-        return re.is_match(text);
-    }
-    !text.is_empty()
-        && text
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
-}
-
-fn is_cargo_name(text: &str) -> bool {
-    if let Some(re) = cargo_name_re() {
-        return re.is_match(text);
-    }
-    !text.is_empty()
-        && text
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-}
+const UV_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
+const RUBY_CHARSET: &str = "ruby gem names use [A-Za-z0-9_.-] only";
+const POWERSHELL_CHARSET: &str = "powershell module names use [A-Za-z0-9_.-] only";
 
 fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
     let invalid = |reason: &'static str| SelectorError::InvalidPackage {
@@ -129,119 +92,28 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
         package: package.to_owned(),
         reason,
     };
-    match set {
-        SetId::Cargo => {
-            if !is_cargo_name(package) {
-                return Err(invalid("cargo crate names use [A-Za-z0-9_-] only"));
-            }
-            Ok(())
-        }
+    let reason = match set {
+        SetId::Cargo => dx_identity::validate_cargo(package),
         SetId::Npm | SetId::NpmTools | SetId::NpmAdopt | SetId::NpmAdoptPolyglot => {
-            if package.is_empty() || package.contains(':') || package.contains(' ') {
-                return Err(invalid("npm package names never contain ':' or spaces"));
-            }
-            if let Some(rest) = package.strip_prefix('@') {
-                if let Some(re) = scoped_npm_re() {
-                    if re.is_match(package) {
-                        return Ok(());
-                    }
-                    let (scope, slash, name) = match rest.find('/') {
-                        Some(idx) => (&rest[..idx], true, &rest[idx + 1..]),
-                        None => ("", false, ""),
-                    };
-                    let _ = slash;
-                    if scope.is_empty() || name.is_empty() || !slash {
-                        return Err(invalid("scoped npm names are @scope/name"));
-                    }
-                    return Err(invalid("npm scope/name use [A-Za-z0-9_.-] only"));
-                }
-                let (scope, slash, name) = match rest.find('/') {
-                    Some(idx) => (&rest[..idx], true, &rest[idx + 1..]),
-                    None => ("", false, ""),
-                };
-                let _ = slash;
-                if scope.is_empty() || name.is_empty() || !slash {
-                    return Err(invalid("scoped npm names are @scope/name"));
-                }
-                if !is_dotted_name(scope) || !is_dotted_name(name) {
-                    return Err(invalid("npm scope/name use [A-Za-z0-9_.-] only"));
-                }
-                return Ok(());
-            }
-            if package.contains('/') {
-                return Err(invalid("unscoped npm names never contain '/'"));
-            }
-            if !is_dotted_name(package) {
-                return Err(invalid("npm names use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
+            dx_identity::validate_npm(package)
         }
-        SetId::Maven => {
-            let (group, artifact) = match package.split_once(':') {
-                Some((g, a)) => (g, a),
-                None => {
-                    return Err(invalid("maven identities are group:artifact"));
-                }
-            };
-            if group.is_empty()
-                || artifact.is_empty()
-                || artifact.contains(':')
-                || group.contains(' ')
-                || artifact.contains(' ')
-            {
-                return Err(invalid("maven identities are group:artifact"));
-            }
-            if !is_dotted_name(group) || !is_dotted_name(artifact) {
-                return Err(invalid("maven group/artifact use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
-        SetId::NuGet => {
-            if !is_dotted_name(package) {
-                return Err(invalid("nuget ids use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
+        SetId::Maven => dx_identity::validate_maven(package),
+        SetId::NuGet => dx_identity::validate_nuget(package),
+        SetId::Go => dx_identity::validate_go(package),
         SetId::Uv | SetId::UvTools | SetId::UvAdopt | SetId::UvAdoptPolyglot => {
-            if !is_dotted_name(package) {
-                return Err(invalid("uv package names use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
+            dotted_package(package, UV_CHARSET)
         }
-        SetId::Ruby => {
-            if !is_dotted_name(package) {
-                return Err(invalid("ruby gem names use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
-        SetId::PowerShell => {
-            if !is_dotted_name(package) {
-                return Err(invalid("powershell module names use [A-Za-z0-9_.-] only"));
-            }
-            Ok(())
-        }
-        SetId::Go => {
-            if package.is_empty()
-                || package.contains(':')
-                || package.contains(' ')
-                || package.starts_with('/')
-                || package.ends_with('/')
-                || package.contains("//")
-            {
-                return Err(invalid("go module paths never contain ':' or spaces"));
-            }
-            let charset_ok = if let Some(re) = go_charset_re() {
-                re.is_match(package)
-            } else {
-                package.chars().all(|c| {
-                    c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '-' | '_' | '~' | '+')
-                })
-            };
-            if !charset_ok {
-                return Err(invalid("go module paths use [A-Za-z0-9/_.-~+] only"));
-            }
-            Ok(())
-        }
+        SetId::Ruby => dotted_package(package, RUBY_CHARSET),
+        SetId::PowerShell => dotted_package(package, POWERSHELL_CHARSET),
+    };
+    reason.map_err(invalid)
+}
+
+fn dotted_package(package: &str, reason: &'static str) -> Result<(), &'static str> {
+    if dx_identity::dotted_name(package) {
+        Ok(())
+    } else {
+        Err(reason)
     }
 }
 

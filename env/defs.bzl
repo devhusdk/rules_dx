@@ -37,6 +37,8 @@ _HOST_RESERVED_STEMS = (
 
 _EXECUTABLE_SUFFIXES = (".bat", ".cmd", ".com", ".exe")
 
+_RESERVED_HOST_NAMES = (".rules_dx_managed",)
+
 ENV_METADATA_SCHEMA_VERSION = 1
 
 def env_host_filename(name, is_windows):
@@ -54,6 +56,8 @@ def env_name_error(name):
     if "/" in name or "\\" in name:
         return "invalid host name '" + name + "': must not contain '/' or '\\'"
     lower = name.lower()
+    if lower in _RESERVED_HOST_NAMES:
+        return "invalid host name '" + name + "': is reserved for the provenance marker"
     for suffix in _EXECUTABLE_SUFFIXES:
         if lower.endswith(suffix):
             return "invalid host name '" + name + "': must not carry an executable suffix (found '" + suffix + "')"

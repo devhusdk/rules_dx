@@ -60,9 +60,22 @@ def env_defs_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "env_name_error rejects the reserved provenance marker name",
+                [env_name_error(".rules_dx_managed"), env_name_error(".RULES_DX_MANAGED")],
+                [
+                    "invalid host name '.rules_dx_managed': is reserved for the provenance marker",
+                    "invalid host name '.RULES_DX_MANAGED': is reserved for the provenance marker",
+                ],
+            ),
+            expect_equal(
                 "env_tool_error accepts a record with aliases",
                 env_tool_error("alpha", ["a"]),
                 "",
+            ),
+            expect_equal(
+                "env_tool_error rejects a reserved alias",
+                env_tool_error("alpha", [".rules_dx_managed"]),
+                "invalid alias '.rules_dx_managed': invalid host name '.rules_dx_managed': is reserved for the provenance marker",
             ),
             expect_equal(
                 "env_tool_error rejects a bad primary name",

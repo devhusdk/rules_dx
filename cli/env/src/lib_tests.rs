@@ -218,8 +218,22 @@ fn host_name_table() {
         );
     }
     for invalid in [
-        "", ".", "..", "a/b", "a\\b", "run.exe", "RUN.BAT", "x.cmd", "y.com", "con", "aux.txt",
-        "COM1", "lpt9", "NUL",
+        "",
+        ".",
+        "..",
+        "a/b",
+        "a\\b",
+        "run.exe",
+        "RUN.BAT",
+        "x.cmd",
+        "y.com",
+        "con",
+        "aux.txt",
+        "COM1",
+        "lpt9",
+        "NUL",
+        MARKER_FILE_NAME,
+        ".Rules_Dx_Managed",
     ] {
         let text = serde_json::json!({
             "schema_version": 1,
@@ -541,6 +555,27 @@ fn duplicate_host_name_reports_install() {
         error,
         Error::Install { reason } if reason.contains("cannot stage host name 'dup'")
     ));
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn marker_named_host_leaves_its_target_intact() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-marker-host-");
+    let root = scratch.path().to_path_buf();
+    let target = root.join("tool");
+    let script = b"#!/bin/sh\necho tool\n";
+    fs::write(&target, script).expect("target");
+    let error = stage_tree(
+        &root.join("stage"),
+        &[(MARKER_FILE_NAME.to_string(), target.clone())],
+        &[7u8; 32],
+    )
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Install { reason } if reason.contains(&format!("cannot stage host name '{MARKER_FILE_NAME}'"))
+    ));
+    assert_eq!(fs::read(&target).expect("target survived"), script);
     let _ = fs::remove_dir_all(&root);
 }
 

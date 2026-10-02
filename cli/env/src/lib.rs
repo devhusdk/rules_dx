@@ -239,6 +239,9 @@ fn validate_host_name(bin_name: &str, name: &str) -> Result<(), Error> {
         return Err(bad("must not contain '/' or '\\'"));
     }
     let lower = name.to_lowercase();
+    if lower == MARKER_FILE_NAME {
+        return Err(bad("is reserved for the provenance marker"));
+    }
     for suffix in EXECUTABLE_SUFFIXES.iter().copied() {
         if lower.ends_with(suffix) {
             return Err(bad(&format!(
@@ -454,11 +457,6 @@ fn stage_tree(
     fs::create_dir_all(stage_dir).map_err(|e| Error::Install {
         reason: format!("cannot create staging {}: {e}", stage_dir.display()),
     })?;
-    for (name, target) in staged {
-        symlink_entry(target, &stage_dir.join(name)).map_err(|e| Error::Install {
-            reason: format!("cannot stage host name '{name}': {e}"),
-        })?;
-    }
     fs::write(stage_dir.join(MARKER_FILE_NAME), encode_marker(identity)).map_err(|e| {
         // LCOV_EXCL_START - reason: freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         Error::Install {
@@ -466,6 +464,11 @@ fn stage_tree(
         }
     })?;
     // LCOV_EXCL_STOP - reason: end freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+    for (name, target) in staged {
+        symlink_entry(target, &stage_dir.join(name)).map_err(|e| Error::Install {
+            reason: format!("cannot stage host name '{name}': {e}"),
+        })?;
+    }
     Ok(())
 }
 

@@ -13,6 +13,7 @@ CONFIG_REQUIRED_TOOLS = {
     "biome": "Biome",
     "buildifier": "Buildifier",
     "checkstyle": "Checkstyle",
+    "eslint": "ESLint",
     "ruff": "Ruff",
     "vale": "Vale",
 }

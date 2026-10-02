@@ -14,7 +14,19 @@ _HINTS = [
     struct(tool_id = "buildifier"),
     struct(tool_id = "taplo"),
     struct(tool_id = "ruff"),
+    struct(tool_id = "eslint"),
 ]
+
+# Each entry is pinned to its runner refusal by the file_checks below.
+_RUNNER_CONFIG_REQUIRED_TOOLS = [
+    "checkstyle",
+    "eslint",
+    "vale",
+]
+
+_RUNNER_CONFIG_REFUSALS = "\n".join(
+    ['"' + tool + ' requires a config"' for tool in _RUNNER_CONFIG_REQUIRED_TOOLS],
+)
 
 def native_config_unit_tests(name):
     starlark_test(
@@ -200,15 +212,41 @@ def native_config_unit_tests(name):
                 "real_aspect (//q:t): applicable Biome requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
             ),
             expect_equal(
+                "missing_required_config_error names an unbound eslint stage",
+                missing_required_config_error("eslint", {}, "//q:t"),
+                "real_aspect (//q:t): applicable ESLint requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+            ),
+            expect_equal(
+                "every tool the runner refuses without a config is required here",
+                sorted([
+                    tool
+                    for tool in _RUNNER_CONFIG_REQUIRED_TOOLS
+                    if missing_required_config_error(tool, {}, "//q:t") == ""
+                ]),
+                [],
+            ),
+            expect_equal(
+                "the runner's config-required tools all carry a config transport",
+                [
+                    native_config_extension(tool)
+                    for tool in _RUNNER_CONFIG_REQUIRED_TOOLS
+                ],
+                [".xml", ".js", ".ini"],
+            ),
+            expect_equal(
                 "missing_required_config_error accepts bound and default-only tools",
                 [
                     missing_required_config_error("buildifier", {"buildifier": _HINTS[1]}, "//q:t"),
                     missing_required_config_error("ruff", {"ruff": _HINTS[3]}, "//q:t"),
                     missing_required_config_error("biome", {"biome": _HINTS[0]}, "//q:t"),
+                    missing_required_config_error("eslint", {"eslint": _HINTS[4]}, "//q:t"),
                     missing_required_config_error("taplo", {}, "//q:t"),
                     missing_required_config_error("prettier", {}, "//q:t"),
                 ],
-                ["", "", "", "", ""],
+                ["", "", "", "", "", ""],
             ),
         ],
+        file_checks = {
+            "//quality/runner:src/real/check.rs": _RUNNER_CONFIG_REFUSALS,
+        },
     )

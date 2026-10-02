@@ -393,6 +393,18 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
 
+    /// A local `file://` URI for a path that is not there, spelled the way this host spells one.
+    ///
+    /// Windows only reads a local `file://` URI back as a path when it carries a drive letter, so
+    /// the rooted spelling every other host accepts would read as a remote host there.
+    fn missing_uri(name: &str) -> String {
+        if cfg!(windows) {
+            format!("file:///C:/nonexistent/{name}")
+        } else {
+            format!("file:///nonexistent/{name}")
+        }
+    }
+
     const MINIMAL_TEST_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="s"><testcase name="passes" classname="c" time="0.1"/></testsuite></testsuites>"#;
 
     const MINIMAL_LCOV: &str = "SF:src/a.py\nDA:1,1\nend_of_record\n";
@@ -633,10 +645,7 @@ mod tests {
         let harness = Harness {
             raw_bep: Some(vec![test_result_line(
                 "//a:t",
-                &[(
-                    String::from("test.xml"),
-                    String::from("file:///nonexistent/a.xml"),
-                )],
+                &[(String::from("test.xml"), missing_uri("a.xml"))],
             )]),
             ..Harness::new("test-unreadable")
         };
@@ -666,10 +675,7 @@ mod tests {
         let mut lines = raw;
         lines.push(test_result_line(
             "//a:missing",
-            &[(
-                String::from("test.xml"),
-                String::from("file:///nonexistent/missing.xml"),
-            )],
+            &[(String::from("test.xml"), missing_uri("missing.xml"))],
         ));
         let harness = Harness {
             raw_bep: Some(lines),
@@ -704,7 +710,7 @@ mod tests {
                 &format!("//a:missing{index}"),
                 &[(
                     String::from("test.xml"),
-                    format!("file:///nonexistent/fraction{index}.xml"),
+                    missing_uri(&format!("fraction{index}.xml")),
                 )],
             ));
         }
@@ -744,7 +750,7 @@ mod tests {
                 &format!("//a:missing{index}"),
                 &[(
                     String::from("test.xml"),
-                    format!("file:///nonexistent/majority{index}.xml"),
+                    missing_uri(&format!("majority{index}.xml")),
                 )],
             ));
         }
@@ -785,10 +791,7 @@ mod tests {
         ));
         lines.push(test_result_line(
             "//a:missing",
-            &[(
-                String::from("test.xml"),
-                String::from("file:///nonexistent/missing5.xml"),
-            )],
+            &[(String::from("test.xml"), missing_uri("missing5.xml"))],
         ));
         let harness = Harness {
             raw_bep: Some(lines),
@@ -811,10 +814,7 @@ mod tests {
                 test_result_line("//a:ok", &[(String::from("test.xml"), uri)]),
                 test_result_line(
                     "//a:missing",
-                    &[(
-                        String::from("test.xml"),
-                        String::from("file:///nonexistent/missing2.xml"),
-                    )],
+                    &[(String::from("test.xml"), missing_uri("missing2.xml"))],
                 ),
             ]),
             bazel_code: 1,
@@ -862,10 +862,7 @@ mod tests {
         let harness = Harness {
             raw_bep: Some(vec![test_result_line(
                 "//a:t",
-                &[(
-                    String::from("coverage.dat"),
-                    String::from("file:///nonexistent/c.dat"),
-                )],
+                &[(String::from("coverage.dat"), missing_uri("c.dat"))],
             )]),
             ..Harness::new("cov-unreadable")
         };
@@ -895,10 +892,7 @@ mod tests {
         let mut lines = raw;
         lines.push(test_result_line(
             "//a:missing",
-            &[(
-                String::from("coverage.dat"),
-                String::from("file:///nonexistent/missing.dat"),
-            )],
+            &[(String::from("coverage.dat"), missing_uri("missing.dat"))],
         ));
         let harness = Harness {
             raw_bep: Some(lines),
@@ -933,7 +927,7 @@ mod tests {
                 &format!("//a:missing{index}"),
                 &[(
                     String::from("coverage.dat"),
-                    format!("file:///nonexistent/missing3-{index}.dat"),
+                    missing_uri(&format!("missing3-{index}.dat")),
                 )],
             ));
         }
@@ -977,10 +971,7 @@ mod tests {
         ));
         lines.push(test_result_line(
             "//a:missing",
-            &[(
-                String::from("coverage.dat"),
-                String::from("file:///nonexistent/missing5.dat"),
-            )],
+            &[(String::from("coverage.dat"), missing_uri("missing5.dat"))],
         ));
         let harness = Harness {
             raw_bep: Some(lines),
@@ -1018,7 +1009,7 @@ mod tests {
                 &format!("//a:missing{index}"),
                 &[(
                     String::from("coverage.dat"),
-                    format!("file:///nonexistent/covmajority{index}.dat"),
+                    missing_uri(&format!("covmajority{index}.dat")),
                 )],
             ));
         }
@@ -1057,10 +1048,7 @@ mod tests {
                 test_result_line("//a:ok", &[(String::from("coverage.dat"), uri)]),
                 test_result_line(
                     "//a:missing",
-                    &[(
-                        String::from("coverage.dat"),
-                        String::from("file:///nonexistent/missing2.dat"),
-                    )],
+                    &[(String::from("coverage.dat"), missing_uri("missing2.dat"))],
                 ),
             ]),
             bazel_code: 1,

@@ -8,6 +8,11 @@ startup:windows --output_user_root=C:/bz
 
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 
+# The generated JavaScript tool launchers walk a materialized runfiles tree, which Windows
+# otherwise leaves unmaterialized and resolves to manifest-only. Every other host already
+# builds the links.
+build --build_runfile_links
+
 build --javacopt=-Werror
 build --javacopt=-Xlint:all
 

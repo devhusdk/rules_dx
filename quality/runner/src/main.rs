@@ -67,8 +67,6 @@ pub enum RunnerError {
     UnknownToolEdition { tool: String },
     #[error("duplicate --tool-edition for {tool:?}")]
     DuplicateToolEdition { tool: String },
-    #[error("cannot locate the runner executable for {tool:?}: {detail}")]
-    RunnerExe { tool: String, detail: String },
     #[error("cannot read tool file {rel:?} for {tool:?}: {detail}")]
     UnreadableToolFile {
         rel: String,
@@ -256,25 +254,6 @@ fn parse_upstream_diagnostics(spec: &str) -> Result<(String, PathBuf), RunnerErr
         });
     }
     Ok((tool.to_owned(), PathBuf::from(path)))
-}
-
-/// Points a pinned Python tool at the runfiles the runner was built with.
-///
-/// `pydoclint`, `flake8` and `pylint` resolve their wheels through the runfiles
-/// manifest, which Windows never materializes as a directory. Both paths sit next
-/// to the runner binary, so hand the tools an absolute spelling they can read.
-fn python_runfiles_env(tool_id: &str, tool: &mut RealTool) -> Result<(), RunnerError> {
-    let exe = std::env::current_exe().map_err(|err| RunnerError::RunnerExe {
-        tool: tool_id.to_owned(),
-        detail: err.to_string(),
-    })?;
-    let stem = exe.with_extension("");
-    let dir = format!("{}.runfiles", stem.display());
-    let manifest = format!("{}.runfiles_manifest", stem.display());
-    tool.extra_env.push(("RUNFILES_DIR".to_owned(), dir));
-    tool.extra_env
-        .push(("RUNFILES_MANIFEST_FILE".to_owned(), manifest));
-    Ok(())
 }
 
 fn run() -> Result<(), RunnerError> {
@@ -484,11 +463,6 @@ fn run() -> Result<(), RunnerError> {
                 tool: tool_id.clone(),
             })?;
         tool.extra_env.push((key, value));
-    }
-    for tool_id in ["pydoclint", "flake8", "pylint"] {
-        if let Some(tool) = tools.get_mut(tool_id) {
-            python_runfiles_env(tool_id, tool)?;
-        }
     }
     let scratch_parent = scratch_parent
         .map(PathBuf::from)

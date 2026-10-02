@@ -103,6 +103,23 @@ pub fn real_spawn(
     exec::spawn(argv, cwd, env)
 }
 
+/// The runfiles manifest that sits beside a pinned Python tool.
+///
+/// The hermetic launcher leaves the interpreter without the pinned venv on Windows,
+/// where the runfile link tree is never materialized, so the tool reads its wheels
+/// from the manifest instead. `RUNFILES_DIR` stays as the caller set it: pointing it
+/// at the runner's own tree would break every tool whose runfiles the runner does
+/// not carry.
+fn pinned_wheel_manifest(binary: &Path) -> Vec<(String, String)> {
+    let path = if binary.is_absolute() {
+        binary.to_owned()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(binary)
+    };
+    let manifest = format!("{}.runfiles_manifest", path.with_extension("").display());
+    vec![("RUNFILES_MANIFEST_FILE".to_owned(), manifest)]
+}
+
 fn execution(tool_id: &str, detail: String) -> RunnerError {
     RunnerError::ToolExecution {
         tool_id: tool_id.to_owned(),
@@ -195,7 +212,10 @@ impl RealBackend {
             .iter()
             .map(|(key, value)| (key.as_str(), value.as_str()))
             .collect();
-        let env = exec::hermetic_env(scratch.root(), &extra);
+        let mut env = exec::hermetic_env(scratch.root(), &extra);
+        if matches!(tool_id, "pydoclint" | "flake8" | "pylint") {
+            env.extend(pinned_wheel_manifest(&tool.binary));
+        }
         (self.spawn)(&invocation.argv, &cwd, &env)
             .map_err(|err| execution(tool_id, format!("spawn: {err}")))
     }
@@ -225,3 +245,37 @@ mod real_fixtures;
 #[cfg(test)]
 #[path = "real_tools.rs"]
 mod real_tools;
+
+#[cfg(test)]
+mod tests {
+    use super::pinned_wheel_manifest;
+
+    /// The manifest sits beside the tool, and the Windows binary carries no suffix.
+    #[test]
+    fn python_tools_read_the_manifest_beside_their_binary() {
+        let env = pinned_wheel_manifest(Path::new(
+            "/out/bin/quality/tools/python/pydoclint.runfiles/bin/python",
+        ));
+        assert_eq!(
+            env,
+            vec![(
+                "RUNFILES_MANIFEST_FILE".to_owned(),
+                "/out/bin/quality/tools/python/pydoclint.runfiles/bin/python.runfiles_manifest"
+                    .to_owned()
+            )]
+        );
+    }
+
+    /// A binary that already names its own runfiles keeps exactly one suffix.
+    #[test]
+    fn python_tools_with_a_windows_suffix_keep_one_runfiles_suffix() {
+        let env = pinned_wheel_manifest(Path::new("/out/bin/prettier.exe"));
+        assert_eq!(
+            env,
+            vec![(
+                "RUNFILES_MANIFEST_FILE".to_owned(),
+                "/out/bin/prettier.runfiles_manifest".to_owned()
+            )]
+        );
+    }
+}

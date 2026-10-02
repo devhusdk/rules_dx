@@ -1215,6 +1215,24 @@ fn find_usages_walks_odd_files() {
 }
 
 #[test]
+fn find_usages_reads_only_source_suffixes() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(
+        &dir.path().join("notes.txt"),
+        "fn main() { codegen::run(); }\n",
+    );
+    let dep = ["codegen".to_owned()];
+    let skipped = find_usages(Ecosystem::Rust, dir.path(), &dep).expect("usages");
+    assert!(!skipped["codegen"].src && !skipped["codegen"].test);
+    write_file(
+        &dir.path().join("notes.rs"),
+        "fn main() { codegen::run(); }\n",
+    );
+    let read = find_usages(Ecosystem::Rust, dir.path(), &dep).expect("usages");
+    assert!(read["codegen"].src);
+}
+
+#[test]
 fn consistency_cmd_error_paths() {
     let dir = tempfile::tempdir().expect("scratch");
     let man = dir.path().join("Cargo.toml");

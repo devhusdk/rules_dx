@@ -125,22 +125,8 @@ pub fn find_usages(
             continue;
         }
         let has_suffix = suffixes.iter().any(|s| fname.ends_with(s));
-        let ext = Path::new(fname)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
-        let dotted = format!(".{ext}");
-        if !has_suffix && !suffixes.contains(dotted.as_str()) {
-            let mut matched = false;
-            for suffix in suffixes.iter() {
-                if fname.ends_with(suffix) {
-                    matched = true;
-                    break;
-                }
-            }
-            if !matched {
-                continue;
-            }
+        if !has_suffix {
+            continue;
         }
         let Ok(text) = std::fs::read(&file) else {
             continue;

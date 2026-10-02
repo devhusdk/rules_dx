@@ -619,14 +619,6 @@ pub(super) fn is_target_shape(text: &str) -> bool {
 const BAZEL_CHARSET: &str = "bazel modules use [A-Za-z0-9_.-] only (or .bazelversion)";
 const GITHUB_ACTIONS_CHARSET: &str = "github-actions owner/repo use [A-Za-z0-9_.-] only";
 
-fn dotted_package(package: &str, reason: &'static str) -> Result<(), &'static str> {
-    if dx_identity::dotted_name(package) {
-        Ok(())
-    } else {
-        Err(reason)
-    }
-}
-
 pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpError> {
     let invalid = |reason: &'static str| BumpError::InvalidPackage {
         set: set.name(),
@@ -638,7 +630,7 @@ pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpEr
             if package == ".bazelversion" {
                 Ok(())
             } else {
-                dotted_package(package, BAZEL_CHARSET)
+                dx_identity::validate_dotted(package, BAZEL_CHARSET)
             }
         }
         BumpSet::Cargo => dx_identity::validate_cargo(package),
@@ -657,18 +649,10 @@ pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpEr
                 {
                     Err("github-actions identities are owner/repo")
                 } else {
-                    dotted_pair(owner, repo, GITHUB_ACTIONS_CHARSET)
+                    dx_identity::validate_dotted_pair(owner, repo, GITHUB_ACTIONS_CHARSET)
                 }
             }
         },
     };
     reason.map_err(invalid)
-}
-
-fn dotted_pair(left: &str, right: &str, reason: &'static str) -> Result<(), &'static str> {
-    if dx_identity::dotted_name(left) && dx_identity::dotted_name(right) {
-        Ok(())
-    } else {
-        Err(reason)
-    }
 }

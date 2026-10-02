@@ -101,20 +101,12 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
         SetId::NuGet => dx_identity::validate_nuget(package),
         SetId::Go => dx_identity::validate_go(package),
         SetId::Uv | SetId::UvTools | SetId::UvAdopt | SetId::UvAdoptPolyglot => {
-            dotted_package(package, UV_CHARSET)
+            dx_identity::validate_dotted(package, UV_CHARSET)
         }
-        SetId::Ruby => dotted_package(package, RUBY_CHARSET),
-        SetId::PowerShell => dotted_package(package, POWERSHELL_CHARSET),
+        SetId::Ruby => dx_identity::validate_dotted(package, RUBY_CHARSET),
+        SetId::PowerShell => dx_identity::validate_dotted(package, POWERSHELL_CHARSET),
     };
     reason.map_err(invalid)
-}
-
-fn dotted_package(package: &str, reason: &'static str) -> Result<(), &'static str> {
-    if dx_identity::dotted_name(package) {
-        Ok(())
-    } else {
-        Err(reason)
-    }
 }
 
 const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
@@ -324,10 +316,10 @@ fn root_owning_sets(target: &str) -> Vec<SetId> {
 }
 
 fn has_prefix(package: &str, prefix: &str) -> bool {
-    let pattern = format!(r"^{}(?:/|$)", regex::escape(prefix));
-    match Regex::new(&pattern) {
-        Ok(re) => re.is_match(package),
-        Err(_) => package == prefix || package.starts_with(&format!("{prefix}/")),
+    match package.strip_prefix(prefix) {
+        Some("") => true,
+        Some(rest) => rest.starts_with('/'),
+        None => false,
     }
 }
 
@@ -800,13 +792,16 @@ mod tests {
     }
 
     #[test]
-    fn regex_prefix_never_matches_sibling_names() {
+    fn a_prefix_never_matches_sibling_names() {
         assert!(has_prefix("go", "go"));
         assert!(has_prefix("go/tests/fixtures/hello", "go"));
+        assert!(has_prefix("quality/tools/x", "quality"));
         assert!(!has_prefix("gold", "go"));
         assert!(!has_prefix("rusty", "rust"));
         assert!(!has_prefix("quality-tools/x", "quality"));
-        assert!(has_prefix("quality/tools/x", "quality"));
+        assert!(!has_prefix("", "go"));
+        assert!(!has_prefix("quality", "quality/tools"));
+        assert!(has_prefix("", ""));
     }
 
     #[test]

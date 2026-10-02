@@ -14,6 +14,10 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
+const NPM_CHARSET: &str = "npm names use [A-Za-z0-9_.-] only";
+const NPM_SCOPE_CHARSET: &str = "npm scope/name use [A-Za-z0-9_.-] only";
+const MAVEN_CHARSET: &str = "maven group/artifact use [A-Za-z0-9_.-] only";
+
 fn dotted_name_re() -> Option<&'static Regex> {
     static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_.-]+$").ok());
     RE.as_ref()
@@ -36,7 +40,7 @@ fn go_charset_re() -> Option<&'static Regex> {
 }
 
 /// Accepts a name using only `[A-Za-z0-9_.-]`.
-pub fn dotted_name(text: &str) -> bool {
+fn dotted_name(text: &str) -> bool {
     if let Some(re) = dotted_name_re() {
         return re.is_match(text);
     }
@@ -66,6 +70,28 @@ fn scoped_npm_parts(rest: &str) -> Option<(&str, &str)> {
     Some((scope, name))
 }
 
+/// Accepts a name using only `[A-Za-z0-9_.-]` or reports the caller's reason.
+pub fn validate_dotted(package: &str, reason: &'static str) -> Result<(), &'static str> {
+    if dotted_name(package) {
+        Ok(())
+    } else {
+        Err(reason)
+    }
+}
+
+/// Accepts two names using only `[A-Za-z0-9_.-]` or reports the caller's reason.
+pub fn validate_dotted_pair(
+    left: &str,
+    right: &str,
+    reason: &'static str,
+) -> Result<(), &'static str> {
+    if dotted_name(left) && dotted_name(right) {
+        Ok(())
+    } else {
+        Err(reason)
+    }
+}
+
 /// Accepts a cargo crate name or reports why it is refused.
 pub fn validate_cargo(package: &str) -> Result<(), &'static str> {
     if cargo_name(package) {
@@ -86,29 +112,19 @@ pub fn validate_npm(package: &str) -> Result<(), &'static str> {
                 return Ok(());
             }
             return match scoped_npm_parts(rest) {
-                Some(_) => Err("npm scope/name use [A-Za-z0-9_.-] only"),
+                Some(_) => Err(NPM_SCOPE_CHARSET),
                 None => Err("scoped npm names are @scope/name"),
             };
         }
         return match scoped_npm_parts(rest) {
-            Some((scope, name)) => {
-                if dotted_name(scope) && dotted_name(name) {
-                    Ok(())
-                } else {
-                    Err("npm scope/name use [A-Za-z0-9_.-] only")
-                }
-            }
+            Some((scope, name)) => validate_dotted_pair(scope, name, NPM_SCOPE_CHARSET),
             None => Err("scoped npm names are @scope/name"),
         };
     }
     if package.contains('/') {
         return Err("unscoped npm names never contain '/'");
     }
-    if dotted_name(package) {
-        Ok(())
-    } else {
-        Err("npm names use [A-Za-z0-9_.-] only")
-    }
+    validate_dotted(package, NPM_CHARSET)
 }
 
 /// Accepts a go module path or reports why it is refused.
@@ -147,20 +163,12 @@ pub fn validate_maven(package: &str) -> Result<(), &'static str> {
     {
         return Err(shape());
     }
-    if dotted_name(group) && dotted_name(artifact) {
-        Ok(())
-    } else {
-        Err("maven group/artifact use [A-Za-z0-9_.-] only")
-    }
+    validate_dotted_pair(group, artifact, MAVEN_CHARSET)
 }
 
 /// Accepts a nuget id or reports why it is refused.
 pub fn validate_nuget(package: &str) -> Result<(), &'static str> {
-    if dotted_name(package) {
-        Ok(())
-    } else {
-        Err("nuget ids use [A-Za-z0-9_.-] only")
-    }
+    validate_dotted(package, "nuget ids use [A-Za-z0-9_.-] only")
 }
 
 #[cfg(test)]
@@ -297,5 +305,16 @@ mod tests {
             validate_nuget("bad!name"),
             Err("nuget ids use [A-Za-z0-9_.-] only")
         );
+    }
+
+    #[test]
+    fn a_caller_reason_survives_the_dotted_checks() {
+        const REASON: &str = "ruby gem names use [A-Za-z0-9_.-] only";
+        assert_eq!(validate_dotted("rake", REASON), Ok(()));
+        assert_eq!(validate_dotted("bad!name", REASON), Err(REASON));
+        assert_eq!(validate_dotted("", REASON), Err(REASON));
+        assert_eq!(validate_dotted_pair("owner", "repo.name-1", REASON), Ok(()));
+        assert_eq!(validate_dotted_pair("own!er", "repo", REASON), Err(REASON));
+        assert_eq!(validate_dotted_pair("owner", "re po", REASON), Err(REASON));
     }
 }

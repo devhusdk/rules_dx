@@ -1,7 +1,7 @@
 r"""Platform-correct launchers for the generated JavaScript tool binaries.
 
 `rules_nodejs` writes its Windows launcher as a batch file that hands the tool's script to
-`C:/WINDOWS/system32/bash.exe`. That is WSL's bash, which cannot read a a `C:/...` path, so
+`C:/WINDOWS/system32/bash.exe`. That is WSL's bash, which cannot read a `C:/...` path, so
 every runfile lookup inside the script fails on a Windows host. Git's `sh` reads those paths
 and ships with every Windows image that has a toolchain, and this repository already relies
 on it for `starlark_test`.
@@ -45,15 +45,14 @@ def _generated_script(executable):
     short_path = executable.short_path
     for suffix in (".bat", ".exe", ".cmd"):
         if short_path.endswith(suffix):
-            return short_path[: -len(suffix)]
+            return short_path[:-len(suffix)]
     return short_path
 
 def _js_tool_binary_impl(ctx):
     target = ctx.attr.js_binary[DefaultInfo]
     generated = target.files_to_run
     if not _windows_os(ctx):
-        # A link rather than a wrapper, so the generated script still sees its own name and
-        # resolves its own runfiles exactly as it does when the tool is run directly.
+        # A link keeps the generated script's own runfiles resolution unchanged.
         script = _generated_script(generated.executable)
         link = ctx.actions.declare_symlink(ctx.label.name + ".sh")
         ctx.actions.symlink(

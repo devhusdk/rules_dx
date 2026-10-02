@@ -46,6 +46,7 @@ def versions_contract_tests(name):
         ],
         file_checks = {
             "//:.bazelversion": _BAZEL_VERSION,
+            "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_cc\", version = \"" + _RULES_CC_VERSION + "\"\n" +

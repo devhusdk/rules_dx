@@ -1,9 +1,2 @@
-# Rust formatting single source of truth.
-#
-# `rustfmt_test` / `rustfmt_aspect` from the pinned toolchain resolve this
-# file from the workspace root. `edition` matches `RUST_EDITION` in
-# `//rust/rules:defs.bzl`; wrapper consumers omit `edition` on BUILD calls
-# and inherit it, so an edition bump edits the constant plus this file.
-# No other keys: default rustfmt layout stays authoritative until a
-# contract review approves a deviation.
+# `edition` follows RUST_EDITION in //modules:versions.bzl, checked by //modules:versions_contract.
 edition = "2021"

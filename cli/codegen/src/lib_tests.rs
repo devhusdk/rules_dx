@@ -732,20 +732,44 @@ fn collect_plan_merges_hashes_and_sorts_deterministically() {
     let beta = shard_bytes(
         "//gen:beta",
         "rust",
-        vec![("src/beta.rs", "src", "beta", "")],
+        vec![("src/beta.rs", "src", "beta", "gen/beta.rs")],
     );
     let alpha = shard_bytes(
         "//gen:alpha",
         "rust",
-        vec![("src/alpha.rs", "src", "alpha", "")],
+        vec![("src/alpha.rs", "src", "alpha", "gen/alpha.rs")],
     );
     let forward = vec![
-        output("//gen:alpha", vec![("/out/a.dxcodegen.pb", alpha.clone())]),
-        output("//gen:beta", vec![("/out/b.dxcodegen.pb", beta.clone())]),
+        output(
+            "//gen:alpha",
+            vec![
+                ("/out/a.dxcodegen.pb", alpha.clone()),
+                ("/bazel-out/k8-fastbuild/bin/gen/alpha.rs", vec![1]),
+            ],
+        ),
+        output(
+            "//gen:beta",
+            vec![
+                ("/out/b.dxcodegen.pb", beta.clone()),
+                ("/bazel-out/k8-fastbuild/bin/gen/beta.rs", vec![2]),
+            ],
+        ),
     ];
     let reverse = vec![
-        output("//gen:beta", vec![("/out/b.dxcodegen.pb", beta)]),
-        output("//gen:alpha", vec![("/out/a.dxcodegen.pb", alpha)]),
+        output(
+            "//gen:beta",
+            vec![
+                ("/out/b.dxcodegen.pb", beta),
+                ("/bazel-out/k8-fastbuild/bin/gen/beta.rs", vec![2]),
+            ],
+        ),
+        output(
+            "//gen:alpha",
+            vec![
+                ("/out/a.dxcodegen.pb", alpha),
+                ("/bazel-out/k8-fastbuild/bin/gen/alpha.rs", vec![1]),
+            ],
+        ),
     ];
     let first = collect_plan(&forward).expect("plan");
     let second = collect_plan(&reverse).expect("plan");
@@ -757,8 +781,18 @@ fn collect_plan_merges_hashes_and_sorts_deterministically() {
         fingerprint(&first.records).expect("fingerprint")
     );
     assert_eq!(first.digest, plan_digest(&first.fingerprint));
-    assert_eq!(first.hex(), plan_hex(&first.fingerprint));
-    assert_eq!(first.hex().len(), 64);
+    let summary: Vec<(&str, &str)> = first
+        .projection
+        .iter()
+        .map(|leaf| (leaf.logical_path.as_str(), leaf.artifact.as_str()))
+        .collect();
+    assert_eq!(
+        summary,
+        vec![
+            ("src/alpha.rs", "/bazel-out/k8-fastbuild/bin/gen/alpha.rs"),
+            ("src/beta.rs", "/bazel-out/k8-fastbuild/bin/gen/beta.rs"),
+        ]
+    );
 }
 
 #[test]
@@ -827,7 +861,7 @@ fn projection_resolves_backed_entries_and_sorts() {
         ),
     ];
     let plan = collect_plan(&outputs).expect("plan");
-    let projection = plan_projection(&plan.records, &outputs).expect("projection");
+    let projection = &plan.projection;
     let summary: Vec<(&str, &str)> = projection
         .iter()
         .map(|entry| (entry.logical_path.as_str(), entry.artifact.as_str()))

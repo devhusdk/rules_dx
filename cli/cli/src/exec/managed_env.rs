@@ -3,11 +3,7 @@ use super::managed_staging::{ensure_generation_dir, symlink_leaf};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-pub(crate) type ManagedEnvCollection = (
-    Vec<dx_bep::TargetOutput>,
-    dx_env_plan::CollectedPlan,
-    Vec<dx_env_plan::ProjectionEntry>,
-);
+pub(crate) type ManagedEnvCollection = (Vec<dx_bep::TargetOutput>, dx_env_plan::CollectedPlan);
 
 pub(crate) fn collect_managed_env(
     bep: &Path,
@@ -20,26 +16,11 @@ pub(crate) fn collect_managed_env(
             format!("invalid env plan: {err}"),
         )
     })?;
-    let projection = dx_env_plan::plan_projection(&plan.records, &outputs).map_err(|err| {
-        // LCOV_EXCL_START - reason: defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid env plan: {err}"),
-        )
-        // LCOV_EXCL_STOP - reason: end defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    })?;
-    Ok((outputs, plan, projection))
+    Ok((outputs, plan))
 }
 
-pub(crate) fn empty_env_id() -> Result<dx_setup::GenerationId, (String, String)> {
-    // LCOV_EXCL_START - reason: defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    dx_setup::GenerationId::new(&dx_env_plan::plan_hex("[]")).map_err(|err| {
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid empty env plan digest: {err}"),
-        )
-    })
-    // LCOV_EXCL_STOP - reason: end defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+pub(crate) fn empty_env_id() -> dx_setup::GenerationId {
+    dx_setup::GenerationId::from_digest(dx_env_plan::plan_digest("[]"))
 }
 
 fn validate_env_key(key: &str) -> Result<(), ExecError> {
@@ -157,17 +138,9 @@ pub(crate) fn stage_env_generation(
 pub(crate) fn stage_env_side(
     workspace: &Path,
     plan: &dx_env_plan::CollectedPlan,
-    projection: &[dx_env_plan::ProjectionEntry],
 ) -> Result<dx_setup::GenerationId, (String, String)> {
-    let id = dx_setup::GenerationId::new(&plan.hex()).map_err(|err| {
-        // LCOV_EXCL_START - reason: defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid env plan digest: {err}"),
-        )
-        // LCOV_EXCL_STOP - reason: end defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    })?;
-    stage_env_generation(workspace, &id, projection)?;
+    let id = dx_setup::GenerationId::from_digest(plan.digest);
+    stage_env_generation(workspace, &id, &plan.projection)?;
     Ok(id)
 }
 
@@ -210,7 +183,7 @@ mod tests {
         let workspace = fixture.workspace().to_path_buf();
         let first = fixture.first.clone();
         let second = fixture.second.clone();
-        let id = empty_env_id().expect("empty digest");
+        let id = empty_env_id();
         let projection = vec![
             env_entry("k2", "x\"y", &second),
             env_entry("k1", "v1", &first),
@@ -256,7 +229,7 @@ mod tests {
         let workspace = fixture.workspace().to_path_buf();
         let first = fixture.first.clone();
         let second = fixture.second.clone();
-        let id = empty_env_id().expect("empty digest");
+        let id = empty_env_id();
         for key in ["", "a/b", ".", ".."] {
             let (code, message) =
                 stage_env_generation(&workspace, &id, &[env_entry(key, "v", &first)])
@@ -328,7 +301,7 @@ mod tests {
         let workspace = fixture.workspace().to_path_buf();
         let first = fixture.first.clone();
         let second = fixture.second.clone();
-        let id = empty_env_id().expect("empty digest");
+        let id = empty_env_id();
         stage_env_generation(&workspace, &id, &[env_entry("k", "v", &first)]).expect("stage");
         let dir = workspace
             .join(".dx")

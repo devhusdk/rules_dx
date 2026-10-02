@@ -237,6 +237,17 @@ fn generation_ids_validate_digest_shape() {
 }
 
 #[test]
+fn generation_ids_from_digests_need_no_validation() {
+    for byte in 0u8..=255 {
+        let digest = [byte; 32];
+        let id = GenerationId::from_digest(digest);
+        assert_eq!(id.as_str(), dx_digest::to_hex(&digest));
+        assert_eq!(id.as_str().len(), 64);
+        assert_eq!(GenerationId::new(id.as_str()), Ok(id.clone()));
+    }
+}
+
+#[test]
 fn setup_with_both_sides_ignores_current() {
     let pair = resolve_pair(pair_inputs(
         Some(generation('1')),

@@ -21,53 +21,46 @@ pub(crate) fn prepare_managed_sides(
     workspace: &Path,
     bep: &Path,
 ) -> Result<dx_setup::PreparedSides, (String, String)> {
-    let empties = || -> Result<dx_setup::PreparedSides, (String, String)> {
-        Ok(dx_setup::PreparedSides {
-            prepared_environment: None,
-            prepared_generated: None,
-            empty_environment: empty_env_id()?,
-            empty_generated: empty_generated_id()?,
-        })
+    let empties = || dx_setup::PreparedSides {
+        prepared_environment: None,
+        prepared_generated: None,
+        empty_environment: empty_env_id(),
+        empty_generated: empty_generated_id(),
     };
     match command {
         Command::Codegen => {
-            let (_, plan, projection) = collect_managed_codegen(bep, workspace)?;
-            let generated = stage_codegen_side(workspace, &plan, &projection)?;
+            let (_, plan) = collect_managed_codegen(bep, workspace)?;
+            let generated = stage_codegen_side(workspace, &plan)?;
             Ok(dx_setup::PreparedSides {
                 prepared_generated: Some(generated),
-                ..empties()?
+                ..empties()
             })
         }
         Command::Env => {
-            let (_, plan, projection) = collect_managed_env(bep, workspace)?;
-            let environment = stage_env_side(workspace, &plan, &projection)?;
+            let (_, plan) = collect_managed_env(bep, workspace)?;
+            let environment = stage_env_side(workspace, &plan)?;
             Ok(dx_setup::PreparedSides {
                 prepared_environment: Some(environment),
-                ..empties()?
+                ..empties()
             })
         }
         Command::Setup => {
-            let (codegen_outputs, codegen_plan, codegen_projection) =
-                collect_managed_codegen(bep, workspace)?;
-            let (env_outputs, env_plan, env_projection) = collect_managed_env(bep, workspace)?;
+            let (codegen_outputs, codegen_plan) = collect_managed_codegen(bep, workspace)?;
+            let (env_outputs, env_plan) = collect_managed_env(bep, workspace)?;
             let prepared_generated = if repository || !codegen_outputs.is_empty() {
-                Some(stage_codegen_side(
-                    workspace,
-                    &codegen_plan,
-                    &codegen_projection,
-                )?)
+                Some(stage_codegen_side(workspace, &codegen_plan)?)
             } else {
                 None
             };
             let prepared_environment = if repository || !env_outputs.is_empty() {
-                Some(stage_env_side(workspace, &env_plan, &env_projection)?)
+                Some(stage_env_side(workspace, &env_plan)?)
             } else {
                 None
             };
             Ok(dx_setup::PreparedSides {
                 prepared_environment,
                 prepared_generated,
-                ..empties()?
+                ..empties()
             })
         }
         // LCOV_EXCL_START - reason: unreached command, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

@@ -470,19 +470,43 @@ fn conflict_lists_every_claimant() {
 
 #[test]
 fn collect_plan_merges_hashes_and_sorts_deterministically() {
-    let beta = shard_bytes("//env:beta", "rust", vec![("abi", "gnu", "")]);
+    let beta = shard_bytes("//env:beta", "rust", vec![("abi", "gnu", "lib/beta.so")]);
     let alpha = shard_bytes(
         "//env:alpha",
         "rust",
-        vec![("runtime", "stable-x86_64", "")],
+        vec![("runtime", "stable-x86_64", "lib/alpha.so")],
     );
     let forward = vec![
-        output("//env:alpha", vec![("/out/a.dxenv.pb", alpha.clone())]),
-        output("//env:beta", vec![("/out/b.dxenv.pb", beta.clone())]),
+        output(
+            "//env:alpha",
+            vec![
+                ("/out/a.dxenv.pb", alpha.clone()),
+                ("/bazel-out/k8-fastbuild/bin/lib/alpha.so", vec![1]),
+            ],
+        ),
+        output(
+            "//env:beta",
+            vec![
+                ("/out/b.dxenv.pb", beta.clone()),
+                ("/bazel-out/k8-fastbuild/bin/lib/beta.so", vec![2]),
+            ],
+        ),
     ];
     let reverse = vec![
-        output("//env:beta", vec![("/out/b.dxenv.pb", beta)]),
-        output("//env:alpha", vec![("/out/a.dxenv.pb", alpha)]),
+        output(
+            "//env:beta",
+            vec![
+                ("/out/b.dxenv.pb", beta),
+                ("/bazel-out/k8-fastbuild/bin/lib/beta.so", vec![2]),
+            ],
+        ),
+        output(
+            "//env:alpha",
+            vec![
+                ("/out/a.dxenv.pb", alpha),
+                ("/bazel-out/k8-fastbuild/bin/lib/alpha.so", vec![1]),
+            ],
+        ),
     ];
     let first = collect_plan(&forward).expect("plan");
     let second = collect_plan(&reverse).expect("plan");
@@ -494,8 +518,18 @@ fn collect_plan_merges_hashes_and_sorts_deterministically() {
         fingerprint(&first.records).expect("fingerprint")
     );
     assert_eq!(first.digest, plan_digest(&first.fingerprint));
-    assert_eq!(first.hex(), plan_hex(&first.fingerprint));
-    assert_eq!(first.hex().len(), 64);
+    let summary: Vec<(&str, &str)> = first
+        .projection
+        .iter()
+        .map(|leaf| (leaf.key.as_str(), leaf.artifact.as_str()))
+        .collect();
+    assert_eq!(
+        summary,
+        vec![
+            ("abi", "/bazel-out/k8-fastbuild/bin/lib/beta.so"),
+            ("runtime", "/bazel-out/k8-fastbuild/bin/lib/alpha.so"),
+        ]
+    );
 }
 
 #[test]
@@ -564,7 +598,7 @@ fn projection_resolves_backed_entries_and_sorts() {
         ),
     ];
     let plan = collect_plan(&outputs).expect("plan");
-    let projection = plan_projection(&plan.records, &outputs).expect("projection");
+    let projection = &plan.projection;
     let summary: Vec<(&str, &str)> = projection
         .iter()
         .map(|leaf| (leaf.key.as_str(), leaf.artifact.as_str()))
@@ -606,7 +640,7 @@ fn projection_shares_one_artifact_across_keys() {
         ],
     )];
     let plan = collect_plan(&outputs).expect("plan");
-    let projection = plan_projection(&plan.records, &outputs).expect("projection");
+    let projection = &plan.projection;
     assert_eq!(projection.len(), 2);
     assert_eq!(projection[0].key, "a-key");
     assert_eq!(projection[1].key, "b-key");

@@ -125,6 +125,10 @@ pub struct GenerationId(String);
 pub struct GenerationIdError(String);
 
 impl GenerationId {
+    pub fn from_digest(digest: dx_digest::RawDigest) -> Self {
+        GenerationId(dx_digest::to_hex(&digest))
+    }
+
     pub fn new(id: &str) -> Result<Self, GenerationIdError> {
         if dx_digest::is_hex(id) {
             Ok(GenerationId(id.to_owned()))

@@ -3,11 +3,7 @@ use super::managed_staging::{ensure_generation_dir, symlink_leaf};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-pub(crate) type ManagedCodegenCollection = (
-    Vec<dx_bep::TargetOutput>,
-    dx_codegen::CollectedPlan,
-    Vec<dx_codegen::ProjectionEntry>,
-);
+pub(crate) type ManagedCodegenCollection = (Vec<dx_bep::TargetOutput>, dx_codegen::CollectedPlan);
 
 pub(crate) fn collect_managed_codegen(
     bep: &Path,
@@ -20,26 +16,11 @@ pub(crate) fn collect_managed_codegen(
             format!("invalid codegen plan: {err}"),
         )
     })?;
-    let projection = dx_codegen::plan_projection(&plan.records, &outputs).map_err(|err| {
-        // LCOV_EXCL_START - reason: defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid codegen plan: {err}"),
-        )
-        // LCOV_EXCL_STOP - reason: end defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    })?;
-    Ok((outputs, plan, projection))
+    Ok((outputs, plan))
 }
 
-pub(crate) fn empty_generated_id() -> Result<dx_setup::GenerationId, (String, String)> {
-    // LCOV_EXCL_START - reason: defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    dx_setup::GenerationId::new(&dx_codegen::plan_hex("[]")).map_err(|err| {
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid empty codegen plan digest: {err}"),
-        )
-    })
-    // LCOV_EXCL_STOP - reason: end defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+pub(crate) fn empty_generated_id() -> dx_setup::GenerationId {
+    dx_setup::GenerationId::from_digest(dx_codegen::plan_digest("[]"))
 }
 
 fn validate_logical_path(logical_path: &str) -> Result<(), ExecError> {
@@ -175,17 +156,9 @@ pub(crate) fn stage_codegen_generation(
 pub(crate) fn stage_codegen_side(
     workspace: &Path,
     plan: &dx_codegen::CollectedPlan,
-    projection: &[dx_codegen::ProjectionEntry],
 ) -> Result<dx_setup::GenerationId, (String, String)> {
-    let id = dx_setup::GenerationId::new(&plan.hex()).map_err(|err| {
-        // LCOV_EXCL_START - reason: defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid codegen plan digest: {err}"),
-        )
-        // LCOV_EXCL_STOP - reason: end defensive diverge, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    })?;
-    stage_codegen_generation(workspace, &id, projection)?;
+    let id = dx_setup::GenerationId::from_digest(plan.digest);
+    stage_codegen_generation(workspace, &id, &plan.projection)?;
     Ok(id)
 }
 
@@ -232,7 +205,7 @@ mod tests {
         let workspace = fixture.workspace().to_path_buf();
         let first = fixture.first.clone();
         let second = fixture.second.clone();
-        let id = empty_generated_id().expect("empty digest");
+        let id = empty_generated_id();
         let projection = vec![
             codegen_entry("gen/a.txt", &first),
             codegen_entry("nested/b.txt", &second),
@@ -282,7 +255,7 @@ mod tests {
         let workspace = fixture.workspace().to_path_buf();
         let first = fixture.first.clone();
         let second = fixture.second.clone();
-        let id = empty_generated_id().expect("empty digest");
+        let id = empty_generated_id();
         for projection in [
             vec![codegen_entry("", &first)],
             vec![codegen_entry("/absolute", &first)],
@@ -354,7 +327,7 @@ mod tests {
         let fixture = managed_stage_fixture("managed-codegen-replaces");
         let workspace = fixture.workspace().to_path_buf();
         let first = fixture.first.clone();
-        let id = empty_generated_id().expect("empty digest");
+        let id = empty_generated_id();
         std::fs::create_dir_all(workspace.join("gen")).expect("source dir");
         std::fs::write(workspace.join("gen/owned.txt"), "source").expect("source");
         let (code, message) =
@@ -403,7 +376,7 @@ mod tests {
         let workspace = fixture.workspace().to_path_buf();
         let first = fixture.first.clone();
         let second = fixture.second.clone();
-        let id = empty_generated_id().expect("empty digest");
+        let id = empty_generated_id();
         stage_codegen_generation(&workspace, &id, &[codegen_entry("a.txt", &first)])
             .expect("stage");
         let dir = workspace

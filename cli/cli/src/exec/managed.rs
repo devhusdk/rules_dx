@@ -258,8 +258,8 @@ mod tests {
             let pair = read_current_pair(&harness.workspace)
                 .expect("read current")
                 .expect("selection committed");
-            assert_eq!(pair.environment, empty_env_id().expect("empty digest"));
-            assert_eq!(pair.generated, empty_generated_id().expect("empty digest"));
+            assert_eq!(pair.environment, empty_env_id());
+            assert_eq!(pair.generated, empty_generated_id());
             for side in match command {
                 "codegen" => vec![GENERATED_DIR_NAME],
                 "env" => vec![ENVIRONMENTS_DIR_NAME],
@@ -295,8 +295,8 @@ mod tests {
             let pair = read_current_pair(&harness.workspace)
                 .expect("read current")
                 .expect("selection committed");
-            assert_eq!(pair.environment, empty_env_id().expect("empty digest"));
-            assert_eq!(pair.generated, empty_generated_id().expect("empty digest"));
+            assert_eq!(pair.environment, empty_env_id());
+            assert_eq!(pair.generated, empty_generated_id());
         }
     }
 
@@ -437,16 +437,16 @@ mod tests {
         let workspace = temp_dir("managed-empty-sides-ws");
         let workspace = workspace.path();
         let codegen_plan = dx_codegen::collect_plan(&[]).expect("empty codegen plan");
-        let staged = stage_codegen_side(&workspace, &codegen_plan, &[]).expect("stage");
-        assert_eq!(staged, empty_generated_id().expect("empty digest"));
+        let staged = stage_codegen_side(&workspace, &codegen_plan).expect("stage");
+        assert_eq!(staged, empty_generated_id());
         let env_plan = dx_env_plan::collect_plan(&[]).expect("empty env plan");
-        let staged = stage_env_side(&workspace, &env_plan, &[]).expect("stage");
-        assert_eq!(staged, empty_env_id().expect("empty digest"));
+        let staged = stage_env_side(&workspace, &env_plan).expect("stage");
+        assert_eq!(staged, empty_env_id());
         let values = std::fs::read_to_string(
             workspace
                 .join(".dx")
                 .join(ENVIRONMENTS_DIR_NAME)
-                .join(empty_env_id().expect("empty digest").as_str())
+                .join(empty_env_id().as_str())
                 .join("values.json"),
         )
         .expect("values");

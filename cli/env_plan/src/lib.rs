@@ -300,21 +300,12 @@ pub fn plan_digest(fingerprint: &str) -> [u8; 32] {
     digest(fingerprint.as_bytes())
 }
 
-pub fn plan_hex(fingerprint: &str) -> String {
-    dx_digest::to_hex(&plan_digest(fingerprint))
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CollectedPlan {
     pub records: Vec<EnvRecord>,
     pub fingerprint: String,
     pub digest: [u8; 32],
-}
-
-impl CollectedPlan {
-    pub fn hex(&self) -> String {
-        dx_digest::to_hex(&self.digest)
-    }
+    pub projection: Vec<ProjectionEntry>,
 }
 
 pub fn collect_plan(outputs: &[TargetOutput]) -> Result<CollectedPlan, CollectError> {
@@ -326,10 +317,12 @@ pub fn collect_plan(outputs: &[TargetOutput]) -> Result<CollectedPlan, CollectEr
     let merged = merge_records(&records);
     let rendered = fingerprint(&merged)?;
     let digest = digest(rendered.as_bytes());
+    let projection = plan_projection(&merged, outputs)?;
     Ok(CollectedPlan {
         records: merged,
         fingerprint: rendered,
         digest,
+        projection,
     })
 }
 
@@ -340,7 +333,7 @@ pub struct ProjectionEntry {
     pub artifact: String,
 }
 
-pub fn plan_projection(
+fn plan_projection(
     records: &[EnvRecord],
     outputs: &[TargetOutput],
 ) -> Result<Vec<ProjectionEntry>, CollectError> {

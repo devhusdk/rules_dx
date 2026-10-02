@@ -11,21 +11,26 @@ generated launcher cannot be used at all.
 """
 
 WINDOWS_LAUNCHER = r"""@echo off
-setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
-set "SCRIPT={script}"
+setlocal EnableExtensions EnableDelayedExpansion
+set "TREE=%~dp0{tree}"
+set "SCRIPT=%TREE%\{script}"
+if exist "%SCRIPT%" goto :run
 set "M=%~f0.runfiles_manifest"
-if exist "%RUNFILES_MANIFEST_FILE%" set "M=%RUNFILES_MANIFEST_FILE%"
-if exist "%RUNFILES_DIR%\MANIFEST" set "M=%RUNFILES_DIR%\MANIFEST"
-if exist "%~dp0{tree}\MANIFEST" set "M=%~dp0{tree}\MANIFEST"
+if not exist "%M%" set "M=%TREE%\MANIFEST"
 set "MF=%M:/=\%"
-if not exist "%MF%" echo>&2 ERROR: no runfiles manifest for {script} & exit /b 1
-set "FOUND="
-for /F "tokens=2* usebackq" %%i in (`%SYSTEMROOT%\system32\findstr.exe /b /l /c:"!SCRIPT! " "%MF%"`) do set "FOUND=%%i"
-if not defined FOUND echo>&2 ERROR: !SCRIPT! not found in runfiles manifest & exit /b 1
-set "RUNFILES=%~dp0{tree}"
-set "RUNFILES_DIR=%~dp0{tree}"
+if exist "%MF%" for /F "tokens=2* usebackq" %%i in (`%SYSTEMROOT%\system32\findstr.exe /b /l /c:"{key} " "%MF%"`) do if not defined FOUND set "SCRIPT=%%i"
+if not exist "%SCRIPT%" (
+  echo>&2 ERROR: {key} not found beside this launcher
+  exit /b 1
+)
+:run
+set "RUNFILES=%TREE%"
+set "RUNFILES_DIR=%TREE%"
 set "PATH=C:\Program Files\Git\usr\bin;C:\Program Files\Git\bin;%PATH%"
-sh "%FOUND:\=/%" %*
+rem Git's sh reads a drive-relative path, so spell this one the way MSYS spells it.
+set "SH_SCRIPT=!SCRIPT:\=/!"
+set "SH_SCRIPT=/!SH_SCRIPT:~0,1!!SH_SCRIPT:~2!"
+sh "!SH_SCRIPT!" %*
 exit /b %ERRORLEVEL%
 """
 
@@ -69,7 +74,10 @@ def _js_tool_binary_impl(ctx):
     key = (ctx.workspace_name + "/" + script).replace("\\", "/")
     tree = ctx.label.name + ".bat.runfiles"
     launcher = ctx.actions.declare_file(ctx.label.name + ".bat")
-    body = WINDOWS_LAUNCHER.replace("{script}", key).replace("{tree}", tree)
+    body = (WINDOWS_LAUNCHER
+        .replace("{tree}", tree)
+        .replace("{script}", key.replace("/", "\\"))
+        .replace("{key}", key))
     ctx.actions.write(launcher, body, is_executable = True)
     return [DefaultInfo(
         executable = launcher,

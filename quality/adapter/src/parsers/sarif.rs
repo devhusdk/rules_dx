@@ -50,9 +50,9 @@ fn normalize_path(path: &str) -> String {
 
 fn suffix_for(path: &str) -> String {
     if rooted(path) {
-        path.to_owned()
+        native(path)
     } else {
-        format!("{MAIN_SEPARATOR_STR}{path}")
+        format!("{MAIN_SEPARATOR_STR}{}", native(path))
     }
 }
 

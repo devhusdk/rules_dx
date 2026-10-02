@@ -120,10 +120,19 @@ pub fn sets_without_coverage<'a>(sets: impl IntoIterator<Item = &'a str>) -> Vec
 mod tests {
     use super::*;
 
+    /// The pinned gitleaks path, spelled the way this host spells an absolute one.
+    fn hermetic_gitleaks() -> String {
+        if cfg!(windows) {
+            r"C:\hermetic\gitleaks.exe".to_owned()
+        } else {
+            "/hermetic/gitleaks".to_owned()
+        }
+    }
+
     #[test]
     fn secrets_plan_pins_gitleaks_sarif_redact_and_exit_split() {
         let plan = plan_secrets(
-            "/hermetic/gitleaks",
+            &hermetic_gitleaks(),
             "out/gitleaks.sarif",
             None,
             "/tmp/dx",
@@ -132,7 +141,7 @@ mod tests {
         .expect("plans");
         match plan {
             BackendPlan::Run { argv, env } => {
-                assert_eq!(argv[0], "/hermetic/gitleaks");
+                assert_eq!(argv[0], hermetic_gitleaks());
                 assert!(argv.contains(&"detect".to_owned()));
                 assert!(argv.contains(&"--no-git".to_owned()));
                 assert!(argv.contains(&"--source".to_owned()));
@@ -154,7 +163,7 @@ mod tests {
     #[test]
     fn secrets_plan_carries_explicit_config() {
         let plan = plan_secrets(
-            "/hermetic/gitleaks",
+            &hermetic_gitleaks(),
             "out.sarif",
             Some(".gitleaks.toml"),
             "/tmp/dx",
@@ -173,7 +182,7 @@ mod tests {
     #[test]
     fn secrets_plan_rejects_empty_report_path() {
         assert_eq!(
-            plan_secrets("/hermetic/gitleaks", "  ", None, "/tmp/dx", false),
+            plan_secrets(&hermetic_gitleaks(), "  ", None, "/tmp/dx", false),
             Err(BackendError::MissingReportPath)
         );
     }
@@ -197,7 +206,7 @@ mod tests {
             })
         );
         assert_eq!(
-            plan_secrets("/hermetic/gitleaks", "out.sarif", None, "  ", false),
+            plan_secrets(&hermetic_gitleaks(), "out.sarif", None, "  ", false),
             Err(BackendError::MissingTempDir)
         );
     }
@@ -205,7 +214,7 @@ mod tests {
     #[test]
     fn secrets_plan_env_is_sanitized_tmpdir_only() {
         let plan = plan_secrets(
-            "/hermetic/gitleaks",
+            &hermetic_gitleaks(),
             "out.sarif",
             None,
             "/tmp/dx-run",
@@ -304,13 +313,13 @@ mod tests {
 
     #[test]
     fn secrets_plan_is_cache_only_identical_offline() {
-        let online = plan_secrets("/hermetic/gitleaks", "out.sarif", None, "/tmp/dx", false)
+        let online = plan_secrets(&hermetic_gitleaks(), "out.sarif", None, "/tmp/dx", false)
             .expect("online plans");
-        let offline = plan_secrets("/hermetic/gitleaks", "out.sarif", None, "/tmp/dx", true)
+        let offline = plan_secrets(&hermetic_gitleaks(), "out.sarif", None, "/tmp/dx", true)
             .expect("offline plans");
         assert_eq!(online, offline);
         let online_configed = plan_secrets(
-            "/hermetic/gitleaks",
+            &hermetic_gitleaks(),
             "out.sarif",
             Some(".gitleaks.toml"),
             "/tmp/dx",
@@ -318,7 +327,7 @@ mod tests {
         )
         .expect("online configed");
         let offline_configed = plan_secrets(
-            "/hermetic/gitleaks",
+            &hermetic_gitleaks(),
             "out.sarif",
             Some(".gitleaks.toml"),
             "/tmp/dx",

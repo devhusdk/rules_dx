@@ -1,4 +1,4 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary")
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -39,6 +39,14 @@ py_binary(
     dep_group = "dx-python-tools",
     main = "pylint_main.py",
     deps = ["@pypi//pylint"],
+)
+
+py_unittest_test(
+    name = "tool_bootstrap_test",
+    srcs = [
+        "tool_bootstrap.py",
+        "tool_bootstrap_test.py",
+    ],
 )
 
 real_source_target(

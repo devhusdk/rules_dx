@@ -105,6 +105,10 @@ pub fn real_spawn(
 
 /// The runfiles manifest that sits beside a tool.
 ///
+/// A launcher that guesses its own manifest can land on an unrelated runfiles tree, so
+/// name the file that describes this tool. Which of the two names Bazel wrote depends on
+/// whether the executable carries a suffix, so take whichever one is there.
+///
 /// `RUNFILES_DIR` is never rewritten: pointing it at the runner's own tree would break
 /// every tool whose runfiles the runner does not carry.
 fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
@@ -113,7 +117,12 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
     } else {
         std::env::current_dir().unwrap_or_default().join(binary)
     };
-    let manifest = format!("{}.runfiles_manifest", path.display());
+    let named = format!("{}.runfiles_manifest", path.display());
+    let bare = format!("{}.runfiles_manifest", path.with_extension("").display());
+    let found = [named.clone(), bare]
+        .into_iter()
+        .find(|candidate| Path::new(candidate).exists());
+    let manifest = found.unwrap_or(named);
     vec![("RUNFILES_MANIFEST_FILE".to_owned(), manifest)]
 }
 
@@ -270,7 +279,7 @@ mod tests {
         );
     }
 
-    /// Bazel names the manifest after the executable file, so a suffix stays part of it.
+    /// Neither manifest is on disk yet, so the executable's own name is the answer.
     #[test]
     fn a_windows_launcher_keeps_its_own_suffix() {
         for name in ["/out/bin/prettier_/prettier.bat", "/out/bin/prettier.exe"] {
@@ -283,6 +292,19 @@ mod tests {
                 )]
             );
         }
+    }
+
+    /// A suffix Bazel dropped from the executable still names the manifest.
+    #[test]
+    fn a_manifest_named_without_the_suffix_is_taken_when_it_exists() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let bare = dir.path().join("prettier");
+        let named = format!("{}.runfiles_manifest", bare.display());
+        std::fs::write(&named, "").expect("wrote manifest");
+        assert_eq!(
+            own_runfiles_manifest(&dir.path().join("prettier.bat")),
+            vec![("RUNFILES_MANIFEST_FILE".to_owned(), named)]
+        );
     }
 
     /// The Python launchers read wheels from the manifest on every platform.

@@ -39,3 +39,7 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+exports_files([
+    "src/lib.rs",
+])

@@ -106,7 +106,7 @@ fn every_crate_root_denies_the_lints_clippy_toml_documents() {
         );
     }
     assert!(
-        roots >= 40,
+        roots >= 61,
         "the crate root sweep found {roots} roots; its data list stopped reaching them",
     );
 }
@@ -132,7 +132,7 @@ fn every_denied_lint_list_matches_the_documented_policy() {
         );
     }
     assert!(
-        annotated >= 40,
+        annotated >= 61,
         "the lint sweep found {annotated} annotated sources; its data list stopped reaching them",
     );
 }

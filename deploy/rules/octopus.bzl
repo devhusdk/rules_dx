@@ -16,22 +16,6 @@ _VALID_ENVIRONMENT_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 
 OCTOPUS_DEFAULT_URL = "https://octopus.example.invalid"
 
-def octopus_project_charset():
-    """Returns the launcher-safe project charset via registry query."""
-    return _VALID_PROJECT_CHARS
-
-def octopus_channel_charset():
-    """Returns the launcher-safe channel charset via registry query."""
-    return _VALID_CHANNEL_CHARS
-
-def octopus_version_charset():
-    """Returns the launcher-safe release-version charset via registry query."""
-    return _VALID_VERSION_CHARS
-
-def octopus_environment_charset():
-    """Returns the launcher-safe environment charset via registry query."""
-    return _VALID_ENVIRONMENT_CHARS
-
 def octopus_schema_error():
     """Validates the versioned project/channel charset schema."""
     if OCTOPUS_SCHEMA_VERSION != 1:

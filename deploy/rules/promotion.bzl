@@ -12,14 +12,6 @@ _VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123
 
 _VALID_ARTIFACT_SUFFIXES = [".tar.gz", ".tar", ".tgz", ".whl", ".jar", ".nupkg", ".zip"]
 
-def promotion_environment_charset():
-    """Returns the launcher-safe environment charset via registry query."""
-    return _VALID_ENVIRONMENT_CHARS
-
-def promotion_version_charset():
-    """Returns the launcher-safe version charset via registry query."""
-    return _VALID_VERSION_CHARS
-
 def promotion_schema_error():
     """Validates the versioned environment charset schema."""
     if PROMOTION_SCHEMA_VERSION != 1:

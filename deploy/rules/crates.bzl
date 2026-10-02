@@ -10,14 +10,6 @@ _VALID_NAME_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456
 
 _VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-+"
 
-def crates_name_charset():
-    """Returns the launcher-safe crate-name charset via registry query."""
-    return _VALID_NAME_CHARS
-
-def crates_version_charset():
-    """Returns the launcher-safe crate-version charset via registry query."""
-    return _VALID_VERSION_CHARS
-
 def crates_schema_error():
     """Validates the versioned crate name/version charset schema."""
     if CRATES_SCHEMA_VERSION != 1:

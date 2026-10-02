@@ -8,10 +8,6 @@ TAG_SCHEMA_VERSION = 1
 
 _VALID_TAG_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
 
-def tag_charset():
-    """Returns the launcher-safe tag charset via registry query."""
-    return _VALID_TAG_CHARS
-
 def tag_schema_error():
     """Validates the versioned tag-charset schema."""
     if TAG_SCHEMA_VERSION != 1:
@@ -119,15 +115,5 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", draft = True, profile 
     dx_deployment(
         name = name,
         deploy = ":" + program_target,
-        profile = profile,
-    )
-
-def github_release(name, artifacts, tag = "v0.0.0-dryrun", draft = True, profile = "release"):
-    """Compat alias for github_deploy."""
-    github_deploy(
-        name = name,
-        artifacts = artifacts,
-        tag = tag,
-        draft = draft,
         profile = profile,
     )

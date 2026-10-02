@@ -119,11 +119,3 @@ def archive_deploy(name, app, profile = "release"):
         deploy = ":" + program_target,
         profile = profile,
     )
-
-def archive_release(name, app, profile = "release"):
-    """Compat alias for archive_deploy."""
-    archive_deploy(
-        name = name,
-        app = app,
-        profile = profile,
-    )

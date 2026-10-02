@@ -10,10 +10,6 @@ _VALID_NAME_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456
 
 PYPI_DEFAULT_REPOSITORY_URL = "https://upload.pypi.org/legacy/"
 
-def pypi_name_charset():
-    """Returns the launcher-safe distribution-name charset via registry query."""
-    return _VALID_NAME_CHARS
-
 def pypi_schema_error():
     """Validates the versioned distribution-name charset schema."""
     if PYPI_SCHEMA_VERSION != 1:

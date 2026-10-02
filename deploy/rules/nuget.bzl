@@ -12,14 +12,6 @@ _VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123
 
 NUGET_DEFAULT_SOURCE = "https://api.nuget.org/v3/index.json"
 
-def nuget_id_charset():
-    """Returns the launcher-safe package-id charset via registry query."""
-    return _VALID_ID_CHARS
-
-def nuget_version_charset():
-    """Returns the launcher-safe package-version charset via registry query."""
-    return _VALID_VERSION_CHARS
-
 def nuget_schema_error():
     """Validates the versioned package id/version charset schema."""
     if NUGET_SCHEMA_VERSION != 1:

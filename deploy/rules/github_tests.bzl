@@ -1,13 +1,18 @@
 """Unit and analysis tests for the GitHub Release publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":github.bzl", "github_draft_error", "github_tag_error")
+load(":github.bzl", "github_draft_error", "github_tag_error", "tag_schema_error")
 
 def github_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "tag_schema_error accepts the v1 launcher-safe charset",
+                tag_schema_error(),
+                "",
+            ),
             expect_equal(
                 "github_tag_error accepts the dry-run placeholder tag",
                 github_tag_error("v0.0.0-dryrun"),

@@ -82,15 +82,6 @@ def curated_families():
     """Returns the sorted curated families in the versioned manifest."""
     return sorted(CURATED_DEFAULTS.keys())
 
-def curated_tools():
-    """Returns the sorted unique curated tool IDs across families."""
-    seen = {}
-    for family in CURATED_DEFAULTS:
-        for capability in CURATED_DEFAULTS[family]:
-            for tool in CURATED_DEFAULTS[family][capability]:
-                seen[tool] = True
-    return sorted(seen.keys())
-
 def _is_canonical_token(text):
     if text == "":
         return False

@@ -14,18 +14,6 @@ _VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123
 
 MAVEN_DEFAULT_REPOSITORY_URL = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
 
-def maven_group_charset():
-    """Returns the launcher-safe group charset via registry query."""
-    return _VALID_GROUP_CHARS
-
-def maven_artifact_charset():
-    """Returns the launcher-safe artifact charset via registry query."""
-    return _VALID_ARTIFACT_CHARS
-
-def maven_version_charset():
-    """Returns the launcher-safe version charset via registry query."""
-    return _VALID_VERSION_CHARS
-
 def maven_schema_error():
     """Validates the versioned coordinate charset schema."""
     if MAVEN_SCHEMA_VERSION != 1:

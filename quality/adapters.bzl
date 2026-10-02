@@ -139,14 +139,6 @@ def real_supported_classes(tool_id, capability):
              "': not in the real adapter registry")
     return sorted(REAL_ADAPTERS[tool_id].get(capability, []))
 
-def is_known_adapter_tool(tool_id):
-    """Reports whether a tool ID is in the versioned adapter registry."""
-    return tool_id in REAL_ADAPTERS
-
-def is_classified(class_id):
-    """Reports whether a class is in the versioned class-to-family map."""
-    return class_id in REAL_CLASS_TO_FAMILY
-
 def _is_canonical_token(text):
     if text == "":
         return False

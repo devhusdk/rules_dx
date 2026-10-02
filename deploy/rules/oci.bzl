@@ -14,18 +14,6 @@ _VALID_REPOSITORY_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0
 
 OCI_DEFAULT_REGISTRY = "ghcr.io"
 
-def oci_tag_charset():
-    """Returns the launcher-safe image-tag charset via registry query."""
-    return _VALID_TAG_CHARS
-
-def oci_registry_charset():
-    """Returns the launcher-safe registry charset via registry query."""
-    return _VALID_REGISTRY_CHARS
-
-def oci_repository_charset():
-    """Returns the launcher-safe repository charset via registry query."""
-    return _VALID_REPOSITORY_CHARS
-
 def oci_schema_error():
     """Validates the versioned registry/tag charset schema."""
     if OCI_SCHEMA_VERSION != 1:

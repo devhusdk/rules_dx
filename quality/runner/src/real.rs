@@ -249,24 +249,22 @@ mod real_tools;
 #[cfg(test)]
 mod tests {
     use super::pinned_wheel_manifest;
+    use std::path::Path;
 
-    /// The manifest sits beside the tool, and the Windows binary carries no suffix.
+    /// The manifest sits beside the tool that reads it.
     #[test]
     fn python_tools_read_the_manifest_beside_their_binary() {
-        let env = pinned_wheel_manifest(Path::new(
-            "/out/bin/quality/tools/python/pydoclint.runfiles/bin/python",
-        ));
+        let env = pinned_wheel_manifest(Path::new("/out/bin/quality/tools/python/pydoclint"));
         assert_eq!(
             env,
             vec![(
                 "RUNFILES_MANIFEST_FILE".to_owned(),
-                "/out/bin/quality/tools/python/pydoclint.runfiles/bin/python.runfiles_manifest"
-                    .to_owned()
+                "/out/bin/quality/tools/python/pydoclint.runfiles_manifest".to_owned()
             )]
         );
     }
 
-    /// A binary that already names its own runfiles keeps exactly one suffix.
+    /// A Windows executable suffix is dropped so only one runfiles suffix is added.
     #[test]
     fn python_tools_with_a_windows_suffix_keep_one_runfiles_suffix() {
         let env = pinned_wheel_manifest(Path::new("/out/bin/prettier.exe"));

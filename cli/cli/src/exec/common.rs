@@ -1,5 +1,7 @@
 use crate::args::Invocation;
+use crate::reports::Destination;
 use crate::resolve::QueryRunner;
+use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
@@ -193,6 +195,34 @@ pub(crate) fn report_failed(
         if let Ok(event) = dx_output::error_event(CODE_REPORT_FAILED, detail, None, None, None) {
             let _ = write_event(out, &event);
         }
+    }
+}
+
+/// Writes one report document to a path under the workspace and reports whether it landed.
+pub(crate) fn write_report_file(workspace: &Path, destination: &str, document: &str) -> bool {
+    let target = workspace.join(destination);
+    let parent_ok = target
+        .parent()
+        .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
+    parent_ok
+        && RealFileSystem
+            .write_atomic(&target, document.as_bytes())
+            .is_ok()
+}
+
+/// Writes one report document to its planned destination and reports whether it landed.
+pub(crate) fn write_report_document(
+    out: &mut dyn Write,
+    workspace: &Path,
+    destination: &Destination,
+    document: &str,
+) -> bool {
+    match destination {
+        Destination::Stdout => out
+            .write_all(document.as_bytes())
+            .and_then(|()| out.write_all(b"\n"))
+            .is_ok(),
+        Destination::File(path) => write_report_file(workspace, path, document),
     }
 }
 
@@ -559,6 +589,52 @@ mod tests {
         let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(event["code"], CODE_REPORT_FAILED);
         assert_eq!(event["message"], "boom");
+    }
+
+    #[test]
+    fn write_report_document_honours_the_destination() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut out = Vec::new();
+        assert!(write_report_document(
+            &mut out,
+            dir.path(),
+            &Destination::File("out.sarif".to_owned()),
+            "{}\n"
+        ));
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("out.sarif")).expect("report"),
+            "{}\n"
+        );
+        assert!(out.is_empty());
+
+        assert!(write_report_document(
+            &mut out,
+            dir.path(),
+            &Destination::Stdout,
+            "{}"
+        ));
+        assert_eq!(String::from_utf8(out).expect("utf8"), "{}\n");
+
+        assert!(!write_report_document(
+            &mut BrokenPipeWriter,
+            dir.path(),
+            &Destination::Stdout,
+            "{}\n"
+        ));
+    }
+
+    #[test]
+    fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        assert!(!write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        assert!(!dir.path().join("nested").exists());
+        std::fs::create_dir(dir.path().join("nested")).expect("mkdir");
+        assert!(write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("nested/out.sarif")).expect("report"),
+            "{}\n"
+        );
+        assert!(!write_report_file(dir.path(), "nested", "{}\n"));
     }
 
     #[test]

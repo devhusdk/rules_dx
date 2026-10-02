@@ -2,13 +2,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::Path;
 
-use dx_apply::{FileSystem, RealFileSystem};
 use dx_digest::blake3 as digest;
 use dx_output::{report_event, write_event, DiagnosticEvent, OutputMode};
 
-use super::common::report_failed;
+use super::common::{report_failed, write_report_document};
 use super::results::Collected;
-use crate::reports::{render_sarif, Destination, PlannedReport, ReportError};
+use crate::reports::{render_sarif, PlannedReport, ReportError};
 
 pub(crate) struct StandardReports<'a> {
     pub(crate) workspace: &'a Path,
@@ -32,7 +31,6 @@ pub(crate) fn write_standard_reports(
         output,
         stdout_report,
     } = inputs;
-    let fs = RealFileSystem;
     let mut reports_ok = true;
     for planned in planned {
         let mut snapshots = BTreeMap::new();
@@ -82,19 +80,8 @@ pub(crate) fn write_standard_reports(
         };
         match document {
             Ok(document) => {
-                let written = match &planned.destination {
-                    Destination::Stdout => out
-                        .write_all(document.as_bytes())
-                        .and_then(|()| out.write_all(b"\n"))
-                        .is_ok(),
-                    Destination::File(destination) => {
-                        let target = workspace.join(destination);
-                        let parent_ok = target
-                            .parent()
-                            .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-                        parent_ok && fs.write_atomic(&target, document.as_bytes()).is_ok()
-                    }
-                };
+                let written =
+                    write_report_document(out, workspace, &planned.destination, &document);
                 if !written {
                     reports_ok = false;
                     report_failed(

@@ -1,7 +1,6 @@
 use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::{plan_reports, Destination};
-use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     command_finished, command_started, error_event, notice_event, report_event, write_event,
     DiagnosticEvent, FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot, Threshold,
@@ -984,7 +983,6 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let report = dx_audit::outcome::AuditReport::aggregate(outcomes);
     let exit = dx_audit::outcome::exit_code(&report);
     let sarif_complete = !any_incomplete && report.incomplete().is_empty();
-    let fs = RealFileSystem;
     let mut reports_ok = true;
     for planned in &planned_reports {
         let name = planned.format.name();
@@ -1009,19 +1007,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     continue;
                 }
             };
-            let written = match &planned.destination {
-                Destination::Stdout => out
-                    .write_all(document.as_bytes())
-                    .and_then(|()| out.write_all(b"\n"))
-                    .is_ok(),
-                Destination::File(destination) => {
-                    let target = workspace.join(destination);
-                    let parent_ok = target
-                        .parent()
-                        .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-                    parent_ok && fs.write_atomic(&target, document.as_bytes()).is_ok()
-                }
-            };
+            let written = write_report_document(out, workspace, &planned.destination, &document);
             if !written {
                 reports_ok = false;
                 report_failed(
@@ -1053,19 +1039,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             let contains: Vec<(String, String)> = Vec::new();
             let document =
                 dx_audit::spdx::render_spdx(&effective, &spdx_packages, &contains, &namespace);
-            let written = match &planned.destination {
-                Destination::Stdout => out
-                    .write_all(document.as_bytes())
-                    .and_then(|()| out.write_all(b"\n"))
-                    .is_ok(),
-                Destination::File(destination) => {
-                    let target = workspace.join(destination);
-                    let parent_ok = target
-                        .parent()
-                        .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-                    parent_ok && fs.write_atomic(&target, document.as_bytes()).is_ok()
-                }
-            };
+            let written = write_report_document(out, workspace, &planned.destination, &document);
             if !written {
                 reports_ok = false;
                 report_failed(

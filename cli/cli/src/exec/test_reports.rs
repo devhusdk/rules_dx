@@ -3,9 +3,8 @@ use crate::args::Invocation;
 use crate::plan::WorkflowVerb;
 use crate::reports::{
     coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
-    Destination, JunitCase, PlannedReport,
+    JunitCase, PlannedReport,
 };
-use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::{collect_test_outputs_with_workspace, ArtifactReader};
 use dx_output::{command_finished, report_event, write_event, FinishedCounts, OutputMode};
 use std::collections::BTreeMap;
@@ -199,7 +198,6 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         }
     }
-    let fs = RealFileSystem;
     let mut reports_ok = true;
     for planned in planned_reports {
         let document: Option<String> = match verb {
@@ -242,19 +240,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             );
             continue;
         };
-        let written = match &planned.destination {
-            Destination::Stdout => out
-                .write_all(document.as_bytes())
-                .and_then(|()| out.write_all(b"\n"))
-                .is_ok(),
-            Destination::File(destination) => {
-                let target = workspace.join(destination);
-                let parent_ok = target
-                    .parent()
-                    .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-                parent_ok && fs.write_atomic(&target, document.as_bytes()).is_ok()
-            }
-        };
+        let written = write_report_document(out, workspace, &planned.destination, &document);
         if !written {
             reports_ok = false;
             report_failed(

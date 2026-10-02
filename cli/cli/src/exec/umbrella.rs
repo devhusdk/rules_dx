@@ -4,7 +4,6 @@ use super::generate::execute_generate;
 use crate::args::{Command, Invocation, ReportRequest};
 use crate::plan::spec;
 use crate::reports::plan_reports;
-use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     command_finished, command_started, report_event, write_event, FinishedCounts, OutputMode,
 };
@@ -151,7 +150,6 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     let complete = stop_code.is_none();
-    let fs = RealFileSystem;
     let mut reports_ok = true;
     for request in &invocation.reports {
         let mut runs: Vec<Value> = Vec::new();
@@ -188,11 +186,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             "runs": runs,
         })
         .to_string();
-        let target = workspace.join(&request.destination);
-        let parent_ok = target
-            .parent()
-            .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-        if !(parent_ok && fs.write_atomic(&target, document.as_bytes()).is_ok()) {
+        if !write_report_file(workspace, &request.destination, &document) {
             reports_ok = false;
             report_failed(
                 out,

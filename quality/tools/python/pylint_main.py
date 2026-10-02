@@ -8,9 +8,12 @@ wheel-only graph and shared managed runtime while propagating the return
 code. If `run_pylint` raises SystemExit itself, it propagates unchanged.
 """
 
+import os
 import sys
 
-from pylint import run_pylint
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from tool_bootstrap import import_tool
 
 if __name__ == "__main__":
-    sys.exit(run_pylint())
+    sys.exit(import_tool("pylint", "run_pylint")())

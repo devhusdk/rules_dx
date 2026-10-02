@@ -10,7 +10,10 @@ exports_files([
 
 py_binary(
     name = "pydoclint",
-    srcs = ["pydoclint_main.py"],
+    srcs = [
+        "pydoclint_main.py",
+        "tool_bootstrap.py",
+    ],
     dep_group = "dx-python-tools",
     main = "pydoclint_main.py",
     deps = ["@pypi//pydoclint"],
@@ -18,7 +21,10 @@ py_binary(
 
 py_binary(
     name = "flake8",
-    srcs = ["flake8_main.py"],
+    srcs = [
+        "flake8_main.py",
+        "tool_bootstrap.py",
+    ],
     dep_group = "dx-python-tools",
     main = "flake8_main.py",
     deps = ["@pypi//flake8"],
@@ -26,7 +32,10 @@ py_binary(
 
 py_binary(
     name = "pylint",
-    srcs = ["pylint_main.py"],
+    srcs = [
+        "pylint_main.py",
+        "tool_bootstrap.py",
+    ],
     dep_group = "dx-python-tools",
     main = "pylint_main.py",
     deps = ["@pypi//pylint"],

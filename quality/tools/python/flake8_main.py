@@ -7,9 +7,12 @@ run exits 0. Quality actions require the exit-code contract (0 clean,
 managed runtime while propagating the return code.
 """
 
+import os
 import sys
 
-from flake8.main.cli import main
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from tool_bootstrap import import_tool
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(import_tool("flake8.main.cli", "main")())

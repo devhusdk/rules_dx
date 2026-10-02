@@ -1,8 +1,10 @@
 """Run the pinned pydoclint entry point with exit-code propagation."""
 
+import os
 import sys
 
-from pydoclint.main import main
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-if __name__ == "__main__":
-    sys.exit(main())
+from tool_bootstrap import import_tool
+
+sys.exit(import_tool("pydoclint.main", "main")())

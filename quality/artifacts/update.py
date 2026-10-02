@@ -13,6 +13,7 @@ import time
 import urllib.parse
 import urllib.request
 import zipfile
+from typing import Any
 
 SCHEMA_VERSION = 1
 
@@ -20,7 +21,7 @@ FETCH_RETRIES = 3
 FETCH_TIMEOUT = 300
 FETCH_BACKOFF_SECONDS = 2
 
-TOOLS = {
+TOOLS: dict[str, dict[str, Any]] = {
     "buildifier": {
         "upstream_version": "8.5.1",
         "release_page": "https://github.com/bazel-contrib/buildtools/releases/tag/v8.5.1",

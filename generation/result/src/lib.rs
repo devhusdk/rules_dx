@@ -188,26 +188,14 @@ fn modification_text<'a>(
                 index,
             });
         }
-        // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        let Ok(start) = usize::try_from(edit.start_byte) else {
-            return Err(Error::EditOutOfBounds {
-                path: path.to_owned(),
-                index,
-            });
-        };
-        let Ok(end) = usize::try_from(edit.end_byte) else {
-            return Err(Error::EditOutOfBounds {
-                path: path.to_owned(),
-                index,
-            });
-        };
-        // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        if end > original.len() {
+        if edit.end_byte > original.len() as u64 {
             return Err(Error::EditOutOfBounds {
                 path: path.to_owned(),
                 index,
             });
         }
+        let start = edit.start_byte as usize;
+        let end = edit.end_byte as usize;
         if !original.is_char_boundary(start) || !original.is_char_boundary(end) {
             return Err(Error::EditNotUtf8Boundary {
                 path: path.to_owned(),
@@ -731,6 +719,16 @@ mod tests {
             ),
             (
                 Box::new(|m| m.edits[0].end_byte = 99),
+                Error::EditOutOfBounds {
+                    path: "pkg/BUILD.bazel".into(),
+                    index: 0,
+                },
+            ),
+            (
+                Box::new(|m| {
+                    m.edits[0].start_byte = u64::MAX - 1;
+                    m.edits[0].end_byte = u64::MAX;
+                }),
                 Error::EditOutOfBounds {
                     path: "pkg/BUILD.bazel".into(),
                     index: 0,

@@ -101,13 +101,15 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
             "generate completed without a result manifest",
         );
     };
-    let manifest = match finalize(&FinalizeInput {
+    let finalized = finalize(&FinalizeInput {
         intended_json: &witness,
         workspace: env.workspace,
         check: invocation.check,
         gazelle_ok: bazel_code == 0,
-    }) {
-        Ok(manifest) => manifest,
+    })
+    .and_then(|manifest| project(&manifest).map_err(FinalizeError::Invalid));
+    let projected = match finalized {
+        Ok(projected) => projected,
         Err(FinalizeError::IncompleteCheck) => {
             return finish_incomplete_generate(invocation, env.out, bazel_code);
         }
@@ -120,19 +122,6 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
                 &format!("invalid generation manifest: {error}"),
             );
         }
-    };
-    let projected = match project(&manifest) {
-        Ok(projected) => projected,
-        // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        Err(error) => {
-            return operational(
-                invocation,
-                env.out,
-                env.err,
-                CODE_INVALID_RESULT,
-                &format!("invalid generation manifest: {error}"),
-            );
-        } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     };
     if invocation.output == OutputMode::Json {
         for file in projected.sorted_files() {

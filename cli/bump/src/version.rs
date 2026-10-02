@@ -157,9 +157,6 @@ mod tests {
             _ => panic!("prerelease is semver"),
         }
         assert!(is_stable(&"1.2.3".parse().expect("stable")));
-        let _ = VersionError::Prerelease {
-            version: "1.2.3-alpha.1".to_owned(),
-        };
     }
 
     #[test]

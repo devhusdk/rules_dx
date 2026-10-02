@@ -146,7 +146,6 @@ pub fn validate(manifest: &CommittedManifest) -> Result<(), ManifestError> {
                 }
             }
         }
-        if change.kind == CommittedKind::Create && change.new_content.is_empty() {}
     }
     Ok(())
 }
@@ -314,6 +313,27 @@ mod tests {
         };
         assert!(matches!(validate(&dir), Err(ManifestError::BadPath { .. })));
         assert!(project(&dir).is_err());
+    }
+
+    #[test]
+    fn an_empty_create_is_a_zero_width_insert() {
+        let manifest = CommittedManifest {
+            set: "maven".to_owned(),
+            changes: vec![CommittedChange {
+                path: "third_party/jvm/maven_install.json".to_owned(),
+                kind: CommittedKind::Create,
+                source_digest: None,
+                old_len: 0,
+                new_content: String::new(),
+            }],
+        };
+        validate(&manifest).expect("empty create");
+        let projected = project(&manifest).expect("empty create projects");
+        assert_eq!(projected.len(), 1);
+        assert_eq!(projected[0].start_byte, 0);
+        assert_eq!(projected[0].end_byte, 0);
+        assert_eq!(projected[0].replacement, "");
+        assert!(projected[0].source_digest.is_none());
     }
 
     #[test]

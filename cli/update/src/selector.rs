@@ -247,8 +247,7 @@ fn package_path(target: &str) -> String {
         }
         return rest.to_owned();
     }
-    if let Some(rest) = target.strip_prefix('@') {
-        let _ = rest;
+    if target.starts_with('@') {
         return String::new();
     }
     let mut path = target.to_owned();

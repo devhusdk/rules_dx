@@ -479,7 +479,7 @@ pub(super) fn plan_github_workflow(
                         }
                         None => {
                             return Err(BumpError::UnsupportedManifest {
-                                manifest: ".github/workflows/ci.yml".to_owned(),
+                                manifest: WORKFLOW_DIR.to_owned(),
                                 reason: format!("{package:?} has no replaceable @SHA pin"),
                             });
                         }
@@ -489,19 +489,19 @@ pub(super) fn plan_github_workflow(
             }
             match matches {
                 0 => Err(BumpError::NotFound {
-                    manifest: ".github/workflows/ci.yml".to_owned(),
+                    manifest: WORKFLOW_DIR.to_owned(),
                     package: package.to_owned(),
                 }),
                 1 => Ok(out),
                 count => Err(BumpError::Ambiguous {
-                    manifest: ".github/workflows/ci.yml".to_owned(),
+                    manifest: WORKFLOW_DIR.to_owned(),
                     package: package.to_owned(),
                     count,
                 }),
             }
         }
         WidenVersion::Semver(_) => Err(BumpError::UnsupportedManifest {
-            manifest: ".github/workflows/ci.yml".to_owned(),
+            manifest: WORKFLOW_DIR.to_owned(),
             reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
         }),
     }

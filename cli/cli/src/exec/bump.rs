@@ -90,61 +90,32 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
         }
     }
-    let manifest = request.target_manifest();
-    let original = match std::fs::read(workspace.join(manifest)) {
-        Ok(bytes) => bytes,
-        Err(_) => {
+    let planned = match plan_widens(&request, workspace) {
+        Ok(planned) => planned,
+        Err(message) => {
+            return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
+        }
+    };
+    for (manifest, widened) in &planned {
+        if dx_atomic_fs::write_atomic(&workspace.join(manifest), widened.as_bytes()).is_err() {
             return operational(
                 invocation,
                 out,
                 err,
                 CODE_BUMP_FAILED,
                 &format!(
-                    "failed to widen {}: cannot read {manifest}",
+                    "failed to widen {}: cannot write {manifest}",
                     request.selector
                 ),
             );
         }
-    };
-    let text = match String::from_utf8(original) {
-        Ok(text) => text,
-        Err(_) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_BUMP_FAILED,
-                &format!(
-                    "failed to widen {}: {manifest} is not valid UTF-8",
-                    request.selector
-                ),
-            );
-        }
-    };
-    let widened = match request.plan_edit(&text) {
-        Ok(widened) => widened,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_BUMP_FAILED,
-                &format!("failed to widen {}: {error}", request.selector),
-            );
-        }
-    };
-    if dx_atomic_fs::write_atomic(&workspace.join(manifest), widened.as_bytes()).is_err() {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BUMP_FAILED,
-            &format!(
-                "failed to widen {}: cannot write {manifest}",
-                request.selector
-            ),
-        );
     }
+    let manifest = planned
+        .iter()
+        .map(|(manifest, _)| manifest.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let manifest = manifest.as_str();
     if !request.needs_update_refresh() {
         let mut message = format!(
             "widened {} to {} in {manifest} (then run preset flag-diff review plus `bazel build //...`)",
@@ -315,6 +286,71 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
         }
     }
+}
+
+fn widen_targets(
+    request: &dx_bump::BumpRequest,
+    workspace: &std::path::Path,
+) -> Result<Vec<String>, String> {
+    if !request.set.spans_manifest_directory() {
+        return Ok(vec![request.target_manifest().to_owned()]);
+    }
+    let dir = workspace.join(dx_bump::gha::WORKFLOW_DIR);
+    let entries = std::fs::read_dir(&dir).map_err(|_| {
+        format!(
+            "failed to widen {}: cannot list {}",
+            request.selector,
+            dx_bump::gha::WORKFLOW_DIR
+        )
+    })?;
+    let mut manifests: Vec<String> = entries
+        .filter_map(|entry| {
+            let name = entry.ok()?.file_name().to_string_lossy().into_owned();
+            dx_bump::gha::workflow_file(&name)
+                .then(|| format!("{}/{name}", dx_bump::gha::WORKFLOW_DIR))
+        })
+        .collect();
+    manifests.sort();
+    Ok(manifests)
+}
+
+fn plan_widens(
+    request: &dx_bump::BumpRequest,
+    workspace: &std::path::Path,
+) -> Result<Vec<(String, String)>, String> {
+    let mut planned = Vec::new();
+    for manifest in widen_targets(request, workspace)? {
+        let original = std::fs::read(workspace.join(&manifest)).map_err(|_| {
+            format!(
+                "failed to widen {}: cannot read {manifest}",
+                request.selector
+            )
+        })?;
+        let text = String::from_utf8(original).map_err(|_| {
+            format!(
+                "failed to widen {}: {manifest} is not valid UTF-8",
+                request.selector
+            )
+        })?;
+        match request.plan_edit(&text) {
+            Ok(widened) => planned.push((manifest, widened)),
+            Err(dx_bump::BumpError::NotFound { .. }) if request.set.spans_manifest_directory() => {}
+            Err(error) => {
+                return Err(format!("failed to widen {}: {error}", request.selector));
+            }
+        }
+    }
+    if planned.is_empty() {
+        return Err(format!(
+            "failed to widen {}: {}",
+            request.selector,
+            dx_bump::BumpError::NotFound {
+                manifest: request.target_manifest().to_owned(),
+                package: request.package.clone(),
+            }
+        ));
+    }
+    Ok(planned)
 }
 
 struct BumpRefreshedNotice<'a> {
@@ -959,6 +995,81 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bump_failed"), "{err}");
         assert!(err.contains("needs SHA resolution"), "{err}");
+    }
+
+    #[test]
+    fn live_github_actions_widens_every_workflow_that_pins_the_action() {
+        let harness = Harness::new("bump-live-gha-every");
+        let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        for name in ["ci.yml", "ghcr.yml", "reusable.yaml"] {
+            harness.write_source(
+                &format!(".github/workflows/{name}"),
+                "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
+            );
+        }
+        harness.write_source(
+            ".github/workflows/bump.yml",
+            "      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0\n",
+        );
+        harness.write_source(".github/workflows/README.md", "not a workflow\n");
+        let (code, out, err) = harness.run(&["bump", "github-actions:actions/checkout", sha]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(err.is_empty(), "{err}");
+        assert!(
+            out.contains(
+                "widened github-actions:actions/checkout to aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa in \
+                 .github/workflows/ci.yml, .github/workflows/ghcr.yml, .github/workflows/reusable.yaml"
+            ),
+            "{out}"
+        );
+        for name in ["ci.yml", "ghcr.yml", "reusable.yaml"] {
+            let widened = std::fs::read_to_string(
+                harness.workspace.join(&format!(".github/workflows/{name}")),
+            )
+            .expect("workflow");
+            assert!(
+                widened.contains(&format!("actions/checkout@{sha} # v7")),
+                "{widened}"
+            );
+            assert!(widened.contains("actions/cache@bbbb"), "{widened}");
+        }
+        let untouched =
+            std::fs::read_to_string(harness.workspace.join(".github/workflows/bump.yml"))
+                .expect("workflow");
+        assert!(untouched.contains("setup-bazel"), "{untouched}");
+    }
+
+    #[test]
+    fn live_github_actions_fails_closed_and_writes_no_workflow() {
+        let sha = "cccccccccccccccccccccccccccccccccccccccc";
+        let cases = [
+            ("ambiguous", vec![("ci.yml", vec!["- uses: actions/checkout@1111111111111111111111111111111111111111\n", "- uses: actions/checkout@2222222222222222222222222222222222222222\n"])], "ambiguous requirement"),
+            ("unpinned", vec![("ci.yml", vec!["- uses: bazel-contrib/setup-bazel@cccccccccccccccccccccccccccccccccccccccc # v0.19.0\n"])], "no declared requirement"),
+            ("no-workflows", vec![("README.md", vec!["not a workflow\n"])], "no declared requirement"),
+        ];
+        for (name, workflows, expected) in cases {
+            let harness = Harness::new(&format!("bump-live-gha-{name}"));
+            for (file, lines) in &workflows {
+                harness.write_source(&format!(".github/workflows/{file}"), &lines.concat());
+            }
+            let (code, _, err) = harness.run(&["bump", "github-actions:actions/checkout", sha]);
+            assert_eq!(code, 1, "{name}: {err}");
+            assert!(err.contains("bump_failed"), "{name}: {err}");
+            assert!(err.contains(expected), "{name}: {err}");
+            assert!(err.contains(".github/workflows"), "{name}: {err}");
+            for (file, lines) in &workflows {
+                let text = std::fs::read_to_string(
+                    harness.workspace.join(&format!(".github/workflows/{file}")),
+                )
+                .expect("workflow");
+                assert_eq!(&text, &lines.concat(), "{name} must widen nothing");
+            }
+        }
+        let missing = Harness::new("bump-live-gha-missing-dir");
+        missing.write_source(".bazelversion", "9.2.0\n");
+        let (code, _, err) = missing.run(&["bump", "github-actions:actions/checkout", sha]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("cannot list .github/workflows"), "{err}");
     }
 
     #[test]

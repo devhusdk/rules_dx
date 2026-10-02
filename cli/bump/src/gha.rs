@@ -1,8 +1,14 @@
 use super::sets::BumpSet;
 use super::version::{self, WidenVersion};
 
+pub const WORKFLOW_DIR: &str = ".github/workflows";
+
 pub fn upstream_client() -> &'static str {
     "GitHub releases"
+}
+
+pub fn workflow_file(name: &str) -> bool {
+    name.ends_with(".yml") || name.ends_with(".yaml")
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

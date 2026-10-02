@@ -5,6 +5,22 @@ package(default_visibility = ["//:__subpackages__"])
 
 # keep
 rust_test(
+    name = "action_pins_test",
+    size = "small",
+    srcs = ["action_pins_test.rs"],
+    data = [
+        "//.github:BUILD.bazel",
+        "//.github:workflows/bump.yml",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/ghcr.yml",
+        "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+    ],
+)
+
+# keep
+rust_test(
     name = "bazelisk_pins_test",
     size = "small",
     srcs = ["bazelisk_pins_test.rs"],

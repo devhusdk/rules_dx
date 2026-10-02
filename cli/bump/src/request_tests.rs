@@ -254,22 +254,32 @@ fn widen_preserves_comments_crlf_and_package_boundaries() {
 fn workflow_widen_requires_one_nonempty_pin() {
     let sha = "a".repeat(40);
     let bump = BumpRequest::parse("gha:actions/checkout", &sha).expect("request");
+    assert_eq!(bump.target_manifest(), ".github/workflows");
     assert!(matches!(
         bump.plan_edit("steps: []\n"),
-        Err(BumpError::NotFound { .. })
+        Err(BumpError::NotFound { manifest, .. }) if manifest == ".github/workflows"
     ));
     assert!(matches!(
         bump.plan_edit("- uses: actions/checkout@\n"),
-        Err(BumpError::UnsupportedManifest { .. })
+        Err(BumpError::UnsupportedManifest { manifest, .. }) if manifest == ".github/workflows"
     ));
     assert!(matches!(
         bump.plan_edit("- uses: actions/checkout@v1\n- uses: actions/checkout@v2\n"),
-        Err(BumpError::Ambiguous { count: 2, .. })
+        Err(BumpError::Ambiguous { count: 2, manifest, .. }) if manifest == ".github/workflows"
     ));
     assert_eq!(
         bump.plan_edit("- uses: actions/checkout@v1").expect("edit"),
         format!("- uses: actions/checkout@{sha}")
     );
+}
+
+#[test]
+fn only_yaml_and_yml_are_workflow_files() {
+    assert!(crate::gha::workflow_file("ci.yml"));
+    assert!(crate::gha::workflow_file("reusable.yaml"));
+    assert!(!crate::gha::workflow_file("README.md"));
+    assert!(!crate::gha::workflow_file("ci.yml.bak"));
+    assert!(!crate::gha::workflow_file("yml"));
 }
 
 #[test]

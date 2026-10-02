@@ -61,12 +61,16 @@ impl BumpSet {
         match self {
             BumpSet::Bazel => &[".bazelversion", "MODULE.bazel"],
             BumpSet::Cargo => &["rust/tests/fixtures/hello/Cargo.toml"],
-            BumpSet::GithubActions => &[".github/workflows/ci.yml"],
+            BumpSet::GithubActions => &[super::gha::WORKFLOW_DIR],
             BumpSet::Go => &["third_party/go/go.mod"],
             BumpSet::Maven => &["MODULE.bazel"],
             BumpSet::Npm => &["package.json"],
             BumpSet::NuGet => &["third_party/dotnet/paket.dependencies"],
         }
+    }
+
+    pub fn spans_manifest_directory(self) -> bool {
+        self == BumpSet::GithubActions
     }
 
     pub fn locks(self) -> &'static [&'static str] {
@@ -214,10 +218,15 @@ mod tests {
             &["rust/tests/fixtures/hello/Cargo.toml"]
         );
         assert_eq!(BumpSet::Npm.manifests(), &["package.json"]);
-        assert!(BumpSet::GithubActions
-            .manifests()
-            .iter()
-            .any(|p| p.contains(".github")));
+        assert_eq!(BumpSet::GithubActions.manifests(), &[".github/workflows"]);
+        assert!(BumpSet::GithubActions.spans_manifest_directory());
+        for set in BumpSet::ALL {
+            assert_eq!(
+                set.spans_manifest_directory(),
+                set == BumpSet::GithubActions,
+                "{set:?} spans a manifest directory"
+            );
+        }
         assert_eq!(BumpSet::Maven.manifests(), &["MODULE.bazel"]);
         assert_eq!(
             BumpSet::NuGet.manifests(),

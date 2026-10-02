@@ -213,7 +213,9 @@ dx bump [--offline|--frozen] <set:package> <version>
 Widens one declared requirement to a new version. Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. The package must already be declared in the
-manifest, or the run fails without writing.
+manifest, or the run fails without writing. A `github-actions` version is
+the resolved commit SHA, never a tag, and the pin is rewritten in every
+`.github/workflows` file that declares the action.
 
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
 `dx update <set>`. A failed refresh keeps the widen and exits `1`. `bazel`

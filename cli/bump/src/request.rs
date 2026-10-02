@@ -1,3 +1,4 @@
+use super::gha::WORKFLOW_DIR;
 use super::sets::BumpSet;
 use super::version::{self, VersionError, WidenVersion};
 
@@ -127,7 +128,7 @@ impl BumpRequest {
                 }
             }
             BumpSet::Cargo => "rust/tests/fixtures/hello/Cargo.toml",
-            BumpSet::GithubActions => ".github/workflows/ci.yml",
+            BumpSet::GithubActions => WORKFLOW_DIR,
             BumpSet::Go => "third_party/go/go.mod",
             BumpSet::Maven => "MODULE.bazel",
             BumpSet::Npm => "package.json",

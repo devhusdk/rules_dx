@@ -17,15 +17,6 @@ rust_prost_library(
 )
 
 real_source_target(
-    name = "corpus_markdown",
-    markdown_siblings = [
-        "doc_ir.proto",
-        "//docs/ir/ir:src/lib.rs",
-    ],
-    tags = ["corpus"],
-)
-
-real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],

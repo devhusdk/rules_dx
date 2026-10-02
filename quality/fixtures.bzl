@@ -29,6 +29,14 @@ quality_source_target = rule(
     },
 )
 
+def markdown_sibling_error(what, siblings, markdown_srcs):
+    """Returns the validation error for markdown_siblings, or "" when valid."""
+    if len(siblings) > 0 and len(markdown_srcs) == 0:
+        return ("real_source_target (" + what + "): markdown_siblings needs " +
+                "markdown_srcs; siblings are link targets for checked markdown, " +
+                "never sources")
+    return ""
+
 def _real_source_target_impl(ctx):
     direct_sources = {}
     if len(ctx.files.javascript_srcs) > 0:
@@ -58,6 +66,13 @@ def _real_source_target_impl(ctx):
     if len(ctx.files.kotlin_srcs) > 0:
         direct_sources["kotlin"] = depset(ctx.files.kotlin_srcs)
     check_direct_sources(direct_sources, str(ctx.label))
+    sibling_error = markdown_sibling_error(
+        str(ctx.label),
+        ctx.attr.markdown_siblings,
+        ctx.files.markdown_srcs,
+    )
+    if sibling_error != "":
+        fail(sibling_error)
     all_files = list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs)
     return [
         DefaultInfo(files = depset(all_files)),

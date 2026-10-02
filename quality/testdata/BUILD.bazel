@@ -249,6 +249,24 @@ real_aspect_subject(
     target = ":fixture_real_markdown_sibling",
 )
 
+real_source_target(
+    name = "fixture_real_markdown_sibling_only",
+    markdown_siblings = ["sibling_license.txt"],
+    tags = ["manual"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_markdown_sibling_only_subject",
+    tags = ["manual"],
+    target = ":fixture_real_markdown_sibling_only",
+)
+
+failure_test(
+    name = "fixture_real_markdown_sibling_only_test",
+    expected_failure_substring = "markdown_siblings needs markdown_srcs",
+    target = ":fixture_real_markdown_sibling_only_subject",
+)
+
 real_aspect_subject(
     name = "fixture_real_markdown_subject",
     target = ":fixture_real_markdown",

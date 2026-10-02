@@ -60,7 +60,8 @@ go_test(
 
 real_source_target(
     name = "corpus_markdown",
-    markdown_siblings = [
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = [
         "testdata/entries/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",

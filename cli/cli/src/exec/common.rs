@@ -209,6 +209,40 @@ pub(crate) fn operational(
     operational_code()
 }
 
+/// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
+pub(crate) fn run_bazel(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    env: &[(&str, &str)],
+) -> Result<i32, i32> {
+    let status = match runner.run(argv, workspace, env) {
+        Ok(status) => status,
+        Err(error) => {
+            return Err(operational(
+                invocation,
+                out,
+                err,
+                CODE_LAUNCH_FAILED,
+                &format!("failed to launch Bazel: {error}"),
+            ));
+        }
+    };
+    match status.code {
+        Some(code) => Ok(code),
+        None => Err(operational(
+            invocation,
+            out,
+            err,
+            CODE_BAZEL_SIGNALLED,
+            "Bazel terminated by signal",
+        )),
+    }
+}
+
 pub(crate) fn change_event_for(change: &FileChange) -> Result<ChangeEvent, ExecError> {
     let mut edits = Vec::with_capacity(change.edits.len());
     for (start, end, replacement) in &change.edits {
@@ -232,6 +266,121 @@ pub(crate) fn change_event_for(change: &FileChange) -> Result<ChangeEvent, ExecE
 mod tests {
     use super::*;
     use dx_output::{Severity, Snapshot};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    struct ProbeRunner {
+        code: Option<i32>,
+        spawn_error: bool,
+        seen: Rc<RefCell<(Vec<String>, Vec<(String, String)>)>>,
+    }
+
+    impl Runner for ProbeRunner {
+        fn run(
+            &self,
+            argv: &[String],
+            _cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            if self.spawn_error {
+                return Err(io::Error::other("fake launch failure"));
+            }
+            *self.seen.borrow_mut() = (
+                argv.to_vec(),
+                env.iter()
+                    .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                    .collect(),
+            );
+            Ok(dx_process::ChildStatus { code: self.code })
+        }
+    }
+
+    fn bazel_invocation() -> Invocation {
+        crate::args::parse(&["build".to_owned(), "//...".to_owned()]).expect("parse")
+    }
+
+    #[test]
+    fn run_bazel_forwards_argv_and_env_and_returns_the_exit_code() {
+        let seen = Rc::new(RefCell::new((Vec::new(), Vec::new())));
+        let runner = ProbeRunner {
+            code: Some(7),
+            spawn_error: false,
+            seen: Rc::clone(&seen),
+        };
+        let invocation = bazel_invocation();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let argv = vec!["bazel".to_owned(), "build".to_owned(), "//...".to_owned()];
+        let code = run_bazel(
+            &invocation,
+            &mut out,
+            &mut err,
+            Path::new("/ws"),
+            &runner,
+            &argv,
+            &[("DX_PROFILE", "release")],
+        );
+        assert_eq!(code, Ok(7));
+        let seen = seen.borrow();
+        assert_eq!(seen.0, argv);
+        assert_eq!(
+            seen.1,
+            vec![("DX_PROFILE".to_owned(), "release".to_owned())]
+        );
+        assert_eq!(err, Vec::<u8>::new());
+    }
+
+    #[test]
+    fn run_bazel_reports_a_spawn_failure_and_asks_the_caller_to_stop() {
+        let runner = ProbeRunner {
+            code: Some(0),
+            spawn_error: true,
+            seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+        };
+        let invocation = bazel_invocation();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run_bazel(
+            &invocation,
+            &mut out,
+            &mut err,
+            Path::new("/ws"),
+            &runner,
+            &["bazel".to_owned()],
+            &[],
+        );
+        assert_eq!(code, Err(operational_code()));
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: launch_failed: failed to launch Bazel: fake launch failure\n"
+        );
+    }
+
+    #[test]
+    fn run_bazel_reports_a_signalled_bazel_and_asks_the_caller_to_stop() {
+        let runner = ProbeRunner {
+            code: None,
+            spawn_error: false,
+            seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+        };
+        let invocation = bazel_invocation();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = run_bazel(
+            &invocation,
+            &mut out,
+            &mut err,
+            Path::new("/ws"),
+            &runner,
+            &["bazel".to_owned()],
+            &[],
+        );
+        assert_eq!(code, Err(operational_code()));
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: bazel_signalled: Bazel terminated by signal\n"
+        );
+    }
 
     #[test]
     fn hex_digest_formats_lowercase_hex() {

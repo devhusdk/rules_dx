@@ -77,26 +77,17 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
         (GENERATE_ENV_SCOPE, scope_json.as_str()),
         (GENERATE_ENV_MODE, mode),
     ];
-    let status = match env.runner.run(&plan.argv, env.workspace, &dispatch) {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                env.out,
-                env.err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
-        }
-    };
-    let Some(bazel_code) = status.code else {
-        return operational(
-            invocation,
-            env.out,
-            env.err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
+    let bazel_code = match run_bazel(
+        invocation,
+        env.out,
+        env.err,
+        env.workspace,
+        env.runner,
+        &plan.argv,
+        &dispatch,
+    ) {
+        Ok(code) => code,
+        Err(exit) => return exit,
     };
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {

@@ -85,26 +85,9 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let mut argv = vec!["bazel".to_owned()];
     argv.extend(bazel_forward_argv());
-    let status = match runner.run(&argv, workspace, &[]) {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
-        }
-    };
-    let Some(bazel_code) = status.code else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
+    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
+        Ok(code) => code,
+        Err(exit) => return exit,
     };
     if json {
         if bazel_code != 0 {

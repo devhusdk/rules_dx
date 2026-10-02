@@ -21,28 +21,10 @@ pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
     if matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet {
         let _ = writeln!(out, "{}", plan.summary);
     }
-    let status = match runner.run(&plan.argv, workspace, &[]) {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
-        }
-    };
-    let Some(bazel_code) = status.code else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
-    };
-    bazel_code
+    match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+        Ok(code) => code,
+        Err(exit) => exit,
+    }
 }
 
 #[cfg(test)]

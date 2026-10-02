@@ -105,27 +105,12 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     if !json && verbose {
         let _ = writeln!(out, "{}", plan.summary);
     }
-    let status = match runner.run(&plan.argv, workspace, &[]) {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
+    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+        Ok(code) => code,
+        Err(exit) => {
+            let _ = std::fs::remove_file(&bep);
+            return exit;
         }
-    };
-    let Some(bazel_code) = status.code else {
-        let _ = std::fs::remove_file(&bep);
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
     };
     if bazel_code != 0 {
         let _ = std::fs::remove_file(&bep);

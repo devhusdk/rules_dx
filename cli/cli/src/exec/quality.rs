@@ -87,26 +87,9 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     {
         let _ = writeln!(out, "{}", build.summary);
     }
-    let status = match runner.run(&build.argv, workspace, &[]) {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
-        }
-    };
-    let Some(bazel_code) = status.code else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
+    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &build.argv, &[]) {
+        Ok(code) => code,
+        Err(exit) => return exit,
     };
     let mut collected = match collect_results(&bep, workspace) {
         Ok(collected) => collected,

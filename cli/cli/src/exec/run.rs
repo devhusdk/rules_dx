@@ -106,26 +106,9 @@ fn execute_run_single(
             let _ = write_event(out, &event);
         }
         emit_run_operations(out, invocation.command.name(), &[target.to_owned()]);
-        let status = match runner.run(&plan.argv, workspace, &[]) {
-            Ok(status) => status,
-            Err(error) => {
-                return operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_LAUNCH_FAILED,
-                    &format!("failed to launch Bazel: {error}"),
-                );
-            }
-        };
-        let Some(code) = status.code else {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_BAZEL_SIGNALLED,
-                "Bazel terminated by signal",
-            );
+        let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+            Ok(code) => code,
+            Err(exit) => return exit,
         };
         if code != 0 {
             if let Ok(event) = error_event(
@@ -144,7 +127,10 @@ fn execute_run_single(
     if !invocation.quiet {
         let _ = writeln!(err, "{}", plan.summary);
     }
-    run_plan(invocation, out, err, workspace, runner, &plan.argv)
+    match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+        Ok(code) => code,
+        Err(exit) => exit,
+    }
 }
 
 fn execute_run_multi(
@@ -177,26 +163,9 @@ fn execute_run_multi(
         emit_run_operations(out, invocation.command.name(), targets);
         for target in targets {
             let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
-            let status = match runner.run(&plan.argv, workspace, &[]) {
-                Ok(status) => status,
-                Err(error) => {
-                    return operational(
-                        invocation,
-                        out,
-                        err,
-                        CODE_LAUNCH_FAILED,
-                        &format!("failed to launch Bazel: {error}"),
-                    );
-                }
-            };
-            let Some(code) = status.code else {
-                return operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_BAZEL_SIGNALLED,
-                    "Bazel terminated by signal",
-                );
+            let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+                Ok(code) => code,
+                Err(exit) => return exit,
             };
             if code != 0 {
                 if let Ok(event) = error_event(
@@ -222,44 +191,15 @@ fn execute_run_multi(
         if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
-        let code = run_plan(invocation, out, err, workspace, runner, &plan.argv);
+        let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+            Ok(code) => code,
+            Err(exit) => return exit,
+        };
         if code != 0 {
             return code;
         }
     }
     0
-}
-
-fn run_plan(
-    invocation: &Invocation,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-    workspace: &Path,
-    runner: &dyn dx_process::Runner,
-    argv: &[String],
-) -> i32 {
-    let status = match runner.run(argv, workspace, &[]) {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
-        }
-    };
-    let Some(code) = status.code else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
-    };
-    code
 }
 
 #[cfg(test)]

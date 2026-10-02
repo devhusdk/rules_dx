@@ -76,54 +76,34 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
             profile.name()
         );
     }
-    let build_status = match runner.run(&build_plan.argv, workspace, &[]) {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
-        }
-    };
-    let Some(build_code) = build_status.code else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
+    let build_code = match run_bazel(
+        invocation,
+        out,
+        err,
+        workspace,
+        runner,
+        &build_plan.argv,
+        &[],
+    ) {
+        Ok(code) => code,
+        Err(exit) => return exit,
     };
     if build_code != 0 {
         return build_code;
     }
     let profile_name = profile.name();
-    let run_status = match runner.run(&run_plan.argv, workspace, &[(DX_PROFILE_ENV, profile_name)])
-    {
-        Ok(status) => status,
-        Err(error) => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_LAUNCH_FAILED,
-                &format!("failed to launch Bazel: {error}"),
-            );
-        }
-    };
-    let Some(code) = run_status.code else {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_BAZEL_SIGNALLED,
-            "Bazel terminated by signal",
-        );
-    };
-    code
+    match run_bazel(
+        invocation,
+        out,
+        err,
+        workspace,
+        runner,
+        &run_plan.argv,
+        &[(DX_PROFILE_ENV, profile_name)],
+    ) {
+        Ok(code) => code,
+        Err(exit) => exit,
+    }
 }
 
 #[cfg(test)]

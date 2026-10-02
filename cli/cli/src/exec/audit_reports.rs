@@ -58,6 +58,97 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
     ));
 }
 
+fn npm_lock_with(license: &str) -> String {
+    serde_json::json!({
+        "name": "root",
+        "lockfileVersion": 3,
+        "packages": {
+            "": {"name": "root"},
+            "node_modules/demo": {"version": "1.0.0", "license": license}
+        }
+    })
+    .to_string()
+}
+
+#[test]
+fn the_built_in_license_table_passes_only_its_allow_list() {
+    for (license, rule) in [
+        ("ISC", ""),
+        ("Unlicense", ""),
+        ("MIT", "license/missing-notice-text"),
+        ("Apache-2.0", "license/missing-notice-text"),
+        ("BSD-2-Clause", "license/missing-notice-text"),
+        ("BSD-3-Clause", "license/missing-notice-text"),
+        ("AGPL-3.0-only", "license/AGPL-3.0-only"),
+        ("AGPL-3.0-or-later", "license/AGPL-3.0-or-later"),
+        ("SSPL-1.0", "license/SSPL-1.0"),
+        ("LGPL-2.1-only", "license/LGPL-2.1-only"),
+        ("LGPL-3.0-or-later", "license/LGPL-3.0-or-later"),
+        ("MPL-2.0", "license/MPL-2.0"),
+        ("EPL-2.0", "license/EPL-2.0"),
+        ("CDDL-1.0", "license/CDDL-1.0"),
+        ("GPL-2.0-only", "license/GPL-2.0-only"),
+        ("GPL-3.0-or-later", "license/GPL-3.0-or-later"),
+        ("Zlib", "license/Zlib"),
+    ] {
+        let (code, out, err) = run_with(
+            &["license", "//javascript:demo", "--report=sarif=-"],
+            &AuditRunner::clean(),
+            &|harness| {
+                harness.write_source("package-lock.json", &npm_lock_with(license));
+            },
+        );
+        if rule.is_empty() {
+            assert_eq!(
+                code, 0,
+                "{license} is on the built-in allow list: {out}{err}"
+            );
+            continue;
+        }
+        assert_eq!(code, 1, "{license} is not on it: {out}{err}");
+        assert!(
+            out.contains(rule),
+            "{license} must report {rule}: {out}{err}"
+        );
+    }
+}
+
+#[test]
+fn an_internal_license_scope_skips_the_review_and_notice_tables() {
+    let policy = "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//javascript:internal\"]\n";
+    for (license, code) in [("Zlib", 0), ("ISC", 0), ("MIT", 0), ("AGPL-3.0-only", 1)] {
+        let (code_seen, out, err) = run_with(
+            &["license", "//javascript:internal", "--report=sarif=-"],
+            &AuditRunner::clean(),
+            &|harness| {
+                harness.write_source("package-lock.json", &npm_lock_with(license));
+                harness.write_source("licenses.toml", policy);
+            },
+        );
+        assert_eq!(code_seen, code, "{license} when internal: {out}{err}");
+    }
+    for (license, rule) in [
+        ("Zlib", "license/Zlib"),
+        ("ISC", "license/ISC"),
+        ("MIT", "license/missing-notice-text"),
+        ("AGPL-3.0-only", "license/AGPL-3.0-only"),
+    ] {
+        let (code, out, err) = run_with(
+            &["license", "//javascript:distributed", "--report=sarif=-"],
+            &AuditRunner::clean(),
+            &|harness| {
+                harness.write_source("package-lock.json", &npm_lock_with(license));
+                harness.write_source("licenses.toml", policy);
+            },
+        );
+        assert_eq!(code, 1, "{license} when distributed: {out}{err}");
+        assert!(
+            out.contains(rule),
+            "{license} must report {rule}: {out}{err}"
+        );
+    }
+}
+
 #[test]
 fn security_policy_read_failures_and_absent_file_are_explicit() {
     let harness = Harness::new("security-policy-io");

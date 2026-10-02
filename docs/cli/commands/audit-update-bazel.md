@@ -102,6 +102,67 @@ path of the pinned `@dx_tools//:gitleaks` artifact. A relative path is rejected
 and `PATH` is never searched. Without it the run exits `1` with `secrets
 auditor unavailable`. `dx license` does not read it.
 
+`dx license` reads `licenses.toml` from the workspace root. Without the file
+every scope is distributed and only `MIT`, `Apache-2.0`, `BSD-2-Clause`,
+`BSD-3-Clause`, `ISC`, and `Unlicense` pass. `schema_version` is `1` and an
+unknown key fails the run.
+
+`[policy]` holds `blocked`, `[policy.distributed]` holds `allow`, `review`, and
+`deny`, and `[policy.sets.<set>]` adds `review` ids for one set. An id in two
+lists fails the run. `[distribution] internal` lists the internal scopes, and
+every other scope is distributed. An internal scope fails only on `blocked`, so
+`review`, `deny`, and unlisted ids pass. A distributed scope fails on all of
+them. Its SARIF rule is `license/<license>` and its message names the package,
+version, license, and tier.
+
+`MIT`, `Apache-2.0`, `BSD-2-Clause`, and `BSD-3-Clause` also need their text.
+Without it a distributed scope fails with the SARIF rule
+`license/missing-notice-text`.
+
+```toml
+schema_version = 1
+
+[policy]
+blocked = ["AGPL-3.0-only", "SSPL-1.0"]
+
+[policy.distributed]
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unlicense",
+]
+review = ["LGPL-3.0-only", "MPL-2.0"]
+deny = ["GPL-3.0-only", "GPL-3.0-or-later"]
+
+[policy.sets.ruby]
+review = ["Ruby"]
+
+[distribution]
+internal = ["//..."]
+
+[[inventory]]
+package = "some-gem"
+set = "ruby"
+license = "MIT"
+versions = ">=1.0.0, <3.0.0"
+text_present = true
+```
+
+Each `[[inventory]]` needs `package`, `set`, `license`, and `versions`, and
+`text_present` says the license text ships with the package. It overrides the
+license the `cargo` and `npm` sets read from `cargo-bazel-lock.json` and
+`package-lock.json`, and it is the only license source for every other set, so
+a package with no entry is `UNKNOWN`.
+
+Each `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason`,
+and `expires`, and covers a finding only when `package`, `set`, and `license`
+all match. An `expires` date on or before the audit date fails the run, and so
+does an exception that matches no finding. `versions` uses the range syntax of
+the `set` ecosystem.
+
 Output: `--output text|json`. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.

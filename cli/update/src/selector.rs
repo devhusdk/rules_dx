@@ -1,7 +1,6 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::OnceLock;
-
 use regex::Regex;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::LazyLock;
 
 use super::sets::SetId;
 
@@ -68,17 +67,8 @@ pub fn parse_selector(text: &str) -> Result<Selector, SelectorError> {
 }
 
 fn target_shape_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^(//|@)|[/.]") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^(//|@)|[/.]").ok());
+    RE.as_ref()
 }
 
 fn is_target_shape(text: &str) -> bool {
@@ -93,59 +83,24 @@ fn is_target_shape(text: &str) -> bool {
 }
 
 fn dotted_name_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^[A-Za-z0-9_.-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_.-]+$").ok());
+    RE.as_ref()
 }
 
 fn cargo_name_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^[A-Za-z0-9_-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_-]+$").ok());
+    RE.as_ref()
 }
 
 fn scoped_npm_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"^@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").ok());
+    RE.as_ref()
 }
 
 fn go_charset_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^[A-Za-z0-9/._~+-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9/._~+-]+$").ok());
+    RE.as_ref()
 }
 
 fn is_dotted_name(text: &str) -> bool {
@@ -382,45 +337,18 @@ fn is_recursive(target: &str) -> bool {
 }
 
 fn recursive_suffix_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"/\.\.\.$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"/\.\.\.$").ok());
+    RE.as_ref()
 }
 
 fn trailing_slash_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"/+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"/+$").ok());
+    RE.as_ref()
 }
 
 fn dot_slash_prefix_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^(?:\./)+") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^(?:\./)+").ok());
+    RE.as_ref()
 }
 
 fn strip_recursive_suffix(text: &str) -> Option<String> {
@@ -477,33 +405,19 @@ fn package_path(target: &str) -> String {
 }
 
 fn root_npm_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(
-        r"(?i)package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|node_modules|package_json",
-    ) {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(
+            r"(?i)package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|node_modules|package_json",
+        )
+        .ok()
+    });
+    RE.as_ref()
 }
 
 fn root_cargo_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"(?i)cargo-bazel-lock\.json|cargo\.toml|cargo\.lock") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?i)cargo-bazel-lock\.json|cargo\.toml|cargo\.lock").ok());
+    RE.as_ref()
 }
 
 fn root_owning_sets(target: &str) -> Vec<SetId> {

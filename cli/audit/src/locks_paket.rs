@@ -1,6 +1,5 @@
-use std::sync::OnceLock;
-
 use regex::Regex;
+use std::sync::LazyLock;
 
 use crate::vuln::LockedPackage;
 
@@ -50,17 +49,9 @@ pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
 }
 
 fn paket_line_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^(?P<name>.+)\((?P<version>[^()]+)\)") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"^(?P<name>.+)\((?P<version>[^()]+)\)").ok());
+    RE.as_ref()
 }
 
 pub(crate) fn split_paket_line(trimmed: &str) -> Option<(String, String)> {

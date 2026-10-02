@@ -1,6 +1,5 @@
-use std::sync::OnceLock;
-
 use regex::Regex;
+use std::sync::LazyLock;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum CommentStyle {
@@ -31,45 +30,21 @@ fn comment_style(path: &str) -> CommentStyle {
 }
 
 fn slash_scan() -> Option<&'static Regex> {
-    static SCAN: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = SCAN.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<marker>//)"#) {
-        Ok(compiled) => {
-            let _ = SCAN.set(compiled);
-            SCAN.get()
-        }
-        Err(_) => None, // LCOV_EXCL_LINE - reason: static pattern cannot fail, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    }
+    static SCAN: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<marker>//)"#).ok());
+    SCAN.as_ref()
 }
 
 fn hash_scan() -> Option<&'static Regex> {
-    static SCAN: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = SCAN.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<marker>#)"#) {
-        Ok(compiled) => {
-            let _ = SCAN.set(compiled);
-            SCAN.get()
-        }
-        Err(_) => None, // LCOV_EXCL_LINE - reason: static pattern cannot fail, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    }
+    static SCAN: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<marker>#)"#).ok());
+    SCAN.as_ref()
 }
 
 fn directive_suffix() -> Option<&'static Regex> {
-    static SUFFIX: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = SUFFIX.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^_(LINE|START|STOP)\b") {
-        Ok(compiled) => {
-            let _ = SUFFIX.set(compiled);
-            SUFFIX.get()
-        }
-        Err(_) => None, // LCOV_EXCL_LINE - reason: static pattern cannot fail, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    }
+    static SUFFIX: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"^_(LINE|START|STOP)\b").ok());
+    SUFFIX.as_ref()
 }
 
 fn scan_with(line: &str, compiled: Option<&Regex>) -> Option<usize> {

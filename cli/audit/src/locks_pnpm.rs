@@ -1,6 +1,5 @@
-use std::sync::OnceLock;
-
 use regex::Regex;
+use std::sync::LazyLock;
 
 use super::is_npm_git_reference;
 
@@ -271,31 +270,15 @@ pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
 }
 
 fn scoped_pnpm_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^@(?P<scope>[^/]+)/(?P<name>.+)@(?P<version>[^@]+)$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"^@(?P<scope>[^/]+)/(?P<name>.+)@(?P<version>[^@]+)$").ok());
+    RE.as_ref()
 }
 
 fn unscoped_pnpm_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^(?P<name>.+)@(?P<version>[^@]+)$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"^(?P<name>.+)@(?P<version>[^@]+)$").ok());
+    RE.as_ref()
 }
 
 pub(crate) fn split_pnpm_key(key: &str) -> Option<(String, String)> {

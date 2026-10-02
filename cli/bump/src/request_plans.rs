@@ -1,7 +1,6 @@
 use super::*;
-
 use regex::Regex;
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
 pub(super) fn plan_bazelversion(
     content: &str,
@@ -193,17 +192,9 @@ pub(super) fn plan_go_mod(
 }
 
 pub(super) fn go_version_token_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"v[0-9.]+(?:[-+][^\s]*)?") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"v[0-9.]+(?:[-+][^\s]*)?").ok());
+    RE.as_ref()
 }
 
 pub(super) fn has_version_shape(token: &str) -> bool {
@@ -522,17 +513,9 @@ pub(super) fn replace_gha_sha(line: &str, needle: &str, sha: &str) -> Option<Str
 }
 
 pub(super) fn version_attr_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r#"version(?P<eq>\s*=\s*)"(?P<old>[^"]*)""#) {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r#"version(?P<eq>\s*=\s*)"(?P<old>[^"]*)""#).ok());
+    RE.as_ref()
 }
 
 pub(super) fn replace_version_attr(line: &str, new: &str) -> Option<String> {
@@ -565,17 +548,9 @@ pub(super) fn replace_version_attr_fallback(line: &str, new: &str) -> Option<Str
 }
 
 pub(super) fn json_version_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r#":(?P<gap>\s*)"(?P<old>[^"]*)""#) {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r#":(?P<gap>\s*)"(?P<old>[^"]*)""#).ok());
+    RE.as_ref()
 }
 
 pub(super) fn replace_first_quoted_version_after_colon(line: &str, new: &str) -> Option<String> {
@@ -614,17 +589,8 @@ pub(super) fn replace_first_quoted_version_after_colon_fallback(
 }
 
 pub(super) fn target_prefix_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^(//|@)") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^(//|@)").ok());
+    RE.as_ref()
 }
 
 pub(super) fn is_target_shape(text: &str) -> bool {
@@ -651,59 +617,24 @@ pub(super) fn is_target_shape(text: &str) -> bool {
 }
 
 pub(super) fn dotted_name_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^[A-Za-z0-9_.-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_.-]+$").ok());
+    RE.as_ref()
 }
 
 pub(super) fn cargo_name_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^[A-Za-z0-9_-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_-]+$").ok());
+    RE.as_ref()
 }
 
 pub(super) fn scoped_npm_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"^@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").ok());
+    RE.as_ref()
 }
 
 pub(super) fn go_charset_re() -> Option<&'static Regex> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    if let Some(compiled) = RE.get() {
-        return Some(compiled);
-    }
-    match Regex::new(r"^[A-Za-z0-9/._~+-]+$") {
-        Ok(compiled) => {
-            let _ = RE.set(compiled);
-            RE.get()
-        }
-        Err(_) => None,
-    }
+    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9/._~+-]+$").ok());
+    RE.as_ref()
 }
 
 pub(super) fn is_dotted_name(text: &str) -> bool {

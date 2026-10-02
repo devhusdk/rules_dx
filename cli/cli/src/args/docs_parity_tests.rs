@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use clap::{CommandFactory, ValueEnum};
+use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS};
 
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
@@ -307,9 +308,63 @@ fn sections(page: &str) -> Vec<(String, String)> {
     out
 }
 
-fn documents_exit_codes(text: &str) -> bool {
+/// The exit codes a page's `Exit codes:` clause documents, each with the words that follow it.
+fn documented_exit_codes(text: &str) -> Vec<(i32, String)> {
     let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    flat.to_lowercase().contains("exit code")
+    let needle = "exit code";
+    let at = flat
+        .to_lowercase()
+        .find(needle)
+        .unwrap_or_else(|| panic!("the text has no exit-code clause:\n{flat}"));
+    let mut out: Vec<(i32, String)> = Vec::new();
+    let mut rest = &flat[at + needle.len()..];
+    while let Some(start) = rest.find(|c: char| c.is_ascii_digit()) {
+        let digits = rest[start..]
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(rest.len() - start);
+        let code = rest[start..start + digits]
+            .parse::<i32>()
+            .expect("a run of ASCII digits");
+        let after = &rest[start + digits..];
+        let stop = after
+            .find(|c: char| c.is_ascii_digit())
+            .unwrap_or(after.len());
+        out.push((
+            code,
+            after[..stop]
+                .trim_matches(|c: char| !c.is_alphabetic())
+                .to_owned(),
+        ));
+        rest = &after[stop..];
+    }
+    out
+}
+
+fn assert_exit_codes(where_: &str, text: &str) {
+    let documented = documented_exit_codes(text);
+    let want = [EXIT_SUCCESS, EXIT_PRE_EXEC, EXIT_OPERATIONAL];
+    assert!(
+        documented.len() >= want.len(),
+        "{where_}: the exit-code clause names {} code(s), want all three",
+        documented.len()
+    );
+    for (index, expected) in want.iter().enumerate() {
+        let (code, clause) = &documented[index];
+        assert_eq!(
+            code, expected,
+            "{where_}: code {index} is {code}, but dx exits {expected} for that case: {clause:?}"
+        );
+    }
+    let success = &documented[0].1;
+    assert!(
+        success.contains("success") || success.contains("pass"),
+        "{where_}: {success:?} never calls {EXIT_SUCCESS} success"
+    );
+    let usage = &documented[1].1;
+    assert!(
+        usage.contains("usage") || usage.contains("scope"),
+        "{where_}: {usage:?} never calls {EXIT_PRE_EXEC} a usage or scope error"
+    );
 }
 
 fn slug(heading: &str) -> String {
@@ -1021,6 +1076,24 @@ fn usage_lines(body: &str) -> Vec<Vec<String>> {
         .collect()
 }
 
+fn assert_bazel_delegated_exit_codes(where_: &str, text: &str) {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let documented = documented_exit_codes(text);
+    assert_eq!(
+        documented.len(),
+        1,
+        "{where_}: forwarding to Bazel leaves only the launch-failure code dx owns, got {documented:?}"
+    );
+    assert_eq!(
+        documented[0].0, EXIT_OPERATIONAL,
+        "{where_}: a launch failure or signal exits {EXIT_OPERATIONAL}"
+    );
+    assert!(
+        flat.contains("Bazel's own"),
+        "{where_}: the section must say the exit code is Bazel's own"
+    );
+}
+
 #[test]
 fn docs_sections_with_usage_blocks_document_exit_codes() {
     for (name, page) in pages() {
@@ -1028,12 +1101,19 @@ fn docs_sections_with_usage_blocks_document_exit_codes() {
             if usage_blocks(&body).is_empty() {
                 continue;
             }
-            assert!(
-                documents_exit_codes(&body),
-                "{name}: section {heading:?} has a usage block but no exit codes"
-            );
+            let where_ = format!("{name} section {heading:?}");
+            if heading.contains("dx bazel") {
+                assert_bazel_delegated_exit_codes(&where_, &body);
+            } else {
+                assert_exit_codes(&where_, &body);
+            }
         }
     }
+}
+
+#[test]
+fn the_help_exit_code_clause_matches_the_documented_codes() {
+    assert_exit_codes("dx --help", super::EXIT_CODES);
 }
 
 #[test]

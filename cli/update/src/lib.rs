@@ -33,14 +33,6 @@ impl UpdateRequest {
             UpdateSelection::Selected(self.selectors.clone())
         }
     }
-
-    pub fn requires_confirmation() -> bool {
-        false
-    }
-
-    pub fn is_mutating() -> bool {
-        true
-    }
 }
 
 #[cfg(test)]
@@ -74,11 +66,5 @@ mod tests {
             request.selection(),
             UpdateSelection::Selected(vec!["cargo-lock".to_owned()])
         );
-    }
-
-    #[test]
-    fn update_applies_without_confirmation_and_mutates() {
-        assert!(!UpdateRequest::requires_confirmation());
-        assert!(UpdateRequest::is_mutating());
     }
 }

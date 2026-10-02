@@ -35,10 +35,6 @@ pub enum VersionError {
     InvalidGit { set: &'static str, version: String },
 }
 
-pub fn prerelease_follows_upstream() -> bool {
-    true
-}
-
 pub fn is_stable(version: &semver::Version) -> bool {
     version.pre.is_empty()
 }
@@ -159,7 +155,6 @@ mod tests {
 
     #[test]
     fn prerelease_parses_but_follows_upstream() {
-        assert!(prerelease_follows_upstream());
         let parsed = parse(BumpSet::Cargo, "1.2.3-alpha.1").expect("prerelease parses");
         match parsed {
             WidenVersion::Semver(version) => {

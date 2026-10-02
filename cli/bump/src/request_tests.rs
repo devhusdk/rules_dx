@@ -341,11 +341,6 @@ fn aliases_resolve_to_canonical_sets() {
 }
 
 #[test]
-fn widen_owns_rewrite_while_update_never_does() {
-    assert!(BumpRequest::may_be_rewritten());
-}
-
-#[test]
 fn bare_sets_targets_and_unknown_fail_closed() {
     assert!(matches!(
         BumpRequest::parse("cargo", "1.2.3"),

@@ -603,14 +603,10 @@ fn bazel_passthrough_forwards_unchanged() {
 }
 
 #[test]
-fn exit_mapping_preserves_subprocess_codes() {
-    assert_eq!(pre_exec_code(), 2);
-    assert_eq!(operational_code(), 1);
+fn dx_exit_codes_are_frozen() {
     assert_eq!(EXIT_SUCCESS, 0);
-    assert_eq!(subprocess_code(0), 0);
-    assert_eq!(subprocess_code(3), 3);
-    assert!(quality_keeps_going(true));
-    assert!(!quality_keeps_going(false));
+    assert_eq!(operational_code(), 1);
+    assert_eq!(pre_exec_code(), 2);
 }
 
 #[test]

@@ -99,10 +99,6 @@ impl BumpRequest {
         })
     }
 
-    pub fn may_be_rewritten() -> bool {
-        true
-    }
-
     pub fn needs_update_refresh(&self) -> bool {
         self.set.needs_update_refresh()
     }

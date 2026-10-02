@@ -55,10 +55,6 @@ impl AuditRequest {
             self.scopes.clone()
         }
     }
-
-    pub fn is_mutating() -> bool {
-        false
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -158,11 +154,6 @@ mod tests {
                 value: "licence".to_owned()
             }
         );
-    }
-
-    #[test]
-    fn audit_is_non_mutating() {
-        assert!(!AuditRequest::is_mutating());
     }
 
     #[test]

@@ -33,10 +33,6 @@ pub fn hook_trigger_pipe() -> String {
     HOOK_TRIGGERS.join("|")
 }
 
-pub fn hook_shim_overwrite_allowed(existing_managed: bool) -> bool {
-    existing_managed
-}
-
 pub fn hook_status_shows_merged(
     shows_baseline: bool,
     shows_overlay: bool,
@@ -330,10 +326,10 @@ pub fn render_hooks_status(baseline: &str, overlay: &str, timings: &str) -> Stri
 mod tests {
     use super::super::{
         checks_for_trigger, default_hooks_config, hook_check_timed_out, hook_git_is_hermetic,
-        hook_git_path_is_hermetic, hook_shim_overwrite_allowed, hook_status_shows_merged,
-        install_hooks, is_hook_trigger, load_hook_timings, load_hooks_config, render_hook_timings,
-        render_hooks_status_merged, render_local_overlay, uninstall_hooks, HOOK_BUDGET_SECS,
-        HOOK_MANAGED_MARKER, LOCAL_OVERLAY_COMMENT,
+        hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks, is_hook_trigger,
+        load_hook_timings, load_hooks_config, render_hook_timings, render_hooks_status_merged,
+        render_local_overlay, uninstall_hooks, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER,
+        LOCAL_OVERLAY_COMMENT,
     };
     use super::{render_hook_shim, render_hooks_status};
 
@@ -374,12 +370,6 @@ mod tests {
         assert!(is_hook_trigger("pre-push"));
         assert!(!is_hook_trigger("pre-merge"));
         assert!(!is_hook_trigger(""));
-    }
-
-    #[test]
-    fn unmanaged_hooks_are_never_overwritten() {
-        assert!(hook_shim_overwrite_allowed(true));
-        assert!(!hook_shim_overwrite_allowed(false));
     }
 
     #[test]

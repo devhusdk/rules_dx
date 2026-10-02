@@ -437,14 +437,6 @@ pub fn stdout_io_code(error: &io::Error) -> i32 {
     }
 }
 
-pub fn subprocess_code(code: i32) -> i32 {
-    code
-}
-
-pub fn quality_keeps_going(is_quality: bool) -> bool {
-    is_quality
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum DryRunError {
     #[error("dry-run: workflow execution is disabled")]

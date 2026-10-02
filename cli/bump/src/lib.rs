@@ -10,5 +10,5 @@ pub use request::{BumpError, BumpRequest};
 pub use sets::BumpSet;
 pub use version::{
     compare, generic_major_bump_hint, is_major_bump, is_stable, major_bump_migrate_hint,
-    prerelease_follows_upstream, VersionError, WidenVersion,
+    VersionError, WidenVersion,
 };

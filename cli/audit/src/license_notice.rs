@@ -8,14 +8,6 @@ pub const DESCRIBES_RELATIONSHIP: &str = "DESCRIBES";
 
 pub const CONTAINS_RELATIONSHIP: &str = "CONTAINS";
 
-pub fn documents_per_invocation() -> usize {
-    1
-}
-
-pub fn aggregates_notice_artifact() -> bool {
-    true
-}
-
 pub const NOTICE_REQUIRED_IDS: &[&str] = &["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"];
 
 pub fn requires_notice_text(identity: &str) -> bool {
@@ -88,8 +80,6 @@ mod tests {
         assert_eq!(PACKAGE_ID_SCHEME, "package-url");
         assert_eq!(DESCRIBES_RELATIONSHIP, "DESCRIBES");
         assert_eq!(CONTAINS_RELATIONSHIP, "CONTAINS");
-        assert_eq!(documents_per_invocation(), 1);
-        assert!(aggregates_notice_artifact());
     }
 
     #[test]

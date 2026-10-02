@@ -2,14 +2,6 @@ use std::path::Path;
 
 use super::{AdoptError, DX_VERSION, HOOK_BUDGET_SECS};
 
-pub fn absent_only_write_allowed(target_exists: bool) -> bool {
-    !target_exists
-}
-
-pub fn init_must_refuse(target_exists: bool) -> bool {
-    target_exists
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScaffoldFile {
     pub path: String,
@@ -172,26 +164,14 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 #[cfg(test)]
 mod tests {
     use super::super::{
-        absent_only_write_allowed, apply_init, editor_disposition, editor_language_supported,
-        init_must_refuse, plan_init_files, DEVCONTAINER_JSON,
+        apply_init, editor_disposition, editor_language_supported, plan_init_files,
+        DEVCONTAINER_JSON,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
 
     #[test]
     fn scaffold_reexports_match_local_definitions() {
         assert_eq!(DEVCONTAINER_JSON, LOCAL_DEVCONTAINER);
-    }
-
-    #[test]
-    fn init_writes_only_absent_paths() {
-        assert!(absent_only_write_allowed(false));
-        assert!(!absent_only_write_allowed(true));
-    }
-
-    #[test]
-    fn init_refuses_existing_paths() {
-        assert!(init_must_refuse(true));
-        assert!(!init_must_refuse(false));
     }
 
     #[test]

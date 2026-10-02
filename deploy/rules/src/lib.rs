@@ -2412,6 +2412,8 @@ fn json_files_field(body: &str) -> Option<Vec<String>> {
                     '"' => current.push('"'),
                     '\\' => current.push('\\'),
                     'n' => current.push('\n'),
+                    'r' => current.push('\r'),
+                    't' => current.push('\t'),
                     _ => {
                         current.push('\\');
                         current.push(c);
@@ -4231,6 +4233,185 @@ mod tests {
         )
         .expect_err("non-tar.gz package");
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn oci_layout_rejects_unusable_registry_repository_and_tag() {
+        let scratch = scratch_dir();
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let image = scratch.path().join("oci_demo.tar");
+        std::fs::write(&image, b"image").expect("write image");
+        for registry in ["", "https://registry.invalid"] {
+            let error = oci_build_layout(&image, &outdir, registry, "demo/app", "1.0.0")
+                .expect_err("registry host");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{registry}");
+        }
+        for repository in ["", "/demo/app", "demo/app/"] {
+            let error = oci_build_layout(&image, &outdir, "registry.invalid", repository, "1.0.0")
+                .expect_err("repository path");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{repository}");
+        }
+        let error = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "")
+            .expect_err("empty tag");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn oci_layout_media_type_follows_the_source_suffix() {
+        let scratch = scratch_dir();
+        for (name, want) in [
+            ("oci_demo.tar", "application/vnd.oci.image.layer.v1.tar"),
+            (
+                "oci_demo.tar.gz",
+                "application/vnd.oci.image.layer.v1.tar+gzip",
+            ),
+        ] {
+            let image = scratch.path().join(name);
+            std::fs::write(&image, b"oci-demo-image-bytes-v1").expect("write image");
+            let outdir = scratch.path().join(name.replace('.', "_"));
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let layout = oci_build_layout(&image, &outdir, "registry.invalid", "demo/app", "1.0.0")
+                .expect("layout");
+            let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
+            let parsed: serde_json::Value = serde_json::from_str(&index).expect("index parses");
+            let digest = parsed["manifests"][0]["digest"].as_str().expect("digest");
+            let manifest = layout.join("blobs").join("sha256").join(&digest[7..]);
+            let body = std::fs::read_to_string(&manifest).expect("manifest");
+            let parsed: serde_json::Value = serde_json::from_str(&body).expect("manifest parses");
+            assert_eq!(parsed["layers"][0]["mediaType"], want, "{name}");
+        }
+    }
+
+    #[test]
+    fn octopus_drop_rejects_empty_spec_fields() {
+        let scratch = scratch_dir();
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let package = scratch.path().join("release_demo.tar.gz");
+        std::fs::write(&package, b"package").expect("write package");
+        let base = OctopusDrop {
+            deploy_name: "octopus_demo",
+            project: "octopus_demo",
+            channel: "Default",
+            version: "1.0.0",
+            deploy_to: &[],
+            space: "",
+            server: "https://octopus.example.invalid",
+        };
+        let empties = [
+            (
+                "deploy_name",
+                OctopusDrop {
+                    deploy_name: "",
+                    ..base
+                },
+            ),
+            (
+                "project",
+                OctopusDrop {
+                    project: "",
+                    ..base
+                },
+            ),
+            (
+                "channel",
+                OctopusDrop {
+                    channel: "",
+                    ..base
+                },
+            ),
+            (
+                "version",
+                OctopusDrop {
+                    version: "",
+                    ..base
+                },
+            ),
+        ];
+        for (field, spec) in empties {
+            let error = octopus_build_drop(&package, &outdir, &spec).expect_err("empty spec field");
+            assert_eq!(
+                error.kind(),
+                io::ErrorKind::InvalidInput,
+                "{field}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn promotion_rejects_unusable_environments_and_names() {
+        let scratch = scratch_dir();
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let artifact = scratch.path().join("release_demo.tar.gz");
+        std::fs::write(&artifact, b"promotion-bytes-v1").expect("write artifact");
+        let build = |deploy, from, to, version, src: &Path| {
+            promotion_build(src, &outdir, deploy, from, to, version, &[])
+        };
+        let baseline = build(
+            "promotion_demo",
+            "staging",
+            "production",
+            "1.2.3",
+            &artifact,
+        )
+        .expect("baseline promotion");
+        assert!(baseline.join("promotion.json").is_file());
+        let absent = scratch.path().join("absent.tar.gz");
+        let error = build("promotion_demo", "staging", "production", "1.2.3", &absent)
+            .expect_err("absent artifact");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        let rejects = [
+            (
+                "deploy",
+                build("", "staging", "production", "1.2.3", &artifact),
+            ),
+            (
+                "from",
+                build("promotion_demo", "", "production", "1.2.3", &artifact),
+            ),
+            (
+                "to",
+                build("promotion_demo", "staging", "", "1.2.3", &artifact),
+            ),
+            (
+                "same",
+                build("promotion_demo", "prod", "prod", "1.2.3", &artifact),
+            ),
+            (
+                "version",
+                build("promotion_demo", "staging", "production", "", &artifact),
+            ),
+        ];
+        for (field, result) in rejects {
+            let error = result.expect_err("unusable promotion field");
+            assert_eq!(
+                error.kind(),
+                io::ErrorKind::InvalidInput,
+                "{field}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn feed_decoders_agree_on_every_json_escape() {
+        let escaped = ["\\\"", "\\\\", "\\n", "\\r", "\\t", "\\u0041"];
+        for escape in escaped {
+            let scalar = format!("{{\"value\": \"a{escape}b\"}}");
+            let array = format!("{{\"files\": [\"a{escape}b\"]}}");
+            let from_scalar = json_string_field(&scalar, "value").expect("scalar");
+            let from_array = json_files_field(&array).expect("array");
+            assert_eq!(
+                from_array,
+                vec![from_scalar.clone()],
+                "decoders disagree on {escape}"
+            );
+        }
+        assert_eq!(
+            json_string_field(r#"{"value": "unterminated}"#, "value"),
+            None
+        );
     }
 
     #[test]

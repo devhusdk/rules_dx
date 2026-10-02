@@ -115,6 +115,90 @@ fn yaml_body(text: &str) -> Vec<&str> {
         .collect()
 }
 
+fn starlark_dict_keys(text: &str, name: &str) -> Vec<String> {
+    let open = text
+        .find(&format!("{name} = {{"))
+        .unwrap_or_else(|| panic!("{name} is missing"))
+        + name.len()
+        + 4;
+    let close = open + text[open..].find('}').expect("dict is unterminated");
+    json_strings(&text[open..close])
+}
+
+fn starlark_list_items(text: &str, name: &str) -> Vec<String> {
+    let marker = format!("{name} = [");
+    let open = text
+        .find(&marker)
+        .unwrap_or_else(|| panic!("{name} is missing"))
+        + marker.len();
+    let close = open + text[open..].find(']').expect("list is unterminated");
+    json_strings(&text[open..close])
+}
+
+/// Tool ids the runner names in a `"<tool> requires a config"` error.
+fn runner_config_refusals(source: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = source;
+    while let Some(at) = rest.find(" requires a config\"") {
+        let head = &rest[..at];
+        let open = head.rfind('"').expect("refusal literal opens with a quote");
+        found.push(head[open + 1..].to_owned());
+        rest = &rest[at + 1..];
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// Tool ids the runner materializes a default config for.
+fn defaulted_config_tools(source: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = source;
+    let marker = "if tool_id == \"";
+    while let Some(at) = rest.find(marker) {
+        let after = at + marker.len();
+        let close = after + rest[after..].find('"').expect("tool id closes");
+        if rest[close..].starts_with("\" && tool.config_rel.is_none()") {
+            found.push(rest[after..close].to_owned());
+        }
+        rest = &rest[close..];
+    }
+    found.sort();
+    found
+}
+
+#[test]
+fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default() {
+    let refusals = runner_config_refusals(&read("quality/runner/src/real/check.rs"));
+    assert!(
+        !refusals.is_empty(),
+        "the runner refuses no tool without a config"
+    );
+    let defaulted = defaulted_config_tools(&read("quality/runner/src/real/staging.rs"));
+    let effective: Vec<String> = refusals
+        .iter()
+        .filter(|tool| !defaulted.contains(tool))
+        .cloned()
+        .collect();
+    assert_eq!(
+        effective,
+        starlark_list_items(
+            &read("quality/native_config_tests.bzl"),
+            "_RUNNER_CONFIG_REQUIRED_TOOLS",
+        ),
+        "the tools the runner refuses without a config no longer match the set \
+         quality/native_config_tests.bzl pins"
+    );
+    let required = starlark_dict_keys(&read("quality/native_config.bzl"), "CONFIG_REQUIRED_TOOLS");
+    for tool in &effective {
+        assert!(
+            required.contains(tool),
+            "the runner refuses {tool} without a config, but CONFIG_REQUIRED_TOOLS lets the \
+             aspect build the action anyway, so the failure lands on the action instead of analysis"
+        );
+    }
+}
+
 #[test]
 fn ruff_policy_matches_the_hinted_fixture() {
     let workspace = read("ruff.toml");

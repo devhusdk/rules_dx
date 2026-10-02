@@ -87,7 +87,7 @@ rust_test(
 
 # keep
 rust_test(
-    name = "dx_env_bin_test",
+    name = "env_bin_test",
     size = "small",
     crate = ":env",
     deps = [

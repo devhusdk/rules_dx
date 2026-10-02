@@ -741,7 +741,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         name: "hooks",
         scope_policy: "require",
         describe: "manage Git hooks via hermetic Git (mutating by default)",
-        usage: "Usage: dx hooks <install|uninstall|status|run [pre-commit|pre-push]>",
+        usage: "Usage: dx hooks <install|uninstall|status|run> [pre-commit|pre-push]",
         flags: "Per-command flags: none (verbs install|uninstall|status|run [pre-commit|pre-push]; --check/--fail-on/--report/--output json|diff and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
         scopes: "Scopes: verb install|uninstall|status|run (run requires pre-commit|pre-push); no Bazel scopes; `-- --bazel-options` does not apply.",
         is_audit_update: false,
@@ -1095,6 +1095,33 @@ impl Command {
 
     pub fn usage(self) -> &'static str {
         self.meta().usage
+    }
+
+    /// The leading positionals the usage line spells with angle brackets, or none when it names none.
+    pub fn required_slot(self) -> Option<&'static str> {
+        let rest = self.usage().strip_prefix("Usage: dx ")?.split_once(' ')?.1;
+        let mut slot: Option<(usize, usize)> = None;
+        let mut offset = 0;
+        for word in rest.split(' ') {
+            if let Some(at) = word
+                .strip_prefix("[<")
+                .filter(|_| !word.contains(">]"))
+                .and_then(|inner| inner.find('>'))
+            {
+                slot = Some((offset + 1, offset + 3 + at));
+                break;
+            }
+            if word.starts_with('<') && !word.contains(']') {
+                let start = slot.map_or(offset, |(start, _)| start);
+                slot = Some((start, offset + word.len()));
+            } else if !(word.starts_with('[') && slot.is_none()) {
+                break;
+            }
+            offset += word.len() + 1;
+        }
+        let (start, end) = slot?;
+        let slot = rest.get(start..end)?.trim();
+        (!slot.is_empty()).then_some(slot)
     }
 
     pub fn flags(self) -> &'static str {
@@ -1562,6 +1589,75 @@ mod tests {
                 command.name()
             );
         }
+    }
+
+    #[test]
+    fn required_slot_reads_whole_words_of_the_usage_tail() {
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            let Some(slot) = command.required_slot() else {
+                continue;
+            };
+            let tail = command
+                .usage()
+                .strip_prefix("Usage: dx ")
+                .and_then(|rest| rest.split_once(' ').map(|(_, tail)| tail))
+                .unwrap_or_default();
+            let width = slot.split(' ').count();
+            let runs = [Some(tail), tail.strip_prefix('[')]
+                .into_iter()
+                .flatten()
+                .any(|candidate| {
+                    let words: Vec<&str> = candidate.split(' ').collect();
+                    words.len() >= width
+                        && (0..=words.len() - width)
+                            .any(|start| words[start..start + width].join(" ") == slot)
+                });
+            assert!(
+                runs,
+                "dx {}: {slot:?} is not a whole-word run of {tail:?}",
+                command.name()
+            );
+        }
+    }
+
+    #[test]
+    fn every_command_that_needs_a_positional_spells_it_in_its_usage() {
+        use clap::ValueEnum;
+        let mut required: Vec<(&str, Option<&str>)> = Command::value_variants()
+            .iter()
+            .filter(|command| {
+                matches!(
+                    command,
+                    Command::Bump
+                        | Command::Completion
+                        | Command::Deps
+                        | Command::Hooks
+                        | Command::New
+                        | Command::Owners
+                        | Command::Watch
+                        | Command::Why
+                )
+            })
+            .map(|command| (command.name(), command.required_slot()))
+            .collect();
+        required.sort_unstable();
+        assert_eq!(
+            required,
+            vec![
+                ("bump", Some("<set:package> <version>")),
+                ("completion", Some("<shell>")),
+                ("deps", Some("<scope>")),
+                ("hooks", Some("<install|uninstall|status|run>")),
+                ("new", Some("<language>")),
+                ("owners", Some("<scope>")),
+                (
+                    "watch",
+                    Some("<build|test|run|lint|typecheck|format|check|fix>")
+                ),
+                ("why", Some("<file> <label>")),
+            ]
+        );
     }
 
     #[test]

@@ -19,6 +19,21 @@ fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
     }
 }
 
+/// Names the positionals the command's own usage line requires.
+fn missing_positional(command: Command) -> ArgsError {
+    ArgsError::MissingValue {
+        option: command.required_slot().unwrap_or(command.name()).to_owned(),
+    }
+}
+
+/// Names the one positional the command does not take.
+fn extra_positional(command: Command, token: &str) -> ArgsError {
+    ArgsError::UnsupportedOption {
+        command: command.name(),
+        option: token.to_owned(),
+    }
+}
+
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
 }
@@ -281,10 +296,11 @@ pub fn parse_with<S: AsRef<OsStr>>(
                 option: "--".to_owned(),
             });
         }
-        if targets.len() != 2 {
-            return Err(ArgsError::MissingValue {
-                option: "<selector> <version>".to_owned(),
-            });
+        if targets.len() > 2 {
+            return Err(extra_positional(command, &targets[2]));
+        }
+        if targets.len() < 2 {
+            return Err(missing_positional(command));
         }
     }
     if command == Command::Migrate {
@@ -446,60 +462,50 @@ pub fn parse_with<S: AsRef<OsStr>>(
         match command {
             Command::Status | Command::Version => {
                 if !targets.is_empty() && command == Command::Status {
-                    return Err(ArgsError::UnsupportedOption {
-                        command: command.name(),
-                        option: targets[0].clone(),
-                    });
+                    return Err(extra_positional(command, &targets[0]));
                 }
                 if !targets.is_empty() && command == Command::Version && pin.is_none() {
-                    return Err(ArgsError::UnsupportedOption {
-                        command: command.name(),
-                        option: targets[0].clone(),
-                    });
+                    return Err(extra_positional(command, &targets[0]));
                 }
             }
             Command::Completion => {
-                if check {
-                    if targets.len() > 1 {
-                        return Err(ArgsError::UnsupportedOption {
-                            command: command.name(),
-                            option: targets[1].clone(),
-                        });
-                    }
-                } else if targets.len() != 1 {
-                    return Err(ArgsError::MissingValue {
-                        option: "<shell>".to_owned(),
-                    });
+                if targets.len() > 1 {
+                    return Err(extra_positional(command, &targets[1]));
+                }
+                if !check && targets.is_empty() {
+                    return Err(missing_positional(command));
                 }
             }
-            Command::Hooks | Command::Watch | Command::Owners | Command::Deps
-                if targets.is_empty() =>
-            {
-                return Err(ArgsError::MissingValue {
-                    option: "<scope>".to_owned(),
-                });
+            Command::Hooks if targets.is_empty() => {
+                return Err(missing_positional(command));
             }
-            Command::Why if targets.len() != 2 => {
-                return Err(ArgsError::MissingValue {
-                    option: "<file> <label>".to_owned(),
-                });
+            Command::Hooks if targets.len() > 2 => {
+                return Err(extra_positional(command, &targets[2]));
+            }
+            Command::Watch | Command::Owners | Command::Deps if targets.is_empty() => {
+                return Err(missing_positional(command));
+            }
+            Command::Why => {
+                if targets.len() > 2 {
+                    return Err(extra_positional(command, &targets[2]));
+                }
+                if targets.len() < 2 {
+                    return Err(missing_positional(command));
+                }
             }
             Command::Init if targets.len() > 1 => {
-                return Err(ArgsError::UnsupportedOption {
-                    command: command.name(),
-                    option: targets[1].clone(),
-                });
+                return Err(extra_positional(command, &targets[1]));
             }
-            Command::New if targets.is_empty() || targets.len() > 2 => {
-                return Err(ArgsError::MissingValue {
-                    option: "<language> [name]".to_owned(),
-                });
+            Command::New => {
+                if targets.len() > 2 {
+                    return Err(extra_positional(command, &targets[2]));
+                }
+                if targets.is_empty() {
+                    return Err(missing_positional(command));
+                }
             }
             Command::Upgrade if !targets.is_empty() => {
-                return Err(ArgsError::UnsupportedOption {
-                    command: command.name(),
-                    option: targets[0].clone(),
-                });
+                return Err(extra_positional(command, &targets[0]));
             }
             _ => {}
         }

@@ -22,7 +22,7 @@ scaffolding failed.
 ## `dx hooks`
 
 ```text
-dx hooks <install|uninstall|status|run [pre-commit|pre-push]>
+dx hooks <install|uninstall|status|run> [pre-commit|pre-push]
 ```
 
 Manages Git hooks through hermetic Git.

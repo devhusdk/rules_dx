@@ -468,19 +468,20 @@ fn bump_needs_exactly_one_selector_plus_version() {
     assert_eq!(
         parse(&args(&["bump"])),
         Err(ArgsError::MissingValue {
-            option: "<selector> <version>".to_owned(),
+            option: "<set:package> <version>".to_owned(),
         })
     );
     assert_eq!(
         parse(&args(&["bump", "cargo:anyhow"])),
         Err(ArgsError::MissingValue {
-            option: "<selector> <version>".to_owned(),
+            option: "<set:package> <version>".to_owned(),
         })
     );
     assert_eq!(
         parse(&args(&["bump", "cargo:anyhow", "1.2.3", "npm:react"])),
-        Err(ArgsError::MissingValue {
-            option: "<selector> <version>".to_owned(),
+        Err(ArgsError::UnsupportedOption {
+            command: "bump",
+            option: "npm:react".to_owned(),
         })
     );
     assert_eq!(
@@ -641,13 +642,14 @@ fn new_takes_language_plus_optional_name() {
     assert_eq!(
         parse(&args(&["new"])),
         Err(ArgsError::MissingValue {
-            option: "<language> [name]".to_owned(),
+            option: "<language>".to_owned(),
         })
     );
     assert_eq!(
         parse(&args(&["new", "rust", "a", "b"])),
-        Err(ArgsError::MissingValue {
-            option: "<language> [name]".to_owned(),
+        Err(ArgsError::UnsupportedOption {
+            command: "new",
+            option: "b".to_owned(),
         })
     );
     assert_eq!(
@@ -1100,9 +1102,16 @@ fn why_requires_file_and_label() {
     ] {
         assert_eq!(
             parse(&args(&words)),
-            Err(ArgsError::MissingValue {
-                option: "<file> <label>".to_owned(),
-            }),
+            if words.len() < 3 {
+                Err(ArgsError::MissingValue {
+                    option: "<file> <label>".to_owned(),
+                })
+            } else {
+                Err(ArgsError::UnsupportedOption {
+                    command: "why",
+                    option: "//b:two".to_owned(),
+                })
+            },
             "words: {words:?}"
         );
     }

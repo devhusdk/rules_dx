@@ -86,10 +86,6 @@ fn set_adjustments_merge_additively_and_conflicts_fail() {
 #[test]
 fn unlisted_distributables_default_distributed() {
     let distribution = Distribution {
-        distributed: ["//services/payments:image"]
-            .iter()
-            .map(|item| (*item).to_owned())
-            .collect(),
         internal: ["//tools/internal-admin:binary"]
             .iter()
             .map(|item| (*item).to_owned())
@@ -107,35 +103,8 @@ fn unlisted_distributables_default_distributed() {
 }
 
 #[test]
-fn unknown_distribution_labels_fail() {
-    let distribution = Distribution {
-        distributed: BTreeSet::new(),
-        internal: ["//tools/gone:binary"]
-            .iter()
-            .map(|item| (*item).to_owned())
-            .collect(),
-    };
-    let known: BTreeSet<String> = ["//tools/internal-admin:binary"]
-        .iter()
-        .map(|item| (*item).to_owned())
-        .collect();
-    assert_eq!(
-        distribution.validate(&known),
-        Err(PolicyProblem::UnknownDistributionRoot {
-            label: "//tools/gone:binary".to_owned()
-        })
-    );
-    let known: BTreeSet<String> = ["//tools/gone:binary"]
-        .iter()
-        .map(|item| (*item).to_owned())
-        .collect();
-    distribution.validate(&known).expect("known labels pass");
-}
-
-#[test]
 fn promotion_to_distributed_requalifies_under_strict_table() {
     let internal = Distribution {
-        distributed: BTreeSet::new(),
         internal: ["//cli:dx"].iter().map(|item| (*item).to_owned()).collect(),
     };
     let promoted = Distribution::default();
@@ -397,7 +366,6 @@ deny = ["GPL-3.0-only", "GPL-3.0-or-later"]
 review = ["Unicode-3.0"]
 
 [distribution]
-distributed = ["//services/payments:image", "//cli:dx"]
 internal = ["//tools/internal-admin:binary"]
 
 [[exception]]
@@ -480,6 +448,7 @@ fn loader_rejects_unknown_fields_typos_and_malformed_toml() {
          versions = \"*\"\nreason = \"r\"\nexpires = \"2027-03-01\"\nnote = \"x\"\n",
         "[[exception]\n",
         "[policy.distributed]\nallow = [\"MIT\"]\nallow = [\"ISC\"]\n",
+        "[distribution]\ndistributed = [\"//cli:dx\"]\n",
     ] {
         assert!(
             matches!(

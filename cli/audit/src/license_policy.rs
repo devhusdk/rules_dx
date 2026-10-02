@@ -25,8 +25,6 @@ pub struct SetAdjustment {
 #[serde(deny_unknown_fields)]
 pub struct Distribution {
     #[serde(default)]
-    pub distributed: BTreeSet<String>,
-    #[serde(default)]
     pub internal: BTreeSet<String>,
 }
 
@@ -36,8 +34,6 @@ pub enum PolicyProblem {
     MultiListed { identity: String },
     #[error("license {identity:?} for set {set:?} conflicts with the global policy table")]
     SetConflict { set: String, identity: String },
-    #[error("unknown_distribution_root: {label:?} names no known distributable")]
-    UnknownDistributionRoot { label: String },
     #[error("invalid licenses.toml: {message}")]
     InvalidLicensesToml { message: String },
     #[error("license exception invalid: {0}")]
@@ -89,17 +85,6 @@ impl Distribution {
         } else {
             Tier::Distributed
         }
-    }
-
-    pub fn validate(&self, known: &BTreeSet<String>) -> Result<(), PolicyProblem> {
-        for label in self.distributed.iter().chain(self.internal.iter()) {
-            if !known.contains(label) {
-                return Err(PolicyProblem::UnknownDistributionRoot {
-                    label: label.clone(),
-                });
-            }
-        }
-        Ok(())
     }
 }
 

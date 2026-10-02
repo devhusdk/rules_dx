@@ -40,3 +40,6 @@ pub enum CleanError {
     #[error("install failed: {reason}")]
     Install { reason: String },
 }
+
+#[cfg(test)]
+mod fixtures;

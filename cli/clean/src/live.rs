@@ -122,63 +122,7 @@ pub fn collect_inventory_with_scan(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn digest(tag: char) -> String {
-        tag.to_string().repeat(64)
-    }
-
-    fn pair_env_gen(env: char, gen: char) -> (String, String, String) {
-        let environment = dx_setup::GenerationId::new(&digest(env)).expect("env digest");
-        let generated = dx_setup::GenerationId::new(&digest(gen)).expect("gen digest");
-        let pair = dx_setup::SetupPair {
-            environment,
-            generated,
-        };
-        (dx_setup::setup_hex(&pair), digest(env), digest(gen))
-    }
-
-    fn setup_pair(env: char, gen: char) -> dx_setup::SetupPair {
-        dx_setup::SetupPair {
-            environment: dx_setup::GenerationId::new(&digest(env)).expect("env digest"),
-            generated: dx_setup::GenerationId::new(&digest(gen)).expect("gen digest"),
-        }
-    }
-
-    fn workspace_of(root: &Path) -> PathBuf {
-        root.join("ws")
-    }
-
-    fn two_record_workspace(root: &Path) -> (PathBuf, String, String) {
-        use crate::records::GenerationKind as Kind;
-        let workspace = workspace_of(root);
-        let stale = setup_pair('3', '4');
-        let current = setup_pair('1', '2');
-        dx_setup::commit_pair(&workspace, &stale).expect("commit stale");
-        dx_setup::commit_pair(&workspace, &current).expect("commit current");
-        let dx_dir = workspace.join(".dx");
-        for (kind, tag) in [
-            (Kind::Environment, '1'),
-            (Kind::Generated, '2'),
-            (Kind::Environment, '3'),
-            (Kind::Generated, '4'),
-        ] {
-            fs::create_dir_all(dx_dir.join(kind.dir_name()).join(digest(tag)))
-                .expect("create generation dir");
-        }
-        let stale_hex = dx_setup::setup_hex(&stale);
-        let current_hex = dx_setup::setup_hex(&current);
-        (workspace, stale_hex, current_hex)
-    }
-
-    #[cfg(windows)]
-    fn stage_symlink(target: &Path, link: &Path) {
-        std::os::windows::fs::symlink_file(target, link).expect("stage test link");
-    }
-
-    #[cfg(not(windows))]
-    fn stage_symlink(target: &Path, link: &Path) {
-        std::os::unix::fs::symlink(target, link).expect("stage test link");
-    }
+    use crate::fixtures::*;
 
     fn stage_process(proc_root: &Path, pid: &str, cwd: Option<&Path>, fds: &[&Path]) {
         let dir = proc_root.join(pid);

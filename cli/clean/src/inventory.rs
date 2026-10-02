@@ -226,6 +226,7 @@ pub fn collect_inventory(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixtures::*;
 
     #[test]
     fn walk_filtered_skips_gitignored_and_glob_excluded_files() {
@@ -297,20 +298,6 @@ mod tests {
         ));
     }
 
-    fn digest(tag: char) -> String {
-        tag.to_string().repeat(64)
-    }
-
-    fn pair_env_gen(env: char, gen: char) -> (String, String, String) {
-        let environment = dx_setup::GenerationId::new(&digest(env)).expect("env digest");
-        let generated = dx_setup::GenerationId::new(&digest(gen)).expect("gen digest");
-        let pair = dx_setup::SetupPair {
-            environment,
-            generated,
-        };
-        (dx_setup::setup_hex(&pair), digest(env), digest(gen))
-    }
-
     #[cfg(windows)]
     fn symlink_dir(target: &Path, link: &Path) {
         std::os::windows::fs::symlink_dir(target, link).expect("stage test link");
@@ -319,38 +306,6 @@ mod tests {
     #[cfg(not(windows))]
     fn symlink_dir(target: &Path, link: &Path) {
         std::os::unix::fs::symlink(target, link).expect("stage test link");
-    }
-
-    fn setup_pair(env: char, gen: char) -> dx_setup::SetupPair {
-        dx_setup::SetupPair {
-            environment: dx_setup::GenerationId::new(&digest(env)).expect("env digest"),
-            generated: dx_setup::GenerationId::new(&digest(gen)).expect("gen digest"),
-        }
-    }
-
-    fn workspace_of(root: &Path) -> PathBuf {
-        root.join("ws")
-    }
-
-    fn two_record_workspace(root: &Path) -> (PathBuf, String, String) {
-        let workspace = workspace_of(root);
-        let stale = setup_pair('3', '4');
-        let current = setup_pair('1', '2');
-        dx_setup::commit_pair(&workspace, &stale).expect("commit stale");
-        dx_setup::commit_pair(&workspace, &current).expect("commit current");
-        let dx_dir = workspace.join(".dx");
-        for (kind, tag) in [
-            (GenerationKind::Environment, '1'),
-            (GenerationKind::Generated, '2'),
-            (GenerationKind::Environment, '3'),
-            (GenerationKind::Generated, '4'),
-        ] {
-            fs::create_dir_all(dx_dir.join(kind.dir_name()).join(digest(tag)))
-                .expect("create generation dir");
-        }
-        let stale_hex = dx_setup::setup_hex(&stale);
-        let current_hex = dx_setup::setup_hex(&current);
-        (workspace, stale_hex, current_hex)
     }
 
     #[test]

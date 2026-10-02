@@ -139,36 +139,10 @@ pub fn render_dry_run(plan: &CleanPlan, bytes: &PruneBytes) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixtures::*;
     use crate::inventory::collect_inventory;
     use crate::planning::{plan_prune, PruneInputs};
-    use crate::records::{validate_record, GenerationKind, SetupRecordView};
-    use std::path::PathBuf;
-
-    fn digest(tag: char) -> String {
-        tag.to_string().repeat(64)
-    }
-
-    fn pair_env_gen(env: char, gen: char) -> (String, String, String) {
-        let environment = dx_setup::GenerationId::new(&digest(env)).expect("env digest");
-        let generated = dx_setup::GenerationId::new(&digest(gen)).expect("gen digest");
-        let pair = dx_setup::SetupPair {
-            environment,
-            generated,
-        };
-        (dx_setup::setup_hex(&pair), digest(env), digest(gen))
-    }
-
-    fn record(env: char, gen: char) -> SetupRecordView {
-        let (hex, environment_hex, generated_hex) = pair_env_gen(env, gen);
-        validate_record(&hex, &environment_hex, &generated_hex).expect("valid record")
-    }
-
-    fn generation(kind: GenerationKind, tag: char) -> GenerationView {
-        GenerationView {
-            kind,
-            hex: digest(tag),
-        }
-    }
+    use crate::records::{GenerationKind, SetupRecordView};
 
     fn inputs<'a>(
         records: &'a [SetupRecordView],
@@ -183,48 +157,6 @@ mod tests {
             active_generation_hexes: &[],
             unmanaged_names: &[],
         }
-    }
-
-    fn setup_pair(env: char, gen: char) -> dx_setup::SetupPair {
-        dx_setup::SetupPair {
-            environment: dx_setup::GenerationId::new(&digest(env)).expect("env digest"),
-            generated: dx_setup::GenerationId::new(&digest(gen)).expect("gen digest"),
-        }
-    }
-
-    fn workspace_of(root: &Path) -> PathBuf {
-        root.join("ws")
-    }
-
-    #[cfg(windows)]
-    fn test_symlink(target: &Path, link: &Path) {
-        std::os::windows::fs::symlink_file(target, link).expect("link");
-    }
-
-    #[cfg(not(windows))]
-    fn test_symlink(target: &Path, link: &Path) {
-        std::os::unix::fs::symlink(target, link).expect("link");
-    }
-
-    fn two_record_workspace(root: &Path) -> (PathBuf, String, String) {
-        let workspace = workspace_of(root);
-        let stale = setup_pair('3', '4');
-        let current = setup_pair('1', '2');
-        dx_setup::commit_pair(&workspace, &stale).expect("commit stale");
-        dx_setup::commit_pair(&workspace, &current).expect("commit current");
-        let dx_dir = workspace.join(".dx");
-        for (kind, tag) in [
-            (GenerationKind::Environment, '1'),
-            (GenerationKind::Generated, '2'),
-            (GenerationKind::Environment, '3'),
-            (GenerationKind::Generated, '4'),
-        ] {
-            fs::create_dir_all(dx_dir.join(kind.dir_name()).join(digest(tag)))
-                .expect("create generation dir");
-        }
-        let stale_hex = dx_setup::setup_hex(&stale);
-        let current_hex = dx_setup::setup_hex(&current);
-        (workspace, stale_hex, current_hex)
     }
 
     #[test]
@@ -320,7 +252,7 @@ mod tests {
         fs::write(&outside, vec![7u8; 1 << 20]).expect("fat file");
         let stale_gen = dx_dir.join("generated").join(digest('9'));
         fs::create_dir_all(&stale_gen).expect("stale generation");
-        test_symlink(&outside, &stale_gen.join("artifact"));
+        stage_symlink(&outside, &stale_gen.join("artifact"));
         let plan = CleanPlan {
             prune_setup_records: Vec::new(),
             prune_generations: vec![GenerationView {

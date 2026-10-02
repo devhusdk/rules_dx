@@ -81,6 +81,20 @@ fn plan(args: &[String]) -> Result<Plan, String> {
     })
 }
 
+fn installed_message(outcome: &RefreshOutcome, count: usize, identity: &str) -> String {
+    match outcome {
+        RefreshOutcome::AlreadyCurrent => {
+            format!("dx env: already current (.dx/bin {identity})")
+        }
+        RefreshOutcome::InstalledFresh => {
+            format!("dx env: installed {count} tool(s) (.dx/bin {identity})")
+        }
+        RefreshOutcome::InstalledReplacement => {
+            format!("dx env: replaced managed tree with {count} tool(s) (.dx/bin {identity})")
+        }
+    }
+}
+
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn run() -> i32 {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -135,23 +149,10 @@ fn run() -> i32 {
         }
     };
     match refresh(&options, &probe_symlink) {
-        Ok(RefreshOutcome::AlreadyCurrent) => {
-            println!("dx env: already current (.dx/bin {})", identity_hex(&tools));
-            0
-        }
-        Ok(RefreshOutcome::InstalledFresh) => {
+        Ok(outcome) => {
             println!(
-                "dx env: installed {} tool(s) (.dx/bin {})",
-                tools.len(),
-                identity_hex(&tools)
-            );
-            0
-        }
-        Ok(RefreshOutcome::InstalledReplacement) => {
-            println!(
-                "dx env: replaced managed tree with {} tool(s) (.dx/bin {})",
-                tools.len(),
-                identity_hex(&tools)
+                "{}",
+                installed_message(&outcome, tools.len(), &identity_hex(&tools))
             );
             0
         }
@@ -348,5 +349,22 @@ mod tests {
     #[test]
     fn usage_errors_report_two() {
         assert_eq!(usage_error("bad flag"), 2);
+    }
+
+    #[test]
+    fn every_refresh_outcome_names_its_own_line() {
+        let identity = "ab".repeat(32);
+        assert_eq!(
+            installed_message(&RefreshOutcome::AlreadyCurrent, 3, &identity),
+            format!("dx env: already current (.dx/bin {identity})")
+        );
+        assert_eq!(
+            installed_message(&RefreshOutcome::InstalledFresh, 3, &identity),
+            format!("dx env: installed 3 tool(s) (.dx/bin {identity})")
+        );
+        assert_eq!(
+            installed_message(&RefreshOutcome::InstalledReplacement, 3, &identity),
+            format!("dx env: replaced managed tree with 3 tool(s) (.dx/bin {identity})")
+        );
     }
 }

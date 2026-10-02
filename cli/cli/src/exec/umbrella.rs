@@ -163,7 +163,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
                 continue; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
             };
             let Ok(bytes) = std::fs::read(capture) else {
-                continue; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+                continue;
             };
             let Ok(document) = serde_json::from_slice::<Value>(&bytes) else {
                 continue; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
@@ -462,6 +462,22 @@ mod tests {
         let (code, _, err) = harness.run(&["check", "--output=diff", "--report=sarif=out.sarif"]);
         assert_eq!(code, 1);
         assert!(err.contains("Wrote sarif report to out.sarif."), "{err}");
+    }
+
+    #[test]
+    fn umbrella_sarif_skips_phase_that_could_not_render() {
+        let harness = umbrella_findings("umbrella-sarif-unrendered");
+        let (code, _, err) = harness.run(&["fix", "--output=text", "--report=sarif=out.sarif"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("failed to render SARIF report"), "{err}");
+        let document: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"),
+        )
+        .expect("SARIF JSON");
+        assert!(
+            document["runs"].as_array().expect("runs").is_empty(),
+            "the phase that never rendered contributes no runs"
+        );
     }
 
     #[test]

@@ -15,7 +15,6 @@ use std::process::Command;
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
-    fn read_text(&self, path: &Path) -> io::Result<String>;
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {
         let _ = dir;
         None
@@ -27,10 +26,6 @@ pub struct RealFs;
 impl Fs for RealFs {
     fn is_file(&self, path: &Path) -> bool {
         path.is_file()
-    }
-
-    fn read_text(&self, path: &Path) -> io::Result<String> {
-        std::fs::read_to_string(path)
     }
 
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {
@@ -204,51 +199,6 @@ pub fn is_ci() -> bool {
     is_ci_value(std::env::var("CI").ok().as_deref())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum LauncherError {
-    #[error(
-        "bazel_unavailable: {workspace} has no .bazelversion pin",
-        workspace = workspace.display()
-    )]
-    MissingPin { workspace: PathBuf },
-    #[error(
-        "bazel_unavailable: {workspace} has an empty .bazelversion pin",
-        workspace = workspace.display()
-    )]
-    EmptyPin { workspace: PathBuf },
-    #[error(
-        "bazel_unavailable: cannot read {workspace}/.bazelversion: {reason}",
-        workspace = workspace.display()
-    )]
-    UnreadablePin { workspace: PathBuf, reason: String },
-}
-
-pub fn pinned_bazel_version(workspace: &Path, fs: &dyn Fs) -> Result<String, LauncherError> {
-    let pin = workspace.join(".bazelversion");
-    match fs.read_text(&pin) {
-        Ok(contents) => {
-            let version = contents.trim().to_owned();
-            if version.is_empty() {
-                return Err(LauncherError::EmptyPin {
-                    workspace: workspace.to_path_buf(),
-                });
-            }
-            Ok(version)
-        }
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Err(LauncherError::MissingPin {
-            workspace: workspace.to_path_buf(),
-        }),
-        Err(err) => Err(LauncherError::UnreadablePin {
-            workspace: workspace.to_path_buf(),
-            reason: err.to_string(),
-        }),
-    }
-}
-
-pub fn pinned_bazel_version_real(workspace: &Path) -> Result<String, LauncherError> {
-    pinned_bazel_version(workspace, &RealFs)
-}
-
 pub fn launcher_argv0() -> &'static str {
     "bazel"
 }
@@ -401,13 +351,6 @@ pub fn build_workflow_argv(
     Ok(argv)
 }
 
-pub fn build_bazel_passthrough(launcher: &str, args: &[String]) -> Vec<String> {
-    let mut argv = Vec::with_capacity(1 + args.len());
-    argv.push(launcher.to_owned());
-    argv.extend(args.iter().cloned());
-    argv
-}
-
 pub const EXIT_SUCCESS: i32 = 0;
 pub const EXIT_OPERATIONAL: i32 = 1;
 pub const EXIT_PRE_EXEC: i32 = 2;
@@ -434,66 +377,6 @@ pub fn stdout_io_code(error: &io::Error) -> i32 {
         EXIT_BROKEN_PIPE
     } else {
         EXIT_OPERATIONAL
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum DryRunError {
-    #[error("dry-run: workflow execution is disabled")]
-    WouldExecuteAction,
-}
-
-pub fn dry_run_allows(is_final_workflow: bool, resolution_requires_action: bool) -> bool {
-    !is_final_workflow && !resolution_requires_action
-}
-
-pub fn dry_run_guard(
-    is_final_workflow: bool,
-    resolution_requires_action: bool,
-) -> Result<(), DryRunError> {
-    if dry_run_allows(is_final_workflow, resolution_requires_action) {
-        Ok(())
-    } else {
-        Err(DryRunError::WouldExecuteAction)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnixSignal {
-    Interrupt,
-    Terminate,
-}
-
-#[cfg(unix)]
-pub fn signal_number(signal: UnixSignal) -> libc::c_int {
-    match signal {
-        UnixSignal::Interrupt => libc::SIGINT,
-        UnixSignal::Terminate => libc::SIGTERM,
-    }
-}
-
-#[cfg(unix)]
-pub fn forward_signal_number(pid: u32, signo: libc::c_int) -> io::Result<()> {
-    let rc = unsafe { libc::kill(pid as libc::pid_t, signo) };
-    if rc == 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
-    }
-}
-
-#[cfg(unix)]
-pub fn forward_signal(pid: u32, signal: UnixSignal) -> io::Result<()> {
-    forward_signal_number(pid, signal_number(signal))
-}
-
-#[cfg(unix)]
-pub fn reraise_number(signo: libc::c_int) -> io::Result<()> {
-    let rc = unsafe { libc::raise(signo) };
-    if rc == 0 {
-        Ok(())
-    } else {
-        Err(io::Error::last_os_error())
     }
 }
 

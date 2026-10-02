@@ -4,8 +4,6 @@ use std::collections::{HashMap, HashSet};
 
 struct FakeFs {
     files: HashSet<PathBuf>,
-    texts: HashMap<PathBuf, String>,
-    errors: HashMap<PathBuf, io::ErrorKind>,
     broken: HashMap<PathBuf, String>,
 }
 
@@ -13,32 +11,14 @@ impl FakeFs {
     fn with_files(paths: &[&str]) -> FakeFs {
         FakeFs {
             files: paths.iter().map(PathBuf::from).collect(),
-            texts: HashMap::new(),
-            errors: HashMap::new(),
             broken: HashMap::new(),
         }
-    }
-
-    fn with_text(path: &str, text: &str) -> FakeFs {
-        let mut fs = FakeFs::with_files(&[path]);
-        fs.texts.insert(PathBuf::from(path), text.to_owned());
-        fs
     }
 }
 
 impl Fs for FakeFs {
     fn is_file(&self, path: &Path) -> bool {
         self.files.contains(path)
-    }
-
-    fn read_text(&self, path: &Path) -> io::Result<String> {
-        if let Some(text) = self.texts.get(path) {
-            return Ok(text.clone());
-        }
-        if let Some(kind) = self.errors.get(path) {
-            return Err(io::Error::new(*kind, "injected read failure"));
-        }
-        Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
     }
 
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {
@@ -146,65 +126,9 @@ fn real_fs_missing_module_suggests_override() {
 }
 
 #[test]
-fn pinned_version_trims_whitespace() {
-    let fs = FakeFs::with_text("/repo/.bazelversion", "  9.2.0\n");
-    let version = pinned_bazel_version(Path::new("/repo"), &fs).expect("pin");
-    assert_eq!(version, "9.2.0");
-}
-
-#[test]
-fn missing_pin_reports_workspace() {
-    let fs = FakeFs::with_files(&[]);
-    let err = pinned_bazel_version(Path::new("/repo"), &fs).expect_err("must fail");
-    assert_eq!(
-        err,
-        LauncherError::MissingPin {
-            workspace: PathBuf::from("/repo"),
-        }
-    );
-    assert!(err.to_string().contains(".bazelversion"));
-}
-
-#[test]
-fn empty_pin_fails() {
-    let fs = FakeFs::with_text("/repo/.bazelversion", "   \n");
-    let err = pinned_bazel_version(Path::new("/repo"), &fs).expect_err("must fail");
-    assert_eq!(
-        err,
-        LauncherError::EmptyPin {
-            workspace: PathBuf::from("/repo"),
-        }
-    );
-    assert!(err.to_string().contains("empty"));
-}
-
-#[test]
-fn unreadable_pin_reports_reason() {
-    let mut fs = FakeFs::with_files(&[]);
-    fs.errors.insert(
-        PathBuf::from("/repo/.bazelversion"),
-        io::ErrorKind::PermissionDenied,
-    );
-    let err = pinned_bazel_version(Path::new("/repo"), &fs).expect_err("must fail");
-    assert!(matches!(err, LauncherError::UnreadablePin { .. }));
-    assert!(err.to_string().contains(".bazelversion"));
-}
-
-#[test]
 fn launcher_has_no_fallback() {
     assert_eq!(launcher_argv0(), "bazel");
     assert_eq!(WORKFLOW_STARTUP_OPTS, &["--nohome_rc", "--nosystem_rc"]);
-}
-
-#[test]
-fn real_fs_reads_workspace_pin() {
-    let scratch = dx_test_scratch::scratch("dx-pin-");
-    let root = scratch.path().to_path_buf();
-    std::fs::create_dir_all(&root).expect("dirs");
-    std::fs::write(root.join(".bazelversion"), "9.2.0\n").expect("pin");
-    let version = pinned_bazel_version_real(&root).expect("repo pin");
-    assert_eq!(version, "9.2.0");
-    scratch.close().expect("cleanup");
 }
 
 #[test]
@@ -515,23 +439,6 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             "{binary} produced {err:?}"
         );
     }
-    let passthrough = build_bazel_passthrough(
-        "bazel",
-        &[
-            "--output_base=/tmp/x".to_owned(),
-            "build".to_owned(),
-            "//...".to_owned(),
-        ],
-    );
-    assert_eq!(
-        passthrough,
-        vec![
-            "bazel".to_owned(),
-            "--output_base=/tmp/x".to_owned(),
-            "build".to_owned(),
-            "//...".to_owned()
-        ]
-    );
 }
 
 #[test]
@@ -585,24 +492,6 @@ fn workflow_argv_rejects_protected_conflicts() {
 }
 
 #[test]
-fn bazel_passthrough_forwards_unchanged() {
-    let args = vec![
-        "--output_base=/tmp/x".to_owned(),
-        "build".to_owned(),
-        "//...".to_owned(),
-    ];
-    assert_eq!(
-        build_bazel_passthrough("bazel", &args),
-        vec![
-            "bazel".to_owned(),
-            "--output_base=/tmp/x".to_owned(),
-            "build".to_owned(),
-            "//...".to_owned()
-        ]
-    );
-}
-
-#[test]
 fn dx_exit_codes_are_frozen() {
     assert_eq!(EXIT_SUCCESS, 0);
     assert_eq!(operational_code(), 1);
@@ -629,55 +518,6 @@ fn ci_gate_matrix_is_single_sourced() {
         is_ci_value(std::env::var("CI").ok().as_deref()),
         "is_ci must delegate to is_ci_value"
     );
-}
-
-#[test]
-fn dry_run_never_executes_final_workflows() {
-    assert!(dry_run_allows(false, false));
-    assert!(!dry_run_allows(false, true));
-    assert!(!dry_run_allows(true, false));
-    assert!(!dry_run_allows(true, true));
-    assert!(dry_run_guard(false, false).is_ok());
-    assert_eq!(
-        dry_run_guard(false, true),
-        Err(DryRunError::WouldExecuteAction)
-    );
-    assert_eq!(
-        dry_run_guard(true, false),
-        Err(DryRunError::WouldExecuteAction)
-    );
-    assert!(dry_run_guard(true, true).is_err());
-    assert!(DryRunError::WouldExecuteAction
-        .to_string()
-        .contains("dry-run"));
-}
-
-#[cfg(unix)]
-#[test]
-fn signal_numbers_match_os() {
-    assert_eq!(signal_number(UnixSignal::Interrupt), libc::SIGINT);
-    assert_eq!(signal_number(UnixSignal::Terminate), libc::SIGTERM);
-}
-
-#[cfg(unix)]
-#[test]
-fn forward_signal_number_checks_existence_safely() {
-    forward_signal_number(std::process::id(), 0).expect("self exists");
-    assert!(forward_signal_number(1 << 30, 0).is_err());
-    assert!(forward_signal_number(std::process::id(), -1).is_err());
-}
-
-#[cfg(unix)]
-#[test]
-fn forward_signal_propagates_os_errors() {
-    assert!(forward_signal(1 << 30, UnixSignal::Terminate).is_err());
-}
-
-#[cfg(unix)]
-#[test]
-fn reraise_zero_is_safe() {
-    reraise_number(0).expect("raise zero");
-    assert!(reraise_number(-1).is_err());
 }
 
 struct FakeRunner {

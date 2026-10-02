@@ -13,7 +13,6 @@ dx_rust_crate(
     ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
     deps = [
-        "libc",
         "thiserror",
     ],
 )

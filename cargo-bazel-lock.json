@@ -1,5 +1,5 @@
 {
-  "checksum": "50cf3c70d6538df8cd4b974a989ea15a72cd0386bf1d77aaf53f6e4580bc7aa6",
+  "checksum": "d3c0ef1f61c9b792dee3f3a952ab955b58bd2c3127f3e12cdbed3a871a4108f1",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3300,10 +3300,6 @@
     "dx_process 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "libc 0.2.189",
-            "target": "libc"
-          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"

@@ -30,8 +30,10 @@ def site_packages() -> list:
     for line in lines:
         _, _, target = line.partition(" ")
         target = target.strip()
-        path = pathlib.Path(target) if target else None
-        if path == None or not path.is_absolute():
+        if not target:
+            continue
+        path = pathlib.Path(target)
+        if not path.is_absolute():
             continue
         for parent in path.parents:
             if parent.name != "site-packages":

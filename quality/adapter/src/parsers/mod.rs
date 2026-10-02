@@ -188,6 +188,29 @@ fn known_relative<'a>(
         })
 }
 
+/// The checked file a tool named, accepting either separator spelling.
+///
+/// `pydoclint` reports every path through `PurePath.as_posix()`, so on Windows it
+/// answers `C:/tmp/a.py` for the `C:\tmp\a.py` the runner handed it. A reported
+/// path matches when it equals a checked path once both are spelled with `/`.
+/// Comparing both sides that way stays exact: a path the run was never given
+/// still matches nothing.
+fn known_spelled<'a>(
+    tool: &'static str,
+    files: &[&'a str],
+    path: &str,
+) -> Result<&'a str, ParseError> {
+    let wanted = path.replace('\\', "/");
+    files
+        .iter()
+        .copied()
+        .find(|file| file.replace('\\', "/") == wanted)
+        .ok_or_else(|| ParseError::UnknownFile {
+            tool,
+            path: path.to_owned(),
+        })
+}
+
 fn point(line: u64, column: u64) -> (TextPosition, Option<TextPosition>) {
     (TextPosition { line, column }, None)
 }

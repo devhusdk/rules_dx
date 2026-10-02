@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
+use super::{check_output_size, code_name, known_spelled, missing, point, FileFinding, ParseError};
 use crate::{Finding, ToolSeverity};
 
 fn pydoclint_violation(line: &str) -> Result<(u64, &str, String), ParseError> {
@@ -53,7 +53,7 @@ pub fn parse_pydoclint(
                 tool: TOOL,
                 detail: format!("violation without a file header: {raw:?}"),
             })?;
-            let checked = known(TOOL, files, header)?;
+            let checked = known_spelled(TOOL, files, header)?;
             let (start, end) = point(number.max(1), 1);
             findings.push(FileFinding {
                 file: checked.to_owned(),
@@ -69,7 +69,7 @@ pub fn parse_pydoclint(
             });
         } else {
             let header = raw.trim_end();
-            known(TOOL, files, header)?;
+            known_spelled(TOOL, files, header)?;
             current = Some(header);
         }
     }
@@ -124,6 +124,25 @@ mod tests {
             (findings[0].finding.start, findings[0].finding.end),
             (TextPosition { line: 1, column: 1 }, None)
         );
+    }
+
+    /// pydoclint spells every path with `/`, so Windows needs both sides compared that way.
+    #[test]
+    fn pydoclint_reports_windows_paths_spelled_with_forward_slashes() {
+        let stderr = "C:/tmp/dx-scratch-a/a.py\n    4: DOC101: msg\n";
+        let checked = r"C:\tmp\dx-scratch-a\a.py";
+        let findings = parse_pydoclint(stderr.as_bytes(), Some(1), &[checked]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, checked);
+        assert!(
+            parse_pydoclint(stderr.as_bytes(), Some(1), &[r"C:\tmp\dx-scratch-a\b.py"]).is_err()
+        );
+        assert!(parse_pydoclint(
+            stderr.as_bytes(),
+            Some(1),
+            &[r"C:\tmp\dx-scratch-a\..\a.py"]
+        )
+        .is_err());
     }
 
     #[test]

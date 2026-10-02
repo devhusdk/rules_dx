@@ -106,6 +106,14 @@ class SitePackagesTest(BootstrapTestCase):
         self.manifest(["wheels/flake8 {}/flake8.py".format(other)])
         self.assertEqual(site_packages(), [])
 
+    def test_install_root_yields_the_site_packages_below_it(self):
+        """A wheel named by its install root still becomes an import root."""
+        install = self.root / "pydoclint" / "actual_install.install"
+        site = install / "lib" / "python3.12" / "site-packages"
+        site.mkdir(parents=True)
+        self.manifest(["aspect_rules_py++uv+whl_install {}".format(install)])
+        self.assertEqual(site_packages(), [site])
+
     def test_nearest_site_packages_ancestor_wins(self):
         """A nested venv does not drag its outer site-packages in."""
         outer = self.site_packages_dir()

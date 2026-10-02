@@ -1,5 +1,5 @@
 {
-  "checksum": "2b05f05f9b28a058f4d1c63532496464bfe261b3977ee865b7da85ec6d6b4313",
+  "checksum": "2391f4368a6ec0e65fd1e03645439773c5c61ca135baf87b26b562e2d6acc9c5",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2361,10 +2361,6 @@
             "target": "quick_xml"
           },
           {
-            "id": "serde 1.0.229",
-            "target": "serde"
-          },
-          {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
           },
@@ -2425,10 +2421,6 @@
             "target": "serde"
           },
           {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          },
-          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
           },
@@ -2441,6 +2433,10 @@
           {
             "id": "insta 1.48.0",
             "target": "insta"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
           }
         ],
         "edition": "2021"
@@ -2607,16 +2603,18 @@
             "target": "serde_json"
           },
           {
-            "id": "tempfile 3.27.0",
-            "target": "tempfile"
-          },
-          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
           },
           {
             "id": "url 2.5.8",
             "target": "url"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
           }
         ],
         "edition": "2021"
@@ -2646,10 +2644,6 @@
             "target": "semver"
           },
           {
-            "id": "serde 1.0.229",
-            "target": "serde"
-          },
-          {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
           },
@@ -2658,12 +2652,14 @@
             "target": "thiserror"
           },
           {
-            "id": "toml 1.1.6+spec-1.1.0",
-            "target": "toml"
-          },
-          {
             "id": "toml_edit 0.25.15+spec-1.1.0",
             "target": "toml_edit"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "toml 1.1.6+spec-1.1.0",
+            "target": "toml"
           }
         ],
         "edition": "2021"
@@ -2817,12 +2813,14 @@
             "target": "serde"
           },
           {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          },
-          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
           }
         ],
         "edition": "2021"
@@ -2858,10 +2856,6 @@
           {
             "id": "semver 1.0.27",
             "target": "semver"
-          },
-          {
-            "id": "serde 1.0.229",
-            "target": "serde"
           },
           {
             "id": "serde_json 1.0.151",
@@ -3065,12 +3059,14 @@
             "target": "serde"
           },
           {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          },
-          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
           }
         ],
         "edition": "2021"
@@ -7715,10 +7711,6 @@
             "target": "serde"
           },
           {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          },
-          {
             "id": "slug 0.1.6",
             "target": "slug"
           },
@@ -7729,6 +7721,12 @@
           {
             "id": "tracing 0.1.44",
             "target": "tracing"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
           }
         ],
         "edition": "2021"

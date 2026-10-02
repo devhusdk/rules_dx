@@ -17,9 +17,9 @@ dx_rust_crate(
         "src/remote.rs",
         "src/test_outputs.rs",
     ],
+    dev_deps = ["tempfile"],
     deps = [
         "serde_json",
-        "tempfile",
         "thiserror",
         "url",
     ],

@@ -13,6 +13,7 @@ dx_rust_crate(
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
+    dev_deps = ["serde_json"],
     extra_deps = [
         "//cli/bep:dx_bep",
         "//cli/digest:dx_digest",
@@ -22,7 +23,6 @@ dx_rust_crate(
     ],
     deps = [
         "serde",
-        "serde_json",
         "thiserror",
     ],
 )

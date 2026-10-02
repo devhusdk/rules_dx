@@ -51,7 +51,6 @@ rust_library(
     deps = crate_deps(
         [
             "quick-xml",
-            "serde",
             "serde_json",
             "thiserror",
         ],
@@ -86,7 +85,6 @@ rust_test(
     deps = crate_deps(
         [
             "quick-xml",
-            "serde",
             "serde_json",
             "thiserror",
         ],

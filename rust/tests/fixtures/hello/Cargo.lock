@@ -458,7 +458,6 @@ name = "docs_adapters"
 version = "0.0.0"
 dependencies = [
  "quick-xml",
- "serde",
  "serde_json",
  "thiserror",
 ]
@@ -536,7 +535,6 @@ version = "0.0.0"
 dependencies = [
  "regex",
  "semver",
- "serde",
  "serde_json",
  "thiserror",
  "toml",
@@ -594,7 +592,6 @@ dependencies = [
  "pep440_rs",
  "regex",
  "semver",
- "serde",
  "serde_json",
  "tempfile",
  "thiserror",

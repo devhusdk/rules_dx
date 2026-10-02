@@ -23,7 +23,10 @@ dx_rust_crate(
         "src/version.rs",
         "src/watch.rs",
     ],
-    dev_deps = ["insta"],
+    dev_deps = [
+        "insta",
+        "serde_json",
+    ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/fingerprint:dx_fingerprint",
@@ -35,7 +38,6 @@ dx_rust_crate(
         "notify-debouncer-mini",
         "semver",
         "serde",
-        "serde_json",
         "thiserror",
         "toml",
     ],

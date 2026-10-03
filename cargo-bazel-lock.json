@@ -1,5 +1,5 @@
 {
-  "checksum": "5782aa821899b278be00eb0b55a6531b599b6830028ab5d42a2f408bd42ce6c7",
+  "checksum": "d365ba82fcc8b2d6279b329831cea51016a19d4dc5115b9fc656c6ecb1f8c367",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3330,14 +3330,6 @@
     "dx_testing 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "globset 0.4.20",
-            "target": "globset"
-          },
-          {
-            "id": "regex 1.13.1",
-            "target": "regex"
-          },
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"

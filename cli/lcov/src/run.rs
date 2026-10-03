@@ -250,6 +250,37 @@ mod tests {
     }
 
     #[test]
+    fn run_names_the_starlark_file_the_gate_cannot_route() {
+        let mut stored = passing_store();
+        stored.insert(
+            "report.info",
+            "SF:elf.rs\nDA:1,1\nend_of_record\nSF:defs.bzl\nDA:3,1\nend_of_record\n",
+        );
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 1);
+        assert_eq!(
+            printed.concat(),
+            "coverage gate: FAIL 1/1 executable lines\n  \
+             elf.rs: 1/1 (0 ignored)\n\
+             errors:\n  \
+             - unexpected Starlark line data for defs.bzl: the gate has no Starlark line route\n\
+             other instrumented sources (not counted):\n  \
+             - defs.bzl\n\
+             informational line rate: 100.00% (exact counts decide, never rounding)\n"
+        );
+    }
+
+    #[test]
     fn run_rejects_unknown_arguments() {
         let (code, printed) = run_harness(passing_store(), &["--bogus"]);
         assert_eq!(code, 2);

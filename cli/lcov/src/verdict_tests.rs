@@ -432,8 +432,9 @@ fn starlark_line_data_fails_until_route_exists() {
         &loader(files),
     );
     assert!(!verdict.passed);
-    assert!(
-        verdict.errors.iter().any(|e| e.contains("defs.bzl")),
+    assert_eq!(
+        verdict.errors,
+        ["unexpected Starlark line data for defs.bzl: the gate has no Starlark line route"],
         "{verdict:?}"
     );
 }

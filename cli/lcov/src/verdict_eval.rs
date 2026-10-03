@@ -87,7 +87,7 @@ pub fn evaluate(
             verdict.other_sources.push(path.clone());
             if is_starlark(path) && !hits.lines.is_empty() {
                 verdict.errors.push(format!(
-                    "unexpected Starlark line data for {path}: no Starlark line route exists in "
+                    "unexpected Starlark line data for {path}: the gate has no Starlark line route"
                 ));
             }
         }

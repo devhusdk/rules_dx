@@ -1334,3 +1334,65 @@ fn offline_forces_cache_only_on_audit_update_bump() {
         &["--offline"],
     );
 }
+
+#[test]
+fn a_refused_output_diff_is_named_before_any_other_flag_the_command_refuses() {
+    for (command, also_refused) in [
+        ("clean", "--report=junit=one.xml"),
+        ("update", "--report=junit=one.xml"),
+        ("bump", "--report=junit=one.xml"),
+        ("migrate", "--report=junit=one.xml"),
+        ("upgrade", "--report=junit=one.xml"),
+        ("codegen", "--report=junit=one.xml"),
+        ("env", "--report=junit=one.xml"),
+        ("setup", "--report=junit=one.xml"),
+        ("docs", "--port=1"),
+    ] {
+        let words = owned_option_words(
+            Command::parse(command).unwrap_or_else(|| panic!("registry names {command}")),
+            &["--output=diff", also_refused],
+        );
+        assert_eq!(
+            parse(&words),
+            Err(ArgsError::UnsupportedOption {
+                command,
+                option: "--output=diff".to_owned(),
+            }),
+            "words: {words:?}"
+        );
+    }
+    assert_eq!(
+        parse(&[
+            "clean".to_owned(),
+            "--report=junit=one.xml".to_owned(),
+            "--report=sarif=two.sarif".to_owned(),
+        ]),
+        Err(ArgsError::UnsupportedOption {
+            command: "clean",
+            option: "--report=junit=one.xml".to_owned(),
+        })
+    );
+}
+
+#[test]
+fn clean_names_its_scope_before_the_passthrough_it_also_refuses() {
+    for (words, option) in [
+        (
+            vec!["clean", "//:demo", "--", "--config=ci"],
+            "//:demo".to_owned(),
+        ),
+        (
+            vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--", "--config=ci"],
+            "--".to_owned(),
+        ),
+    ] {
+        assert_eq!(
+            parse(&strings(&words)),
+            Err(ArgsError::UnsupportedOption {
+                command: words[0],
+                option,
+            }),
+            "words: {words:?}"
+        );
+    }
+}

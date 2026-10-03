@@ -6,7 +6,7 @@ use super::command::Command;
 use super::grammar::GlobalArgs;
 use super::scope_error;
 use super::tokenizer::tokenize;
-use super::{ArgsError, Invocation};
+use super::{ArgsError, Invocation, ReportRequest};
 
 pub use super::grammar::cli_command;
 
@@ -26,12 +26,44 @@ fn missing_positional(command: Command) -> ArgsError {
     }
 }
 
-/// Names the one positional the command does not take.
-fn extra_positional(command: Command, token: &str) -> ArgsError {
+/// Names the flag the command does not take.
+fn unsupported(command: Command, option: impl Into<String>) -> ArgsError {
     ArgsError::UnsupportedOption {
         command: command.name(),
-        option: token.to_owned(),
+        option: option.into(),
     }
+}
+
+/// Names the one positional the command does not take.
+fn extra_positional(command: Command, token: &str) -> ArgsError {
+    unsupported(command, token)
+}
+
+/// Rejects `--output=diff`, which these commands never take.
+fn reject_diff_output(command: Command, output_name: &str) -> Result<(), ArgsError> {
+    if output_name == "diff" {
+        return Err(unsupported(command, "--output=diff"));
+    }
+    Ok(())
+}
+
+/// Rejects the first `--report` request, naming its format and destination.
+fn reject_report(command: Command, reports: &[ReportRequest]) -> Result<(), ArgsError> {
+    match reports.first() {
+        Some(request) => Err(unsupported(
+            command,
+            format!("--report={}={}", request.format, request.destination),
+        )),
+        None => Ok(()),
+    }
+}
+
+/// Rejects Bazel options passed after `--`.
+fn reject_passthrough(command: Command, bazel_options: &[String]) -> Result<(), ArgsError> {
+    if !bazel_options.is_empty() {
+        return Err(unsupported(command, "--"));
+    }
+    Ok(())
 }
 
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
@@ -155,19 +187,13 @@ pub fn parse_with<S: AsRef<OsStr>>(
     })?;
     let reports = report;
     if here && !command.supports_here() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--here".to_owned(),
-        });
+        return Err(unsupported(command, "--here"));
     }
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
     }
     if offline && !command.supports_offline() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--offline".to_owned(),
-        });
+        return Err(unsupported(command, "--offline"));
     }
     if command != Command::Bazel {
         for scope in &targets {
@@ -182,61 +208,24 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if check && !command.supports_check() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--check".to_owned(),
-        });
+        return Err(unsupported(command, "--check"));
     }
     if (fail_on_given || fail_on_name != "warning") && !command.supports_fail_on() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--fail-on".to_owned(),
-        });
+        return Err(unsupported(command, "--fail-on"));
     }
     if command == Command::Clean {
-        if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
-        }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
+        reject_diff_output(command, &output_name)?;
+        reject_report(command, &reports)?;
         if let Some(scope) = targets.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: scope.clone(),
-            });
+            return Err(unsupported(command, scope.clone()));
         }
-        if !bazel_options.is_empty() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--".to_owned(),
-            });
-        }
+        reject_passthrough(command, &bazel_options)?;
     } else if bazel_clean {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--bazel".to_owned(),
-        });
+        return Err(unsupported(command, "--bazel"));
     }
     if command.is_managed() {
-        if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
-        }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
+        reject_diff_output(command, &output_name)?;
+        reject_report(command, &reports)?;
         if let Err(error) = dx_setup::resolve_scope(&targets) {
             return Err(match error {
                 dx_setup::ScopeError::MultipleTargets { count } => ArgsError::UnsupportedOption {
@@ -252,50 +241,17 @@ pub fn parse_with<S: AsRef<OsStr>>(
         }
     }
     if (command == Command::Security || command == Command::License) && !bazel_options.is_empty() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--".to_owned(),
-        });
+        return Err(unsupported(command, "--"));
     }
-    if command == Command::Update {
-        if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
-        }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if !bazel_options.is_empty() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--".to_owned(),
-            });
-        }
+    if matches!(
+        command,
+        Command::Update | Command::Bump | Command::Migrate | Command::Upgrade
+    ) {
+        reject_diff_output(command, &output_name)?;
+        reject_report(command, &reports)?;
+        reject_passthrough(command, &bazel_options)?;
     }
     if command == Command::Bump {
-        if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
-        }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if !bazel_options.is_empty() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--".to_owned(),
-            });
-        }
         if targets.len() > 2 {
             return Err(extra_positional(command, &targets[2]));
         }
@@ -303,136 +259,56 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(missing_positional(command));
         }
     }
-    if command == Command::Migrate {
-        if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
-        }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if !bazel_options.is_empty() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--".to_owned(),
-            });
-        }
-        if from.is_none() || to.is_none() {
-            return Err(ArgsError::MissingValue {
-                option: "--from <version> --to <version>".to_owned(),
-            });
-        }
+    if matches!(command, Command::Migrate | Command::Upgrade) && (from.is_none() || to.is_none()) {
+        return Err(ArgsError::MissingValue {
+            option: "--from <version> --to <version>".to_owned(),
+        });
     }
     if command != Command::Migrate
         && command != Command::Upgrade
         && (from.is_some() || to.is_some())
     {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: if from.is_some() {
+        return Err(unsupported(
+            command,
+            if from.is_some() {
                 "--from".to_owned()
             } else {
                 "--to".to_owned()
             },
-        });
+        ));
     }
     if command == Command::Upgrade {
-        if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
-        }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
-        if !bazel_options.is_empty() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--".to_owned(),
-            });
-        }
-        if from.is_none() || to.is_none() {
-            return Err(ArgsError::MissingValue {
-                option: "--from <version> --to <version>".to_owned(),
-            });
-        }
         if let Some(scope) = targets.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: scope.clone(),
-            });
+            return Err(unsupported(command, scope.clone()));
         }
     }
     if command == Command::Docs {
-        if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
-        }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
+        reject_diff_output(command, &output_name)?;
+        reject_report(command, &reports)?;
         if port.is_some() && !serve {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--port".to_owned(),
-            });
+            return Err(unsupported(command, "--port"));
         }
         if host.is_some() && !serve {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--host".to_owned(),
-            });
+            return Err(unsupported(command, "--host"));
         }
         if open && !serve {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--open".to_owned(),
-            });
+            return Err(unsupported(command, "--open"));
         }
     }
     if command != Command::Docs && serve {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--serve".to_owned(),
-        });
+        return Err(unsupported(command, "--serve"));
     }
     if command != Command::Docs && port.is_some() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--port".to_owned(),
-        });
+        return Err(unsupported(command, "--port"));
     }
     if command != Command::Docs && host.is_some() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--host".to_owned(),
-        });
+        return Err(unsupported(command, "--host"));
     }
     if command != Command::Docs && open {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--open".to_owned(),
-        });
+        return Err(unsupported(command, "--open"));
     }
     if min_coverage.is_some() && !command.supports_min_coverage() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--min-coverage".to_owned(),
-        });
+        return Err(unsupported(command, "--min-coverage"));
     }
     let output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
         value: output_name.clone(),
@@ -441,24 +317,11 @@ pub fn parse_with<S: AsRef<OsStr>>(
         value: fail_on_name.clone(),
     })?;
     if command.is_adoption() {
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
+        reject_report(command, &reports)?;
         if bazel_clean {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--bazel".to_owned(),
-            });
+            return Err(unsupported(command, "--bazel"));
         }
-        if !bazel_options.is_empty() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--".to_owned(),
-            });
-        }
+        reject_passthrough(command, &bazel_options)?;
         match command {
             Command::Status | Command::Version => {
                 if !targets.is_empty() && command == Command::Status {
@@ -512,88 +375,51 @@ pub fn parse_with<S: AsRef<OsStr>>(
     }
     if command == Command::Bazel {
         if output_name != "text" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--output={output_name}"),
-            });
+            return Err(unsupported(command, format!("--output={output_name}")));
         }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
+        reject_report(command, &reports)?;
         if bazel_clean {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--bazel".to_owned(),
-            });
+            return Err(unsupported(command, "--bazel"));
         }
     }
     if command == Command::Run || command == Command::Deploy {
         if command == Command::Deploy {
             if !matches!(output, OutputMode::Text { .. }) {
-                return Err(ArgsError::UnsupportedOption {
-                    command: command.name(),
-                    option: format!("--output={output_name}"),
-                });
+                return Err(unsupported(command, format!("--output={output_name}")));
             }
         } else if output_name == "diff" {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: "--output=diff".to_owned(),
-            });
+            return Err(unsupported(command, "--output=diff"));
         }
-        if let Some(request) = reports.first() {
-            return Err(ArgsError::UnsupportedOption {
-                command: command.name(),
-                option: format!("--report={}={}", request.format, request.destination),
-            });
-        }
+        reject_report(command, &reports)?;
     }
     if output_name == "json" && !command.supports_json() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--output=json".to_owned(),
-        });
+        return Err(unsupported(command, "--output=json"));
     }
     if output_name == "diff" && !command.supports_diff() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--output=diff".to_owned(),
-        });
+        return Err(unsupported(command, "--output=diff"));
     }
     if (debug || release) && !command.supports_profile() {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: if debug {
+        return Err(unsupported(
+            command,
+            if debug {
                 "--debug".to_owned()
             } else {
                 "--release".to_owned()
             },
-        });
+        ));
     }
     if rollback && command != Command::Version {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--rollback".to_owned(),
-        });
+        return Err(unsupported(command, "--rollback"));
     }
     if pin.is_some() && command != Command::Version {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--pin".to_owned(),
-        });
+        return Err(unsupported(command, "--pin"));
     }
     if configured
         && command != Command::Owners
         && command != Command::Deps
         && command != Command::Why
     {
-        return Err(ArgsError::UnsupportedOption {
-            command: command.name(),
-            option: "--configured".to_owned(),
-        });
+        return Err(unsupported(command, "--configured"));
     }
     Ok(Invocation {
         command,

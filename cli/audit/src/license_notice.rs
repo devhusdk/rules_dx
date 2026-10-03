@@ -1,20 +1,12 @@
 use crate::license_expr::{Tier, TierOutcome};
 
-pub const SPDX_VERSION: &str = "2.3";
+const NOTICE_REQUIRED_IDS: &[&str] = &["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"];
 
-pub const PACKAGE_ID_SCHEME: &str = "package-url";
-
-pub const DESCRIBES_RELATIONSHIP: &str = "DESCRIBES";
-
-pub const CONTAINS_RELATIONSHIP: &str = "CONTAINS";
-
-pub const NOTICE_REQUIRED_IDS: &[&str] = &["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"];
-
-pub fn requires_notice_text(identity: &str) -> bool {
+fn requires_notice_text(identity: &str) -> bool {
     NOTICE_REQUIRED_IDS.contains(&identity)
 }
 
-pub fn expression_requires_notice(expr: &crate::license_expr::LicenseExpr) -> bool {
+fn expression_requires_notice(expr: &crate::license_expr::LicenseExpr) -> bool {
     use crate::license_expr::LicenseExpr;
     match expr {
         LicenseExpr::Ident(id) => requires_notice_text(id),
@@ -26,7 +18,7 @@ pub fn expression_requires_notice(expr: &crate::license_expr::LicenseExpr) -> bo
     }
 }
 
-pub fn license_requires_notice_text(license: &str) -> bool {
+fn license_requires_notice_text(license: &str) -> bool {
     expression_requires_notice(&crate::license_expr::parse_license(license))
 }
 
@@ -72,14 +64,6 @@ mod tests {
             license: license.to_owned(),
             text_present,
         }
-    }
-
-    #[test]
-    fn report_shape_pins_are_frozen() {
-        assert_eq!(SPDX_VERSION, "2.3");
-        assert_eq!(PACKAGE_ID_SCHEME, "package-url");
-        assert_eq!(DESCRIBES_RELATIONSHIP, "DESCRIBES");
-        assert_eq!(CONTAINS_RELATIONSHIP, "CONTAINS");
     }
 
     #[test]

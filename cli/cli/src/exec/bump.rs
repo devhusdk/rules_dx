@@ -599,6 +599,53 @@ mod tests {
     }
 
     #[test]
+    fn offline_refresh_needed_fails_before_widening() {
+        for (selector, version, path, before) in [
+            (
+                "cargo:demo",
+                "1.2.3",
+                "rust/tests/fixtures/hello/Cargo.toml",
+                "[dependencies]\ndemo = \"1\"\n",
+            ),
+            (
+                "npm:demo",
+                "1.2.3",
+                "package.json",
+                "{\n  \"dependencies\": {\n    \"demo\": \"1.0.0\"\n  }\n}\n",
+            ),
+        ] {
+            let harness = Harness::new("bump-offline-refresh");
+            harness.write_source(path, before);
+            let (code, out, err) =
+                harness.run(&["bump", selector, version, "--offline", "--output=json"]);
+            assert_eq!(code, 1, "{selector}: {out}{err}");
+            assert!(
+                err.contains(&format!("dx: {}: ", super::CODE_OFFLINE_REQUIRED)),
+                "{selector}: {err}"
+            );
+            assert!(err.contains("no widen performed"), "{selector}: {err}");
+            assert_eq!(
+                std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
+                before,
+                "{selector}: offline must not widen"
+            );
+            assert!(
+                harness.seen_env.borrow().is_empty(),
+                "{selector}: offline launches nothing"
+            );
+            let events = json_events(&out);
+            assert_eq!(
+                event(&events, "error")["code"],
+                super::CODE_OFFLINE_REQUIRED
+            );
+            let finished = events.last().expect("finished");
+            assert_eq!(finished["event"], "command_finished");
+            assert_eq!(finished["exit_code"], 1);
+            assert_eq!(finished["results_complete"], false);
+        }
+    }
+
+    #[test]
     fn signalled_refresh_keeps_widen_and_reports_failure() {
         let mut harness = Harness::new("bump-signalled");
         harness.signalled = true;
@@ -638,6 +685,48 @@ mod tests {
             )
             .expect("read"),
             "[dependencies]\nanyhow = \"1\"\n"
+        );
+    }
+
+    #[test]
+    fn dry_run_json_streams_started_planned_notice_and_finished() {
+        let harness = Harness::new("bump-dryrun-json");
+        harness.write_source(
+            "rust/tests/fixtures/hello/Cargo.toml",
+            "[dependencies]\ndemo = \"1\"\n",
+        );
+        let (code, out, err) =
+            harness.run(&["bump", "cargo:demo", "1.2.3", "--dry-run", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(err, "", "{err}");
+        let events = json_events(&out);
+        assert_eq!(events.len(), 3, "{events:?}");
+        let started = event(&events, "command_started");
+        assert_eq!(started["command"], "bump");
+        assert_eq!(started["dry_run"], true);
+        let planned = event(&events, "notice");
+        assert_eq!(planned["code"], "bump_planned");
+        assert_eq!(planned["level"], "info");
+        assert_eq!(planned["related_command"], "bump");
+        assert_eq!(planned["scope"][0], "cargo:demo");
+        assert_eq!(planned["path"], "rust/tests/fixtures/hello/Cargo.toml");
+        assert!(
+            planned["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("Widen cargo:demo to 1.2.3")),
+            "{planned}"
+        );
+        let finished = events.last().expect("finished");
+        assert_eq!(finished["event"], "command_finished");
+        assert_eq!(finished["exit_code"], 0);
+        assert_eq!(
+            std::fs::read_to_string(
+                harness
+                    .workspace
+                    .join("rust/tests/fixtures/hello/Cargo.toml")
+            )
+            .expect("read"),
+            "[dependencies]\ndemo = \"1\"\n"
         );
     }
 

@@ -28,6 +28,17 @@ pub(crate) fn check_stdout_write(result: io::Result<()>) -> Result<(), i32> {
     result.map_err(|error| stdout_io_code(&error))
 }
 
+const OFFLINE_MARKER: &str = " (offline, cache-only)";
+
+/// Marks one summary line as cache-only when the invocation ran offline.
+pub(crate) fn offline_summary(summary: String, offline: bool) -> String {
+    if offline {
+        format!("{summary}{OFFLINE_MARKER}")
+    } else {
+        summary
+    }
+}
+
 pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
     out.flush().map_err(|error| stdout_io_code(&error))
 }
@@ -678,6 +689,18 @@ mod tests {
         let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("bad");
         assert_eq!(code, CODE_INVALID_BEP);
         assert!(message.contains("invalid build events"), "{message}");
+    }
+
+    #[test]
+    fn offline_summary_marks_only_offline_invocations() {
+        assert_eq!(
+            offline_summary("Running audit security for //...".to_owned(), true),
+            "Running audit security for //... (offline, cache-only)"
+        );
+        assert_eq!(
+            offline_summary("Running audit security for //...".to_owned(), false),
+            "Running audit security for //..."
+        );
     }
 
     #[test]

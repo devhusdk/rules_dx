@@ -895,10 +895,10 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         .join("+");
     let effective = request.effective_scopes();
     let scopes = effective.join(", ");
-    let mut summary = format!("Running audit {families} for {scopes}");
-    if invocation.offline {
-        summary.push_str(" (offline, cache-only)");
-    }
+    let summary = offline_summary(
+        format!("Running audit {families} for {scopes}"),
+        invocation.offline,
+    );
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);

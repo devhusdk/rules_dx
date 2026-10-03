@@ -358,11 +358,12 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let harness = Harness::new("update-offline-dryrun");
     let (code, out, err) = harness.run(&["update", "--offline", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(
-        out.contains("Running update for all dependency sets"),
+    assert_eq!(
+        out,
+        "Running update for all dependency sets (offline, cache-only)\n\
+         Would update preset fragment\n",
         "{out}"
     );
-    assert!(out.contains("offline, cache-only"), "{out}");
     assert_eq!(err, "", "{err}");
     assert!(
         harness.seen_env.borrow().is_empty(),
@@ -371,7 +372,20 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let alias = Harness::new("update-frozen-dryrun");
     let (code, out, err) = alias.run(&["update", "--frozen", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("offline, cache-only"), "{out}");
+    assert_eq!(
+        out,
+        "Running update for all dependency sets (offline, cache-only)\n\
+         Would update preset fragment\n",
+        "{out}"
+    );
+    let online = Harness::new("update-online-dryrun");
+    let (code, out, err) = online.run(&["update", "--dry-run"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(
+        out, "Running update for all dependency sets\nWould update preset fragment\n",
+        "{out}"
+    );
+    assert_eq!(err, "", "{err}");
 }
 
 #[test]

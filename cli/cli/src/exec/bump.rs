@@ -35,10 +35,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(request) => request,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let mut summary = request.summary();
-    if invocation.offline {
-        summary.push_str(" (offline, cache-only)");
-    }
+    let summary = offline_summary(request.summary(), invocation.offline);
     let verbose = invocation.chatty();
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
@@ -518,6 +515,14 @@ fn bump_offline_failed(
 mod tests {
     use super::super::test_support::*;
 
+    const CARGO_MANIFEST: &str = "rust/tests/fixtures/hello/Cargo.toml";
+    const ANYHOW_REQUIREMENT: &str = "[dependencies]\nanyhow = \"1\"\n";
+    const BUMP_SUMMARY: &str =
+        "Widen cargo:anyhow to 1.2.3 in rust/tests/fixtures/hello/Cargo.toml \
+(then refresh via `dx update cargo` automatically); if major bump, run `dx migrate --from <old> \
+--to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 \
+missing-versions)";
+
     #[test]
     fn unreadable_and_non_utf8_manifests_fail_without_refresh() {
         for json in [false, true] {
@@ -669,22 +674,18 @@ mod tests {
     #[test]
     fn dry_run_plans_without_writing() {
         let harness = Harness::new("bump-dryrun");
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.toml",
-            "[dependencies]\nanyhow = \"1\"\n",
-        );
+        harness.write_source(CARGO_MANIFEST, ANYHOW_REQUIREMENT);
         let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3", "--dry-run"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("Widen cargo:anyhow"), "{out}");
+        assert_eq!(out, format!("{BUMP_SUMMARY}\n"), "{out}");
         assert_eq!(err, "", "{err}");
+        assert!(
+            harness.seen_env.borrow().is_empty(),
+            "dry-run launches nothing"
+        );
         assert_eq!(
-            std::fs::read_to_string(
-                harness
-                    .workspace
-                    .join("rust/tests/fixtures/hello/Cargo.toml")
-            )
-            .expect("read"),
-            "[dependencies]\nanyhow = \"1\"\n"
+            std::fs::read_to_string(harness.workspace.join(CARGO_MANIFEST)).expect("read"),
+            ANYHOW_REQUIREMENT
         );
     }
 
@@ -891,34 +892,6 @@ mod tests {
         assert!(
             harness.seen_env.borrow().is_empty(),
             "file-only chains nothing"
-        );
-    }
-
-    #[test]
-    fn dry_run_chains_without_launch_or_write() {
-        let harness = Harness::new("bump-dryrun-chain");
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.toml",
-            "[dependencies]\nanyhow = \"1\"\n",
-        );
-        let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("Widen cargo:anyhow"), "{out}");
-        assert!(out.contains("dx update cargo"), "{out}");
-        assert!(out.contains("automatically"), "{out}");
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "dry-run launches nothing"
-        );
-        assert_eq!(
-            std::fs::read_to_string(
-                harness
-                    .workspace
-                    .join("rust/tests/fixtures/hello/Cargo.toml")
-            )
-            .expect("read"),
-            "[dependencies]\nanyhow = \"1\"\n"
         );
     }
 
@@ -1199,27 +1172,23 @@ mod tests {
     #[test]
     fn offline_dry_run_plans_cache_only_without_writing() {
         let harness = Harness::new("bump-offline-dryrun");
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.toml",
-            "[dependencies]\nanyhow = \"1\"\n",
-        );
+        harness.write_source(CARGO_MANIFEST, ANYHOW_REQUIREMENT);
         let (code, out, err) =
             harness.run(&["bump", "cargo:anyhow", "1.2.3", "--offline", "--dry-run"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("offline, cache-only"), "{out}");
+        assert_eq!(
+            out,
+            format!("{BUMP_SUMMARY} (offline, cache-only)\n"),
+            "{out}"
+        );
         assert_eq!(err, "", "{err}");
         assert!(
             harness.seen_env.borrow().is_empty(),
             "offline dry-run launches nothing"
         );
         assert_eq!(
-            std::fs::read_to_string(
-                harness
-                    .workspace
-                    .join("rust/tests/fixtures/hello/Cargo.toml")
-            )
-            .expect("read"),
-            "[dependencies]\nanyhow = \"1\"\n"
+            std::fs::read_to_string(harness.workspace.join(CARGO_MANIFEST)).expect("read"),
+            ANYHOW_REQUIREMENT
         );
     }
 

@@ -1389,8 +1389,10 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let harness = Harness::new("audit-offline-dryrun");
     let (code, out, err) = harness.run(&["security", "--offline", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("Running audit security for //..."), "{out}");
-    assert!(out.contains("offline, cache-only"), "{out}");
+    assert_eq!(
+        out, "Running audit security for //... (offline, cache-only)\n",
+        "{out}"
+    );
     assert_eq!(err, "", "{err}");
     assert!(
         harness.seen_env.borrow().is_empty(),
@@ -1399,7 +1401,15 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let alias = Harness::new("audit-frozen-dryrun");
     let (code, out, err) = alias.run(&["license", "--frozen", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("offline, cache-only"), "{out}");
+    assert_eq!(
+        out, "Running audit license for //... (offline, cache-only)\n",
+        "{out}"
+    );
+    let online = Harness::new("audit-online-dryrun");
+    let (code, out, err) = online.run(&["security", "--dry-run"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(out, "Running audit security for //...\n", "{out}");
+    assert_eq!(err, "", "{err}");
 }
 
 #[test]

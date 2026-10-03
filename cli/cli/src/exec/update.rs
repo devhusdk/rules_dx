@@ -93,10 +93,7 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let mut summary = display_summary(&resolved);
-    if invocation.offline {
-        summary.push_str(" (offline, cache-only)");
-    }
+    let summary = offline_summary(display_summary(&resolved), invocation.offline);
     if invocation.dry_run {
         return emit_update_dry_run(invocation, out, &summary, verbose);
     }

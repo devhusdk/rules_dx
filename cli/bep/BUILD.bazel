@@ -14,7 +14,6 @@ dx_rust_crate(
     srcs = [
         "src/lib.rs",
         "src/outputs.rs",
-        "src/remote.rs",
         "src/test_outputs.rs",
     ],
     dev_deps = ["tempfile"],

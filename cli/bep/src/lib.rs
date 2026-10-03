@@ -9,11 +9,9 @@
 )]
 
 pub mod outputs;
-pub mod remote;
 pub mod test_outputs;
 
 pub use outputs::{collect, collect_with_workspace};
-pub use remote::{Downloader, LocalDownloader, RemoteConfig, UNWIRED_REMOTE_FLAGS};
 pub use test_outputs::{collect_test_outputs, collect_test_outputs_with_workspace, TestOutputFile};
 
 use std::path::{Path, PathBuf};

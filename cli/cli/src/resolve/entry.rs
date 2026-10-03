@@ -85,6 +85,7 @@ pub fn resolve_for_test(
 mod tests {
     use super::*;
     use crate::resolve::{NeverQuery, QueryResult, QueryRunner};
+    use crate::test_support::strings;
     use std::cell::RefCell;
     use std::path::PathBuf;
 
@@ -122,11 +123,6 @@ mod tests {
             Ok(self.outputs.borrow_mut().remove(0))
         }
     }
-
-    fn scopes(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
-
     fn write(workspace: &Path, rel: &str, text: &str) {
         let full = workspace.join(rel);
         std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
@@ -143,11 +139,11 @@ mod tests {
             FakeQuery::ok("//pkg:lib\n"),
             FakeQuery::ok("//pkg:unit\n"),
         ]);
-        let got = resolve_for_test(&scopes(&["pkg/a.py", "//other/..."]), &workspace, &query)
+        let got = resolve_for_test(&strings(&["pkg/a.py", "//other/..."]), &workspace, &query)
             .expect("resolve");
         assert_eq!(
             got.targets,
-            scopes(&["//other/...", "//pkg:unit"]),
+            strings(&["//other/...", "//pkg:unit"]),
             "owners are replaced by mapped tests"
         );
         assert_eq!(
@@ -162,10 +158,10 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let got = resolve_for_test(&scopes(&["//a:one", "//b/..."]), &workspace, &query)
+        let got = resolve_for_test(&strings(&["//a:one", "//b/..."]), &workspace, &query)
             .expect("resolve");
-        assert_eq!(got.targets, scopes(&["//a:one", "//b/..."]));
-        assert_eq!(got.scope, Scope::Labels(scopes(&["//a:one", "//b/..."])));
+        assert_eq!(got.targets, strings(&["//a:one", "//b/..."]));
+        assert_eq!(got.scope, Scope::Labels(strings(&["//a:one", "//b/..."])));
     }
 
     #[test]
@@ -174,7 +170,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = NeverQuery;
-        let got = resolve_for_test(&scopes(&["app"]), &workspace, &query).expect("dir");
-        assert_eq!(got.targets, scopes(&["//app/..."]));
+        let got = resolve_for_test(&strings(&["app"]), &workspace, &query).expect("dir");
+        assert_eq!(got.targets, strings(&["//app/..."]));
     }
 }

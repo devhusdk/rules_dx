@@ -131,23 +131,20 @@ mod tests {
     use crate::args::{parse, ArgsError};
     use crate::plan::{CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG};
     use crate::resolve::{resolve, QueryResult, QueryRunner};
+    use crate::test_support::strings;
     use dx_process::Scope;
     use std::cell::RefCell;
     use std::io;
     use std::path::{Path, PathBuf};
-
-    fn options(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
 
     fn resolved(targets: &[&str]) -> ResolvedScope {
         ResolvedScope {
             scope: if targets.is_empty() {
                 Scope::Repository
             } else {
-                Scope::Labels(options(targets))
+                Scope::Labels(strings(targets))
             },
-            targets: options(targets),
+            targets: strings(targets),
         }
     }
 
@@ -187,7 +184,7 @@ mod tests {
         let plan = plan_build(
             Command::Lint,
             &resolved(&[]),
-            &options(&["--jobs=4"]),
+            &strings(&["--jobs=4"]),
             "/tmp/bep.json",
         )
         .expect("plan");
@@ -269,8 +266,8 @@ mod tests {
     #[test]
     fn resolved_owners_render_sorted_owners_in_summary() {
         let scope = ResolvedScope {
-            scope: Scope::ResolvedOwners(options(&["//a:a", "//b:b"])),
-            targets: options(&["//a:a", "//b:b"]),
+            scope: Scope::ResolvedOwners(strings(&["//a:a", "//b:b"])),
+            targets: strings(&["//a:a", "//b:b"]),
         };
         let plan = plan_build(Command::Lint, &scope, &[], "/tmp/bep.json").expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
@@ -313,10 +310,10 @@ mod tests {
         std::fs::write(root.join("pkg/a.py"), "x = 1\n").expect("source file");
         let forward = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:extra\n")]);
         let reversed = FakeQuery::new(vec![FakeQuery::ok("//pkg:extra\n//pkg:lib\n")]);
-        let first = resolve(&options(&["pkg/a.py"]), &root, &forward).expect("forward");
-        let second = resolve(&options(&["pkg/a.py"]), &root, &reversed).expect("reversed");
+        let first = resolve(&strings(&["pkg/a.py"]), &root, &forward).expect("forward");
+        let second = resolve(&strings(&["pkg/a.py"]), &root, &reversed).expect("reversed");
         assert_eq!(first.targets, second.targets);
-        assert_eq!(first.targets, options(&["//pkg:extra", "//pkg:lib"]));
+        assert_eq!(first.targets, strings(&["//pkg:extra", "//pkg:lib"]));
         let first_plan =
             plan_build(Command::Lint, &first, &[], "/tmp/bep.json").expect("forward plan");
         let second_plan =
@@ -344,7 +341,7 @@ mod tests {
         let plan = plan_build(
             Command::Lint,
             &resolved(&[]),
-            &options(&["--keep_going"]),
+            &strings(&["--keep_going"]),
             "/tmp/bep.json",
         )
         .expect("plan");
@@ -366,7 +363,7 @@ mod tests {
             let err = plan_build(
                 Command::Lint,
                 &resolved(&[]),
-                &options(&[conflicting]),
+                &strings(&[conflicting]),
                 "/tmp/bep.json",
             )
             .expect_err("conflict must fail");
@@ -382,7 +379,7 @@ mod tests {
             let err = plan_build(
                 Command::Typecheck,
                 &resolved(&[]),
-                &options(&[conflicting]),
+                &strings(&[conflicting]),
                 "/tmp/bep.json",
             )
             .expect_err("conflict must fail");
@@ -398,7 +395,7 @@ mod tests {
         let err = plan_build(
             Command::Lint,
             &resolved(&[]),
-            &options(&["--home_rc"]),
+            &strings(&["--home_rc"]),
             "/tmp/bep.json",
         )
         .expect_err("startup option must fail");
@@ -407,20 +404,20 @@ mod tests {
 
     #[test]
     fn unsupported_report_format_fails_with_command_registry() {
-        let invocation = parse(&options(&["lint", "--report=junit=out.xml"])).expect("parse");
+        let invocation = parse(&strings(&["lint", "--report=junit=out.xml"])).expect("parse");
         let entry = spec(invocation.command);
         assert!(
             !entry.accepts_report(&invocation.reports[0].format),
             "junit is not a lint report: {invocation:?}"
         );
-        let invocation = parse(&options(&["format", "--report=sarif=out.sarif"])).expect("parse");
+        let invocation = parse(&strings(&["format", "--report=sarif=out.sarif"])).expect("parse");
         let entry = spec(invocation.command);
         assert!(
             !entry.accepts_report(&invocation.reports[0].format),
             "format has no standard report: {invocation:?}"
         );
         let words = ["lint", "--report=sarif"];
-        let error = parse(&options(&words)).unwrap_err();
+        let error = parse(&strings(&words)).unwrap_err();
         let ArgsError::Usage { text } = &error else {
             panic!("--report=sarif: want Usage, got {error:?}");
         };

@@ -230,6 +230,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
     use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET, DOCS_CHECK_TARGET};
+    use crate::test_support::strings;
 
     #[test]
     fn docs_explicit_scopes_and_process_failures_keep_exit_contract() {
@@ -335,19 +336,15 @@ mod tests {
 
     #[test]
     fn docs_port_requires_serve() {
-        let args: Vec<String> = ["docs", "--port=8080"]
-            .iter()
-            .map(ToString::to_string)
-            .collect();
-        let err = crate::args::parse(&args).expect_err("port without serve must fail");
+        let err = crate::args::parse(&strings(&["docs", "--port=8080"]))
+            .expect_err("port without serve must fail");
         assert!(err.to_string().contains("--port"), "{err}");
         for words in [
             vec!["docs", "--host=example.test"],
             vec!["docs", "--open"],
             vec!["docs", "--port=0", "--serve"],
         ] {
-            let args: Vec<String> = words.iter().map(ToString::to_string).collect();
-            assert!(crate::args::parse(&args).is_err(), "{words:?}");
+            assert!(crate::args::parse(&strings(&words)).is_err(), "{words:?}");
         }
     }
 

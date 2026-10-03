@@ -58,21 +58,18 @@ pub fn plan_deploy_run(
 mod tests {
     use super::*;
     use crate::args::Profile;
-
-    fn options(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
+    use crate::test_support::strings;
 
     #[test]
     fn run_targets_share_single_builder() {
-        let single = plan_run("//app:bin", &options(&["--port=8080"]), Profile::Dev);
+        let single = plan_run("//app:bin", &strings(&["--port=8080"]), Profile::Dev);
         let multi = plan_run_targets(
-            &options(&["//app:bin"]),
-            &options(&["--port=8080"]),
+            &strings(&["//app:bin"]),
+            &strings(&["--port=8080"]),
             Profile::Dev,
         );
         assert_eq!(single, multi);
-        let joined = plan_run_targets(&options(&["//a:one", "//b:two"]), &[], Profile::Dev);
+        let joined = plan_run_targets(&strings(&["//a:one", "//b:two"]), &[], Profile::Dev);
         assert_eq!(
             joined.argv.last(),
             Some(&"//b:two".to_owned()),
@@ -83,10 +80,10 @@ mod tests {
 
     #[test]
     fn run_plan_forwards_app_args_verbatim() {
-        let plan = plan_run("//app:bin", &options(&["--port=8080"]), Profile::Dev);
+        let plan = plan_run("//app:bin", &strings(&["--port=8080"]), Profile::Dev);
         assert_eq!(
             plan.argv,
-            options(&[
+            strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",

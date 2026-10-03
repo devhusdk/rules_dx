@@ -1,10 +1,7 @@
 use super::super::{Command, FileDefaults};
 use super::parse_with;
+use crate::test_support::strings;
 use dx_output::{ColorMode, OutputMode, Threshold};
-
-fn args(words: &[&str]) -> Vec<String> {
-    words.iter().map(ToString::to_string).collect()
-}
 
 fn env_of<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
     move |name| {
@@ -37,7 +34,7 @@ fn file_with(
 #[test]
 fn flag_only_parses_with_builtin_defaults() {
     let empty = FileDefaults::default();
-    let got = parse_with(&args(&["lint"]), &env_of(&[]), &empty).expect("parse");
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &empty).expect("parse");
     assert_eq!(got.command, Command::Lint);
     assert_eq!(got.workspace, None);
     assert!(!got.verbose);
@@ -59,7 +56,7 @@ fn env_supplies_workspace_output_and_bools() {
         ("DX_DRY_RUN", "on"),
         ("DX_FAIL_ON", "error"),
     ]);
-    let got = parse_with(&args(&["lint"]), &env, &empty).expect("env parse");
+    let got = parse_with(&strings(&["lint"]), &env, &empty).expect("env parse");
     assert_eq!(got.workspace, Some("/repo".to_owned()));
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.verbose);
@@ -79,7 +76,7 @@ fn file_supplies_defaults_when_flag_and_env_absent() {
         Some(true),
         Some("error"),
     );
-    let got = parse_with(&args(&["lint"]), &env_of(&[]), &file).expect("file parse");
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("file parse");
     assert_eq!(got.workspace, Some("/file-ws".to_owned()));
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.verbose);
@@ -100,23 +97,23 @@ fn precedence_is_flag_over_env_over_file() {
     );
     let env = env_of(&[("DX_WORKSPACE", "/env"), ("DX_OUTPUT", "json")]);
     let got = parse_with(
-        &args(&["lint", "--workspace", "/flag", "--output=text"]),
+        &strings(&["lint", "--workspace", "/flag", "--output=text"]),
         &env,
         &file,
     )
     .expect("flag wins");
     assert_eq!(got.workspace, Some("/flag".to_owned()));
     assert_eq!(got.output, OutputMode::Text { quiet: false });
-    let got = parse_with(&args(&["lint"]), &env, &file).expect("env wins");
+    let got = parse_with(&strings(&["lint"]), &env, &file).expect("env wins");
     assert_eq!(got.workspace, Some("/env".to_owned()));
     assert_eq!(got.output, OutputMode::Json);
     let file_bools = file_with(None, None, Some(true), None, None, None);
-    let got = parse_with(&args(&["lint", "--verbose"]), &env_of(&[]), &file_bools)
+    let got = parse_with(&strings(&["lint", "--verbose"]), &env_of(&[]), &file_bools)
         .expect("flag bool wins");
     assert!(got.verbose);
     let env_true = env_of(&[("DX_VERBOSE", "1")]);
     let got = parse_with(
-        &args(&["lint"]),
+        &strings(&["lint"]),
         &env_true,
         &file_with(None, None, Some(false), None, None, None),
     )
@@ -124,7 +121,7 @@ fn precedence_is_flag_over_env_over_file() {
     assert!(got.verbose);
     let env_false = env_of(&[("DX_VERBOSE", "0")]);
     let got = parse_with(
-        &args(&["lint"]),
+        &strings(&["lint"]),
         &env_false,
         &file_with(None, None, Some(true), None, None, None),
     )
@@ -137,35 +134,35 @@ fn invalid_env_and_file_values_fail_closed() {
     use super::super::ArgsError;
     let env = env_of(&[("DX_OUTPUT", "yaml")]);
     assert_eq!(
-        parse_with(&args(&["lint"]), &env, &FileDefaults::default()),
+        parse_with(&strings(&["lint"]), &env, &FileDefaults::default()),
         Err(ArgsError::BadOutput {
             value: "yaml".to_owned(),
         })
     );
     let env = env_of(&[("DX_FAIL_ON", "never")]);
     assert_eq!(
-        parse_with(&args(&["lint"]), &env, &FileDefaults::default()),
+        parse_with(&strings(&["lint"]), &env, &FileDefaults::default()),
         Err(ArgsError::BadFailOn {
             value: "never".to_owned(),
         })
     );
     let env = env_of(&[("DX_COLOR", "bright")]);
     assert_eq!(
-        parse_with(&args(&["lint"]), &env, &FileDefaults::default()),
+        parse_with(&strings(&["lint"]), &env, &FileDefaults::default()),
         Err(ArgsError::BadColor {
             value: "bright".to_owned(),
         })
     );
     let file = file_with(None, Some("yaml"), None, None, None, None);
     assert_eq!(
-        parse_with(&args(&["lint"]), &env_of(&[]), &file),
+        parse_with(&strings(&["lint"]), &env_of(&[]), &file),
         Err(ArgsError::BadOutput {
             value: "yaml".to_owned(),
         })
     );
     let env = env_of(&[("DX_WORKSPACE", ""), ("DX_OUTPUT", "")]);
     let got =
-        parse_with(&args(&["lint"]), &env, &FileDefaults::default()).expect("empty env absent");
+        parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).expect("empty env absent");
     assert_eq!(got.workspace, None);
     assert_eq!(got.output, OutputMode::Text { quiet: false });
 }
@@ -175,14 +172,14 @@ fn color_flag_env_file_precedence() {
     let mut file = FileDefaults::default();
     file.color = Some("never".to_owned());
     let env = env_of(&[("DX_COLOR", "always")]);
-    let got = parse_with(&args(&["lint", "--color=never"]), &env, &file).expect("flag wins");
+    let got = parse_with(&strings(&["lint", "--color=never"]), &env, &file).expect("flag wins");
     assert_eq!(got.color, ColorMode::Never);
-    let got = parse_with(&args(&["lint"]), &env, &file).expect("env wins");
+    let got = parse_with(&strings(&["lint"]), &env, &file).expect("env wins");
     assert_eq!(got.color, ColorMode::Always);
-    let got = parse_with(&args(&["lint"]), &env_of(&[]), &file).expect("file wins");
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("file wins");
     assert_eq!(got.color, ColorMode::Never);
     assert!(parse_with(
-        &args(&["lint", "--color=bright"]),
+        &strings(&["lint", "--color=bright"]),
         &env_of(&[]),
         &FileDefaults::default()
     )
@@ -192,7 +189,7 @@ fn color_flag_env_file_precedence() {
 #[test]
 fn quiet_flows_into_text_mode() {
     let env = env_of(&[("DX_QUIET", "true")]);
-    let got = parse_with(&args(&["lint"]), &env, &FileDefaults::default()).expect("quiet env");
+    let got = parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).expect("quiet env");
     assert!(got.quiet);
     assert_eq!(got.output, OutputMode::Text { quiet: true });
 }

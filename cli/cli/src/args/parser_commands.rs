@@ -1,12 +1,9 @@
 use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command};
 use super::parse;
+use crate::test_support::strings;
 use clap::ValueEnum;
 use dx_output::OutputMode;
-
-fn args(words: &[&str]) -> Vec<String> {
-    words.iter().map(ToString::to_string).collect()
-}
 
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {
@@ -41,12 +38,12 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
             }
             let mut words = base.clone();
             words.push(option);
-            assert!(parse(&args(&words)).is_err(), "{words:?}");
+            assert!(parse(&strings(&words)).is_err(), "{words:?}");
         }
         if !matches!(command, "generate" | "docs") {
             let mut words = base.clone();
             words.extend(["--", "--keep_going"]);
-            assert!(parse(&args(&words)).is_err(), "{words:?}");
+            assert!(parse(&strings(&words)).is_err(), "{words:?}");
         }
     }
     for words in [
@@ -72,7 +69,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         vec!["migrate", "--from=1.0.0", "--to=2.0.0", ":relative"],
         vec!["--bazel", "bazel", "version"],
     ] {
-        assert!(parse(&args(&words)).is_err(), "{words:?}");
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
 }
 
@@ -420,7 +417,7 @@ fn every_command_but_bazel_rejects_empty_and_relative_scopes() {
         for scope in ["", ":target"] {
             let words = vec![command.name(), scope];
             assert_eq!(
-                parse(&args(&words)),
+                parse(&strings(&words)),
                 Err(scope_error(scope)),
                 "dx {} must reject the scope through the shared check: {words:?}",
                 command.name()
@@ -455,7 +452,7 @@ fn file_defaults_load_from_workspace_and_reject_invalid_toml() {
 
 #[test]
 fn bump_needs_exactly_one_selector_plus_version() {
-    let bump = parse(&args(&["bump", "cargo:anyhow", "1.2.3"])).expect("parse bump");
+    let bump = parse(&strings(&["bump", "cargo:anyhow", "1.2.3"])).expect("parse bump");
     assert_eq!(bump.command, Command::Bump);
     assert_eq!(bump.command.name(), "bump");
     assert!(bump.command.is_audit_update());
@@ -466,50 +463,66 @@ fn bump_needs_exactly_one_selector_plus_version() {
         vec!["cargo:anyhow".to_owned(), "1.2.3".to_owned()]
     );
     assert_eq!(
-        parse(&args(&["bump"])),
+        parse(&strings(&["bump"])),
         Err(ArgsError::MissingValue {
             option: "<set:package> <version>".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["bump", "cargo:anyhow"])),
+        parse(&strings(&["bump", "cargo:anyhow"])),
         Err(ArgsError::MissingValue {
             option: "<set:package> <version>".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["bump", "cargo:anyhow", "1.2.3", "npm:react"])),
+        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "npm:react"])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
             option: "npm:react".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--check"])),
+        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--check"])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
             option: "--check".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--fail-on=error"])),
+        parse(&strings(&[
+            "bump",
+            "cargo:anyhow",
+            "1.2.3",
+            "--fail-on=error"
+        ])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
             option: "--fail-on".to_owned(),
         })
     );
-    let got = parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--output=json"])).expect("bump json");
+    let got = parse(&strings(&[
+        "bump",
+        "cargo:anyhow",
+        "1.2.3",
+        "--output=json",
+    ]))
+    .expect("bump json");
     assert_eq!(got.command, Command::Bump);
     assert_eq!(got.output, OutputMode::Json);
     assert_eq!(
-        parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--output=diff"])),
+        parse(&strings(&[
+            "bump",
+            "cargo:anyhow",
+            "1.2.3",
+            "--output=diff"
+        ])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
             option: "--output=diff".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&[
+        parse(&strings(&[
             "bump",
             "cargo:anyhow",
             "1.2.3",
@@ -521,7 +534,13 @@ fn bump_needs_exactly_one_selector_plus_version() {
         })
     );
     assert_eq!(
-        parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--", "--jobs=4"])),
+        parse(&strings(&[
+            "bump",
+            "cargo:anyhow",
+            "1.2.3",
+            "--",
+            "--jobs=4"
+        ])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
             option: "--".to_owned(),
@@ -531,7 +550,8 @@ fn bump_needs_exactly_one_selector_plus_version() {
 
 #[test]
 fn migrate_needs_from_and_to_versions() {
-    let migrate = parse(&args(&["migrate", "--from=1.2.3", "--to=2.0.0"])).expect("parse migrate");
+    let migrate =
+        parse(&strings(&["migrate", "--from=1.2.3", "--to=2.0.0"])).expect("parse migrate");
     assert_eq!(migrate.command, Command::Migrate);
     assert_eq!(migrate.command.name(), "migrate");
     assert!(!migrate.command.is_audit_update());
@@ -541,38 +561,48 @@ fn migrate_needs_from_and_to_versions() {
     assert_eq!(migrate.from, Some("1.2.3".to_owned()));
     assert_eq!(migrate.to, Some("2.0.0".to_owned()));
     let spaced =
-        parse(&args(&["migrate", "--from", "1.2.3", "--to", "2.0.0"])).expect("spaced parse");
+        parse(&strings(&["migrate", "--from", "1.2.3", "--to", "2.0.0"])).expect("spaced parse");
     assert_eq!(spaced.from, Some("1.2.3".to_owned()));
     assert_eq!(spaced.to, Some("2.0.0".to_owned()));
-    let scoped =
-        parse(&args(&["migrate", "--from=1.2.3", "--to=2.0.0", "//a:one"])).expect("scoped parse");
+    let scoped = parse(&strings(&[
+        "migrate",
+        "--from=1.2.3",
+        "--to=2.0.0",
+        "//a:one",
+    ]))
+    .expect("scoped parse");
     assert_eq!(scoped.targets, vec!["//a:one".to_owned()]);
     assert_eq!(
-        parse(&args(&["migrate", "--from=1.2.3"])),
+        parse(&strings(&["migrate", "--from=1.2.3"])),
         Err(ArgsError::MissingValue {
             option: "--from <version> --to <version>".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["migrate"])),
+        parse(&strings(&["migrate"])),
         Err(ArgsError::MissingValue {
             option: "--from <version> --to <version>".to_owned(),
         })
     );
     assert_usage(
         &["migrate", "--from", "--to=2.0.0"],
-        parse(&args(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
+        parse(&strings(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
         &["--from"],
     );
     assert_eq!(
-        parse(&args(&["migrate", "--from=1.2.3", "--to=2.0.0", "--check"])),
+        parse(&strings(&[
+            "migrate",
+            "--from=1.2.3",
+            "--to=2.0.0",
+            "--check"
+        ])),
         Err(ArgsError::UnsupportedOption {
             command: "migrate",
             option: "--check".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&[
+        parse(&strings(&[
             "migrate",
             "--from=1.2.3",
             "--to=2.0.0",
@@ -584,7 +614,7 @@ fn migrate_needs_from_and_to_versions() {
         })
     );
     assert_eq!(
-        parse(&args(&[
+        parse(&strings(&[
             "migrate",
             "--from=1.2.3",
             "--to=2.0.0",
@@ -596,7 +626,7 @@ fn migrate_needs_from_and_to_versions() {
         })
     );
     assert_eq!(
-        parse(&args(&[
+        parse(&strings(&[
             "migrate",
             "--from=1.2.3",
             "--to=2.0.0",
@@ -609,19 +639,19 @@ fn migrate_needs_from_and_to_versions() {
         })
     );
     let upgrade_ok =
-        parse(&args(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("upgrade parses");
+        parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("upgrade parses");
     assert_eq!(upgrade_ok.command, Command::Upgrade);
     assert_eq!(upgrade_ok.from, Some("1.2.3".to_owned()));
     assert_eq!(upgrade_ok.to, Some("2.0.0".to_owned()));
     assert_eq!(
-        parse(&args(&["lint", "--from=1.0.0"])),
+        parse(&strings(&["lint", "--from=1.0.0"])),
         Err(ArgsError::UnsupportedOption {
             command: "lint",
             option: "--from".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["build", "//a:one", "--to=2.0.0"])),
+        parse(&strings(&["build", "//a:one", "--to=2.0.0"])),
         Err(ArgsError::UnsupportedOption {
             command: "build",
             option: "--to".to_owned(),
@@ -631,29 +661,29 @@ fn migrate_needs_from_and_to_versions() {
 
 #[test]
 fn new_takes_language_plus_optional_name() {
-    let got = parse(&args(&["new", "rust", "demo"])).expect("parse new");
+    let got = parse(&strings(&["new", "rust", "demo"])).expect("parse new");
     assert_eq!(got.command, Command::New);
     assert!(got.command.is_adoption());
     assert!(got.command.is_mutating_by_default());
     assert!(!got.command.supports_json());
     assert_eq!(got.targets, vec!["rust".to_owned(), "demo".to_owned()]);
-    let bare_lang = parse(&args(&["new", "go"])).expect("language only");
+    let bare_lang = parse(&strings(&["new", "go"])).expect("language only");
     assert_eq!(bare_lang.targets, vec!["go".to_owned()]);
     assert_eq!(
-        parse(&args(&["new"])),
+        parse(&strings(&["new"])),
         Err(ArgsError::MissingValue {
             option: "<language>".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["new", "rust", "a", "b"])),
+        parse(&strings(&["new", "rust", "a", "b"])),
         Err(ArgsError::UnsupportedOption {
             command: "new",
             option: "b".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["new", "rust", "--output=json"])),
+        parse(&strings(&["new", "rust", "--output=json"])),
         Err(ArgsError::UnsupportedOption {
             command: "new",
             option: "--output=json".to_owned(),
@@ -663,26 +693,31 @@ fn new_takes_language_plus_optional_name() {
 
 #[test]
 fn upgrade_needs_from_and_to_with_no_scopes() {
-    let got = parse(&args(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("parse upgrade");
+    let got = parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("parse upgrade");
     assert_eq!(got.command, Command::Upgrade);
     assert!(got.command.is_adoption());
     assert!(got.command.is_mutating_by_default());
     assert!(got.command.supports_json());
     assert_eq!(
-        parse(&args(&["upgrade", "--from=1.2.3"])),
+        parse(&strings(&["upgrade", "--from=1.2.3"])),
         Err(ArgsError::MissingValue {
             option: "--from <version> --to <version>".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["upgrade", "--from=1.2.3", "--to=2.0.0", "//a:one"])),
+        parse(&strings(&[
+            "upgrade",
+            "--from=1.2.3",
+            "--to=2.0.0",
+            "//a:one"
+        ])),
         Err(ArgsError::UnsupportedOption {
             command: "upgrade",
             option: "//a:one".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&[
+        parse(&strings(&[
             "upgrade",
             "--from=1.2.3",
             "--to=2.0.0",
@@ -693,7 +728,7 @@ fn upgrade_needs_from_and_to_with_no_scopes() {
             option: "--output=diff".to_owned(),
         })
     );
-    let json = parse(&args(&[
+    let json = parse(&strings(&[
         "upgrade",
         "--from=1.2.3",
         "--to=2.0.0",
@@ -705,24 +740,24 @@ fn upgrade_needs_from_and_to_with_no_scopes() {
 
 #[test]
 fn run_rejects_machine_output_and_reports() {
-    let got = parse(&args(&["run", "//app:bin", "--output=json"])).expect("run json");
+    let got = parse(&strings(&["run", "//app:bin", "--output=json"])).expect("run json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
     assert_eq!(
-        parse(&args(&["run", "//app:bin", "--output=diff"])),
+        parse(&strings(&["run", "//app:bin", "--output=diff"])),
         Err(ArgsError::UnsupportedOption {
             command: "run",
             option: "--output=diff".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["run", "--report=junit=out.xml"])),
+        parse(&strings(&["run", "--report=junit=out.xml"])),
         Err(ArgsError::UnsupportedOption {
             command: "run",
             option: "--report=junit=out.xml".to_owned(),
         })
     );
-    let got = parse(&args(&["run", "//app:bin", "--", "--port=8080"])).expect("parse run");
+    let got = parse(&strings(&["run", "//app:bin", "--", "--port=8080"])).expect("parse run");
     assert_eq!(got.command, Command::Run);
     assert_eq!(got.targets, vec!["//app:bin".to_owned()]);
     assert_eq!(got.bazel_options, vec!["--port=8080".to_owned()]);
@@ -750,14 +785,20 @@ fn output_contract_has_no_silent_ignore() {
         "setup",
         "docs",
     ] {
-        let got = parse(&args(&[command, "--output=json"])).expect("json capable");
+        let got = parse(&strings(&[command, "--output=json"])).expect("json capable");
         assert_eq!(got.output, OutputMode::Json, "command: {command}");
         assert!(got.command.supports_json(), "command: {command}");
     }
-    let got = parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--output=json"])).expect("bump json");
+    let got = parse(&strings(&[
+        "bump",
+        "cargo:anyhow",
+        "1.2.3",
+        "--output=json",
+    ]))
+    .expect("bump json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
-    let got = parse(&args(&[
+    let got = parse(&strings(&[
         "migrate",
         "--from=1.2.3",
         "--to=2.0.0",
@@ -766,7 +807,7 @@ fn output_contract_has_no_silent_ignore() {
     .expect("migrate json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
-    let got = parse(&args(&[
+    let got = parse(&strings(&[
         "upgrade",
         "--from=1.2.3",
         "--to=2.0.0",
@@ -775,23 +816,29 @@ fn output_contract_has_no_silent_ignore() {
     .expect("upgrade json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
-    let got = parse(&args(&["status", "--output=json"])).expect("status json");
+    let got = parse(&strings(&["status", "--output=json"])).expect("status json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Status.supports_json());
-    let got = parse(&args(&["version", "--output=json"])).expect("version json");
+    let got = parse(&strings(&["version", "--output=json"])).expect("version json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Version.supports_json());
-    let got = parse(&args(&["owners", "//a:one", "--output=json"])).expect("owners json");
+    let got = parse(&strings(&["owners", "//a:one", "--output=json"])).expect("owners json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Owners.supports_json());
-    let got = parse(&args(&["deps", "//a:one", "--output=json"])).expect("deps json");
+    let got = parse(&strings(&["deps", "//a:one", "--output=json"])).expect("deps json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Deps.supports_json());
-    let got = parse(&args(&["why", "src/main.rs", "//a:one", "--output=json"])).expect("why json");
+    let got = parse(&strings(&[
+        "why",
+        "src/main.rs",
+        "//a:one",
+        "--output=json",
+    ]))
+    .expect("why json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Why.supports_json());
     for command in ["lint", "typecheck", "format", "generate", "check", "fix"] {
-        let got = parse(&args(&[command, "--output=diff"])).expect("diff capable");
+        let got = parse(&strings(&[command, "--output=diff"])).expect("diff capable");
         assert_eq!(got.output, OutputMode::Diff, "command: {command}");
         assert!(got.command.supports_diff(), "command: {command}");
     }
@@ -815,7 +862,7 @@ fn output_contract_has_no_silent_ignore() {
     ] {
         assert!(
             matches!(
-                parse(&args(&words)),
+                parse(&strings(&words)),
                 Err(ArgsError::UnsupportedOption { .. })
             ),
             "words: {words:?}"
@@ -823,10 +870,10 @@ fn output_contract_has_no_silent_ignore() {
     }
     assert_usage(
         &["--output=json", "bazel", "version"],
-        parse(&args(&["--output=json", "bazel", "version"])).unwrap_err(),
+        parse(&strings(&["--output=json", "bazel", "version"])).unwrap_err(),
         &["--output"],
     );
-    assert_bazel_forwards_verbatim(&args(&["bazel", "version", "--output=json"]));
+    assert_bazel_forwards_verbatim(&strings(&["bazel", "version", "--output=json"]));
     for words in [
         vec!["build", "//a:one", "--output=diff"],
         vec!["test", "//a:one", "--output=diff"],
@@ -850,7 +897,7 @@ fn output_contract_has_no_silent_ignore() {
         vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--output=diff"],
     ] {
         assert_eq!(
-            parse(&args(&words)),
+            parse(&strings(&words)),
             Err(ArgsError::UnsupportedOption {
                 command: words[0],
                 option: "--output=diff".to_owned(),
@@ -862,7 +909,7 @@ fn output_contract_has_no_silent_ignore() {
 
 #[test]
 fn bazel_forwards_verbatim_and_rejects_the_prefix_order() {
-    let got = parse(&args(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
+    let got = parse(&strings(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
     assert_eq!(got.command, Command::Bazel);
     assert_eq!(got.command.name(), "bazel");
     assert!(!got.command.is_adoption());
@@ -882,11 +929,11 @@ fn bazel_forwards_verbatim_and_rejects_the_prefix_order() {
         vec!["bazel", "version", "--configured"],
         vec!["bazel", "--", "--fail-on=error"],
     ] {
-        let got = parse(&args(&words)).expect("verbatim");
+        let got = parse(&strings(&words)).expect("verbatim");
         assert_eq!(got.command, Command::Bazel, "words: {words:?}");
         assert!(got.targets.is_empty(), "words: {words:?}");
     }
-    let got = parse(&args(&["bazel", "build", "--jobs", "4"])).expect("verbatim");
+    let got = parse(&strings(&["bazel", "build", "--jobs", "4"])).expect("verbatim");
     assert_eq!(
         got.bazel_options,
         vec!["build".to_owned(), "--jobs".to_owned(), "4".to_owned()]
@@ -900,18 +947,18 @@ fn bazel_forwards_verbatim_and_rejects_the_prefix_order() {
         vec!["--report=sarif=x.sarif", "bazel", "build"],
     ] {
         let flag = words[0].split('=').next().expect("a flag");
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[flag]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[flag]);
     }
 }
 
 #[test]
 fn version_rollback_check_and_configured_parse() {
-    let got = parse(&args(&["version", "--rollback"])).expect("parse");
+    let got = parse(&strings(&["version", "--rollback"])).expect("parse");
     assert_eq!(got.command, Command::Version);
     assert!(got.rollback);
-    let got = parse(&args(&["version", "--check"])).expect("parse");
+    let got = parse(&strings(&["version", "--check"])).expect("parse");
     assert!(got.check);
-    let got = parse(&args(&["deps", "--configured", "//a:one"])).expect("parse");
+    let got = parse(&strings(&["deps", "--configured", "//a:one"])).expect("parse");
     assert_eq!(got.command, Command::Deps);
     assert!(got.configured);
     for words in [
@@ -925,7 +972,7 @@ fn version_rollback_check_and_configured_parse() {
     ] {
         assert!(
             matches!(
-                parse(&args(&words)),
+                parse(&strings(&words)),
                 Err(ArgsError::UnsupportedOption { .. })
             ),
             "words: {words:?}"
@@ -935,30 +982,31 @@ fn version_rollback_check_and_configured_parse() {
 
 #[test]
 fn docs_check_serve_port_parse() {
-    let got = parse(&args(&["docs"])).expect("bare docs parses");
+    let got = parse(&strings(&["docs"])).expect("bare docs parses");
     assert_eq!(got.command, Command::Docs);
     assert!(!got.check);
     assert!(!got.serve);
     assert_eq!(got.port, None);
     assert_eq!(got.host, None);
     assert!(!got.open);
-    let got = parse(&args(&["docs", "--check"])).expect("check parses");
+    let got = parse(&strings(&["docs", "--check"])).expect("check parses");
     assert!(got.check);
-    let got = parse(&args(&["docs", "--serve"])).expect("serve parses");
+    let got = parse(&strings(&["docs", "--serve"])).expect("serve parses");
     assert!(got.serve);
     assert_eq!(got.port, None);
-    let got = parse(&args(&["docs", "--serve", "--port=8080"])).expect("port parses");
+    let got = parse(&strings(&["docs", "--serve", "--port=8080"])).expect("port parses");
     assert!(got.serve);
     assert_eq!(got.port, Some(8080));
-    let got = parse(&args(&["docs", "--check", "--serve", "--port", "9000"])).expect("split port");
+    let got =
+        parse(&strings(&["docs", "--check", "--serve", "--port", "9000"])).expect("split port");
     assert!(got.check);
     assert!(got.serve);
     assert_eq!(got.port, Some(9000));
-    let got = parse(&args(&["docs", "--serve", "--host=example.test"])).expect("host parses");
+    let got = parse(&strings(&["docs", "--serve", "--host=example.test"])).expect("host parses");
     assert_eq!(got.host, Some("example.test".to_owned()));
-    let got = parse(&args(&["docs", "--serve", "--host", "example.test"])).expect("split host");
+    let got = parse(&strings(&["docs", "--serve", "--host", "example.test"])).expect("split host");
     assert_eq!(got.host, Some("example.test".to_owned()));
-    let got = parse(&args(&["docs", "--serve", "--open"])).expect("open parses");
+    let got = parse(&strings(&["docs", "--serve", "--open"])).expect("open parses");
     assert!(got.open);
     for words in [
         vec!["docs", "--port=8080"],
@@ -982,7 +1030,7 @@ fn docs_check_serve_port_parse() {
     ] {
         assert!(
             matches!(
-                parse(&args(&words)),
+                parse(&strings(&words)),
                 Err(ArgsError::UnsupportedOption { .. })
                     | Err(ArgsError::MissingValue { .. })
                     | Err(ArgsError::UnknownOption { .. })
@@ -991,31 +1039,32 @@ fn docs_check_serve_port_parse() {
             "words: {words:?}"
         );
     }
-    let got = parse(&args(&["docs", "--", "--jobs=4"])).expect("docs forwards command options");
-    assert_eq!(got.bazel_options, args(&["--jobs=4"]));
-    let got = parse(&args(&["docs", "--check", "--", "--config=ci"])).expect("docs check forwards");
+    let got = parse(&strings(&["docs", "--", "--jobs=4"])).expect("docs forwards command options");
+    assert_eq!(got.bazel_options, strings(&["--jobs=4"]));
+    let got =
+        parse(&strings(&["docs", "--check", "--", "--config=ci"])).expect("docs check forwards");
     assert!(got.check);
-    assert_eq!(got.bazel_options, args(&["--config=ci"]));
+    assert_eq!(got.bazel_options, strings(&["--config=ci"]));
 }
 
 #[test]
 fn color_parses_globally_with_bad_values_rejected() {
     use dx_output::ColorMode;
-    let got = parse(&args(&["lint"])).expect("default color");
+    let got = parse(&strings(&["lint"])).expect("default color");
     assert_eq!(got.color, ColorMode::Auto);
-    let got = parse(&args(&["lint", "--color=never"])).expect("never parses");
+    let got = parse(&strings(&["lint", "--color=never"])).expect("never parses");
     assert_eq!(got.color, ColorMode::Never);
-    let got = parse(&args(&["lint", "--color=always"])).expect("always parses");
+    let got = parse(&strings(&["lint", "--color=always"])).expect("always parses");
     assert_eq!(got.color, ColorMode::Always);
     assert_eq!(
-        parse(&args(&["lint", "--color=bright"])),
+        parse(&strings(&["lint", "--color=bright"])),
         Err(ArgsError::BadColor {
             value: "bright".to_owned(),
         })
     );
     assert_usage(
         &["lint", "--color"],
-        parse(&args(&["lint", "--color"])).unwrap_err(),
+        parse(&strings(&["lint", "--color"])).unwrap_err(),
         &["--color"],
     );
 }
@@ -1023,25 +1072,25 @@ fn color_parses_globally_with_bad_values_rejected() {
 #[test]
 fn managed_commands_parse_repo_and_exact_scopes() {
     for command in ["codegen", "env", "setup"] {
-        let got = parse(&args(&[command])).expect("parse");
+        let got = parse(&strings(&[command])).expect("parse");
         assert!(got.command.is_managed());
         assert!(got.targets.is_empty());
         assert!(got.bazel_options.is_empty());
-        let got = parse(&args(&[command, "//a:one", "--", "--jobs=4"])).expect("scoped parse");
-        assert_eq!(got.targets, args(&["//a:one"]));
-        assert_eq!(got.bazel_options, args(&["--jobs=4"]));
-        let got = parse(&args(&[command, "@repo//pkg:lib"])).expect("external label");
-        assert_eq!(got.targets, args(&["@repo//pkg:lib"]));
+        let got = parse(&strings(&[command, "//a:one", "--", "--jobs=4"])).expect("scoped parse");
+        assert_eq!(got.targets, strings(&["//a:one"]));
+        assert_eq!(got.bazel_options, strings(&["--jobs=4"]));
+        let got = parse(&strings(&[command, "@repo//pkg:lib"])).expect("external label");
+        assert_eq!(got.targets, strings(&["@repo//pkg:lib"]));
     }
     assert_eq!(
-        parse(&args(&["codegen", "//a:one", "//b:two"])),
+        parse(&strings(&["codegen", "//a:one", "//b:two"])),
         Err(ArgsError::UnsupportedOption {
             command: "codegen",
             option: "//b:two".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["setup", "//a:one", "//b:two"])),
+        parse(&strings(&["setup", "//a:one", "//b:two"])),
         Err(ArgsError::UnsupportedOption {
             command: "setup",
             option: "//b:two".to_owned(),
@@ -1056,7 +1105,7 @@ fn managed_commands_parse_repo_and_exact_scopes() {
     ] {
         assert!(
             matches!(
-                parse(&args(&words)),
+                parse(&strings(&words)),
                 Err(ArgsError::EmptyScope)
                     | Err(ArgsError::RelativeLabel { .. })
                     | Err(ArgsError::InvalidScope { .. })
@@ -1080,7 +1129,7 @@ fn managed_commands_parse_repo_and_exact_scopes() {
     ] {
         assert!(
             matches!(
-                parse(&args(&words)),
+                parse(&strings(&words)),
                 Err(ArgsError::UnsupportedOption { .. })
             ),
             "words: {words:?}"
@@ -1090,7 +1139,7 @@ fn managed_commands_parse_repo_and_exact_scopes() {
 
 #[test]
 fn why_requires_file_and_label() {
-    let got = parse(&args(&["why", "src/a.rs", "//a:one"])).expect("parse");
+    let got = parse(&strings(&["why", "src/a.rs", "//a:one"])).expect("parse");
     assert_eq!(got.command, Command::Why);
     assert_eq!(
         got.targets,
@@ -1101,7 +1150,7 @@ fn why_requires_file_and_label() {
         vec!["why", "src/a.rs", "//a:one", "//b:two"],
     ] {
         assert_eq!(
-            parse(&args(&words)),
+            parse(&strings(&words)),
             if words.len() < 3 {
                 Err(ArgsError::MissingValue {
                     option: "<file> <label>".to_owned(),
@@ -1124,7 +1173,7 @@ fn init_and_hooks_have_no_force_flag() {
         vec!["init", "--force", "demo"],
         vec!["hooks", "install", "--force"],
     ] {
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--force"]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--force"]);
     }
 }
 
@@ -1144,13 +1193,13 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         "fix",
         "docs",
     ] {
-        let got = parse(&args(&[command, "--here"])).expect("here parses");
+        let got = parse(&strings(&[command, "--here"])).expect("here parses");
         assert!(got.here, "command: {command}");
         assert!(got.targets.is_empty(), "command: {command}");
         assert!(got.command.supports_here(), "command: {command}");
-        let alias = parse(&args(&[command, "--cwd"])).expect("cwd alias parses");
+        let alias = parse(&strings(&[command, "--cwd"])).expect("cwd alias parses");
         assert!(alias.here, "command: {command}");
-        let bare = parse(&args(&[command])).expect("bare parses");
+        let bare = parse(&strings(&[command])).expect("bare parses");
         assert!(!bare.here, "command: {command}");
         assert!(bare.targets.is_empty(), "command: {command}");
     }
@@ -1162,7 +1211,7 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         vec!["license", "cli/cli", "--here"],
     ] {
         assert_eq!(
-            parse(&args(&words)),
+            parse(&strings(&words)),
             Err(ArgsError::ConflictingHere),
             "words: {words:?}"
         );
@@ -1183,7 +1232,7 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         vec!["completion", "bash", "--here"],
     ] {
         assert_eq!(
-            parse(&args(&words)),
+            parse(&strings(&words)),
             Err(ArgsError::UnsupportedOption {
                 command: words[0],
                 option: "--here".to_owned(),
@@ -1191,43 +1240,43 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
             "words: {words:?}"
         );
     }
-    let verbatim = parse(&args(&["bazel", "build", "--here"])).expect("verbatim");
+    let verbatim = parse(&strings(&["bazel", "build", "--here"])).expect("verbatim");
     assert_eq!(verbatim.command, Command::Bazel);
     assert!(!verbatim.here);
     assert_usage(
         &["--here", "bazel", "version"],
-        parse(&args(&["--here", "bazel", "version"])).unwrap_err(),
+        parse(&strings(&["--here", "bazel", "version"])).unwrap_err(),
         &["--here"],
     );
 }
 
 #[test]
 fn completion_check_verifies_without_writing() {
-    let one = parse(&args(&["completion", "bash", "--check"])).expect("one shell check");
+    let one = parse(&strings(&["completion", "bash", "--check"])).expect("one shell check");
     assert_eq!(one.command, Command::Completion);
     assert!(one.check);
     assert_eq!(one.targets, vec!["bash".to_owned()]);
-    let all = parse(&args(&["completion", "--check"])).expect("all shells check");
+    let all = parse(&strings(&["completion", "--check"])).expect("all shells check");
     assert_eq!(all.command, Command::Completion);
     assert!(all.check);
     assert!(all.targets.is_empty());
-    let plain = parse(&args(&["completion", "bash"])).expect("plain renders");
+    let plain = parse(&strings(&["completion", "bash"])).expect("plain renders");
     assert!(!plain.check);
     assert_eq!(
-        parse(&args(&["completion", "bash", "zsh", "--check"])),
+        parse(&strings(&["completion", "bash", "zsh", "--check"])),
         Err(ArgsError::UnsupportedOption {
             command: "completion",
             option: "zsh".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["completion"])),
+        parse(&strings(&["completion"])),
         Err(ArgsError::MissingValue {
             option: "<shell>".to_owned(),
         })
     );
     assert!(matches!(
-        parse(&args(&["status", "--check"])),
+        parse(&strings(&["status", "--check"])),
         Err(ArgsError::UnsupportedOption { .. })
     ));
 }
@@ -1235,21 +1284,22 @@ fn completion_check_verifies_without_writing() {
 #[test]
 fn offline_forces_cache_only_on_audit_update_bump() {
     for command in ["security", "license", "update"] {
-        let got = parse(&args(&[command, "--offline"])).expect("offline parses");
+        let got = parse(&strings(&[command, "--offline"])).expect("offline parses");
         assert!(got.offline, "command: {command}");
         assert!(got.command.supports_offline(), "command: {command}");
-        let alias = parse(&args(&[command, "--frozen"])).expect("frozen alias parses");
+        let alias = parse(&strings(&[command, "--frozen"])).expect("frozen alias parses");
         assert!(alias.offline, "command: {command}");
-        let bare = parse(&args(&[command])).expect("bare parses");
+        let bare = parse(&strings(&[command])).expect("bare parses");
         assert!(!bare.offline, "command: {command}");
     }
-    let bump = parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--offline"])).expect("bump offline");
+    let bump =
+        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--offline"])).expect("bump offline");
     assert!(bump.offline);
     assert!(bump.command.supports_offline());
     let bump_alias =
-        parse(&args(&["bump", "cargo:anyhow", "1.2.3", "--frozen"])).expect("bump frozen");
+        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--frozen"])).expect("bump frozen");
     assert!(bump_alias.offline);
-    let dry = parse(&args(&["update", "--offline", "--dry-run"])).expect("offline dry-run");
+    let dry = parse(&strings(&["update", "--offline", "--dry-run"])).expect("offline dry-run");
     assert!(dry.offline);
     assert!(dry.dry_run);
     for words in [
@@ -1262,7 +1312,7 @@ fn offline_forces_cache_only_on_audit_update_bump() {
         vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--offline"],
     ] {
         assert_eq!(
-            parse(&args(&words)),
+            parse(&strings(&words)),
             Err(ArgsError::UnsupportedOption {
                 command: words[0],
                 option: "--offline".to_owned(),
@@ -1270,17 +1320,17 @@ fn offline_forces_cache_only_on_audit_update_bump() {
             "words: {words:?}"
         );
     }
-    let verbatim = parse(&args(&["bazel", "build", "--offline"])).expect("verbatim");
+    let verbatim = parse(&strings(&["bazel", "build", "--offline"])).expect("verbatim");
     assert_eq!(verbatim.command, Command::Bazel);
     assert!(!verbatim.offline);
     assert_usage(
         &["--offline", "bazel", "version"],
-        parse(&args(&["--offline", "bazel", "version"])).unwrap_err(),
+        parse(&strings(&["--offline", "bazel", "version"])).unwrap_err(),
         &["--offline"],
     );
     assert_usage(
         &["security", "--offline=yes"],
-        parse(&args(&["security", "--offline=yes"])).unwrap_err(),
+        parse(&strings(&["security", "--offline=yes"])).unwrap_err(),
         &["--offline"],
     );
 }

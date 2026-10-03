@@ -52,6 +52,7 @@ mod tests {
     use super::*;
     use crate::resolve::NeverQuery;
     use crate::resolve::QueryResult;
+    use crate::test_support::strings;
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;
@@ -98,24 +99,19 @@ mod tests {
             Ok(self.outputs.borrow_mut().remove(0))
         }
     }
-
-    fn scopes(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
-
     #[test]
     fn test_mapping_queries_transitive_test_owners() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:unit\n//pkg:e2e\n//pkg:unit\n")]);
-        let got = map_owners_to_tests(&scopes(&["//pkg:lib"]), &workspace, &query).expect("map");
-        assert_eq!(got, scopes(&["//pkg:e2e", "//pkg:unit"]));
+        let got = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query).expect("map");
+        assert_eq!(got, strings(&["//pkg:e2e", "//pkg:unit"]));
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].1, workspace, "mapping runs in the workspace");
         assert_eq!(
             calls[0].0,
-            scopes(&[
+            strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
@@ -131,7 +127,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-order-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("//t:t\n")]);
-        map_owners_to_tests(&scopes(&["//z:lib", "//a:lib"]), &workspace, &query).expect("map");
+        map_owners_to_tests(&strings(&["//z:lib", "//a:lib"]), &workspace, &query).expect("map");
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(
@@ -145,12 +141,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-empty-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
-        let err = map_owners_to_tests(&scopes(&["//pkg:lib"]), &workspace, &query)
+        let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query)
             .expect_err("empty mapping");
         assert_eq!(
             err,
             ResolveError::NoTests {
-                owners: scopes(&["//pkg:lib"]),
+                owners: strings(&["//pkg:lib"]),
             }
         );
         assert!(
@@ -165,7 +161,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
         let err =
-            map_owners_to_tests(&scopes(&["//pkg:lib"]), &workspace, &query).expect_err("failed");
+            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query).expect_err("failed");
         assert_eq!(
             err,
             ResolveError::QueryFailed {
@@ -187,7 +183,7 @@ mod tests {
     #[test]
     fn no_tests_error_renders_owners_and_guidance() {
         let error = ResolveError::NoTests {
-            owners: scopes(&["//a:lib", "//b:lib"]),
+            owners: strings(&["//a:lib", "//b:lib"]),
         };
         let text = error.to_string();
         assert!(text.contains("//a:lib //b:lib"), "{text}");

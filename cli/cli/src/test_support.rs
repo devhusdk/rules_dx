@@ -1,3 +1,8 @@
+/// Copies test words into owned strings, in order.
+pub(crate) fn strings(words: &[&str]) -> Vec<String> {
+    words.iter().map(ToString::to_string).collect()
+}
+
 /// Parses one NDJSON event per line.
 pub(crate) fn json_events(out: &str) -> Vec<serde_json::Value> {
     out.lines()
@@ -45,6 +50,19 @@ mod tests {
         r#"{"event":"command_finished","exit_code":0}"#,
         "\n",
     );
+
+    #[test]
+    fn strings_owns_every_word_in_order() {
+        assert_eq!(
+            strings(&["lint", "--check", "lint"]),
+            vec!["lint".to_owned(), "--check".to_owned(), "lint".to_owned()]
+        );
+    }
+
+    #[test]
+    fn strings_owns_nothing_from_no_words() {
+        assert!(strings(&[]).is_empty());
+    }
 
     #[test]
     fn json_events_reads_one_value_per_line() {

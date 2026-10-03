@@ -163,6 +163,7 @@ mod tests {
 
     use crate::resolve::NeverQuery;
     use crate::resolve::QueryResult;
+    use crate::test_support::strings;
 
     struct FakeQuery {
         calls: RefCell<Vec<(Vec<String>, PathBuf)>>,
@@ -198,11 +199,6 @@ mod tests {
             Ok(self.outputs.borrow_mut().remove(0))
         }
     }
-
-    fn scopes(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
-
     fn write(workspace: &Path, rel: &str, text: &str) {
         let full = workspace.join(rel);
         std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
@@ -220,7 +216,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let got = resolve(&[], &workspace, &query).expect("resolve");
         assert_eq!(got.scope, Scope::Repository);
-        assert_eq!(got.targets, scopes(&["//..."]));
+        assert_eq!(got.targets, strings(&["//..."]));
     }
 
     #[test]
@@ -228,7 +224,7 @@ mod tests {
         let query = NeverQuery;
         let scratch = dx_test_scratch::scratch("dx-resolve-test-labels-");
         let workspace = scratch.path().to_path_buf();
-        let input = scopes(&["//b/...", "//a:one", "@repo//c/..."]);
+        let input = strings(&["//b/...", "//a:one", "@repo//c/..."]);
         let err = resolve(&input, &workspace, &query).expect_err("external must fail");
         assert_eq!(
             err,
@@ -236,10 +232,10 @@ mod tests {
                 scope: "@repo//c/...".to_owned(),
             }
         );
-        let input = scopes(&["//b/...", "//a:one"]);
+        let input = strings(&["//b/...", "//a:one"]);
         let got = resolve(&input, &workspace, &query).expect("resolve");
-        assert_eq!(got.scope, Scope::Labels(scopes(&["//b/...", "//a:one"])));
-        assert_eq!(got.targets, scopes(&["//b/...", "//a:one"]));
+        assert_eq!(got.scope, Scope::Labels(strings(&["//b/...", "//a:one"])));
+        assert_eq!(got.targets, strings(&["//b/...", "//a:one"]));
     }
 
     #[test]
@@ -247,7 +243,7 @@ mod tests {
         let query = NeverQuery;
         let scratch = dx_test_scratch::scratch("dx-resolve-test-relative-");
         let workspace = scratch.path().to_path_buf();
-        let err = resolve(&scopes(&[":corpus"]), &workspace, &query).expect_err("relative");
+        let err = resolve(&strings(&[":corpus"]), &workspace, &query).expect_err("relative");
         assert_eq!(
             err,
             ResolveError::RelativeLabel {
@@ -264,22 +260,22 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:lib\n//pkg:extra\n")]);
-        let got = resolve(&scopes(&["pkg/a.py"]), &workspace, &query).expect("resolve");
+        let got = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect("resolve");
         assert_eq!(
             got.targets,
-            scopes(&["//pkg:extra", "//pkg:lib"]),
+            strings(&["//pkg:extra", "//pkg:lib"]),
             "owners are sorted and deduplicated"
         );
         assert_eq!(
             got.scope,
-            Scope::ResolvedOwners(scopes(&["//pkg:extra", "//pkg:lib"]))
+            Scope::ResolvedOwners(strings(&["//pkg:extra", "//pkg:lib"]))
         );
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].1, workspace, "query runs in the workspace");
         assert_eq!(
             calls[0].0,
-            scopes(&[
+            strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
@@ -297,7 +293,7 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/my file.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n")]);
-        resolve(&scopes(&["pkg/my file.py"]), &workspace, &query).expect("resolve");
+        resolve(&strings(&["pkg/my file.py"]), &workspace, &query).expect("resolve");
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(
@@ -315,8 +311,9 @@ mod tests {
         write(&workspace, "pkg/a.py", "x = 1\n");
         write(&workspace, "pkg/b.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:extra\n")]);
-        let got = resolve(&scopes(&["pkg/b.py", "pkg/a.py"]), &workspace, &query).expect("resolve");
-        assert_eq!(got.targets, scopes(&["//pkg:extra", "//pkg:lib"]));
+        let got =
+            resolve(&strings(&["pkg/b.py", "pkg/a.py"]), &workspace, &query).expect("resolve");
+        assert_eq!(got.targets, strings(&["//pkg:extra", "//pkg:lib"]));
         let calls = query.calls();
         assert_eq!(calls.len(), 1, "one bounded query per resolver call");
         assert_eq!(
@@ -334,7 +331,7 @@ mod tests {
         write(&workspace, "pkg/b.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let err =
-            resolve(&scopes(&["pkg/a.py", "pkg/b.py"]), &workspace, &query).expect_err("orphans");
+            resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query).expect_err("orphans");
         assert_eq!(
             err,
             ResolveError::NoOwner {
@@ -353,7 +350,7 @@ mod tests {
         write(&workspace, "pkg/a.py", "x = 1\n");
         write(&workspace, "docs/guide.md", "# guide\n");
         let query = NeverQuery;
-        let err = resolve(&scopes(&["pkg/a.py", "docs/guide.md"]), &workspace, &query)
+        let err = resolve(&strings(&["pkg/a.py", "docs/guide.md"]), &workspace, &query)
             .expect_err("no package");
         assert_eq!(
             err,
@@ -370,8 +367,8 @@ mod tests {
         write(&workspace, "BUILD.bazel", "");
         write(&workspace, "top.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//:lib\n")]);
-        let got = resolve(&scopes(&["top.py"]), &workspace, &query).expect("resolve");
-        assert_eq!(got.targets, scopes(&["//:lib"]));
+        let got = resolve(&strings(&["top.py"]), &workspace, &query).expect("resolve");
+        assert_eq!(got.targets, strings(&["//:lib"]));
         let calls = query.calls();
         assert!(calls[0]
             .0
@@ -391,8 +388,8 @@ mod tests {
         );
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:real\n")]);
-        let got = resolve(&scopes(&["pkg/a.py"]), &workspace, &query).expect("resolve");
-        assert_eq!(got.targets, scopes(&["//pkg:real"]));
+        let got = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect("resolve");
+        assert_eq!(got.targets, strings(&["//pkg:real"]));
     }
 
     #[test]
@@ -402,9 +399,9 @@ mod tests {
         write(&workspace, "src/nested/deep.py", "x = 1\n");
         write(&workspace, "src/top.py", "x = 1\n");
         let query = NeverQuery;
-        let got = resolve(&scopes(&["src"]), &workspace, &query).expect("resolve");
-        assert_eq!(got.targets, scopes(&["//src/..."]));
-        assert_eq!(got.scope, Scope::ResolvedOwners(scopes(&["//src/..."])));
+        let got = resolve(&strings(&["src"]), &workspace, &query).expect("resolve");
+        assert_eq!(got.targets, strings(&["//src/..."]));
+        assert_eq!(got.scope, Scope::ResolvedOwners(strings(&["//src/..."])));
     }
 
     #[test]
@@ -413,8 +410,8 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         for root in [".", "./"] {
-            let got = resolve(&scopes(&[root]), &workspace, &query).expect("resolve");
-            assert_eq!(got.targets, scopes(&["//..."]), "root {root}");
+            let got = resolve(&strings(&[root]), &workspace, &query).expect("resolve");
+            assert_eq!(got.targets, strings(&["//..."]), "root {root}");
         }
     }
 
@@ -425,11 +422,11 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//z:z\n")]);
-        let got = resolve(&scopes(&["//z:z", "pkg/a.py"]), &workspace, &query).expect("resolve");
-        assert_eq!(got.targets, scopes(&["//pkg:lib", "//z:z"]));
+        let got = resolve(&strings(&["//z:z", "pkg/a.py"]), &workspace, &query).expect("resolve");
+        assert_eq!(got.targets, strings(&["//pkg:lib", "//z:z"]));
         assert_eq!(
             got.scope,
-            Scope::ResolvedOwners(scopes(&["//pkg:lib", "//z:z"]))
+            Scope::ResolvedOwners(strings(&["//pkg:lib", "//z:z"]))
         );
     }
 
@@ -439,21 +436,21 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-missing-");
         let workspace = scratch.path().to_path_buf();
         assert_eq!(
-            resolve(&scopes(&["nope.py"]), &workspace, &query).expect_err("missing"),
+            resolve(&strings(&["nope.py"]), &workspace, &query).expect_err("missing"),
             ResolveError::PathNotFound {
                 scope: "nope.py".to_owned(),
             }
         );
         for escaping in ["/abs/path.py", "../escape.py", "pkg/../../escape.py"] {
             assert_eq!(
-                resolve(&scopes(&[escaping]), &workspace, &query).expect_err("escape"),
+                resolve(&strings(&[escaping]), &workspace, &query).expect_err("escape"),
                 ResolveError::OutsideWorkspace {
                     scope: escaping.to_owned(),
                 }
             );
         }
         assert_eq!(
-            resolve(&scopes(&[""]), &workspace, &query).expect_err("empty"),
+            resolve(&strings(&[""]), &workspace, &query).expect_err("empty"),
             ResolveError::EmptyScope
         );
     }
@@ -469,7 +466,7 @@ mod tests {
             let _listener = UnixListener::bind(&path).expect("bind socket");
             let query = NeverQuery;
             assert_eq!(
-                resolve(&scopes(&["sock"]), &workspace, &query).expect_err("socket"),
+                resolve(&strings(&["sock"]), &workspace, &query).expect_err("socket"),
                 ResolveError::NotFileOrDir {
                     scope: "sock".to_owned(),
                 }
@@ -480,7 +477,7 @@ mod tests {
             write(&workspace, "pkg/BUILD.bazel", "");
             write(&workspace, "pkg/regular.py", "x = 1\n");
             let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:regular.py\n")]);
-            let resolved = resolve(&scopes(&["pkg/regular.py"]), &workspace, &query)
+            let resolved = resolve(&strings(&["pkg/regular.py"]), &workspace, &query)
                 .expect("regular file resolves");
             assert!(
                 resolved.targets.contains(&"//pkg:regular.py".to_owned()),
@@ -497,7 +494,7 @@ mod tests {
         write(&workspace, "a\nb.py", "x = 1\n");
         let query = NeverQuery;
         assert_eq!(
-            resolve(&scopes(&["a\nb.py"]), &workspace, &query).expect_err("control"),
+            resolve(&strings(&["a\nb.py"]), &workspace, &query).expect_err("control"),
             ResolveError::UnsupportedName {
                 scope: "a\nb.py".to_owned(),
             }
@@ -511,7 +508,7 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/orphan.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
-        let err = resolve(&scopes(&["pkg/orphan.py"]), &workspace, &query).expect_err("orphan");
+        let err = resolve(&strings(&["pkg/orphan.py"]), &workspace, &query).expect_err("orphan");
         assert_eq!(
             err,
             ResolveError::NoOwner {
@@ -580,7 +577,7 @@ mod tests {
         write(&workspace, "docs/guide.md", "# guide\n");
         write(&workspace, "other/BUILD.bazel", "");
         let err =
-            resolve(&scopes(&["docs/guide.md"]), &workspace, &NeverQuery).expect_err("no package");
+            resolve(&strings(&["docs/guide.md"]), &workspace, &NeverQuery).expect_err("no package");
         assert_eq!(
             err,
             ResolveError::NotAPackage {
@@ -604,15 +601,15 @@ mod tests {
         {
             let query = NeverQuery;
             assert!(matches!(
-                resolve(&scopes(&["link"]), &workspace, &query).expect_err("link"),
+                resolve(&strings(&["link"]), &workspace, &query).expect_err("link"),
                 ResolveError::NotFileOrDir { .. }
             ));
             assert!(matches!(
-                resolve_for_test(&scopes(&["link"]), &workspace, &query).expect_err("link"),
+                resolve_for_test(&strings(&["link"]), &workspace, &query).expect_err("link"),
                 ResolveError::NotFileOrDir { .. }
             ));
             assert!(matches!(
-                resolve_run(&scopes(&["link"]), &workspace, &query).expect_err("link"),
+                resolve_run(&strings(&["link"]), &workspace, &query).expect_err("link"),
                 ResolveError::NotFileOrDir { .. }
             ));
         }

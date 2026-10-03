@@ -90,20 +90,17 @@ pub fn plan_workflow(
 mod tests {
     use super::*;
     use crate::args::Profile;
+    use crate::test_support::strings;
     use dx_process::Scope;
-
-    fn options(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
 
     fn resolved(targets: &[&str]) -> ResolvedScope {
         ResolvedScope {
             scope: if targets.is_empty() {
                 Scope::Repository
             } else {
-                Scope::Labels(options(targets))
+                Scope::Labels(strings(targets))
             },
-            targets: options(targets),
+            targets: strings(targets),
         }
     }
 
@@ -148,7 +145,7 @@ mod tests {
         let plan = plan_workflow(
             WorkflowVerb::Test,
             &resolved(&[]),
-            &options(&["--keep_going"]),
+            &strings(&["--keep_going"]),
             None,
             Some(Profile::Dev),
         )
@@ -162,7 +159,7 @@ mod tests {
             let plan = plan_workflow(
                 verb,
                 &resolved(&[]),
-                &options(&["--config=ci", "--config=ci-pr"]),
+                &strings(&["--config=ci", "--config=ci-pr"]),
                 None,
                 Some(Profile::Dev),
             )
@@ -174,7 +171,7 @@ mod tests {
         let err = plan_workflow(
             WorkflowVerb::Test,
             &resolved(&[]),
-            &options(&["--config=dx_release"]),
+            &strings(&["--config=dx_release"]),
             None,
             Some(Profile::Dev),
         )
@@ -193,7 +190,7 @@ mod tests {
         let repeated = plan_workflow(
             WorkflowVerb::Coverage,
             &resolved(&[]),
-            &options(&[COVERAGE_COMBINED_REPORT_FLAG]),
+            &strings(&[COVERAGE_COMBINED_REPORT_FLAG]),
             None,
             None,
         )
@@ -205,7 +202,7 @@ mod tests {
         let err = plan_workflow(
             WorkflowVerb::Coverage,
             &resolved(&[]),
-            &options(&["--combined_report=json"]),
+            &strings(&["--combined_report=json"]),
             None,
             None,
         )
@@ -217,7 +214,7 @@ mod tests {
         let err = plan_workflow(
             WorkflowVerb::Test,
             &resolved(&[]),
-            &options(&["--build_event_json_file=/tmp/other.json"]),
+            &strings(&["--build_event_json_file=/tmp/other.json"]),
             Some("/tmp/bep.json"),
             Some(Profile::Dev),
         )
@@ -266,7 +263,7 @@ mod tests {
         let repeated = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &options(&["--config=dx_dev"]),
+            &strings(&["--config=dx_dev"]),
             None,
             Some(Profile::Dev),
         )
@@ -275,7 +272,7 @@ mod tests {
         let err = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &options(&["--config=dx_release"]),
+            &strings(&["--config=dx_release"]),
             None,
             Some(Profile::Dev),
         )

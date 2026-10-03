@@ -330,8 +330,8 @@ pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
     assert!(runner.gitleaks_tool().is_none());
     let (code, _out, err) = {
         use crate::args::parse;
-        let words: Vec<String> = ["security"].iter().map(ToString::to_string).collect();
-        let invocation = parse(&words).expect("parse");
+        use crate::test_support::strings;
+        let invocation = parse(&strings(&["security"])).expect("parse");
         let harness = Harness::new("audit-no-tool");
         write_all_lock_families_with_advisories(&harness);
         harness.execute_with(&invocation, &runner)

@@ -56,6 +56,7 @@ pub fn resolve_profile(flag: Option<Profile>, attr: Option<Profile>, default: Pr
 mod tests {
     use super::super::{assert_usage, parse, ArgsError};
     use super::*;
+    use crate::test_support::strings;
     use clap::ValueEnum;
 
     #[test]
@@ -97,42 +98,37 @@ mod tests {
             Profile::Release
         );
     }
-
-    fn args(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
-
     #[test]
     fn profile_flags_parse_on_build_run_test() {
         for command in ["build", "run", "test"] {
-            let bare = parse(&args(&[command])).expect("bare parse");
+            let bare = parse(&strings(&[command])).expect("bare parse");
             assert!(!bare.debug);
             assert!(!bare.release);
             assert_eq!(bare.profile_flag(), None);
             assert_eq!(bare.profile(), Profile::Dev);
-            let debug = parse(&args(&[command, "--debug"])).expect("debug parse");
+            let debug = parse(&strings(&[command, "--debug"])).expect("debug parse");
             assert!(debug.debug);
             assert!(!debug.release);
             assert_eq!(debug.profile_flag(), Some(Profile::Debug));
             assert_eq!(debug.profile(), Profile::Debug);
-            let release = parse(&args(&[command, "--release"])).expect("release parse");
+            let release = parse(&strings(&[command, "--release"])).expect("release parse");
             assert!(!release.debug);
             assert!(release.release);
             assert_eq!(release.profile_flag(), Some(Profile::Release));
             assert_eq!(release.profile(), Profile::Release);
         }
-        let bare = parse(&args(&["deploy"])).expect("bare deploy parse");
+        let bare = parse(&strings(&["deploy"])).expect("bare deploy parse");
         assert_eq!(bare.profile_flag(), None);
         assert_eq!(bare.profile(), Profile::Release);
-        let debug = parse(&args(&["deploy", "--debug"])).expect("deploy debug parse");
+        let debug = parse(&strings(&["deploy", "--debug"])).expect("deploy debug parse");
         assert_eq!(debug.profile_flag(), Some(Profile::Debug));
         assert_eq!(debug.profile(), Profile::Debug);
-        let release = parse(&args(&["deploy", "--release"])).expect("deploy release parse");
+        let release = parse(&strings(&["deploy", "--release"])).expect("deploy release parse");
         assert_eq!(release.profile_flag(), Some(Profile::Release));
         assert_eq!(release.profile(), Profile::Release);
-        let got = parse(&args(&["build", "--debug"])).expect("parse");
+        let got = parse(&strings(&["build", "--debug"])).expect("parse");
         assert_eq!(got.profile_flag(), Some(Profile::Debug));
-        let got = parse(&args(&["test", "--release", "//a:t"])).expect("parse");
+        let got = parse(&strings(&["test", "--release", "//a:t"])).expect("parse");
         assert_eq!(got.profile_flag(), Some(Profile::Release));
     }
 
@@ -144,7 +140,7 @@ mod tests {
                 continue;
             }
             let words = [command.name(), "--debug", "--release"];
-            assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--debug"]);
+            assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--debug"]);
         }
         for words in [
             vec!["coverage", "--debug"],
@@ -159,7 +155,7 @@ mod tests {
         ] {
             assert!(
                 matches!(
-                    parse(&args(&words)),
+                    parse(&strings(&words)),
                     Err(ArgsError::UnsupportedOption { .. })
                 ),
                 "words: {words:?}"

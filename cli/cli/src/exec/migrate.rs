@@ -79,6 +79,7 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+    use crate::test_support::strings;
 
     #[test]
     fn dry_run_plans_major_bump_without_writing() {
@@ -139,11 +140,8 @@ mod tests {
     #[test]
     fn missing_versions_and_non_upgrades_are_pre_exec() {
         use crate::args::parse;
-        fn args(words: &[&str]) -> Vec<String> {
-            words.iter().map(ToString::to_string).collect()
-        }
         assert!(matches!(
-            parse(&args(&["migrate", "--from=1.2.3", "--dry-run"])),
+            parse(&strings(&["migrate", "--from=1.2.3", "--dry-run"])),
             Err(crate::args::ArgsError::MissingValue { .. })
         ));
         let harness = Harness::new("migrate-minor");
@@ -166,15 +164,12 @@ mod tests {
     #[test]
     fn from_to_belong_to_migrate_only() {
         use crate::args::parse;
-        fn args(words: &[&str]) -> Vec<String> {
-            words.iter().map(ToString::to_string).collect()
-        }
         assert!(matches!(
-            parse(&args(&["lint", "--from=1.0.0"])),
+            parse(&strings(&["lint", "--from=1.0.0"])),
             Err(crate::args::ArgsError::UnsupportedOption { .. })
         ));
         assert!(matches!(
-            parse(&args(&["build", "//a:one", "--to=2.0.0"])),
+            parse(&strings(&["build", "//a:one", "--to=2.0.0"])),
             Err(crate::args::ArgsError::UnsupportedOption { .. })
         ));
     }

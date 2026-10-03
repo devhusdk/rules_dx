@@ -334,15 +334,12 @@ mod fixture_pins_tests;
 mod tests {
     use super::super::{assert_usage, parse, ArgsError, Command};
     use super::render_command_help;
-
-    fn args(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
+    use crate::test_support::strings;
 
     #[test]
     fn top_level_help_lists_commands_and_flags() {
         for flag in ["--help", "-h"] {
-            let text = match parse(&args(&[flag])) {
+            let text = match parse(&strings(&[flag])) {
                 Err(ArgsError::Help { text }) => text,
                 other => panic!("{flag}: want Help, got {other:?}"),
             };
@@ -447,7 +444,7 @@ mod tests {
             vec!["--help", "lint"],
             vec!["clean", "-h"],
         ] {
-            let text = match parse(&args(&argv)) {
+            let text = match parse(&strings(&argv)) {
                 Err(ArgsError::Help { text }) => text,
                 other => panic!("{argv:?}: want Help, got {other:?}"),
             };
@@ -474,7 +471,7 @@ mod tests {
 
     #[test]
     fn per_command_help_names_owned_flags_and_reconciles_bazel_naming() {
-        let clean = match parse(&args(&["clean", "--help"])) {
+        let clean = match parse(&strings(&["clean", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("clean --help: want Help, got {other:?}"),
         };
@@ -491,7 +488,7 @@ mod tests {
             clean.contains("never touches Bazel outputs") || clean.contains("never Bazel outputs"),
             "clean surprise:\n{clean}"
         );
-        let fix_help = match parse(&args(&["fix", "--help"])) {
+        let fix_help = match parse(&strings(&["fix", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("fix --help: want Help, got {other:?}"),
         };
@@ -500,7 +497,7 @@ mod tests {
             fix_help.contains("dx check"),
             "fix rerun guidance:\n{fix_help}"
         );
-        let check_help = match parse(&args(&["check", "--help"])) {
+        let check_help = match parse(&strings(&["check", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("check --help: want Help, got {other:?}"),
         };
@@ -509,7 +506,7 @@ mod tests {
             "check mode:\n{check_help}"
         );
         for command in ["owners", "deps", "why"] {
-            let text = match parse(&args(&[command, "--help"])) {
+            let text = match parse(&strings(&[command, "--help"])) {
                 Err(ArgsError::Help { text }) => text,
                 other => panic!("{command} --help: want Help, got {other:?}"),
             };
@@ -519,7 +516,7 @@ mod tests {
                 "{command} disambiguation:\n{text}"
             );
         }
-        let coverage = match parse(&args(&["coverage", "--help"])) {
+        let coverage = match parse(&strings(&["coverage", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("coverage --help: want Help, got {other:?}"),
         };
@@ -527,18 +524,18 @@ mod tests {
             coverage.contains("--min-coverage"),
             "coverage flags:\n{coverage}"
         );
-        let build = match parse(&args(&["build", "--help"])) {
+        let build = match parse(&strings(&["build", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("build --help: want Help, got {other:?}"),
         };
         assert!(build.contains("--debug"), "build flags:\n{build}");
-        let version = match parse(&args(&["version", "--help"])) {
+        let version = match parse(&strings(&["version", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("version --help: want Help, got {other:?}"),
         };
         assert!(version.contains("--pin"), "version flags:\n{version}");
         for argv in [["lint", "--help"], ["status", "--help"]] {
-            let text = match parse(&args(&argv)) {
+            let text = match parse(&strings(&argv)) {
                 Err(ArgsError::Help { text }) => text,
                 other => panic!("{argv:?}: want Help, got {other:?}"),
             };
@@ -553,7 +550,7 @@ mod tests {
 
     #[test]
     fn help_value_option_payload_is_not_a_command() {
-        let text = match parse(&args(&["lint", "--output", "bazel", "--help"])) {
+        let text = match parse(&strings(&["lint", "--output", "bazel", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
@@ -562,18 +559,18 @@ mod tests {
 
     #[test]
     fn help_verb_redirects_to_generated_help() {
-        let top = match parse(&args(&["help"])) {
+        let top = match parse(&strings(&["help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("help: want Help, got {other:?}"),
         };
         assert!(top.contains("Commands:"), "help:\n{top}");
         assert!(top.contains("bash|zsh|fish|powershell"), "help:\n{top}");
         for command in ["lint", "status", "completion"] {
-            let verb = match parse(&args(&["help", command])) {
+            let verb = match parse(&strings(&["help", command])) {
                 Err(ArgsError::Help { text }) => text,
                 other => panic!("help {command}: want Help, got {other:?}"),
             };
-            let flag = match parse(&args(&[command, "--help"])) {
+            let flag = match parse(&strings(&[command, "--help"])) {
                 Err(ArgsError::Help { text }) => text,
                 other => panic!("{command} --help: want Help, got {other:?}"),
             };
@@ -581,7 +578,7 @@ mod tests {
         }
         assert_usage(
             &["help", "bogus"],
-            parse(&args(&["help", "bogus"])).unwrap_err(),
+            parse(&strings(&["help", "bogus"])).unwrap_err(),
             &["bogus"],
         );
     }
@@ -644,7 +641,7 @@ mod tests {
 
     #[test]
     fn top_help_names_completion_shells() {
-        let text = match parse(&args(&["--help"])) {
+        let text = match parse(&strings(&["--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
@@ -656,7 +653,7 @@ mod tests {
 
     #[test]
     fn top_help_documents_verbosity_and_environment() {
-        let text = match parse(&args(&["--help"])) {
+        let text = match parse(&strings(&["--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
@@ -678,7 +675,7 @@ mod tests {
 
     #[test]
     fn status_help_hints_rejected_flags_and_ndjson_shape() {
-        let text = match parse(&args(&["status", "--help"])) {
+        let text = match parse(&strings(&["status", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
@@ -697,7 +694,7 @@ mod tests {
 
     #[test]
     fn completion_help_names_check_verification() {
-        let text = match parse(&args(&["completion", "--help"])) {
+        let text = match parse(&strings(&["completion", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };

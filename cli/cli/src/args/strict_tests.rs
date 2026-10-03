@@ -1,9 +1,6 @@
 use super::super::{assert_usage, ArgsError, Command};
 use super::parse;
-
-fn args(words: &[&str]) -> Vec<String> {
-    words.iter().map(ToString::to_string).collect()
-}
+use crate::test_support::strings;
 
 #[test]
 fn strict_unknown_options_fail_with_whole_token() {
@@ -22,7 +19,7 @@ fn strict_unknown_options_fail_with_whole_token() {
     ] {
         let token = words.last().expect("a token to reject");
         let flag = token.split('=').next().expect("a flag");
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[flag]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[flag]);
     }
 }
 
@@ -30,43 +27,43 @@ fn strict_unknown_options_fail_with_whole_token() {
 fn strict_missing_values_fail_with_bare_flag() {
     assert_usage(
         &["lint", "--output"],
-        parse(&args(&["lint", "--output"])).unwrap_err(),
+        parse(&strings(&["lint", "--output"])).unwrap_err(),
         &["--output"],
     );
     assert_usage(
         &["lint", "--workspace", "--quiet", "format"],
-        parse(&args(&["lint", "--workspace", "--quiet", "format"])).unwrap_err(),
+        parse(&strings(&["lint", "--workspace", "--quiet", "format"])).unwrap_err(),
         &["--workspace"],
     );
     assert_eq!(
-        parse(&args(&["lint", "--workspace="])),
+        parse(&strings(&["lint", "--workspace="])),
         Err(ArgsError::MissingValue {
             option: "--workspace".to_owned(),
         })
     );
     assert_usage(
         &["coverage", "--min-coverage"],
-        parse(&args(&["coverage", "--min-coverage"])).unwrap_err(),
+        parse(&strings(&["coverage", "--min-coverage"])).unwrap_err(),
         &["--min-coverage"],
     );
     assert_usage(
         &["docs", "--port"],
-        parse(&args(&["docs", "--port"])).unwrap_err(),
+        parse(&strings(&["docs", "--port"])).unwrap_err(),
         &["--port"],
     );
     assert_usage(
         &["docs", "--host"],
-        parse(&args(&["docs", "--host"])).unwrap_err(),
+        parse(&strings(&["docs", "--host"])).unwrap_err(),
         &["--host"],
     );
     assert_usage(
         &["lint", "--color"],
-        parse(&args(&["lint", "--color"])).unwrap_err(),
+        parse(&strings(&["lint", "--color"])).unwrap_err(),
         &["--color"],
     );
     assert_usage(
         &["migrate", "--from", "--to=2.0.0"],
-        parse(&args(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
+        parse(&strings(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
         &["--from"],
     );
 }
@@ -75,17 +72,17 @@ fn strict_missing_values_fail_with_bare_flag() {
 fn strict_hyphen_values_are_never_consumed_as_option_values() {
     assert_usage(
         &["lint", "--output", "--quiet"],
-        parse(&args(&["lint", "--output", "--quiet"])).unwrap_err(),
+        parse(&strings(&["lint", "--output", "--quiet"])).unwrap_err(),
         &["--output"],
     );
     assert_usage(
         &["lint", "--workspace", "--quiet"],
-        parse(&args(&["lint", "--workspace", "--quiet"])).unwrap_err(),
+        parse(&strings(&["lint", "--workspace", "--quiet"])).unwrap_err(),
         &["--workspace"],
     );
     assert_usage(
         &["build", "--output", "--dry-run"],
-        parse(&args(&["build", "--output", "--dry-run"])).unwrap_err(),
+        parse(&strings(&["build", "--output", "--dry-run"])).unwrap_err(),
         &["--output"],
     );
 }
@@ -93,36 +90,40 @@ fn strict_hyphen_values_are_never_consumed_as_option_values() {
 #[test]
 fn strict_bad_values_fail_with_contract_shapes() {
     assert_eq!(
-        parse(&args(&["lint", "--output=yaml"])),
+        parse(&strings(&["lint", "--output=yaml"])),
         Err(ArgsError::BadOutput {
             value: "yaml".to_owned(),
         })
     );
     assert_eq!(
-        parse(&args(&["lint", "--fail-on=never"])),
+        parse(&strings(&["lint", "--fail-on=never"])),
         Err(ArgsError::BadFailOn {
             value: "never".to_owned(),
         })
     );
     for bad in ["sarif", "=out.sarif", "sarif="] {
         let words = ["lint", &format!("--report={bad}")];
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["report"]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["report"]);
     }
     for words in [
         vec!["coverage", "--min-coverage=eighty"],
         vec!["coverage", "--min-coverage=101"],
     ] {
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["min-coverage"]);
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["min-coverage"],
+        );
     }
     assert_eq!(
-        parse(&args(&["lint", "--color=bright"])),
+        parse(&strings(&["lint", "--color=bright"])),
         Err(ArgsError::BadColor {
             value: "bright".to_owned(),
         })
     );
     assert_usage(
         &["docs", "--serve", "--port=0"],
-        parse(&args(&["docs", "--serve", "--port=0"])).unwrap_err(),
+        parse(&strings(&["docs", "--serve", "--port=0"])).unwrap_err(),
         &["--port"],
     );
 }
@@ -133,7 +134,7 @@ fn strict_typo_suggestions_come_from_the_same_grammar() {
         (vec!["lintt"], "subcommands exist"),
         (vec!["lint", "--ouptut=json"], "--output"),
     ] {
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[needle]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[needle]);
     }
 }
 
@@ -148,24 +149,25 @@ fn strict_repeated_flags_are_last_wins() {
         (vec!["update", "--offline", "--frozen"], Command::Update),
         (vec!["clean", "--bazel", "--bazel"], Command::Clean),
     ] {
-        let got = parse(&args(&words)).unwrap_or_else(|error| panic!("words: {words:?}: {error}"));
+        let got =
+            parse(&strings(&words)).unwrap_or_else(|error| panic!("words: {words:?}: {error}"));
         assert_eq!(got.command, command, "words: {words:?}");
     }
     assert!(
-        parse(&args(&["build", "--here", "--cwd"]))
+        parse(&strings(&["build", "--here", "--cwd"]))
             .expect("here")
             .here
     );
-    assert!(parse(&args(&["build", "-vv"])).expect("verbose").verbose);
+    assert!(parse(&strings(&["build", "-vv"])).expect("verbose").verbose);
     assert!(
-        parse(&args(&["build", "--debug", "--release"])).is_err(),
+        parse(&strings(&["build", "--debug", "--release"])).is_err(),
         "repeatable flags must not weaken the profile conflict"
     );
 }
 
 #[test]
 fn strict_bazel_tail_forwards_verbatim() {
-    let got = parse(&args(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
+    let got = parse(&strings(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
     assert_eq!(got.command, Command::Bazel);
     assert_eq!(
         got.bazel_options,
@@ -181,7 +183,7 @@ fn strict_bazel_tail_forwards_verbatim() {
         vec!["bazel", "--pin=0.1.0"],
         vec!["bazel", "build", "--here"],
     ] {
-        let got = parse(&args(&words)).expect("verbatim");
+        let got = parse(&strings(&words)).expect("verbatim");
         assert_eq!(got.command, Command::Bazel, "words: {words:?}");
     }
     for words in [
@@ -191,7 +193,7 @@ fn strict_bazel_tail_forwards_verbatim() {
     ] {
         assert_usage(
             &words,
-            parse(&args(&words)).unwrap_err(),
+            parse(&strings(&words)).unwrap_err(),
             &[words[0].split('=').next().expect("a flag")],
         );
     }
@@ -203,7 +205,7 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         vec!["build", "--debug", "--release"],
         vec!["build", "--release", "--debug"],
     ] {
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--debug"]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--debug"]);
     }
     for words in [
         vec!["lint", "--verbose", "--log-level=debug"],
@@ -211,7 +213,11 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         vec!["lint", "-v", "--log-level=info"],
         vec!["lint", "--log-level=info", "-v"],
     ] {
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &["--log-level"]);
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["--log-level"],
+        );
     }
     for (words, needle) in [
         (vec!["coverage", "--min-coverage=eighty"], "min-coverage"),
@@ -227,7 +233,7 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         (vec!["migrate", "--from="], "from"),
         (vec!["migrate", "--to="], "to"),
     ] {
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[needle]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[needle]);
     }
 }
 
@@ -239,14 +245,14 @@ fn strict_here_conflicts_stay_imperative_and_ordered() {
         vec!["security", "--here", "//pkg:target"],
     ] {
         assert_eq!(
-            parse(&args(&words)),
+            parse(&strings(&words)),
             Err(ArgsError::ConflictingHere),
             "words: {words:?}"
         );
     }
     assert!(
         matches!(
-            parse(&args(&["version", "--here", "//pkg:target"])),
+            parse(&strings(&["version", "--here", "//pkg:target"])),
             Err(ArgsError::UnsupportedOption { .. })
         ),
         "the command gate must outrank the scope conflict"
@@ -256,10 +262,10 @@ fn strict_here_conflicts_stay_imperative_and_ordered() {
 #[test]
 fn strict_help_verb_redirects_to_generated_help() {
     for words in [vec!["Help"], vec!["HELP"]] {
-        assert_usage(&words, parse(&args(&words)).unwrap_err(), &[words[0]]);
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[words[0]]);
     }
     for words in [vec!["help"], vec!["help", "lint"], vec!["help", "status"]] {
-        match parse(&args(&words)) {
+        match parse(&strings(&words)) {
             Err(ArgsError::Help { text }) => {
                 if words.len() > 1 {
                     assert!(
@@ -273,17 +279,17 @@ fn strict_help_verb_redirects_to_generated_help() {
             other => panic!("words: {words:?}: want Help, got {other:?}"),
         }
     }
-    let verb = match parse(&args(&["help", "lint"])) {
+    let verb = match parse(&strings(&["help", "lint"])) {
         Err(ArgsError::Help { text }) => text,
         other => panic!("help lint: want Help, got {other:?}"),
     };
-    let flag = match parse(&args(&["lint", "--help"])) {
+    let flag = match parse(&strings(&["lint", "--help"])) {
         Err(ArgsError::Help { text }) => text,
         other => panic!("lint --help: want Help, got {other:?}"),
     };
     assert_eq!(verb, flag, "help verb must redirect to per-command help");
     for flag in ["--help", "-h"] {
-        match parse(&args(&[flag])) {
+        match parse(&strings(&[flag])) {
             Err(ArgsError::Help { .. }) => {}
             other => panic!("{flag}: want Help, got {other:?}"),
         }
@@ -293,7 +299,7 @@ fn strict_help_verb_redirects_to_generated_help() {
         vec!["--help", "lint"],
         vec!["clean", "-h"],
     ] {
-        match parse(&args(&argv)) {
+        match parse(&strings(&argv)) {
             Err(ArgsError::Help { .. }) => {}
             other => panic!("{argv:?}: want Help, got {other:?}"),
         }
@@ -303,7 +309,7 @@ fn strict_help_verb_redirects_to_generated_help() {
 #[test]
 fn strict_help_is_generated_from_the_same_grammar() {
     use clap::ValueEnum;
-    let text = match parse(&args(&["--help"])) {
+    let text = match parse(&strings(&["--help"])) {
         Err(ArgsError::Help { text }) => text,
         other => panic!("want Help, got {other:?}"),
     };
@@ -358,7 +364,7 @@ fn strict_help_is_generated_from_the_same_grammar() {
         assert!(text.contains(needle), "top help missing env {needle:?}");
     }
     for argv in [vec!["lint", "--help"], vec!["status", "--help"]] {
-        let text = match parse(&args(&argv)) {
+        let text = match parse(&strings(&argv)) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("{argv:?}: want Help, got {other:?}"),
         };
@@ -394,11 +400,11 @@ fn strict_known_flags_on_wrong_commands_fail_as_unsupported() {
     ] {
         assert!(
             matches!(
-                parse(&args(&words)),
+                parse(&strings(&words)),
                 Err(ArgsError::UnsupportedOption { .. })
             ),
             "words: {words:?} must fail as unsupported, got {:?}",
-            parse(&args(&words))
+            parse(&strings(&words))
         );
     }
 }
@@ -410,7 +416,7 @@ fn strict_every_command_help_pins_usage_scopes_exits_output() {
         let text = if *command == Command::Bazel {
             super::super::help::render_command_help(Command::Bazel)
         } else {
-            let argv: Vec<String> = args(&[command.name(), "--help"]);
+            let argv: Vec<String> = strings(&[command.name(), "--help"]);
             match parse(&argv) {
                 Err(ArgsError::Help { text }) => text,
                 other => panic!("{:?}: want Help, got {other:?}", command.name()),

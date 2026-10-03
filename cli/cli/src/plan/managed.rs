@@ -137,10 +137,7 @@ fn managed_argv(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn options(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
+    use crate::test_support::strings;
 
     #[test]
     fn managed_plan_builds_collection_request() {
@@ -149,13 +146,13 @@ mod tests {
         let plan = plan_managed(
             Command::Codegen,
             &SetupScope::Repository,
-            &options(&["--jobs=4"]),
+            &strings(&["--jobs=4"]),
             "/tmp/bep.json",
         )
         .expect("plan");
         assert_eq!(
             plan.argv,
-            options(&[
+            strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
@@ -226,7 +223,7 @@ mod tests {
 
     #[test]
     fn managed_expanded_roots_join_every_root_in_argv_and_summary() {
-        let roots = options(&[
+        let roots = strings(&[
             "//generation:codegen_prost_fixture",
             "//generation:result_proto",
         ]);
@@ -280,7 +277,7 @@ mod tests {
             let err = plan_managed(
                 Command::Setup,
                 &SetupScope::Repository,
-                &options(&[conflicting]),
+                &strings(&[conflicting]),
                 "/tmp/bep.json",
             )
             .expect_err("conflict must fail");
@@ -292,7 +289,7 @@ mod tests {
         let err = plan_managed(
             Command::Codegen,
             &SetupScope::Repository,
-            &options(&["--home_rc"]),
+            &strings(&["--home_rc"]),
             "/tmp/bep.json",
         )
         .expect_err("startup option must fail");
@@ -315,13 +312,13 @@ mod tests {
 
     #[test]
     fn bazel_plan_forwards_arguments_verbatim() {
-        let plan = plan_bazel(&options(&["build", "//...", "--jobs=4"]));
+        let plan = plan_bazel(&strings(&["build", "//...", "--jobs=4"]));
         assert_eq!(
             plan.argv,
-            options(&["bazel", "build", "//...", "--jobs=4",])
+            strings(&["bazel", "build", "//...", "--jobs=4",])
         );
         assert!(plan.summary.contains("build //..."));
         let bare = plan_bazel(&[]);
-        assert_eq!(bare.argv, options(&["bazel"]));
+        assert_eq!(bare.argv, strings(&["bazel"]));
     }
 }

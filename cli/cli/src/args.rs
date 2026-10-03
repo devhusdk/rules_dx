@@ -100,7 +100,7 @@ pub use dx_adopt::defaults::FileDefaults;
 /// Parse test words into one invocation, panicking on a failure.
 #[cfg(test)]
 pub(crate) fn parsed(words: &[&str]) -> Invocation {
-    parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>()).expect("parse")
+    parse(&crate::test_support::strings(words)).expect("parse")
 }
 
 /// Assert that a parse failure is clap-rendered and names every needle.

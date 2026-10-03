@@ -21,12 +21,9 @@ pub use types::{ProcessQueryRunner, QueryResult, QueryRunner, ResolveError, Reso
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::strings;
     use std::io;
     use std::path::Path;
-
-    fn scopes(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
 
     fn write(workspace: &Path, rel: &str, text: &str) {
         let full = workspace.join(rel);
@@ -114,12 +111,12 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let err = resolve(&scopes(&["pkg/a.py"]), &workspace, &FailIo).expect_err("io");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &FailIo).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
-        let err = resolve_run(&scopes(&["pkg/a.py"]), &workspace, &FailIo).expect_err("io");
+        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &FailIo).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
         let err =
-            map_owners_to_tests(&scopes(&["//pkg:lib"]), &workspace, &FailIo).expect_err("io");
+            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &FailIo).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
     }
 
@@ -129,12 +126,12 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg", "file, not dir\n");
         let query = NeverQuery;
-        let err = resolve(&scopes(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
         let err =
-            resolve_for_test(&scopes(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
+            resolve_for_test(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
-        let err = resolve_run(&scopes(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
+        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
     }
 
@@ -144,25 +141,25 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         assert_eq!(
-            resolve_for_test(&scopes(&["@r//p"]), &workspace, &query).expect_err("ext"),
+            resolve_for_test(&strings(&["@r//p"]), &workspace, &query).expect_err("ext"),
             ResolveError::ExternalScope {
                 scope: "@r//p".to_owned(),
             }
         );
         assert_eq!(
-            resolve_for_test(&scopes(&[":c"]), &workspace, &query).expect_err("rel"),
+            resolve_for_test(&strings(&[":c"]), &workspace, &query).expect_err("rel"),
             ResolveError::RelativeLabel {
                 scope: ":c".to_owned(),
             }
         );
         assert_eq!(
-            resolve_run(&scopes(&["@r//p"]), &workspace, &query).expect_err("ext"),
+            resolve_run(&strings(&["@r//p"]), &workspace, &query).expect_err("ext"),
             ResolveError::ExternalScope {
                 scope: "@r//p".to_owned(),
             }
         );
         assert_eq!(
-            resolve_run(&scopes(&[":c"]), &workspace, &query).expect_err("rel"),
+            resolve_run(&strings(&[":c"]), &workspace, &query).expect_err("rel"),
             ResolveError::RelativeLabel {
                 scope: ":c".to_owned(),
             }
@@ -175,13 +172,13 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         assert_eq!(
-            resolve_for_test(&scopes(&["nope.py"]), &workspace, &query).expect_err("missing"),
+            resolve_for_test(&strings(&["nope.py"]), &workspace, &query).expect_err("missing"),
             ResolveError::PathNotFound {
                 scope: "nope.py".to_owned(),
             }
         );
         assert_eq!(
-            resolve_run(&scopes(&["nope.py"]), &workspace, &query).expect_err("missing"),
+            resolve_run(&strings(&["nope.py"]), &workspace, &query).expect_err("missing"),
             ResolveError::PathNotFound {
                 scope: "nope.py".to_owned(),
             }
@@ -199,11 +196,11 @@ mod tests {
         write(&workspace, "app\x01/BUILD.bazel", "");
         let query = NeverQuery;
         assert!(matches!(
-            resolve_run(&scopes(&[dir]), &workspace, &query).expect_err("dir"),
+            resolve_run(&strings(&[dir]), &workspace, &query).expect_err("dir"),
             ResolveError::UnsupportedName { .. }
         ));
         assert!(matches!(
-            resolve_run(&scopes(&[file]), &workspace, &query).expect_err("file"),
+            resolve_run(&strings(&[file]), &workspace, &query).expect_err("file"),
             ResolveError::UnsupportedName { .. }
         ));
     }

@@ -7,13 +7,10 @@ use super::super::command::SkewKind;
 use super::super::grammar::Cli;
 use super::super::{parse, ArgsError, Command};
 use super::render_command_help;
+use crate::test_support::strings;
 
 const DX_PREFIX: &str = "bazel run //cli/cli:dx --";
 const ENV_LAUNCHER: &str = "bazel run //dx:env";
-
-fn args(words: &[&str]) -> Vec<String> {
-    words.iter().map(ToString::to_string).collect()
-}
 
 fn workspace_root() -> PathBuf {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
@@ -117,7 +114,7 @@ fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
     if let Some(payload) = payload {
         words.push(payload);
     }
-    match parse(&args(&words)) {
+    match parse(&strings(&words)) {
         Err(ArgsError::UnsupportedOption { option, .. }) => option == flag,
         Err(ArgsError::UnknownOption { option, .. }) => option == flag,
         _ => false,
@@ -138,7 +135,7 @@ fn required_words(command: Command) -> Vec<String> {
         "bazel" => &["info"],
         _ => &[],
     };
-    required.iter().map(ToString::to_string).collect()
+    strings(required)
 }
 
 fn probe_rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
@@ -499,15 +496,15 @@ fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
         let usage = command.usage();
         let words = vec![command.name(), "--check"];
         if command == Command::Bazel {
-            let got = parse(&args(&words)).expect("dx bazel forwards every later word");
-            assert_eq!(got.bazel_options, args(&["--check"]), "words: {words:?}");
+            let got = parse(&strings(&words)).expect("dx bazel forwards every later word");
+            assert_eq!(got.bazel_options, strings(&["--check"]), "words: {words:?}");
             assert!(
                 !usage.contains("[--check]"),
                 "dx bazel forwards --check to Bazel: {usage}"
             );
             continue;
         }
-        let accepted = parse(&args(&words)).is_ok();
+        let accepted = parse(&strings(&words)).is_ok();
         let advertised = usage.contains("[--check]");
         assert_eq!(
             accepted,

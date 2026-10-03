@@ -233,6 +233,7 @@ mod tests {
     use super::*;
     use crate::resolve::NeverQuery;
     use crate::resolve::QueryResult;
+    use crate::test_support::strings;
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;
@@ -279,11 +280,6 @@ mod tests {
             Ok(self.outputs.borrow_mut().remove(0))
         }
     }
-
-    fn scopes(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
-
     fn write(workspace: &Path, rel: &str, text: &str) {
         let full = workspace.join(rel);
         std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
@@ -295,8 +291,8 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-labels-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let got = resolve_run(&scopes(&["//app:bin"]), &workspace, &query).expect("resolve");
-        assert_eq!(got, scopes(&["//app:bin"]));
+        let got = resolve_run(&strings(&["//app:bin"]), &workspace, &query).expect("resolve");
+        assert_eq!(got, strings(&["//app:bin"]));
     }
 
     #[test]
@@ -315,8 +311,8 @@ mod tests {
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//app:bin\n")]);
-        let got = resolve_run(&scopes(&["app/main.py"]), &workspace, &query).expect("resolve");
-        assert_eq!(got, scopes(&["//app:bin"]));
+        let got = resolve_run(&strings(&["app/main.py"]), &workspace, &query).expect("resolve");
+        assert_eq!(got, strings(&["//app:bin"]));
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(
@@ -332,11 +328,12 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("//pkg:lib\n")]);
-        let err = resolve_run(&scopes(&["pkg/a.py"]), &workspace, &query).expect_err("no runnable");
+        let err =
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("no runnable");
         assert_eq!(
             err,
             ResolveError::NoRunnable {
-                scopes: scopes(&["pkg/a.py"]),
+                scopes: strings(&["pkg/a.py"]),
             }
         );
         assert!(err.to_string().contains("no executable target"), "{err}");
@@ -349,7 +346,7 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("\n")]);
-        let err = resolve_run(&scopes(&["pkg/a.py"]), &workspace, &query).expect_err("no owner");
+        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("no owner");
         assert_eq!(
             err,
             ResolveError::NoOwner {
@@ -365,11 +362,11 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = FakeQuery::new(vec![FakeQuery::ok("//app:two\n//app:one\n")]);
-        let err = resolve_run(&scopes(&["app"]), &workspace, &query).expect_err("ambiguous");
+        let err = resolve_run(&strings(&["app"]), &workspace, &query).expect_err("ambiguous");
         assert_eq!(
             err,
             ResolveError::AmbiguousRunnable {
-                candidates: scopes(&["//app:one", "//app:two"]),
+                candidates: strings(&["//app:one", "//app:two"]),
             }
         );
         assert!(
@@ -391,7 +388,7 @@ mod tests {
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::failed("nope\n")]);
-        let err = resolve_run(&scopes(&["app/main.py"]), &workspace, &query).expect_err("fail");
+        let err = resolve_run(&strings(&["app/main.py"]), &workspace, &query).expect_err("fail");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
     }
 
@@ -402,9 +399,9 @@ mod tests {
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//app:bin\n")]);
-        let got =
-            resolve_run(&scopes(&["//app:bin", "app/main.py"]), &workspace, &query).expect("mixed");
-        assert_eq!(got, scopes(&["//app:bin"]));
+        let got = resolve_run(&strings(&["//app:bin", "app/main.py"]), &workspace, &query)
+            .expect("mixed");
+        assert_eq!(got, strings(&["//app:bin"]));
         assert_eq!(query.calls().len(), 1);
     }
 
@@ -416,18 +413,19 @@ mod tests {
             FakeQuery::ok("//b:two\n//b:one\n"),
             FakeQuery::ok("//a:two\n//a:one\n"),
         ]);
-        let got = resolve_run(&scopes(&["//b/...", "//a/..."]), &workspace, &query)
+        let got = resolve_run(&strings(&["//b/...", "//a/..."]), &workspace, &query)
             .expect("cross-pattern");
         assert_eq!(
             got,
-            scopes(&["//b:one", "//b:two", "//a:one", "//a:two"]),
+            strings(&["//b:one", "//b:two", "//a:one", "//a:two"]),
             "batches stay in input order, each sorted"
         );
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-dedup-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("//a:bin\n//a:other\n")]);
-        let got = resolve_run(&scopes(&["//a:bin", "//a/..."]), &workspace, &query).expect("dedup");
-        assert_eq!(got, scopes(&["//a:bin", "//a:other"]));
+        let got =
+            resolve_run(&strings(&["//a:bin", "//a/..."]), &workspace, &query).expect("dedup");
+        assert_eq!(got, strings(&["//a:bin", "//a:other"]));
     }
 
     #[test]
@@ -437,11 +435,11 @@ mod tests {
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("//app:lib\n")]);
-        let err = resolve_run(&scopes(&["app/main.py"]), &workspace, &query).expect_err("alias");
+        let err = resolve_run(&strings(&["app/main.py"]), &workspace, &query).expect_err("alias");
         assert_eq!(
             err,
             ResolveError::NoRunnable {
-                scopes: scopes(&["app/main.py"]),
+                scopes: strings(&["app/main.py"]),
             }
         );
         assert!(

@@ -57,6 +57,7 @@ pub(crate) fn run_label_query(
 mod tests {
     use super::*;
     use crate::resolve::{resolve, QueryResult};
+    use crate::test_support::strings;
     use std::cell::RefCell;
 
     struct FakeQuery {
@@ -85,11 +86,6 @@ mod tests {
             Ok(self.outputs.borrow_mut().remove(0))
         }
     }
-
-    fn scopes(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
-
     fn write(workspace: &Path, rel: &str, text: &str) {
         let full = workspace.join(rel);
         std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
@@ -98,9 +94,9 @@ mod tests {
 
     #[test]
     fn randomized_query_order_yields_identical_argv() {
-        let forward = scopes(&["//pkg:b.py", "//pkg:a.py", "//pkg:c.py"]);
-        let reversed = scopes(&["//pkg:c.py", "//pkg:a.py", "//pkg:b.py"]);
-        let rotated = scopes(&["//pkg:a.py", "//pkg:c.py", "//pkg:b.py"]);
+        let forward = strings(&["//pkg:b.py", "//pkg:a.py", "//pkg:c.py"]);
+        let reversed = strings(&["//pkg:c.py", "//pkg:a.py", "//pkg:b.py"]);
+        let rotated = strings(&["//pkg:a.py", "//pkg:c.py", "//pkg:b.py"]);
         assert_eq!(quote_set(&forward), quote_set(&reversed));
         assert_eq!(quote_set(&forward), quote_set(&rotated));
         assert_eq!(
@@ -170,7 +166,7 @@ mod tests {
         let query = FakeQuery::new(vec![FakeQuery::failed(
             "\n  no such package 'pkg': BUILD file not found  \nmore context\n",
         )]);
-        let err = resolve(&scopes(&["pkg/a.py"]), &workspace, &query).expect_err("failed");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("failed");
         assert_eq!(
             err,
             ResolveError::QueryFailed {
@@ -183,7 +179,7 @@ mod tests {
             stdout: vec![0xff, 0xfe],
             stderr: Vec::new(),
         }]);
-        let err = resolve(&scopes(&["pkg/a.py"]), &workspace, &query).expect_err("non-utf8");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("non-utf8");
         assert_eq!(
             err,
             ResolveError::QueryFailed {

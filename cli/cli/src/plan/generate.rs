@@ -100,20 +100,17 @@ pub fn plan_generate(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::strings;
     use dx_process::Scope;
-
-    fn options(words: &[&str]) -> Vec<String> {
-        words.iter().map(ToString::to_string).collect()
-    }
 
     fn resolved(targets: &[&str]) -> ResolvedScope {
         ResolvedScope {
             scope: if targets.is_empty() {
                 Scope::Repository
             } else {
-                Scope::Labels(options(targets))
+                Scope::Labels(strings(targets))
             },
-            targets: options(targets),
+            targets: strings(targets),
         }
     }
 
@@ -121,10 +118,10 @@ mod tests {
     fn generate_plan_runs_canonical_runner_repo_wide() {
         assert_eq!(GENERATE_TARGET, "//dx:generate");
         assert_eq!(GENERATE_CHECK_TARGET, "//dx:generate_check");
-        let plan = plan_generate(&resolved(&[]), &options(&["--jobs=4"]), false).expect("plan");
+        let plan = plan_generate(&resolved(&[]), &strings(&["--jobs=4"]), false).expect("plan");
         assert_eq!(
             plan.argv,
-            options(&[
+            strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
@@ -148,7 +145,7 @@ mod tests {
         let plan = plan_generate(&resolved(&[]), &[], true).expect("plan");
         assert_eq!(
             plan.argv,
-            options(&[
+            strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
@@ -174,7 +171,7 @@ mod tests {
     fn generate_plan_rejects_policy_conflicts_and_startup_options() {
         let err = plan_generate(
             &resolved(&[]),
-            &options(&["--@rules_dx//config:workspace=//other:config"]),
+            &strings(&["--@rules_dx//config:workspace=//other:config"]),
             false,
         )
         .expect_err("workspace override must fail");
@@ -182,7 +179,7 @@ mod tests {
             matches!(err, ForwardError::ConflictingOption { .. }),
             "got {err:?}"
         );
-        let err = plan_generate(&resolved(&[]), &options(&["--home_rc"]), false)
+        let err = plan_generate(&resolved(&[]), &strings(&["--home_rc"]), false)
             .expect_err("startup option must fail");
         assert!(matches!(err, ForwardError::StartupOption { .. }));
     }
@@ -192,7 +189,7 @@ mod tests {
         let plan = plan_generate(&resolved(&["//b/...", "//a:one"]), &[], false).expect("plan");
         assert_eq!(
             plan.argv,
-            options(&[
+            strings(&[
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
@@ -234,7 +231,7 @@ mod tests {
     fn generate_traversal_dirs_sort_dedup_and_fall_back() {
         assert_eq!(
             generate_traversal_dirs(&resolved(&["//b/...", "//b/...", "//a:one"])),
-            options(&["a", "b"])
+            strings(&["a", "b"])
         );
         assert_eq!(generate_traversal_dirs(&resolved(&[])), vec![String::new()]);
         assert_eq!(
@@ -243,11 +240,11 @@ mod tests {
         );
         assert_eq!(
             generate_traversal_dirs(&resolved(&["//a"])),
-            options(&["a"])
+            strings(&["a"])
         );
         let resolved_owners = ResolvedScope {
-            scope: Scope::ResolvedOwners(options(&["//a:one"])),
-            targets: options(&["//a:one"]),
+            scope: Scope::ResolvedOwners(strings(&["//a:one"])),
+            targets: strings(&["//a:one"]),
         };
         assert_eq!(
             generate_scope_elements(&resolved_owners),

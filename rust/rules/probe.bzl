@@ -37,7 +37,14 @@ def _toolchain_file(toolchain, name):
     info = getattr(toolchain, name, None)
     if info == None:
         return "(none)"
-    return info.basename
+    return _without_executable_suffix(info.basename)
+
+def _without_executable_suffix(name):
+    """Drops the suffix the host runs a tool under."""
+    for suffix in [".exe", ".bat", ".cmd", ".com"]:
+        if name.endswith(suffix) and len(name) > len(suffix):
+            return name[:-len(suffix)]
+    return name
 
 def _wrapper_subject_impl(ctx):
     wrapper = ctx.attr.wrapper

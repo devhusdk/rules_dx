@@ -2,7 +2,6 @@ package vue
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -127,49 +126,6 @@ func TestParseImports(t *testing.T) {
 	}
 }
 
-func TestExtractScript(t *testing.T) {
-	cases := []struct {
-		name    string
-		source  string
-		want    string
-		wantNil bool
-	}{
-		{"basic", "<script>\nconst x = 1;\n</script>", "const x = 1;", false},
-		{"setup", "<script setup>\nimport x from './a.vue';\n</script>", "import x from './a.vue';", false},
-		{"setupLang", "<script setup lang=\"ts\">\nconst x = 1;\n</script>", "const x = 1;", false},
-		{"upper", "<SCRIPT>\nconst x = 1;\n</SCRIPT>", "const x = 1;", false},
-		{"quotedAttr", "<script lang=\"a>b\">\nconst x = 1;\n</script>", "const x = 1;", false},
-		{"singleQuotedAttr", "<script lang='a>b'>\nconst x = 1;\n</script>", "const x = 1;", false},
-		{"afterTemplate", "<template><h1>t</h1><foo-bar v-bind:x=\"y\"/><x:y/><my_tag/></template><script>const x = 1;</script>", "const x = 1;", false},
-		{"commentedScript", "<!-- <script>import './fake.vue';</script> --><script>const x = 1;</script>", "const x = 1;", false},
-		{"commentInScript", "<script>const x = 1;<!-- not html -->const y = 2;</script>", "const x = 1;<!-- not html -->const y = 2;", false},
-		{"firstWins", "<script>const a = 1;</script><script>const b = 2;</script>", "const a = 1;", false},
-		{"closingFirst", "</script><script>const x = 1;</script>", "const x = 1;", false},
-		{"noName", "<>text</><script>const x = 1;</script>", "const x = 1;", false},
-		{"scriptPrefix", "<scriptx>no</scriptx><script>const x = 1;</script>", "const x = 1;", false},
-		{"none", "<template><div>x</div></template>", "", true},
-		{"selfClosing", "<script/>", "", true},
-		{"unclosedTag", "<script", "", true},
-		{"unclosedAttr", "<script lang=\"ts\"", "", true},
-		{"unterminatedAttrQuote", "<script lang=\"ts>", "", true},
-		{"noClose", "<script>const x = 1;", "", true},
-		{"unterminatedComment", "<!-- <script>", "", true},
-		{"unterminatedCommentInScript", "<script>const x = 1;<!--", "", true},
-	}
-	for _, tc := range cases {
-		got := ExtractScript([]byte(tc.source))
-		if tc.wantNil {
-			if got != nil {
-				t.Errorf("%s: ExtractScript = %q, want nil", tc.name, got)
-			}
-			continue
-		}
-		if strings.TrimSpace(string(got)) != tc.want {
-			t.Errorf("%s: ExtractScript = %q, want %q", tc.name, got, tc.want)
-		}
-	}
-}
-
 func TestIsStdLib(t *testing.T) {
 	for _, name := range []string{"fs", "path", "node:fs", "node:path", "test", "node:test"} {
 		if !IsStdLib(name) {
@@ -186,27 +142,5 @@ func TestIsStdLib(t *testing.T) {
 	}
 	if IsStdLib("node:") {
 		t.Error("empty node: identity recognized as stdlib")
-	}
-}
-
-func TestNormalizeSpec(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"./hello.vue", "hello"},
-		{"../pkg/demo.mjsx", "demo"},
-		{"./helper", "helper"},
-		{"./dir/", "dir"},
-		{"/abs/path.vue", "path"},
-		{"vue", "vue"},
-		{"@vue/compiler-sfc", "@vue/compiler-sfc"},
-		{"@scope/pkg/sub", "@scope/pkg/sub"},
-		{"node:fs", "node:fs"},
-		{"", ""},
-		{"./", ""},
-		{"   ", ""},
-	}
-	for _, tc := range cases {
-		if got := normalizeSpec(tc.in); got != tc.want {
-			t.Errorf("normalizeSpec(%q) = %q, want %q", tc.in, got, tc.want)
-		}
 	}
 }

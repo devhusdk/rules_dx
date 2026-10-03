@@ -160,11 +160,3 @@ func isTagNameChar(c byte) bool {
 		(c >= 'A' && c <= 'Z') ||
 		(c >= '0' && c <= '9')
 }
-
-func normalizeSpec(spec string) string {
-	return common.NormalizeJSSpec(spec)
-}
-
-func ExtractScripts(src []byte) [][]byte {
-	return common.ExtractScripts(src)
-}

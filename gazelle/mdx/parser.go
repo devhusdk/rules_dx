@@ -310,11 +310,3 @@ func braceDelta(line string) int {
 	}
 	return depth
 }
-
-func normalizeSpec(spec string) string {
-	return common.NormalizeJSSpec(spec)
-}
-
-func scan(src []byte, add func(string)) {
-	common.ScanEmbedded(src, add)
-}

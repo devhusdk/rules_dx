@@ -2,7 +2,6 @@ package svelte
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -138,57 +137,6 @@ func TestParseImports(t *testing.T) {
 	}
 }
 
-func TestExtractScripts(t *testing.T) {
-	cases := []struct {
-		name    string
-		source  string
-		want    []string
-		wantNil bool
-	}{
-		{"basic", "<script>\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"module", "<script context=\"module\">\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"both", "<script context=\"module\">\nconst a = 1;\n</script><script>\nconst b = 2;\n</script>", []string{"const a = 1;", "const b = 2;"}, false},
-		{"genericsAttr", "<script lang=\"ts\" generics=\"T\">\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"upper", "<SCRIPT>\nconst x = 1;\n</SCRIPT>", []string{"const x = 1;"}, false},
-		{"quotedAttr", "<script context=\"a>b\">\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"singleQuotedAttr", "<script context='a>b'>\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"afterMarkup", "<div>t</div><custom-element foo=\"bar\"/><my_tag/><x:y/></template><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"commentedScript", "<!-- <script>import './fake.svelte';</script> --><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"commentInScript", "<script>const x = 1;<!-- not html -->const y = 2;</script>", []string{"const x = 1;<!-- not html -->const y = 2;"}, false},
-		{"selfClosingSkipped", "<script/>\n<script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"closingFirst", "</script><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"noName", "<>text</><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"scriptPrefix", "<scriptx>no</scriptx><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"none", "<div>x</div>", nil, true},
-		{"selfClosingOnly", "<script/>", nil, true},
-		{"unclosedTag", "<script", nil, true},
-		{"unclosedAttr", "<script lang=\"ts\"", nil, true},
-		{"unterminatedAttrQuote", "<script lang=\"ts>", nil, true},
-		{"noClose", "<script>const x = 1;", nil, true},
-		{"partialSecondInert", "<script>const a = 1;</script><script>const b = 2;", nil, true},
-		{"unterminatedComment", "<!-- <script>", nil, true},
-		{"unterminatedCommentInScript", "<script>const x = 1;<!--", nil, true},
-	}
-	for _, tc := range cases {
-		got := ExtractScripts([]byte(tc.source))
-		if tc.wantNil {
-			if got != nil {
-				t.Errorf("%s: ExtractScripts = %q, want nil", tc.name, got)
-			}
-			continue
-		}
-		if len(got) != len(tc.want) {
-			t.Errorf("%s: ExtractScripts = %q, want %q", tc.name, got, tc.want)
-			continue
-		}
-		for i := range got {
-			if strings.TrimSpace(string(got[i])) != tc.want[i] {
-				t.Errorf("%s: ExtractScripts[%d] = %q, want %q", tc.name, i, got[i], tc.want[i])
-			}
-		}
-	}
-}
-
 func TestIsStdLib(t *testing.T) {
 	for _, name := range []string{"fs", "path", "node:fs", "node:path", "test", "node:test"} {
 		if !IsStdLib(name) {
@@ -205,27 +153,5 @@ func TestIsStdLib(t *testing.T) {
 	}
 	if IsStdLib("node:") {
 		t.Error("empty node: identity recognized as stdlib")
-	}
-}
-
-func TestNormalizeSpec(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"./hello.svelte", "hello"},
-		{"../pkg/demo.mjsx", "demo"},
-		{"./helper", "helper"},
-		{"./dir/", "dir"},
-		{"/abs/path.svelte", "path"},
-		{"svelte", "svelte"},
-		{"svelte/compiler", "svelte/compiler"},
-		{"@scope/pkg/sub", "@scope/pkg/sub"},
-		{"node:fs", "node:fs"},
-		{"", ""},
-		{"./", ""},
-		{"   ", ""},
-	}
-	for _, tc := range cases {
-		if got := normalizeSpec(tc.in); got != tc.want {
-			t.Errorf("normalizeSpec(%q) = %q, want %q", tc.in, got, tc.want)
-		}
 	}
 }

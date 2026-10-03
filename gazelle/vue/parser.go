@@ -26,11 +26,3 @@ func ParseImports(content []byte) []string {
 	sort.Strings(out)
 	return out
 }
-
-func normalizeSpec(spec string) string {
-	return common.NormalizeJSSpec(spec)
-}
-
-func ExtractScript(src []byte) []byte {
-	return common.ExtractScript(src)
-}

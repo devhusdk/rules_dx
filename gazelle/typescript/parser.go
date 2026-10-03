@@ -55,7 +55,3 @@ func ParseImportRefs(content []byte) []ImportRef {
 	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
 	return out
 }
-
-func normalizeSpec(spec string) string {
-	return common.NormalizeJSSpec(spec)
-}

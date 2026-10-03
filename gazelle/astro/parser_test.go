@@ -2,7 +2,6 @@ package astro
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -186,54 +185,6 @@ func TestSplitFence(t *testing.T) {
 	}
 }
 
-func TestExtractScripts(t *testing.T) {
-	cases := []struct {
-		name    string
-		source  string
-		want    []string
-		wantNil bool
-	}{
-		{"basic", "<script>\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"upper", "<SCRIPT>\nconst x = 1;\n</SCRIPT>", []string{"const x = 1;"}, false},
-		{"quotedAttr", "<script context=\"a>b\">\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"singleQuotedAttr", "<script context='a>b'>\nconst x = 1;\n</script>", []string{"const x = 1;"}, false},
-		{"afterMarkup", "<div>t</div><custom-element foo=\"bar\"/><my_tag/><x:y/></template><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"commentedScript", "<!-- <script>import './fake.astro';</script> --><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"commentInScript", "<script>const x = 1;<!-- not html -->const y = 2;</script>", []string{"const x = 1;<!-- not html -->const y = 2;"}, false},
-		{"selfClosingSkipped", "<script/>\n<script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"closingFirst", "</script><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"noName", "<>text</><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"scriptPrefix", "<scriptx>no</scriptx><script>const x = 1;</script>", []string{"const x = 1;"}, false},
-		{"none", "<div>x</div>", nil, true},
-		{"selfClosingOnly", "<script/>", nil, true},
-		{"unclosedTag", "<script", nil, true},
-		{"unclosedAttr", "<script lang=\"ts\"", nil, true},
-		{"unterminatedAttrQuote", "<script lang=\"ts>", nil, true},
-		{"noClose", "<script>const x = 1;", nil, true},
-		{"partialSecondInert", "<script>const a = 1;</script><script>const b = 2;", nil, true},
-		{"unterminatedComment", "<!-- <script>", nil, true},
-		{"unterminatedCommentInScript", "<script>const x = 1;<!--", nil, true},
-	}
-	for _, tc := range cases {
-		got := ExtractScripts([]byte(tc.source))
-		if tc.wantNil {
-			if got != nil {
-				t.Errorf("%s: ExtractScripts = %q, want nil", tc.name, got)
-			}
-			continue
-		}
-		if len(got) != len(tc.want) {
-			t.Errorf("%s: ExtractScripts = %q, want %q", tc.name, got, tc.want)
-			continue
-		}
-		for i := range got {
-			if strings.TrimSpace(string(got[i])) != tc.want[i] {
-				t.Errorf("%s: ExtractScripts[%d] = %q, want %q", tc.name, i, got[i], tc.want[i])
-			}
-		}
-	}
-}
-
 func TestOpensScript(t *testing.T) {
 	for _, source := range []string{
 		"<script>const x = 1;</script>",
@@ -278,27 +229,5 @@ func TestIsStdLib(t *testing.T) {
 	}
 	if IsStdLib("node:") {
 		t.Error("empty node: identity recognized as stdlib")
-	}
-}
-
-func TestNormalizeSpec(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"./hello.astro", "hello"},
-		{"../pkg/demo.mjsx", "demo"},
-		{"./helper", "helper"},
-		{"./dir/", "dir"},
-		{"/abs/path.astro", "path"},
-		{"astro", "astro"},
-		{"@astrojs/compiler", "@astrojs/compiler"},
-		{"@scope/pkg/sub", "@scope/pkg/sub"},
-		{"node:fs", "node:fs"},
-		{"", ""},
-		{"./", ""},
-		{"   ", ""},
-	}
-	for _, tc := range cases {
-		if got := normalizeSpec(tc.in); got != tc.want {
-			t.Errorf("normalizeSpec(%q) = %q, want %q", tc.in, got, tc.want)
-		}
 	}
 }

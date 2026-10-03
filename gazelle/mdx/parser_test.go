@@ -209,12 +209,6 @@ func TestExtractESMRegions(t *testing.T) {
 	}
 }
 
-func scanSpecs(src string) []string {
-	var out []string
-	scan([]byte(src), func(s string) { out = append(out, normalizeSpec(s)) })
-	return out
-}
-
 func TestIsSetextUnderline(t *testing.T) {
 	if isSetextUnderline("") {
 		t.Error("isSetextUnderline(\"\") = true, want false")
@@ -257,93 +251,6 @@ func TestIsFenceClose(t *testing.T) {
 	}
 }
 
-func TestScanBlockComment(t *testing.T) {
-	if got := scanSpecs("/* hello */ import a from \"./a.mdx\";"); !reflect.DeepEqual(got, []string{"a"}) {
-		t.Errorf("scan block comment = %q, want [a]", got)
-	}
-	if got := scanSpecs("/* unterminated"); len(got) != 0 {
-		t.Errorf("scan unterminated block = %q, want empty", got)
-	}
-	if got := scanSpecs("import a from \"./a.mdx\"; /* trailing */"); !reflect.DeepEqual(got, []string{"a"}) {
-		t.Errorf("scan trailing block = %q, want [a]", got)
-	}
-}
-
-func TestScanRegex(t *testing.T) {
-	if got := scanSpecs("/abc/; import a from \"./a.mdx\";"); !reflect.DeepEqual(got, []string{"a"}) {
-		t.Errorf("scan regex prefix = %q, want [a]", got)
-	}
-	if got := scanSpecs("const x = a / b; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan division = %q, want [real]", got)
-	}
-	if got := scanSpecs("const x = (a) / b; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan division paren = %q, want [real]", got)
-	}
-	if got := scanSpecs("const re = /a\\/b/; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan regex escape = %q, want [real]", got)
-	}
-	if got := scanSpecs("const re = /[a/b]/; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan regex class = %q, want [real]", got)
-	}
-	if got := scanSpecs("const re = /abc/gi; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan regex flags = %q, want [real]", got)
-	}
-	if got := scanSpecs("const re = /abc\nimport y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan regex newline = %q, want [real]", got)
-	}
-	if got := scanSpecs("const re = /abc"); len(got) != 0 {
-		t.Errorf("scan regex EOF = %q, want empty", got)
-	}
-}
-
-func TestScanRequire(t *testing.T) {
-	if got := scanSpecs("require(\"./a.mdx\");"); !reflect.DeepEqual(got, []string{"a"}) {
-		t.Errorf("scan require = %q, want [a]", got)
-	}
-	if got := scanSpecs("obj.require(\"./fake.mdx\");"); len(got) != 0 {
-		t.Errorf("scan method require = %q, want empty", got)
-	}
-	if got := scanSpecs("obj . require(\"./fake.mdx\");"); len(got) != 0 {
-		t.Errorf("scan spaced dot require = %q, want empty", got)
-	}
-	if got := scanSpecs("require;"); len(got) != 0 {
-		t.Errorf("scan require no paren = %q, want empty", got)
-	}
-	if got := scanSpecs("require"); len(got) != 0 {
-		t.Errorf("scan require EOF = %q, want empty", got)
-	}
-	if got := scanSpecs("require(\"a\";"); len(got) != 0 {
-		t.Errorf("scan require missing paren = %q, want empty", got)
-	}
-	if got := scanSpecs("require(\"abc\n\");"); len(got) != 0 {
-		t.Errorf("scan require unterminated = %q, want empty", got)
-	}
-	if got := scanSpecs("import a from \"./a.mdx\"; require(\"./b.mdx\");"); !reflect.DeepEqual(got, []string{"a", "b"}) {
-		t.Errorf("scan import+require = %q, want [a b]", got)
-	}
-}
-
-func TestScanQuotedTemplate(t *testing.T) {
-	if got := scanSpecs("\"a\\\"b\"; import a from \"./a.mdx\";"); !reflect.DeepEqual(got, []string{"a"}) {
-		t.Errorf("scan quoted escape = %q, want [a]", got)
-	}
-	if got := scanSpecs("`a\\nb`; import a from \"./a.mdx\";"); !reflect.DeepEqual(got, []string{"a"}) {
-		t.Errorf("scan template escape = %q, want [a]", got)
-	}
-	if got := scanSpecs("`outer ${ {a: 1} } inner`; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan template object = %q, want [real]", got)
-	}
-	if got := scanSpecs("`outer ${'x'} inner`; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan template quote = %q, want [real]", got)
-	}
-	if got := scanSpecs("`outer ${`inner`} end`; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan template nested = %q, want [real]", got)
-	}
-	if got := scanSpecs("`outer ${\"x\"} inner`; import y from \"./real.mdx\";"); !reflect.DeepEqual(got, []string{"real"}) {
-		t.Errorf("scan template double quote = %q, want [real]", got)
-	}
-}
-
 func TestIsStdLib(t *testing.T) {
 	for _, name := range []string{"fs", "path", "node:fs", "node:path", "test", "node:test"} {
 		if !IsStdLib(name) {
@@ -360,26 +267,5 @@ func TestIsStdLib(t *testing.T) {
 	}
 	if IsStdLib("node:") {
 		t.Error("empty node: identity recognized as stdlib")
-	}
-}
-
-func TestNormalizeSpec(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"./hello.mdx", "hello"},
-		{"../pkg/demo.mjsx", "demo"},
-		{"./helper", "helper"},
-		{"./dir/", "dir"},
-		{"/abs/path.mdx", "path"},
-		{"@mdx-js/mdx", "@mdx-js/mdx"},
-		{"@scope/pkg/sub", "@scope/pkg/sub"},
-		{"node:fs", "node:fs"},
-		{"", ""},
-		{"./", ""},
-		{"   ", ""},
-	}
-	for _, tc := range cases {
-		if got := normalizeSpec(tc.in); got != tc.want {
-			t.Errorf("normalizeSpec(%q) = %q, want %q", tc.in, got, tc.want)
-		}
 	}
 }

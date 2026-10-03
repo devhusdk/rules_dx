@@ -202,48 +202,11 @@ func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
 }
 
 func ExtractScript(src []byte) []byte {
-	n := len(src)
-	i := 0
-	for i < n {
-		after := skipHTMLComment(src, i)
-		if after < 0 {
-			return nil
-		}
-		if after > i {
-			i = after
-			continue
-		}
-		if src[i] != '<' {
-			i++
-			continue
-		}
-		if i+1 < n && src[i+1] == '/' {
-			i += 2
-			continue
-		}
-		name, after, ok := scanTagName(src, i+1)
-		if !ok {
-			i++
-			continue
-		}
-		if !equalFold(name, "script") {
-			i = after
-			continue
-		}
-		closePos, innerStart := scanTagEnd(src, after)
-		if closePos < 0 {
-			return nil
-		}
-		if src[closePos-1] == '/' {
-			return nil
-		}
-		end := findCloseTag(src, innerStart, "script")
-		if end < 0 {
-			return nil
-		}
-		return src[innerStart:end]
+	scripts := ExtractScripts(src)
+	if len(scripts) == 0 {
+		return nil
 	}
-	return nil
+	return scripts[0]
 }
 
 func ExtractScripts(src []byte) [][]byte {

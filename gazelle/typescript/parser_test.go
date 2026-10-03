@@ -121,25 +121,6 @@ func TestIsStdLib(t *testing.T) {
 	}
 }
 
-func TestNormalizeSpec(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"./hello.ts", "hello"},
-		{"../pkg/demo.tsx", "demo"},
-		{"./helper", "helper"},
-		{"./dir/", "dir"},
-		{"/abs/path.cts", "path"},
-		{"./", ""},
-		{"react", "react"},
-		{"node:fs", "node:fs"},
-		{"", ""},
-	}
-	for _, tc := range cases {
-		if got := normalizeSpec(tc.in); got != tc.want {
-			t.Errorf("normalizeSpec(%q) = %q, want %q", tc.in, got, tc.want)
-		}
-	}
-}
-
 func TestParseImportRefsRelative(t *testing.T) {
 	cases := []struct {
 		name   string

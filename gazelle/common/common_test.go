@@ -82,6 +82,44 @@ func TestScanTemplateSubstitution(t *testing.T) {
 	}
 }
 
+func TestScanEmbeddedTricks(t *testing.T) {
+	cases := []struct {
+		name, src string
+		want      []string
+	}{
+		{"block comment", "/* hello */ import a from \"./a.js\";", []string{"a"}},
+		{"unterminated block comment", "/* unterminated", nil},
+		{"trailing block comment", "import a from \"./a.js\"; /* trailing */", []string{"a"}},
+		{"regex prefix", "/abc/; import a from \"./a.js\";", []string{"a"}},
+		{"division", "const x = a / b; import y from \"./real.js\";", []string{"real"}},
+		{"division paren", "const x = (a) / b; import y from \"./real.js\";", []string{"real"}},
+		{"regex escape", "const re = /a\\/b/; import y from \"./real.js\";", []string{"real"}},
+		{"regex class", "const re = /[a/b]/; import y from \"./real.js\";", []string{"real"}},
+		{"regex flags", "const re = /abc/gi; import y from \"./real.js\";", []string{"real"}},
+		{"regex newline", "const re = /abc\nimport y from \"./real.js\";", []string{"real"}},
+		{"regex EOF", "const re = /abc", nil},
+		{"require", "require(\"./a.js\");", []string{"a"}},
+		{"method require", "obj.require(\"./fake.js\");", nil},
+		{"spaced dot require", "obj . require(\"./fake.js\");", nil},
+		{"require no paren", "require;", nil},
+		{"require EOF", "require", nil},
+		{"require missing paren", "require(\"a\";", nil},
+		{"require unterminated", "require(\"abc\n\");", nil},
+		{"import and require", "import a from \"./a.js\"; require(\"./b.js\");", []string{"a", "b"}},
+		{"quoted escape", "\"a\\\"b\"; import a from \"./a.js\";", []string{"a"}},
+		{"template escape", "`a\\nb`; import a from \"./a.js\";", []string{"a"}},
+		{"template object", "`outer ${ {a: 1} } inner`; import y from \"./real.js\";", []string{"real"}},
+		{"template quote", "`outer ${'x'} inner`; import y from \"./real.js\";", []string{"real"}},
+		{"template nested", "`outer ${`inner`} end`; import y from \"./real.js\";", []string{"real"}},
+		{"template double quote", "`outer ${\"x\"} inner`; import y from \"./real.js\";", []string{"real"}},
+	}
+	for _, tc := range cases {
+		if got := collectEmbedded([]byte(tc.src)); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("ScanEmbedded %s = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 func TestSkipQuotedAndTemplateEOF(t *testing.T) {
 	if got := skipQuoted([]byte("\"abc"), 0); got != 4 {
 		t.Errorf("skipQuoted EOF = %d, want 4", got)
@@ -130,6 +168,83 @@ func TestIsRegexStart(t *testing.T) {
 	for _, tc := range cases {
 		if got := isRegexStart([]byte(tc.src), tc.pos); got != tc.want {
 			t.Errorf("isRegexStart(%q, %d) = %v, want %v", tc.src, tc.pos, got, tc.want)
+		}
+	}
+}
+
+func TestNormalizeJSSpec(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"", ""},
+		{"   ", ""},
+		{"./", ""},
+		{".", ""},
+		{"/", ""},
+		{"./dir/", "dir"},
+		{"./helper", "helper"},
+		{"./.hidden", ".hidden"},
+		{"../pkg/demo.mjsx", "demo"},
+		{"/abs/path.mdx", "path"},
+		{"react", "react"},
+		{"@mdx-js/mdx", "@mdx-js/mdx"},
+		{"@scope/pkg/sub", "@scope/pkg/sub"},
+		{"node:fs", "node:fs"},
+	}
+	for _, ext := range []string{
+		".js", ".jsx", ".mjs", ".cjs",
+		".ts", ".tsx", ".mts", ".cts",
+		".mdx", ".vue", ".svelte", ".astro",
+	} {
+		cases = append(cases, struct{ in, want string }{"./hello" + ext, "hello"})
+	}
+	for _, tc := range cases {
+		if got := NormalizeJSSpec(tc.in); got != tc.want {
+			t.Errorf("NormalizeJSSpec(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestExtractScripts(t *testing.T) {
+	one := func(s string) []byte { return []byte(s) }
+	cases := []struct {
+		name   string
+		source string
+		first  []byte
+		all    [][]byte
+	}{
+		{"empty", "", nil, nil},
+		{"none", "<div>x</div>", nil, nil},
+		{"noName", "<>text</><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"basic", "<script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"emptyBody", "<script></script>", []byte{}, [][]byte{{}}},
+		{"setup", "<script setup>\nimport x from './a.vue';\n</script>", one("\nimport x from './a.vue';\n"), [][]byte{one("\nimport x from './a.vue';\n")}},
+		{"setupLang", "<script setup lang=\"ts\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"module", "<script context=\"module\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"genericsAttr", "<script lang=\"ts\" generics=\"T\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"both", "<script context=\"module\">\nconst a = 1;\n</script><script>\nconst b = 2;\n</script>", one("\nconst a = 1;\n"), [][]byte{one("\nconst a = 1;\n"), one("\nconst b = 2;\n")}},
+		{"upper", "<SCRIPT>\nconst x = 1;\n</SCRIPT>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"closingFirst", "</script><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"quotedAttr", "<script lang=\"a>b\">\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"singleQuotedAttr", "<script lang='a>b'>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"scriptPrefix", "<scriptx>no</scriptx><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"afterMarkup", "<div>t</div><custom-element foo=\"bar\"/><my_tag/><x:y/></template><script>\nconst x = 1;\n</script><script>\nconst y = 2;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n"), one("\nconst y = 2;\n")}},
+		{"commentedScript", "<!-- <script>import './fake.svelte';</script> --><script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"commentInScript", "<script>const x = 1;<!-- not html -->const y = 2;</script>", one("const x = 1;<!-- not html -->const y = 2;"), [][]byte{one("const x = 1;<!-- not html -->const y = 2;")}},
+		{"selfClosingOnly", "<script/>", nil, nil},
+		{"selfClosingFirst", "<script/>\n<script>\nconst x = 1;\n</script>", one("\nconst x = 1;\n"), [][]byte{one("\nconst x = 1;\n")}},
+		{"partialSecondKillsAll", "<script>\nconst a = 1;\n</script><script>\nconst b = 2;", nil, nil},
+		{"unclosedTag", "<script", nil, nil},
+		{"unclosedAttr", "<script lang=\"ts\"", nil, nil},
+		{"unterminatedAttrQuote", "<script lang=\"ts>", nil, nil},
+		{"noClose", "<script>\nconst x = 1;", nil, nil},
+		{"unterminatedComment", "<!-- <script>", nil, nil},
+		{"unterminatedCommentInScript", "<script>\nconst x = 1;<!--", nil, nil},
+	}
+	for _, tc := range cases {
+		if got := ExtractScript([]byte(tc.source)); !reflect.DeepEqual(got, tc.first) {
+			t.Errorf("ExtractScript %s = %q, want %q", tc.name, got, tc.first)
+		}
+		if got := ExtractScripts([]byte(tc.source)); !reflect.DeepEqual(got, tc.all) {
+			t.Errorf("ExtractScripts %s = %q, want %q", tc.name, got, tc.all)
 		}
 	}
 }

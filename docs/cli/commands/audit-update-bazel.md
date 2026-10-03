@@ -102,6 +102,11 @@ path of the pinned `@dx_tools//:gitleaks` artifact. A relative path is rejected
 and `PATH` is never searched. Without it the run exits `1` with `secrets
 auditor unavailable`. `dx license` does not read it.
 
+A `.gitleaks.toml` in the workspace root is passed to the scan. It is the only
+config the scan reads. Each scan that uses it reports a warning naming the file,
+because the config carries no hash pin. A secret finding is an error whose rule
+is the Gitleaks rule id, for example `gitleaks/aws-key`.
+
 `dx license` reads `licenses.toml` from the workspace root. Without the file
 every scope is distributed and only `MIT`, `Apache-2.0`, `BSD-2-Clause`,
 `BSD-3-Clause`, `ISC`, and `Unlicense` pass. `schema_version` is `1` and an

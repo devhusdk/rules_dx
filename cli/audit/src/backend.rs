@@ -2,8 +2,6 @@ use crate::secrets::{
     CONFIG_FLAG, EXIT_CODE_FLAG, REDACT_FLAG, REPORT_FORMAT_FLAG, REPORT_PATH_FLAG, SARIF_FORMAT,
 };
 
-pub const SECRETS_BINARY: &str = "gitleaks";
-
 pub const SECRETS_SUBCOMMAND: &str = "detect";
 
 pub const NO_GIT_FLAG: &str = "--no-git";
@@ -15,12 +13,9 @@ pub const WORKSPACE_SOURCE: &str = ".";
 pub const SECRETS_ERROR_EXIT: &str = "2";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BackendPlan {
-    Run {
-        argv: Vec<String>,
-        env: Vec<(String, String)>,
-    },
-    Noop,
+pub struct BackendPlan {
+    pub argv: Vec<String>,
+    pub env: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -77,7 +72,7 @@ pub fn plan_secrets(
             argv.push(config.to_owned());
         }
     }
-    Ok(BackendPlan::Run {
+    Ok(BackendPlan {
         argv,
         env: vec![("TMPDIR".to_owned(), temp_dir.to_owned())],
     })
@@ -139,25 +134,21 @@ mod tests {
             false,
         )
         .expect("plans");
-        match plan {
-            BackendPlan::Run { argv, env } => {
-                assert_eq!(argv[0], hermetic_gitleaks());
-                assert!(argv.contains(&"detect".to_owned()));
-                assert!(argv.contains(&"--no-git".to_owned()));
-                assert!(argv.contains(&"--source".to_owned()));
-                assert!(argv.contains(&".".to_owned()));
-                assert!(argv.contains(&"--report-format".to_owned()));
-                assert!(argv.contains(&"sarif".to_owned()));
-                assert!(argv.contains(&"--report-path".to_owned()));
-                assert!(argv.contains(&"out/gitleaks.sarif".to_owned()));
-                assert!(argv.contains(&"--redact".to_owned()));
-                assert!(argv.contains(&"--exit-code".to_owned()));
-                assert!(argv.contains(&"2".to_owned()));
-                assert!(!argv.contains(&"--config".to_owned()));
-                assert_eq!(env, vec![("TMPDIR".to_owned(), "/tmp/dx".to_owned())]);
-            }
-            BackendPlan::Noop => panic!("secrets runs gitleaks"),
-        }
+        assert_eq!(plan.argv[0], hermetic_gitleaks());
+        assert!(plan.argv.contains(&"detect".to_owned()));
+        assert!(plan.argv.contains(&"--no-git".to_owned()));
+        assert!(plan.argv.contains(&"--source".to_owned()));
+        assert!(plan.argv.contains(&".".to_owned()));
+        assert!(plan.argv.contains(&"--report-format".to_owned()));
+        assert!(plan.argv.contains(&"sarif".to_owned()));
+        assert!(plan.argv.contains(&"--report-path".to_owned()));
+        assert!(plan.argv.contains(&"out/gitleaks.sarif".to_owned()));
+        assert!(plan.argv.contains(&"--redact".to_owned()));
+        assert!(plan.argv.contains(&"--exit-code".to_owned()));
+        assert!(plan.argv.contains(&"2".to_owned()));
+        assert!(!plan.argv.contains(&"--config".to_owned()));
+        assert_eq!(plan.env, vec![("TMPDIR".to_owned(), "/tmp/dx".to_owned())]);
+        assert!(!plan.env.iter().any(|(key, _)| key == "PATH"));
     }
 
     #[test]
@@ -170,13 +161,8 @@ mod tests {
             false,
         )
         .expect("plans");
-        match plan {
-            BackendPlan::Run { argv, .. } => {
-                assert!(argv.contains(&"--config".to_owned()));
-                assert!(argv.contains(&".gitleaks.toml".to_owned()));
-            }
-            BackendPlan::Noop => panic!("secrets runs"),
-        }
+        assert!(plan.argv.contains(&"--config".to_owned()));
+        assert!(plan.argv.contains(&".gitleaks.toml".to_owned()));
     }
 
     #[test]
@@ -221,13 +207,11 @@ mod tests {
             false,
         )
         .expect("plans");
-        match plan {
-            BackendPlan::Run { env, .. } => {
-                assert_eq!(env, vec![("TMPDIR".to_owned(), "/tmp/dx-run".to_owned())]);
-                assert!(!env.iter().any(|(key, _)| key == "PATH"));
-            }
-            BackendPlan::Noop => panic!("secrets runs"),
-        }
+        assert_eq!(
+            plan.env,
+            vec![("TMPDIR".to_owned(), "/tmp/dx-run".to_owned())]
+        );
+        assert!(!plan.env.iter().any(|(key, _)| key == "PATH"));
     }
 
     #[test]
@@ -303,7 +287,6 @@ mod tests {
 
     #[test]
     fn frozen_spellings() {
-        assert_eq!(SECRETS_BINARY, "gitleaks");
         assert_eq!(SECRETS_SUBCOMMAND, "detect");
         assert_eq!(NO_GIT_FLAG, "--no-git");
         assert_eq!(SOURCE_FLAG, "--source");

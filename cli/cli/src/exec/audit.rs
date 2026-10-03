@@ -1,6 +1,7 @@
 use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::{plan_reports, Destination};
+use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
     command_finished, command_started, error_event, notice_event, report_event, write_event,
     DiagnosticEvent, FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot, Threshold,
@@ -502,8 +503,8 @@ fn run_secrets(
 ) {
     let report_file: PathBuf = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.sarif"));
     let report_arg = report_file.to_string_lossy().into_owned();
-    let config = if workspace.join(".gitleaks.toml").is_file() {
-        Some(".gitleaks.toml")
+    let config = if workspace.join(CONFIG_FILE_NAME).is_file() {
+        Some(CONFIG_FILE_NAME)
     } else {
         None
     };
@@ -544,8 +545,7 @@ fn run_secrets(
         &temp_arg,
         offline,
     ) {
-        Ok(dx_audit::backend::BackendPlan::Run { argv, env }) => (argv, env),
-        Ok(dx_audit::backend::BackendPlan::Noop) => (Vec::new(), Vec::new()),
+        Ok(dx_audit::backend::BackendPlan { argv, env }) => (argv, env),
         Err(error) => {
             return (
                 Vec::new(),
@@ -555,9 +555,6 @@ fn run_secrets(
         }
     };
     let (argv, extra) = plan;
-    if argv.is_empty() {
-        return (Vec::new(), None, Vec::new());
-    }
     let env_refs: Vec<(&str, &str)> = extra
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))

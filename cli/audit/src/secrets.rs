@@ -1,14 +1,6 @@
-pub const GITLEAKS_TOOL: &str = "gitleaks";
-
-pub const TRUFFLEHOG_V1: &str = "wont-fix";
-
 pub const TOOL_ENV_VAR: &str = "DX_GITLEAKS_BIN";
 
 pub const TOOL_LABEL: &str = "@dx_tools//:gitleaks";
-
-pub fn hermetic_env(temp_dir: &std::path::Path) -> Vec<(String, String)> {
-    vec![("TMPDIR".to_owned(), temp_dir.to_string_lossy().into_owned())]
-}
 
 pub const SARIF_FORMAT: &str = "sarif";
 
@@ -22,50 +14,7 @@ pub const EXIT_CODE_FLAG: &str = "--exit-code";
 
 pub const CONFIG_FLAG: &str = "--config";
 
-pub const CONFIG_DISCOVERY_ORDER: &[&str] = &[
-    "--config flag",
-    "GITLEAKS_CONFIG",
-    "GITLEAKS_CONFIG_TOML",
-    ".gitleaks.toml",
-    "built-in defaults",
-];
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SecretsReport {
-    pub report_path: String,
-    pub config: Option<String>,
-    pub exit_code: Option<u8>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum ReportProblem {
-    #[error("secrets report needs an explicit --report-path destination")]
-    MissingPath,
-}
-
-impl SecretsReport {
-    pub fn argv(&self) -> Result<Vec<String>, ReportProblem> {
-        if self.report_path.trim().is_empty() {
-            return Err(ReportProblem::MissingPath);
-        }
-        let mut argv = vec![
-            REPORT_FORMAT_FLAG.to_owned(),
-            SARIF_FORMAT.to_owned(),
-            REPORT_PATH_FLAG.to_owned(),
-            self.report_path.clone(),
-            REDACT_FLAG.to_owned(),
-        ];
-        if let Some(config) = &self.config {
-            argv.push(CONFIG_FLAG.to_owned());
-            argv.push(config.clone());
-        }
-        if let Some(code) = self.exit_code {
-            argv.push(EXIT_CODE_FLAG.to_owned());
-            argv.push(code.to_string());
-        }
-        Ok(argv)
-    }
-}
+pub const CONFIG_FILE_NAME: &str = ".gitleaks.toml";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SecretFinding {
@@ -111,52 +60,6 @@ pub fn triage_sarif(text: &str) -> Result<Vec<SecretFinding>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn report_argv_pins_sarif_redact_and_path() {
-        let report = SecretsReport {
-            report_path: "bazel-out/gitleaks.sarif".to_owned(),
-            config: None,
-            exit_code: None,
-        };
-        let argv = report.argv().expect("plans");
-        assert_eq!(
-            argv,
-            vec![
-                "--report-format".to_owned(),
-                "sarif".to_owned(),
-                "--report-path".to_owned(),
-                "bazel-out/gitleaks.sarif".to_owned(),
-                "--redact".to_owned(),
-            ]
-        );
-    }
-
-    #[test]
-    fn report_argv_carries_config_and_exit_code_overrides() {
-        let report = SecretsReport {
-            report_path: "out.sarif".to_owned(),
-            config: Some(".gitleaks.toml".to_owned()),
-            exit_code: Some(2),
-        };
-        let argv = report.argv().expect("plans");
-        assert!(argv.contains(&"--config".to_owned()));
-        assert!(argv.contains(&".gitleaks.toml".to_owned()));
-        assert!(argv.contains(&"--exit-code".to_owned()));
-        assert!(argv.contains(&"2".to_owned()));
-        assert!(argv.contains(&"sarif".to_owned()));
-        assert!(argv.contains(&"--redact".to_owned()));
-    }
-
-    #[test]
-    fn missing_report_path_fails_closed() {
-        let report = SecretsReport {
-            report_path: "  ".to_owned(),
-            config: None,
-            exit_code: None,
-        };
-        assert_eq!(report.argv(), Err(ReportProblem::MissingPath));
-    }
 
     #[test]
     fn sarif_triage_counts_results_and_never_surfaces_secrets() {
@@ -259,32 +162,5 @@ mod tests {
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].rule, "gitleaks/a");
         assert_eq!(findings[1].path, Some("src/b.py".to_owned()));
-    }
-
-    #[test]
-    fn frozen_spellings_and_discovery_order() {
-        assert_eq!(GITLEAKS_TOOL, "gitleaks");
-        assert_eq!(TRUFFLEHOG_V1, "wont-fix");
-        assert_eq!(SARIF_FORMAT, "sarif");
-        assert_eq!(REDACT_FLAG, "--redact");
-        assert_eq!(
-            CONFIG_DISCOVERY_ORDER,
-            &[
-                "--config flag",
-                "GITLEAKS_CONFIG",
-                "GITLEAKS_CONFIG_TOML",
-                ".gitleaks.toml",
-                "built-in defaults",
-            ]
-        );
-    }
-
-    #[test]
-    fn hermetic_env_carries_only_tmpdir() {
-        let env = hermetic_env(std::path::Path::new("/tmp/dx-audit"));
-        assert_eq!(env, vec![("TMPDIR".to_owned(), "/tmp/dx-audit".to_owned())]);
-        assert!(!env.iter().any(|(key, _)| key == "PATH"));
-        assert!(!env.iter().any(|(key, _)| key == "GITLEAKS_CONFIG"));
-        assert!(!env.iter().any(|(key, _)| key == "GITLEAKS_CONFIG_TOML"));
     }
 }

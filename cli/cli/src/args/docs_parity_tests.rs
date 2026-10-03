@@ -2071,6 +2071,26 @@ fn tool_path_env_vars_are_documented_where_the_command_needs_them() {
     }
 }
 
+#[test]
+fn secrets_config_docs_say_which_file_the_scan_reads() {
+    let page_name = "audit-update-bazel.md";
+    let page = std::fs::read_to_string(docs_dir().join(page_name))
+        .unwrap_or_else(|error| panic!("{page_name} ships as test data: {error}"));
+    let paragraph = page
+        .split("\n\n")
+        .find(|block| block.contains(dx_audit::secrets::CONFIG_FILE_NAME))
+        .unwrap_or_else(|| {
+            panic!(
+                "{page_name} never names {}, the only config dx security hands the secrets scan",
+                dx_audit::secrets::CONFIG_FILE_NAME
+            )
+        });
+    assert!(
+        paragraph.contains("warning"),
+        "{page_name} must say a committed config makes the scan warn: {paragraph}"
+    );
+}
+
 fn skew_bullet_owners(page: &str, lead: &str) -> Vec<String> {
     let section = sections(page)
         .into_iter()

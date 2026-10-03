@@ -5,11 +5,15 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
+
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func testConfig() *config.Config {
@@ -175,4 +179,56 @@ func TestCollectUsedIgnoresEmptyWithoutConfigs(t *testing.T) {
 	if got := l.collectUsedIgnores(); len(got) != 0 {
 		t.Fatalf("ignores = %v, want empty", got)
 	}
+}
+
+type failingLanguage interface {
+	Before(context.Context)
+	Fail(string, ...interface{})
+	AfterResolvingDeps(context.Context)
+}
+
+func TestSingleLanguageFailureHeaders(t *testing.T) {
+	headers := map[string]string{
+		"cc":     "CC generation failed:",
+		"csharp": "CSharp generation failed:",
+		"java":   "Java generation failed:",
+		"kotlin": "Kotlin generation failed:",
+		"ruby":   "Ruby generation failed:",
+		"scala":  "Scala generation failed:",
+	}
+	composed := map[string]language.Language{}
+	for _, lang := range composedLanguages() {
+		composed[lang.Name()] = lang
+		if _, single := lang.(*common.SingleLang); single && headers[lang.Name()] == "" {
+			t.Errorf("%s shares the single-language driver but pins no failure header", lang.Name())
+		}
+	}
+	for _, name := range sortedKeys(headers) {
+		lang, ok := composed[name].(failingLanguage)
+		if !ok {
+			t.Errorf("%s is not composed into dispatch, or does not report failures", name)
+			continue
+		}
+		header := headers[name]
+		lang.Before(context.Background())
+		lang.Fail("%s: boom", name)
+		func() {
+			defer func() {
+				msg, ok := recover().(string)
+				if !ok || !strings.HasPrefix(msg, header+"\n") {
+					t.Errorf("%s failure header = %v, want %q", name, msg, header)
+				}
+			}()
+			lang.AfterResolvingDeps(context.Background())
+		}()
+	}
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }

@@ -2,11 +2,12 @@ package scala
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ralvik/rules_dx/gazelle/common"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
@@ -23,38 +24,6 @@ func writeFixture(t *testing.T, root, name, content string) {
 	}
 	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestIgnoreWitnessIncludesOnlyUsedUniqueInheritedEntries(t *testing.T) {
-	cfg := config.New()
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("absent config: %v", got)
-	}
-	cfg.Exts[languageName] = "wrong type"
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("foreign config: %v", got)
-	}
-	delete(cfg.Exts, languageName)
-	lang := &scalaLang{}
-	f := &rule.File{Directives: []rule.Directive{{Key: "other", Value: "ignored"}, {Key: "dx_ignore_import", Value: "scala scala Widget"}}}
-	lang.Configure(cfg, "parent", f)
-	lang.Configure(cfg, "parent/child", nil)
-	entry := matchingIgnore(cfg, "Widget")
-	if entry == nil || entry.path != "parent" {
-		t.Fatalf("inherited ignore: %+v", entry)
-	}
-	entry.used = true
-	conf := cfg.Exts[languageName].(*scalaConfig)
-	conf.ignores = append(conf.ignores, nil, entry, &ignoreEntry{value: "Unused", path: "parent"})
-	got := CollectUsedIgnores(cfg)
-	if len(got) != 1 || got[0] != [2]string{"parent", "Widget"} {
-		t.Fatalf("used ignores: %v", got)
-	}
-	lang.AfterResolvingDeps(context.Background())
-	lang.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "scala"}}})
-	if len(lang.errors) != 1 {
-		t.Fatalf("malformed ignore accepted: %v", lang.errors)
 	}
 }
 
@@ -91,9 +60,9 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "Demo.scala,Helper.scala" {
 		t.Errorf("library srcs = %q, want Demo.scala,Helper.scala", got)
 	}
-	got := result.Imports[0].(targetImports)
-	if strings.Join(got.imports, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.imports)
+	got := result.Imports[0].(common.ImportSet)
+	if strings.Join(got.Names, ",") != "Widget" {
+		t.Errorf("library imports = %+v, want [Widget]", got.Names)
 	}
 }
 
@@ -109,8 +78,19 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Demo.scala" {
 		t.Errorf("library srcs = %q, want Demo.scala", got)
 	}
-	if got := result.Imports[0].(targetImports); len(got.imports) != 0 {
-		t.Errorf("library imports = %+v, want empty", got.imports)
+	if got := result.Imports[0].(common.ImportSet); len(got.Names) != 0 {
+		t.Errorf("library imports = %+v, want empty", got.Names)
+	}
+}
+
+func TestGenerateMixedPackagesFail(t *testing.T) {
+	regular := []string{"A.scala", "B.scala"}
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/A.scala": "package alpha\n\nclass A\n",
+		"pkg/demo/B.scala": "package beta\n\nclass B\n",
+	}, regular)
+	if len(result.Gen) != 0 {
+		t.Fatalf("generated %d rules for mixed packages, want 0 with a recorded failure", len(result.Gen))
 	}
 }
 
@@ -142,24 +122,9 @@ func TestGenerateMainFails(t *testing.T) {
 	}
 }
 
-func TestGenerateMixedPackagesFail(t *testing.T) {
-	regular := []string{"A.scala", "B.scala"}
-	result := generateFixture(t, map[string]string{
-		"pkg/demo/A.scala": "package alpha\n\nclass A\n",
-		"pkg/demo/B.scala": "package beta\n\nclass B\n",
-	}, regular)
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules for mixed packages, want 0 with a recorded failure", len(result.Gen))
-	}
-}
-
 func TestGenerateKindMismatchFails(t *testing.T) {
 	root := t.TempDir()
-	for name, content := range map[string]string{
-		"pkg/demo/Demo.scala": "package demo\n\nclass Demo\n",
-	} {
-		writeFixture(t, root, name, content)
-	}
+	writeFixture(t, root, "pkg/demo/Demo.scala", "package demo\n\nclass Demo\n")
 	existing := &rule.File{}
 	fg := rule.NewRule("filegroup", "demo")
 	existing.Rules = append(existing.Rules, fg)
@@ -191,10 +156,33 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	}
 }
 
+func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	for _, value := range []string{"scala Dropped", "scala scala Second", "other Foreign", ""} {
+		lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: value}}})
+	}
+	if lang.Failed() {
+		t.Fatal("a foreign or empty ignore was rejected")
+	}
+	conf := cfg.Exts[languageName].(*common.IgnoreConfig)
+	if len(conf.Ignores) != 2 || conf.Ignores[0].Value != "Dropped" || conf.Ignores[1].Value != "Second" {
+		t.Fatalf("ignores = %+v, want Dropped and Second", conf.Ignores)
+	}
+	lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "scala"}}})
+	if !lang.Failed() {
+		t.Fatal("a one-field ignore was accepted")
+	}
+	if got := CollectUsedIgnores(cfg); got != nil {
+		t.Fatalf("unused ignores = %v, want none", got)
+	}
+}
+
 func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	l := &scalaLang{}
-	l.Before(context.Background())
-	l.fail("scala: boom")
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	lang.Fail("scala: boom")
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -204,180 +192,43 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 			t.Fatalf("panic = %v, want Scala generation failure", r)
 		}
 	}()
-	l.AfterResolvingDeps(context.Background())
+	lang.AfterResolvingDeps(context.Background())
 }
 
-func TestAfterResolvingDepsClean(t *testing.T) {
-	l := &scalaLang{}
-	l.Before(context.Background())
-	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
-	}
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	l := &scalaLang{}
-	if l.Name() != "scala" || len(l.Kinds()) != 1 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatal("invalid language metadata")
-	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	l.Configure(config.New(), "pkg", nil)
-	l.DoneGeneratingRules()
-	if got := l.KnownDirectives(); len(got) != 1 || got[0] != "dx_ignore_import" {
-		t.Fatalf("directives = %v, want [dx_ignore_import]", got)
-	}
-	if l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
-	}
-	loads := l.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//scala/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "scala_library" {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := l.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//scala/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
-	defaultApparent := l.ApparentLoads(func(string) string { return "" })
-	if defaultApparent[0].Name != "@rules_dx//scala/rules:defs.bzl" {
-		t.Errorf("default apparent loads = %+v", defaultApparent)
-	}
-}
-
-func resolverConfig(t *testing.T, directives []rule.Directive) *config.Config {
-	t.Helper()
+func TestResolveSkipsStdlibImports(t *testing.T) {
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
 	cfg := config.New()
 	resolver := &resolve.Configurer{}
 	resolver.RegisterFlags(nil, "update", cfg)
 	if err := resolver.CheckFlags(nil, cfg); err != nil {
 		t.Fatal(err)
 	}
-	resolver.Configure(cfg, "app", &rule.File{Directives: directives})
-	return cfg
+	resolver.Configure(cfg, "app", &rule.File{})
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+	r := rule.NewRule(LibraryKind, "app")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"scala.util.List"}), label.New("", "app", "app"))
+	if lang.Failed() {
+		t.Fatal("a stdlib import was reported")
+	}
+	lang.AfterResolvingDeps(context.Background())
 }
 
-func resolverIndex(lang *scalaLang, entries ...struct {
-	pkg  string
-	name string
-}) *resolve.RuleIndex {
-	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
-		if _, ok := scalaKinds[r.Kind()]; ok {
-			return lang
+func TestLanguageMetadata(t *testing.T) {
+	lang := NewLanguage().(*common.SingleLang)
+	if lang.Name() != languageName || len(lang.Kinds()) != 1 {
+		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
+	}
+	loads := lang.ApparentLoads(func(name string) string {
+		if name == "rules_dx" {
+			return "renamed_dx"
 		}
-		return nil
+		return ""
 	})
-	for _, entry := range entries {
-		r := rule.NewRule(LibraryKind, entry.name)
-		r.SetAttr("srcs", []string{entry.name + ".scala"})
-		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(entry.pkg, "BUILD.bazel"), entry.pkg))
+	if len(loads) != 1 || loads[0].Name != "@renamed_dx//scala/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != LibraryKind {
+		t.Errorf("apparent loads = %+v", loads)
 	}
-	index.Finish()
-	return index
-}
-
-func TestResolveBranches(t *testing.T) {
-	l := &scalaLang{}
-	index := resolverIndex(l,
-		struct{ pkg, name string }{"lib/b", "B"},
-		struct{ pkg, name string }{"lib/a", "A"},
-	)
-	cfg := resolverConfig(t, nil)
-	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"B", "A"}}, label.New("", "app", "app"))
-	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a:A,//lib/b:B" {
-		t.Errorf("resolved deps = %q", got)
-	}
-
-	otherKind := rule.NewRule("filegroup", "other")
-	l.Resolve(cfg, index, nil, otherKind, targetImports{imports: []string{"A"}}, label.New("", "app", "other"))
-	if otherKind.Attr("deps") != nil {
-		t.Errorf("non-library resolution emitted deps = %v", otherKind.AttrStrings("deps"))
-	}
-
-	std := rule.NewRule(LibraryKind, "uses_std")
-	l.Resolve(cfg, index, nil, std, targetImports{imports: []string{"java.util.List"}}, label.New("", "app", "uses_std"))
-	if std.Attr("deps") != nil || len(l.errors) != 0 {
-		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.errors)
-	}
-
-	hand := rule.NewRule(LibraryKind, "hand")
-	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"A"}}, label.New("", "app", "hand"))
-	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a:A,:kept" {
-		t.Errorf("merged deps = %q", got)
-	}
-
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), targetImports{imports: []string{"Unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
-		t.Errorf("unresolved errors = %v", l.errors)
-	}
-	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
-}
-
-func TestResolveOverride(t *testing.T) {
-	l := &scalaLang{}
-	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "scala scala Mapped //mapped:dep"}})
-	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"Mapped"}}, label.New("", "app", "app"))
-	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" {
-		t.Errorf("override deps = %q", got)
-	}
-}
-
-func TestResolveIgnore(t *testing.T) {
-	l := &scalaLang{}
-	l.Before(context.Background())
-	cfg := resolverConfig(t, nil)
-	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import scala Dropped\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	l.Configure(cfg, "app", file)
-	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"Dropped"}}, label.New("", "app", "app"))
-	if r.Attr("deps") != nil {
-		t.Errorf("ignored import emitted deps = %v", r.AttrStrings("deps"))
-	}
-	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("ignore errors = %v", l.errors)
-	}
-}
-
-func TestResolveStaleIgnoreFails(t *testing.T) {
-	l := &scalaLang{}
-	l.Before(context.Background())
-	cfg := resolverConfig(t, nil)
-	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import scala Unused\n"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	l.Configure(cfg, "app", file)
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("stale ignore did not panic")
-		}
-		if msg, ok := r.(string); !ok || !strings.Contains(msg, "stale # gazelle:dx_ignore_import") {
-			t.Fatalf("panic = %v, want stale ignore failure", r)
-		}
-	}()
-	l.AfterResolvingDeps(context.Background())
-}
-
-func TestResolveAmbiguousFails(t *testing.T) {
-	l := &scalaLang{}
-	index := resolverIndex(l,
-		struct{ pkg, name string }{"lib/one", "Dup"},
-		struct{ pkg, name string }{"lib/two", "Dup"},
-	)
-	cfg := resolverConfig(t, nil)
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: []string{"Dup"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
-		t.Errorf("ambiguous errors = %v", l.errors)
+	if defaults := lang.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//scala/rules:defs.bzl" {
+		t.Errorf("default loads = %+v", defaults)
 	}
 }

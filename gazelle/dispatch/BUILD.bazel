@@ -73,6 +73,7 @@ go_test(
     embed = [":dispatch"],
     pure = "on",
     deps = [
+        "//gazelle/common",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//merger",

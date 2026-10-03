@@ -13,12 +13,14 @@ go_library(
         "langcore.go",
         "naming.go",
         "nodestdlib.go",
+        "singlelang.go",
     ],
     importpath = "github.com/ralvik/rules_dx/gazelle/common",
     visibility = [
         "//gazelle/astro:__pkg__",
         "//gazelle/cc:__pkg__",
         "//gazelle/csharp:__pkg__",
+        "//gazelle/dispatch:__pkg__",
         "//gazelle/fsharp:__pkg__",
         "//gazelle/go:__pkg__",
         "//gazelle/java:__pkg__",
@@ -36,6 +38,7 @@ go_library(
     deps = [
         "@gazelle//config",
         "@gazelle//language",
+        "@gazelle//repo",
         "@gazelle//resolve",
         "@gazelle//v2/label",
         "@gazelle//v2/rule",
@@ -44,7 +47,10 @@ go_library(
 
 go_test(
     name = "common_test",
-    srcs = ["common_test.go"],
+    srcs = [
+        "common_test.go",
+        "singlelang_test.go",
+    ],
     embed = [":common"],
     pure = "on",
 )

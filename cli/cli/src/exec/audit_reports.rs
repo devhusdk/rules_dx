@@ -543,15 +543,8 @@ fn audit_live_json_emits_per_family_lifecycle() {
         write_all_lock_families_with_advisories(harness);
     });
     assert_eq!(code, 0, "{out}{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     assert!(kinds.contains(&"notice"));
@@ -572,15 +565,8 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
     });
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("audit_failed"), "{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     assert!(kinds.contains(&"error"));
@@ -595,15 +581,8 @@ fn audit_dry_run_json_emits_lifecycle() {
     let harness = Harness::new("audit-dryrun-json");
     let (code, out, err) = harness.run(&["security", "--dry-run", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds, vec!["command_started", "command_finished"]);
     assert_eq!(
         events.last().expect("finished")["exit_code"],
@@ -882,15 +861,8 @@ fn audit_partial_reports_are_not_authoritative() {
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let report = events
-        .iter()
-        .find(|event| event["event"] == serde_json::json!("report"))
-        .expect("report event");
+    let events = json_events(&out);
+    let report = event(&events, "report");
     assert_eq!(report["format"], serde_json::json!("sarif"));
     assert_eq!(report["results_complete"], serde_json::json!(false));
     let finished = events.last().expect("finished");

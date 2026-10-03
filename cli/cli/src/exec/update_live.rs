@@ -249,15 +249,8 @@ pub(super) fn live_json_emits_per_set_notices_and_finished() {
     let runner = ScriptRunner::new(&[("npm", Some(2))]);
     let (code, out, err) = run_with(&["update", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     assert_eq!(
@@ -325,14 +318,7 @@ pub(super) fn live_dry_run_json_still_plans_without_per_set() {
     let harness = Harness::new("update-dryrun-json-live");
     let (code, out, err) = harness.run(&["update", "--dry-run", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds, vec!["command_started", "command_finished"]);
 }

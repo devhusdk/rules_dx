@@ -20,6 +20,8 @@ pub mod platform;
 pub mod reports;
 pub mod resolve;
 pub mod skew;
+#[cfg(test)]
+mod test_support;
 
 pub use args::{ArgsError, Command, Invocation, ReportRequest};
 pub use exec::{execute, Env};

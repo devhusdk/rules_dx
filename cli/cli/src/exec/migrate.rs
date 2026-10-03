@@ -101,15 +101,8 @@ mod tests {
             "--output=json",
         ]);
         assert_eq!(code, 0, "{out}{err}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         assert!(kinds.contains(&"notice"), "{kinds:?}");
@@ -136,15 +129,8 @@ mod tests {
             harness.run(&["migrate", "--from=1.2.3", "--to=2.0.0", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("migrate_failed"), "{err}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert!(kinds.contains(&"error"), "{kinds:?}");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");

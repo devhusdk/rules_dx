@@ -949,21 +949,11 @@ missing-versions)";
         );
         let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let notices: Vec<&serde_json::Value> = events
-            .iter()
-            .filter(|event| event["event"] == serde_json::json!("notice"))
-            .collect();
+        let notices = events_of_kind(&events, "notice");
         assert_eq!(notices.len(), 2, "{out}");
         assert_eq!(notices[0]["code"], serde_json::json!("bump_widened"));
         assert_eq!(notices[1]["code"], serde_json::json!("update_set_success"));
@@ -985,15 +975,8 @@ missing-versions)";
         let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("update_failed"), "{err}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         assert!(kinds.contains(&"notice"), "{out}");
@@ -1121,15 +1104,8 @@ missing-versions)";
         let (code, out, err) =
             harness.run(&["bump", "bazel:.bazelversion", "9.3.0", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         assert!(kinds.contains(&"notice"));

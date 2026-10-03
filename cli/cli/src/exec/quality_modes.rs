@@ -185,15 +185,8 @@ fn json_mode_emits_lifecycle_with_counts() {
     );
     let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
     assert_eq!(code, 1);
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(
         kinds,
         vec![
@@ -415,15 +408,8 @@ fn launch_failure_in_json_mode_emits_error_events() {
     };
     let (code, out, _) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1);
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds, vec!["command_started", "error", "command_finished"]);
     let finished = events.last().expect("finished");
     assert_eq!(finished["exit_code"], serde_json::json!(1));
@@ -499,15 +485,8 @@ fn dry_run_json_emits_lifecycle() {
     let harness = Harness::new("dry-json");
     let (code, out, _) = harness.run(&["lint", "--dry-run", "--output=json"]);
     assert_eq!(code, 0);
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds, vec!["command_started", "command_finished"]);
     assert_eq!(
         events.last().expect("finished")["exit_code"],
@@ -558,10 +537,7 @@ fn terminal_diagnostics_map_with_terminal_snapshot() {
     let (code, out, _) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1);
     let events = json_events(&out);
-    let diagnostics: Vec<&serde_json::Value> = events
-        .iter()
-        .filter(|event| event["event"] == serde_json::json!("diagnostic"))
-        .collect();
+    let diagnostics = events_of_kind(&events, "diagnostic");
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0]["snapshot"], serde_json::json!("terminal"));
 }

@@ -89,7 +89,7 @@ pub(crate) fn execute_upgrade(
 mod tests {
     use super::*;
     use crate::adopt::execute_adoption;
-    use crate::adopt::test_support::{env, invocation};
+    use crate::adopt::test_support::{env, event, event_kinds, invocation, json_events};
     use dx_process::pre_exec_code;
 
     #[test]
@@ -124,22 +124,12 @@ mod tests {
         let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         let text = String::from_utf8(out).expect("out");
-        let events: Vec<serde_json::Value> = text
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         assert!(kinds.contains(&"notice"), "{kinds:?}");
-        let notice = events
-            .iter()
-            .find(|event| event["event"] == serde_json::json!("notice"))
-            .expect("upgrade notice");
+        let notice = event(&events, "notice");
         assert_eq!(notice["code"], serde_json::json!(NOTICE_UPGRADE_PLANNED));
         assert_eq!(
             events.last().expect("finished")["exit_code"],
@@ -179,22 +169,12 @@ mod tests {
             .expect("err")
             .contains(CODE_UPGRADE_FAILED));
         let text = String::from_utf8(out).expect("out");
-        let events: Vec<serde_json::Value> = text
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert!(kinds.contains(&"error"), "{kinds:?}");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let error = events
-            .iter()
-            .find(|event| event["event"] == serde_json::json!("error"))
-            .expect("upgrade error");
+        let error = event(&events, "error");
         assert_eq!(error["code"], serde_json::json!(CODE_UPGRADE_FAILED));
     }
 

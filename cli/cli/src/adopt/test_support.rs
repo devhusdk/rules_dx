@@ -5,6 +5,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 pub(crate) use crate::args::parsed as invocation;
+pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, json_events};
 
 /// A query runner that reports one target and nothing else.
 pub(crate) struct NullQuery;

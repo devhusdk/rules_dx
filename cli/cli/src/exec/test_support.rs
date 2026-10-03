@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 pub(crate) use crate::args::parsed as invocation;
+pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, json_events};
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
@@ -450,20 +451,6 @@ pub(crate) fn intended_ignored(path: &str, language: &str, import: &str) -> Stri
         "scope_index": 0,
     })
     .to_string()
-}
-
-pub(crate) fn json_events(out: &str) -> Vec<serde_json::Value> {
-    out.lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON")
-}
-
-pub(crate) fn event<'a>(events: &'a [serde_json::Value], kind: &str) -> &'a serde_json::Value {
-    events
-        .iter()
-        .find(|event| event["event"] == serde_json::json!(kind))
-        .unwrap_or_else(|| panic!("missing {kind} event"))
 }
 
 pub(crate) fn write_bep_artifact(harness: &Harness, name: &str, bytes: &[u8]) -> String {

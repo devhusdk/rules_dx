@@ -141,11 +141,7 @@ fn check_json_reports_stale_and_clean() {
     );
     let (code, out, err) = clean.run(&["update", "--check", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
+    let events = json_events(&out);
     assert_eq!(events[0]["event"], serde_json::json!("command_started"));
     assert_eq!(events[0]["mode"], serde_json::json!("check"));
     assert_eq!(
@@ -208,13 +204,8 @@ fn update_json_never_emits_change_or_mutation() {
         !out.contains("\"event\":\"operation\""),
         "update must not emit operations: {out}"
     );
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    for event in &events {
-        let kind = event["event"].as_str().expect("event");
+    let events = json_events(&out);
+    for kind in event_kinds(&events) {
         assert!(
             kind == "command_started"
                 || kind == "notice"
@@ -230,15 +221,8 @@ fn update_json_completeness_is_per_set_plus_finished() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
     let (code, out, err) = run_with(&["update", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
-    let kinds: Vec<&str> = events
-        .iter()
-        .map(|event| event["event"].as_str().expect("event"))
-        .collect();
+    let events = json_events(&out);
+    let kinds = event_kinds(&events);
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     let middle = &events[1..events.len() - 1];
@@ -304,11 +288,7 @@ fn update_json_check_and_dryrun_emit_no_file_events_or_counts() {
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("\"event\":\"change\""), "{out}");
     assert!(!out.contains("\"event\":\"mutation\""), "{out}");
-    let events: Vec<serde_json::Value> = out
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()
-        .expect("NDJSON");
+    let events = json_events(&out);
     let finished = events.last().expect("finished");
     assert!(finished.get("changes").is_none(), "{out}");
     assert!(finished.get("mutations").is_none(), "{out}");

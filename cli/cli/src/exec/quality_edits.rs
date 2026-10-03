@@ -65,10 +65,7 @@ fn json_mixed_applied_and_not_applied_fail_together() {
         b"z = 2\n"
     );
     let events = json_events(&out);
-    let changes: Vec<&serde_json::Value> = events
-        .iter()
-        .filter(|event| event["event"] == serde_json::json!("change"))
-        .collect();
+    let changes = events_of_kind(&events, "change");
     assert_eq!(changes.len(), 2);
     assert_eq!(changes[0]["path"], serde_json::json!("src/a.py"));
     assert_eq!(changes[1]["path"], serde_json::json!("src/b.py"));
@@ -104,10 +101,7 @@ fn json_mixed_applied_and_not_applied_fail_together() {
         std::fs::read(harness.workspace.join("src/b.py")).expect("source"),
         intended_b
     );
-    let mutations: Vec<&serde_json::Value> = events
-        .iter()
-        .filter(|event| event["event"] == serde_json::json!("mutation"))
-        .collect();
+    let mutations = events_of_kind(&events, "mutation");
     assert_eq!(mutations.len(), 2);
     assert_eq!(mutations[0]["path"], serde_json::json!("src/a.py"));
     assert_eq!(mutations[0]["outcome"], serde_json::json!("applied"));
@@ -195,10 +189,7 @@ fn json_changes_emit_in_sorted_path_order_despite_reversed_arrival() {
         b"a = 1\n"
     );
     let events = json_events(&out);
-    let changes: Vec<&serde_json::Value> = events
-        .iter()
-        .filter(|event| event["event"] == serde_json::json!("change"))
-        .collect();
+    let changes = events_of_kind(&events, "change");
     assert_eq!(changes.len(), 2);
     assert_eq!(changes[0]["path"], serde_json::json!("src/a.py"));
     assert_eq!(changes[1]["path"], serde_json::json!("src/b.py"));

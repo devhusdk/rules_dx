@@ -311,7 +311,9 @@ pub(crate) fn execute_version(
 mod tests {
     use super::*;
     use crate::adopt::execute_adoption;
-    use crate::adopt::test_support::{env, invocation, Truncated};
+    use crate::adopt::test_support::{
+        env, event_kinds, events_of_kind, invocation, json_events, Truncated,
+    };
 
     #[test]
     fn version_output_boundaries_propagate_broken_pipes() {
@@ -558,15 +560,8 @@ mod tests {
         let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         let text = String::from_utf8(out).expect("out");
-        let events: Vec<serde_json::Value> = text
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         assert!(kinds.contains(&"status"), "{kinds:?}");
@@ -575,9 +570,8 @@ mod tests {
             events.last().expect("finished")["exit_code"],
             serde_json::json!(0)
         );
-        let names: Vec<&str> = events
-            .iter()
-            .filter(|event| event["event"] == serde_json::json!("status"))
+        let names: Vec<&str> = events_of_kind(&events, "status")
+            .into_iter()
             .map(|event| event["name"].as_str().expect("name"))
             .collect();
         assert_eq!(names, vec!["binary", "module", "pin"], "{names:?}");
@@ -596,15 +590,8 @@ mod tests {
         let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         let text = String::from_utf8(out).expect("out");
-        let events: Vec<serde_json::Value> = text
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
         assert_eq!(
             kinds,
             vec!["command_started", "status", "command_finished"],
@@ -616,15 +603,8 @@ mod tests {
         let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 1);
         let text = String::from_utf8(out).expect("out");
-        let events: Vec<serde_json::Value> = text
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
         assert_eq!(
             kinds,
             vec!["command_started", "status", "error", "command_finished"],
@@ -655,15 +635,8 @@ mod tests {
             let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
             assert_eq!(code, 0, "words: {words:?}");
             let text = String::from_utf8(out).expect("out");
-            let events: Vec<serde_json::Value> = text
-                .lines()
-                .map(serde_json::from_str)
-                .collect::<Result<_, _>>()
-                .expect("NDJSON");
-            let kinds: Vec<&str> = events
-                .iter()
-                .map(|event| event["event"].as_str().expect("event"))
-                .collect();
+            let events = json_events(&text);
+            let kinds = event_kinds(&events);
             assert_eq!(
                 kinds,
                 vec!["command_started", "command_finished"],
@@ -683,15 +656,8 @@ mod tests {
         let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 1);
         let text = String::from_utf8(out).expect("out");
-        let events: Vec<serde_json::Value> = text
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
         assert_eq!(
             kinds,
             vec!["command_started", "error", "command_finished"],

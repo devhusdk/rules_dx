@@ -253,11 +253,7 @@ mod tests {
         let harness = umbrella_clean("umbrella-check-json");
         let (code, out, err) = harness.run(&["check", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
+        let events = json_events(&out);
         assert_eq!(events.first().expect("first")["event"], "command_started");
         assert_eq!(events.first().expect("first")["command"], "check");
         assert_eq!(events.last().expect("last")["event"], "command_finished");
@@ -299,11 +295,7 @@ mod tests {
         let harness = umbrella_findings("umbrella-stop-json");
         let (code, out, _) = harness.run(&["check", "--output=json"]);
         assert_eq!(code, 1, "{out}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
+        let events = json_events(&out);
         assert_eq!(events.first().expect("first")["command"], "check");
         assert_eq!(events.last().expect("last")["event"], "command_finished");
         assert_eq!(events.last().expect("last")["exit_code"], 1);
@@ -502,11 +494,7 @@ mod tests {
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["fix", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
-        let events: Vec<serde_json::Value> = out
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
+        let events = json_events(&out);
         assert_eq!(events.first().expect("first")["command"], "fix");
         assert_eq!(
             events.first().expect("first")["mode"],

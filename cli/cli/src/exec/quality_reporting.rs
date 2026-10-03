@@ -415,18 +415,12 @@ fn default_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
         b"z = 1\n"
     );
     let events = json_events(&out);
-    let changes: Vec<&serde_json::Value> = events
-        .iter()
-        .filter(|event| event["event"] == serde_json::json!("change"))
-        .collect();
+    let changes = events_of_kind(&events, "change");
     assert_eq!(changes.len(), 3);
     assert_eq!(changes[0]["path"], serde_json::json!("src/a.py"));
     assert_eq!(changes[1]["path"], serde_json::json!("src/b.py"));
     assert_eq!(changes[2]["path"], serde_json::json!("src/c.py"));
-    let mutations: Vec<&serde_json::Value> = events
-        .iter()
-        .filter(|event| event["event"] == serde_json::json!("mutation"))
-        .collect();
+    let mutations = events_of_kind(&events, "mutation");
     assert_eq!(mutations.len(), 3);
     assert_eq!(mutations[0]["path"], serde_json::json!("src/a.py"));
     assert_eq!(mutations[0]["outcome"], serde_json::json!("applied"));
@@ -507,10 +501,7 @@ fn default_apply_depends_on_bytes_not_git_status() {
             "{status}"
         );
         let events = json_events(&out);
-        let change = events
-            .iter()
-            .find(|event| event["event"] == serde_json::json!("change"))
-            .expect("change event");
+        let change = event(&events, "change");
         assert_eq!(change["path"], serde_json::json!("src/a.py"));
         digests.push(change["source_digest"].clone());
     }

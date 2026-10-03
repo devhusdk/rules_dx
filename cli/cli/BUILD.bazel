@@ -102,6 +102,7 @@ rust_library(
         "src/resolve/test_map.rs",
         "src/resolve/types.rs",
         "src/skew.rs",
+        "src/test_support.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_cli",

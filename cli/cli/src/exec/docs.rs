@@ -479,12 +479,11 @@ mod tests {
         let harness = Harness::new("docs-json");
         let (code, out, _) = harness.run(&["docs", "--check", "--output=json"]);
         assert_eq!(code, 0, "{out}");
-        assert!(out.contains("command_started"), "{out}");
-        assert!(out.contains("operation"), "{out}");
-        assert!(out.contains("command_finished"), "{out}");
-        for line in out.lines() {
-            serde_json::from_str::<serde_json::Value>(line).expect("NDJSON line");
-        }
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started", "{out}");
+        assert!(kinds.contains(&"operation"), "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished", "{out}");
     }
 
     #[test]
@@ -529,22 +528,12 @@ mod tests {
         let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
         assert_eq!(code, 3, "{code}");
         let text = String::from_utf8(out).expect("out");
-        let events: Vec<serde_json::Value> = text
-            .lines()
-            .map(serde_json::from_str)
-            .collect::<Result<_, _>>()
-            .expect("NDJSON");
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert!(kinds.contains(&"error"), "{kinds:?}");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let error = events
-            .iter()
-            .find(|event| event["event"] == serde_json::json!("error"))
-            .expect("serve error");
+        let error = event(&events, "error");
         assert_eq!(error["code"], serde_json::json!(CODE_SERVE_FAILED));
     }
 }

@@ -414,20 +414,14 @@ mod tests {
         let (code, out, err) = harness.run(&["clean", "--dry-run", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|event| event["event"].as_str().expect("event"))
-            .collect();
+        let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert!(kinds.contains(&"operation"), "{kinds:?}");
         assert!(kinds.contains(&"notice"), "{kinds:?}");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         let op = event(&events, "operation");
         assert_eq!(op["phase"], serde_json::json!("collect"));
-        let notice = events
-            .iter()
-            .find(|event| event["event"] == serde_json::json!("notice"))
-            .expect("notice");
+        let notice = event(&events, "notice");
         assert_eq!(notice["code"], serde_json::json!("clean_planned"));
         assert!(notice["message"]
             .as_str()
@@ -438,9 +432,6 @@ mod tests {
             serde_json::json!(0)
         );
         assert_eq!(err, "", "{err}");
-        for line in out.lines() {
-            serde_json::from_str::<serde_json::Value>(line).expect("NDJSON line");
-        }
     }
 
     #[test]

@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
@@ -39,6 +39,24 @@ rust_binary(
         [],
         package_name = "env/env_stubs",
     ),
+)
+
+rustfmt_test(
+    name = "env_stubs_fmt_test",
+    size = "small",
+    targets = [
+        ":doctor",
+        ":tool_sh",
+    ],
+)
+
+rust_clippy_test(
+    name = "env_stubs_clippy_test",
+    size = "small",
+    targets = [
+        ":doctor",
+        ":tool_sh",
+    ],
 )
 
 real_source_target(

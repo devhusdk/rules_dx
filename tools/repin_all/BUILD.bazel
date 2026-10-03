@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
@@ -24,6 +24,18 @@ rust_binary(
         [],
         package_name = "tools/repin_all",
     ),
+)
+
+rustfmt_test(
+    name = "repin_all_fmt_test",
+    size = "small",
+    targets = [":repin_all"],
+)
+
+rust_clippy_test(
+    name = "repin_all_clippy_test",
+    size = "small",
+    targets = [":repin_all"],
 )
 
 real_source_target(

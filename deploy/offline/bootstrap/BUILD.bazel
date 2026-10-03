@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "dx_rust_crate", "rust_binary")
+load("//rust/rules:defs.bzl", "dx_rust_crate", "rust_binary", "rust_clippy_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
@@ -19,6 +19,7 @@ dx_rust_crate(
         "src/lib_tests.rs",
     ],
     extra_deps = ["//cli/digest:dx_digest"],
+    extra_test_deps = ["//tools/testing:dx_testing"],
     deps = [],
 )
 
@@ -36,6 +37,18 @@ rust_binary(
         [],
         package_name = "deploy/offline/dx_bootstrap",
     ) + [":dx_bootstrap"],
+)
+
+rustfmt_test(
+    name = "bootstrap_offline_fmt_test",
+    size = "small",
+    targets = [":bootstrap_offline"],
+)
+
+rust_clippy_test(
+    name = "bootstrap_offline_clippy_test",
+    size = "small",
+    targets = [":bootstrap_offline"],
 )
 
 real_source_target(

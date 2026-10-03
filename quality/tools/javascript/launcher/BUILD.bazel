@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
@@ -79,6 +79,27 @@ rust_test(
         [],
         package_name = "quality/tools/javascript/dx_js_launcher",
     ),
+)
+
+rustfmt_test(
+    name = "dx_js_launcher_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_js_launcher",
+        ":dx_js_launcher_test",
+        ":js_entry_point",
+        ":js_launcher",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_js_launcher_clippy_test",
+    size = "small",
+    targets = [
+        ":dx_js_launcher",
+        ":js_entry_point",
+        ":js_launcher",
+    ],
 )
 
 real_source_target(

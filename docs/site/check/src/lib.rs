@@ -355,3 +355,7 @@ fn ends_with(candidate: &str, name: &str) -> bool {
             && candidate.ends_with(name)
             && candidate.as_bytes()[candidate.len() - name.len() - 1] == b'/')
 }
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod lib_tests;

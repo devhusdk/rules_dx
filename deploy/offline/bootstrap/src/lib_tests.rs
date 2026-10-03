@@ -1,8 +1,12 @@
 //! Tests for the offline bootstrap helpers.
 
-use dx_bootstrap::{
-    host_launcher, manifest_entry, pinned, today_utc, usage, Options, ADVISORY_SETS,
-};
+use std::path::PathBuf;
+
+use super::{host_launcher, manifest_entry, pinned, run, today_utc, usage, Options, ADVISORY_SETS};
+
+fn scratch(name: &str) -> PathBuf {
+    dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"))
+}
 
 #[test]
 fn every_host_maps_to_the_launcher_its_bundle_carries() {
@@ -101,7 +105,7 @@ fn a_missing_bundle_is_refused_before_anything_else() {
         workspace: "/tmp/workspace".to_string(),
     };
     assert_eq!(
-        dx_bootstrap::run(&options, "linux", "x86_64", "2026-01-01"),
+        run(&options, "linux", "x86_64", "2026-01-01"),
         "missing --bundle DIR (vendored offline bundle)"
     );
     let empty = Options {
@@ -109,7 +113,7 @@ fn a_missing_bundle_is_refused_before_anything_else() {
         ..options
     };
     assert_eq!(
-        dx_bootstrap::run(&empty, "linux", "x86_64", "2026-01-01"),
+        run(&empty, "linux", "x86_64", "2026-01-01"),
         "missing --bundle DIR (vendored offline bundle)"
     );
 }
@@ -122,20 +126,42 @@ fn a_bundle_dir_that_is_absent_is_refused() {
         workspace: "/tmp/workspace".to_string(),
     };
     assert_eq!(
-        dx_bootstrap::run(&options, "linux", "x86_64", "2026-01-01"),
+        run(&options, "linux", "x86_64", "2026-01-01"),
         "bundle dir does not exist: /nonexistent/offline/bundle"
     );
 }
 
 #[test]
-fn an_unsupported_host_is_refused() {
+fn a_bundle_without_the_two_bundle_dirs_is_refused() {
+    let root = scratch("dx-bootstrap-shape-");
     let options = Options {
-        bundle: Some("/tmp".to_string()),
-        install_dir: "/tmp/install".to_string(),
-        workspace: "/tmp/workspace".to_string(),
+        bundle: Some(root.to_string_lossy().into_owned()),
+        install_dir: root.join("bin").to_string_lossy().into_owned(),
+        workspace: root.to_string_lossy().into_owned(),
     };
     assert_eq!(
-        dx_bootstrap::run(&options, "plan9", "risc-v", "2026-01-01"),
+        run(&options, "linux", "x86_64", "2026-01-01"),
+        format!("bundle has no bazelisk/ dir: {}", root.to_string_lossy())
+    );
+    std::fs::create_dir(root.join("bazelisk")).expect("bazelisk dir");
+    assert_eq!(
+        run(&options, "linux", "x86_64", "2026-01-01"),
+        format!("bundle has no advisory/ dir: {}", root.to_string_lossy())
+    );
+}
+
+#[test]
+fn an_unsupported_host_is_refused() {
+    let root = scratch("dx-bootstrap-host-");
+    std::fs::create_dir(root.join("bazelisk")).expect("bazelisk dir");
+    std::fs::create_dir(root.join("advisory")).expect("advisory dir");
+    let options = Options {
+        bundle: Some(root.to_string_lossy().into_owned()),
+        install_dir: root.join("bin").to_string_lossy().into_owned(),
+        workspace: root.to_string_lossy().into_owned(),
+    };
+    assert_eq!(
+        run(&options, "plan9", "risc-v", "2026-01-01"),
         "unsupported host plan9-risc-v"
     );
 }

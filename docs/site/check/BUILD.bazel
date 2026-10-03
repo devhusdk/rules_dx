@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
@@ -8,12 +8,16 @@ package(default_visibility = VIS_PUBLIC)
 exports_files([
     "Cargo.toml",
     "src/lib.rs",
+    "src/lib_tests.rs",
     "src/main.rs",
 ])
 
 rust_library(
     name = "dx_site_check",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "docs/site/site_check",
         normal = True,
@@ -41,6 +45,40 @@ rust_binary(
         [],
         package_name = "docs/site/site_check",
     ) + [":dx_site_check"],
+)
+
+rust_test(
+    name = "dx_site_check_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "docs/site/site_check",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_site_check",
+    deps = crate_deps(
+        [],
+        package_name = "docs/site/site_check",
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "dx_site_check_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_site_check",
+        ":dx_site_check_test",
+        ":site_check",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_site_check_clippy_test",
+    size = "small",
+    targets = [
+        ":dx_site_check",
+        ":site_check",
+    ],
 )
 
 real_source_target(

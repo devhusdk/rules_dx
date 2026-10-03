@@ -312,3 +312,7 @@ fn read(path: &Path) -> String {
 fn digest(path: &Path) -> String {
     dx_digest::sha256_file_hex(path).unwrap_or_default()
 }
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod lib_tests;

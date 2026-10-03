@@ -134,8 +134,10 @@ rustfmt_test(
     name = "dx_deploy_tools_fmt_test",
     size = "small",
     targets = [
-        ":dx_deploy_tools",
         ":archiver",
+        ":deploy_app",
+        ":deploy_program",
+        ":dx_deploy_tools",
         ":hasher",
         ":npm_packer",
     ],
@@ -145,8 +147,10 @@ rust_clippy_test(
     name = "dx_deploy_tools_clippy_test",
     size = "small",
     targets = [
-        ":dx_deploy_tools",
         ":archiver",
+        ":deploy_app",
+        ":deploy_program",
+        ":dx_deploy_tools",
         ":hasher",
         ":npm_packer",
     ],

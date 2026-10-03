@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use dx_site_check::{
+use super::{
     anchor_name, check, first_field, has_empty_link_target, inline_targets, normalize_link,
     parse_args, split_reference, tidy, Inputs,
 };
@@ -12,10 +12,7 @@ fn args(list: &[&str]) -> Vec<String> {
 }
 
 fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("dx-site-check-{}-{name}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).expect("scratch");
-    dir
+    dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"))
 }
 
 fn write(dir: &Path, name: &str, body: &str) {
@@ -24,6 +21,17 @@ fn write(dir: &Path, name: &str, body: &str) {
         std::fs::create_dir_all(parent).expect("parent");
     }
     std::fs::write(path, body).expect("write");
+}
+
+fn inputs(dir: &Path) -> Inputs {
+    let named = |name: &str| dir.join(name).to_string_lossy().into_owned();
+    Inputs {
+        book: Some(named("book.toml")),
+        api: Some(named("api.md")),
+        shards: vec![named("shard.ir.textproto")],
+        prose: vec![named("guide.md")],
+        data: vec![],
+    }
 }
 
 #[test]
@@ -112,15 +120,7 @@ fn a_shard_with_only_empty_ids_names_no_symbols() {
     write(&dir, "api.md", "# API\n");
     write(&dir, "shard.ir.textproto", "symbols {\n  id: \"\"\n}\n");
     write(&dir, "guide.md", "# Guide\n");
-    let inputs = Inputs {
-        book: Some("book.toml".into()),
-        api: Some("api.md".into()),
-        shards: vec!["shard.ir.textproto".into()],
-        prose: vec!["guide.md".into()],
-        data: vec![],
-    };
-    assert_eq!(check(&inputs), "shard names no symbols");
-    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(check(&inputs(&dir)), "shard names no symbols");
 }
 
 #[test]
@@ -128,17 +128,13 @@ fn a_site_with_nothing_linked_holds_together() {
     let dir = scratch("plain");
     write(&dir, "book.toml", "title = \"demo\"\n");
     write(&dir, "api.md", "# API Reference\n\n## python:demo:T\n");
-    write(&dir, "shard.ir.textproto", "symbols {\n  id: \"python:demo:T\"\n}\n");
+    write(
+        &dir,
+        "shard.ir.textproto",
+        "symbols {\n  id: \"python:demo:T\"\n}\n",
+    );
     write(&dir, "guide.md", "# Guide\n\nPlain prose with no links.\n");
-    let inputs = Inputs {
-        book: Some("book.toml".into()),
-        api: Some("api.md".into()),
-        shards: vec!["shard.ir.textproto".into()],
-        prose: vec!["guide.md".into()],
-        data: vec![],
-    };
-    assert_eq!(check(&inputs), "");
-    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(check(&inputs(&dir)), "");
 }
 
 #[test]

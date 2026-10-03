@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
 load(":cells.bzl", "INVENTORY_FILES", "coverage_cells")
 load(":cells_tests.bzl", "coverage_cells_tests")
 
@@ -30,4 +30,16 @@ rust_binary(
     crate_name = "coverage",
     crate_root = "src/main.rs",
     deps = ["//cli/lcov:dx_lcov"],
+)
+
+rustfmt_test(
+    name = "coverage_bin_fmt_test",
+    size = "small",
+    targets = [":coverage_bin"],
+)
+
+rust_clippy_test(
+    name = "coverage_bin_clippy_test",
+    size = "small",
+    targets = [":coverage_bin"],
 )

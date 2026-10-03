@@ -38,6 +38,7 @@ rustfmt_test(
     targets = [
         ":dx_preset",
         ":preset_update",
+        ":preset_update_bin_test",
     ],
 )
 
@@ -61,7 +62,10 @@ preset_update_tests(name = "preset_update_test")
 
 test_suite(
     name = "all",
-    tests = [":preset_update_test"],
+    tests = [
+        ":preset_update_bin_test",
+        ":preset_update_test",
+    ],
 )
 
 real_source_target(
@@ -91,4 +95,20 @@ rust_binary(
     crate_root = "src/bin_preset_update.rs",
     edition = "2021",
     deps = [":dx_preset"],
+)
+
+# keep
+rust_test(
+    name = "preset_update_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/dx_preset",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":preset_update",
+    deps = crate_deps(
+        ["tempfile"],
+        package_name = "tools/dx_preset",
+    ) + [":dx_preset"],
 )

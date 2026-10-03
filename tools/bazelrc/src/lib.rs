@@ -106,13 +106,13 @@ pub fn source_dir(workspace: &Path) -> PathBuf {
     workspace.join("tools/bazelrc")
 }
 
-pub fn bin_usage() -> i32 {
-    eprintln!("usage: preset.update [--verify-only]");
+pub fn bin_usage(err: &mut dyn std::io::Write) -> i32 {
+    let _ = writeln!(err, "usage: preset.update [--verify-only]");
     1
 }
 
-pub fn bin_cannot(error: impl std::fmt::Display) -> i32 {
-    eprintln!("{error}");
+pub fn bin_cannot(err: &mut dyn std::io::Write, error: impl std::fmt::Display) -> i32 {
+    let _ = writeln!(err, "{error}");
     1
 }
 

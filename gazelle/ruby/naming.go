@@ -1,48 +1,17 @@
 package ruby
 
-import (
-	"github.com/ralvik/rules_dx/gazelle/common"
-	"path"
-	"strings"
-)
+import "github.com/ralvik/rules_dx/gazelle/common"
 
 var SupportedExts = []string{".rb"}
 
+var TestSourceSuffixes = []string{"_spec", "_test"}
+
 const LibraryKind = "ruby_library"
 
-func Normalize(base string) (string, error) {
-	return common.Normalize(base)
-}
-
 func IsTestSource(name string) bool {
-	base := path.Base(name)
-	stem := strings.TrimSuffix(base, ".rb")
-	return strings.HasSuffix(stem, "_spec") || strings.HasSuffix(stem, "_test")
+	return common.IsTestSource(name, SupportedExts, TestSourceSuffixes)
 }
 
-func DirTargetName(dir string) (string, error) {
-	return Normalize(path.Base(dir))
-}
+func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
-func TargetName(name string) (string, error) {
-	base := path.Base(name)
-	stem := strings.TrimSuffix(base, ".rb")
-	return Normalize(stem)
-}
-
-func ClassIdentity(name string) string {
-	base := path.Base(name)
-	stem := strings.TrimSuffix(base, ".rb")
-	if i := strings.LastIndex(stem, "."); i >= 0 {
-		return stem[i+1:]
-	}
-	return stem
-}
-
-type Claimant = common.Claimant
-
-type CollisionError = common.CollisionError
-
-func CheckCollisions(claimants []Claimant) error {
-	return common.CheckCollisions(claimants)
-}
+func ClassIdentity(name string) string { return common.ClassIdentity(name, SupportedExts) }

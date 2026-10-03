@@ -1,48 +1,17 @@
 package scala
 
-import (
-	"github.com/ralvik/rules_dx/gazelle/common"
-	"path"
-	"strings"
-)
+import "github.com/ralvik/rules_dx/gazelle/common"
 
 var SupportedExts = []string{".scala"}
 
+var TestSourceSuffixes = []string{"Test"}
+
 const LibraryKind = "scala_library"
 
-func Normalize(base string) (string, error) {
-	return common.Normalize(base)
-}
-
 func IsTestSource(name string) bool {
-	base := path.Base(name)
-	stem := strings.TrimSuffix(base, ".scala")
-	return strings.HasSuffix(stem, "Test")
+	return common.IsTestSource(name, SupportedExts, TestSourceSuffixes)
 }
 
-func DirTargetName(dir string) (string, error) {
-	return Normalize(path.Base(dir))
-}
+func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
-func TargetName(name string) (string, error) {
-	base := path.Base(name)
-	stem := strings.TrimSuffix(base, ".scala")
-	return Normalize(stem)
-}
-
-func ClassIdentity(name string) string {
-	base := path.Base(name)
-	stem := strings.TrimSuffix(base, ".scala")
-	if i := strings.LastIndex(stem, "."); i >= 0 {
-		return stem[i+1:]
-	}
-	return stem
-}
-
-type Claimant = common.Claimant
-
-type CollisionError = common.CollisionError
-
-func CheckCollisions(claimants []Claimant) error {
-	return common.CheckCollisions(claimants)
-}
+func ClassIdentity(name string) string { return common.ClassIdentity(name, SupportedExts) }

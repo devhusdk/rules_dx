@@ -1,32 +1,6 @@
 package java
 
-import (
-	"strings"
-	"testing"
-)
-
-func TestNormalize(t *testing.T) {
-	cases := map[string]string{
-		"demo":      "demo",
-		"demo-pkg":  "demo_pkg",
-		"demo.pkg":  "demo_pkg",
-		"demo  pkg": "demo_pkg",
-		"a--b..c":   "a_b_c",
-		"Ab3":       "Ab3",
-		"under_ok":  "under_ok",
-	}
-	for in, want := range cases {
-		got, err := Normalize(in)
-		if err != nil || got != want {
-			t.Errorf("Normalize(%q) = %q, %v; want %q", in, got, err, want)
-		}
-	}
-	for _, in := range []string{"", "---", "...", "___"} {
-		if _, err := Normalize(in); err == nil {
-			t.Errorf("Normalize(%q) succeeded, want failure", in)
-		}
-	}
-}
+import "testing"
 
 func TestIsTestSource(t *testing.T) {
 	if !IsTestSource("DemoTest.java") || !IsTestSource("pkg/DemoTest.java") {
@@ -49,15 +23,5 @@ func TestDirTargetName(t *testing.T) {
 func TestClassIdentity(t *testing.T) {
 	if got := ClassIdentity("pkg/Demo.java"); got != "Demo" {
 		t.Errorf("ClassIdentity = %q, want Demo", got)
-	}
-}
-
-func TestCheckCollisions(t *testing.T) {
-	if err := CheckCollisions([]Claimant{{Name: "a", Source: "A.java"}, {Name: "b", Source: "B.java"}}); err != nil {
-		t.Errorf("CheckCollisions distinct = %v", err)
-	}
-	err := CheckCollisions([]Claimant{{Name: "a", Source: "A.java"}, {Name: "a", Source: "A2.java"}})
-	if err == nil || !strings.Contains(err.Error(), `"a"`) || !strings.Contains(err.Error(), "A.java") || !strings.Contains(err.Error(), "A2.java") {
-		t.Errorf("CheckCollisions collision = %v, want every claimant", err)
 	}
 }

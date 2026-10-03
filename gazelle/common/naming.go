@@ -33,7 +33,7 @@ func Normalize(base string) (string, error) {
 	return out, nil
 }
 
-func StripExt(base string, exts []string) (string, bool) {
+func stripExt(base string, exts []string) (string, bool) {
 	for _, ext := range exts {
 		if strings.HasSuffix(base, ext) {
 			return strings.TrimSuffix(base, ext), true
@@ -42,24 +42,33 @@ func StripExt(base string, exts []string) (string, bool) {
 	return "", false
 }
 
-func TargetName(name string, exts []string) (string, error) {
-	base := path.Base(name)
-	stem, ok := StripExt(base, exts)
-	if !ok {
-		return Normalize(base)
-	}
-	return Normalize(stem)
-}
-
 func DirTargetName(dir string) (string, error) {
 	return Normalize(path.Base(dir))
 }
 
-func Stem(base string, exts []string) string {
-	if stem, ok := StripExt(base, exts); ok {
-		return stem
+func stem(base string, exts []string) string {
+	if trimmed, ok := stripExt(base, exts); ok {
+		return trimmed
 	}
 	return base
+}
+
+func ClassIdentity(name string, exts []string) string {
+	short := stem(path.Base(name), exts)
+	if i := strings.LastIndex(short, "."); i >= 0 {
+		return short[i+1:]
+	}
+	return short
+}
+
+func IsTestSource(name string, exts []string, suffixes []string) bool {
+	short := stem(path.Base(name), exts)
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(short, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 type Claimant struct {

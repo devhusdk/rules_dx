@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 
 	"github.com/ralvik/rules_dx/gazelle/common"
@@ -189,12 +191,16 @@ type failingLanguage interface {
 
 func TestSingleLanguageFailureHeaders(t *testing.T) {
 	headers := map[string]string{
+		"astro":  "Astro generation failed:",
 		"cc":     "CC generation failed:",
 		"csharp": "CSharp generation failed:",
 		"java":   "Java generation failed:",
 		"kotlin": "Kotlin generation failed:",
+		"mdx":    "MDX generation failed:",
 		"ruby":   "Ruby generation failed:",
 		"scala":  "Scala generation failed:",
+		"svelte": "Svelte generation failed:",
+		"vue":    "Vue generation failed:",
 	}
 	composed := map[string]language.Language{}
 	for _, lang := range composedLanguages() {
@@ -231,4 +237,66 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
+	const oneSource = "add a local one-source library or an exact # gazelle:resolve mapping"
+	hints := map[string]string{
+		"astro":  oneSource,
+		"cc":     "add a local one-header library or an exact # gazelle:resolve mapping",
+		"csharp": oneSource,
+		"java":   oneSource,
+		"kotlin": oneSource,
+		"mdx":    oneSource,
+		"ruby":   oneSource,
+		"scala":  oneSource,
+		"svelte": oneSource,
+		"vue":    oneSource,
+	}
+	composed := map[string]language.Language{}
+	for _, lang := range composedLanguages() {
+		composed[lang.Name()] = lang
+		if _, single := lang.(*common.SingleLang); single && hints[lang.Name()] == "" {
+			t.Errorf("%s shares the single-language driver but pins no unresolved-import hint", lang.Name())
+		}
+	}
+	emptyIndex := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+	emptyIndex.Finish()
+	resolverCfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", resolverCfg)
+	if err := resolver.CheckFlags(nil, resolverCfg); err != nil {
+		t.Fatalf("resolver CheckFlags: %v", err)
+	}
+	resolver.Configure(resolverCfg, "app", nil)
+	for _, name := range sortedKeys(hints) {
+		lang, ok := composed[name].(*common.SingleLang)
+		if !ok {
+			t.Errorf("%s is not composed into dispatch, or does not share the single-language driver", name)
+			continue
+		}
+		kinds := lang.Kinds()
+		if len(kinds) != 1 {
+			t.Errorf("%s declares %d kinds, want exactly 1", name, len(kinds))
+			continue
+		}
+		kind := ""
+		for name := range kinds {
+			kind = name
+		}
+		lang.Before(context.Background())
+		from := label.New("", "app", "app")
+		lang.Resolve(resolverCfg, emptyIndex, nil, rule.NewRule(kind, "app"),
+			common.WrapImportSet([]string{"Missing"}), from)
+		want := name + ": " + from.String() + ": unresolved import \"Missing\"; " + hints[name]
+		func() {
+			defer func() {
+				got, ok := recover().(string)
+				if !ok || !strings.HasSuffix(got, want) {
+					t.Errorf("%s unresolved import = %v, want a line ending %q", name, got, want)
+				}
+			}()
+			lang.AfterResolvingDeps(context.Background())
+		}()
+	}
 }

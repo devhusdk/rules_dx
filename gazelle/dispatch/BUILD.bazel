@@ -77,7 +77,9 @@ go_test(
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//merger",
+        "@gazelle//resolve",
         "@gazelle//rule",
+        "@gazelle//v2/label",
     ],
 )
 

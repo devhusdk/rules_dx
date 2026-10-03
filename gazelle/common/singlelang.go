@@ -149,7 +149,10 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []res
 	}
 	var specs []resolve.ImportSpec
 	for _, src := range r.AttrStrings(l.spec.ImportAttr) {
-		if !l.spec.IsImportSource(src) || l.spec.IsTestSource(src) {
+		if !l.spec.IsImportSource(src) {
+			continue
+		}
+		if l.spec.IsTestSource != nil && l.spec.IsTestSource(src) {
 			continue
 		}
 		specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: l.spec.Identity(src)})

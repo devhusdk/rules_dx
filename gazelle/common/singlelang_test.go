@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"os"
 	"path"
@@ -268,6 +269,18 @@ func TestImportsIndexesTheImportAttr(t *testing.T) {
 	}
 }
 
+func TestImportsWithoutATestSourceFilter(t *testing.T) {
+	spec := dotSpec()
+	spec.IsTestSource = nil
+	l := NewSingleLang(spec)
+	lib := rule.NewRule(dotKind, "demo")
+	lib.SetAttr("srcs", []string{"Demo.dot", "Demo_test.dot", "notes.txt"})
+	imports := l.Imports(&config.Config{}, lib, nil)
+	if len(imports) != 2 || imports[0].Imp != "Demo" || imports[1].Imp != "Demo_test" {
+		t.Errorf("imports = %+v, want Demo and Demo_test", imports)
+	}
+}
+
 func TestWrapAndUnwrapImportSet(t *testing.T) {
 	names, ok := UnwrapImportSet(WrapImportSet([]string{"B", "A"}))
 	if !ok || strings.Join(names, ",") != "B,A" {
@@ -319,6 +332,58 @@ func TestGenerateRulesDelegatesToTheSpec(t *testing.T) {
 	}
 	if names, ok := UnwrapImportSet(result.Imports[0]); !ok || len(names) != 0 {
 		t.Errorf("imports = %v, %v, want an empty set", names, ok)
+	}
+}
+
+func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
+	cases := []struct {
+		name    string
+		files   map[string]string
+		regular []string
+		want    string
+	}{
+		{"readError", map[string]string{}, []string{"missing.dot"}, "read missing.dot"},
+		{"emptyName", map[string]string{"pkg/demo/---.dot": ""}, []string{"---.dot"}, "empty target name"},
+		{"collision", map[string]string{
+			"pkg/demo/a-b.dot": "",
+			"pkg/demo/a_b.dot": "",
+		}, []string{"a-b.dot", "a_b.dot"}, "claimed by a-b.dot, a_b.dot"},
+	}
+	for _, tc := range cases {
+		root := t.TempDir()
+		for name, content := range tc.files {
+			dotFile(t, root, name, content)
+		}
+		spec := dotSpec()
+		spec.Generate = func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult {
+			return GenerateSingleFile(args, kinds, SingleFileSpec{
+				LanguageName: dotLanguage,
+				LibraryKind:  dotKind,
+				IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
+				TargetName: func(name string) (string, error) {
+					trimmed := strings.TrimSuffix(path.Base(name), ".dot")
+					if trimmed == "---" {
+						return "", errors.New("empty target name")
+					}
+					return strings.ReplaceAll(trimmed, "-", "_"), nil
+				},
+				ParseImports: func([]byte) []string { return nil },
+				Wrap:         WrapImportSet,
+			}, rep)
+		}
+		l := NewSingleLang(spec)
+		result := l.GenerateRules(language.GenerateArgs{
+			Config:       &config.Config{RepoRoot: root},
+			Dir:          filepath.Join(root, "pkg", "demo"),
+			Rel:          "pkg/demo",
+			RegularFiles: tc.regular,
+		})
+		if len(result.Gen) != 0 {
+			t.Errorf("%s: generated %d rules, want none", tc.name, len(result.Gen))
+		}
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) {
+			t.Errorf("%s: errors = %v, want %q", tc.name, l.errors, tc.want)
+		}
 	}
 }
 

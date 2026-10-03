@@ -38,13 +38,7 @@ fn dir_pattern(rel: &str) -> String {
 }
 
 pub(crate) fn first_line(bytes: &[u8]) -> String {
-    const LIMIT: usize = 300;
-    let text = String::from_utf8_lossy(bytes);
-    let line = text.lines().map(str::trim).find(|line| !line.is_empty());
-    match line {
-        Some(line) => dx_output::truncate_line(line, LIMIT),
-        None => "no Bazel diagnostic".to_owned(),
-    }
+    dx_output::first_diagnostic_line(bytes, 300, "no Bazel diagnostic")
 }
 
 pub(crate) fn parse_owners(stdout: &[u8], label: &str) -> Result<Vec<String>, ResolveError> {

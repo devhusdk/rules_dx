@@ -147,6 +147,15 @@ pub fn truncate_line(line: &str, limit: usize) -> String {
     format!("{}...", &line[..end])
 }
 
+/// Picks the first line of a tool's output that says something, shortened to `limit` bytes plus `...`.
+pub fn first_diagnostic_line(bytes: &[u8], limit: usize, fallback: &str) -> String {
+    let text = String::from_utf8_lossy(bytes);
+    match text.lines().map(str::trim).find(|line| !line.is_empty()) {
+        Some(line) => truncate_line(line, limit),
+        None => fallback.to_owned(),
+    }
+}
+
 pub fn init_diagnostics_with_color(verbose: bool, level: Option<LogLevel>, color: ColorMode) {
     set_color_override(color);
     init_diagnostics_with_level(verbose, level);
@@ -229,6 +238,35 @@ mod tests {
         assert_eq!(truncate_line(&line, 128), line);
         assert_eq!(truncate_line(&line, 127), format!("{}...", "é".repeat(63)));
         assert_eq!(truncate_line(&line, 1), "...");
+    }
+
+    #[test]
+    fn the_first_diagnostic_line_skips_the_blank_leading_ones() {
+        assert_eq!(
+            first_diagnostic_line(b"  ERROR: broken\nmore", 300, "none"),
+            "ERROR: broken"
+        );
+        assert_eq!(
+            first_diagnostic_line(b"\n\nfatal: bad object\n", 300, "none"),
+            "fatal: bad object"
+        );
+        assert_eq!(first_diagnostic_line(b"\n  \n", 300, "none"), "none");
+        assert_eq!(first_diagnostic_line(b"", 300, "none"), "none");
+        assert_eq!(first_diagnostic_line(b"   ", 300, "none"), "none");
+    }
+
+    #[test]
+    fn the_first_diagnostic_line_stops_on_a_char_boundary_of_its_own_limit() {
+        let mut stderr = "x".repeat(298);
+        stderr.push('€');
+        stderr.push_str("ERROR: /home/u/pkg/BUILD.bazel");
+        let got = first_diagnostic_line(stderr.as_bytes(), 300, "none");
+        assert_eq!(got, format!("{}...", "x".repeat(298)));
+        assert!(got.len() <= 303, "bounded: {}", got.len());
+
+        let short = first_diagnostic_line(&vec![b'y'; 400], 300, "none");
+        assert_eq!(short, format!("{}...", "y".repeat(300)));
+        assert_eq!(first_diagnostic_line(b"tiny", 300, "none"), "tiny");
     }
 
     #[test]

@@ -143,7 +143,6 @@ PRIVATE_GAZELLE_PACKAGES = [
     "gazelle/javascript",
     "gazelle/kotlin",
     "gazelle/mdx",
-    "gazelle/mixed",
     "gazelle/python",
     "gazelle/ruby",
     "gazelle/rust",

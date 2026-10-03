@@ -67,9 +67,9 @@ def visibility_unit_tests(name):
                 PRIVATE_ENV_PACKAGES,
             ),
             expect_equal(
-                "private gazelle packages stay the 18 generated leaves",
+                "private gazelle packages stay the 17 generated leaves",
                 len(PRIVATE_GAZELLE_PACKAGES),
-                18,
+                17,
             ),
             expect_equal(
                 "scoped packages resolve through the contract",

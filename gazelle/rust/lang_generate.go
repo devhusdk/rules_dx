@@ -100,11 +100,11 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			var testName string
 			switch target.kind {
 			case exampleKind:
-				testName = ExampleTestName(target.name)
+				testName = common.UnitTestName(target.name)
 			case binaryKind:
-				testName = UnitTestName(target.name + "_bin")
+				testName = common.UnitTestName(common.BinaryName(target.name))
 			default:
-				testName = UnitTestName(target.crate())
+				testName = common.UnitTestName(target.crate())
 			}
 			t := rule.NewRule(testKind, testName)
 			t.SetAttr("crate", ":"+target.name)

@@ -3,6 +3,8 @@ package rust
 import (
 	"strings"
 	"testing"
+
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func mustParse(t *testing.T, path, src string) *FileFacts {
@@ -279,7 +281,7 @@ pub(in crate::parent) mod scoped;
 
 func TestNormalizeIntegration(t *testing.T) {
 	facts := mustParse(t, "src/lib.rs", "mod user_profile;\n")
-	stem, err := Normalize(facts.Modules[0].Name)
+	stem, err := common.Normalize(facts.Modules[0].Name)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,6 +2,68 @@ package common
 
 import "testing"
 
+func TestStem(t *testing.T) {
+	cases := []struct {
+		name string
+		exts []string
+		in   string
+		want string
+	}{
+		{"first ext wins", []string{".ts", ".tsx"}, "pkg/my-mod.tsx", "my-mod"},
+		{"a later ext still strips", []string{".js", ".jsx", ".mjs"}, "entry.mjs", "entry"},
+		{"the base name is dropped", []string{".astro"}, "a/b/demo.astro", "demo"},
+		{"a foreign ext stays", []string{".ts"}, "demo.js", "demo.js"},
+		{"no ext stays", []string{".ts"}, "plain", "plain"},
+		{"only the last dot is not split", []string{".astro"}, "archive.tar.astro", "archive.tar"},
+		{"no exts strips nothing", nil, "demo.ts", "demo.ts"},
+	}
+	for _, tc := range cases {
+		if got := Stem(tc.in, tc.exts); got != tc.want {
+			t.Errorf("Stem(%q, %v) = %q, want %q [%s]", tc.in, tc.exts, got, tc.want, tc.name)
+		}
+	}
+}
+
+func TestIsEntryFile(t *testing.T) {
+	cases := []struct {
+		name string
+		exts []string
+		in   string
+		want bool
+	}{
+		{"first ext", []string{".ts", ".tsx"}, "main.ts", true},
+		{"later ext", []string{".ts", ".tsx"}, "pkg/main.tsx", true},
+		{"a declaration is not an entry", []string{".ts", ".tsx"}, "main.d.ts", false},
+		{"the whole base name must be main", []string{".ts"}, "my.main.ts", false},
+		{"a trailing suffix is not an ext", []string{".ts"}, "main.ts.bak", false},
+		{"another name", []string{".ts", ".tsx"}, "index.ts", false},
+		{"a foreign ext", []string{".ts"}, "main.js", false},
+		{"no ext", []string{".ts"}, "main", false},
+		{"a directory that ends in main.ts", []string{".ts"}, "src/main.ts", true},
+	}
+	for _, tc := range cases {
+		if got := IsEntryFile(tc.in, tc.exts); got != tc.want {
+			t.Errorf("IsEntryFile(%q, %v) = %v, want %v [%s]", tc.in, tc.exts, got, tc.want, tc.name)
+		}
+	}
+}
+
+func TestBinaryName(t *testing.T) {
+	for in, want := range map[string]string{"main": "main_bin", "a_b": "a_b_bin", "": "_bin"} {
+		if got := BinaryName(in); got != want {
+			t.Errorf("BinaryName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestUnitTestName(t *testing.T) {
+	for in, want := range map[string]string{"parser": "parser_test", "a_test": "a_test_test", "": "_test"} {
+		if got := UnitTestName(in); got != want {
+			t.Errorf("UnitTestName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestClassIdentity(t *testing.T) {
 	cases := []struct {
 		exts []string

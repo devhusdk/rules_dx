@@ -315,7 +315,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, importsFor(trees[roots.LibRoot]))
 		if shape.LibUnitTest {
-			t := rule.NewRule(testKind, UnitTestName(shape.LibTarget))
+			t := rule.NewRule(testKind, common.UnitTestName(shape.LibTarget))
 			t.SetAttr("crate", ":"+shape.LibTarget)
 			result.Gen = append(result.Gen, t)
 			result.Imports = append(result.Imports, targetImports{test: importsFor(trees[roots.LibRoot]).test})
@@ -326,7 +326,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, importsFor(trees[roots.BinRoot]))
 		if shape.BinUnitTest {
-			t := rule.NewRule(testKind, UnitTestName(shape.BinTarget))
+			t := rule.NewRule(testKind, common.UnitTestName(shape.BinTarget))
 			t.SetAttr("crate", ":"+shape.BinTarget)
 			result.Gen = append(result.Gen, t)
 			result.Imports = append(result.Imports, targetImports{test: importsFor(trees[roots.BinRoot]).test})

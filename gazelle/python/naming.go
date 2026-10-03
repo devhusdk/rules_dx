@@ -3,57 +3,24 @@ package python
 import (
 	"github.com/ralvik/rules_dx/gazelle/common"
 	"path"
-	"strings"
 )
 
-func Normalize(base string) (string, error) {
-	return common.Normalize(base)
-}
+var SupportedExts = []string{".py", ".pyi"}
+
+var TestSourceExts = []string{".py"}
+
+var TestSourceSuffixes = []string{"_test"}
 
 func IsTestFile(name string) bool {
-	if !strings.HasSuffix(name, ".py") {
-		return false
-	}
-	stem := strings.TrimSuffix(path.Base(name), ".py")
-	return strings.HasSuffix(stem, "_test")
+	return common.HasExt(path.Base(name), TestSourceExts) && common.IsTestSource(name, TestSourceExts, TestSourceSuffixes)
 }
 
-func TargetName(name string) (string, error) {
-	base := path.Base(name)
-	if strings.HasSuffix(base, ".py") {
-		base = strings.TrimSuffix(base, ".py")
-	} else if strings.HasSuffix(base, ".pyi") {
-		base = strings.TrimSuffix(base, ".pyi")
-	}
-	return Normalize(base)
-}
+func ModuleName(name string) string { return common.Stem(name, SupportedExts) }
 
-func ModuleName(name string) string {
-	base := path.Base(name)
-	if strings.HasSuffix(base, ".py") {
-		return strings.TrimSuffix(base, ".py")
-	}
-	if strings.HasSuffix(base, ".pyi") {
-		return strings.TrimSuffix(base, ".pyi")
-	}
-	return base
-}
+func TargetName(name string) (string, error) { return common.Normalize(ModuleName(name)) }
 
 func IsEntryFile(name string) bool {
-	if IsTestFile(name) {
-		return false
-	}
-	return path.Base(name) == "main.py"
-}
-
-func EntryBinaryName(lib string) string {
-	return lib + "_bin"
+	return !IsTestFile(name) && path.Base(name) == "main.py"
 }
 
 type Claimant = common.Claimant
-
-type CollisionError = common.CollisionError
-
-func CheckCollisions(claimants []Claimant) error {
-	return common.CheckCollisions(claimants)
-}

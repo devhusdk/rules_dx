@@ -5,6 +5,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 type CrateRoots struct {
@@ -69,14 +71,14 @@ func ShapeCrate(roots CrateRoots, libUnitTest, binUnitTest bool) (*CrateShape, e
 	if base == "" || base == "." {
 		return nil, fmt.Errorf("rust: crate directory %q has no source-only fallback name; an authoritative Cargo package name is required", roots.Dir)
 	}
-	name, err := Normalize(path.Base(base))
+	name, err := common.Normalize(path.Base(base))
 	if err != nil {
 		return nil, fmt.Errorf("rust: crate directory %q: %w", roots.Dir, err)
 	}
 	shape := &CrateShape{Dir: roots.Dir, Name: name}
-	var claimants []Claimant
+	var claimants []common.Claimant
 	claim := func(target, source string) {
-		claimants = append(claimants, Claimant{Name: target, Source: source})
+		claimants = append(claimants, common.Claimant{Name: target, Source: source})
 	}
 	if roots.LibRoot != "" {
 		shape.LibTarget = name
@@ -84,14 +86,14 @@ func ShapeCrate(roots CrateRoots, libUnitTest, binUnitTest bool) (*CrateShape, e
 	}
 	if roots.BinRoot != "" {
 		if roots.LibRoot != "" {
-			shape.BinTarget = BinaryName(name)
+			shape.BinTarget = common.BinaryName(name)
 		} else {
 			shape.BinTarget = name
 		}
 		claim(shape.BinTarget, roots.BinRoot)
 	}
 	for _, root := range roots.TestRoots {
-		stem, err := Normalize(strings.TrimSuffix(path.Base(root), ".rs"))
+		stem, err := common.Normalize(strings.TrimSuffix(path.Base(root), ".rs"))
 		if err != nil {
 			return nil, fmt.Errorf("rust: integration-test root %s: %w", root, err)
 		}
@@ -100,16 +102,16 @@ func ShapeCrate(roots CrateRoots, libUnitTest, binUnitTest bool) (*CrateShape, e
 		claim(target, root)
 	}
 	if libUnitTest && roots.LibRoot != "" {
-		target := UnitTestName(shape.LibTarget)
+		target := common.UnitTestName(shape.LibTarget)
 		shape.LibUnitTest = true
 		claim(target, roots.LibRoot+" [unit]")
 	}
 	if binUnitTest && roots.BinRoot != "" {
-		target := UnitTestName(shape.BinTarget)
+		target := common.UnitTestName(shape.BinTarget)
 		shape.BinUnitTest = true
 		claim(target, roots.BinRoot+" [unit]")
 	}
-	if err := CheckCollisions(claimants); err != nil {
+	if err := common.CheckCollisions(claimants); err != nil {
 		return nil, err
 	}
 	return shape, nil

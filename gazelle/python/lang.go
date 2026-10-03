@@ -208,7 +208,7 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 		}
 		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: kind})
 		if p.entry {
-			claimants = append(claimants, Claimant{Name: EntryBinaryName(p.name), Source: p.src, Kind: binaryKind})
+			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
 		}
 	}
 	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
@@ -232,7 +232,7 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...)})
 		if p.entry {
-			bin := rule.NewRule(binaryKind, EntryBinaryName(p.name))
+			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("main", p.src)
 			bin.SetAttr("imports", []string{importsAttr})
 			bin.SetAttr("deps", []string{":" + p.name})

@@ -233,7 +233,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		}
 		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: kind})
 		if p.entry {
-			claimants = append(claimants, Claimant{Name: EntryBinaryName(p.name), Source: p.src, Kind: binaryKind})
+			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
 		}
 	}
 	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
@@ -256,7 +256,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local})
 		if p.entry {
-			bin := rule.NewRule(binaryKind, EntryBinaryName(p.name))
+			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("entry_point", p.src)
 			bin.SetAttr("data", []string{":" + p.name})
 			result.Gen = append(result.Gen, bin)

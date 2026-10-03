@@ -6,6 +6,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 const (
@@ -80,7 +82,7 @@ func (m *cargoManifest) withImplicitTargets(files map[string]bool, packagePath s
 		if explicitPaths[targetPath] {
 			continue
 		}
-		name, err := Normalize(strings.TrimSuffix(rel, ".rs"))
+		name, err := common.Normalize(strings.TrimSuffix(rel, ".rs"))
 		if err != nil {
 			return fmt.Errorf("rust: Cargo integration-test root %s: %w", file, err)
 		}
@@ -373,7 +375,7 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 		}
 		return nil, fmt.Errorf("rust: %s: missing [package].name", manifestPath)
 	}
-	if _, err := Normalize(manifest.packageName); err != nil {
+	if _, err := common.Normalize(manifest.packageName); err != nil {
 		return nil, fmt.Errorf("rust: %s: [package].name %q: %v", manifestPath, manifest.packageName, err)
 	}
 	for i := range manifest.targets {
@@ -403,7 +405,7 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 			}
 		}
 		target.logical = target.name
-		normalized, err := Normalize(target.name)
+		normalized, err := common.Normalize(target.name)
 		if err != nil {
 			return nil, fmt.Errorf("rust: %s: Cargo target %q: %v", manifestPath, target.name, err)
 		}

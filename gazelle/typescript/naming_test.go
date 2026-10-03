@@ -1,34 +1,6 @@
 package typescript
 
-import (
-	"strings"
-	"testing"
-)
-
-func TestNormalize(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"hello", "hello"},
-		{"hello_test", "hello_test"},
-		{"_private", "private"},
-		{"my-mod", "my_mod"},
-		{"my mod", "my_mod"},
-		{"UPPER123", "UPPER123"},
-		{"déjà", "d_j"},
-	}
-	for _, tc := range cases {
-		if got, err := Normalize(tc.in); err != nil || got != tc.want {
-			t.Errorf("Normalize(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
-		}
-	}
-}
-
-func TestNormalizeEmptyFails(t *testing.T) {
-	for _, in := range []string{"", "---", "___"} {
-		if got, err := Normalize(in); err == nil {
-			t.Errorf("Normalize(%q) = %q, want error", in, got)
-		}
-	}
-}
+import "testing"
 
 func TestIsDeclaration(t *testing.T) {
 	for _, name := range []string{"foo.d.ts", "pkg/foo.d.mts", "foo.d.cts"} {
@@ -57,6 +29,7 @@ func TestIsTestFile(t *testing.T) {
 		{"helper_test.d.ts", false},
 		{"helper.test.ts", false},
 		{"helper_test.js", false},
+		{"helper_test", false},
 		{"_test.ts", true},
 	}
 	for _, tc := range cases {
@@ -106,29 +79,6 @@ func TestModuleName(t *testing.T) {
 	}
 }
 
-func TestCheckCollisions(t *testing.T) {
-	if err := CheckCollisions(nil); err != nil {
-		t.Errorf("empty collisions = %v", err)
-	}
-	single := []Claimant{{Name: "a", Source: "a.ts"}, {Name: "b", Source: "b.tsx"}}
-	if err := CheckCollisions(single); err != nil {
-		t.Errorf("unique collisions = %v", err)
-	}
-	dupes := []Claimant{{Name: "a_b", Source: "a-b.ts"}, {Name: "a_b", Source: "a_b.tsx"}}
-	err := CheckCollisions(dupes)
-	collision, ok := err.(*CollisionError)
-	if !ok {
-		t.Fatalf("collisions = %v (%T), want *CollisionError", err, err)
-	}
-	if collision.Name != "a_b" || len(collision.Claimants) != 2 {
-		t.Errorf("collision = %+v", collision)
-	}
-	message := collision.Error()
-	if !strings.Contains(message, "a-b.ts") || !strings.Contains(message, "a_b.tsx") {
-		t.Errorf("collision message omits a claimant: %s", message)
-	}
-}
-
 func TestIsEntryFile(t *testing.T) {
 	cases := []struct {
 		name string
@@ -157,15 +107,6 @@ func TestIsEntryFile(t *testing.T) {
 	}
 }
 
-func TestEntryBinaryName(t *testing.T) {
-	if got := EntryBinaryName("main"); got != "main_bin" {
-		t.Errorf("EntryBinaryName(main) = %q, want main_bin", got)
-	}
-	if got := EntryBinaryName("a_b"); got != "a_b_bin" {
-		t.Errorf("EntryBinaryName(a_b) = %q, want a_b_bin", got)
-	}
-}
-
 func TestEntryPointName(t *testing.T) {
 	cases := []struct {
 		name string
@@ -175,6 +116,8 @@ func TestEntryPointName(t *testing.T) {
 		{"pkg/main.tsx", "main.js"},
 		{"main.mts", "main.mjs"},
 		{"main.cts", "main.cjs"},
+		{"main.d.ts", "main.d.js"},
+		{"pkg/notes.md", "notes.md"},
 	}
 	for _, tc := range cases {
 		if got := EntryPointName(tc.name); got != tc.want {

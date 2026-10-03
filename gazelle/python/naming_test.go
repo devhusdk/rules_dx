@@ -1,38 +1,6 @@
 package python
 
-import (
-	"strings"
-	"testing"
-)
-
-func TestNormalize(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"hello", "hello"},
-		{"hello_test", "hello_test"},
-		{"_private", "private"},
-		{"trailing_", "trailing"},
-		{"my-mod", "my_mod"},
-		{"my--mod", "my_mod"},
-		{"my mod", "my_mod"},
-		{"a.b+c", "a_b_c"},
-		{"UPPER123", "UPPER123"},
-		{"123", "123"},
-		{"déjà", "d_j"},
-	}
-	for _, tc := range cases {
-		if got, err := Normalize(tc.in); err != nil || got != tc.want {
-			t.Errorf("Normalize(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
-		}
-	}
-}
-
-func TestNormalizeEmptyFails(t *testing.T) {
-	for _, in := range []string{"", "---", "___", "…"} {
-		if got, err := Normalize(in); err == nil {
-			t.Errorf("Normalize(%q) = %q, want error", in, got)
-		}
-	}
-}
+import "testing"
 
 func TestIsTestFile(t *testing.T) {
 	cases := []struct {
@@ -94,29 +62,6 @@ func TestModuleName(t *testing.T) {
 	}
 }
 
-func TestCheckCollisions(t *testing.T) {
-	if err := CheckCollisions(nil); err != nil {
-		t.Errorf("empty collisions = %v", err)
-	}
-	single := []Claimant{{Name: "a", Source: "a.py"}, {Name: "b", Source: "b.py"}}
-	if err := CheckCollisions(single); err != nil {
-		t.Errorf("unique collisions = %v", err)
-	}
-	dupes := []Claimant{{Name: "a_b", Source: "a-b.py"}, {Name: "a_b", Source: "a_b.py"}}
-	err := CheckCollisions(dupes)
-	collision, ok := err.(*CollisionError)
-	if !ok {
-		t.Fatalf("collisions = %v (%T), want *CollisionError", err, err)
-	}
-	if collision.Name != "a_b" || len(collision.Claimants) != 2 {
-		t.Errorf("collision = %+v", collision)
-	}
-	message := collision.Error()
-	if !strings.Contains(message, "a-b.py") || !strings.Contains(message, "a_b.py") {
-		t.Errorf("collision message omits a claimant: %s", message)
-	}
-}
-
 func TestIsEntryFile(t *testing.T) {
 	cases := []struct {
 		name string
@@ -134,14 +79,5 @@ func TestIsEntryFile(t *testing.T) {
 		if got := IsEntryFile(tc.name); got != tc.want {
 			t.Errorf("IsEntryFile(%q) = %v, want %v", tc.name, got, tc.want)
 		}
-	}
-}
-
-func TestEntryBinaryName(t *testing.T) {
-	if got := EntryBinaryName("main"); got != "main_bin" {
-		t.Errorf("EntryBinaryName(main) = %q, want main_bin", got)
-	}
-	if got := EntryBinaryName("a_b"); got != "a_b_bin" {
-		t.Errorf("EntryBinaryName(a_b) = %q, want a_b_bin", got)
 	}
 }

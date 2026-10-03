@@ -46,15 +46,34 @@ func DirTargetName(dir string) (string, error) {
 	return Normalize(path.Base(dir))
 }
 
-func stem(base string, exts []string) string {
+func Stem(name string, exts []string) string {
+	base := path.Base(name)
 	if trimmed, ok := stripExt(base, exts); ok {
 		return trimmed
 	}
 	return base
 }
 
+func IsEntryFile(name string, exts []string) bool {
+	base := path.Base(name)
+	for _, ext := range exts {
+		if base == "main"+ext {
+			return true
+		}
+	}
+	return false
+}
+
+func BinaryName(target string) string {
+	return target + "_bin"
+}
+
+func UnitTestName(target string) string {
+	return target + "_test"
+}
+
 func ClassIdentity(name string, exts []string) string {
-	short := stem(path.Base(name), exts)
+	short := Stem(name, exts)
 	if i := strings.LastIndex(short, "."); i >= 0 {
 		return short[i+1:]
 	}
@@ -62,7 +81,7 @@ func ClassIdentity(name string, exts []string) string {
 }
 
 func IsTestSource(name string, exts []string, suffixes []string) bool {
-	short := stem(path.Base(name), exts)
+	short := Stem(name, exts)
 	for _, suffix := range suffixes {
 		if strings.HasSuffix(short, suffix) {
 			return true

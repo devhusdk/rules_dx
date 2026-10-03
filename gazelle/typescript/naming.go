@@ -8,89 +8,34 @@ import (
 
 var SupportedExts = []string{".ts", ".tsx", ".mts", ".cts"}
 
+var DeclarationExts = []string{".d.ts", ".d.mts", ".d.cts"}
+
+var TestSourceSuffixes = []string{"_test"}
+
 func IsDeclaration(name string) bool {
-	base := path.Base(name)
-	return strings.HasSuffix(base, ".d.ts") || strings.HasSuffix(base, ".d.mts") || strings.HasSuffix(base, ".d.cts")
-}
-
-func Normalize(base string) (string, error) {
-	return common.Normalize(base)
-}
-
-func stripTSExt(base string) (string, bool) {
-	for _, ext := range SupportedExts {
-		if strings.HasSuffix(base, ext) {
-			return strings.TrimSuffix(base, ext), true
-		}
-	}
-	return "", false
+	return common.HasExt(path.Base(name), DeclarationExts)
 }
 
 func IsTestFile(name string) bool {
-	if IsDeclaration(name) {
-		return false
-	}
-	stem, ok := stripTSExt(path.Base(name))
-	if !ok {
-		return false
-	}
-	return strings.HasSuffix(stem, "_test")
+	return !IsDeclaration(name) && common.HasExt(path.Base(name), SupportedExts) && common.IsTestSource(name, SupportedExts, TestSourceSuffixes)
 }
 
-func TargetName(name string) (string, error) {
-	base := path.Base(name)
-	stem, ok := stripTSExt(base)
-	if !ok {
-		return Normalize(base)
-	}
-	return Normalize(stem)
-}
+func ModuleName(name string) string { return common.Stem(name, SupportedExts) }
 
-func ModuleName(name string) string {
-	base := path.Base(name)
-	if stem, ok := stripTSExt(base); ok {
-		return stem
-	}
-	return base
-}
+func TargetName(name string) (string, error) { return common.Normalize(ModuleName(name)) }
 
 func IsEntryFile(name string) bool {
-	if IsTestFile(name) || IsDeclaration(name) {
-		return false
-	}
-	base := path.Base(name)
-	for _, ext := range SupportedExts {
-		if base == "main"+ext {
-			return true
-		}
-	}
-	return false
-}
-
-func EntryBinaryName(lib string) string {
-	return lib + "_bin"
+	return !IsTestFile(name) && common.IsEntryFile(name, SupportedExts)
 }
 
 func EntryPointName(src string) string {
 	base := path.Base(src)
-	if strings.HasSuffix(base, ".mts") {
-		return strings.TrimSuffix(base, ".mts") + ".mjs"
-	}
-	if strings.HasSuffix(base, ".cts") {
-		return strings.TrimSuffix(base, ".cts") + ".cjs"
-	}
-	for _, ext := range []string{".ts", ".tsx"} {
-		if strings.HasSuffix(base, ext) {
-			return strings.TrimSuffix(base, ext) + ".js"
+	for _, pair := range [][2]string{{".mts", ".mjs"}, {".cts", ".cjs"}, {".ts", ".js"}, {".tsx", ".js"}} {
+		if strings.HasSuffix(base, pair[0]) {
+			return strings.TrimSuffix(base, pair[0]) + pair[1]
 		}
 	}
 	return base
 }
 
 type Claimant = common.Claimant
-
-type CollisionError = common.CollisionError
-
-func CheckCollisions(claimants []Claimant) error {
-	return common.CheckCollisions(claimants)
-}

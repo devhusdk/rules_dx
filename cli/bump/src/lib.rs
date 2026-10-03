@@ -8,7 +8,6 @@
     )
 )]
 
-pub mod discovery;
 pub mod gha;
 pub mod request;
 pub mod sets;

@@ -2549,14 +2549,6 @@ fn unknown_set_and_selector_errors_name_every_set() {
         unknown_bump.contains(&dx_bump::BumpSet::pipe_list()),
         "the unknown-bump-selector error never names every set: {unknown_bump}"
     );
-    let unknown_discovery = dx_bump::discovery::DiscoveryError::UnknownSelector {
-        selector: "nope:thing".to_owned(),
-    }
-    .to_string();
-    assert!(
-        unknown_discovery.contains(&dx_bump::BumpSet::pipe_list()),
-        "the unknown-discovery-selector error never names every set: {unknown_discovery}"
-    );
 }
 
 #[test]

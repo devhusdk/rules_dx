@@ -135,37 +135,6 @@ pub fn color_enabled() -> bool {
     color_enabled_for(color_override())
 }
 
-pub fn styled_status_for(status: &str, enabled: bool) -> String {
-    if !enabled {
-        return status.to_owned();
-    }
-    console::style(status).green().bold().to_string()
-}
-
-pub fn styled_status(status: &str) -> String {
-    styled_status_for(status, color_enabled())
-}
-
-pub fn format_status(status: &str, message: &str) -> String {
-    format!("{} {message}", styled_status(status))
-}
-
-pub fn emit_status(status: &str, message: &str) {
-    use std::io::Write;
-    let line = format_status(status, message);
-    match color_override() {
-        ColorMode::Auto => {
-            let mut err = anstream::stderr();
-            let _ = writeln!(err, "{line}");
-        }
-        ColorMode::Always | ColorMode::Never => {
-            let mut err = std::io::stderr();
-            let _ = writeln!(err, "{line}");
-        }
-    }
-    tracing::info!(status, message, "dx status");
-}
-
 /// Shortens a tool's diagnostic line to at most `limit` bytes plus `...`.
 pub fn truncate_line(line: &str, limit: usize) -> String {
     if line.len() <= limit {
@@ -285,21 +254,6 @@ mod tests {
     }
 
     #[test]
-    fn diagnostics_styled_status_stays_plain_when_disabled() {
-        assert_eq!(styled_status_for("ok", false), "ok");
-        assert_eq!(
-            styled_status_for("warning", false),
-            "warning",
-            "disabled styling must not inject escape codes"
-        );
-        let enabled = styled_status_for("ok", true);
-        assert!(
-            enabled.contains("ok"),
-            "enabled styling must preserve the status word: {enabled:?}"
-        );
-    }
-
-    #[test]
     fn diagnostics_no_color_env_disables_color() {
         let prior_override = color_override();
         set_color_override(ColorMode::Auto);
@@ -311,11 +265,6 @@ mod tests {
             !color_enabled(),
             "NO_COLOR presence (even empty) must disable color"
         );
-        assert_eq!(
-            styled_status("ok"),
-            "ok",
-            "NO_COLOR styling must stay byte-identical plain"
-        );
         if let Some(value) = prior {
             unsafe {
                 std::env::set_var("NO_COLOR", value);
@@ -326,12 +275,6 @@ mod tests {
             }
         }
         set_color_override(prior_override);
-    }
-
-    #[test]
-    fn diagnostics_format_status_is_byte_identical_when_plain() {
-        let plain = format!("{} {}", styled_status_for("ok", false), "done");
-        assert_eq!(plain, "ok done");
     }
 
     #[test]

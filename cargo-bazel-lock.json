@@ -1,5 +1,5 @@
 {
-  "checksum": "a6d7cd8e66a101f8d5369007dae7d5486601bcb34427d75fcfdaee7e1f53aa59",
+  "checksum": "58251c80a35e59d6b34f158a6831e3f0da3b33b0cef8634377fb34be17edafcd",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -264,76 +264,6 @@
       ],
       "version": "0.1.6"
     },
-    "anstream 0.6.21": {
-      "common_attrs": {
-        "crate_features": [
-          "auto",
-          "default",
-          "wincon"
-        ],
-        "deps": {
-          "common": [
-            {
-              "id": "anstyle 1.0.14",
-              "target": "anstyle"
-            },
-            {
-              "id": "anstyle-parse 0.2.7",
-              "target": "anstyle_parse"
-            },
-            {
-              "id": "anstyle-query 1.1.5",
-              "target": "anstyle_query"
-            },
-            {
-              "id": "colorchoice 1.0.5",
-              "target": "colorchoice"
-            },
-            {
-              "id": "is_terminal_polyfill 1.70.2",
-              "target": "is_terminal_polyfill"
-            },
-            {
-              "id": "utf8parse 0.2.2",
-              "target": "utf8parse"
-            }
-          ],
-          "selects": {
-            "x86_64-pc-windows-msvc": [
-              {
-                "id": "anstyle-wincon 3.0.11",
-                "target": "anstyle_wincon"
-              }
-            ]
-          }
-        },
-        "edition": "2021"
-      },
-      "library_target_name": "anstream",
-      "license": "MIT OR Apache-2.0",
-      "license_file": "LICENSE-APACHE",
-      "license_ids": [
-        "Apache-2.0",
-        "MIT"
-      ],
-      "name": "anstream",
-      "package_url": "https://github.com/rust-cli/anstyle.git",
-      "repository": {
-        "Http": {
-          "sha256": "43d5b281e737544384e969a5ccad3f1cdd24b48086a0fc1b2a5262a26b8f4f4a",
-          "url": "https://static.crates.io/crates/anstream/0.6.21/download"
-        }
-      },
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "anstream",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.6.21"
-    },
     "anstream 1.0.0": {
       "common_attrs": {
         "crate_features": [
@@ -436,45 +366,6 @@
         }
       ],
       "version": "1.0.14"
-    },
-    "anstyle-parse 0.2.7": {
-      "common_attrs": {
-        "crate_features": [
-          "default",
-          "utf8"
-        ],
-        "deps": [
-          {
-            "id": "utf8parse 0.2.2",
-            "target": "utf8parse"
-          }
-        ],
-        "edition": "2021"
-      },
-      "library_target_name": "anstyle_parse",
-      "license": "MIT OR Apache-2.0",
-      "license_file": "LICENSE-APACHE",
-      "license_ids": [
-        "Apache-2.0",
-        "MIT"
-      ],
-      "name": "anstyle-parse",
-      "package_url": "https://github.com/rust-cli/anstyle.git",
-      "repository": {
-        "Http": {
-          "sha256": "4e7644824f0aa2c7b9384579234ef10eb7efb6a0deb83f9630a49594dd9c15c2",
-          "url": "https://static.crates.io/crates/anstyle-parse/0.2.7/download"
-        }
-      },
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "anstyle_parse",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.2.7"
     },
     "anstyle-parse 1.0.0": {
       "common_attrs": {
@@ -3238,10 +3129,6 @@
     "dx_output 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "anstream 0.6.21",
-            "target": "anstream"
-          },
           {
             "id": "clap 4.6.7",
             "target": "clap"
@@ -13666,7 +13553,6 @@
     }
   },
   "direct_deps": [
-    "anstream 0.6.21",
     "anyhow 1.0.104",
     "base64 0.22.1",
     "blake3 1.8.7",

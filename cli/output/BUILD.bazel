@@ -29,7 +29,6 @@ dx_rust_crate(
         "//cli/schema:dx_schema",
     ],
     deps = [
-        "anstream",
         "clap",
         "console",
         "serde_json",

@@ -8,6 +8,14 @@
     )
 )]
 
+//! Path facts and spellings shared across the tool.
+
+pub mod host;
+pub mod spelling;
+
+pub use spelling::spell;
+pub use spelling::{manifest, msys, posix, uri};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathProblem {
     Empty,

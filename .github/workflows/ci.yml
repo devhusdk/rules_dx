@@ -15,7 +15,7 @@ env:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   dogfood:
@@ -106,7 +106,7 @@ jobs:
           failing = sorted(
               key
               for key, value in needs.items()
-              if value.get("result") not in ("success", "skipped")
+              if value.get("result") not in ("success", "skipped", "cancelled")
           )
           print(json.dumps({"aggregate": "ci", "failing checks": failing}))
           sys.exit(1 if failing else 0)
@@ -115,4 +115,4 @@ jobs:
         if: always()
         run: |
           echo "### ci — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Aggregate required check over every ci.yml job (branch-protection single gate; skipped needs are non-failing)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Aggregate required check over every ci.yml job (branch-protection single gate; skipped and cancelled needs are non-failing)." >> "$GITHUB_STEP_SUMMARY"

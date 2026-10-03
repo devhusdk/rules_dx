@@ -5,12 +5,19 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_WIDE")
 package(default_visibility = VIS_CLI_WIDE)
 
 exports_files([
+    "src/host.rs",
     "src/lib.rs",
+    "src/spelling.rs",
 ])
 
 dx_rust_crate(
     name = "dx_path",
     package_name = "cli/dx_path",
+    srcs = [
+        "src/host.rs",
+        "src/lib.rs",
+        "src/spelling.rs",
+    ],
     deps = [],
 )
 

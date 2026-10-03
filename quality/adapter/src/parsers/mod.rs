@@ -211,6 +211,106 @@ fn known_spelled<'a>(
         })
 }
 
+/// The lines a tool wrote, blank ones dropped and each one trimmed.
+fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseError> {
+    Ok(as_text(tool, raw)?
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect())
+}
+
+/// The checked file a line names, with everything after the first colon.
+fn located<'a>(
+    tool: &'static str,
+    line: &'a str,
+    files: &[&'a str],
+) -> Result<(&'a str, &'a str), ParseError> {
+    let (path, rest) = line
+        .split_once(':')
+        .ok_or_else(|| missing(tool, "location", line))?;
+    Ok((known(tool, files, path)?, rest))
+}
+
+/// The line and column of a diagnostic that spells both, with its tail.
+fn columned<'a>(
+    tool: &'static str,
+    line: &str,
+    rest: &'a str,
+) -> Result<(u64, u64, &'a str), ParseError> {
+    let mut parts = rest.splitn(3, ':');
+    let line_no = numbered(tool, "line", line, parts.next())?;
+    let column = numbered(tool, "column", line, parts.next())?;
+    let tail = parts
+        .next()
+        .ok_or_else(|| missing(tool, "message", line))?
+        .trim();
+    Ok((line_no, column, tail))
+}
+
+/// A number a diagnostic spelled, or the shape failure naming the field it missed.
+fn numbered(
+    tool: &'static str,
+    what: &str,
+    line: &str,
+    text: Option<&str>,
+) -> Result<u64, ParseError> {
+    text.ok_or_else(|| missing(tool, what, line))?
+        .trim()
+        .parse()
+        .map_err(|_| missing(tool, what, line))
+}
+
+/// The rule and message of a `[rule] message` tail that carries both.
+fn bracketed(tail: &str) -> (String, String) {
+    match tail.strip_prefix('[').and_then(|rest| rest.split_once(']')) {
+        Some((rule, message)) if !rule.is_empty() && !message.trim().is_empty() => {
+            (rule.trim().to_owned(), message.trim().to_owned())
+        }
+        _ => (String::new(), tail.to_owned()),
+    }
+}
+
+/// A finding at a line and column, spanning nothing and suggesting nothing.
+fn finding(
+    tool: &'static str,
+    file: &str,
+    rule_id: String,
+    message: String,
+    severity: ToolSeverity,
+    line: u64,
+    column: u64,
+) -> FileFinding {
+    let (start, end) = point(line, column);
+    FileFinding {
+        file: file.to_owned(),
+        finding: Finding {
+            tool_id: tool.to_owned(),
+            rule_id,
+            message,
+            severity,
+            start,
+            end,
+            suggestions: Vec::new(),
+        },
+    }
+}
+
+/// An exit that reported nothing is a shape failure, whatever the code said.
+fn require_findings(
+    tool: &'static str,
+    findings: &[FileFinding],
+    code: Option<i32>,
+) -> Result<(), ParseError> {
+    if findings.is_empty() && code != Some(0) {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("exit {} with no diagnostics", code_name(code)),
+        });
+    }
+    Ok(())
+}
+
 fn point(line: u64, column: u64) -> (TextPosition, Option<TextPosition>) {
     (TextPosition { line, column }, None)
 }
@@ -592,7 +692,164 @@ fn unformatted(
 
 #[cfg(test)]
 mod tests {
-    use super::{check_output_size, ParseError, MAX_OUTPUT_BYTES};
+    use super::{
+        bracketed, check_output_size, columned, finding, lines, located, missing, numbered,
+        require_findings, FileFinding, ParseError, MAX_OUTPUT_BYTES,
+    };
+    use crate::{Finding, ToolSeverity};
+
+    #[test]
+    fn lines_drops_blank_lines_and_trims_the_rest() {
+        assert_eq!(
+            lines("tsc", b"  a.rs:1:1: x  \n\n\t\n b.rs:2:2: y\n").expect("read"),
+            vec!["a.rs:1:1: x", "b.rs:2:2: y"]
+        );
+        assert!(lines("tsc", b"\n \n").expect("read").is_empty());
+        assert!(matches!(
+            lines("tsc", &[0xff]),
+            Err(ParseError::Shape { tool: "tsc", .. })
+        ));
+        let big = vec![b'x'; MAX_OUTPUT_BYTES + 1];
+        assert!(matches!(
+            lines("tsc", &big),
+            Err(ParseError::TooLarge { tool: "tsc", .. })
+        ));
+    }
+
+    #[test]
+    fn located_splits_the_path_and_holds_it_to_the_run() {
+        let files = ["/s/a.rs"];
+        assert_eq!(
+            located("tsc", "/s/a.rs:1:2: x", &files).expect("located"),
+            ("/s/a.rs", "1:2: x")
+        );
+        assert!(matches!(
+            located("tsc", "/s/b.rs:1:2: x", &files),
+            Err(ParseError::UnknownFile { path, .. }) if path == "/s/b.rs"
+        ));
+        assert!(located("tsc", "no-colon-here", &files)
+            .expect_err("no location")
+            .to_string()
+            .contains("malformed location: no-colon-here"));
+    }
+
+    #[test]
+    fn columned_splits_the_line_the_column_and_the_tail() {
+        assert_eq!(
+            columned(
+                "tsc",
+                "/s/a.rs:3:4: tail: with colons",
+                "3:4: tail: with colons"
+            )
+            .expect("columned"),
+            (3, 4, "tail: with colons")
+        );
+        assert_eq!(
+            columned("tsc", "/s/a.rs: 3 :4:x", " 3 :4:x").expect("columned"),
+            (3, 4, "x")
+        );
+        for (rest, field) in [
+            ("x:4:tail", "line"),
+            ("3:x:tail", "column"),
+            ("3:4", "message"),
+        ] {
+            assert!(
+                columned("tsc", "/s/a.rs:3:4:t", rest)
+                    .expect_err("malformed")
+                    .to_string()
+                    .contains(&format!("malformed {field}")),
+                "{rest} must fail as a missing {field}"
+            );
+        }
+    }
+
+    #[test]
+    fn numbered_names_the_field_it_could_not_read() {
+        assert_eq!(
+            numbered("tsc", "line", "l", Some(" 12 ")).expect("read"),
+            12
+        );
+        assert_eq!(
+            numbered("tsc", "line", "l", Some(""))
+                .expect_err("empty")
+                .to_string(),
+            missing("tsc", "line", "l").to_string()
+        );
+        assert_eq!(
+            numbered("tsc", "line", "l", None)
+                .expect_err("absent")
+                .to_string(),
+            missing("tsc", "line", "l").to_string()
+        );
+        assert_eq!(
+            numbered("tsc", "line", "l", Some("x"))
+                .expect_err("text")
+                .to_string(),
+            missing("tsc", "line", "l").to_string()
+        );
+    }
+
+    #[test]
+    fn bracketed_splits_a_rule_only_when_both_halves_are_there() {
+        assert_eq!(
+            bracketed("[R1] msg here"),
+            ("R1".to_owned(), "msg here".to_owned())
+        );
+        assert_eq!(
+            bracketed(" msg here "),
+            (String::new(), " msg here ".to_owned())
+        );
+        assert_eq!(bracketed("[R1]"), (String::new(), "[R1]".to_owned()));
+        assert_eq!(bracketed("[R1]   "), (String::new(), "[R1]   ".to_owned()));
+        assert_eq!(bracketed("[] msg"), (String::new(), "[] msg".to_owned()));
+    }
+
+    #[test]
+    fn finding_carries_the_tool_the_position_and_nothing_else() {
+        let found = finding(
+            "tsc",
+            "/s/a.rs",
+            "R1".to_owned(),
+            "msg".to_owned(),
+            ToolSeverity::Error,
+            3,
+            4,
+        );
+        assert_eq!(found.file, "/s/a.rs");
+        assert_eq!(
+            found.finding,
+            Finding {
+                tool_id: "tsc".to_owned(),
+                rule_id: "R1".to_owned(),
+                message: "msg".to_owned(),
+                severity: ToolSeverity::Error,
+                start: crate::TextPosition { line: 3, column: 4 },
+                end: None,
+                suggestions: Vec::new(),
+            }
+        );
+    }
+
+    #[test]
+    fn require_findings_rejects_only_a_silent_non_zero_exit() {
+        assert!(require_findings("tsc", &[], Some(0)).is_ok());
+        assert!(require_findings("tsc", &[], None).is_err());
+        assert!(require_findings("tsc", &[], Some(1)).is_err());
+        let one: Vec<FileFinding> = vec![finding(
+            "tsc",
+            "/s/a.rs",
+            String::new(),
+            "m".to_owned(),
+            ToolSeverity::Warning,
+            1,
+            1,
+        )];
+        assert!(require_findings("tsc", &one, Some(1)).is_ok());
+        assert!(require_findings("tsc", &[], Some(2))
+            .expect_err("silent exit")
+            .to_string()
+            .contains("exit 2 with no diagnostics"));
+    }
 
     #[test]
     fn error_display_is_stable() {

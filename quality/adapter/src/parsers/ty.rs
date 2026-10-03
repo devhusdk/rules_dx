@@ -1,5 +1,5 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{finding, known, lines, missing, require_findings, FileFinding, ParseError};
+use crate::ToolSeverity;
 
 fn ty_diagnostic(line: &str) -> Result<(&str, u64, u64, ToolSeverity, &str, String), ParseError> {
     const TOOL: &str = "ty";
@@ -57,47 +57,31 @@ pub fn parse_ty(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "ty";
-    check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
     let mut findings = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed == "All checks passed!" {
+    for line in lines(TOOL, stdout)? {
+        if line == "All checks passed!" {
             continue;
         }
-        if trimmed.starts_with("Found ")
-            && (trimmed.ends_with("diagnostic") || trimmed.ends_with("diagnostics"))
+        if line.starts_with("Found ")
+            && (line.ends_with("diagnostic") || line.ends_with("diagnostics"))
         {
             continue;
         }
-        let (path, line_no, column, severity, rule, message) = ty_diagnostic(trimmed)?;
-        let checked = known(TOOL, files, path)?;
-        let (start, end) = point(line_no, column);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: rule.to_owned(),
-                message,
-                severity,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        let (path, line_no, column, severity, rule, message) = ty_diagnostic(line)?;
+        let file = known(TOOL, files, path)?;
+        findings.push(finding(
+            TOOL,
+            file,
+            rule.to_owned(),
+            message,
+            severity,
+            line_no,
+            column,
+        ));
     }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
-    }
+    require_findings(TOOL, &findings, code)?;
     Ok(findings)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

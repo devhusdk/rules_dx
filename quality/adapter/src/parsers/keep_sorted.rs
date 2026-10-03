@@ -1,5 +1,7 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{
+    finding, lines, located, missing, numbered, require_findings, FileFinding, ParseError,
+};
+use crate::ToolSeverity;
 
 pub fn parse_keep_sorted(
     stdout: &[u8],
@@ -7,28 +9,11 @@ pub fn parse_keep_sorted(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "keep_sorted";
-    check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
     let mut findings = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let (path, rest) = trimmed
-            .split_once(':')
-            .ok_or_else(|| missing(TOOL, "location", line))?;
-        let checked = known(TOOL, files, path)?;
+    for line in lines(TOOL, stdout)? {
+        let (file, rest) = located(TOOL, line, files)?;
         let mut parts = rest.splitn(2, ':');
-        let line_no: u64 = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "line", line))?
-            .trim()
-            .parse()
-            .map_err(|_| missing(TOOL, "line", line))?;
+        let line_no = numbered(TOOL, "line", line, parts.next())?;
         let message = parts
             .next()
             .ok_or_else(|| missing(TOOL, "message", line))?
@@ -36,26 +21,17 @@ pub fn parse_keep_sorted(
         if message.is_empty() {
             return Err(missing(TOOL, "message", line));
         }
-        let (start, end) = point(line_no, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: String::new(),
-                message: message.to_owned(),
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        findings.push(finding(
+            TOOL,
+            file,
+            String::new(),
+            message.to_owned(),
+            ToolSeverity::Warning,
+            line_no,
+            1,
+        ));
     }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
-    }
+    require_findings(TOOL, &findings, code)?;
     Ok(findings)
 }
 

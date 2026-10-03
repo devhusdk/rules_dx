@@ -1,8 +1,8 @@
 use super::{
-    check_output_size, code_name, diff_format, known, missing, point, DiffExit, FileFinding,
-    ParseError,
+    columned, diff_format, finding, lines, located, missing, require_findings, DiffExit,
+    FileFinding, ParseError,
 };
-use crate::{Finding, ToolSeverity};
+use crate::ToolSeverity;
 
 pub fn parse_djlint(
     stderr: &[u8],
@@ -10,65 +10,30 @@ pub fn parse_djlint(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "djlint";
-    check_output_size(TOOL, stderr)?;
-    let text = std::str::from_utf8(stderr).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
     let mut findings = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let (path, rest) = trimmed
-            .split_once(':')
-            .ok_or_else(|| missing(TOOL, "location", line))?;
-        let checked = known(TOOL, files, path)?;
-        let mut parts = rest.splitn(3, ':');
-        let line_no: u64 = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "line", line))?
-            .trim()
-            .parse()
-            .map_err(|_| missing(TOOL, "line", line))?;
-        let col_no: u64 = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "column", line))?
-            .trim()
-            .parse()
-            .map_err(|_| missing(TOOL, "column", line))?;
-        let tail = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "message", line))?
-            .trim();
+    for line in lines(TOOL, stderr)? {
+        let (file, rest) = located(TOOL, line, files)?;
+        let (line_no, column, tail) = columned(TOOL, line, rest)?;
         if tail.is_empty() {
             return Err(missing(TOOL, "message", line));
         }
-        let (rule, message) = match tail.split_once(' ') {
-            Some((r, m)) if !r.is_empty() && !m.is_empty() => (r.to_owned(), m.to_owned()),
+        let (rule_id, message) = match tail.split_once(' ') {
+            Some((rule, message)) if !rule.is_empty() && !message.is_empty() => {
+                (rule.to_owned(), message.to_owned())
+            }
             _ => (String::new(), tail.to_owned()),
         };
-        let (start, end) = point(line_no, col_no);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: rule,
-                message,
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        findings.push(finding(
+            TOOL,
+            file,
+            rule_id,
+            message,
+            ToolSeverity::Warning,
+            line_no,
+            column,
+        ));
     }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
-    }
+    require_findings(TOOL, &findings, code)?;
     Ok(findings)
 }
 

@@ -1,5 +1,7 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{
+    finding, lines, located, missing, numbered, require_findings, FileFinding, ParseError,
+};
+use crate::ToolSeverity;
 
 pub fn parse_clang_tidy(
     stderr: &[u8],
@@ -7,35 +9,13 @@ pub fn parse_clang_tidy(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "clang_tidy";
-    check_output_size(TOOL, stderr)?;
-    let text = std::str::from_utf8(stderr).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
     let mut findings = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let (path, rest) = trimmed
-            .split_once(':')
-            .ok_or_else(|| missing(TOOL, "location", line))?;
-        let checked = known(TOOL, files, path)?;
+    for line in lines(TOOL, stderr)? {
+        let (file, rest) = located(TOOL, line, files)?;
         let rest = rest.trim_start_matches(':').trim_start();
         let mut parts = rest.splitn(4, ':');
-        let line_no: u64 = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "line", line))?
-            .trim()
-            .parse()
-            .map_err(|_| missing(TOOL, "line", line))?;
-        let col_no: u64 = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "column", line))?
-            .trim()
-            .parse()
-            .map_err(|_| missing(TOOL, "column", line))?;
+        let line_no = numbered(TOOL, "line", line, parts.next())?;
+        let column = numbered(TOOL, "column", line, parts.next())?;
         let severity_word = parts
             .next()
             .ok_or_else(|| missing(TOOL, "severity", line))?
@@ -62,26 +42,11 @@ pub fn parse_clang_tidy(
         if message.is_empty() {
             return Err(missing(TOOL, "message", line));
         }
-        let (start, end) = point(line_no, col_no);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id,
-                message,
-                severity,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        findings.push(finding(
+            TOOL, file, rule_id, message, severity, line_no, column,
+        ));
     }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
-    }
+    require_findings(TOOL, &findings, code)?;
     Ok(findings)
 }
 

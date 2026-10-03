@@ -1,5 +1,7 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{
+    check_output_size, finding, known, missing, require_findings, FileFinding, ParseError,
+};
+use crate::ToolSeverity;
 
 fn error_prone_rule(rule: &str) -> bool {
     let mut chars = rule.chars();
@@ -134,27 +136,18 @@ pub fn parse_error_prone(
             continue;
         }
         let (path, line_no, severity, rule, message) = error_prone_header(line)?;
-        let checked = known(TOOL, files, path)?;
-        let (start, end) = point(line_no, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: rule.to_owned(),
-                message,
-                severity,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        let file = known(TOOL, files, path)?;
+        findings.push(finding(
+            TOOL,
+            file,
+            rule.to_owned(),
+            message,
+            severity,
+            line_no,
+            1,
+        ));
     }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
-    }
+    require_findings(TOOL, &findings, code)?;
     Ok(findings)
 }
 

@@ -1,5 +1,7 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{
+    columned, finding, lines, located, missing, require_findings, FileFinding, ParseError,
+};
+use crate::ToolSeverity;
 
 pub fn parse_shellcheck(
     stdout: &[u8],
@@ -7,79 +9,35 @@ pub fn parse_shellcheck(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "shellcheck";
-    check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
     let mut findings = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let (path, rest) = trimmed
-            .split_once(':')
-            .ok_or_else(|| missing(TOOL, "location", line))?;
-        let checked = known(TOOL, files, path)?;
-        let mut parts = rest.splitn(3, ':');
-        let line_no: u64 = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "line", line))?
-            .trim()
-            .parse()
-            .map_err(|_| missing(TOOL, "line", line))?;
-        let col_no: u64 = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "column", line))?
-            .trim()
-            .parse()
-            .map_err(|_| missing(TOOL, "column", line))?;
-        let tail = parts
-            .next()
-            .ok_or_else(|| missing(TOOL, "message", line))?
-            .trim();
+    for line in lines(TOOL, stdout)? {
+        let (file, rest) = located(TOOL, line, files)?;
+        let (line_no, column, tail) = columned(TOOL, line, rest)?;
         let (level, rest) = tail
             .split_once(':')
             .ok_or_else(|| missing(TOOL, "level", line))?;
-        let level = level.trim();
-        let rest = rest.trim();
-        let severity = match level {
+        let severity = match level.trim() {
             "error" => ToolSeverity::Error,
             "warning" => ToolSeverity::Warning,
             "info" | "note" | "style" => ToolSeverity::Info,
             _ => return Err(missing(TOOL, "level", line)),
         };
-        let (message, rule) = match rest.rsplit_once('[').and_then(|(m, r)| {
-            r.strip_suffix(']')
-                .map(|code| (m.trim().to_owned(), code.trim().to_owned()))
+        let rest = rest.trim();
+        let (message, rule_id) = match rest.rsplit_once('[').and_then(|(message, rule)| {
+            rule.strip_suffix(']')
+                .map(|rule| (message.trim().to_owned(), rule.trim().to_owned()))
         }) {
-            Some((m, r)) if !m.is_empty() && !r.is_empty() => (m, r),
+            Some((message, rule)) if !message.is_empty() && !rule.is_empty() => (message, rule),
             _ => (rest.to_owned(), String::new()),
         };
         if message.is_empty() {
             return Err(missing(TOOL, "message", line));
         }
-        let (start, end) = point(line_no, col_no);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: rule,
-                message,
-                severity,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        findings.push(finding(
+            TOOL, file, rule_id, message, severity, line_no, column,
+        ));
     }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
-    }
+    require_findings(TOOL, &findings, code)?;
     Ok(findings)
 }
 

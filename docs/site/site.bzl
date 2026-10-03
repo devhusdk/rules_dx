@@ -5,9 +5,20 @@ MDBOOK_VERSION = "0.4.43"
 DOC_IR_SCHEMA_MAJOR = 1
 DOC_IR_SCHEMA_MINOR = 1
 
-_AWK_TEXTPROTO_CHARS = "BEGIN { BS = \"\\134\"; Q = \"\\042\" }"
+_AWK_CHARS = (
+    "BEGIN { NL = sprintf(\"%c\", 10); Q = sprintf(\"%c\", 34); " +
+    "B2 = sprintf(\"%c%c\", 92, 92); BQ = sprintf(\"%c%c\", 92, 34); " +
+    "RE_BS = sprintf(\"%c%c\", 92, 92); RE_Q = sprintf(\"%c\", 34); " +
+    "print \"schema_major: \" smaj; print \"schema_minor: \" smin; " +
+    "print \"language: \" Q lang Q; print \"package: \" Q pkg Q }"
+)
 
-_AWK_ESCAPE_FIELDS = "{ n = $$1; d = substr($$0, index($$0, \"|\") + 1); gsub(/\\\\/, BS BS, n); gsub(/\\\\/, BS BS, d); gsub(/\"/, BS Q, n); gsub(/\"/, BS Q, d); "
+_AWK_SYMBOLS = (
+    "{ n = $$1; d = substr($$0, index($$0, \"|\") + 1); " +
+    "gsub(RE_BS, B2, n); gsub(RE_BS, B2, d); gsub(RE_Q, BQ, n); gsub(RE_Q, BQ, d); " +
+    "printf \"symbols {\" NL \"  id: \" Q prefix n Q NL " +
+    "\"  doc_markdown: \" Q d Q NL \"}\" NL }"
+)
 
 _AWK_MISSING_SEPARATOR = "index($$0, \"|\") < 2 { print }"
 
@@ -133,19 +144,27 @@ def docs_extract(name, language, package, srcs):
     if len(srcs) == 0:
         fail("docs_extract " + native.package_name() + ":" + name + ": need at least one src")
     shard = site_shard_name(name)
-    header = "schema_major: " + str(DOC_IR_SCHEMA_MAJOR) + "\\nschema_minor: " + str(DOC_IR_SCHEMA_MINOR) + "\\nlanguage: \"" + language + "\"\\npackage: \"" + package + "\"\\n"
-    symbol = "printf \"symbols {\\n  id: \\\"" + language + ":" + package + ":%s\\\"\\n  doc_markdown: \\\"%s\\\"\\n}\\n\", n, d }"
+    prefix = language + ":" + package + ":"
+    vars = (
+        " -v smaj=" + str(DOC_IR_SCHEMA_MAJOR) +
+        " -v smin=" + str(DOC_IR_SCHEMA_MINOR) +
+        " -v lang=" + language +
+        " -v pkg=" + package +
+        " -v prefix=" + prefix
+    )
     native.genrule(
         name = name + "_shard",
         srcs = srcs,
         outs = [shard],
         cmd = "set -e; " +
               "_lines=$$(for _f in $(SRCS); do awk 1 \"$$_f\"; done); " +
-              "_bad=$$(printf '%s\\n' \"$$_lines\" | LC_ALL=C awk '" + _AWK_MISSING_SEPARATOR + "'); " +
+              "_bad=$$(echo \"$$_lines\" | LC_ALL=C awk '" + _AWK_MISSING_SEPARATOR + "'); " +
               "if [ -n \"$$_bad\" ]; then echo \"docs_site: symbol line needs name|doc_markdown: $$_bad\" >&2; exit 1; fi; " +
-              "_dup=$$(printf '%s\\n' \"$$_lines\" | LC_ALL=C cut -d'|' -f1 | LC_ALL=C sort | uniq -d); " +
+              "_dup=$$(echo \"$$_lines\" | LC_ALL=C cut -d'|' -f1 | LC_ALL=C sort | uniq -d); " +
               "if [ -n \"$$_dup\" ]; then echo \"docs_site: duplicate symbol name: $$_dup\" >&2; exit 1; fi; " +
-              "{ printf '" + header + "'; printf '%s\\n' \"$$_lines\" | LC_ALL=C sort -t'|' -k1,1 | awk -F'|' '" + _AWK_TEXTPROTO_CHARS + " " + _AWK_ESCAPE_FIELDS + symbol + "'; } > \"$@\"; " + "if ! grep -q '^symbols {' \"$@\"; then echo \"docs_site: extract produced no symbols\" >&2; exit 1; fi",
+              "echo \"$$_lines\" | LC_ALL=C sort -t'|' -k1,1 | " +
+              "LC_ALL=C awk -F'|'" + vars + " '" + _AWK_CHARS + " " + _AWK_SYMBOLS + "' > \"$@\"; " +
+              "if ! grep -q '^symbols {' \"$@\"; then echo \"docs_site: extract produced no symbols\" >&2; exit 1; fi",
     )
     native.filegroup(
         name = name,

@@ -1,0 +1,11 @@
+--- a/py/private/py_venv/venv.bzl
++++ b/py/private/py_venv/venv.bzl
+@@ -338,6 +338,7 @@
+         # exist inside an OCI container, leaving a dangling symlink. The
+         # target path itself is computed by resolve_venv_toolchain.
+-    bin_python = ctx.actions.declare_symlink("{}/bin/python".format(venv_name))
++    bin_python_name = "python.exe" if is_windows else "python"
++    bin_python = ctx.actions.declare_symlink("{}/bin/{}".format(venv_name, bin_python_name))
+     ctx.actions.symlink(
+         output = bin_python,
+         target_path = tc.bin_python_target_path,

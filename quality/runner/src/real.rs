@@ -142,13 +142,15 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
     )]
 }
 
+/// Launchers that read the manifest beside their own binary on every platform.
+const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint"];
+
+/// Launchers that need the manifest only where there is no runfiles tree.
+const WINDOWS_OWN_MANIFEST: &[&str] = &["eslint", "prettier"];
+
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.
 fn reads_own_manifest(tool_id: &str, windows: bool) -> bool {
-    match tool_id {
-        "pydoclint" | "flake8" | "pylint" => true,
-        "eslint" | "prettier" => windows,
-        _ => false,
-    }
+    ALWAYS_OWN_MANIFEST.contains(&tool_id) || (windows && WINDOWS_OWN_MANIFEST.contains(&tool_id))
 }
 
 fn execution(tool_id: &str, detail: String) -> RunnerError {
@@ -279,7 +281,10 @@ mod real_tools;
 
 #[cfg(test)]
 mod tests {
-    use super::{absolute_argv, own_runfiles_manifest, reads_own_manifest};
+    use super::{
+        absolute_argv, own_runfiles_manifest, reads_own_manifest, ALWAYS_OWN_MANIFEST,
+        WINDOWS_OWN_MANIFEST,
+    };
     use std::ffi::OsString;
     use std::path::Path;
 
@@ -355,6 +360,17 @@ mod tests {
         for tool_id in ["eslint", "prettier"] {
             assert!(reads_own_manifest(tool_id, true), "{tool_id}");
             assert!(!reads_own_manifest(tool_id, false), "{tool_id}");
+        }
+    }
+
+    /// A tool sits in one list, because the two reasons do not overlap.
+    #[test]
+    fn one_tool_has_one_reason_to_read_its_manifest() {
+        for tool_id in ALWAYS_OWN_MANIFEST {
+            assert!(!WINDOWS_OWN_MANIFEST.contains(tool_id), "{tool_id}");
+        }
+        for tool_id in WINDOWS_OWN_MANIFEST {
+            assert!(!ALWAYS_OWN_MANIFEST.contains(tool_id), "{tool_id}");
         }
     }
 

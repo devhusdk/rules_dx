@@ -1,5 +1,5 @@
 {
-  "checksum": "9a3aa8c1210ce888ffface938cf07231ba2d9405d539ea53a0ad38343c643ec0",
+  "checksum": "514789bd15dadb53f8319dd93300ae8b1c413353c38cd39dd68eb1e90e03508e",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3432,6 +3432,15 @@
         }
       ],
       "version": "1.0.0"
+    },
+    "env_fixtures 0.0.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "name": "env_fixtures",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "env_shard 0.0.0": {
       "common_attrs": {
@@ -8227,6 +8236,15 @@
         }
       ],
       "version": "0.8.11"
+    },
+    "repin_all 0.0.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "name": "repin_all",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "roff 1.1.1": {
       "common_attrs": {
@@ -13595,6 +13613,7 @@
     "dx_test_scratch 0.0.0": "cli/dx_test_scratch",
     "dx_testing 0.0.0": "tools/dx_testing",
     "dx_update 0.0.0": "cli/dx_update",
+    "env_fixtures 0.0.0": "env/env_fixtures",
     "env_shard 0.0.0": "env/env_shard",
     "generation_result 0.0.0": "generation/generation_result",
     "hello 0.0.0": "rust/tests/fixtures/hello",
@@ -13602,6 +13621,7 @@
     "quality_evaluator 0.0.0": "quality/quality_evaluator",
     "quality_markdown 0.0.0": "quality/quality_markdown",
     "quality_result 0.0.0": "quality/quality_result",
-    "quality_runner 0.0.0": "quality/quality_runner"
+    "quality_runner 0.0.0": "quality/quality_runner",
+    "repin_all 0.0.0": "tools/repin_all"
   }
 }

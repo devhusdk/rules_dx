@@ -19,6 +19,14 @@ path = "src/bin_hasher.rs"
 name = "npm_pack"
 path = "src/bin_npm_pack.rs"
 
+[[bin]]
+name = "deploy_program"
+path = "src/bin_deploy_program.rs"
+
+[[bin]]
+name = "deploy_app"
+path = "src/bin_deploy_app.rs"
+
 [dependencies]
 flate2 = { version = "1", default-features = false, features = ["zlib"] }
 quick-xml = "0.41"

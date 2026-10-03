@@ -1,0 +1,57 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files(["Cargo.toml"])
+
+rust_binary(
+    name = "doctor_fixture",
+    testonly = True,
+    srcs = ["src/bin_doctor.rs"],
+    aliases = aliases(
+        package_name = "env/env_fixtures",
+        normal = True,
+    ),
+    crate_name = "doctor_fixture",
+    crate_root = "src/bin_doctor.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "env/env_fixtures",
+    ),
+)
+
+rust_binary(
+    name = "tool_fixture",
+    testonly = True,
+    srcs = ["src/bin_tool.rs"],
+    aliases = aliases(
+        package_name = "env/env_fixtures",
+        normal = True,
+    ),
+    crate_name = "tool_fixture",
+    crate_root = "src/bin_tool.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "env/env_fixtures",
+    ),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

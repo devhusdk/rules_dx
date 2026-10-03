@@ -284,9 +284,9 @@ rust_test(
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
         "//modules:versions.bzl",
-        "//tools:repin_all.sh",
         "//tools/bazelrc:BUILD.bazel",
         "//tools/bazelrc:preset.bazelrc",
+        "//tools/repin_all:src/main.rs",
     ],
     deps = crate_deps(
         [

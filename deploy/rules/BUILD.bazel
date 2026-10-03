@@ -1,5 +1,4 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
@@ -169,14 +168,30 @@ rust_binary(
     deps = [":dx_deploy_tools"],
 )
 
-sh_binary(
+rust_binary(
     name = "deploy_program",
-    srcs = ["deploy_program.sh"],
+    srcs = ["src/bin_deploy_program.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "deploy_program",
+    crate_root = "src/bin_deploy_program.rs",
+    edition = "2021",
+    deps = [":dx_deploy_tools"],
 )
 
-sh_binary(
+rust_binary(
     name = "deploy_app",
-    srcs = ["deploy_app.sh"],
+    srcs = ["src/bin_deploy_app.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "deploy_app",
+    crate_root = "src/bin_deploy_app.rs",
+    edition = "2021",
+    deps = [":dx_deploy_tools"],
 )
 
 dx_deployment(

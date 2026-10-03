@@ -1,6 +1,5 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "environment_config", "environment_tool", "environment_tree")
 load(":defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
@@ -9,9 +8,9 @@ load(":plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests")
 
 package(default_visibility = ["//visibility:public"])
 
-sh_binary(
+alias(
     name = "tool_sh",
-    srcs = ["tool.sh"],
+    actual = "//env/fixtures:tool_sh",
 )
 
 environment_tool(
@@ -109,9 +108,9 @@ env_plan_subject(
 
 env_plan_analysis_tests(name = "env_plan_analysis")
 
-sh_binary(
+alias(
     name = "doctor",
-    srcs = ["doctor.sh"],
+    actual = "//env/fixtures:doctor",
 )
 
 environment_tool(

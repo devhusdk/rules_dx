@@ -1,0 +1,8 @@
+[package]
+name = "repin_all"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "repin-all"
+path = "src/main.rs"

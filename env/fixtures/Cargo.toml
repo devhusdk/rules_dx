@@ -1,0 +1,12 @@
+[package]
+name = "env_fixtures"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "doctor_fixture"
+path = "src/bin_doctor.rs"
+
+[[bin]]
+name = "tool_fixture"
+path = "src/bin_tool.rs"

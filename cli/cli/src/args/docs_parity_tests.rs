@@ -3219,14 +3219,14 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
 
 #[test]
 fn the_repin_wrapper_defers_to_dx_update() {
-    let script =
-        std::fs::read_to_string(workspace_root().join("tools/repin_all.sh")).expect("wrapper");
+    let source = std::fs::read_to_string(workspace_root().join("tools/repin_all/src/main.rs"))
+        .expect("wrapper");
     assert!(
-        script.contains("exec bazel run //cli/cli:dx -- update"),
-        "tools/repin_all.sh must forward to dx update, the owner of the repin table"
+        source.contains(r#""run", "//cli/cli:dx", "--", "update""#),
+        "tools/repin_all must forward to dx update, the owner of the repin table"
     );
     assert!(
-        !script.contains("repin table"),
-        "tools/repin_all.sh must not claim the repin table; dx update owns it"
+        !source.contains("repin table"),
+        "tools/repin_all must not claim the repin table; dx update owns it"
     );
 }

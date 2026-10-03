@@ -1,14 +1,10 @@
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["repin_all.sh"])
-
-sh_binary(
+alias(
     name = "repin-all",
-    srcs = ["repin_all.sh"],
-    target_compatible_with = ["@platforms//os:linux"],
+    actual = "//tools/repin_all:repin-all",
 )
 
 real_source_target(

@@ -267,7 +267,7 @@ fn hash_malformed_directive_fails_for_python() {
 }
 
 #[test]
-fn hash_range_excludes_boundaries_for_starlark() {
+fn hash_range_excludes_boundaries_for_python() {
     let source = file_lines(&[
         "def f():".to_string(),
         format!(
@@ -280,7 +280,7 @@ fn hash_range_excludes_boundaries_for_starlark() {
             marker("_STOP")
         ),
     ]);
-    let ignores = find_ignores("t.bzl", &source).unwrap();
+    let ignores = find_ignores("t.py", &source).unwrap();
     assert_eq!(ignores.ranges.len(), 1);
     assert!(is_ignored(&ignores, 2));
     assert!(is_ignored(&ignores, 3));
@@ -289,47 +289,20 @@ fn hash_range_excludes_boundaries_for_starlark() {
 }
 
 #[test]
-fn html_comment_markers_are_honored_for_markdown() {
-    let source = file_lines(&[
-        "# Title".to_string(),
-        format!(
-            "<!-- {} - reason: fixture prose, issue: 1055. -->",
-            marker("_LINE")
-        ),
-        "Body.".to_string(),
-    ]);
-    let ignores = find_ignores("t.md", &source).unwrap();
-    assert!(ignores.singles.contains_key(&2));
-}
-
-#[test]
-fn html_second_comment_on_line_keeps_separator() {
-    let line = format!(
-        "prose <!-- dropped --> more <!-- {} - reason: second segment, issue: 1055. -->",
-        marker("_LINE")
-    );
-    let source = file_lines(&[line]);
-    let ignores = find_ignores("t.md", &source).unwrap();
-    assert!(ignores.singles.contains_key(&1));
-}
-
-#[test]
-fn html_unterminated_comment_after_content_keeps_prefix() {
-    let line = format!(
-        "prose <!-- dropped --> tail <!-- {} - reason: unterminated, issue: 1055.",
-        marker("_LINE")
-    );
-    let source = file_lines(&[line]);
-    let ignores = find_ignores("t.md", &source).unwrap();
-    assert!(ignores.singles.contains_key(&1));
-}
-
-#[test]
-fn html_code_outside_segments_is_not_scanned_for_markdown() {
-    let source = file_lines(&["real `code` here.".to_string(), "More.".to_string()]);
-    let ignores = find_ignores("t.md", &source).unwrap();
-    assert!(ignores.singles.is_empty());
-    assert!(ignores.ranges.is_empty());
+fn comments_outside_covered_languages_are_never_scanned() {
+    let hash = format!("# {} - reason: hash, issue: 1055.", marker("_LINE"));
+    let html = format!("<!-- {} - reason: html, issue: 1055. -->", marker("_LINE"));
+    for (path, line) in [
+        ("t.bzl", hash.clone()),
+        ("t.pyi", hash.clone()),
+        ("t.rb", hash.clone()),
+        ("t.md", html),
+    ] {
+        let source = file_lines(&[line]);
+        let ignores = find_ignores(path, &source).unwrap();
+        assert!(ignores.singles.is_empty(), "{path}");
+        assert!(ignores.ranges.is_empty(), "{path}");
+    }
 }
 
 #[test]
@@ -407,19 +380,6 @@ fn raw_string_markers_are_inert_wontfix() {
     let ignores = find_ignores("t.rs", &source).unwrap();
     assert!(ignores.singles.is_empty());
     assert!(ignores.ranges.is_empty());
-}
-
-#[test]
-fn hash_comment_markers_are_honored_for_pyi_stubs() {
-    let source = file_lines(&[
-        "def f() -> int: ...".to_string(),
-        format!(
-            "    pass  # {} - reason: fixture stub line, issue: 1055.",
-            marker("_LINE")
-        ),
-    ]);
-    let ignores = find_ignores("t.pyi", &source).unwrap();
-    assert!(ignores.singles.contains_key(&2));
 }
 
 #[test]

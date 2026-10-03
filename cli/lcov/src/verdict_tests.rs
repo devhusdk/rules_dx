@@ -1,5 +1,5 @@
 use super::*;
-use crate::{FileHits, LcovError, ELIGIBLE, SUPPORT};
+use crate::{find_ignores, FileHits, LcovError, ELIGIBLE, SUPPORT};
 use std::collections::BTreeMap;
 
 fn marker(kind: &str) -> String {
@@ -531,6 +531,35 @@ fn covered_languages_include_wrapped_langs() {
         "elf.d.ts",
     ] {
         assert!(!is_covered_language(path), "{path}");
+    }
+}
+
+#[test]
+fn every_covered_language_is_scanned_with_its_own_comment_marker() {
+    fn marker_for(syntax: LineComment) -> &'static str {
+        match syntax {
+            LineComment::SlashSlash => "//",
+            LineComment::Hash => "#",
+        }
+    }
+    for (extension, syntax) in COVERED_LANGUAGES {
+        let path = format!("elf{extension}");
+        let source = file_lines(&[format!(
+            "{} {} - reason: fixture, issue: 1055.",
+            marker_for(*syntax),
+            marker("_LINE")
+        )]);
+        assert!(is_covered_language(&path), "{path}");
+        let ignores = find_ignores(&path, &source).unwrap();
+        assert!(ignores.singles.contains_key(&1), "{path}");
+    }
+    for path in ["elf.d.ts", "elf.d.mts", "elf.d.cts"] {
+        let source = file_lines(&[format!(
+            "// {} - reason: fixture, issue: 1055.",
+            marker("_LINE")
+        )]);
+        assert!(!is_covered_language(path), "{path}");
+        assert!(find_ignores(path, &source).unwrap().singles.is_empty());
     }
 }
 

@@ -1,33 +1,7 @@
 use regex::Regex;
 use std::sync::LazyLock;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum CommentStyle {
-    SlashSlash,
-    Hash,
-    Html,
-}
-
-fn comment_style(path: &str) -> CommentStyle {
-    if path.ends_with(".py")
-        || path.ends_with(".pyi")
-        || path.ends_with(".bzl")
-        || path.ends_with(".toml")
-        || path.ends_with(".sh")
-        || path.ends_with(".yaml")
-        || path.ends_with(".yml")
-    {
-        CommentStyle::Hash
-    } else if path.ends_with(".md")
-        || path.ends_with(".html")
-        || path.ends_with(".htm")
-        || path.ends_with(".mdx")
-    {
-        CommentStyle::Html
-    } else {
-        CommentStyle::SlashSlash
-    }
-}
+use crate::verdict::{line_comment_syntax, LineComment};
 
 fn slash_scan() -> Option<&'static Regex> {
     static SCAN: LazyLock<Option<Regex>> =
@@ -51,7 +25,7 @@ fn scan_with(line: &str, compiled: Option<&Regex>) -> Option<usize> {
     None
 }
 
-fn line_comment(line: &str) -> Option<&str> {
+fn slash_comment(line: &str) -> Option<&str> {
     scan_with(line, slash_scan()).map(|end| &line[end..])
 }
 
@@ -59,36 +33,11 @@ fn hash_comment(line: &str) -> Option<&str> {
     scan_with(line, hash_scan()).map(|end| &line[end..])
 }
 
-fn html_comments(line: &str) -> String {
-    let mut out = String::new();
-    let mut rest = line;
-    while let Some(open) = rest.find("<!--") {
-        let after = &rest[open + "<!--".len()..];
-        match after.find("-->") {
-            Some(close) => {
-                if !out.is_empty() {
-                    out.push(' ');
-                }
-                out.push_str(&after[..close]);
-                rest = &after[close + "-->".len()..];
-            }
-            None => {
-                if !out.is_empty() {
-                    out.push(' ');
-                }
-                out.push_str(after);
-                break;
-            }
-        }
-    }
-    out
-}
-
 pub(crate) fn comment_text(path: &str, line: &str) -> String {
-    match comment_style(path) {
-        CommentStyle::SlashSlash => line_comment(line).unwrap_or_default().to_string(),
-        CommentStyle::Hash => hash_comment(line).unwrap_or_default().to_string(),
-        CommentStyle::Html => html_comments(line),
+    match line_comment_syntax(path) {
+        Some(LineComment::SlashSlash) => slash_comment(line).unwrap_or_default().to_string(),
+        Some(LineComment::Hash) => hash_comment(line).unwrap_or_default().to_string(),
+        None => String::new(),
     }
 }
 

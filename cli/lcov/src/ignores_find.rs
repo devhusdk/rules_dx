@@ -23,13 +23,12 @@ pub fn find_ignores(path: &str, source: &str) -> Result<Ignores, LcovError> {
                 }
                 open = Some((lineno, reason));
             } else if take_word(rest, "_STOP") {
-                let reason = nearby_reason(path, "STOP directive", lineno, &lines)?;
+                nearby_reason(path, "STOP directive", lineno, &lines)?;
                 match open.take() {
                     Some((start, start_reason)) => {
                         ignores
                             .ranges
                             .push((start as u32, lineno as u32, start_reason));
-                        let _ = reason;
                     }
                     None => {
                         return Err(LcovError::StopWithoutStart {

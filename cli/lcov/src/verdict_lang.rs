@@ -1,32 +1,58 @@
-pub fn is_covered_language(path: &str) -> bool {
-    if path.ends_with(".d.ts") || path.ends_with(".d.mts") || path.ends_with(".d.cts") {
-        return false;
+/// Line-comment syntax the coverage gate scans.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LineComment {
+    SlashSlash,
+    Hash,
+}
+
+/// Extensions the gate counts executable lines for, each with its line-comment syntax.
+pub(crate) const COVERED_LANGUAGES: &[(&str, LineComment)] = &[
+    (".rs", LineComment::SlashSlash),
+    (".go", LineComment::SlashSlash),
+    (".py", LineComment::Hash),
+    (".js", LineComment::SlashSlash),
+    (".jsx", LineComment::SlashSlash),
+    (".mjs", LineComment::SlashSlash),
+    (".cjs", LineComment::SlashSlash),
+    (".ts", LineComment::SlashSlash),
+    (".tsx", LineComment::SlashSlash),
+    (".mts", LineComment::SlashSlash),
+    (".cts", LineComment::SlashSlash),
+    (".java", LineComment::SlashSlash),
+    (".kt", LineComment::SlashSlash),
+    (".scala", LineComment::SlashSlash),
+    (".cs", LineComment::SlashSlash),
+    (".fs", LineComment::SlashSlash),
+    (".fsi", LineComment::SlashSlash),
+    (".c", LineComment::SlashSlash),
+    (".cc", LineComment::SlashSlash),
+    (".cpp", LineComment::SlashSlash),
+    (".cxx", LineComment::SlashSlash),
+    (".h", LineComment::SlashSlash),
+    (".hh", LineComment::SlashSlash),
+    (".hpp", LineComment::SlashSlash),
+    (".hxx", LineComment::SlashSlash),
+];
+
+/// Declaration stubs carry no executable lines, so the gate never counts them.
+const DECLARATION_SUFFIXES: &[&str] = &[".d.ts", ".d.mts", ".d.cts"];
+
+/// The comment syntax a covered language uses, or None when the gate does not count it.
+pub(crate) fn line_comment_syntax(path: &str) -> Option<LineComment> {
+    if DECLARATION_SUFFIXES
+        .iter()
+        .any(|suffix| path.ends_with(suffix))
+    {
+        return None;
     }
-    path.ends_with(".rs")
-        || path.ends_with(".go")
-        || path.ends_with(".py")
-        || path.ends_with(".js")
-        || path.ends_with(".jsx")
-        || path.ends_with(".mjs")
-        || path.ends_with(".cjs")
-        || path.ends_with(".ts")
-        || path.ends_with(".tsx")
-        || path.ends_with(".mts")
-        || path.ends_with(".cts")
-        || path.ends_with(".java")
-        || path.ends_with(".kt")
-        || path.ends_with(".scala")
-        || path.ends_with(".cs")
-        || path.ends_with(".fs")
-        || path.ends_with(".fsi")
-        || path.ends_with(".c")
-        || path.ends_with(".cc")
-        || path.ends_with(".cpp")
-        || path.ends_with(".cxx")
-        || path.ends_with(".h")
-        || path.ends_with(".hh")
-        || path.ends_with(".hpp")
-        || path.ends_with(".hxx")
+    COVERED_LANGUAGES
+        .iter()
+        .find(|(extension, _)| path.ends_with(extension))
+        .map(|(_, syntax)| *syntax)
+}
+
+pub fn is_covered_language(path: &str) -> bool {
+    line_comment_syntax(path).is_some()
 }
 
 pub(crate) fn is_starlark(path: &str) -> bool {

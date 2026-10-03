@@ -2,7 +2,6 @@ package csharp
 
 import (
 	"github.com/ralvik/rules_dx/gazelle/common"
-	"path"
 	"regexp"
 	"sort"
 )
@@ -53,8 +52,6 @@ func errDuplicatePackage(first string) error { return &duplicatePackageError{fir
 func DefinesMain(content []byte) bool {
 	return mainRe.Match(common.MaskCSharpStyle(content))
 }
-
-var _ = path.Base
 
 func normalizeImport(dotted string) string {
 	return common.NormalizeDotted(dotted, false, IsStdLib)

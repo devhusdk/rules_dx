@@ -37,6 +37,27 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 	}
 }
 
+func TestParseImportsMultiLineLiteralsInert(t *testing.T) {
+	for _, source := range []string{
+		"namespace Demo;\n\nclass C { string s = @\"\nusing Ghost.Phantom;\n\"; }\n",
+		"namespace Demo;\n\nclass C { string s = $@\"\nusing Ghost.Phantom;\n\"; }\n",
+		"namespace Demo;\n\nclass C { string s = \"\"\"\nusing Ghost.Phantom;\n\"\"\"; }\n",
+		"namespace Demo;\n\nclass C { string s = @\"\nusing Ghost.Phantom;\n",
+	} {
+		if got := ParseImports([]byte(source)); len(got) != 0 {
+			t.Errorf("inert %q: %v", source, got)
+		}
+	}
+}
+
+func TestParseImportsKeepsCodeAfterMultiLineLiteral(t *testing.T) {
+	got := ParseImports([]byte("namespace Demo;\n\nclass C {\n  string s = @\"\nusing Ghost.Phantom;\n\";\n  void Run() { }\n}\n\nusing Acme.Widget;\n"))
+	want := []string{"Widget"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
 func TestParsePackage(t *testing.T) {
 	got, err := ParsePackage([]byte("namespace Acme.Demo;\n\nclass Demo {}\n"))
 	if err != nil || got != "Acme.Demo" {

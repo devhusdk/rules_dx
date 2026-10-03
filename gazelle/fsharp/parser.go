@@ -2,7 +2,6 @@ package fsharp
 
 import (
 	"github.com/ralvik/rules_dx/gazelle/common"
-	"path"
 	"regexp"
 	"sort"
 )
@@ -14,7 +13,7 @@ var (
 )
 
 func ParseImports(content []byte) []string {
-	stripped := common.MaskCSharpStyle(content)
+	stripped := common.MaskFSharpStyle(content)
 	set := make(map[string]struct{})
 	for _, m := range openRe.FindAllSubmatch(stripped, -1) {
 		dotted := string(m[1])
@@ -31,7 +30,7 @@ func ParseImports(content []byte) []string {
 }
 
 func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskCSharpStyle(content)
+	stripped := common.MaskFSharpStyle(content)
 	matches := namespaceRe.FindAllSubmatch(stripped, -1)
 	if len(matches) > 1 {
 		return "", errDuplicatePackage(string(matches[0][1]))
@@ -51,10 +50,8 @@ func (e *duplicatePackageError) Error() string {
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskCSharpStyle(content))
+	return mainRe.Match(common.MaskFSharpStyle(content))
 }
-
-var _ = path.Base
 
 func normalizeImport(dotted string) string {
 	return common.NormalizeDotted(dotted, false, IsStdLib)

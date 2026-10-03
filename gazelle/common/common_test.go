@@ -66,17 +66,78 @@ func TestScanEmbedded(t *testing.T) {
 }
 
 func TestMaskStyles(t *testing.T) {
-	src := []byte("import a.B;\n// import hidden.C;\n")
-	if got := string(MaskJavaStyle(src)); got == string(src) {
-		t.Fatalf("MaskJavaStyle left source unchanged")
+	cases := []struct{ name, in, want string }{
+		{"line comment", "import a.B;\n// import hidden.C;\n", "import a.B;\n                   \n"},
+		{"block comment", "import a.B;\n/* import hidden.C; */\n", "import a.B;\n                      \n"},
+		{"nested open is not nested", "/* /* a */ b */\n", "           b */\n"},
+		{"string", "x = \"import a.B;\";\n", "x =              ;\n"},
+		{"char literal", "c = '\"';\n", "c =    ;\n"},
+		{"text block", "x = \"\"\"\nimport a.B;\n\"\"\";\n", "x =    \n           \n   ;\n"},
+		{"unterminated block", "import a.B;\n/* import hidden.C;\n", "import a.B;\n                   \n"},
+		{"unterminated string", "import a.B;\n\"import hidden.C;\n", "import a.B;\n                 \n"},
+		{"annotation is not verbatim", "@Foo(\"x\")\n", "@Foo(   )\n"},
 	}
-	if got := string(MaskCSharpStyle(src)); got == string(src) {
-		t.Fatalf("MaskCSharpStyle left source unchanged")
+	for _, tc := range cases {
+		for name, mask := range map[string]func([]byte) []byte{
+			"java": MaskJavaStyle, "csharp": MaskCSharpStyle,
+		} {
+			if got := string(mask([]byte(tc.in))); got != tc.want {
+				t.Errorf("%s %s = %q, want %q", name, tc.name, got, tc.want)
+			}
+		}
+	}
+}
+
+func TestMaskMultiLineLiterals(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"verbatim", "x = @\"\nusing a.B;\n\";\n", "x =   \n          \n ;\n"},
+		{"interpolated verbatim", "x = $@\"\nusing a.B;\n\";\n", "x = $  \n          \n ;\n"},
+		{"verbatim escape", "x = @\"say \"\"hi\"\"\";\nusing a.B;\n", "x =              ;\nusing a.B;\n"},
+		{"raw", "x = \"\"\"\nusing a.B;\n\"\"\";\n", "x =    \n          \n   ;\n"},
+		{"unterminated verbatim", "x = @\"\nusing a.B;\n", "x =   \n          \n"},
+		{"unterminated raw", "x = \"\"\"\nusing a.B;\n", "x =    \n          \n"},
+	}
+	for _, tc := range cases {
+		if got := string(MaskCSharpStyle([]byte(tc.in))); got != tc.want {
+			t.Errorf("csharp %s = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestMaskFSharpStyle(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"block comment", "open a.B\n(* open hidden.C *)\n", "open a.B\n                   \n"},
+		{"nested block comment", "(* a (* open hidden.C *) b *) open d.E\n", "                              open d.E\n"},
+		{"unterminated block comment", "(* open hidden.C\n", "                \n"},
+		{"verbatim", "let s = \"\"\"\nopen hidden.C\n\"\"\"\n", "let s =    \n             \n   \n"},
+		{"line comment", "open a.B\n// open hidden.C\n", "open a.B\n                \n"},
+	}
+	for _, tc := range cases {
+		if got := string(MaskFSharpStyle([]byte(tc.in))); got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }
 
 func TestNormalizeDotted(t *testing.T) {
-	if got := NormalizeDotted("a.b.C", false, func(string) bool { return false }); got != "C" {
-		t.Errorf("NormalizeDotted = %q, want C", got)
+	std := func(name string) bool { return name == "java.util.List" }
+	cases := []struct {
+		in       string
+		onDemand bool
+		want     string
+	}{
+		{"a.b.C", false, "C"},
+		{"  a.b.C  ", false, "C"},
+		{"C", false, "C"},
+		{"", false, ""},
+		{"   ", false, ""},
+		{"java.util.List", false, "java.util.List"},
+		{"a.b.c", true, "c"},
+		{"a.b", true, "b"},
+	}
+	for _, tc := range cases {
+		if got := NormalizeDotted(tc.in, tc.onDemand, std); got != tc.want {
+			t.Errorf("NormalizeDotted(%q, %v) = %q, want %q", tc.in, tc.onDemand, got, tc.want)
+		}
 	}
 }

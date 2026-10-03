@@ -1,7 +1,6 @@
 package ruby
 
 import (
-	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -95,5 +94,3 @@ func normalizeImport(req string) string {
 func DefinesMain(content []byte) bool {
 	return mainRe.Match(stripNonCode(content))
 }
-
-var _ = path.Base

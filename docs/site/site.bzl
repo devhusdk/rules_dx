@@ -7,7 +7,9 @@ DOC_IR_SCHEMA_MINOR = 1
 
 _AWK_TEXTPROTO_CHARS = "BEGIN { BS = \"\\134\"; Q = \"\\042\" }"
 
-_AWK_ESCAPE_FIELDS = "{ n = $$1; d = $$2; gsub(/\\\\/, BS BS, n); gsub(/\\\\/, BS BS, d); gsub(/\"/, BS Q, n); gsub(/\"/, BS Q, d); "
+_AWK_ESCAPE_FIELDS = "{ n = $$1; d = substr($$0, index($$0, \"|\") + 1); gsub(/\\\\/, BS BS, n); gsub(/\\\\/, BS BS, d); gsub(/\"/, BS Q, n); gsub(/\"/, BS Q, d); "
+
+_AWK_MISSING_SEPARATOR = "index($$0, \"|\") < 2 { print }"
 
 def site_symbol_id(language, package, qualified):
     """Returns the stable symbol ID language:package:qualified."""
@@ -118,11 +120,18 @@ def docs_extract(name, language, package, srcs):
         fail("docs_extract " + native.package_name() + ":" + name + ": need at least one src")
     shard = site_shard_name(name)
     header = "schema_major: " + str(DOC_IR_SCHEMA_MAJOR) + "\\nschema_minor: " + str(DOC_IR_SCHEMA_MINOR) + "\\nlanguage: \"" + language + "\"\\npackage: \"" + package + "\"\\n"
+    symbol = "printf \"symbols {\\n  id: \\\"" + language + ":" + package + ":%s\\\"\\n  doc_markdown: \\\"%s\\\"\\n}\\n\", n, d }"
     native.genrule(
         name = name + "_shard",
         srcs = srcs,
         outs = [shard],
-        cmd = "(printf '" + header + "'; LC_ALL=C sort $(SRCS) | awk -F'|' '" + _AWK_TEXTPROTO_CHARS + " " + _AWK_ESCAPE_FIELDS + "printf \"symbols {\\n  id: \\\"" + language + ":" + package + ":%s\\\"\\n  doc_markdown: \\\"%s\\\"\\n}\\n\", n, d }')" + " > $@",
+        cmd = "set -e; " +
+              "_lines=$$(for _f in $(SRCS); do awk 1 \"$$_f\"; done); " +
+              "_bad=$$(printf '%s\\n' \"$$_lines\" | LC_ALL=C awk '" + _AWK_MISSING_SEPARATOR + "'); " +
+              "if [ -n \"$$_bad\" ]; then echo \"docs_site: symbol line needs name|doc_markdown: $$_bad\" >&2; exit 1; fi; " +
+              "_dup=$$(printf '%s\\n' \"$$_lines\" | LC_ALL=C cut -d'|' -f1 | LC_ALL=C sort | uniq -d); " +
+              "if [ -n \"$$_dup\" ]; then echo \"docs_site: duplicate symbol name: $$_dup\" >&2; exit 1; fi; " +
+              "{ printf '" + header + "'; printf '%s\\n' \"$$_lines\" | LC_ALL=C sort -t'|' -k1,1 | awk -F'|' '" + _AWK_TEXTPROTO_CHARS + " " + _AWK_ESCAPE_FIELDS + symbol + "'; } > $@",
     )
     native.filegroup(
         name = name,

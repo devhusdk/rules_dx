@@ -116,10 +116,12 @@ fn doc_markdown_is_escaped_for_textproto_and_round_trips() {
     assert_eq!(
         raw,
         [
+            r#""Creates and reads accounts.""#,
             r#""Creates a new account.""#,
             r#""Reads a path like C:\\temp.""#,
             r#""Fetches an account by ID.""#,
             r#""Accepts a \"quoted\" name.""#,
+            r#""Reads a Result<A | B, Error>.""#,
         ],
         "doc_ir.proto types doc_markdown as a string, so a quote and a backslash must be escaped"
     );
@@ -129,10 +131,12 @@ fn doc_markdown_is_escaped_for_textproto_and_round_trips() {
             .map(unescape_textproto)
             .collect::<Result<Vec<_>, _>>(),
         Ok(vec![
+            "Creates and reads accounts.".to_owned(),
             "Creates a new account.".to_owned(),
             r"Reads a path like C:\temp.".to_owned(),
             "Fetches an account by ID.".to_owned(),
             r#"Accepts a "quoted" name."#.to_owned(),
+            "Reads a Result<A | B, Error>.".to_owned(),
         ]),
         "escaping must be lossless, so the shard decodes back to the fixture prose"
     );

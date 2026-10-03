@@ -11,8 +11,10 @@
 //! Path facts and spellings shared across the tool.
 
 pub mod host;
+pub mod runfiles;
 pub mod spelling;
 
+pub use runfiles::{manifest_beside, manifest_for};
 pub use spelling::spell;
 pub use spelling::{manifest, msys, native, posix, uri, Spelling};
 

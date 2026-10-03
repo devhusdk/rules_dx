@@ -136,13 +136,10 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
     } else {
         std::env::current_dir().unwrap_or_default().join(binary)
     };
-    let named = format!("{}.runfiles_manifest", path.display());
-    let bare = format!("{}.runfiles_manifest", path.with_extension("").display());
-    let found = [named.clone(), bare]
-        .into_iter()
-        .find(|candidate| Path::new(candidate).exists());
-    let manifest = found.unwrap_or(named);
-    vec![("RUNFILES_MANIFEST_FILE".to_owned(), manifest)]
+    vec![(
+        "RUNFILES_MANIFEST_FILE".to_owned(),
+        dx_path::manifest_for(&path).to_string_lossy().into_owned(),
+    )]
 }
 
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.

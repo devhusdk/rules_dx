@@ -7,6 +7,7 @@ package(default_visibility = VIS_CLI_PLATFORM)
 exports_files([
     "src/host.rs",
     "src/lib.rs",
+    "src/runfiles.rs",
     "src/spelling.rs",
 ])
 
@@ -16,6 +17,7 @@ dx_rust_crate(
     srcs = [
         "src/host.rs",
         "src/lib.rs",
+        "src/runfiles.rs",
         "src/spelling.rs",
     ],
     deps = [],

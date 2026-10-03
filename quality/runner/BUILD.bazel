@@ -40,6 +40,7 @@ rust_library(
         package_name = "quality/quality_runner",
     ) + [
         "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
         "//quality/adapter:quality_adapter",
         "//quality/result:quality_result",
     ],

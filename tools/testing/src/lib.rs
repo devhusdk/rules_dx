@@ -34,20 +34,11 @@ impl Run {
 /// so name that and take the inherited tree away.
 fn command_for(bin: &Path) -> std::process::Command {
     let mut command = std::process::Command::new(bin);
-    let manifest = manifest_beside(bin);
-    if let Some(manifest) = manifest {
+    if let Some(manifest) = dx_path::manifest_beside(bin) {
         command.env("RUNFILES_MANIFEST_FILE", manifest);
         command.env_remove("RUNFILES_DIR");
     }
     command
-}
-
-fn manifest_beside(bin: &Path) -> Option<String> {
-    let bare = bin.with_extension("");
-    [bin.display().to_string(), bare.display().to_string()]
-        .into_iter()
-        .map(|name| format!("{name}.runfiles_manifest"))
-        .find(|candidate| Path::new(candidate).is_file())
 }
 
 pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {

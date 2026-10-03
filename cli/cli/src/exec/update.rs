@@ -22,8 +22,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(_) => {}
         Err(error) => return pre_exec(env.err, &error.to_string()),
     }
-    let verbose =
-        matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet;
+    let verbose = invocation.chatty();
     if invocation.check {
         let Env {
             workspace,

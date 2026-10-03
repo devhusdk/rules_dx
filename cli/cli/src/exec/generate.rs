@@ -55,9 +55,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
                 let _ = write_event(env.out, &event);
             }
             let _ = write_event(env.out, &command_finished(0, &FinishedCounts::default()));
-        } else if matches!(invocation.output, OutputMode::Text { quiet: false })
-            && !invocation.quiet
-        {
+        } else if invocation.chatty() {
             let _ = writeln!(env.out, "{}", plan.summary);
         }
         return 0;
@@ -66,7 +64,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
         if let Ok(event) = command_started(invocation.command.name(), false, mode) {
             let _ = write_event(env.out, &event);
         }
-    } else if matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet {
+    } else if invocation.chatty() {
         let _ = writeln!(env.out, "{}", plan.summary);
     }
     let intended = intended_path(env.temp_dir, env.pid, env.nonce);

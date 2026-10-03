@@ -97,9 +97,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.dry_run {
         if json {
             let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if matches!(invocation.output, OutputMode::Text { quiet: false })
-            && !invocation.quiet
-        {
+        } else if invocation.chatty() {
             let _ = writeln!(out, "{summary}");
             if invocation.serve {
                 let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
@@ -113,8 +111,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return 0;
     }
-    if !json && matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet
-    {
+    if !json && invocation.chatty() {
         let _ = writeln!(out, "{summary}");
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
@@ -153,8 +150,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     let url = preview_url(host, port);
     let serve_dir = workspace.join("bazel-bin/docs/site");
     let serve_dir_text = serve_dir.display().to_string();
-    if !json && matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet
-    {
+    if !json && invocation.chatty() {
         let _ = writeln!(out, "Serving docs at {url} ({serve_dir_text})");
         if invocation.open {
             let _ = writeln!(out, "Opening {url}");

@@ -81,10 +81,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         if let Ok(event) = command_started(invocation.command.name(), false, mode) {
             let _ = write_event(out, &event);
         }
-    } else if matches!(invocation.output, OutputMode::Text { quiet: false })
-        && !stdout_report
-        && !invocation.quiet
-    {
+    } else if invocation.chatty() && !stdout_report {
         let _ = writeln!(out, "{}", build.summary);
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &build.argv, &[]) {

@@ -112,10 +112,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
             let _ = write_event(out, &event);
         }
-    } else if matches!(invocation.output, OutputMode::Text { quiet: false })
-        && !stdout_report
-        && !invocation.quiet
-    {
+    } else if invocation.chatty() && !stdout_report {
         let _ = writeln!(out, "{}", plan.summary);
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {

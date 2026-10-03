@@ -40,8 +40,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
         }
     };
-    let verbose =
-        matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet;
+    let verbose = invocation.chatty();
     if invocation.dry_run {
         if json {
             emit_clean_notices(out, &plan, &bytes, true);

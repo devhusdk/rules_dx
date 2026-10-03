@@ -32,8 +32,7 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         "Would migrate {} -> {} via {}",
         plan.from, plan.to, plan.manifest
     );
-    let verbose =
-        matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet;
+    let verbose = invocation.chatty();
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {

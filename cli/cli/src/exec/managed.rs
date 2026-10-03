@@ -75,8 +75,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
-    let verbose =
-        matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet;
+    let verbose = invocation.chatty();
     let json = invocation.output == OutputMode::Json;
     let op_scope: Option<Vec<String>> = match (&scope, &expanded) {
         (_, Some(roots)) => Some(roots.clone()),

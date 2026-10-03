@@ -30,8 +30,7 @@ pub(crate) fn execute_upgrade(
         "Would upgrade {} -> {} via {} (pin {}, migrate, setup)",
         plan.from, plan.to, plan.manifest, plan.to
     );
-    let verbose =
-        matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet;
+    let verbose = invocation.chatty();
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {

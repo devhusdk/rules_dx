@@ -18,7 +18,7 @@ pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return 0;
     }
-    if matches!(invocation.output, OutputMode::Text { quiet: false }) && !invocation.quiet {
+    if invocation.chatty() {
         let _ = writeln!(out, "{}", plan.summary);
     }
     match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {

@@ -1,4 +1,4 @@
-use dx_output::{ColorMode, LogLevel, OutputMode, Threshold};
+use dx_output::{dx_text_visible, ColorMode, LogLevel, OutputMode, Threshold};
 
 use super::profile::{resolve_profile, Profile};
 use super::Command;
@@ -66,6 +66,11 @@ impl Invocation {
             None,
             Profile::default_for(self.command),
         )
+    }
+
+    /// Reports whether chatty dx text prints: text output, no `--quiet`.
+    pub fn chatty(&self) -> bool {
+        dx_text_visible(&self.output) && !self.quiet
     }
 }
 
@@ -173,6 +178,23 @@ mod tests {
             open: false,
             offline: false,
         }
+    }
+
+    #[test]
+    fn chatty_needs_plain_text_output_and_no_quiet() {
+        assert!(invocation_for(Command::Lint, &[]).chatty());
+        for output in [
+            OutputMode::Text { quiet: true },
+            OutputMode::Diff,
+            OutputMode::Json,
+        ] {
+            let mut got = invocation_for(Command::Lint, &[]);
+            got.output = output;
+            assert!(!got.chatty(), "{output:?} prints no dx text");
+        }
+        let mut quiet = invocation_for(Command::Lint, &[]);
+        quiet.quiet = true;
+        assert!(!quiet.chatty(), "--quiet prints no dx text");
     }
 
     #[test]

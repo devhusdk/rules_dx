@@ -902,9 +902,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);
-    let verbose = matches!(invocation.output, OutputMode::Text { quiet: false })
-        && !invocation.quiet
-        && !stdout_report;
+    let verbose = invocation.chatty() && !stdout_report;
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {

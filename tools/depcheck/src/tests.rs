@@ -549,6 +549,42 @@ fn cc_missing_sha256_fails() {
     assert!(err.contains("missing sha256"));
 }
 
+#[test]
+fn cc_pair_checks_sha256_through_the_shared_body() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("cc_deps.toml");
+    let lock = dir.path().join("cc_lock.json");
+    write_file(
+        &manifest,
+        "[[dep]]\nname = \"greet\"\nversion = \"1.0.0\"\nsha256 = \"abc\"\nscope = \"prod\"\n",
+    );
+    write_file(
+        &lock,
+        r#"{"packages": {"greet": {"version": "1.0.0", "sha256": "abc"}}}"#,
+    );
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = consistency::check_pair(
+        consistency::lock_pair(Ecosystem::Cc, &manifest, &lock),
+        &mut out,
+        &mut err,
+    );
+    assert_eq!(code, 0, "{err}");
+    write_file(
+        &manifest,
+        "[[dep]]\nname = \"greet\"\nversion = \"1.0.0\"\nsha256 = \"def\"\nscope = \"prod\"\n",
+    );
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = consistency::check_pair(
+        consistency::lock_pair(Ecosystem::Cc, &manifest, &lock),
+        &mut out,
+        &mut err,
+    );
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("stale sha256"), "{err}");
+}
+
 fn write_workspace_locks(dir: &Path, stale_cargo: bool) {
     write_file(&dir.join("Cargo.toml"), "[dependencies]\nanyhow = \"1\"\n");
     write_file(

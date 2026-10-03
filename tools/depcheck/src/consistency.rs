@@ -34,6 +34,29 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<BTreeMap<String, String>, De
     }
 }
 
+type DepLoader = fn(Ecosystem, &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError>;
+type PkgLoader = fn(Ecosystem, &Path) -> Result<BTreeMap<String, String>, DepcheckError>;
+
+/// One manifest/lock pair to check, with the parsers that read it.
+pub(crate) struct Pair<'a> {
+    eco: Ecosystem,
+    manifest: &'a Path,
+    lock: &'a Path,
+    load_deps: DepLoader,
+    load_pkgs: PkgLoader,
+}
+
+/// Builds the pair an ecosystem's manifest and lock parsers read.
+pub(crate) fn lock_pair<'a>(eco: Ecosystem, manifest: &'a Path, lock: &'a Path) -> Pair<'a> {
+    Pair {
+        eco,
+        manifest,
+        lock,
+        load_deps: load_manifest,
+        load_pkgs: load_lock,
+    }
+}
+
 pub fn cmd_consistency(
     eco: Ecosystem,
     manifest: &Path,
@@ -41,45 +64,7 @@ pub fn cmd_consistency(
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
 ) -> i32 {
-    if !manifest.exists() {
-        let _ = writeln!(
-            stderr,
-            "depcheck: ERROR: manifest missing: {}",
-            manifest.display()
-        );
-        return 2;
-    }
-    if !lock.exists() {
-        let _ = writeln!(
-            stderr,
-            "depcheck: ERROR: lock missing: {} (declare lock inputs, do not skip)",
-            lock.display()
-        );
-        return 2;
-    }
-    let mut deps = match load_manifest(eco, manifest) {
-        Ok(deps) => deps,
-        Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
-        }
-    };
-    if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
-        deps.retain(|_, v| !v.peer);
-    }
-    let pkgs = match load_lock(eco, lock) {
-        Ok(pkgs) => pkgs,
-        Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
-        }
-    };
-    let cc_lock_sha = if eco == Ecosystem::Cc {
-        cc::parse_cc_lock_sha(lock)
-    } else {
-        BTreeMap::new()
-    };
-    check_maps(eco, &deps, &pkgs, &cc_lock_sha, stdout, stderr)
+    check_pair(lock_pair(eco, manifest, lock), stdout, stderr)
 }
 
 fn check_maps(
@@ -149,93 +134,61 @@ fn check_maps(
     0
 }
 
-fn check_pair(
-    eco: Ecosystem,
-    manifest: &Path,
-    lock: &Path,
+pub(crate) fn check_pair(
+    pair: Pair<'_>,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
 ) -> i32 {
-    if !manifest.exists() {
+    if !pair.manifest.exists() {
         let _ = writeln!(
             stderr,
             "depcheck: ERROR: manifest missing: {}",
-            manifest.display()
+            pair.manifest.display()
         );
         return 2;
     }
-    if !lock.exists() {
+    if !pair.lock.exists() {
         let _ = writeln!(
             stderr,
             "depcheck: ERROR: lock missing: {} (declare lock inputs, do not skip)",
-            lock.display()
+            pair.lock.display()
         );
         return 2;
     }
-    let mut deps = match load_manifest(eco, manifest) {
+    let mut deps = match (pair.load_deps)(pair.eco, pair.manifest) {
         Ok(deps) => deps,
         Err(err) => {
             let _ = writeln!(stderr, "depcheck: ERROR: {err}");
             return 2;
         }
     };
-    if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
+    if matches!(pair.eco, Ecosystem::Js | Ecosystem::Ts) {
         deps.retain(|_, v| !v.peer);
     }
-    let pkgs = match load_lock(eco, lock) {
+    let pkgs = match (pair.load_pkgs)(pair.eco, pair.lock) {
         Ok(pkgs) => pkgs,
         Err(err) => {
             let _ = writeln!(stderr, "depcheck: ERROR: {err}");
             return 2;
         }
     };
-    check_maps(eco, &deps, &pkgs, &BTreeMap::new(), stdout, stderr)
+    let cc_lock_sha = if pair.eco == Ecosystem::Cc {
+        cc::parse_cc_lock_sha(pair.lock)
+    } else {
+        BTreeMap::new()
+    };
+    check_maps(pair.eco, &deps, &pkgs, &cc_lock_sha, stdout, stderr)
 }
 
-fn check_maven_pair(
+fn maven_deps(
+    _eco: Ecosystem,
     artifacts: &Path,
-    lock: &Path,
-    stdout: &mut dyn std::fmt::Write,
-    stderr: &mut dyn std::fmt::Write,
-) -> i32 {
-    if !artifacts.exists() {
-        let _ = writeln!(
-            stderr,
-            "depcheck: ERROR: manifest missing: {}",
-            artifacts.display()
-        );
-        return 2;
-    }
-    if !lock.exists() {
-        let _ = writeln!(
-            stderr,
-            "depcheck: ERROR: lock missing: {} (declare lock inputs, do not skip)",
-            lock.display()
-        );
-        return 2;
-    }
-    let deps = match jvm::parse_maven_artifacts_list(artifacts) {
-        Ok(deps) => deps,
-        Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
-        }
-    };
-    let pkgs = match jvm::parse_jvm_lock(lock) {
-        Ok(pkgs) => pkgs,
-        Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
-        }
-    };
-    check_maps(
-        Ecosystem::Java,
-        &deps,
-        &pkgs,
-        &BTreeMap::new(),
-        stdout,
-        stderr,
-    )
+) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
+    jvm::parse_maven_artifacts_list(artifacts)
+}
+
+fn maven_lock(_eco: Ecosystem, lock: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
+    jvm::parse_jvm_lock(lock)
 }
 
 pub fn cmd_locks(
@@ -246,45 +199,43 @@ pub fn cmd_locks(
     let mut worst = 0;
     for code in [
         check_pair(
-            Ecosystem::Rust,
-            locks.cargo_manifest,
-            locks.cargo_lock,
+            lock_pair(Ecosystem::Rust, locks.cargo_manifest, locks.cargo_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            Ecosystem::Python,
-            locks.uv_manifest,
-            locks.uv_lock,
+            lock_pair(Ecosystem::Python, locks.uv_manifest, locks.uv_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            Ecosystem::Js,
-            locks.pnpm_manifest,
-            locks.pnpm_lock,
+            lock_pair(Ecosystem::Js, locks.pnpm_manifest, locks.pnpm_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            Ecosystem::Go,
-            locks.go_manifest,
-            locks.go_lock,
-            stdout,
-            stderr,
-        ),
-        check_maven_pair(locks.maven_artifacts, locks.maven_lock, stdout, stderr),
-        check_pair(
-            Ecosystem::Csharp,
-            locks.paket_manifest,
-            locks.paket_lock,
+            lock_pair(Ecosystem::Go, locks.go_manifest, locks.go_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            Ecosystem::Ruby,
-            locks.ruby_manifest,
-            locks.ruby_lock,
+            Pair {
+                eco: Ecosystem::Java,
+                manifest: locks.maven_artifacts,
+                lock: locks.maven_lock,
+                load_deps: maven_deps,
+                load_pkgs: maven_lock,
+            },
+            stdout,
+            stderr,
+        ),
+        check_pair(
+            lock_pair(Ecosystem::Csharp, locks.paket_manifest, locks.paket_lock),
+            stdout,
+            stderr,
+        ),
+        check_pair(
+            lock_pair(Ecosystem::Ruby, locks.ruby_manifest, locks.ruby_lock),
             stdout,
             stderr,
         ),

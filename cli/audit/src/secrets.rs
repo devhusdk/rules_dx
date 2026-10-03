@@ -67,21 +67,6 @@ impl SecretsReport {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SecretsOutcome {
-    Clean,
-    NeedsFindingErrorTriage,
-    Failed,
-}
-
-pub fn classify_exit(code: i32) -> SecretsOutcome {
-    match code {
-        0 => SecretsOutcome::Clean,
-        1 => SecretsOutcome::NeedsFindingErrorTriage,
-        _ => SecretsOutcome::Failed,
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SecretFinding {
     pub rule: String,
@@ -171,14 +156,6 @@ mod tests {
             exit_code: None,
         };
         assert_eq!(report.argv(), Err(ReportProblem::MissingPath));
-    }
-
-    #[test]
-    fn exit_classification_is_fail_closed_on_one() {
-        assert_eq!(classify_exit(0), SecretsOutcome::Clean);
-        assert_eq!(classify_exit(1), SecretsOutcome::NeedsFindingErrorTriage);
-        assert_eq!(classify_exit(2), SecretsOutcome::Failed);
-        assert_eq!(classify_exit(-1), SecretsOutcome::Failed);
     }
 
     #[test]

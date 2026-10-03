@@ -27,16 +27,7 @@ pub enum Freshness {
     Stale,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum RefreshOutcome {
-    Fresh,
-    Refreshed { snapshot: AdvisorySnapshot },
-    Failed { detail: String },
-}
-
 pub const CODE_ADVISORY_REFRESH_FAILED: &str = "advisory_refresh_failed";
-
-pub const CACHE_DAYS: u32 = 0;
 
 pub fn advisory_family(set: &str) -> Option<&'static str> {
     match set {
@@ -61,10 +52,6 @@ pub fn advisory_source(set: &str) -> Option<&'static str> {
         "rubygems" => Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
         _ => None,
     }
-}
-
-pub fn is_local_mirror(snapshot: &AdvisorySnapshot) -> bool {
-    snapshot.url.starts_with("file://")
 }
 
 pub fn is_accepted_url(url: &str) -> bool {
@@ -127,37 +114,6 @@ pub fn freshness(snapshot: &AdvisorySnapshot, today: &str) -> Freshness {
     } else {
         Freshness::Stale
     }
-}
-
-pub fn map_refresh(
-    snapshot: &AdvisorySnapshot,
-    today: &str,
-    refreshed: Option<AdvisorySnapshot>,
-    refresh_error: Option<String>,
-) -> RefreshOutcome {
-    if freshness(snapshot, today) == Freshness::Fresh {
-        return RefreshOutcome::Fresh;
-    }
-    if let Some(next) = refreshed {
-        if validate_snapshot(&next).is_ok() {
-            return RefreshOutcome::Refreshed { snapshot: next };
-        }
-    }
-    RefreshOutcome::Failed {
-        detail: refresh_error.unwrap_or_else(|| {
-            format!(
-                "could not obtain current advisory data for {} (stale snapshot {})",
-                snapshot.set, snapshot.retrieved_at
-            )
-        }),
-    }
-}
-
-pub fn may_analyze(outcome: &RefreshOutcome) -> bool {
-    matches!(
-        outcome,
-        RefreshOutcome::Fresh | RefreshOutcome::Refreshed { .. }
-    )
 }
 
 fn is_audit_date(value: &str) -> bool {
@@ -224,8 +180,6 @@ mod tests {
         let mut mirror = snapshot();
         mirror.url = "file:///opt/dx-offline/advisory/cargo.json".to_owned();
         validate_snapshot(&mirror).expect("vendored file:// mirror validates");
-        assert!(is_local_mirror(&mirror));
-        assert!(!is_local_mirror(&snapshot()));
         assert!(is_accepted_url(&mirror.url));
         assert!(is_accepted_url(&snapshot().url));
         assert!(!is_accepted_url("http://osv.dev/snapshot.json"));
@@ -289,67 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn fresh_snapshot_proceeds_without_refresh() {
-        let snap = snapshot();
-        assert_eq!(
-            map_refresh(&snap, "2026-09-18", None, None),
-            RefreshOutcome::Fresh
-        );
-        assert!(may_analyze(&RefreshOutcome::Fresh));
-    }
-
-    #[test]
-    fn stale_refresh_success_proceeds_against_new_identity() {
-        let snap = snapshot();
-        let next = AdvisorySnapshot {
-            retrieved_at: "2026-09-19".to_owned(),
-            ..snapshot()
-        };
-        let outcome = map_refresh(&snap, "2026-09-19", Some(next.clone()), None);
-        assert_eq!(outcome, RefreshOutcome::Refreshed { snapshot: next });
-        assert!(may_analyze(&outcome));
-    }
-
-    #[test]
-    fn stale_refresh_failure_fails_without_stale_fallback() {
-        let snap = snapshot();
-        let outcome = map_refresh(
-            &snap,
-            "2026-09-19",
-            None,
-            Some("network unreachable".to_owned()),
-        );
-        assert_eq!(
-            outcome,
-            RefreshOutcome::Failed {
-                detail: "network unreachable".to_owned()
-            }
-        );
-        assert!(!may_analyze(&outcome));
-        let defaulted = map_refresh(&snap, "2026-09-19", None, None);
-        match &defaulted {
-            RefreshOutcome::Failed { detail } => {
-                assert!(detail.contains("cargo"));
-                assert!(!detail.contains("clean"));
-            }
-            _ => panic!("must fail"),
-        }
-        assert!(!may_analyze(&defaulted));
-    }
-
-    #[test]
-    fn stale_refresh_with_invalid_identity_fails() {
-        let snap = snapshot();
-        let mut bad = snapshot();
-        bad.sha256 = "bad".to_owned();
-        let outcome = map_refresh(&snap, "2026-09-19", Some(bad), None);
-        assert!(matches!(outcome, RefreshOutcome::Failed { .. }));
-        assert!(!may_analyze(&outcome));
-    }
-
-    #[test]
-    fn cache_window_and_code_are_pinned() {
-        assert_eq!(CACHE_DAYS, 0);
+    fn refresh_failure_code_is_pinned() {
         assert_eq!(CODE_ADVISORY_REFRESH_FAILED, "advisory_refresh_failed");
     }
 

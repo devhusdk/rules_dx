@@ -51,9 +51,7 @@ pub(crate) fn emit_findings(
                     .path
                     .as_ref()
                     .is_some_and(|path| applied.get(path).copied().unwrap_or(false));
-                event_diagnostic.resolution = Some(if is_applied && event_diagnostic.fixable {
-                    Resolution::Fixed // LCOV_EXCL_LINE - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                } else if is_applied {
+                event_diagnostic.resolution = Some(if is_applied {
                     Resolution::Remaining
                 } else {
                     Resolution::NotApplied

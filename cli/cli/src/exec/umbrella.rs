@@ -17,11 +17,6 @@ const UMBRELLA_PHASES: [Command; 4] = [
     Command::Generate,
 ];
 
-struct UmbrellaPhase {
-    command: Command,
-    sarif_capture: Option<PathBuf>,
-}
-
 pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
@@ -63,7 +58,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             let _ = write_event(out, &event);
         }
     }
-    let mut executed: Vec<UmbrellaPhase> = Vec::new();
+    let mut captures: Vec<Option<PathBuf>> = Vec::new();
     let mut stop_code: Option<i32> = None;
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate() {
         let phase_nonce = nonce.wrapping_add(index as u64);
@@ -140,10 +135,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         };
         let _ = out.write_all(&phase_out);
         let _ = err.write_all(&phase_err);
-        executed.push(UmbrellaPhase {
-            command: *phase,
-            sarif_capture,
-        });
+        captures.push(sarif_capture);
         if code != 0 {
             stop_code = Some(code);
             break;
@@ -155,13 +147,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         let mut runs: Vec<Value> = Vec::new();
         let mut schema = json!("https://json.schemastore.org/sarif-2.1.0.json");
         let mut version = json!("2.1.0");
-        for phase in &executed {
-            if !spec(phase.command).accepts_report(&request.format) {
-                continue;
-            }
-            let Some(capture) = &phase.sarif_capture else {
-                continue; // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            };
+        for capture in captures.iter().flatten() {
             let Ok(bytes) = std::fs::read(capture) else {
                 continue;
             };
@@ -217,10 +203,8 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             );
         }
     }
-    for phase in &executed {
-        if let Some(capture) = &phase.sarif_capture {
-            let _ = std::fs::remove_file(capture);
-        }
+    for capture in captures.iter().flatten() {
+        let _ = std::fs::remove_file(capture);
     }
     let code = match stop_code {
         Some(phase_code) if reports_ok => phase_code,

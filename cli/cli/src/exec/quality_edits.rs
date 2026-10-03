@@ -566,6 +566,43 @@ fn json_default_marks_not_applied_resolution() {
 }
 
 #[test]
+fn json_default_drops_applied_fixable_finding() {
+    let mut harness = Harness::new("fixed-dropped");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(
+            vec![Harness::diagnostic("unused", true)],
+            vec![harness.replacement(b"y")],
+        ),
+    );
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n"
+    );
+    let events = json_events(&out);
+    assert!(
+        !events
+            .iter()
+            .any(|event| event["event"] == serde_json::json!("diagnostic")),
+        "a finding the command fixed is never reported again: {out}"
+    );
+    let mutation = event(&events, "mutation");
+    assert_eq!(mutation["outcome"], serde_json::json!("applied"));
+    let finished = event(&events, "command_finished");
+    assert_eq!(
+        finished["diagnostics"],
+        serde_json::json!({"info": 0, "warning": 0, "error": 0})
+    );
+    assert_eq!(
+        finished["mutations"],
+        serde_json::json!({"applied": 1, "not_applied": 0})
+    );
+}
+
+#[test]
 fn json_counts_cover_all_severities() {
     let mut harness = Harness::new("counts");
     harness.write_source("src/a.py", "x = 1\n");

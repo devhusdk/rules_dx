@@ -22,6 +22,19 @@ _AWK_SYMBOLS = (
 
 _AWK_MISSING_SEPARATOR = "index($$0, \"|\") < 2 { print }"
 
+SITE_CHECK = "site_check.sh"
+
+def site_check_args(api, shards, prose, data = []):
+    """Returns the site_check.sh arguments for one aggregate's inputs."""
+    parts = ["--api " + api]
+    for shard in shards:
+        parts.append("--shard $(location " + shard + ")")
+    for doc in prose:
+        parts.append("--prose $(location " + doc + ")")
+    for item in data:
+        parts.append("--data $(location " + item + ")")
+    return " ".join(parts)
+
 def site_symbol_id(language, package, qualified):
     """Returns the stable symbol ID language:package:qualified."""
     return language + ":" + package + ":" + qualified
@@ -180,30 +193,22 @@ def docs_aggregate(name, shards, prose, book_toml):
     summary = site_summary_name(name)
     api = site_api_name(name)
     records = site_records_name(name)
-    shard_locs = " ".join(["$(location " + s + ")" for s in shards])
-    prose_locs = " ".join(["$(location " + p + ")" for p in prose])
+    api_loc = "$(location :" + api + ")"
     book_loc = "$(location " + book_toml + ")"
+    shard_locs = " ".join(["$(location " + s + ")" for s in shards])
     native.genrule(
         name = name + "_aggregate",
-        srcs = shards + prose + [book_toml],
+        srcs = shards + prose + [book_toml, SITE_CHECK],
         outs = [summary, api, records],
         cmd = "set -e; " +
-              "summary=$(location :" + summary + "); api=$(location :" + api + "); records=$(location :" + records + "); " +
+              "summary=$(location :" + summary + "); api=" + api_loc + "; records=$(location :" + records + "); " +
               "printf '# Summary\\n\\n- [Prose](prose.md)\\n- [API](api.md)\\n' > \"$$summary\"; " +
               "printf '# API Reference\\n\\n' > \"$$api\"; " +
               "LC_ALL=C grep -h '^  id: ' " + shard_locs + " | LC_ALL=C sort -u | sed 's/^  id: \"//;s/\"$$//;s/^/## /' >> \"$$api\"; " +
               "printf '[\\n' > \"$$records\"; " +
               "LC_ALL=C grep -h '^  id: ' " + shard_locs + " | LC_ALL=C sort -u | sed 's/^  id: \"//;s/\"$$//' | awk '{url=$$0; gsub(/:/, \"/\", url); printf \"  {\\\"body\\\": \\\"API docs for %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"api/%s\\\"},\\n\", $$0, $$0, url}' | LC_ALL=C sort -u | sed '$$s/,$$//' >> \"$$records\"; " +
               "printf ']\\n' >> \"$$records\"; " +
-              "grep -q '^title' " + book_loc + "; " +
-              "grep -q '^# ' " + prose_locs + "; " +
-              "for _sid in $$(LC_ALL=C grep -h '^  id: ' " + shard_locs + " | sed 's/^  id: \"//;s/\"$$//' | LC_ALL=C sort -u); do LC_ALL=C grep -qF \"$$_sid\" \"$$api\" || { echo \"docs_site: missing API page for $$_sid\" >&2; exit 1; }; done; " +
-              "if LC_ALL=C grep -q '\\[[^]]*\\]()' " + prose_locs + "; then echo 'docs_site: empty link target' >&2; exit 1; fi; " +
-              "anchors=$$( (LC_ALL=C grep -h '^#' " + prose_locs + " 2>/dev/null || true; LC_ALL=C grep -h '^## ' \"$$api\" 2>/dev/null || true) | sed 's/^#* *//' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 -]//g; s/^ *//; s/ *$$//; s/ /-/g; s/--*/-/g' | LC_ALL=C sort -u); " +
-              "api_paths=$$(LC_ALL=C grep -h '^  id: ' " + shard_locs + " | sed 's/^  id: \"//;s/\"$$//' | sed 's/:/\\//g;s/^/api\\//;s/$$/.md/' | LC_ALL=C sort -u); " +
-              "prose_bases=$$(for _f in " + prose_locs + "; do basename \"$$_f\"; done | LC_ALL=C sort -u); " +
-              "targets=$$( (LC_ALL=C grep -h -o '\\[[^]]*\\]([^)]*)' " + prose_locs + " 2>/dev/null | sed -n 's/.*(\\([^)]*\\)).*/\\1/p' | sed 's/^ *//;s/ *$$//;s/^<//;s/>$$//;s/^\".*//;s/\".*$$//;s/^ *//;s/ *$$//' | cut -d' ' -f1 | LC_ALL=C sort -u || true; LC_ALL=C grep -h '^[ ]*\\[[^]]*\\]:' " + prose_locs + " 2>/dev/null | sed 's/^[^:]*:[[:space:]]*//;s/[[:space:]\".*].*//' | cut -d' ' -f1 | LC_ALL=C sort -u || true) | LC_ALL=C sort -u); " +
-              "for _t in $$targets; do case \"$$_t\" in *\\://*|mailto:*) continue;; \\#*) _frag=$$(printf '%s' \"$$_t\" | cut -c2-); printf '%s\\n' \"$$anchors\" | LC_ALL=C grep -qxF \"$$_frag\" || { echo \"docs_site: dangling anchor '$$_t'\" >&2; exit 1; };; *) _base=$$(printf '%s' \"$$_t\" | cut -d'#' -f1); _frag=$$(printf '%s' \"$$_t\" | cut -s -d'#' -f2- || true); _found=0; for _p in api.md prose.md SUMMARY.md $$prose_bases $$api_paths; do if [ \"$$_base\" = \"$$_p\" ]; then _found=1; break; fi; done; if [ \"$$_found\" = \"0\" ]; then echo \"docs_site: dangling link '$$_t'\" >&2; exit 1; fi; if [ -n \"$$_frag\" ]; then _norm=$$(printf '%s' \"$$_frag\" | tr '[:upper:]' '[:lower:]'); printf '%s\\n' \"$$anchors\" | LC_ALL=C grep -qxF \"$$_norm\" || { echo \"docs_site: dangling fragment '$$_t'\" >&2; exit 1; }; fi;; esac; done",
+              "bash $(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose),
     )
     native.filegroup(
         name = name,
@@ -263,16 +268,14 @@ def docs_user_aggregate(name, shards, prose, book_toml, data = []):
     records = site_records_name(name)
     shard_locs = " ".join(["$(location " + s + ")" for s in shards])
     prose_locs = " ".join(["$(location " + p + ")" for p in prose])
-    data_locs = " ".join(["$(location " + d + ")" for d in data])
+    api_loc = "$(location :" + api + ")"
     book_loc = "$(location " + book_toml + ")"
     native.genrule(
         name = name + "_aggregate",
-        srcs = shards + prose + [book_toml] + data,
+        srcs = shards + prose + [book_toml] + data + [SITE_CHECK],
         outs = [summary, api, records],
         cmd = "set -e; " +
               "summary=$(location :" + summary + "); api=$(location :" + api + "); records=$(location :" + records + "); " +
-              "grep -q '^title' " + book_loc + "; " +
-              "for _f in " + prose_locs + "; do LC_ALL=C grep -q '^# ' \"$$_f\" || { echo \"docs_site: prose missing title '$$_f'\" >&2; exit 1; }; done; " +
               "{ printf '# Summary\\n\\n'; " +
               "for _f in $$(printf '%s\\n' " + prose_locs + " | LC_ALL=C sort -u); do _t=$$(LC_ALL=C grep -m1 '^# ' \"$$_f\" | sed 's/^# //'); printf '%s [%s](%s)\\n' '-' \"$$_t\" \"$$_f\"; done; " +
               "printf '%s\\n' '- [API](api.md)'; } > \"$$summary\"; " +
@@ -282,20 +285,7 @@ def docs_user_aggregate(name, shards, prose, book_toml, data = []):
               "for _f in $$(printf '%s\\n' " + prose_locs + " | LC_ALL=C sort -u); do _t=$$(LC_ALL=C grep -m1 '^# ' \"$$_f\" | sed 's/^# //'); if [ \"$$_first\" = 1 ]; then _first=0; else printf ',\\n'; fi; printf '  {\\\"body\\\": \\\"User guide %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"%s.html\\\"}' \"$$_f\" \"$$_t\" \"$$_f\"; done; " +
               "for _sid in $$(LC_ALL=C grep -h '^  id: ' " + shard_locs + " | sed 's/^  id: \"//;s/\"$$//' | LC_ALL=C sort -u); do if [ \"$$_first\" = 1 ]; then _first=0; else printf ',\\n'; fi; _url=$$(printf '%s' \"$$_sid\" | sed 's/:/\\//g;s/^/api\\//'); printf '  {\\\"body\\\": \\\"API docs for %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"%s\\\"}' \"$$_sid\" \"$$_sid\" \"$$_url\"; done; " +
               "printf '\\n]\\n'; } > \"$$records\"; " +
-              "for _sid in $$(LC_ALL=C grep -h '^  id: ' " + shard_locs + " | sed 's/^  id: \"//;s/\"$$//' | LC_ALL=C sort -u); do LC_ALL=C grep -qF \"$$_sid\" \"$$api\" || { echo \"docs_site: missing API page for $$_sid\" >&2; exit 1; }; done; " +
-              "if LC_ALL=C grep -q '\\[[^]]*\\]()' " + prose_locs + "; then echo 'docs_site: empty link target' >&2; exit 1; fi; " +
-              "anchors=$$((LC_ALL=C grep -h '^#' " + prose_locs + " 2>/dev/null || true; LC_ALL=C grep -h '^## ' \"$$api\" 2>/dev/null || true) | sed 's/^#* *//' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 -]//g; s/^ *//; s/ *$$//; s/ /-/g; s/--*/-/g' | LC_ALL=C sort -u); " +
-              "api_paths=$$(LC_ALL=C grep -h '^  id: ' " + shard_locs + " | sed 's/^  id: \"//;s/\"$$//' | sed 's/:/\\//g;s/^/api\\//;s/$$/.md/' | LC_ALL=C sort -u); " +
-              "prose_bases=$$(for _f in " + prose_locs + "; do basename \"$$_f\"; done | LC_ALL=C sort -u); " +
-              "data_bases=$$((for _f in " + data_locs + "; do basename \"$$_f\"; done | LC_ALL=C sort -u) 2>/dev/null || true); " +
-              "targets=$$((LC_ALL=C grep -h -o '\\[[^]]*\\]([^)]*)' " + prose_locs + " 2>/dev/null | sed -n 's/.*(\\([^)]*\\)).*/\\1/p' | sed 's/^ *//;s/ *$$//;s/^<//;s/>$$//;s/^\".*//;s/\".*$$//;s/^ *//;s/ *$$//' | cut -d' ' -f1 | LC_ALL=C sort -u || true; LC_ALL=C grep -h '^[ ]*\\[[^]]*\\]:' " + prose_locs + " 2>/dev/null | sed 's/^[^:]*:[[:space:]]*//;s/[[:space:]\".*].*//' | cut -d' ' -f1 | LC_ALL=C sort -u || true) | LC_ALL=C sort -u); " +
-              "for _t in $$targets; do case \"$$_t\" in *\\://*|mailto:*) continue;; \\#*) _frag=$$(printf '%s' \"$$_t\" | cut -c2-); printf '%s\\n' \"$$anchors\" | LC_ALL=C grep -qxF \"$$_frag\" || { echo \"docs_site: dangling anchor '$$_t'\" >&2; exit 1; };; *) _base=$$(printf '%s' \"$$_t\" | cut -d'#' -f1); _frag=$$(printf '%s' \"$$_t\" | cut -s -d'#' -f2- || true); _dir=0; case \"$$_base\" in */) _dir=1; _base=$$(printf '%s' \"$$_base\" | sed 's|/$$||');; esac; _n=\"$$_base\"; while case \"$$_n\" in ../*) true;; *) false;; esac; do _n=$$(printf '%s' \"$$_n\" | sed 's|^\\.\\./||'); done; _n=$$(printf '%s' \"$$_n\" | sed 's|^\\./||'); _found=0; " +
-              "if [ \"$$_dir\" = 1 ]; then for _p in " + prose_locs + "; do case \"$$_p\" in \"$$_n/README.md\"|*/\"$$_n/README.md\") _found=1; break;; esac; done; " +
-              "else for _p in " + prose_locs + " " + data_locs + " $$api_paths; do if [ \"$$_p\" = \"$$_n\" ]; then _found=1; break; fi; case \"$$_p\" in */\"$$_n\") _found=1; break;; esac; done; " +
-              "if [ \"$$_found\" = 0 ]; then case \"$$_n\" in *\"/\"*) ;; *) for _b in $$prose_bases $$data_bases; do if [ \"$$_b\" = \"$$_n\" ]; then _found=1; break; fi; done;; esac; fi; " +
-              "for _k in api.md SUMMARY.md; do if [ \"$$_n\" = \"$$_k\" ]; then _found=1; break; fi; done; fi; " +
-              "if [ \"$$_found\" = 0 ]; then echo \"docs_site: dangling link '$$_t'\" >&2; exit 1; fi; " +
-              "if [ -n \"$$_frag\" ]; then _norm=$$(printf '%s' \"$$_frag\" | tr '[:upper:]' '[:lower:]'); printf '%s\\n' \"$$anchors\" | LC_ALL=C grep -qxF \"$$_norm\" || { echo \"docs_site: dangling fragment '$$_t'\" >&2; exit 1; }; fi;; esac; done",
+              "bash $(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose, data),
     )
     native.filegroup(
         name = name,

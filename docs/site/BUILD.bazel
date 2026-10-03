@@ -1,4 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":site.bzl", "docs_aggregate", "docs_extract", "docs_render", "docs_site", "docs_user_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
 
@@ -8,6 +9,7 @@ exports_files(
     [
         "BUILD.bazel",
         "site.bzl",
+        "site_check.sh",
         "site_tests.bzl",
     ],
 )
@@ -104,6 +106,18 @@ docs_user_site(
     language = "python",
     package = "demo",
     prose = USER_PROSE,
+)
+
+# keep
+rust_test(
+    name = "site_check_test",
+    size = "small",
+    srcs = ["site_check_test.rs"],
+    data = ["site_check.sh"],
+    env = {"DX_SITE_CHECK": "$(rootpath :site_check.sh)"},
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 site_unit_tests(name = "site_unit")

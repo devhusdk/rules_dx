@@ -260,6 +260,39 @@ func ExtractScripts(src []byte) [][]byte {
 	return out
 }
 
+func OpensTag(src []byte, name string) bool {
+	n := len(src)
+	i := 0
+	for i < n {
+		after := skipHTMLComment(src, i)
+		if after < 0 {
+			return false
+		}
+		if after > i {
+			i = after
+			continue
+		}
+		if src[i] != '<' {
+			i++
+			continue
+		}
+		if i+1 < n && src[i+1] == '/' {
+			i += 2
+			continue
+		}
+		raw, next, ok := scanTagName(src, i+1)
+		if !ok {
+			i++
+			continue
+		}
+		if equalFold(raw, name) {
+			return true
+		}
+		i = next
+	}
+	return false
+}
+
 func skipHTMLComment(src []byte, i int) int {
 	n := len(src)
 	if i+4 > n || src[i] != '<' || src[i+1] != '!' || src[i+2] != '-' || src[i+3] != '-' {

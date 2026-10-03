@@ -185,34 +185,6 @@ func TestSplitFence(t *testing.T) {
 	}
 }
 
-func TestOpensScript(t *testing.T) {
-	for _, source := range []string{
-		"<script>const x = 1;</script>",
-		"<SCRIPT>",
-		"<script",
-		"<div>x</div><script src=\"a.js\">",
-		"<!-- <script> --><script>",
-	} {
-		if !opensScript([]byte(source)) {
-			t.Errorf("opensScript(%q) = false, want true", source)
-		}
-	}
-	for _, source := range []string{
-		"",
-		"<div>x</div>",
-		"<scriptx>no</scriptx>",
-		"<!-- <script> -->",
-		"<!-- <script>",
-		"</script>",
-		"a < b",
-		"trailing <",
-	} {
-		if opensScript([]byte(source)) {
-			t.Errorf("opensScript(%q) = true, want false", source)
-		}
-	}
-}
-
 func TestIsStdLib(t *testing.T) {
 	for _, name := range []string{"fs", "path", "node:fs", "node:path", "test", "node:test"} {
 		if !IsStdLib(name) {

@@ -249,6 +249,34 @@ func TestExtractScripts(t *testing.T) {
 	}
 }
 
+func TestOpensTag(t *testing.T) {
+	cases := []struct {
+		name, source, tag string
+		want              bool
+	}{
+		{"basic", "<script>const x = 1;</script>", "script", true},
+		{"upper", "<SCRIPT>", "script", true},
+		{"noClose", "<script", "script", true},
+		{"afterMarkup", "<div>x</div><script src=\"a.js\">", "script", true},
+		{"afterComment", "<!-- <script> --><script>", "script", true},
+		{"commentedOut", "<!-- <script> -->", "script", false},
+		{"unterminatedComment", "<!-- <script>", "script", false},
+		{"empty", "", "script", false},
+		{"markupOnly", "<div>x</div>", "script", false},
+		{"namePrefix", "<scriptx>no</scriptx>", "script", false},
+		{"closingOnly", "</script>", "script", false},
+		{"bareLessThan", "a < b", "script", false},
+		{"trailingLessThan", "trailing <", "script", false},
+		{"style", "<style>a{}</style>", "style", true},
+		{"otherName", "<div>x</div>", "script", false},
+	}
+	for _, tc := range cases {
+		if got := OpensTag([]byte(tc.source), tc.tag); got != tc.want {
+			t.Errorf("OpensTag(%q, %q) = %v, want %v", tc.source, tc.tag, got, tc.want)
+		}
+	}
+}
+
 func TestMaskStyles(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"line comment", "import a.B;\n// import hidden.C;\n", "import a.B;\n                   \n"},

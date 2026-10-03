@@ -1,0 +1,12 @@
+--- a/py/private/py_venv/toolchains_resolver.bzl
++++ b/py/private/py_venv/toolchains_resolver.bzl
+@@ -143,6 +143,8 @@
+         venv_py_ver = venv_py_ver,
+         escape = _site_packages_escape(depth),
+         venv_to_runfiles_escape = venv_to_runfiles_escape,
+-        site_packages_rel = "{}/lib/{}/site-packages".format(venv_name, venv_py_ver),
++        site_packages_rel = ("{}/Lib/{}/site-packages" if is_windows else "{}/lib/{}/site-packages").format(
++            venv_name, venv_py_ver, venv_name, venv_py_ver,
++        ),
+         pyvenv_home = _pyvenv_home(ctx, py_toolchain, is_windows, venv_to_runfiles_escape),
+         versioned_python_names = _versioned_python_names(py_toolchain),

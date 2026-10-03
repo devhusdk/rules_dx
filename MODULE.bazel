@@ -153,7 +153,10 @@ bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",
     patch_strip = 1,
-    patches = ["//patches:aspect_rules_py_venv_interpreter.patch"],
+    patches = [
+        "//patches:aspect_rules_py_site_packages.patch",
+        "//patches:aspect_rules_py_venv_interpreter.patch",
+    ],
 )
 
 bazel_dep(name = "aspect_rules_js", version = "3.4.1")

@@ -675,7 +675,11 @@ pub fn nuget_main(
             );
             return 1;
         }
-        let status = std::process::Command::new("dotnet")
+        let Some(dotnet) = which_on_path("dotnet") else {
+            eprintln!("nuget_deploy: 'dotnet' CLI not found on PATH");
+            return 1;
+        };
+        let status = std::process::Command::new(dotnet)
             .arg("nuget")
             .arg("push")
             .arg(&nupkg)
@@ -2624,7 +2628,11 @@ pub fn npm_deploy_main(argv: &[String]) -> i32 {
             return 1;
         }
         let staged_tgz = outdir.join(&tgz_base);
-        let mut cmd = std::process::Command::new("npm");
+        let Some(npm) = which_on_path("npm") else {
+            eprintln!("npm_deploy: 'npm' CLI not found on PATH");
+            return 1;
+        };
+        let mut cmd = std::process::Command::new(npm);
         cmd.arg("publish")
             .arg(&staged_tgz)
             .arg("--tag")
@@ -2662,7 +2670,11 @@ pub fn npm_deploy_main(argv: &[String]) -> i32 {
                 return 1;
             }
         };
-        let status = std::process::Command::new("npm")
+        let Some(npm) = which_on_path("npm") else {
+            eprintln!("npm_deploy: 'npm' CLI not found on PATH");
+            return 1;
+        };
+        let status = std::process::Command::new(npm)
             .arg("publish")
             .arg(&staged_tgz)
             .arg("--tag")

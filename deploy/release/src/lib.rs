@@ -27,22 +27,6 @@ fn basename(path: &Path) -> io::Result<String> {
         })
 }
 
-fn sha256_file(path: &Path) -> io::Result<String> {
-    use sha2::Digest as _;
-    let mut hasher = sha2::Sha256::new();
-    let mut file = std::fs::File::open(path)?;
-    let mut buf = vec![0u8; 64 << 10];
-    loop {
-        use std::io::Read as _;
-        let read = file.read(&mut buf)?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buf[..read]);
-    }
-    Ok(hex::encode(hasher.finalize()))
-}
-
 fn render_pretty(value: &serde_json::Value) -> String {
     dx_fingerprint::to_json_ascii_pretty(value).unwrap_or_default()
 }
@@ -134,7 +118,7 @@ pub fn render_bcr_source(module: &str, version: &str) -> String {
 }
 
 pub fn write_spdx(src: &Path, dst: &Path, package: &str, supplier: &str) -> io::Result<()> {
-    let digest = sha256_file(src)?;
+    let digest = dx_digest::sha256_file_hex(src)?;
     let base = basename(src)?;
     std::fs::write(
         dst,
@@ -147,7 +131,7 @@ pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> io::Result<()>
     if let Err(problem) = provenance_builder_error(builder) {
         return Err(io::Error::other(problem));
     }
-    let digest = sha256_file(src)?;
+    let digest = dx_digest::sha256_file_hex(src)?;
     let base = basename(src)?;
     std::fs::write(dst, render_provenance(&base, &digest, builder).as_bytes())?;
     Ok(())
@@ -460,7 +444,7 @@ pub fn release_run(
 }
 
 pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::Result<String> {
-    let digest = sha256_file(artifact)?;
+    let digest = dx_digest::sha256_file_hex(artifact)?;
     let base = basename(artifact)?;
     let spdx_text = std::fs::read_to_string(spdx_path)?;
     let prov_text = std::fs::read_to_string(prov)?;
@@ -728,22 +712,6 @@ mod tests {
     }
 
     #[test]
-    fn sha256_matches_hashlib_vectors() {
-        let scratch = scratch_dir();
-        let src = write_artifact(scratch.path(), "payload.bin", b"abc");
-        assert_eq!(
-            sha256_file(&src).expect("hash"),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
-        let empty = write_artifact(scratch.path(), "empty.bin", b"");
-        assert_eq!(
-            sha256_file(&empty).expect("hash empty"),
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        );
-        assert!(sha256_file(&scratch.path().join("missing")).is_err());
-    }
-
-    #[test]
     fn basename_rejects_missing_name() {
         assert!(basename(Path::new("/")).is_err());
         assert_eq!(
@@ -837,7 +805,7 @@ mod tests {
     fn write_helpers_round_trip_digests() {
         let scratch = scratch_dir();
         let src = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
-        let digest = sha256_file(&src).expect("digest");
+        let digest = dx_digest::sha256_file_hex(&src).expect("digest");
         let spdx_out = scratch.path().join("out.spdx.json");
         write_spdx(&src, &spdx_out, "dx", "rules_dx").expect("write spdx");
         let spdx_text = std::fs::read_to_string(&spdx_out).expect("read spdx");
@@ -935,7 +903,7 @@ mod tests {
     fn sbom_verify_binds_digest() {
         let scratch = scratch_dir();
         let artifact = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
-        let digest = sha256_file(&artifact).expect("digest");
+        let digest = dx_digest::sha256_file_hex(&artifact).expect("digest");
         let spdx = scratch.path().join("artifact.spdx.json");
         write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("artifact.prov.json");
@@ -951,7 +919,7 @@ mod tests {
     fn sbom_verify_reads_spdx_fields_not_text() {
         let scratch = scratch_dir();
         let artifact = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
-        let digest = sha256_file(&artifact).expect("digest");
+        let digest = dx_digest::sha256_file_hex(&artifact).expect("digest");
         let spdx_path = scratch.path().join("artifact.spdx.json");
         write_spdx(&artifact, &spdx_path, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("artifact.prov.json");
@@ -1024,7 +992,7 @@ mod tests {
     fn sbom_verify_rejects_forged_builder() {
         let scratch = scratch_dir();
         let artifact = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
-        let digest = sha256_file(&artifact).expect("digest");
+        let digest = dx_digest::sha256_file_hex(&artifact).expect("digest");
         let spdx = scratch.path().join("artifact.spdx.json");
         write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("forged.prov.json");
@@ -1186,7 +1154,7 @@ mod tests {
     fn sbom_verify_rejects_broken_bindings() {
         let scratch = scratch_dir();
         let artifact = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
-        let digest = sha256_file(&artifact).expect("digest");
+        let digest = dx_digest::sha256_file_hex(&artifact).expect("digest");
         let zeros = "0".repeat(digest.len());
         let spdx_ok = scratch.path().join("ok.spdx.json");
         write_spdx(&artifact, &spdx_ok, "dx", "rules_dx").expect("spdx ok");

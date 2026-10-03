@@ -102,34 +102,11 @@ pub fn archive_bytes(data: &[u8], name: &str, executable: bool) -> io::Result<Ve
     gzip_compress(&tar)
 }
 
-fn sha256_hex(data: &[u8]) -> String {
-    use sha2::Digest as _;
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(data);
-    hex::encode(hasher.finalize())
-}
-
 pub fn hash_file(src: &Path, dst: &Path) -> io::Result<()> {
     let base = basename(src)?;
-    let mut hasher = sha2::Sha256::new();
-    use sha2::Digest as _;
-    let mut file = std::fs::File::open(src)?;
-    let mut buf = vec![0u8; 64 << 10];
-    loop {
-        use std::io::Read as _;
-        let read = file.read(&mut buf)?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buf[..read]);
-    }
-    let line = format!("{}  {base}\n", hex::encode(hasher.finalize()));
+    let line = format!("{}  {base}\n", dx_digest::sha256_file_hex(src)?);
     std::fs::write(dst, line.as_bytes())?;
     Ok(())
-}
-
-pub fn hash_line(data: &[u8], basename: &str) -> String {
-    format!("{}  {basename}\n", sha256_hex(data))
 }
 
 pub fn bin_usage(prog: &str, usage: &str) -> i32 {
@@ -142,28 +119,11 @@ pub fn bin_cannot(prog: &str, action: &str, target: &Path, error: impl std::fmt:
     1
 }
 
-/// Shared deploy-launcher helpers.
-pub fn sha256_file_hex(path: &Path) -> io::Result<String> {
-    use sha2::Digest as _;
-    let mut file = std::fs::File::open(path)?;
-    let mut hasher = sha2::Sha256::new();
-    let mut buf = vec![0u8; 64 << 10];
-    loop {
-        use std::io::Read as _;
-        let read = file.read(&mut buf)?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buf[..read]);
-    }
-    Ok(hex::encode(hasher.finalize()))
-}
-
 /// Copies one file and verifies byte identity.
 pub fn copy_verified(src: &Path, dest: &Path) -> io::Result<String> {
     std::fs::copy(src, dest)?;
-    let want = sha256_file_hex(src)?;
-    let got = sha256_file_hex(dest)?;
+    let want = dx_digest::sha256_file_hex(src)?;
+    let got = dx_digest::sha256_file_hex(dest)?;
     if want != got {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -441,7 +401,7 @@ pub fn archive_stage_release(
         .split_whitespace()
         .next()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "empty checksum file"))?;
-    let actual = sha256_file_hex(tarball_src)?;
+    let actual = dx_digest::sha256_file_hex(tarball_src)?;
     if expected != actual {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -796,11 +756,11 @@ pub fn crates_build_vendor(
     let mut entries: Vec<(String, String)> = Vec::new();
     for src in sorted {
         let base = basename(src)?;
-        let want = sha256_file_hex(src)?;
+        let want = dx_digest::sha256_file_hex(src)?;
         for dest_dir in [&vendor_dir, &registry_dir] {
             let dest = dest_dir.join(&base);
             std::fs::copy(src, &dest)?;
-            let got = sha256_file_hex(&dest)?;
+            let got = dx_digest::sha256_file_hex(&dest)?;
             if want != got {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -813,19 +773,14 @@ pub fn crates_build_vendor(
         entries.push((base, want));
     }
     entries.sort();
-    let package_digest = {
-        use sha2::Digest as _;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(
-            entries
-                .iter()
-                .map(|(base, digest)| format!("{base}:{digest}"))
-                .collect::<Vec<_>>()
-                .join("\n")
-                .as_bytes(),
-        );
-        hex::encode(hasher.finalize())
-    };
+    let package_digest = dx_digest::sha256_hex(
+        entries
+            .iter()
+            .map(|(base, digest)| format!("{base}:{digest}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            .as_bytes(),
+    );
     let mut files = serde_json::Map::new();
     for (base, digest) in &entries {
         files.insert(base.clone(), serde_json::Value::String(digest.clone()));
@@ -1420,10 +1375,10 @@ pub fn oci_build_layout(
     let blobs = layout.join("blobs").join("sha256");
     std::fs::create_dir_all(&blobs)?;
     let layer_size = std::fs::metadata(image_tar_src)?.len();
-    let layer_digest = format!("sha256:{}", sha256_file_hex(image_tar_src)?);
+    let layer_digest = format!("sha256:{}", dx_digest::sha256_file_hex(image_tar_src)?);
     let layer_blob = blobs.join(layer_digest.replace("sha256:", ""));
     std::fs::copy(image_tar_src, &layer_blob)?;
-    if sha256_file_hex(&layer_blob)? != layer_digest.replace("sha256:", "") {
+    if dx_digest::sha256_file_hex(&layer_blob)? != layer_digest.replace("sha256:", "") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "oci layout: byte mismatch for layer blob",
@@ -1438,12 +1393,7 @@ pub fn oci_build_layout(
         "{{\"architecture\":\"amd64\",\"created\":\"1970-01-01T00:00:00Z\",\"os\":\"linux\",\"rootfs\":{{\"diff_ids\":[\"{layer_digest}\"],\"type\":\"layers\"}}}}"
     );
     let config_bytes = format!("{config_body}\n");
-    let config_digest = {
-        use sha2::Digest as _;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(config_bytes.as_bytes());
-        format!("sha256:{}", hex::encode(hasher.finalize()))
-    };
+    let config_digest = format!("sha256:{}", dx_digest::sha256_hex(config_bytes.as_bytes()));
     std::fs::write(
         blobs.join(config_digest.replace("sha256:", "")),
         config_bytes.as_bytes(),
@@ -1465,12 +1415,10 @@ pub fn oci_build_layout(
         }),
         JsonLayout::Compact,
     );
-    let manifest_digest = {
-        use sha2::Digest as _;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(manifest_bytes.as_bytes());
-        format!("sha256:{}", hex::encode(hasher.finalize()))
-    };
+    let manifest_digest = format!(
+        "sha256:{}",
+        dx_digest::sha256_hex(manifest_bytes.as_bytes())
+    );
     std::fs::write(
         blobs.join(manifest_digest.replace("sha256:", "")),
         manifest_bytes.as_bytes(),
@@ -2290,7 +2238,7 @@ pub fn npm_create_pack(
         }
     }
     std::fs::write(tgz_out, &gz)?;
-    let digest = sha256_file_hex(tgz_out)?;
+    let digest = dx_digest::sha256_file_hex(tgz_out)?;
     let names: Vec<String> = members.keys().cloned().collect();
     let tgz_base = basename(tgz_out)?;
     let feed = render_json(
@@ -2460,7 +2408,7 @@ pub fn npm_verify_pack(tgz_path: &Path, feed_path: &Path) -> io::Result<(String,
             "feed JSON is missing 'files'",
         ));
     }
-    let actual = sha256_file_hex(tgz_path)?;
+    let actual = dx_digest::sha256_file_hex(tgz_path)?;
     if expected != actual {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -2924,22 +2872,6 @@ mod tests {
     }
 
     #[test]
-    fn sha256_vectors_match_hashlib() {
-        assert_eq!(
-            sha256_hex(b"abc"),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
-        assert_eq!(
-            sha256_hex(b""),
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        );
-        assert_eq!(
-            hash_line(b"hello world\n", "release.tar.gz"),
-            format!("{}  release.tar.gz\n", sha256_hex(b"hello world\n"))
-        );
-    }
-
-    #[test]
     fn hash_file_writes_sha256sum_line() {
         let scratch = scratch_dir();
         let src = scratch.path().join("payload.bin");
@@ -2948,7 +2880,10 @@ mod tests {
         let dst = scratch.path().join("payload.sha256");
         hash_file(&src, &dst).expect("hash");
         let text = std::fs::read_to_string(&dst).expect("read line");
-        assert_eq!(text, hash_line(payload, "payload.bin"));
+        assert_eq!(
+            text,
+            format!("{}  payload.bin\n", dx_digest::sha256_hex(payload))
+        );
         assert!(text.ends_with('\n'));
         assert!(!text.ends_with("\r\n"));
         let parts: Vec<&str> = text.trim_end().split("  ").collect();
@@ -2986,7 +2921,7 @@ mod tests {
         std::fs::write(&app, b"deploy-program-bytes-v1").expect("write app");
         let tarball = scratch.path().join("release_demo.tar.gz");
         std::fs::write(&tarball, b"archive-tarball-bytes-v1").expect("write tarball");
-        let digest = sha256_file_hex(&tarball).expect("digest");
+        let digest = dx_digest::sha256_file_hex(&tarball).expect("digest");
         let checksum = scratch.path().join("release_demo.tar.gz.sha256");
         std::fs::write(
             &checksum,
@@ -3001,8 +2936,8 @@ mod tests {
         assert!(tarball_dest.is_file());
         assert!(checksum_dest.is_file());
         assert_eq!(
-            sha256_file_hex(&tarball_dest).expect("hex"),
-            sha256_file_hex(&tarball).expect("hex")
+            dx_digest::sha256_file_hex(&tarball_dest).expect("hex"),
+            dx_digest::sha256_file_hex(&tarball).expect("hex")
         );
         let bad_checksum = scratch.path().join("bad.sha256");
         std::fs::write(
@@ -3030,8 +2965,8 @@ mod tests {
             let dest = house.join(&base);
             assert!(dest.is_file());
             assert_eq!(
-                sha256_file_hex(&dest).expect("hex"),
-                sha256_file_hex(src).expect("hex")
+                dx_digest::sha256_file_hex(&dest).expect("hex"),
+                dx_digest::sha256_file_hex(src).expect("hex")
             );
         }
         let index = house
@@ -3074,7 +3009,7 @@ mod tests {
             .map(|src| {
                 (
                     basename(src).expect("base"),
-                    sha256_file_hex(src).expect("hex"),
+                    dx_digest::sha256_file_hex(src).expect("hex"),
                 )
             })
             .collect::<std::collections::BTreeMap<_, _>>();
@@ -3210,7 +3145,10 @@ mod tests {
         assert_eq!(parsed["manifests"][0]["size"], manifest_bytes.len());
         assert_eq!(
             digest,
-            format!("sha256:{}", sha256_file_hex(&manifest).expect("hex"))
+            format!(
+                "sha256:{}",
+                dx_digest::sha256_file_hex(&manifest).expect("hex")
+            )
         );
     }
 
@@ -3257,7 +3195,7 @@ mod tests {
         )
         .expect("promotion");
         let record = std::fs::read_to_string(promotion.join("promotion.json")).expect("record");
-        let artifact_digest = sha256_file_hex(&artifact).expect("hex");
+        let artifact_digest = dx_digest::sha256_file_hex(&artifact).expect("hex");
         assert_eq!(
             record,
             [
@@ -3306,7 +3244,7 @@ mod tests {
             std::slice::from_ref(&src),
         )
         .expect("pack");
-        assert_eq!(digest, sha256_file_hex(&tgz).expect("hex"));
+        assert_eq!(digest, dx_digest::sha256_file_hex(&tgz).expect("hex"));
         let (name, tag, registry) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         assert_eq!(tag, "latest");
@@ -3536,7 +3474,7 @@ mod tests {
         let dest = scratch.path().join("dest.bin");
         std::fs::write(&dest, b"stale-bytes").expect("write dest");
         let digest = copy_verified(&src, &dest).expect("copy");
-        assert_eq!(digest, sha256_file_hex(&src).expect("hex"));
+        assert_eq!(digest, dx_digest::sha256_file_hex(&src).expect("hex"));
         assert_eq!(std::fs::read(&dest).expect("read dest"), b"payload");
     }
 
@@ -4031,7 +3969,7 @@ mod tests {
         let tarball = runfiles.join("release_demo.tar.gz");
         let tarball_bytes = archive_bytes(b"payload", "release_demo.tar.gz", false).expect("tar");
         std::fs::write(&tarball, &tarball_bytes).expect("write tarball");
-        let digest = sha256_file_hex(&tarball).expect("digest");
+        let digest = dx_digest::sha256_file_hex(&tarball).expect("digest");
         let checksum = runfiles.join("release_demo.tar.gz.sha256");
         std::fs::write(&checksum, format!("{digest}  release_demo.tar.gz\n")).expect("write sum");
 

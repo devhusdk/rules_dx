@@ -8,7 +8,12 @@
     )
 )]
 
+use std::io;
+use std::path::Path;
+
 use sha2::{Digest as _, Sha256};
+
+const FILE_CHUNK: usize = 64 << 10;
 
 pub const DIGEST_LEN: usize = 32;
 
@@ -71,6 +76,21 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex::encode(hasher.finalize())
+}
+
+/// Hex sha256 of a file's bytes, read in fixed-size chunks.
+pub fn sha256_file_hex(path: &Path) -> io::Result<String> {
+    let mut hasher = Sha256::new();
+    let mut file = std::fs::File::open(path)?;
+    let mut buf = vec![0u8; FILE_CHUNK];
+    loop {
+        let read = io::Read::read(&mut file, &mut buf)?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buf[..read]);
+    }
+    Ok(hex::encode(hasher.finalize()))
 }
 
 pub fn is_hex(text: &str) -> bool {
@@ -179,6 +199,33 @@ mod tests {
             sha256_hex(b"abc"),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
+        assert_eq!(
+            sha256_hex(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn sha256_file_hex_matches_the_in_memory_digest() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        for len in [
+            0usize,
+            1,
+            FILE_CHUNK - 1,
+            FILE_CHUNK,
+            FILE_CHUNK + 1,
+            3 * FILE_CHUNK,
+        ] {
+            let bytes: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+            let path = scratch.path().join(format!("payload-{len}.bin"));
+            std::fs::write(&path, &bytes).expect("write");
+            assert_eq!(
+                sha256_file_hex(&path).expect("digest"),
+                sha256_hex(&bytes),
+                "len {len}"
+            );
+        }
+        assert!(sha256_file_hex(&scratch.path().join("missing")).is_err());
     }
 
     #[test]

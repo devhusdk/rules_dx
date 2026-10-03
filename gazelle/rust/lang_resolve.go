@@ -250,9 +250,7 @@ func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, im
 	}
 	names = external
 	sort.Strings(names)
-	if len(names) > 0 {
-		r.SetAttr("deps", crateDepsCall{names: names, packageName: packageName})
-	}
+	r.SetAttr("deps", crateDepsCall{names: names, packageName: packageName})
 	r.SetAttr("aliases", cargoCall("aliases", packageName, includeDev))
 }
 

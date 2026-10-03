@@ -1,8 +1,8 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "dx_rust_crate")
-load("//tools/visibility:visibility.bzl", "VIS_CLI_GENERATION_QUALITY")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_GENERATION_QUALITY")
 
-package(default_visibility = VIS_CLI_GENERATION_QUALITY)
+package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY)
 
 exports_files([
     "src/lib.rs",
@@ -13,6 +13,7 @@ dx_rust_crate(
     package_name = "cli/dx_digest",
     dev_deps = [
         "proptest",
+        "tempfile",
     ],
     deps = [
         "blake3",

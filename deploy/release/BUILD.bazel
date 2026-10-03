@@ -49,14 +49,13 @@ rust_library(
     edition = "2021",
     deps = crate_deps(
         [
-            "hex",
             "serde",
             "serde_json",
-            "sha2",
             "spdx",
         ],
         package_name = "deploy/dx_release_tools",
     ) + [
+        "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
     ],
@@ -74,10 +73,8 @@ rust_binary(
     edition = "2021",
     deps = crate_deps(
         [
-            "hex",
             "serde",
             "serde_json",
-            "sha2",
             "spdx",
         ],
         package_name = "deploy/dx_release_tools",
@@ -96,10 +93,8 @@ rust_binary(
     edition = "2021",
     deps = crate_deps(
         [
-            "hex",
             "serde",
             "serde_json",
-            "sha2",
             "spdx",
         ],
         package_name = "deploy/dx_release_tools",
@@ -118,10 +113,8 @@ rust_binary(
     edition = "2021",
     deps = crate_deps(
         [
-            "hex",
             "serde",
             "serde_json",
-            "sha2",
             "spdx",
         ],
         package_name = "deploy/dx_release_tools",
@@ -140,10 +133,8 @@ rust_binary(
     edition = "2021",
     deps = crate_deps(
         [
-            "hex",
             "serde",
             "serde_json",
-            "sha2",
             "spdx",
         ],
         package_name = "deploy/dx_release_tools",
@@ -161,10 +152,8 @@ rust_test(
     crate = ":dx_release_tools",
     deps = crate_deps(
         [
-            "hex",
             "serde",
             "serde_json",
-            "sha2",
             "spdx",
             "tempfile",
         ],
@@ -210,10 +199,8 @@ rust_binary(
     edition = "2021",
     deps = crate_deps(
         [
-            "hex",
             "serde",
             "serde_json",
-            "sha2",
             "spdx",
         ],
         package_name = "deploy/dx_release_tools",

@@ -26,6 +26,12 @@ VIS_CLI_DEPLOY_QUALITY = VIS_CLI + [
     "//quality:__subpackages__",
 ]
 
+VIS_CLI_DEPLOY_GENERATION_QUALITY = VIS_CLI + [
+    "//deploy:__subpackages__",
+    "//generation:__subpackages__",
+    "//quality:__subpackages__",
+]
+
 VIS_CLI_TOOLS = VIS_CLI + [
     "//tools:__subpackages__",
 ]
@@ -154,7 +160,7 @@ SCOPED_PACKAGES = {
     "cli/cli": "VIS_CLI",
     "cli/codegen": "VIS_CLI",
     "cli/diff": "VIS_CLI",
-    "cli/digest": "VIS_CLI_GENERATION_QUALITY",
+    "cli/digest": "VIS_CLI_DEPLOY_GENERATION_QUALITY",
     "cli/env": "VIS_CLI",
     "cli/env_plan": "VIS_CLI",
     "cli/fingerprint": "VIS_CLI_DEPLOY_QUALITY",

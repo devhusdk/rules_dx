@@ -14,6 +14,5 @@ sha2 = "0.10"
 thiserror = "2"
 
 [dev-dependencies]
-# Property pilot: hex/digest round-trips as proptest
-# properties alongside the fixed official vectors.
 proptest = "1"
+tempfile = "3"

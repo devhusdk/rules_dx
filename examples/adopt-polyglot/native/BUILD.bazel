@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases")
+load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -13,6 +13,10 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//:__subpackages__"],
+    deps = crate_deps(
+        [],
+        package_name = "examples/adopt-polyglot/native",
+    ),
 )
 
 rust_test(
@@ -23,6 +27,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":native",
+    deps = crate_deps(
+        [],
+        package_name = "examples/adopt-polyglot/native",
+    ),
 )
 
 real_source_target(

@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases")
+load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -12,7 +12,10 @@ rust_binary(
     crate_name = "worker",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = ["//examples/adopt-rust/crates/api"],
+    deps = crate_deps(
+        [],
+        package_name = "examples/adopt-rust/crates/worker",
+    ) + ["//examples/adopt-rust/crates/api"],
 )
 
 real_source_target(

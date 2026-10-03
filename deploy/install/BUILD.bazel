@@ -15,12 +15,12 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     deps = crate_deps(
-        [
-            "hex",
-            "sha2",
-        ],
+        [],
         package_name = "deploy/dx_install_tools",
-    ) + ["//cli/process:dx_process"],
+    ) + [
+        "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_binary(
@@ -34,10 +34,7 @@ rust_binary(
     crate_root = "src/main.rs",
     edition = "2021",
     deps = crate_deps(
-        [
-            "hex",
-            "sha2",
-        ],
+        [],
         package_name = "deploy/dx_install_tools",
     ) + [":dx_install_tools"],
 )
@@ -52,11 +49,7 @@ rust_test(
     ),
     crate = ":dx_install_tools",
     deps = crate_deps(
-        [
-            "hex",
-            "sha2",
-            "tempfile",
-        ],
+        ["tempfile"],
         package_name = "deploy/dx_install_tools",
     ),
 )

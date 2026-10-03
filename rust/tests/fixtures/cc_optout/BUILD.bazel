@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases")
+load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test")
@@ -36,7 +36,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":cc_optout",
-    deps = [":cc_optout_build_script"],
+    deps = crate_deps(
+        [],
+        package_name = "rust/tests/fixtures/cc_optout",
+    ) + [":cc_optout_build_script"],
 )
 
 real_source_target(
@@ -65,5 +68,8 @@ rust_library(
     crate_name = "cc_optout",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = [":cc_optout_build_script"],
+    deps = crate_deps(
+        [],
+        package_name = "rust/tests/fixtures/cc_optout",
+    ) + [":cc_optout_build_script"],
 )

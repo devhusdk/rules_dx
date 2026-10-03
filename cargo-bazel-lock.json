@@ -1,5 +1,5 @@
 {
-  "checksum": "7eec9dfbe424e9e72a34f516a52fdb1291348be521a41c9718856130cf8637cb",
+  "checksum": "4fd7e54aafe1f8a26679de33a96e0a9c675542a7e8367e160ec9c89e692fb084",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2796,10 +2796,6 @@
             "target": "flate2"
           },
           {
-            "id": "hex 0.4.3",
-            "target": "hex"
-          },
-          {
             "id": "quick-xml 0.41.0",
             "target": "quick_xml"
           },
@@ -2810,10 +2806,6 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "tar 0.4.46",
@@ -2892,6 +2884,10 @@
           {
             "id": "proptest 1.11.0",
             "target": "proptest"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
           }
         ],
         "edition": "2021"
@@ -3060,16 +3056,6 @@
     },
     "dx_install_tools 0.0.0": {
       "common_attrs": {
-        "deps": [
-          {
-            "id": "hex 0.4.3",
-            "target": "hex"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
-          }
-        ],
         "deps_dev": [
           {
             "id": "tempfile 3.27.0",
@@ -3253,20 +3239,12 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "hex 0.4.3",
-            "target": "hex"
-          },
-          {
             "id": "serde 1.0.229",
             "target": "serde"
           },
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
-          },
-          {
-            "id": "sha2 0.10.9",
-            "target": "sha2"
           },
           {
             "id": "spdx 0.13.5",

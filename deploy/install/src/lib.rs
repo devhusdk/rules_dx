@@ -244,19 +244,7 @@ impl Verifier for SystemVerifier {
     }
 
     fn sha256_file(&self, path: &Path) -> io::Result<String> {
-        use sha2::Digest as _;
-        let mut hasher = sha2::Sha256::new();
-        let mut file = std::fs::File::open(path)?;
-        let mut buf = vec![0u8; 64 << 10];
-        loop {
-            use std::io::Read as _;
-            let read = file.read(&mut buf)?;
-            if read == 0 {
-                break;
-            }
-            hasher.update(&buf[..read]);
-        }
-        Ok(hex::encode(hasher.finalize()))
+        dx_digest::sha256_file_hex(path)
     }
 
     fn install_copy(&self, src: &Path, dst: &Path) -> io::Result<()> {
@@ -551,11 +539,8 @@ mod tests {
             let bundle_data = self.files.get(bundle);
             match (subject_data, bundle_data) {
                 (Some(subject_bytes), Some(bundle_bytes)) => {
-                    use sha2::Digest as _;
-                    let mut hasher = sha2::Sha256::new();
-                    hasher.update(subject_bytes);
-                    let digest = hex::encode(hasher.finalize());
-                    bundle_bytes == format!("bundle-for-{digest}").as_bytes()
+                    bundle_bytes
+                        == format!("bundle-for-{}", dx_digest::sha256_hex(subject_bytes)).as_bytes()
                 }
                 _ => false,
             }
@@ -582,14 +567,11 @@ mod tests {
         }
 
         fn sha256_file(&self, path: &Path) -> io::Result<String> {
-            use sha2::Digest as _;
             let data = self
                 .files
                 .get(path)
                 .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "missing file"))?;
-            let mut hasher = sha2::Sha256::new();
-            hasher.update(data);
-            Ok(hex::encode(hasher.finalize()))
+            Ok(dx_digest::sha256_hex(data))
         }
 
         fn install_copy(&self, _src: &Path, _dst: &Path) -> io::Result<()> {
@@ -617,10 +599,7 @@ mod tests {
         let mut fake = FakeVerifier::new();
         let subject = b"standalone-dx-bytes-v1";
         fake.write("/tmp/dx-fake", subject);
-        use sha2::Digest as _;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(subject);
-        let digest = hex::encode(hasher.finalize());
+        let digest = dx_digest::sha256_hex(subject);
         fake.write(
             "/tmp/dx-fake.bundle",
             format!("bundle-for-{digest}").as_bytes(),
@@ -785,10 +764,7 @@ mod tests {
         args.sbom_bundle = "/tmp/sbom.bundle".to_owned();
         let mut fake = valid_fake();
         fake.write("/tmp/sbom", b"sbom-bytes");
-        use sha2::Digest as _;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(b"sbom-bytes");
-        let digest = hex::encode(hasher.finalize());
+        let digest = dx_digest::sha256_hex(b"sbom-bytes");
         fake.write(
             "/tmp/sbom.bundle",
             format!("bundle-for-{digest}").as_bytes(),
@@ -1040,12 +1016,9 @@ mod tests {
         assert!(!verifier.is_nonempty_file(&empty));
         assert!(!verifier.is_nonempty_file(&scratch.path()));
         assert!(!verifier.is_nonempty_file(&scratch.path().join("missing")));
-        use sha2::Digest as _;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(b"standalone-dx-bytes-v1");
         assert_eq!(
             verifier.sha256_file(&file).expect("hash"),
-            hex::encode(hasher.finalize())
+            dx_digest::sha256_hex(b"standalone-dx-bytes-v1")
         );
         assert!(verifier
             .sha256_file(&scratch.path().join("missing"))

@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases")
+load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 
@@ -17,7 +17,10 @@ rust_library(
     crate_name = "documentation_ir",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = [
+    deps = crate_deps(
+        [],
+        package_name = "docs/ir/documentation_ir",
+    ) + [
         "//cli/path:dx_path",
         "//cli/proto_validate:dx_proto_validate",
         "//cli/schema:dx_schema",
@@ -34,7 +37,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":documentation_ir",
-    deps = [
+    deps = crate_deps(
+        [],
+        package_name = "docs/ir/documentation_ir",
+    ) + [
         "//docs/ir:doc_ir_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],

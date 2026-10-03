@@ -449,6 +449,28 @@ func TestCrateDepsCallMerge(t *testing.T) {
 	}
 }
 
+func TestCrateWithoutExternalDepsKeepsHandLabels(t *testing.T) {
+	manifest := &cargoManifest{
+		packageName: "app",
+		normalDeps:  map[string]cargoDependency{},
+		devDeps:     map[string]cargoDependency{},
+	}
+	r := rule.NewRule(libraryKind, "app")
+	setCargoAttrs(r, "pkg/app", manifest, targetImports{}, false)
+	call, ok := r.Attr("deps").(*bzl.CallExpr)
+	if !ok || len(call.List) != 2 {
+		t.Fatalf("deps attr = %v, want crate_deps(names, package_name)", r.Attr("deps"))
+	}
+	if names, ok := call.List[0].(*bzl.ListExpr); !ok || len(names.List) != 0 {
+		t.Fatalf("crate_deps names = %v, want none", call.List[0])
+	}
+	merged := crateDepsCall{packageName: "pkg/app"}.Merge(strListExpr("//cli/digest:dx_digest", "//cli/process:dx_process"))
+	got := strings.Join(tailStrings(t, merged), "\x00")
+	if got != "//cli/digest:dx_digest\x00//cli/process:dx_process" {
+		t.Errorf("merged tail = %q, want the hand-written labels kept", got)
+	}
+}
+
 func isBareCall(e bzl.Expr) bool {
 	_, ok := e.(*bzl.CallExpr)
 	return ok

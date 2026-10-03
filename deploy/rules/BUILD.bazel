@@ -72,15 +72,13 @@ rust_library(
     deps = crate_deps(
         [
             "flate2",
-            "hex",
             "quick-xml",
             "serde",
             "serde_json",
-            "sha2",
             "tar",
         ],
         package_name = "deploy/dx_deploy_tools",
-    ),
+    ) + ["//cli/digest:dx_digest"],
 )
 
 rust_binary(
@@ -94,15 +92,7 @@ rust_binary(
     crate_root = "src/bin_archiver.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
-    deps = crate_deps(
-        [
-            "flate2",
-            "hex",
-            "sha2",
-            "tar",
-        ],
-        package_name = "deploy/dx_deploy_tools",
-    ) + [":dx_deploy_tools"],
+    deps = [":dx_deploy_tools"],
 )
 
 rust_binary(
@@ -116,15 +106,7 @@ rust_binary(
     crate_root = "src/bin_hasher.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
-    deps = crate_deps(
-        [
-            "flate2",
-            "hex",
-            "sha2",
-            "tar",
-        ],
-        package_name = "deploy/dx_deploy_tools",
-    ) + [":dx_deploy_tools"],
+    deps = [":dx_deploy_tools"],
 )
 
 rust_test(
@@ -139,8 +121,6 @@ rust_test(
     deps = crate_deps(
         [
             "flate2",
-            "hex",
-            "sha2",
             "tar",
             "tempfile",
         ],
@@ -183,15 +163,7 @@ rust_binary(
     crate_root = "src/bin_npm_pack.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
-    deps = crate_deps(
-        [
-            "flate2",
-            "hex",
-            "sha2",
-            "tar",
-        ],
-        package_name = "deploy/dx_deploy_tools",
-    ) + [":dx_deploy_tools"],
+    deps = [":dx_deploy_tools"],
 )
 
 sh_binary(

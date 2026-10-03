@@ -580,11 +580,9 @@ name = "dx_deploy_tools"
 version = "0.0.0"
 dependencies = [
  "flate2",
- "hex",
  "quick-xml",
  "serde",
  "serde_json",
- "sha2",
  "tar",
  "tempfile",
 ]
@@ -605,6 +603,7 @@ dependencies = [
  "hex",
  "proptest",
  "sha2",
+ "tempfile",
  "thiserror",
 ]
 
@@ -655,8 +654,6 @@ dependencies = [
 name = "dx_install_tools"
 version = "0.0.0"
 dependencies = [
- "hex",
- "sha2",
  "tempfile",
 ]
 
@@ -708,10 +705,8 @@ version = "0.0.0"
 name = "dx_release_tools"
 version = "0.0.0"
 dependencies = [
- "hex",
  "serde",
  "serde_json",
- "sha2",
  "spdx",
  "tempfile",
 ]

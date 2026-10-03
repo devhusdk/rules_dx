@@ -114,10 +114,34 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "depcheck_bin_test",
+    size = "small",
+    crate = ":depcheck",
+    deps = crate_deps(
+        [
+            "clap",
+            "pep440_rs",
+            "regex",
+            "semver",
+            "serde_json",
+            "tempfile",
+            "thiserror",
+            "toml",
+        ],
+        package_name = "tools/dx_depcheck",
+    ) + [
+        ":depcheck_lib",
+        "//libs/gomod:dx_gomod",
+    ],
+)
+
 rustfmt_test(
     name = "depcheck_fmt_test",
     size = "small",
     targets = [
+        ":depcheck_bin_test",
         ":depcheck_lib",
         ":depcheck",
     ],

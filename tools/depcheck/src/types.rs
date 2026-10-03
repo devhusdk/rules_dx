@@ -2,6 +2,8 @@ use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DepcheckError {
+    #[error("unknown ecosystem: {0}")]
+    UnknownEcosystem(String),
     #[error("unreadable manifest: {0}")]
     ManifestIo(#[source] std::io::Error),
     #[error("unreadable manifest: {0}")]
@@ -78,7 +80,16 @@ pub enum Ecosystem {
     Ruby,
 }
 
+impl std::str::FromStr for Ecosystem {
+    type Err = DepcheckError;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        Self::parse(text).ok_or_else(|| DepcheckError::UnknownEcosystem(text.to_owned()))
+    }
+}
+
 impl Ecosystem {
+    /// Parses an ecosystem name, returning `None` when it is not one of them.
     pub fn parse(text: &str) -> Option<Self> {
         match text {
             "rust" => Some(Self::Rust),

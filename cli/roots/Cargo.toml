@@ -3,9 +3,6 @@ name = "dx_roots"
 version = "0.0.0"
 edition = "2021"
 
-[dependencies]
-thiserror = "2"
-
 [lib]
 name = "dx_roots"
 path = "src/lib.rs"

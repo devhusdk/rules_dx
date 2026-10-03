@@ -1,5 +1,5 @@
 {
-  "checksum": "58251c80a35e59d6b34f158a6831e3f0da3b33b0cef8634377fb34be17edafcd",
+  "checksum": "7eec9dfbe424e9e72a34f516a52fdb1291348be521a41c9718856130cf8637cb",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3296,12 +3296,6 @@
     },
     "dx_roots 0.0.0": {
       "common_attrs": {
-        "deps": [
-          {
-            "id": "thiserror 2.0.20",
-            "target": "thiserror"
-          }
-        ],
         "edition": "2021"
       },
       "library_target_name": "dx_roots",

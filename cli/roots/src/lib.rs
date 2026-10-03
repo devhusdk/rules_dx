@@ -8,7 +8,6 @@
     )
 )]
 
-use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 pub const REPOSITORY_PATTERN: &str = "//...";
@@ -180,46 +179,6 @@ pub fn build_argv_union(
     argv
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CoverageReport {
-    pub missing: Vec<String>,
-    pub extra: Vec<String>,
-}
-
-impl CoverageReport {
-    pub fn is_covered(&self) -> bool {
-        self.missing.is_empty()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error(
-    "root candidate drops {missing_len} designated root(s): {missing_list}",
-    missing_len = missing.len(),
-    missing_list = missing.join(", ")
-)]
-pub struct CoverageError {
-    pub missing: Vec<String>,
-}
-
-fn sorted_set(labels: &[String]) -> BTreeSet<String> {
-    labels.iter().cloned().collect()
-}
-
-pub fn check_semantic_coverage(
-    candidate_roots: &[String],
-    designated_roots: &[String],
-) -> Result<CoverageReport, CoverageError> {
-    let candidate = sorted_set(candidate_roots);
-    let designated = sorted_set(designated_roots);
-    let missing: Vec<String> = designated.difference(&candidate).cloned().collect();
-    if !missing.is_empty() {
-        return Err(CoverageError { missing });
-    }
-    let extra: Vec<String> = candidate.difference(&designated).cloned().collect();
-    Ok(CoverageReport { missing, extra })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,51 +222,6 @@ mod tests {
         assert_eq!(shards.strategy, RootStrategy::PackageShards);
         assert_eq!(shards.roots, labels(&["//a:roots", "//b:roots"]));
         assert_eq!(shards.pattern_file_arg(), None);
-    }
-
-    #[test]
-    fn full_coverage_passes_with_extras_reported() {
-        let report = check_semantic_coverage(
-            &labels(&["//a:gen", "//b:gen", "//c:tool"]),
-            &labels(&["//b:gen", "//a:gen"]),
-        )
-        .expect("covered");
-        assert!(report.is_covered());
-        assert!(report.missing.is_empty());
-        assert_eq!(report.extra, vec![label("//c:tool")]);
-    }
-
-    #[test]
-    fn duplicate_roots_are_inert() {
-        let report = check_semantic_coverage(
-            &labels(&["//a:gen", "//a:gen", "//b:gen"]),
-            &labels(&["//a:gen", "//b:gen"]),
-        )
-        .expect("covered");
-        assert!(report.is_covered());
-        assert!(report.extra.is_empty());
-    }
-
-    #[test]
-    fn missing_designated_root_fails_closed() {
-        let error =
-            check_semantic_coverage(&labels(&["//a:gen"]), &labels(&["//a:gen", "//b:gen"]))
-                .unwrap_err();
-        assert_eq!(error.missing, vec![label("//b:gen")]);
-        assert!(!format!("{error}").is_empty());
-    }
-
-    #[test]
-    fn empty_index_never_covers_designated_roots() {
-        let error = check_semantic_coverage(&[], &labels(&["//a:gen"])).unwrap_err();
-        assert_eq!(error.missing, vec![label("//a:gen")]);
-    }
-
-    #[test]
-    fn empty_designated_set_is_covered() {
-        let report = check_semantic_coverage(&labels(&["//a:gen"]), &[]).expect("covered");
-        assert!(report.is_covered());
-        assert_eq!(report.extra, vec![label("//a:gen")]);
     }
 
     #[test]

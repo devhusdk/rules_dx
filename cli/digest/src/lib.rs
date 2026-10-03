@@ -95,10 +95,6 @@ pub fn is_commit_sha(text: &str) -> bool {
     is_hex_any_case(text, SHA1_LEN) || is_hex_any_case(text, DIGEST_LEN)
 }
 
-pub fn is_pin_sha(text: &str) -> bool {
-    is_lower_hex(text, SHA1_LEN)
-}
-
 pub fn is_sha256_hex(text: &str) -> bool {
     is_hex(text)
 }
@@ -248,16 +244,14 @@ mod tests {
     }
 
     #[test]
-    fn pin_sha_stays_40_lowercase_only() {
-        let pin = "3d3c42e5aac5ba805825da76410c181273ba90b1";
-        assert!(is_pin_sha(pin));
-        assert!(is_lower_hex(pin, SHA1_LEN));
-        assert!(!is_pin_sha(&pin.to_uppercase()));
-        assert!(!is_lower_hex(&pin.to_uppercase(), SHA1_LEN));
-        assert!(!is_pin_sha(&to_hex(&blake3(b"pin"))));
-        assert!(!is_pin_sha("3d3c42e5"));
-        assert!(!is_pin_sha("v7"));
-        assert!(!is_pin_sha(""));
+    fn lower_hex_enforces_length_and_case() {
+        let sha40 = "3d3c42e5aac5ba805825da76410c181273ba90b1";
+        assert!(is_lower_hex(sha40, SHA1_LEN));
+        assert!(!is_lower_hex(&sha40.to_uppercase(), SHA1_LEN));
+        assert!(!is_lower_hex("3d3c42e5", SHA1_LEN));
+        assert!(!is_lower_hex("v7", SHA1_LEN));
+        assert!(!is_lower_hex("", SHA1_LEN));
+        assert!(!is_lower_hex(&to_hex(&blake3(b"pin")), SHA1_LEN));
         let digest_hex = to_hex(&blake3(b"x"));
         assert!(is_lower_hex(&digest_hex, DIGEST_LEN));
         assert_eq!(is_hex(&digest_hex), is_lower_hex(&digest_hex, DIGEST_LEN));

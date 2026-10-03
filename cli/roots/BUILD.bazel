@@ -8,7 +8,7 @@ package(default_visibility = VIS_CLI)
 dx_rust_crate(
     name = "dx_roots",
     package_name = "cli/dx_roots",
-    deps = ["thiserror"],
+    deps = [],
 )
 
 exports_files([

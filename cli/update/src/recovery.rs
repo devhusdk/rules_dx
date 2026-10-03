@@ -123,44 +123,6 @@ pub fn plan(report: &UpdateReport) -> Option<RecoveryPlan> {
     })
 }
 
-pub fn plan_interrupted(selected: &[String], succeeded: &[String]) -> RecoveryPlan {
-    let done: BTreeSet<&str> = succeeded.iter().map(String::as_str).collect();
-    let mut retry_set = BTreeSet::new();
-    for set in selected {
-        if !done.contains(set.as_str()) {
-            retry_set.insert(set.clone());
-        }
-    }
-    let retry: Vec<String> = retry_set.into_iter().collect();
-    let mut restore = BTreeSet::new();
-    for set in succeeded {
-        if let Some(id) = SetId::parse(set.as_str()) {
-            for path in id.locks() {
-                restore.insert((*path).to_owned());
-            }
-        }
-    }
-    let restore: Vec<String> = restore.into_iter().collect();
-    let retry_command = retry_command(&retry);
-    let restore_command = restore_command(&restore);
-    let draft = RecoveryPlan {
-        retry_sets: retry.clone(),
-        restore_paths: restore.clone(),
-        retry_command: retry_command.clone(),
-        restore_command: restore_command.clone(),
-        message: String::new(),
-    };
-    let failed = retry.len();
-    let message = recovery_message(&draft, succeeded.len(), failed);
-    RecoveryPlan {
-        retry_sets: retry,
-        restore_paths: restore,
-        retry_command,
-        restore_command,
-        message,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::outcome::{ReportedOutcome, ReportedStatus, UpdateReport};
@@ -242,28 +204,6 @@ mod tests {
         let mut sorted = plan.restore_paths.clone();
         sorted.sort();
         assert_eq!(plan.restore_paths, sorted);
-    }
-
-    #[test]
-    fn interrupted_run_retries_unattempted_and_restores_kept() {
-        let plan = plan_interrupted(
-            &["cargo".to_owned(), "maven".to_owned(), "npm".to_owned()],
-            &["cargo".to_owned()],
-        );
-        assert_eq!(plan.retry_sets, vec!["maven".to_owned(), "npm".to_owned()]);
-        assert_eq!(plan.retry_command, "dx update maven npm");
-        assert!(plan
-            .restore_paths
-            .contains(&"rust/tests/fixtures/hello/Cargo.lock".to_owned()));
-        assert!(plan.message.contains("dx update maven npm"));
-    }
-
-    #[test]
-    fn interrupted_with_nothing_kept_has_no_restore() {
-        let plan = plan_interrupted(&["maven".to_owned()], &[]);
-        assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
-        assert_eq!(plan.restore_command, None);
-        assert!(plan.message.contains("nothing to roll back"));
     }
 
     #[test]

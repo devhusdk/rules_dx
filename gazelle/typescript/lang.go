@@ -236,7 +236,7 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 		p.entry = !p.test && IsEntryFile(src)
 		seen := make(map[string]bool)
 		p.local = make(map[string]bool)
-		for _, ref := range ParseImportRefs(content) {
+		for _, ref := range common.ParseImportRefs(content) {
 			if seen[ref.Root] {
 				if ref.Relative {
 					p.local[ref.Root] = true

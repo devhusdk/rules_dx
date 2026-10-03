@@ -2,6 +2,7 @@ package common
 
 import (
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -87,6 +88,61 @@ func Scan(src []byte, add func(string)) {
 		}
 		i++
 	}
+}
+
+type ImportRef struct {
+	Root     string
+	Relative bool
+}
+
+func isRelativeSpec(spec string) bool {
+	spec = strings.TrimSpace(spec)
+	return strings.HasPrefix(spec, ".") || strings.HasPrefix(spec, "/")
+}
+
+func ParseImportRefs(src []byte) []ImportRef {
+	rel := make(map[string]bool)
+	Scan(src, func(spec string) {
+		root := NormalizeJSSpec(spec)
+		if root == "" {
+			return
+		}
+		if isRelativeSpec(spec) {
+			rel[root] = true
+		} else if _, ok := rel[root]; !ok {
+			rel[root] = false
+		}
+	})
+	out := make([]ImportRef, 0, len(rel))
+	for root, relative := range rel {
+		out = append(out, ImportRef{Root: root, Relative: relative})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
+	return out
+}
+
+type SpecSet struct {
+	roots map[string]struct{}
+}
+
+func (s *SpecSet) Add(spec string) {
+	root := NormalizeJSSpec(spec)
+	if root == "" {
+		return
+	}
+	if s.roots == nil {
+		s.roots = make(map[string]struct{})
+	}
+	s.roots[root] = struct{}{}
+}
+
+func (s *SpecSet) Roots() []string {
+	var out []string
+	for root := range s.roots {
+		out = append(out, root)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func parseImport(src []byte, pos int, add func(string)) int {

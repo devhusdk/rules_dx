@@ -10,7 +10,6 @@ go_library(
         "doc.go",
         "lang.go",
         "naming.go",
-        "parser.go",
         "stdlib.go",
     ],
     importpath = "github.com/ralvik/rules_dx/gazelle/javascript",
@@ -53,7 +52,7 @@ go_test(
     srcs = [
         "lang_test.go",
         "naming_test.go",
-        "parser_test.go",
+        "stdlib_test.go",
     ],
     embed = [":javascript"],
     pure = "on",

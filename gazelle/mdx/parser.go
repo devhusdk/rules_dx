@@ -2,35 +2,18 @@ package mdx
 
 import (
 	"github.com/ralvik/rules_dx/gazelle/common"
-	"sort"
 	"strings"
 )
 
 func ParseImports(content []byte) []string {
-	regions := ExtractESMRegions(content)
-	if len(regions) == 0 {
-		return nil
+	var set common.SpecSet
+	for _, region := range extractESMRegions(content) {
+		common.ScanEmbedded(region, set.Add)
 	}
-	set := make(map[string]struct{})
-	add := func(spec string) {
-		root := common.NormalizeJSSpec(spec)
-		if root == "" {
-			return
-		}
-		set[root] = struct{}{}
-	}
-	for _, region := range regions {
-		common.ScanEmbedded(region, add)
-	}
-	var out []string
-	for name := range set {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
+	return set.Roots()
 }
 
-func ExtractESMRegions(src []byte) [][]byte {
+func extractESMRegions(src []byte) [][]byte {
 	lines := splitLines(src)
 	var out [][]byte
 	var chunk []string

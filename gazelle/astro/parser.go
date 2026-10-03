@@ -3,7 +3,6 @@ package astro
 import (
 	"bytes"
 	"github.com/ralvik/rules_dx/gazelle/common"
-	"sort"
 )
 
 func ParseImports(content []byte) []string {
@@ -21,26 +20,11 @@ func ParseImports(content []byte) []string {
 		return nil
 	}
 	regions = append(regions, scripts...)
-	if len(regions) == 0 {
-		return nil
-	}
-	set := make(map[string]struct{})
-	add := func(spec string) {
-		root := common.NormalizeJSSpec(spec)
-		if root == "" {
-			return
-		}
-		set[root] = struct{}{}
-	}
+	var set common.SpecSet
 	for _, region := range regions {
-		common.ScanEmbedded(region, add)
+		common.ScanEmbedded(region, set.Add)
 	}
-	var out []string
-	for name := range set {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
+	return set.Roots()
 }
 
 func splitFence(src []byte) (fenced bool, front, rest []byte, ok bool) {

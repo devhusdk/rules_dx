@@ -190,15 +190,15 @@ func TestExtractESMRegions(t *testing.T) {
 		{"commentWholeDocInert", "import a from \"./a.mdx\";\n<!-- oops\nimport b from \"./b.mdx\";\n", nil},
 	}
 	for _, tc := range cases {
-		got := ExtractESMRegions([]byte(tc.source))
+		got := extractESMRegions([]byte(tc.source))
 		if tc.want == nil {
 			if got != nil {
-				t.Errorf("%s: ExtractESMRegions = %q, want nil", tc.name, got)
+				t.Errorf("%s: extractESMRegions = %q, want nil", tc.name, got)
 			}
 			continue
 		}
 		if len(got) != len(tc.want) {
-			t.Errorf("%s: ExtractESMRegions = %q, want %q", tc.name, got, tc.want)
+			t.Errorf("%s: extractESMRegions = %q, want %q", tc.name, got, tc.want)
 			continue
 		}
 		for i := range got {

@@ -1,4 +1,0 @@
-{
-  "prose_only": true,
-  "files": ["docs/guide.md", "blog/post.mdx", "pages/intro.astro"]
-}

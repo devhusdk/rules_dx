@@ -1,8 +1,0 @@
-{
-  "jdk": "25",
-  "elements": [
-    {"qualifiedName": "com.example.AccountService", "kind": "CLASS", "doc": "Account aggregate root.", "file": "src/AccountService.java", "line": 10},
-    {"qualifiedName": "com.example.AccountService.create", "kind": "METHOD", "doc": "Creates a new account.", "file": "src/AccountService.java", "line": 42},
-    {"qualifiedName": "com.example.AccountInput", "kind": "CLASS", "doc": "Validated input.", "file": "src/AccountInput.java", "line": 5}
-  ]
-}

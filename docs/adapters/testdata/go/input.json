@@ -1,9 +1,0 @@
-{
-  "go": "1.26.6",
-  "xtools": "v0.36.0",
-  "funcs": [
-    {"name": "AccountService", "doc": "Account aggregate root.", "pos": "account.go:10"},
-    {"name": "Create", "doc": "Creates a new account.", "pos": "account.go:42"},
-    {"name": "Delete", "doc": "Deletes an account.", "pos": "account.go:84"}
-  ]
-}

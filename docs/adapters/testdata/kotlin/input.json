@@ -1,9 +1,0 @@
-{
-  "dokka": "2.2.0",
-  "kotlin": "2.2.20",
-  "declarations": [
-    {"fqname": "example.AccountService", "kind": "CLASS", "doc": "Account aggregate root.", "file": "src/AccountService.kt", "line": 10},
-    {"fqname": "example.AccountService.create", "kind": "FUNCTION", "doc": "Creates a new account.", "file": "src/AccountService.kt", "line": 42},
-    {"fqname": "example.AccountInput", "kind": "CLASS", "doc": "Validated input.", "file": "src/AccountInput.kt", "line": 5}
-  ]
-}

@@ -28,11 +28,6 @@ def versions_contract_tests(name):
             "lockfile = \"" + _CRATE_BAZEL_LOCK + "\"",
         ],
     )
-    adapter_pins = "\n".join([
-        "GO_TOOLCHAIN_PIN: &str = \"" + _GO_SDK_VERSION + "\"",
-        "CSHARP_DOTNET_PIN: &str = \"" + _DOTNET_VERSION + "\"",
-        "FSHARP_DOTNET_PIN: &str = \"" + _DOTNET_VERSION + "\"",
-    ])
     starlark_test(
         name = name,
         mode = "execution",
@@ -52,7 +47,6 @@ def versions_contract_tests(name):
         file_checks = {
             "//:.bazelversion": _BAZEL_VERSION,
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
-            "//docs/adapters:src/lib.rs": adapter_pins,
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_cc\", version = \"" + _RULES_CC_VERSION + "\"\n" +

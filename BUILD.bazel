@@ -172,7 +172,6 @@ rust_test(
         "//deploy/rules:src/bin_hasher.rs",
         "//deploy/rules:src/bin_npm_pack.rs",
         "//deploy/rules:src/lib.rs",
-        "//docs/adapters:src/lib.rs",
         "//docs/ir/ir:src/lib.rs",
         "//env/env_shard:src/lib.rs",
         "//env/env_shard:src/main.rs",

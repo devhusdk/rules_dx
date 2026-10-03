@@ -1,5 +1,5 @@
 {
-  "checksum": "d365ba82fcc8b2d6279b329831cea51016a19d4dc5115b9fc656c6ecb1f8c367",
+  "checksum": "9a3aa8c1210ce888ffface938cf07231ba2d9405d539ea53a0ad38343c643ec0",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3040,6 +3040,23 @@
         {
           "Library": {
             "crate_name": "dx_install_tools",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_js_launcher 0.0.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "dx_js_launcher",
+      "name": "dx_js_launcher",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_js_launcher",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13564,6 +13581,7 @@
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_identity 0.0.0": "cli/dx_identity",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",
+    "dx_js_launcher 0.0.0": "quality/tools/javascript/dx_js_launcher",
     "dx_lcov 0.0.0": "cli/dx_lcov",
     "dx_output 0.0.0": "cli/dx_output",
     "dx_path 0.0.0": "cli/dx_path",

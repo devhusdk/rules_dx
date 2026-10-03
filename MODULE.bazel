@@ -266,6 +266,7 @@ crate.from_cargo(
         "//generation/codegen_shard:Cargo.toml",
         "//generation/result:Cargo.toml",
         "//quality/adapter:Cargo.toml",
+        "//quality/tools/javascript/launcher:Cargo.toml",
         "//quality/evaluator:Cargo.toml",
         "//quality/markdown:Cargo.toml",
         "//quality/result:Cargo.toml",

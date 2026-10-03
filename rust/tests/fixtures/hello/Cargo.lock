@@ -649,6 +649,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_js_launcher"
+version = "0.0.0"
+
+[[package]]
 name = "dx_lcov"
 version = "0.0.0"
 dependencies = [

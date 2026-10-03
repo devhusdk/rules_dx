@@ -1,0 +1,95 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "Cargo.toml",
+    "src/entry.rs",
+    "src/lib.rs",
+    "src/lib_tests.rs",
+    "src/main.rs",
+])
+
+rust_library(
+    name = "dx_js_launcher",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "quality/tools/javascript/dx_js_launcher",
+        normal = True,
+    ),
+    crate_name = "dx_js_launcher",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "quality/tools/javascript/dx_js_launcher",
+    ) + ["//cli/path:dx_path"],
+)
+
+rust_binary(
+    name = "js_launcher",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "quality/tools/javascript/dx_js_launcher",
+        normal = True,
+    ),
+    crate_name = "js_launcher",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "quality/tools/javascript/dx_js_launcher",
+    ) + [
+        ":dx_js_launcher",
+        "//cli/path:dx_path",
+    ],
+)
+
+rust_binary(
+    name = "js_entry_point",
+    srcs = ["src/entry.rs"],
+    aliases = aliases(
+        package_name = "quality/tools/javascript/dx_js_launcher",
+        normal = True,
+    ),
+    crate_name = "js_entry_point",
+    crate_root = "src/entry.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "quality/tools/javascript/dx_js_launcher",
+    ) + [":dx_js_launcher"],
+)
+
+rust_test(
+    name = "dx_js_launcher_test",
+    aliases = aliases(
+        package_name = "quality/tools/javascript/dx_js_launcher",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_js_launcher",
+    deps = crate_deps(
+        [],
+        package_name = "quality/tools/javascript/dx_js_launcher",
+    ),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

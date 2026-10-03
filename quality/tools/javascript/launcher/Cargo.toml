@@ -1,0 +1,18 @@
+[package]
+name = "dx_js_launcher"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "js_launcher"
+path = "src/main.rs"
+
+[[bin]]
+name = "js_entry_point"
+path = "src/entry.rs"
+
+[lib]
+name = "dx_js_launcher"
+path = "src/lib.rs"
+
+[dependencies]

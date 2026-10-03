@@ -1,0 +1,52 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "dx_rust_crate", "rust_binary")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/main.rs",
+])
+
+dx_rust_crate(
+    name = "dx_bootstrap",
+    package_name = "deploy/dx_bootstrap",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    extra_deps = ["//cli/digest:dx_digest"],
+    deps = [],
+)
+
+rust_binary(
+    name = "bootstrap_offline",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "deploy/offline/dx_bootstrap",
+        normal = True,
+    ),
+    crate_name = "bootstrap_offline",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "deploy/offline/dx_bootstrap",
+    ) + [":dx_bootstrap"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -1,4 +1,3 @@
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load(":offline.bzl", "offline_bundle")
@@ -7,7 +6,6 @@ load(":offline_tests.bzl", "offline_file_tests", "offline_unit_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "bootstrap-offline.sh",
     "offline.bzl",
     "offline_tests.bzl",
 ])
@@ -20,9 +18,9 @@ exports_files(
     visibility = ["//visibility:private"],
 )
 
-sh_binary(
+alias(
     name = "bootstrap_offline",
-    srcs = ["bootstrap-offline.sh"],
+    actual = "//deploy/offline/bootstrap:bootstrap_offline",
 )
 
 offline_bundle(
@@ -43,8 +41,14 @@ rust_test(
     name = "bootstrap_test",
     size = "small",
     srcs = ["bootstrap_test.rs"],
-    data = [":bootstrap-offline.sh"],
-    env = {"DX_BOOTSTRAP": "$(rootpath :bootstrap-offline.sh)"},
+    data = [
+        ":bootstrap_offline",
+        "//deploy/offline/bootstrap:src/lib.rs",
+    ],
+    env = {
+        "DX_BOOTSTRAP": "$(rootpath :bootstrap_offline)",
+        "DX_BOOTSTRAP_SRC": "$(rootpath //deploy/offline/bootstrap:src/lib.rs)",
+    },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [

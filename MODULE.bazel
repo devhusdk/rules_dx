@@ -260,6 +260,7 @@ crate.from_cargo(
         "//cli/bump:Cargo.toml",
         "//cli/identity:Cargo.toml",
         "//deploy/rules:Cargo.toml",
+        "//deploy/offline/bootstrap:Cargo.toml",
         "//deploy/release:Cargo.toml",
         "//deploy/install:Cargo.toml",
         "//env/env_shard:Cargo.toml",

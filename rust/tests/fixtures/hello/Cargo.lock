@@ -498,6 +498,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_bootstrap"
+version = "0.0.0"
+
+[[package]]
 name = "dx_bump"
 version = "0.0.0"
 dependencies = [

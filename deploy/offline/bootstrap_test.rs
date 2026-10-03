@@ -64,7 +64,12 @@ fn scratch() -> PathBuf {
 }
 
 fn script() -> PathBuf {
-    let rel = std::env::var("DX_BOOTSTRAP").expect("DX_BOOTSTRAP must name the script");
+    let rel = std::env::var("DX_BOOTSTRAP").expect("DX_BOOTSTRAP must name the bootstrap");
+    dx_testing::resolve_runfiles(&rel)
+}
+
+fn source() -> PathBuf {
+    let rel = std::env::var("DX_BOOTSTRAP_SRC").expect("DX_BOOTSTRAP_SRC must name the source");
     dx_testing::resolve_runfiles(&rel)
 }
 
@@ -82,19 +87,21 @@ fn write(path: &Path, text: &str) {
         .unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
-/// Returns the advisory sets the script accepts, read from its own case arm.
+/// Returns the advisory sets the bootstrap accepts, read from its own constant.
 fn accepted_sets() -> Vec<String> {
-    read(&script())
+    read(&source())
         .lines()
-        .find_map(|line| line.trim().strip_suffix(") ;;"))
-        .filter(|alternatives| alternatives.contains('|'))
-        .map(|alternatives| {
-            alternatives
-                .split('|')
-                .map(|name| name.trim().to_owned())
+        .find(|line| line.contains("ADVISORY_SETS: [&str;"))
+        .and_then(|line| line.rsplit_once('[').map(|(_, rest)| rest))
+        .and_then(|rest| rest.split_once(']').map(|(head, _)| head))
+        .map(|names| {
+            names
+                .split(',')
+                .filter_map(|name| name.split('"').nth(1))
+                .map(|name| name.to_owned())
                 .collect()
         })
-        .expect("the script accepts one fixed advisory set list")
+        .expect("the bootstrap declares one fixed advisory set list")
 }
 
 fn snapshot_names() -> Vec<String> {
@@ -144,13 +151,12 @@ fn bundle(name: &str) -> Bundle {
     Bundle { parent, path }
 }
 
-fn bash(args: &[String], cwd: &Path) -> Run {
-    let output = Command::new("bash")
-        .arg(script())
+fn bootstrap_offline(args: &[String], cwd: &Path) -> Run {
+    let output = Command::new(script())
         .args(args)
         .current_dir(cwd)
         .output()
-        .unwrap_or_else(|error| panic!("run bootstrap-offline.sh: {error}"));
+        .unwrap_or_else(|error| panic!("run bootstrap-offline: {error}"));
     Run {
         code: output.status.code().unwrap_or(-1),
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -159,7 +165,7 @@ fn bash(args: &[String], cwd: &Path) -> Run {
 }
 
 fn bootstrap(bundle_arg: &str, cwd: &Path, home: &Path) -> Run {
-    bash(
+    bootstrap_offline(
         &[
             "--bundle".to_owned(),
             bundle_arg.to_owned(),
@@ -176,7 +182,7 @@ fn run(bundle: &Bundle, home: &Path) -> Run {
     bootstrap(&bundle.path().to_string_lossy(), bundle.path(), home)
 }
 
-/// Returns the one advisory identity line the script writes for one set.
+/// Returns the one advisory identity line the bootstrap writes for one set.
 fn identity(home: &Path, set: &str) -> String {
     read(
         &home
@@ -342,7 +348,7 @@ fn a_bundle_path_it_cannot_spell_in_json_is_refused() {
 #[test]
 fn a_flag_without_its_value_is_refused() {
     let bundle = bundle("bundle");
-    bash(
+    bootstrap_offline(
         &[
             "--bundle".to_owned(),
             bundle.path().to_string_lossy().into_owned(),

@@ -1,5 +1,5 @@
 {
-  "checksum": "654bd471f502ea5af6ec2f8bb96692286d030b67842930416e84f08499cbcce3",
+  "checksum": "993dc4ed882ac779f2c109046083e5eaf61df1e2ddbc3a91a9802084e021361a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2492,6 +2492,23 @@
         {
           "Library": {
             "crate_name": "dx_bep",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_bootstrap 0.0.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "dx_bootstrap",
+      "name": "dx_bootstrap",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_bootstrap",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13602,6 +13619,7 @@
     "dx_atomic_fs 0.0.0": "cli/dx_atomic_fs",
     "dx_audit 0.0.0": "cli/dx_audit",
     "dx_bep 0.0.0": "cli/dx_bep",
+    "dx_bootstrap 0.0.0": "deploy/offline/dx_bootstrap",
     "dx_bump 0.0.0": "cli/dx_bump",
     "dx_clean 0.0.0": "cli/dx_clean",
     "dx_cli 0.0.0": "cli/dx_cli",

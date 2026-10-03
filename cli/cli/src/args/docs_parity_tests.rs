@@ -1,3 +1,5 @@
+const BOOTSTRAP_SOURCE: &str = "deploy/offline/bootstrap/src/lib.rs";
+
 use std::path::{Path, PathBuf};
 
 use clap::{CommandFactory, ValueEnum};
@@ -2200,15 +2202,21 @@ fn offline_wanted_sets() -> Vec<String> {
 }
 
 fn bootstrap_accepted_sets() -> Vec<String> {
-    let source =
-        std::fs::read_to_string(workspace_root().join("deploy/offline/bootstrap-offline.sh"))
-            .expect("bootstrap-offline.sh ships as test data");
+    let source = std::fs::read_to_string(workspace_root().join(BOOTSTRAP_SOURCE))
+        .expect("the offline bootstrap source ships as test data");
     source
         .lines()
-        .filter_map(|line| line.trim().strip_suffix(") ;;"))
-        .find(|alts| alts.contains('|'))
-        .map(|alts| alts.split('|').map(|name| name.trim().to_owned()).collect())
-        .expect("bootstrap-offline.sh accepts a fixed advisory set list")
+        .find(|line| line.contains("ADVISORY_SETS: [&str;"))
+        .and_then(|line| line.rsplit_once('[').map(|(_, rest)| rest))
+        .and_then(|rest| rest.split_once(']').map(|(head, _)| head))
+        .map(|names| {
+            names
+                .split(',')
+                .filter_map(|name| name.split('"').nth(1))
+                .map(|name| name.to_owned())
+                .collect()
+        })
+        .expect("the offline bootstrap accepts a fixed advisory set list")
 }
 
 #[test]
@@ -2232,7 +2240,7 @@ fn offline_bundle_accepts_every_curated_advisory_set() {
     assert_eq!(
         sorted(bootstrap_accepted_sets()),
         want,
-        "deploy/offline/bootstrap-offline.sh must install every curated advisory set, and nothing else"
+        "the offline bootstrap must install every curated advisory set, and nothing else"
     );
 }
 

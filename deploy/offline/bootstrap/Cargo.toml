@@ -1,0 +1,12 @@
+[package]
+name = "dx_bootstrap"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_bootstrap"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bootstrap_offline"
+path = "src/main.rs"

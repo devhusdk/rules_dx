@@ -1,6 +1,5 @@
 shell=bash
 enable=all
 # SC1090,SC1091: deploy/rules/launcher.bzl probes five runfiles layouts that exist only under bazel run.
-# SC2016: deploy/offline/bootstrap-offline.sh keeps $1 and $2 single quoted so awk sees them literally.
 # SC2250: repo shell writes $var without braces.
-disable=SC1090,SC1091,SC2016,SC2250
+disable=SC1090,SC1091,SC2250

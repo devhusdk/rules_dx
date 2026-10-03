@@ -13,6 +13,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func writeFixture(t *testing.T, root, name, content string) {
@@ -570,11 +571,11 @@ func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
 	l.Configure(root, "", file)
 	child := root.Clone()
 	l.Configure(child, "child", nil)
-	ignore := matchingIgnore(child, "missing_dep")
-	if ignore == nil || ignore.path != "" {
+	ignore := common.MatchingIgnore(child, languageName, "missing_dep")
+	if ignore == nil || ignore.Path != "" {
 		t.Fatalf("inherited ignore = %+v", ignore)
 	}
-	ignore.used = true
+	ignore.Used = true
 	l.AfterResolvingDeps(context.Background())
 }
 
@@ -640,7 +641,7 @@ func TestConfigureSkipsOtherDirectives(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	if got := matchingIgnore(cfg, "foo"); got != nil {
+	if got := common.MatchingIgnore(cfg, languageName, "foo"); got != nil {
 		t.Errorf("other-directive ignore = %+v, want nil", got)
 	}
 	if len(l.errors) != 0 {
@@ -657,11 +658,11 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	ignore := matchingIgnore(cfg, "mydep")
-	if ignore == nil || ignore.value != "mydep" {
+	ignore := common.MatchingIgnore(cfg, languageName, "mydep")
+	if ignore == nil || ignore.Value != "mydep" {
 		t.Fatalf("three-field ignore = %+v, want mydep", ignore)
 	}
-	ignore.used = true
+	ignore.Used = true
 
 	malformed := &javascriptLang{}
 	malformed.Before(context.Background())
@@ -698,10 +699,10 @@ func TestMatchingIgnoreMiss(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
-	if got := matchingIgnore(cfg, "missing"); got != nil {
+	if got := common.MatchingIgnore(cfg, languageName, "missing"); got != nil {
 		t.Errorf("ignore miss = %+v, want nil", got)
 	}
-	if got := matchingIgnore(config.New(), "missing"); got != nil {
+	if got := common.MatchingIgnore(config.New(), languageName, "missing"); got != nil {
 		t.Errorf("no-exts ignore = %+v, want nil", got)
 	}
 }

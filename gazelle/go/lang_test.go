@@ -13,6 +13,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func writeFixture(t *testing.T, root, name, content string) {
@@ -26,34 +27,23 @@ func writeFixture(t *testing.T, root, name, content string) {
 	}
 }
 
-func TestIgnoreWitnessPreservesUsedInheritedEntries(t *testing.T) {
+func TestConfigureRoutesIgnoreDirectivesToTheSharedConfig(t *testing.T) {
 	cfg := config.New()
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("absent: %v", got)
-	}
-	cfg.Exts[languageName] = "foreign"
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("foreign: %v", got)
-	}
-	delete(cfg.Exts, languageName)
 	lang := &goLang{}
-	lang.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{{Key: "other"}, {Key: "dx_ignore_import", Value: "go go example.com/widget"}}})
-	lang.Configure(cfg, "child", nil)
-	entry := matchingIgnore(cfg, "example.com/widget")
-	if entry == nil {
-		t.Fatal("missing inherited ignore")
+	lang.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{
+		{Key: "other"},
+		{Key: "dx_ignore_import", Value: "go go example.com/widget"},
+		{Key: "dx_ignore_import", Value: "go"},
+	}})
+	if _, ok := cfg.Exts[languageName].(*common.IgnoreConfig); !ok {
+		t.Fatalf("ext = %T, want *common.IgnoreConfig", cfg.Exts[languageName])
 	}
-	entry.used = true
-	conf := cfg.Exts[languageName].(*goConfig)
-	conf.ignores = append(conf.ignores, nil, entry, &ignoreEntry{value: "Unused"})
-	got := CollectUsedIgnores(cfg)
-	if len(got) != 1 || got[0] != [2]string{"parent", "example.com/widget"} {
-		t.Fatalf("witness: %v", got)
+	entry := common.MatchingIgnore(cfg, languageName, "example.com/widget")
+	if entry == nil || entry.Path != "parent" {
+		t.Fatalf("declared ignore = %+v", entry)
 	}
-	lang.AfterResolvingDeps(context.Background())
-	lang.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "go"}}})
 	if len(lang.errors) != 1 {
-		t.Fatal("malformed directive accepted")
+		t.Fatalf("malformed directive accepted: %v", lang.errors)
 	}
 }
 

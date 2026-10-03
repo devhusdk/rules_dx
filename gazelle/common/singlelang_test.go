@@ -79,7 +79,7 @@ func TestConfigureCollectsIgnoreWitness(t *testing.T) {
 	f := &rule.File{Directives: []rule.Directive{{Key: "other", Value: "ignored"}, {Key: "dx_ignore_import", Value: "dot dot Widget"}}}
 	l.Configure(cfg, "parent", f)
 	l.Configure(cfg, "parent/child", nil)
-	entry := l.matchingIgnore(cfg, "Widget")
+	entry := MatchingIgnore(cfg, dotLanguage, "Widget")
 	if entry == nil || entry.Path != "parent" {
 		t.Fatalf("inherited ignore: %+v", entry)
 	}
@@ -114,11 +114,11 @@ func TestConfigureAcceptsBothIgnoreSpellings(t *testing.T) {
 		t.Fatalf("ignores = %+v, want Short and Long", conf.Ignores)
 	}
 	for _, value := range []string{"Short", "Long"} {
-		if l.matchingIgnore(cfg, value) == nil {
+		if MatchingIgnore(cfg, dotLanguage, value) == nil {
 			t.Errorf("missing ignore for %q", value)
 		}
 	}
-	if l.matchingIgnore(cfg, "Foreign") != nil {
+	if MatchingIgnore(cfg, dotLanguage, "Foreign") != nil {
 		t.Error("an ignore naming another language was accepted")
 	}
 }
@@ -140,7 +140,7 @@ func TestConfigurePicksTheNearestIgnore(t *testing.T) {
 	l := newDotLang()
 	l.Configure(cfg, "pkg", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Widget"}}})
 	l.Configure(cfg, "pkg/sub", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Widget"}}})
-	entry := l.matchingIgnore(cfg, "Widget")
+	entry := MatchingIgnore(cfg, dotLanguage, "Widget")
 	if entry == nil || entry.Path != "pkg/sub" {
 		t.Fatalf("nearest ignore = %+v, want the pkg/sub one", entry)
 	}

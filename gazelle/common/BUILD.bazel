@@ -8,6 +8,7 @@ go_library(
     srcs = [
         "doc.go",
         "embeddedscan.go",
+        "ignore.go",
         "jsscan.go",
         "jvmmask.go",
         "langcore.go",
@@ -53,6 +54,7 @@ go_test(
     name = "common_test",
     srcs = [
         "common_test.go",
+        "ignore_test.go",
         "manifest_test.go",
         "singlelang_test.go",
     ],

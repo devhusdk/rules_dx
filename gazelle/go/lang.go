@@ -46,17 +46,7 @@ var goKinds = map[string]rule.KindInfo{
 type goLang struct {
 	language.BaseLang
 	errors  []string
-	ignores []*ignoreEntry
-}
-
-type goConfig struct {
-	ignores []*ignoreEntry
-}
-
-type ignoreEntry struct {
-	value string
-	path  string
-	used  bool
+	ignores []*common.IgnoreEntry
 }
 
 type targetImports struct {
@@ -80,30 +70,12 @@ func (l *goLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 func (*goLang) KnownDirectives() []string { return []string{"dx_ignore_import"} }
 
 func (l *goLang) Configure(c *config.Config, rel string, f *rule.File) {
-	var inherited []*ignoreEntry
-	if raw, ok := c.Exts[languageName]; ok {
-		inherited = append(inherited, raw.(*goConfig).ignores...)
+	declared, errs := common.DeclaredIgnores(languageName, rel, f)
+	for _, msg := range errs {
+		l.fail("%s", msg)
 	}
-	if f != nil {
-		for _, directive := range f.Directives {
-			if directive.Key != "dx_ignore_import" {
-				continue
-			}
-			fields := strings.Fields(directive.Value)
-			if len(fields) == 2 && fields[0] == languageName {
-				entry := &ignoreEntry{value: fields[1], path: rel}
-				inherited = append(inherited, entry)
-				l.ignores = append(l.ignores, entry)
-			} else if len(fields) == 3 && fields[0] == languageName && fields[1] == languageName {
-				entry := &ignoreEntry{value: fields[2], path: rel}
-				inherited = append(inherited, entry)
-				l.ignores = append(l.ignores, entry)
-			} else if len(fields) > 0 && fields[0] == languageName {
-				l.fail("go: //%s: malformed # gazelle:dx_ignore_import %s", rel, directive.Value)
-			}
-		}
-	}
-	c.Exts[languageName] = &goConfig{ignores: inherited}
+	l.ignores = append(l.ignores, declared...)
+	c.Exts[languageName] = &common.IgnoreConfig{Ignores: common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)}
 }
 
 func (l *goLang) fail(format string, args ...interface{}) {
@@ -111,10 +83,8 @@ func (l *goLang) fail(format string, args ...interface{}) {
 }
 
 func (l *goLang) AfterResolvingDeps(context.Context) {
-	for _, ignore := range l.ignores {
-		if !ignore.used {
-			l.fail("go: //%s: stale # gazelle:dx_ignore_import go %s matches no literal reference", ignore.path, ignore.value)
-		}
+	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
 		return
@@ -412,8 +382,8 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 		}
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
-			if ignore := matchingIgnore(c, name); ignore != nil {
-				ignore.used = true
+			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
+				ignore.Used = true
 				l.fail("go: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
@@ -434,8 +404,8 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 			}
 			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
 		case 0:
-			if ignore := matchingIgnore(c, name); ignore != nil {
-				ignore.used = true
+			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
+				ignore.Used = true
 				continue
 			}
 			l.fail("go: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping", from, name)
@@ -456,42 +426,6 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 
 func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
-func matchingIgnore(c *config.Config, name string) *ignoreEntry {
-	raw, ok := c.Exts[languageName]
-	if !ok {
-		return nil
-	}
-	for i := len(raw.(*goConfig).ignores) - 1; i >= 0; i-- {
-		if entry := raw.(*goConfig).ignores[i]; entry.value == name {
-			return entry
-		}
-	}
-	return nil
-}
-
 func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
 
-func CollectUsedIgnores(c *config.Config) [][2]string {
-	raw, ok := c.Exts[languageName]
-	if !ok || raw == nil {
-		return nil
-	}
-	cfg, ok := raw.(*goConfig)
-	if !ok || cfg == nil {
-		return nil
-	}
-	seen := map[[2]string]bool{}
-	var out [][2]string
-	for _, ig := range cfg.ignores {
-		if ig == nil || !ig.used {
-			continue
-		}
-		key := [2]string{ig.path, ig.value}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, key)
-	}
-	return out
-}
+func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

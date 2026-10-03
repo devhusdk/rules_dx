@@ -12,6 +12,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	bzl "github.com/bazelbuild/buildtools/build"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func TestResolveMirrorPaths(t *testing.T) {
@@ -34,12 +35,12 @@ func TestResolveMirrorPaths(t *testing.T) {
 	if own.Attr("deps") != nil {
 		t.Errorf("self mirror emitted deps: %v", own.AttrStrings("deps"))
 	}
-	ignored := &ignoreEntry{value: "b"}
-	cfg.Exts[languageName] = &rustConfig{ignores: []*ignoreEntry{ignored}}
+	ignored := &common.IgnoreEntry{Value: "b"}
+	cfg.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignored}}}
 	skipped := rule.NewRule(binaryKind, "skipped")
 	l.Resolve(cfg, index, nil, skipped, targetImports{mirrorPaths: []string{"b"}}, label.New("", "app", "skipped"))
-	if skipped.Attr("deps") != nil || !ignored.used {
-		t.Errorf("ignored mirror = deps:%v used:%v", skipped.Attr("deps"), ignored.used)
+	if skipped.Attr("deps") != nil || !ignored.Used {
+		t.Errorf("ignored mirror = deps:%v used:%v", skipped.Attr("deps"), ignored.Used)
 	}
 	if len(l.errors) != 0 {
 		t.Errorf("mirror errors = %v", l.errors)
@@ -257,7 +258,7 @@ func TestCargoImportResolveOverrides(t *testing.T) {
 	if strings.Join(local.production, ",") != "mapped" {
 		t.Errorf("mapped local imports = %+v, want [mapped]", local)
 	}
-	c.Exts[languageName] = &rustConfig{ignores: []*ignoreEntry{{value: "mapped"}}}
+	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{{Value: "mapped"}}}}
 	if err := validateCargoImports(c, manifest, libraryKind, mapped); err == nil || !strings.Contains(err.Error(), "both") {
 		t.Errorf("mapping/ignore conflict not reported: %v", err)
 	}
@@ -587,10 +588,10 @@ func TestResolveBranches(t *testing.T) {
 		t.Errorf("self dependency was emitted: %v", self.AttrStrings("deps"))
 	}
 
-	ignored := &ignoreEntry{value: "missing"}
-	cfg.Exts[languageName] = &rustConfig{ignores: []*ignoreEntry{ignored}}
+	ignored := &common.IgnoreEntry{Value: "missing"}
+	cfg.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignored}}}
 	l.Resolve(cfg, index, nil, rule.NewRule(binaryKind, "ignored"), targetImports{production: []string{"missing"}}, label.New("", "app", "ignored"))
-	if !ignored.used {
+	if !ignored.Used {
 		t.Error("exact ignore was not consumed")
 	}
 

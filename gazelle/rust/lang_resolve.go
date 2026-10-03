@@ -30,7 +30,7 @@ func lookupOverride(c *config.Config, name string) (label.Label, bool) {
 
 func resolveImportOverride(c *config.Config, name string) (bool, error) {
 	if _, ok := lookupOverride(c, name); ok {
-		if ignore := matchingIgnore(c, name); ignore != nil {
+		if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 			return false, fmt.Errorf("import %q has both an exact resolve mapping and an ignore directive", name)
 		}
 		return true, nil
@@ -301,8 +301,8 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	for _, name := range all {
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
-			if ignore := matchingIgnore(c, name); ignore != nil {
-				ignore.used = true
+			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
+				ignore.Used = true
 				l.fail("rust: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
@@ -316,8 +316,8 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
 			}
 		case 0:
-			if ignore := matchingIgnore(c, name); ignore != nil {
-				ignore.used = true
+			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
+				ignore.Used = true
 				continue
 			}
 			l.fail("rust: %s: unresolved import %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", from, name)
@@ -326,8 +326,8 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		}
 	}
 	for _, name := range imports.mirrorPaths {
-		if ignore := matchingIgnore(c, name); ignore != nil {
-			ignore.used = true
+		if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
+			ignore.Used = true
 			continue
 		}
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
@@ -396,18 +396,5 @@ func splitDepLabel(dep string, from label.Label) (string, string, bool) {
 }
 
 func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
-
-func matchingIgnore(c *config.Config, name string) *ignoreEntry {
-	raw, ok := c.Exts[languageName]
-	if !ok {
-		return nil
-	}
-	for i := len(raw.(*rustConfig).ignores) - 1; i >= 0; i-- {
-		if entry := raw.(*rustConfig).ignores[i]; entry.value == name {
-			return entry
-		}
-	}
-	return nil
-}
 
 func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }

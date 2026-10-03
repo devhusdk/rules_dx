@@ -9,6 +9,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	bzl "github.com/bazelbuild/buildtools/build"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func TestResolveOverrideAndConflict(t *testing.T) {
@@ -20,11 +21,11 @@ func TestResolveOverrideAndConflict(t *testing.T) {
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" {
 		t.Errorf("override deps = %q", got)
 	}
-	ignore := &ignoreEntry{value: "mapped"}
-	cfg.Exts[languageName] = &rustConfig{ignores: []*ignoreEntry{ignore}}
+	ignore := &common.IgnoreEntry{Value: "mapped"}
+	cfg.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignore}}}
 	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(binaryKind, "conflict"), targetImports{production: []string{"mapped"}}, label.New("", "app", "conflict"))
-	if !ignore.used || len(l.errors) != 1 || !strings.Contains(l.errors[0], "both") {
-		t.Errorf("mapping-ignore conflict = used:%v errors:%v", ignore.used, l.errors)
+	if !ignore.Used || len(l.errors) != 1 || !strings.Contains(l.errors[0], "both") {
+		t.Errorf("mapping-ignore conflict = used:%v errors:%v", ignore.Used, l.errors)
 	}
 }
 
@@ -78,7 +79,7 @@ func TestValidateTestImportMapping(t *testing.T) {
 	if err := validateCargoImports(c, manifest, testKind, mapped); err != nil {
 		t.Errorf("override-only test import rejected: %v", err)
 	}
-	c.Exts[languageName] = &rustConfig{ignores: []*ignoreEntry{{value: "tmapped"}}}
+	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{{Value: "tmapped"}}}}
 	if err := validateCargoImports(c, manifest, testKind, mapped); err == nil || !strings.Contains(err.Error(), "both") {
 		t.Errorf("test mapping/ignore conflict not reported: %v", err)
 	}
@@ -215,7 +216,7 @@ func TestImportOverrideScopes(t *testing.T) {
 		t.Errorf("mapped build locals = %+v", got)
 	}
 	conflict := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "rust xmapped //pkg:target"}})
-	conflict.Exts[languageName] = &rustConfig{ignores: []*ignoreEntry{{value: "xmapped"}}}
+	conflict.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{{Value: "xmapped"}}}}
 	if err := validateCargoImports(conflict, manifest, libraryKind, targetImports{production: []string{"xmapped"}}); err == nil || !strings.Contains(err.Error(), "both") {
 		t.Errorf("production mapping/ignore conflict err = %v", err)
 	}

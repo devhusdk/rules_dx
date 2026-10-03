@@ -13,6 +13,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func writeFixture(t *testing.T, root, name, content string) {
@@ -561,15 +562,15 @@ func TestConfigureInheritanceAndOtherDirectives(t *testing.T) {
 	l.Configure(root, "", file)
 	child := root.Clone()
 	l.Configure(child, "child", nil)
-	ignore := matchingIgnore(child, "missing_dep")
-	if ignore == nil || ignore.path != "" {
+	ignore := common.MatchingIgnore(child, languageName, "missing_dep")
+	if ignore == nil || ignore.Path != "" {
 		t.Fatalf("inherited ignore = %+v", ignore)
 	}
-	ignore.used = true
-	if got := matchingIgnore(child, "absent"); got != nil {
+	ignore.Used = true
+	if got := common.MatchingIgnore(child, languageName, "absent"); got != nil {
 		t.Errorf("ignore miss = %+v, want nil", got)
 	}
-	if got := matchingIgnore(config.New(), "absent"); got != nil {
+	if got := common.MatchingIgnore(config.New(), languageName, "absent"); got != nil {
 		t.Errorf("no-exts ignore = %+v, want nil", got)
 	}
 	l.AfterResolvingDeps(context.Background())
@@ -584,11 +585,11 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	ignore := matchingIgnore(cfg, "mydep")
-	if ignore == nil || ignore.value != "mydep" {
+	ignore := common.MatchingIgnore(cfg, languageName, "mydep")
+	if ignore == nil || ignore.Value != "mydep" {
 		t.Fatalf("three-field ignore = %+v, want mydep", ignore)
 	}
-	ignore.used = true
+	ignore.Used = true
 	l.AfterResolvingDeps(context.Background())
 
 	malformed := &typescriptLang{}

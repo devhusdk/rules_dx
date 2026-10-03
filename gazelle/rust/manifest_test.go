@@ -61,15 +61,12 @@ func TestBeforeWiresTheRecorder(t *testing.T) {
 	}
 }
 
-func TestUsedIgnoresDropsStaleEntries(t *testing.T) {
-	l := &rustLang{
-		ignores: []*ignoreEntry{
-			{value: "used_crate", path: "pkg", used: true},
-			{value: "stale_crate", path: "pkg"},
-			{value: "used_crate", path: "other", used: true},
-		},
-	}
-	got := l.usedIgnores()
+func TestUsedImportsDropsStaleEntries(t *testing.T) {
+	got := common.UsedImports(languageName, []*common.IgnoreEntry{
+		{Value: "used_crate", Path: "pkg", Used: true},
+		{Value: "stale_crate", Path: "pkg"},
+		{Value: "used_crate", Path: "other", Used: true},
+	})
 	want := []common.IgnoredImport{
 		{Path: "pkg", Language: languageName, Value: "used_crate"},
 		{Path: "other", Language: languageName, Value: "used_crate"},
@@ -81,6 +78,32 @@ func TestUsedIgnoresDropsStaleEntries(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("used ignore %d = %+v, want %+v", i, got[i], want[i])
 		}
+	}
+}
+
+func TestCollectUsedIgnoresReadsTheRustConfigExtension(t *testing.T) {
+	cfg := config.New()
+	if got := CollectUsedIgnores(cfg); got != nil {
+		t.Fatalf("absent: %v", got)
+	}
+	cfg.Exts[languageName] = &rustConfig{}
+	if got := CollectUsedIgnores(cfg); got != nil {
+		t.Fatalf("empty: %v", got)
+	}
+	cfg.Exts[languageName] = &rustConfig{
+		IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+			{Value: "used_crate", Path: "pkg", Used: true},
+			{Value: "stale_crate", Path: "pkg"},
+		}},
+		tools: []string{"cargo"},
+	}
+	want := [][2]string{{"pkg", "used_crate"}}
+	got := CollectUsedIgnores(cfg)
+	if len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("used ignores = %v, want %v", got, want)
+	}
+	if tools := selectedNativeTools(cfg); len(tools) != 1 || tools[0] != "cargo" {
+		t.Fatalf("native tools = %v, want [cargo]", tools)
 	}
 }
 

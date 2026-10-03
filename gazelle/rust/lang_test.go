@@ -220,11 +220,11 @@ func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
 	l.Configure(root, "", file)
 	child := root.Clone()
 	l.Configure(child, "child", nil)
-	ignore := matchingIgnore(child, "missing_crate")
-	if ignore == nil || ignore.path != "" {
+	ignore := common.MatchingIgnore(child, languageName, "missing_crate")
+	if ignore == nil || ignore.Path != "" {
 		t.Fatalf("inherited ignore = %+v", ignore)
 	}
-	ignore.used = true
+	ignore.Used = true
 	l.AfterResolvingDeps(context.Background())
 }
 
@@ -306,12 +306,12 @@ func TestConfigureDirectiveForms(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	if len(l.ignores) != 1 || l.ignores[0].value != "external" {
+	if len(l.ignores) != 1 || l.ignores[0].Value != "external" {
 		t.Errorf("ignores = %+v", l.ignores)
 	}
-	l.ignores[0].used = true
+	l.ignores[0].Used = true
 	l.AfterResolvingDeps(context.Background())
-	if matchingIgnore(config.New(), "none") != nil || matchingIgnore(cfg, "none") != nil {
+	if common.MatchingIgnore(config.New(), languageName, "none") != nil || common.MatchingIgnore(cfg, languageName, "none") != nil {
 		t.Error("nonmatching ignore found")
 	}
 }

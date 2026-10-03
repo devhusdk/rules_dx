@@ -93,19 +93,13 @@ func kindInfo() rule.KindInfo {
 type rustLang struct {
 	language.BaseLang
 	errors   []string
-	ignores  []*ignoreEntry
+	ignores  []*common.IgnoreEntry
 	manifest *common.ManifestRecorder
 }
 
 type rustConfig struct {
-	ignores []*ignoreEntry
-	tools   []string
-}
-
-type ignoreEntry struct {
-	value string
-	path  string
-	used  bool
+	common.IgnoreConfig
+	tools []string
 }
 
 type targetImports struct {
@@ -145,42 +139,32 @@ func (*rustLang) KnownDirectives() []string {
 }
 
 func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
-	var inherited []*ignoreEntry
 	tools := defaultNativeTools()
 	if raw, ok := c.Exts[languageName]; ok {
-		parent := raw.(*rustConfig)
-		inherited = append(inherited, parent.ignores...)
-		if parent.tools != nil {
+		if parent := raw.(*rustConfig); parent.tools != nil {
 			tools = parent.tools
 		}
 	}
 	if file != nil {
 		for _, directive := range file.Directives {
-			switch directive.Key {
-			case nativeToolsDirective:
-				selected, err := parseNativeToolsDirective(directive.Value)
-				if err != nil {
-					l.fail("%v", err)
-					continue
-				}
-				tools = selected
-			case "dx_ignore_import":
-				fields := strings.Fields(directive.Value)
-				if len(fields) == 2 && fields[0] == languageName {
-					entry := &ignoreEntry{value: fields[1], path: rel}
-					inherited = append(inherited, entry)
-					l.ignores = append(l.ignores, entry)
-				} else if len(fields) == 3 && fields[0] == languageName && fields[1] == languageName {
-					entry := &ignoreEntry{value: fields[2], path: rel}
-					inherited = append(inherited, entry)
-					l.ignores = append(l.ignores, entry)
-				} else if len(fields) > 0 && fields[0] == languageName {
-					l.fail("rust: //%s: malformed # gazelle:dx_ignore_import %s", rel, directive.Value)
-				}
+			if directive.Key != nativeToolsDirective {
+				continue
 			}
+			selected, err := parseNativeToolsDirective(directive.Value)
+			if err != nil {
+				l.fail("%v", err)
+				continue
+			}
+			tools = selected
 		}
 	}
-	c.Exts[languageName] = &rustConfig{ignores: inherited, tools: tools}
+	declared, errs := common.DeclaredIgnores(languageName, rel, file)
+	for _, msg := range errs {
+		l.fail("%s", msg)
+	}
+	l.ignores = append(l.ignores, declared...)
+	inherited := common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)
+	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools}
 }
 
 func (l *rustLang) fail(format string, args ...interface{}) {
@@ -188,13 +172,11 @@ func (l *rustLang) fail(format string, args ...interface{}) {
 }
 
 func (l *rustLang) AfterResolvingDeps(context.Context) {
-	for _, ignore := range l.ignores {
-		if !ignore.used {
-			l.fail("rust: //%s: stale # gazelle:dx_ignore_import rust %s matches no literal reference", ignore.path, ignore.value)
-		}
+	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 && l.manifest != nil {
-		if err := l.manifest.Emit(l.usedIgnores()); err != nil {
+		if err := l.manifest.Emit(common.UsedImports(languageName, l.ignores)); err != nil {
 			l.fail("%v", err)
 		}
 	}
@@ -203,17 +185,6 @@ func (l *rustLang) AfterResolvingDeps(context.Context) {
 		fmt.Fprintln(os.Stderr, "Rust generation failed before BUILD emission:\n"+strings.Join(l.errors, "\n"))
 		exitProcess(1)
 	}
-}
-
-func (l *rustLang) usedIgnores() []common.IgnoredImport {
-	var out []common.IgnoredImport
-	for _, ignore := range l.ignores {
-		if !ignore.used {
-			continue
-		}
-		out = append(out, common.IgnoredImport{Path: ignore.path, Language: languageName, Value: ignore.value})
-	}
-	return out
 }
 
 func (*rustLang) Name() string { return languageName }
@@ -447,27 +418,4 @@ func filterDxCrateCovered(file *rule.File, result language.GenerateResult) langu
 	return result
 }
 
-func CollectUsedIgnores(c *config.Config) [][2]string {
-	raw, ok := c.Exts[languageName]
-	if !ok || raw == nil {
-		return nil
-	}
-	cfg, ok := raw.(*rustConfig)
-	if !ok || cfg == nil {
-		return nil
-	}
-	seen := map[[2]string]bool{}
-	var out [][2]string
-	for _, ig := range cfg.ignores {
-		if ig == nil || !ig.used {
-			continue
-		}
-		key := [2]string{ig.path, ig.value}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, key)
-	}
-	return out
-}
+func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

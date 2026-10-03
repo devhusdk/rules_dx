@@ -26,17 +26,7 @@ var fsharpKinds = map[string]rule.KindInfo{
 type fsharpLang struct {
 	language.BaseLang
 	errors  []string
-	ignores []*ignoreEntry
-}
-
-type fsharpConfig struct {
-	ignores []*ignoreEntry
-}
-
-type ignoreEntry struct {
-	value string
-	path  string
-	used  bool
+	ignores []*common.IgnoreEntry
 }
 
 type targetImports struct {
@@ -56,30 +46,12 @@ func (l *fsharpLang) CheckFlags(*flag.FlagSet, *config.Config) error { return ni
 func (*fsharpLang) KnownDirectives() []string { return []string{"dx_ignore_import"} }
 
 func (l *fsharpLang) Configure(c *config.Config, rel string, f *rule.File) {
-	var inherited []*ignoreEntry
-	if raw, ok := c.Exts[languageName]; ok {
-		inherited = append(inherited, raw.(*fsharpConfig).ignores...)
+	declared, errs := common.DeclaredIgnores(languageName, rel, f)
+	for _, msg := range errs {
+		l.fail("%s", msg)
 	}
-	if f != nil {
-		for _, directive := range f.Directives {
-			if directive.Key != "dx_ignore_import" {
-				continue
-			}
-			fields := strings.Fields(directive.Value)
-			if len(fields) == 2 && fields[0] == languageName {
-				entry := &ignoreEntry{value: fields[1], path: rel}
-				inherited = append(inherited, entry)
-				l.ignores = append(l.ignores, entry)
-			} else if len(fields) == 3 && fields[0] == languageName && fields[1] == languageName {
-				entry := &ignoreEntry{value: fields[2], path: rel}
-				inherited = append(inherited, entry)
-				l.ignores = append(l.ignores, entry)
-			} else if len(fields) > 0 && fields[0] == languageName {
-				l.fail("fsharp: //%s: malformed # gazelle:dx_ignore_import %s", rel, directive.Value)
-			}
-		}
-	}
-	c.Exts[languageName] = &fsharpConfig{ignores: inherited}
+	l.ignores = append(l.ignores, declared...)
+	c.Exts[languageName] = &common.IgnoreConfig{Ignores: common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)}
 }
 
 func (l *fsharpLang) fail(format string, args ...interface{}) {
@@ -87,10 +59,8 @@ func (l *fsharpLang) fail(format string, args ...interface{}) {
 }
 
 func (l *fsharpLang) AfterResolvingDeps(context.Context) {
-	for _, ignore := range l.ignores {
-		if !ignore.used {
-			l.fail("fsharp: //%s: stale # gazelle:dx_ignore_import fsharp %s matches no literal reference", ignore.path, ignore.value)
-		}
+	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
 		return
@@ -256,8 +226,8 @@ func (l *fsharpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		},
 		IsStdLib: IsStdLib,
 		MarkUsed: func(name string) bool {
-			if ignore := matchingIgnore(c, name); ignore != nil {
-				ignore.used = true
+			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
+				ignore.Used = true
 				return true
 			}
 			return false
@@ -274,40 +244,4 @@ func (l *fsharpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 	})
 }
 
-func matchingIgnore(c *config.Config, name string) *ignoreEntry {
-	raw, ok := c.Exts[languageName]
-	if !ok {
-		return nil
-	}
-	for i := len(raw.(*fsharpConfig).ignores) - 1; i >= 0; i-- {
-		if entry := raw.(*fsharpConfig).ignores[i]; entry.value == name {
-			return entry
-		}
-	}
-	return nil
-}
-
-func CollectUsedIgnores(c *config.Config) [][2]string {
-	raw, ok := c.Exts[languageName]
-	if !ok || raw == nil {
-		return nil
-	}
-	cfg, ok := raw.(*fsharpConfig)
-	if !ok || cfg == nil {
-		return nil
-	}
-	seen := map[[2]string]bool{}
-	var out [][2]string
-	for _, ig := range cfg.ignores {
-		if ig == nil || !ig.used {
-			continue
-		}
-		key := [2]string{ig.path, ig.value}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, key)
-	}
-	return out
-}
+func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

@@ -29,16 +29,6 @@ func UnwrapImportSet(raw any) ([]string, bool) {
 	return set.Names, true
 }
 
-type IgnoreEntry struct {
-	Value string
-	Path  string
-	Used  bool
-}
-
-type IgnoreConfig struct {
-	Ignores []*IgnoreEntry
-}
-
 type SingleLangSpec struct {
 	LanguageName   string
 	DisplayName    string
@@ -74,35 +64,12 @@ func (l *SingleLang) CheckFlags(*flag.FlagSet, *config.Config) error { return ni
 func (*SingleLang) KnownDirectives() []string { return []string{"dx_ignore_import"} }
 
 func (l *SingleLang) Configure(c *config.Config, rel string, f *rule.File) {
-	var inherited []*IgnoreEntry
-	if raw, ok := c.Exts[l.spec.LanguageName]; ok {
-		inherited = append(inherited, raw.(*IgnoreConfig).Ignores...)
+	declared, errs := DeclaredIgnores(l.spec.LanguageName, rel, f)
+	for _, msg := range errs {
+		l.fail("%s", msg)
 	}
-	if f != nil {
-		for _, directive := range f.Directives {
-			if directive.Key != "dx_ignore_import" {
-				continue
-			}
-			fields := strings.Fields(directive.Value)
-			if len(fields) == 0 || fields[0] != l.spec.LanguageName {
-				continue
-			}
-			value := ""
-			switch {
-			case len(fields) == 2:
-				value = fields[1]
-			case len(fields) == 3 && fields[1] == l.spec.LanguageName:
-				value = fields[2]
-			default:
-				l.fail("%s: //%s: malformed # gazelle:dx_ignore_import %s", l.spec.LanguageName, rel, directive.Value)
-				continue
-			}
-			entry := &IgnoreEntry{Value: value, Path: rel}
-			inherited = append(inherited, entry)
-			l.ignores = append(l.ignores, entry)
-		}
-	}
-	c.Exts[l.spec.LanguageName] = &IgnoreConfig{Ignores: inherited}
+	l.ignores = append(l.ignores, declared...)
+	c.Exts[l.spec.LanguageName] = &IgnoreConfig{Ignores: MergeIgnores(InheritedIgnores(c, l.spec.LanguageName), declared)}
 }
 
 func (l *SingleLang) fail(format string, args ...interface{}) {
@@ -110,11 +77,8 @@ func (l *SingleLang) fail(format string, args ...interface{}) {
 }
 
 func (l *SingleLang) AfterResolvingDeps(context.Context) {
-	for _, ignore := range l.ignores {
-		if !ignore.Used {
-			l.fail("%s: //%s: stale # gazelle:dx_ignore_import %s %s matches no literal reference",
-				l.spec.LanguageName, ignore.Path, l.spec.LanguageName, ignore.Value)
-		}
+	for _, msg := range StaleIgnores(l.spec.LanguageName, l.ignores) {
+		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
 		return
@@ -178,7 +142,7 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		Unwrap:       UnwrapImportSet,
 		IsStdLib:     l.spec.IsStdLib,
 		MarkUsed: func(name string) bool {
-			if ignore := l.matchingIgnore(c, name); ignore != nil {
+			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
 				ignore.Used = true
 				return true
 			}
@@ -194,45 +158,6 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 			l.fail("%s: %s: ambiguous import %q resolves to %s", l.spec.LanguageName, from, name, matches)
 		},
 	})
-}
-
-func (l *SingleLang) matchingIgnore(c *config.Config, name string) *IgnoreEntry {
-	raw, ok := c.Exts[l.spec.LanguageName]
-	if !ok {
-		return nil
-	}
-	ignores := raw.(*IgnoreConfig).Ignores
-	for i := len(ignores) - 1; i >= 0; i-- {
-		if entry := ignores[i]; entry.Value == name {
-			return entry
-		}
-	}
-	return nil
-}
-
-func UsedIgnores(c *config.Config, languageName string) [][2]string {
-	raw, ok := c.Exts[languageName]
-	if !ok || raw == nil {
-		return nil
-	}
-	cfg, ok := raw.(*IgnoreConfig)
-	if !ok || cfg == nil {
-		return nil
-	}
-	seen := map[[2]string]bool{}
-	var out [][2]string
-	for _, ig := range cfg.Ignores {
-		if ig == nil || !ig.Used {
-			continue
-		}
-		key := [2]string{ig.Path, ig.Value}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, key)
-	}
-	return out
 }
 
 func HasExt(name string, exts []string) bool {

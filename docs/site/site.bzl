@@ -145,7 +145,7 @@ def docs_extract(name, language, package, srcs):
               "if [ -n \"$$_bad\" ]; then echo \"docs_site: symbol line needs name|doc_markdown: $$_bad\" >&2; exit 1; fi; " +
               "_dup=$$(printf '%s\\n' \"$$_lines\" | LC_ALL=C cut -d'|' -f1 | LC_ALL=C sort | uniq -d); " +
               "if [ -n \"$$_dup\" ]; then echo \"docs_site: duplicate symbol name: $$_dup\" >&2; exit 1; fi; " +
-              "{ printf '" + header + "'; printf '%s\\n' \"$$_lines\" | LC_ALL=C sort -t'|' -k1,1 | awk -F'|' '" + _AWK_TEXTPROTO_CHARS + " " + _AWK_ESCAPE_FIELDS + symbol + "'; } > $@",
+              "{ printf '" + header + "'; printf '%s\\n' \"$$_lines\" | LC_ALL=C sort -t'|' -k1,1 | awk -F'|' '" + _AWK_TEXTPROTO_CHARS + " " + _AWK_ESCAPE_FIELDS + symbol + "'; } > \"$@\"; " + "if ! grep -q '^symbols {' \"$@\"; then echo \"docs_site: extract produced no symbols\" >&2; exit 1; fi",
     )
     native.filegroup(
         name = name,

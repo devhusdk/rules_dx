@@ -6,6 +6,11 @@ install_dir="${HOME:-/tmp}/.local/bin"
 workspace="$PWD"
 
 while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "--bundle" || "$1" == "--install-dir" || "$1" == "--workspace" ]] && [[ $# -lt 2 ]]; then
+    echo "bootstrap-offline: $1 needs a DIR" >&2
+    echo "usage: bootstrap-offline.sh --bundle DIR [--install-dir DIR] [--workspace DIR]" >&2
+    exit 1
+  fi
   case "$1" in
     --bundle)
       bundle="${2:-}"
@@ -35,6 +40,20 @@ if [[ -z "$bundle" ]]; then
   echo "bootstrap-offline: missing --bundle DIR (vendored offline bundle)" >&2
   exit 1
 fi
+if [[ ! -d "$bundle" ]]; then
+  echo "bootstrap-offline: bundle dir does not exist: $bundle" >&2
+  exit 1
+fi
+if ! bundle="$(cd "$bundle" && pwd -P)"; then
+  echo "bootstrap-offline: cannot enter bundle dir: $bundle" >&2
+  exit 1
+fi
+case "$bundle" in
+  *[\"\\]* | *[[:cntrl:]]*)
+    echo "bootstrap-offline: bundle path must stay plain text: $bundle" >&2
+    exit 1
+    ;;
+esac
 if [[ ! -d "$bundle/bazelisk" ]]; then
   echo "bootstrap-offline: bundle has no bazelisk/ dir: $bundle" >&2
   exit 1
@@ -67,15 +86,16 @@ hash_file() {
 }
 
 verify_manifest() {
-  dir="$1"
-  manifest="$dir/SHA256SUMS"
+  local dir="$1"
+  local manifest="$dir/SHA256SUMS"
+  local verified=0
   if [[ ! -f "$manifest" ]]; then
     echo "bootstrap-offline: missing manifest: $manifest" >&2
     return 1
   fi
-  while read -r want name; do
-    [[ -z "$want" || "$want" == \#* ]] && continue
-    if [[ -z "$name" || ! -f "$dir/$name" ]]; then
+  while read -r want name || [[ -n "${want:-}" ]]; do
+    [[ -z "${want:-}" || "$want" == \#* ]] && continue
+    if [[ -z "${name:-}" || ! -f "$dir/$name" ]]; then
       echo "bootstrap-offline: manifest names missing file: ${name:-<empty>} (in $manifest)" >&2
       return 1
     fi
@@ -84,7 +104,12 @@ verify_manifest() {
       echo "bootstrap-offline: checksum mismatch for $name: got $got want $want" >&2
       return 1
     fi
+    verified=$((verified + 1))
   done <"$manifest"
+  if [[ "$verified" -eq 0 ]]; then
+    echo "bootstrap-offline: manifest names no files: $manifest" >&2
+    return 1
+  fi
 }
 
 today_utc() {
@@ -120,6 +145,7 @@ else
 fi
 
 today="$(today_utc)"
+advisory_manifest="$bundle/advisory/SHA256SUMS"
 mkdir -p "$workspace/.dx/advisory"
 populated=0
 for snapshot in "$bundle"/advisory/*.json; do
@@ -132,6 +158,10 @@ for snapshot in "$bundle"/advisory/*.json; do
       exit 1
       ;;
   esac
+  if ! awk -v want="$set_name.json" '$2 == want {found = 1} END {exit !found}' "$advisory_manifest"; then
+    echo "bootstrap-offline: manifest does not pin advisory snapshot: $set_name.json (in $advisory_manifest)" >&2
+    exit 1
+  fi
   sha="$(hash_file "$snapshot")"
   cp -f "$snapshot" "$workspace/.dx/advisory/$set_name.json"
   cat >"$workspace/.dx/advisory/$set_name.meta.json" <<EOF

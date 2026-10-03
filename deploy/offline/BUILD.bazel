@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":offline.bzl", "offline_bundle")
 load(":offline_tests.bzl", "offline_file_tests", "offline_unit_tests")
 
@@ -35,6 +36,21 @@ offline_unit_tests(name = "offline_unit")
 offline_file_tests(
     name = "offline_files",
     manifest = ":offline_demo_manifest",
+)
+
+# keep
+rust_test(
+    name = "bootstrap_test",
+    size = "small",
+    srcs = ["bootstrap_test.rs"],
+    data = [":bootstrap-offline.sh"],
+    env = {"DX_BOOTSTRAP": "$(rootpath :bootstrap-offline.sh)"},
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//cli/digest:dx_digest",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

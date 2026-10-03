@@ -14,6 +14,7 @@ import (
 
 	"github.com/ralvik/rules_dx/gazelle/astro"
 	"github.com/ralvik/rules_dx/gazelle/cc"
+	"github.com/ralvik/rules_dx/gazelle/common"
 	"github.com/ralvik/rules_dx/gazelle/csharp"
 	"github.com/ralvik/rules_dx/gazelle/fsharp"
 	"github.com/ralvik/rules_dx/gazelle/go"
@@ -68,7 +69,7 @@ func unionApparentLoads(moduleToApparentName func(string) string) []rule.LoadInf
 type dispatchLang struct {
 	language.BaseLang
 	errors   []string
-	manifest *manifestRecorder
+	manifest *common.ManifestRecorder
 	configs  []*config.Config
 }
 
@@ -80,13 +81,14 @@ func (l *dispatchLang) Before(context.Context) {
 	l.errors = nil
 	l.configs = nil
 	l.manifest = nil
-	if rec, err := loadManifestRecorder(); err != nil {
+	if rec, err := common.LoadManifestRecorder("dispatch"); err != nil {
 		l.fail("%v", err)
 	} else {
 		l.manifest = rec
 	}
 	if l.manifest != nil {
-		l.manifest.unionLoads = unionApparentLoads
+		l.manifest.IncludeOtherGen = true
+		l.manifest.ApparentLoads = unionApparentLoads
 	}
 }
 
@@ -104,12 +106,12 @@ func (l *dispatchLang) fail(format string, args ...interface{}) {
 	l.errors = append(l.errors, fmt.Sprintf(format, args...))
 }
 
-func (l *dispatchLang) collectUsedIgnores() []collectedIgnore {
-	var out []collectedIgnore
-	seen := map[collectedIgnore]bool{}
+func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
+	var out []common.IgnoredImport
+	seen := map[common.IgnoredImport]bool{}
 	emit := func(language string, pairs [][2]string) {
 		for _, pair := range pairs {
-			entry := collectedIgnore{path: pair[0], language: language, value: pair[1]}
+			entry := common.IgnoredImport{Path: pair[0], Language: language, Value: pair[1]}
 			if seen[entry] {
 				continue
 			}
@@ -139,20 +141,20 @@ func (l *dispatchLang) collectUsedIgnores() []collectedIgnore {
 		emit("vue", vue.CollectUsedIgnores(cfg))
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].path != out[j].path {
-			return out[i].path < out[j].path
+		if out[i].Path != out[j].Path {
+			return out[i].Path < out[j].Path
 		}
-		if out[i].language != out[j].language {
-			return out[i].language < out[j].language
+		if out[i].Language != out[j].Language {
+			return out[i].Language < out[j].Language
 		}
-		return out[i].value < out[j].value
+		return out[i].Value < out[j].Value
 	})
 	return out
 }
 
 func (l *dispatchLang) AfterResolvingDeps(context.Context) {
 	if len(l.errors) == 0 && l.manifest != nil {
-		if err := l.manifest.emit(l.collectUsedIgnores()); err != nil {
+		if err := l.manifest.Emit(l.collectUsedIgnores()); err != nil {
 			l.fail("%v", err)
 		}
 	}
@@ -172,7 +174,7 @@ func (l *dispatchLang) GenerateRules(args language.GenerateArgs) language.Genera
 		l.configs = append(l.configs, args.Config)
 	}
 	if l.manifest != nil {
-		l.manifest.record(args, language.GenerateResult{})
+		l.manifest.Record(args, language.GenerateResult{})
 	}
 	return language.GenerateResult{}
 }

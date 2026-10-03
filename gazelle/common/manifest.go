@@ -1,4 +1,4 @@
-package dispatch
+package common
 
 import (
 	"bytes"
@@ -18,139 +18,153 @@ import (
 )
 
 const (
-	intendedManifestSchemaMajor = 1
-	intendedManifestSchemaMinor = 0
+	IntendedManifestSchemaMajor = 1
+	IntendedManifestSchemaMinor = 0
 
-	envIntendedManifest = "DX_GENERATE_INTENDED"
-	envGenerateScope    = "DX_GENERATE_SCOPE"
-	envGenerateMode     = "DX_GENERATE_MODE"
+	EnvIntendedManifest = "DX_GENERATE_INTENDED"
+	EnvGenerateScope    = "DX_GENERATE_SCOPE"
+	EnvGenerateMode     = "DX_GENERATE_MODE"
 )
 
-type scopeElement struct {
+type ScopeElement struct {
 	Element string   `json:"element"`
 	Dirs    []string `json:"dirs"`
 }
 
-type intendedEdit struct {
+type IntendedEdit struct {
 	Start       uint64 `json:"start_byte"`
 	End         uint64 `json:"end_byte"`
 	Replacement []byte `json:"replacement"`
 }
 
-type intendedFile struct {
+type IntendedFile struct {
 	Path            string         `json:"path"`
 	ScopeIndex      int            `json:"scope_index"`
 	CreateContent   []byte         `json:"create_content,omitempty"`
 	OriginalContent []byte         `json:"original_content,omitempty"`
-	Edits           []intendedEdit `json:"edits,omitempty"`
+	Edits           []IntendedEdit `json:"edits,omitempty"`
 }
 
-type intendedIgnoredImport struct {
+type IgnoredImport struct {
+	Path     string
+	Language string
+	Value    string
+}
+
+type IntendedIgnoredImport struct {
 	Path       string `json:"path"`
 	Language   string `json:"language"`
 	Import     string `json:"import"`
 	ScopeIndex int    `json:"scope_index"`
 }
 
-type intendedScope struct {
+type IntendedScope struct {
 	Value           string `json:"value"`
 	ResultsComplete bool   `json:"results_complete"`
 }
 
-type intendedManifest struct {
+type IntendedManifest struct {
 	SchemaMajor    int                     `json:"schema_major"`
 	SchemaMinor    int                     `json:"schema_minor"`
 	Mode           string                  `json:"mode"`
-	Scopes         []intendedScope         `json:"scopes"`
-	Files          []intendedFile          `json:"files"`
-	IgnoredImports []intendedIgnoredImport `json:"ignored_imports"`
+	Scopes         []IntendedScope         `json:"scopes"`
+	Files          []IntendedFile          `json:"files"`
+	IgnoredImports []IntendedIgnoredImport `json:"ignored_imports"`
 }
 
-type collectedIgnore struct {
-	path     string
-	language string
-	value    string
+type PackageRecord struct {
+	Rel      string
+	Dir      string
+	File     *rule.File
+	Gen      []*rule.Rule
+	GenKinds []string
+	OldKinds []string
+	Cfg      *config.Config
 }
 
-type packageRecord struct {
-	rel      string
-	dir      string
-	file     *rule.File
-	gen      []*rule.Rule
-	genKinds []string
-	oldKinds []string
-	cfg      *config.Config
+type ManifestRecorder struct {
+	Prefix          string
+	IncludeOtherGen bool
+	OutPath         string
+	Mode            string
+	Scopes          []ScopeElement
+	ApparentLoads   func(func(string) string) []rule.LoadInfo
+	Visited         []PackageRecord
 }
 
-type manifestRecorder struct {
-	outPath    string
-	mode       string
-	scopes     []scopeElement
-	unionLoads func(func(string) string) []rule.LoadInfo
-	visited    []packageRecord
-}
-
-func loadManifestRecorder() (*manifestRecorder, error) {
-	outPath := os.Getenv(envIntendedManifest)
+func LoadManifestRecorder(prefix string) (*ManifestRecorder, error) {
+	outPath := os.Getenv(EnvIntendedManifest)
 	if outPath == "" {
 		return nil, nil
 	}
-	mode := os.Getenv(envGenerateMode)
+	rec := &ManifestRecorder{Prefix: prefix, OutPath: outPath}
+	mode := os.Getenv(EnvGenerateMode)
 	if mode == "" {
 		mode = "default"
 	}
 	if mode != "check" && mode != "default" {
-		return nil, fmt.Errorf("dispatch: %s must be \"check\" or \"default\", got %q", envGenerateMode, mode)
+		return nil, rec.Errorf("%s must be \"check\" or \"default\", got %q", EnvGenerateMode, mode)
 	}
-	scopes := []scopeElement{{Element: "//...", Dirs: []string{""}}}
-	if raw := os.Getenv(envGenerateScope); raw != "" {
+	rec.Mode = mode
+	scopes := []ScopeElement{{Element: "//...", Dirs: []string{""}}}
+	if raw := os.Getenv(EnvGenerateScope); raw != "" {
 		if err := json.Unmarshal([]byte(raw), &scopes); err != nil {
-			return nil, fmt.Errorf("dispatch: malformed %s: %v", envGenerateScope, err)
+			return nil, rec.Errorf("malformed %s: %v", EnvGenerateScope, err)
 		}
 		if len(scopes) == 0 {
-			return nil, fmt.Errorf("dispatch: %s must list at least one scope element", envGenerateScope)
+			return nil, rec.Errorf("%s must list at least one scope element", EnvGenerateScope)
 		}
 	}
-	return &manifestRecorder{outPath: outPath, mode: mode, scopes: scopes}, nil
+	rec.Scopes = scopes
+	return rec, nil
 }
 
-func (r *manifestRecorder) record(args language.GenerateArgs, res language.GenerateResult) {
-	rec := packageRecord{
-		rel:  args.Rel,
-		dir:  args.Dir,
-		file: args.File,
-		cfg:  args.Config,
-	}
+func (r *ManifestRecorder) Errorf(format string, args ...interface{}) error {
+	return fmt.Errorf(r.Prefix+": "+format, args...)
+}
+
+func UniqueRules(groups ...[]*rule.Rule) []*rule.Rule {
 	seen := map[*rule.Rule]bool{}
-	for _, g := range args.OtherGen {
-		if g == nil || seen[g] {
-			continue
+	var out []*rule.Rule
+	for _, group := range groups {
+		for _, g := range group {
+			if g == nil || seen[g] {
+				continue
+			}
+			seen[g] = true
+			out = append(out, g)
 		}
-		seen[g] = true
-		rec.gen = append(rec.gen, g)
 	}
-	for _, g := range res.Gen {
-		if g == nil || seen[g] {
-			continue
-		}
-		seen[g] = true
-		rec.gen = append(rec.gen, g)
+	return out
+}
+
+func (r *ManifestRecorder) Record(args language.GenerateArgs, res language.GenerateResult) {
+	rec := PackageRecord{
+		Rel:  args.Rel,
+		Dir:  args.Dir,
+		File: args.File,
+		Cfg:  args.Config,
 	}
-	for _, g := range rec.gen {
-		rec.genKinds = append(rec.genKinds, g.Kind())
+	if r.IncludeOtherGen {
+		rec.Gen = UniqueRules(args.OtherGen, res.Gen)
+	} else {
+		rec.Gen = UniqueRules(res.Gen)
+	}
+	for _, g := range rec.Gen {
+		rec.GenKinds = append(rec.GenKinds, g.Kind())
 	}
 	if args.File != nil {
 		for _, old := range args.File.Rules {
-			rec.oldKinds = append(rec.oldKinds, old.Kind())
+			rec.OldKinds = append(rec.OldKinds, old.Kind())
 		}
 	}
-	r.visited = append(r.visited, rec)
+	r.Visited = append(r.Visited, rec)
 }
 
-func (r *manifestRecorder) scopeIndex(rel string) int {
+func (r *ManifestRecorder) ScopeIndex(rel string) int {
 	best := -1
 	bestLen := -1
-	for i, scope := range r.scopes {
+	for i, scope := range r.Scopes {
 		for _, dir := range scope.Dirs {
 			length := -1
 			switch {
@@ -170,27 +184,27 @@ func (r *manifestRecorder) scopeIndex(rel string) int {
 	return best
 }
 
-func (r *manifestRecorder) emit(ignores []collectedIgnore) error {
-	manifest := intendedManifest{
-		SchemaMajor:    intendedManifestSchemaMajor,
-		SchemaMinor:    intendedManifestSchemaMinor,
-		Mode:           r.mode,
-		Scopes:         []intendedScope{},
-		Files:          []intendedFile{},
-		IgnoredImports: []intendedIgnoredImport{},
+func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
+	manifest := IntendedManifest{
+		SchemaMajor:    IntendedManifestSchemaMajor,
+		SchemaMinor:    IntendedManifestSchemaMinor,
+		Mode:           r.Mode,
+		Scopes:         []IntendedScope{},
+		Files:          []IntendedFile{},
+		IgnoredImports: []IntendedIgnoredImport{},
 	}
-	for _, scope := range r.scopes {
-		manifest.Scopes = append(manifest.Scopes, intendedScope{
+	for _, scope := range r.Scopes {
+		manifest.Scopes = append(manifest.Scopes, IntendedScope{
 			Value:           scope.Element,
 			ResultsComplete: true,
 		})
 	}
-	for _, rec := range r.visited {
-		index := r.scopeIndex(rec.rel)
+	for _, rec := range r.Visited {
+		index := r.ScopeIndex(rec.Rel)
 		if index < 0 {
-			return fmt.Errorf("dispatch: package %q matches no %s scope element", rec.rel, envGenerateScope)
+			return r.Errorf("package %q matches no %s scope element", rec.Rel, EnvGenerateScope)
 		}
-		file, changed, err := r.witness(rec)
+		file, changed, err := r.Witness(rec)
 		if err != nil {
 			return err
 		}
@@ -200,16 +214,16 @@ func (r *manifestRecorder) emit(ignores []collectedIgnore) error {
 		file.ScopeIndex = index
 		manifest.Files = append(manifest.Files, file)
 	}
-	seenIgnore := map[intendedIgnoredImport]bool{}
+	seenIgnore := map[IntendedIgnoredImport]bool{}
 	for _, ignore := range ignores {
-		index := r.scopeIndex(ignore.path)
+		index := r.ScopeIndex(ignore.Path)
 		if index < 0 {
-			return fmt.Errorf("dispatch: ignored import %q matches no %s scope element", ignore.value, envGenerateScope)
+			return r.Errorf("ignored import %q matches no %s scope element", ignore.Value, EnvGenerateScope)
 		}
-		entry := intendedIgnoredImport{
-			Path:       ignore.path,
-			Language:   ignore.language,
-			Import:     ignore.value,
+		entry := IntendedIgnoredImport{
+			Path:       ignore.Path,
+			Language:   ignore.Language,
+			Import:     ignore.Value,
 			ScopeIndex: index,
 		}
 		if seenIgnore[entry] {
@@ -230,58 +244,58 @@ func (r *manifestRecorder) emit(ignores []collectedIgnore) error {
 	})
 	data, err := json.Marshal(manifest)
 	if err != nil {
-		return fmt.Errorf("dispatch: cannot encode intended manifest: %v", err) // LCOV_EXCL_LINE - reason: unreachable encode, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+		return r.Errorf("cannot encode intended manifest: %v", err) // LCOV_EXCL_LINE - reason: unreachable encode, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 	}
-	if err := os.WriteFile(r.outPath, data, 0o600); err != nil {
-		return fmt.Errorf("dispatch: cannot write intended manifest: %v", err)
+	if err := os.WriteFile(r.OutPath, data, 0o600); err != nil {
+		return r.Errorf("cannot write intended manifest: %v", err)
 	}
 	return nil
 }
 
-func (r *manifestRecorder) witness(rec packageRecord) (intendedFile, bool, error) {
-	var file intendedFile
-	if rec.file == nil {
-		if len(rec.gen) == 0 {
+func (r *ManifestRecorder) Witness(rec PackageRecord) (IntendedFile, bool, error) {
+	var file IntendedFile
+	if rec.File == nil {
+		if len(rec.Gen) == 0 {
 			return file, false, nil
 		}
-		built := rule.EmptyFile(filepath.Join(rec.dir, rec.cfg.DefaultBuildFileName()), rec.rel)
-		for _, g := range rec.gen {
+		built := rule.EmptyFile(filepath.Join(rec.Dir, rec.Cfg.DefaultBuildFileName()), rec.Rel)
+		for _, g := range rec.Gen {
 			g.Insert(built)
 		}
-		loads, err := r.knownLoads(rec)
+		loads, err := r.KnownLoads(rec)
 		if err != nil {
 			return file, false, err
 		}
 		merger.FixLoads(built, loads)
-		file.Path = manifestPath(rec.rel, rec.cfg.DefaultBuildFileName())
+		file.Path = manifestPath(rec.Rel, rec.Cfg.DefaultBuildFileName())
 		file.CreateContent = built.Format()
 		return file, true, nil
 	}
-	original := rec.file.Content
-	loads, err := r.knownLoads(rec)
+	original := rec.File.Content
+	loads, err := r.KnownLoads(rec)
 	if err != nil {
 		return file, false, err
 	}
-	merger.FixLoads(rec.file, loads)
-	intended := rec.file.Format()
+	merger.FixLoads(rec.File, loads)
+	intended := rec.File.Format()
 	if bytes.Equal(original, intended) {
 		return file, false, nil
 	}
-	file.Path = manifestPath(rec.rel, filepath.Base(rec.file.Path))
+	file.Path = manifestPath(rec.Rel, filepath.Base(rec.File.Path))
 	file.OriginalContent = original
 	file.Edits = diffLines(original, intended)
 	if len(file.Edits) == 0 {
-		return file, false, fmt.Errorf("dispatch: changed package %q produced no edits", rec.rel) // LCOV_EXCL_LINE - reason: unreachable encode, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+		return file, false, r.Errorf("changed package %q produced no edits", rec.Rel) // LCOV_EXCL_LINE - reason: unreachable encode, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 	}
 	return file, true, nil
 }
 
-func (r *manifestRecorder) knownLoads(rec packageRecord) ([]rule.LoadInfo, error) {
+func (r *ManifestRecorder) KnownLoads(rec PackageRecord) ([]rule.LoadInfo, error) {
 	var loads []rule.LoadInfo
-	if r.unionLoads != nil {
-		loads = r.unionLoads(rec.cfg.ModuleToApparentName)
+	if r.ApparentLoads != nil {
+		loads = r.ApparentLoads(rec.Cfg.ModuleToApparentName)
 	}
-	return applyKindMappings(rec, loads)
+	return r.applyKindMappings(rec, loads)
 }
 
 func manifestPath(rel, base string) string {
@@ -291,10 +305,10 @@ func manifestPath(rel, base string) string {
 	return path.Join(rel, base)
 }
 
-func applyKindMappings(rec packageRecord, loads []rule.LoadInfo) ([]rule.LoadInfo, error) {
+func (r *ManifestRecorder) applyKindMappings(rec PackageRecord, loads []rule.LoadInfo) ([]rule.LoadInfo, error) {
 	var mapped []config.MappedKind
-	for _, kind := range append(append([]string{}, rec.genKinds...), rec.oldKinds...) {
-		repl, err := replacementKind(rec.cfg.KindMap, kind)
+	for _, kind := range append(append([]string{}, rec.GenKinds...), rec.OldKinds...) {
+		repl, err := r.replacementKind(rec.Cfg.KindMap, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +340,7 @@ func appendOrMergeKindMapping(loads []rule.LoadInfo, repl config.MappedKind) []r
 	})
 }
 
-func replacementKind(kindMap map[string]config.MappedKind, kind string) (*config.MappedKind, error) {
+func (r *ManifestRecorder) replacementKind(kindMap map[string]config.MappedKind, kind string) (*config.MappedKind, error) {
 	var mapped *config.MappedKind
 	seen := make(map[string]struct{})
 	for {
@@ -335,7 +349,7 @@ func replacementKind(kindMap map[string]config.MappedKind, kind string) (*config
 			return mapped, nil
 		}
 		if _, dup := seen[replacement.KindName]; dup {
-			return nil, fmt.Errorf("dispatch: kind map loop at %q", replacement.KindName)
+			return nil, r.Errorf("kind map loop at %q", replacement.KindName)
 		}
 		seen[replacement.KindName] = struct{}{}
 		current := replacement
@@ -371,16 +385,16 @@ func splitLines(data []byte) [][]byte {
 	return lines
 }
 
-func diffLines(original, intended []byte) []intendedEdit {
+func diffLines(original, intended []byte) []IntendedEdit {
 	oldLines := splitLines(original)
 	newLines := splitLines(intended)
 	oldOffsets := lineOffsets(oldLines)
-	var edits []intendedEdit
+	var edits []IntendedEdit
 	for _, code := range difflib.NewMatcher(toStrings(oldLines), toStrings(newLines)).GetOpCodes() {
 		if code.Tag == 'e' {
 			continue
 		}
-		edit := intendedEdit{
+		edit := IntendedEdit{
 			Start:       oldOffsets[code.I1],
 			End:         oldOffsets[code.I2],
 			Replacement: nonNilBytes(bytes.Join(newLines[code.J1:code.J2], nil)),

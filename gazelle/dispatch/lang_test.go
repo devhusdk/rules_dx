@@ -66,12 +66,15 @@ func TestGenerateRulesRecordsOtherGenUnion(t *testing.T) {
 	}
 
 	out := filepath.Join(t.TempDir(), "intended.json")
-	t.Setenv(envIntendedManifest, out)
-	t.Setenv(envGenerateMode, "default")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateMode, "default")
 	l2 := &dispatchLang{}
 	l2.Before(context.Background())
 	if l2.manifest == nil {
 		t.Fatal("manifest must load with DX_GENERATE_INTENDED set")
+	}
+	if l2.manifest.Prefix != "dispatch" || !l2.manifest.IncludeOtherGen {
+		t.Fatalf("recorder = %+v, want the dispatch prefix and the sibling rules", l2.manifest)
 	}
 	l2.GenerateRules(language.GenerateArgs{
 		Config:   cfg,
@@ -79,11 +82,11 @@ func TestGenerateRulesRecordsOtherGenUnion(t *testing.T) {
 		Rel:      "a",
 		OtherGen: []*rule.Rule{other},
 	})
-	if len(l2.manifest.visited) != 1 {
-		t.Fatalf("visited = %d, want 1", len(l2.manifest.visited))
+	if len(l2.manifest.Visited) != 1 {
+		t.Fatalf("visited = %d, want 1", len(l2.manifest.Visited))
 	}
-	if len(l2.manifest.visited[0].gen) != 1 {
-		t.Fatalf("union gen = %d, want 1", len(l2.manifest.visited[0].gen))
+	if len(l2.manifest.Visited[0].Gen) != 1 {
+		t.Fatalf("union gen = %d, want 1", len(l2.manifest.Visited[0].Gen))
 	}
 }
 
@@ -115,8 +118,8 @@ func TestUnionLoadsCoverAllExtensions(t *testing.T) {
 
 func TestAfterResolvingDepsWritesManifest(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "intended.json")
-	t.Setenv(envIntendedManifest, out)
-	t.Setenv(envGenerateMode, "default")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateMode, "default")
 	l := &dispatchLang{}
 	l.Before(context.Background())
 	cfg := testConfig()
@@ -133,7 +136,7 @@ func TestAfterResolvingDepsWritesManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read manifest: %v", err)
 	}
-	var manifest intendedManifest
+	var manifest common.IntendedManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatalf("decode manifest: %v", err)
 	}
@@ -150,8 +153,8 @@ func TestAfterResolvingDepsWritesManifest(t *testing.T) {
 
 func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "intended.json")
-	t.Setenv(envIntendedManifest, out)
-	t.Setenv(envGenerateScope, `[{"element":"//a:one","dirs":["a"]}]`)
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateScope, `[{"element":"//a:one","dirs":["a"]}]`)
 	l := &dispatchLang{}
 	l.Before(context.Background())
 	cfg := testConfig()
@@ -180,6 +183,32 @@ func TestCollectUsedIgnoresEmptyWithoutConfigs(t *testing.T) {
 	l := &dispatchLang{}
 	if got := l.collectUsedIgnores(); len(got) != 0 {
 		t.Fatalf("ignores = %v, want empty", got)
+	}
+}
+
+func TestCollectUsedIgnoresSortsAndFilters(t *testing.T) {
+	cfg := testConfig()
+	cfg.Exts = map[string]interface{}{}
+	cfg.Exts["cc"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "zlib", Path: "pkg/z.cc", Used: true},
+		{Value: "stale", Path: "pkg/s.cc"},
+	}}
+	cfg.Exts["vue"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "chart", Path: "pkg/a.vue", Used: true},
+	}}
+	l := &dispatchLang{configs: []*config.Config{cfg, nil, cfg}}
+	want := []common.IgnoredImport{
+		{Path: "pkg/a.vue", Language: "vue", Value: "chart"},
+		{Path: "pkg/z.cc", Language: "cc", Value: "zlib"},
+	}
+	got := l.collectUsedIgnores()
+	if len(got) != len(want) {
+		t.Fatalf("ignores = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want[i])
+		}
 	}
 }
 

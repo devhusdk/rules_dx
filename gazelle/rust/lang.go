@@ -15,6 +15,8 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 const (
@@ -92,7 +94,7 @@ type rustLang struct {
 	language.BaseLang
 	errors   []string
 	ignores  []*ignoreEntry
-	manifest *manifestRecorder
+	manifest *common.ManifestRecorder
 }
 
 type rustConfig struct {
@@ -122,13 +124,13 @@ func (l *rustLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.manifest = nil
-	if rec, err := loadManifestRecorder(); err != nil {
+	if rec, err := common.LoadManifestRecorder("rust"); err != nil {
 		l.fail("%v", err)
 	} else {
 		l.manifest = rec
 	}
 	if l.manifest != nil {
-		l.manifest.apparentLoads = l.ApparentLoads
+		l.manifest.ApparentLoads = l.ApparentLoads
 	}
 }
 
@@ -192,7 +194,7 @@ func (l *rustLang) AfterResolvingDeps(context.Context) {
 		}
 	}
 	if len(l.errors) == 0 && l.manifest != nil {
-		if err := l.manifest.emit(l.ignores); err != nil {
+		if err := l.manifest.Emit(l.usedIgnores()); err != nil {
 			l.fail("%v", err)
 		}
 	}
@@ -201,6 +203,17 @@ func (l *rustLang) AfterResolvingDeps(context.Context) {
 		fmt.Fprintln(os.Stderr, "Rust generation failed before BUILD emission:\n"+strings.Join(l.errors, "\n"))
 		exitProcess(1)
 	}
+}
+
+func (l *rustLang) usedIgnores() []common.IgnoredImport {
+	var out []common.IgnoredImport
+	for _, ignore := range l.ignores {
+		if !ignore.used {
+			continue
+		}
+		out = append(out, common.IgnoredImport{Path: ignore.path, Language: languageName, Value: ignore.value})
+	}
+	return out
 }
 
 func (*rustLang) Name() string { return languageName }
@@ -260,7 +273,7 @@ func (*rustLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	res := l.generateRules(args)
 	if l.manifest != nil {
-		l.manifest.record(args, res)
+		l.manifest.Record(args, res)
 	}
 	return res
 }

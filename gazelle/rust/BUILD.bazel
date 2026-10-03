@@ -15,7 +15,6 @@ go_library(
         "lang_generate.go",
         "lang_resolve.go",
         "layout.go",
-        "manifest.go",
         "naming.go",
         "native_config.go",
         "parser.go",
@@ -25,7 +24,6 @@ go_library(
     deps = [
         "//gazelle/common",
         "@com_github_bazelbuild_buildtools//build",
-        "@com_github_pmezard_go_difflib//difflib",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//merger",

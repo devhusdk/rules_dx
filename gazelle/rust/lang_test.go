@@ -12,6 +12,8 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+
+	"github.com/ralvik/rules_dx/gazelle/common"
 )
 
 func writeFixture(t *testing.T, root, name, content string) {
@@ -176,8 +178,8 @@ func TestErrorsAbortBeforeEmission(t *testing.T) {
 
 func TestBeforeRecordsRecorderError(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "intended.json")
-	t.Setenv(envIntendedManifest, out)
-	t.Setenv(envGenerateMode, "print")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateMode, "print")
 	l := &rustLang{}
 	l.Before(context.Background())
 	if l.manifest != nil {
@@ -191,11 +193,12 @@ func TestBeforeRecordsRecorderError(t *testing.T) {
 func TestAfterResolvingDepsReportsManifestError(t *testing.T) {
 	code := stubExitProcess(t)
 	l := &rustLang{}
-	l.manifest = &manifestRecorder{
-		outPath:       filepath.Join(t.TempDir(), "missing", "intended.json"),
-		mode:          "default",
-		scopes:        []scopeElement{{Element: "//...", Dirs: []string{""}}},
-		apparentLoads: l.ApparentLoads,
+	l.manifest = &common.ManifestRecorder{
+		Prefix:        "rust",
+		OutPath:       filepath.Join(t.TempDir(), "missing", "intended.json"),
+		Mode:          "default",
+		Scopes:        []common.ScopeElement{{Element: "//...", Dirs: []string{""}}},
+		ApparentLoads: l.ApparentLoads,
 	}
 	l.AfterResolvingDeps(context.Background())
 	if *code != 1 {

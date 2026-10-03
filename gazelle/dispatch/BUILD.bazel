@@ -9,13 +9,13 @@ go_library(
     srcs = [
         "doc.go",
         "lang.go",
-        "manifest.go",
     ],
     importpath = "github.com/ralvik/rules_dx/gazelle/dispatch",
     visibility = ["//visibility:private"],
     deps = [
         "//gazelle/astro",
         "//gazelle/cc",
+        "//gazelle/common",
         "//gazelle/csharp",
         "//gazelle/fsharp",
         "//gazelle/go",
@@ -30,10 +30,8 @@ go_library(
         "//gazelle/svelte",
         "//gazelle/typescript",
         "//gazelle/vue",
-        "@com_github_pmezard_go_difflib//difflib",
         "@gazelle//config",
         "@gazelle//language",
-        "@gazelle//merger",
         "@gazelle//rule",
     ],
 )
@@ -66,10 +64,7 @@ gazelle_binary(
 
 go_test(
     name = "dispatch_test",
-    srcs = [
-        "lang_test.go",
-        "manifest_test.go",
-    ],
+    srcs = ["lang_test.go"],
     embed = [":dispatch"],
     pure = "on",
     deps = [

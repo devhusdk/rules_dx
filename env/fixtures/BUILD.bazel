@@ -9,7 +9,6 @@ exports_files(["Cargo.toml"])
 
 rust_binary(
     name = "doctor_fixture",
-    testonly = True,
     srcs = ["src/bin_doctor.rs"],
     aliases = aliases(
         package_name = "env/env_fixtures",
@@ -26,7 +25,6 @@ rust_binary(
 
 rust_binary(
     name = "tool_fixture",
-    testonly = True,
     srcs = ["src/bin_tool.rs"],
     aliases = aliases(
         package_name = "env/env_fixtures",

@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:public"])
 
 alias(
     name = "tool_sh",
-    actual = "//env/fixtures:tool_sh",
+    actual = "//env/fixtures:tool_fixture",
 )
 
 environment_tool(
@@ -110,7 +110,7 @@ env_plan_analysis_tests(name = "env_plan_analysis")
 
 alias(
     name = "doctor",
-    actual = "//env/fixtures:doctor",
+    actual = "//env/fixtures:doctor_fixture",
 )
 
 environment_tool(

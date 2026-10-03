@@ -4,7 +4,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 alias(
     name = "repin-all",
-    actual = "//tools/repin_all:repin-all",
+    actual = "//tools/repin_all:repin_all",
 )
 
 real_source_target(

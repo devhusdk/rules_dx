@@ -475,9 +475,14 @@ mod tests {
         let back = read_json(&path).expect("read");
         assert_eq!(back["tools"][0]["bin_name"], "dx");
         assert!(read_json(&first.join("missing.json")).is_err());
+        let (echo_bin, echo_args): (&str, Vec<&str>) = if cfg!(windows) {
+            ("cmd.exe", vec!["/c", "echo hello"])
+        } else {
+            ("/bin/echo", vec!["hello"])
+        };
         let echo = run(
-            &PathBuf::from("/bin/echo"),
-            &["hello"],
+            &PathBuf::from(echo_bin),
+            &echo_args,
             &[("DX_HELPER_CHECK", "1")],
         )
         .expect("run");

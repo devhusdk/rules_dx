@@ -551,13 +551,60 @@ fn fake_runner_substitutes_the_boundary() {
 fn system_runner_preserves_exit_codes() {
     let runner = SystemRunner;
     let ok = runner
-        .run(&["/usr/bin/true".to_owned()], Path::new("/"), &[])
+        .run(&success_command(), Path::new("/"), &[])
         .expect("true");
     assert_eq!(ok.code, Some(0));
     let fail = runner
-        .run(&["/usr/bin/false".to_owned()], Path::new("/"), &[])
+        .run(&failure_command(), Path::new("/"), &[])
         .expect("false");
     assert_eq!(fail.code, Some(1));
+}
+
+/// A host command that succeeds.
+fn success_command() -> Vec<String> {
+    if cfg!(windows) {
+        ["cmd.exe", "/c", "exit 0"].map(String::from).to_vec()
+    } else {
+        vec!["/bin/true".to_owned()]
+    }
+}
+
+/// A host command that fails.
+fn failure_command() -> Vec<String> {
+    if cfg!(windows) {
+        ["cmd.exe", "/c", "exit 1"].map(String::from).to_vec()
+    } else {
+        vec!["/bin/false".to_owned()]
+    }
+}
+
+/// A host command that prints one environment variable, failing when it is unset.
+fn print_env_command(name: &str) -> Vec<String> {
+    if cfg!(windows) {
+        ["cmd.exe", "/c", &format!("echo %{}%", name)]
+            .map(String::from)
+            .to_vec()
+    } else {
+        vec!["/usr/bin/printenv".to_owned(), name.to_owned()]
+    }
+}
+
+/// A host command that runs one script.
+fn script_command(script: &str) -> Vec<String> {
+    if cfg!(windows) {
+        ["cmd.exe", "/c", script].map(String::from).to_vec()
+    } else {
+        vec!["/bin/sh".to_owned(), "-c".to_owned(), script.to_owned()]
+    }
+}
+
+/// A host path that names a command that exists.
+fn present_executable() -> String {
+    if cfg!(windows) {
+        dx_path::host::host_filename("cmd")
+    } else {
+        "/usr/bin/true".to_owned()
+    }
 }
 
 #[test]
@@ -565,11 +612,7 @@ fn system_runner_forwards_extra_environment() {
     let runner = SystemRunner;
     let probed = runner
         .run(
-            &[
-                "/bin/sh".to_owned(),
-                "-c".to_owned(),
-                "test \"$DX_RUNNER_PROBE\" = forwarded".to_owned(),
-            ],
+            &script_command("test \"$DX_RUNNER_PROBE\" = forwarded"),
             Path::new("/"),
             &[("DX_RUNNER_PROBE", "forwarded")],
         )
@@ -592,12 +635,9 @@ fn hermetic_runner_clears_parent_environment() {
     std::env::set_var("DX_HERMETIC_PROBE_PARENT", "parent");
     let cleared = runner
         .run_hermetic(
-            &[
-                "/bin/sh".to_owned(),
-                "-c".to_owned(),
-                "test -z \"$DX_HERMETIC_PROBE_PARENT\" && test \"$DX_HERMETIC_PROBE\" = kept"
-                    .to_owned(),
-            ],
+            &script_command(
+                "test -z \"$DX_HERMETIC_PROBE_PARENT\" && test \"$DX_HERMETIC_PROBE\" = kept",
+            ),
             Path::new("/"),
             &[("DX_HERMETIC_PROBE", "kept")],
         )
@@ -610,11 +650,7 @@ fn hermetic_runner_clears_parent_environment() {
 fn hermetic_runner_sets_no_path() {
     let runner = SystemRunner;
     let no_path = runner
-        .run_hermetic(
-            &["/usr/bin/printenv".to_owned(), "PATH".to_owned()],
-            Path::new("/"),
-            &[],
-        )
+        .run_hermetic(&print_env_command("PATH"), Path::new("/"), &[])
         .expect("no PATH");
     assert_eq!(no_path.code, Some(1));
 }
@@ -629,15 +665,15 @@ fn gitleaks_tool_defaults_to_absent() {
 
 #[test]
 fn spawn_success_reports_status_without_triplication() {
-    assert!(spawn_success(&["/usr/bin/true".to_owned()]));
-    assert!(!spawn_success(&["/usr/bin/false".to_owned()]));
+    assert!(spawn_success(&success_command()));
+    assert!(!spawn_success(&failure_command()));
     assert!(!spawn_success(&[]));
     assert!(!spawn_success(&["/nonexistent-dx-tool".to_owned()]));
 }
 
 #[test]
 fn exe_available_covers_help_file_and_path() {
-    assert!(exe_available("/usr/bin/true"));
+    assert!(exe_available(&present_executable()));
     assert!(!exe_available("/nonexistent-dx-tool-xyz"));
     assert!(!exe_available(""));
 }

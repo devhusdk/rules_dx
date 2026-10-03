@@ -17,6 +17,7 @@ dx_rust_crate(
         "src/test_outputs.rs",
     ],
     dev_deps = ["tempfile"],
+    extra_deps = ["//cli/path:dx_path"],
     deps = [
         "serde_json",
         "thiserror",

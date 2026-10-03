@@ -321,7 +321,7 @@ mod tests {
         CollectorConfig::new("dx_results").expect("group")
     }
 
-    fn named_set(id: &str, uris: &[&str]) -> String {
+    fn named_set(id: &str, uris: &[String]) -> String {
         let files: Vec<String> = uris
             .iter()
             .map(|u| format!(r#"{{"name": "result.pb", "uri": "{u}"}}"#))
@@ -341,6 +341,12 @@ mod tests {
     fn group_ref(name: &str, sets: &[&str]) -> String {
         let refs: Vec<String> = sets.iter().map(|s| format!(r#"{{"id": "{s}"}}"#)).collect();
         format!(r#"{{"name": "{name}", "fileSets": [{}]}}"#, refs.join(","))
+    }
+
+    /// A file URI naming one path under a root this host can resolve.
+    fn out_uri(rel: &str) -> String {
+        let root = if cfg!(windows) { "C:/out" } else { "/out" };
+        dx_path::uri(&std::path::Path::new(root).join(rel))
     }
 
     #[test]
@@ -449,9 +455,12 @@ mod tests {
 
     #[test]
     fn modern_named_set_id_collects() {
-        let body = r#"{"files": [{"name": "result.pb", "uri": "file:///out/a.pb"}]}"#;
+        let body = format!(
+            r#"{{"files": [{{"name": "result.pb", "uri": "{}"}}]}}"#,
+            out_uri("a.pb")
+        );
         let stream = [
-            modern_set("1", body),
+            modern_set("1", &body),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -466,11 +475,17 @@ mod tests {
 
     #[test]
     fn nested_child_sets_resolve_transitively() {
-        let child = r#"{"files": [{"name": "b.pb", "uri": "file:///out/b.pb"}]}"#;
-        let parent = r#"{"files": [{"name": "a.pb", "uri": "file:///out/a.pb"}], "fileSets": [{"id": "2"}]}"#;
+        let child = format!(
+            r#"{{"files": [{{"name": "b.pb", "uri": "{}"}}]}}"#,
+            out_uri("b.pb")
+        );
+        let parent = format!(
+            r#"{{"files": [{{"name": "a.pb", "uri": "{}"}}], "fileSets": [{{"id": "2"}}]}}"#,
+            out_uri("a.pb")
+        );
         let stream = [
-            modern_set("2", child),
-            modern_set("1", parent),
+            modern_set("2", &child),
+            modern_set("1", &parent),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -491,7 +506,7 @@ mod tests {
     fn missing_child_set_fails() {
         let parent = r#"{"files": [], "fileSets": [{"id": "9"}]}"#;
         let stream = [
-            modern_set("1", parent),
+            modern_set("1", &parent),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -511,7 +526,7 @@ mod tests {
     #[test]
     fn child_set_without_id_fails() {
         let parent = r#"{"files": [], "fileSets": [{}]}"#;
-        let stream = modern_set("1", parent);
+        let stream = modern_set("1", &parent);
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
@@ -522,7 +537,7 @@ mod tests {
     #[test]
     fn non_array_file_sets_fails() {
         let parent = r#"{"files": [], "fileSets": {}}"#;
-        let stream = modern_set("1", parent);
+        let stream = modern_set("1", &parent);
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
@@ -538,9 +553,12 @@ mod tests {
 
     #[test]
     fn repeated_set_reference_resolves_once() {
-        let body = r#"{"files": [{"name": "a.pb", "uri": "file:///out/a.pb"}], "fileSets": [{"id": "1"}]}"#;
+        let body = format!(
+            r#"{{"files": [{{"name": "a.pb", "uri": "{}"}}], "fileSets": [{{"id": "1"}}]}}"#,
+            out_uri("a.pb")
+        );
         let stream = [
-            modern_set("1", body),
+            modern_set("1", &body),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -556,7 +574,7 @@ mod tests {
     fn null_completed_events_are_ignored() {
         let stream = [
             r#"{"id": {"targetCompleted": {"label": "//q:a"}}, "completed": null}"#.to_owned(),
-            named_set("1", &["file:///out/a.pb"]),
+            named_set("1", &[out_uri("a.pb")]),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -686,7 +704,7 @@ mod tests {
     #[test]
     fn artifacts_sort_by_path_bytes() {
         let stream = [
-            named_set("1", &["file:///out/b.pb", "file:///out/a.pb"]),
+            named_set("1", &[out_uri("b.pb"), out_uri("a.pb")]),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -705,8 +723,8 @@ mod tests {
     #[test]
     fn collects_reported_artifacts_only() {
         let stream = [
-            named_set("1", &["file:///out/a.pb"]),
-            named_set("2", &["file:///out/unrelated.pb"]),
+            named_set("1", &[out_uri("a.pb")]),
+            named_set("2", &[out_uri("unrelated.pb")]),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
             completed("//q:b", true, &group_ref("other_group", &["2"])),
         ]
@@ -726,8 +744,8 @@ mod tests {
     #[test]
     fn records_sort_by_label_bytes() {
         let stream = [
-            named_set("1", &["file:///out/b.pb"]),
-            named_set("2", &["file:///out/a.pb"]),
+            named_set("1", &[out_uri("b.pb")]),
+            named_set("2", &[out_uri("a.pb")]),
             completed("//q:b", true, &group_ref("dx_results", &["1"])),
             completed("//q:a", true, &group_ref("dx_results", &["2"])),
         ]
@@ -802,7 +820,7 @@ mod tests {
     #[test]
     fn remote_uris_fail_without_network_fetch() {
         let stream = [
-            named_set("1", &["bytestream://remote/cache/a.pb"]),
+            named_set("1", &["bytestream://remote/cache/a.pb".to_owned()]),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -891,7 +909,7 @@ mod tests {
     #[test]
     fn unreadable_reported_files_fail() {
         let stream = [
-            named_set("1", &["file:///out/missing.pb"]),
+            named_set("1", &[out_uri("missing.pb")]),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -905,8 +923,8 @@ mod tests {
     #[test]
     fn duplicate_artifacts_deduplicated() {
         let stream = [
-            named_set("1", &["file:///out/a.pb"]),
-            named_set("2", &["file:///out/a.pb"]),
+            named_set("1", &[out_uri("a.pb")]),
+            named_set("2", &[out_uri("a.pb")]),
             completed("//q:a", true, &group_ref("dx_results", &["1", "2"])),
         ]
         .join("\n");
@@ -932,7 +950,7 @@ mod tests {
         let stream = [
             r#"{"id": {"progress": {}}, "progress": {"stdout": "noise"}}"#.to_owned(),
             r#"{"id": {"buildFinished": {}}, "finished": {"success": true}}"#.to_owned(),
-            named_set("1", &["file:///out/a.pb"]),
+            named_set("1", &[out_uri("a.pb")]),
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
@@ -947,7 +965,7 @@ mod tests {
     fn set_definition_order_does_not_matter() {
         let stream = [
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
-            named_set("1", &["file:///out/a.pb"]),
+            named_set("1", &[out_uri("a.pb")]),
         ]
         .join("\n");
         let artifacts = FakeArtifacts {

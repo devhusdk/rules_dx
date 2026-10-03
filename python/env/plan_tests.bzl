@@ -77,6 +77,7 @@ aspect_field field_count=8
 aspect_field has_subject=True
 aspect_field subject_label=//python/env:main_plan
 aspect_field transitive_count=0"""
+
 # colorama is a pytest dependency gated on sys_platform == "win32".
 WINDOWS_ENV_PLAN_OBSERVATIONS = """subject //python/env:hello_lib_plan
 file hello_lib_plan.json
@@ -153,7 +154,6 @@ aspect_field field_count=8
 aspect_field has_subject=True
 aspect_field subject_label=//python/env:main_plan
 aspect_field transitive_count=0"""
-
 
 def env_plan_tests(name, subjects, **kwargs):
     """Declares one pinned-observation focused environment-plan test."""

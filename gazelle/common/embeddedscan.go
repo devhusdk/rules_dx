@@ -1,9 +1,5 @@
 package common
 
-import (
-	"strings"
-)
-
 func ScanEmbedded(src []byte, add func(string)) {
 	n := len(src)
 	i := 0
@@ -30,15 +26,15 @@ func ScanEmbedded(src []byte, add func(string)) {
 			continue
 		}
 		if c == '\'' || c == '"' {
-			i = SkipEmbeddedQuoted(src, i)
+			i = skipQuoted(src, i)
 			continue
 		}
 		if c == '`' {
-			i = SkipEmbeddedTemplate(src, i)
+			i = skipTemplate(src, i)
 			continue
 		}
-		if c == '/' && IsEmbeddedRegexStart(src, i) {
-			i = skipEmbeddedRegex(src, i)
+		if c == '/' && isRegexStart(src, i) {
+			i = skipRegex(src, i)
 			continue
 		}
 		if isIdentStart(c) {
@@ -49,13 +45,13 @@ func ScanEmbedded(src []byte, add func(string)) {
 			word := string(src[i:j])
 			switch word {
 			case "import":
-				i = parseEmbeddedImport(src, i, j, add)
+				i = parseEmbeddedImport(src, j, add)
 				continue
 			case "export":
 				i = parseEmbeddedExport(src, j, add)
 				continue
 			case "require":
-				if IsEmbeddedPrecededByDot(src, i) {
+				if isPrecededByDot(src, i) {
 					i = j
 					continue
 				}
@@ -69,11 +65,11 @@ func ScanEmbedded(src []byte, add func(string)) {
 	}
 }
 
-func parseEmbeddedImport(src []byte, start, j int, add func(string)) int {
+func parseEmbeddedImport(src []byte, j int, add func(string)) int {
 	n := len(src)
 	k := skipTrivia(src, j)
 	if k < n && (src[k] == '\'' || src[k] == '"') {
-		if spec, next, ok := readEmbeddedQuoted(src, k); ok {
+		if spec, next, ok := parseQuoted(src, k); ok {
 			add(spec)
 			return next
 		}
@@ -82,7 +78,7 @@ func parseEmbeddedImport(src []byte, start, j int, add func(string)) int {
 	if k < n && src[k] == '(' {
 		m := skipTrivia(src, k+1)
 		if m < n && (src[m] == '\'' || src[m] == '"') {
-			if spec, next, ok := readEmbeddedQuoted(src, m); ok {
+			if spec, next, ok := parseQuoted(src, m); ok {
 				after := skipTrivia(src, next)
 				if after < n && src[after] == ')' {
 					add(spec)
@@ -108,10 +104,10 @@ func parseEmbeddedImport(src []byte, start, j int, add func(string)) int {
 				depth--
 			}
 		} else if c == '\'' || c == '"' {
-			p = SkipEmbeddedQuoted(src, p)
+			p = skipQuoted(src, p)
 			continue
 		} else if c == '`' {
-			p = SkipEmbeddedTemplate(src, p)
+			p = skipTemplate(src, p)
 			continue
 		} else if c == ';' {
 			return p + 1
@@ -123,7 +119,7 @@ func parseEmbeddedImport(src []byte, start, j int, add func(string)) int {
 			if string(src[p:q]) == "from" {
 				m := skipTrivia(src, q)
 				if m < n && (src[m] == '\'' || src[m] == '"') {
-					if spec, next, ok := readEmbeddedQuoted(src, m); ok {
+					if spec, next, ok := parseQuoted(src, m); ok {
 						add(spec)
 						return next
 					}
@@ -155,14 +151,13 @@ func parseEmbeddedExport(src []byte, j int, add func(string)) int {
 				depth--
 			}
 		} else if c == '\'' || c == '"' {
-			p = SkipEmbeddedQuoted(src, p)
+			p = skipQuoted(src, p)
 			continue
 		} else if c == '`' {
-			p = SkipEmbeddedTemplate(src, p)
+			p = skipTemplate(src, p)
 			continue
 		} else if c == ';' {
 			return p + 1
-		} else if depth == 0 && c == '*' {
 		} else if depth == 0 && isIdentStart(c) {
 			q := p + 1
 			for q < n && isIdentChar(src[q]) {
@@ -171,7 +166,7 @@ func parseEmbeddedExport(src []byte, j int, add func(string)) int {
 			if string(src[p:q]) == "from" {
 				m := skipTrivia(src, q)
 				if m < n && (src[m] == '\'' || src[m] == '"') {
-					if spec, next, ok := readEmbeddedQuoted(src, m); ok {
+					if spec, next, ok := parseQuoted(src, m); ok {
 						add(spec)
 						return next
 					}
@@ -194,7 +189,7 @@ func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
 	}
 	m := skipTrivia(src, k+1)
 	if m < n && (src[m] == '\'' || src[m] == '"') {
-		if spec, next, ok := readEmbeddedQuoted(src, m); ok {
+		if spec, next, ok := parseQuoted(src, m); ok {
 			after := skipTrivia(src, next)
 			if after < n && src[after] == ')' {
 				add(spec)
@@ -206,153 +201,16 @@ func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
 	return k + 1
 }
 
-func SkipEmbeddedQuoted(src []byte, i int) int {
-	quote := src[i]
-	j := i + 1
-	for j < len(src) {
-		if src[j] == '\\' {
-			j += 2
-			continue
-		}
-		if src[j] == quote {
-			return j + 1
-		}
-		if src[j] == '\n' {
-			return j
-		}
-		j++
-	}
-	return len(src)
-}
-
-func SkipEmbeddedTemplate(src []byte, i int) int {
-	j := i + 1
-	for j < len(src) {
-		if src[j] == '\\' {
-			j += 2
-			continue
-		}
-		if src[j] == '`' {
-			return j + 1
-		}
-		if src[j] == '$' && j+1 < len(src) && src[j+1] == '{' {
-			depth := 1
-			j += 2
-			for j < len(src) && depth > 0 {
-				if src[j] == '{' {
-					depth++
-				} else if src[j] == '}' {
-					depth--
-				} else if src[j] == '\'' || src[j] == '"' {
-					j = SkipEmbeddedQuoted(src, j)
-					continue
-				} else if src[j] == '`' {
-					j = SkipEmbeddedTemplate(src, j)
-					continue
-				}
-				j++
-			}
-			continue
-		}
-		j++
-	}
-	return len(src)
-}
-
-func IsEmbeddedRegexStart(src []byte, i int) bool {
-	j := i - 1
-	for j >= 0 && (src[j] == ' ' || src[j] == '\t' || src[j] == '\n' || src[j] == '\r') {
-		j--
-	}
-	if j < 0 {
-		return true
-	}
-	p := src[j]
-	if p == ')' || p == ']' || p == '}' {
-		return false
-	}
-	if isIdentChar(p) || p == '$' || p == '"' || p == '\'' || p == '`' {
-		return false
-	}
-	return true
-}
-
-func skipEmbeddedRegex(src []byte, i int) int {
-	j := i + 1
-	inClass := false
-	for j < len(src) {
-		c := src[j]
-		if c == '\\' {
-			j += 2
-			continue
-		}
-		if c == '\n' {
-			return j
-		}
-		if c == '[' {
-			inClass = true
-		} else if c == ']' {
-			inClass = false
-		} else if c == '/' && !inClass {
-			j++
-			for j < len(src) && isIdentChar(src[j]) {
-				j++
-			}
-			return j
-		}
-		j++
-	}
-	return len(src)
-}
-
-func IsEmbeddedPrecededByDot(src []byte, i int) bool {
-	j := i - 1
-	for j >= 0 && (src[j] == ' ' || src[j] == '\t' || src[j] == '\n' || src[j] == '\r') {
-		j--
-	}
-	return j >= 0 && src[j] == '.'
-}
-
-func readEmbeddedQuoted(src []byte, i int) (string, int, bool) {
-	quote := src[i]
-	var b strings.Builder
-	j := i + 1
-	for j < len(src) {
-		if src[j] == '\\' && j+1 < len(src) {
-			b.WriteByte(src[j+1])
-			j += 2
-			continue
-		}
-		if src[j] == quote {
-			return b.String(), j + 1, true
-		}
-		if src[j] == '\n' {
-			return "", j, false
-		}
-		b.WriteByte(src[j])
-		j++
-	}
-	return "", len(src), false
-}
-
 func ExtractScript(src []byte) []byte {
 	n := len(src)
 	i := 0
 	for i < n {
-		if i+4 <= n && src[i] == '<' && src[i+1] == '!' && src[i+2] == '-' && src[i+3] == '-' {
-			j := i + 4
-			end := -1
-			for j+2 < n {
-				if src[j] == '-' && src[j+1] == '-' && src[j+2] == '>' {
-					end = j + 3
-					break
-				}
-				j++
-			}
-			if end < 0 {
-				return nil
-			}
-			i = end
+		after := skipHTMLComment(src, i)
+		if after < 0 {
+			return nil
+		}
+		if after > i {
+			i = after
 			continue
 		}
 		if src[i] != '<' {
@@ -393,20 +251,12 @@ func ExtractScripts(src []byte) [][]byte {
 	var out [][]byte
 	i := 0
 	for i < n {
-		if i+4 <= n && src[i] == '<' && src[i+1] == '!' && src[i+2] == '-' && src[i+3] == '-' {
-			j := i + 4
-			end := -1
-			for j+2 < n {
-				if src[j] == '-' && src[j+1] == '-' && src[j+2] == '>' {
-					end = j + 3
-					break
-				}
-				j++
-			}
-			if end < 0 {
-				return nil
-			}
-			i = end
+		after := skipHTMLComment(src, i)
+		if after < 0 {
+			return nil
+		}
+		if after > i {
+			i = after
 			continue
 		}
 		if src[i] != '<' {
@@ -445,6 +295,21 @@ func ExtractScripts(src []byte) [][]byte {
 		return nil
 	}
 	return out
+}
+
+func skipHTMLComment(src []byte, i int) int {
+	n := len(src)
+	if i+4 > n || src[i] != '<' || src[i+1] != '!' || src[i+2] != '-' || src[i+3] != '-' {
+		return i
+	}
+	j := i + 4
+	for j+2 < n {
+		if src[j] == '-' && src[j+1] == '-' && src[j+2] == '>' {
+			return j + 3
+		}
+		j++
+	}
+	return -1
 }
 
 func scanTagName(src []byte, i int) ([]byte, int, bool) {
@@ -487,20 +352,12 @@ func findCloseTag(src []byte, start int, name string) int {
 	n := len(src)
 	i := start
 	for i < n {
-		if i+4 <= n && src[i] == '<' && src[i+1] == '!' && src[i+2] == '-' && src[i+3] == '-' {
-			j := i + 4
-			end := -1
-			for j+2 < n {
-				if src[j] == '-' && src[j+1] == '-' && src[j+2] == '>' {
-					end = j + 3
-					break
-				}
-				j++
-			}
-			if end < 0 {
-				return -1
-			}
-			i = end
+		after := skipHTMLComment(src, i)
+		if after < 0 {
+			return -1
+		}
+		if after > i {
+			i = after
 			continue
 		}
 		if src[i] == '<' && i+1 < n && src[i+1] == '/' {

@@ -189,18 +189,6 @@ func TestExtractScripts(t *testing.T) {
 	}
 }
 
-func TestSkipQuotedEOF(t *testing.T) {
-	if got := skipQuoted([]byte("\"abc"), 0); got != 4 {
-		t.Errorf("skipQuoted EOF = %d, want 4", got)
-	}
-}
-
-func TestSkipTemplateEOF(t *testing.T) {
-	if got := skipTemplate([]byte("`abc"), 0); got != 4 {
-		t.Errorf("skipTemplate EOF = %d, want 4", got)
-	}
-}
-
 func TestIsStdLib(t *testing.T) {
 	for _, name := range []string{"fs", "path", "node:fs", "node:path", "test", "node:test"} {
 		if !IsStdLib(name) {

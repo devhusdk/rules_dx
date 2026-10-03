@@ -168,11 +168,3 @@ func normalizeSpec(spec string) string {
 func ExtractScripts(src []byte) [][]byte {
 	return common.ExtractScripts(src)
 }
-
-func skipQuoted(src []byte, pos int) int {
-	return common.SkipEmbeddedQuoted(src, pos)
-}
-
-func skipTemplate(src []byte, pos int) int {
-	return common.SkipEmbeddedTemplate(src, pos)
-}

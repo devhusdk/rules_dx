@@ -209,18 +209,6 @@ func TestExtractESMRegions(t *testing.T) {
 	}
 }
 
-func TestSkipQuotedEOF(t *testing.T) {
-	if got := skipQuoted([]byte("\"abc"), 0); got != 4 {
-		t.Errorf("skipQuoted EOF = %d, want 4", got)
-	}
-}
-
-func TestSkipTemplateEOF(t *testing.T) {
-	if got := skipTemplate([]byte("`abc"), 0); got != 4 {
-		t.Errorf("skipTemplate EOF = %d, want 4", got)
-	}
-}
-
 func scanSpecs(src string) []string {
 	var out []string
 	scan([]byte(src), func(s string) { out = append(out, normalizeSpec(s)) })
@@ -332,48 +320,6 @@ func TestScanRequire(t *testing.T) {
 	}
 	if got := scanSpecs("import a from \"./a.mdx\"; require(\"./b.mdx\");"); !reflect.DeepEqual(got, []string{"a", "b"}) {
 		t.Errorf("scan import+require = %q, want [a b]", got)
-	}
-}
-
-func TestIsPrecededByDot(t *testing.T) {
-	if isPrecededByDot([]byte("require"), 0) {
-		t.Error("isPrecededByDot start = true, want false")
-	}
-	if !isPrecededByDot([]byte("obj.require"), 4) {
-		t.Error("isPrecededByDot dot = false, want true")
-	}
-	if !isPrecededByDot([]byte("obj . \n require"), 8) {
-		t.Error("isPrecededByDot spaced = false, want true")
-	}
-	if isPrecededByDot([]byte("x require"), 2) {
-		t.Error("isPrecededByDot no dot = true, want false")
-	}
-}
-
-func TestIsRegexStart(t *testing.T) {
-	if !isRegexStart([]byte("/abc"), 0) {
-		t.Error("isRegexStart start = false, want true")
-	}
-	if isRegexStart([]byte("a/b"), 1) {
-		t.Error("isRegexStart after ident = true, want false")
-	}
-	if isRegexStart([]byte("(a)/b"), 3) {
-		t.Error("isRegexStart after ) = true, want false")
-	}
-	if isRegexStart([]byte("[a]/b"), 3) {
-		t.Error("isRegexStart after ] = true, want false")
-	}
-	if isRegexStart([]byte("{a}/b"), 3) {
-		t.Error("isRegexStart after } = true, want false")
-	}
-	if isRegexStart([]byte("\"a\"/b"), 3) {
-		t.Error("isRegexStart after quote = true, want false")
-	}
-	if !isRegexStart([]byte(";/b"), 1) {
-		t.Error("isRegexStart after ; = false, want true")
-	}
-	if !isRegexStart([]byte("   /abc"), 3) {
-		t.Error("isRegexStart spaced start = false, want true")
 	}
 }
 

@@ -34,11 +34,3 @@ func normalizeSpec(spec string) string {
 func ExtractScript(src []byte) []byte {
 	return common.ExtractScript(src)
 }
-
-func skipQuoted(src []byte, pos int) int {
-	return common.SkipEmbeddedQuoted(src, pos)
-}
-
-func skipTemplate(src []byte, pos int) int {
-	return common.SkipEmbeddedTemplate(src, pos)
-}

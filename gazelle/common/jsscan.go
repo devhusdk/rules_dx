@@ -69,7 +69,7 @@ func Scan(src []byte, add func(string)) {
 			word := string(src[i:j])
 			switch word {
 			case "import":
-				i = parseImport(src, i, j, add)
+				i = parseImport(src, j, add)
 				continue
 			case "export":
 				i = parseExport(src, j, add)
@@ -89,9 +89,8 @@ func Scan(src []byte, add func(string)) {
 	}
 }
 
-func parseImport(src []byte, kwStart, pos int, add func(string)) int {
+func parseImport(src []byte, pos int, add func(string)) int {
 	n := len(src)
-	_ = kwStart
 	p := skipTrivia(src, pos)
 	if p < n && src[p] == '.' {
 		return p + 1
@@ -325,30 +324,44 @@ func skipQuoted(src []byte, pos int) int {
 
 func skipTemplate(src []byte, pos int) int {
 	n := len(src)
-	k := pos + 1
-	depth := 0
-	for k < n {
-		c := src[k]
-		if c == '\\' {
-			k += 2
+	j := pos + 1
+	for j < n {
+		if src[j] == '\\' {
+			j += 2
 			continue
 		}
-		if c == '`' && depth == 0 {
-			return k + 1
+		if src[j] == '`' {
+			return j + 1
 		}
-		if c == '$' && k+1 < n && src[k+1] == '{' {
-			depth++
-			k += 2
+		if src[j] == '$' && j+1 < n && src[j+1] == '{' {
+			j = skipSubstitution(src, j+2)
 			continue
 		}
-		if c == '}' && depth > 0 {
-			depth--
-			k++
-			continue
-		}
-		k++
+		j++
 	}
 	return n
+}
+
+func skipSubstitution(src []byte, pos int) int {
+	n := len(src)
+	depth := 1
+	j := pos
+	for j < n && depth > 0 {
+		c := src[j]
+		if c == '{' {
+			depth++
+		} else if c == '}' {
+			depth--
+		} else if c == '\'' || c == '"' {
+			j = skipQuoted(src, j)
+			continue
+		} else if c == '`' {
+			j = skipTemplate(src, j)
+			continue
+		}
+		j++
+	}
+	return j
 }
 
 func isRegexStart(src []byte, pos int) bool {
@@ -360,11 +373,13 @@ func isRegexStart(src []byte, pos int) bool {
 		return true
 	}
 	c := src[j]
-	switch c {
-	case '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '+', '-', '*', '%', '<', '>', '^', '~':
-		return true
+	if c == ')' || c == ']' || c == '}' {
+		return false
 	}
-	return false
+	if isIdentChar(c) || c == '"' || c == '\'' || c == '`' {
+		return false
+	}
+	return true
 }
 
 func skipRegex(src []byte, pos int) int {

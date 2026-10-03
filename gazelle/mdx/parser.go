@@ -318,19 +318,3 @@ func normalizeSpec(spec string) string {
 func scan(src []byte, add func(string)) {
 	common.ScanEmbedded(src, add)
 }
-
-func skipQuoted(src []byte, pos int) int {
-	return common.SkipEmbeddedQuoted(src, pos)
-}
-
-func skipTemplate(src []byte, pos int) int {
-	return common.SkipEmbeddedTemplate(src, pos)
-}
-
-func isPrecededByDot(src []byte, pos int) bool {
-	return common.IsEmbeddedPrecededByDot(src, pos)
-}
-
-func isRegexStart(src []byte, pos int) bool {
-	return common.IsEmbeddedRegexStart(src, pos)
-}

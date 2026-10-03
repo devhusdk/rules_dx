@@ -65,6 +65,75 @@ func TestScanEmbedded(t *testing.T) {
 	}
 }
 
+func TestScanTemplateSubstitution(t *testing.T) {
+	cases := []struct{ name, src string }{
+		{"open brace in string", "const s = `a${ \"${\" }b`;\nimport hidden from \"./hidden.js\";\n"},
+		{"close brace then backtick in string", "const s = `a${ \"x}\" + `inner` }`;\nimport hidden from \"./hidden.js\";\n"},
+		{"nested template in substitution", "const s = `a${ b(`c`) }d`;\nimport hidden from \"./hidden.js\";\n"},
+		{"quoted line comment", "const s = `a${ \"//\" }b`;\nimport hidden from \"./hidden.js\";\n"},
+	}
+	for _, tc := range cases {
+		if got := collectScan([]byte(tc.src)); !reflect.DeepEqual(got, []string{"hidden"}) {
+			t.Errorf("Scan %s = %q, want [hidden]", tc.name, got)
+		}
+		if got := collectEmbedded([]byte(tc.src)); !reflect.DeepEqual(got, []string{"hidden"}) {
+			t.Errorf("ScanEmbedded %s = %q, want [hidden]", tc.name, got)
+		}
+	}
+}
+
+func TestSkipQuotedAndTemplateEOF(t *testing.T) {
+	if got := skipQuoted([]byte("\"abc"), 0); got != 4 {
+		t.Errorf("skipQuoted EOF = %d, want 4", got)
+	}
+	if got := skipTemplate([]byte("`abc"), 0); got != 4 {
+		t.Errorf("skipTemplate EOF = %d, want 4", got)
+	}
+}
+
+func TestIsPrecededByDot(t *testing.T) {
+	cases := []struct {
+		src  string
+		pos  int
+		want bool
+	}{
+		{"require", 0, false},
+		{"obj.require", 4, true},
+		{"obj . \n require", 8, true},
+		{"x require", 2, false},
+	}
+	for _, tc := range cases {
+		if got := isPrecededByDot([]byte(tc.src), tc.pos); got != tc.want {
+			t.Errorf("isPrecededByDot(%q, %d) = %v, want %v", tc.src, tc.pos, got, tc.want)
+		}
+	}
+}
+
+func TestIsRegexStart(t *testing.T) {
+	cases := []struct {
+		src  string
+		pos  int
+		want bool
+	}{
+		{"/abc", 0, true},
+		{"a/b", 1, false},
+		{"(a)/b", 3, false},
+		{"[a]/b", 3, false},
+		{"{a}/b", 3, false},
+		{"\"a\"/b", 3, false},
+		{";/b", 1, true},
+		{"   /abc", 3, true},
+		{"f()/b", 3, false},
+		{"}/b", 1, false},
+		{"`a`/b", 3, false},
+	}
+	for _, tc := range cases {
+		if got := isRegexStart([]byte(tc.src), tc.pos); got != tc.want {
+			t.Errorf("isRegexStart(%q, %d) = %v, want %v", tc.src, tc.pos, got, tc.want)
+		}
+	}
+}
+
 func TestMaskStyles(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"line comment", "import a.B;\n// import hidden.C;\n", "import a.B;\n                   \n"},

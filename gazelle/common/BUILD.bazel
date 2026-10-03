@@ -12,6 +12,7 @@ go_library(
         "jvmmask.go",
         "langcore.go",
         "naming.go",
+        "nodestdlib.go",
     ],
     importpath = "github.com/ralvik/rules_dx/gazelle/common",
     visibility = [

@@ -159,7 +159,7 @@ func (l *astroLang) generateRules(args language.GenerateArgs) language.GenerateR
 		IsSource:     isSupported,
 		TargetName:   TargetName,
 		ParseImports: ParseImports,
-		IsStdLib:     IsStdLib,
+		IsStdLib:     common.IsNodeBuiltin,
 		Wrap:         func(imports []string) any { return targetImports{imports: imports} },
 	}, l)
 }
@@ -180,7 +180,7 @@ func (l *astroLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Rem
 			}
 			return imports.imports, true
 		},
-		IsStdLib: IsStdLib,
+		IsStdLib: common.IsNodeBuiltin,
 		MarkUsed: func(name string) bool {
 			if ignore := matchingIgnore(c, name); ignore != nil {
 				ignore.used = true

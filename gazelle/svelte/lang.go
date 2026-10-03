@@ -159,7 +159,7 @@ func (l *svelteLang) generateRules(args language.GenerateArgs) language.Generate
 		IsSource:     isSupported,
 		TargetName:   TargetName,
 		ParseImports: ParseImports,
-		IsStdLib:     IsStdLib,
+		IsStdLib:     common.IsNodeBuiltin,
 		Wrap:         func(imports []string) any { return targetImports{imports: imports} },
 	}, l)
 }
@@ -180,7 +180,7 @@ func (l *svelteLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 			}
 			return imports.imports, true
 		},
-		IsStdLib: IsStdLib,
+		IsStdLib: common.IsNodeBuiltin,
 		MarkUsed: func(name string) bool {
 			if ignore := matchingIgnore(c, name); ignore != nil {
 				ignore.used = true

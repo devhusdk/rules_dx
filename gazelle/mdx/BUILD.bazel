@@ -11,7 +11,6 @@ go_library(
         "lang.go",
         "naming.go",
         "parser.go",
-        "stdlib.go",
     ],
     importpath = "github.com/ralvik/rules_dx/gazelle/mdx",
     visibility = ["//gazelle/dispatch:__pkg__"],

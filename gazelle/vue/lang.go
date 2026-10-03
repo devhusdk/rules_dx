@@ -159,7 +159,7 @@ func (l *vueLang) generateRules(args language.GenerateArgs) language.GenerateRes
 		IsSource:     isSupported,
 		TargetName:   TargetName,
 		ParseImports: ParseImports,
-		IsStdLib:     IsStdLib,
+		IsStdLib:     common.IsNodeBuiltin,
 		Wrap:         func(imports []string) any { return targetImports{imports: imports} },
 	}, l)
 }
@@ -203,7 +203,7 @@ func (l *vueLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remot
 			}
 			return imports.imports, true
 		},
-		IsStdLib: IsStdLib,
+		IsStdLib: common.IsNodeBuiltin,
 		MarkUsed: func(name string) bool {
 			if ignore := matchingIgnore(c, name); ignore != nil {
 				ignore.used = true

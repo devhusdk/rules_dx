@@ -203,6 +203,25 @@ func TestNormalizeJSSpec(t *testing.T) {
 	}
 }
 
+func TestIsNodeBuiltin(t *testing.T) {
+	for _, name := range []string{"fs", "path", "node:fs", "node:path", "test", "node:test"} {
+		if !IsNodeBuiltin(name) {
+			t.Errorf("node builtin not recognized: %q", name)
+		}
+	}
+	if !IsNodeBuiltin("fs/promises") {
+		t.Error("node builtin subpath fs/promises not recognized")
+	}
+	for _, name := range []string{
+		"", "node:", "node:node:fs", "helper", "fs-extra", "react",
+		"fs/promises/extra", "@mdx-js/mdx", "astro", "svelte", "vue",
+	} {
+		if IsNodeBuiltin(name) {
+			t.Errorf("non-builtin identity recognized as node builtin: %q", name)
+		}
+	}
+}
+
 func TestParseImportRefs(t *testing.T) {
 	cases := []struct {
 		name   string

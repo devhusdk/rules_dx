@@ -1,6 +1,8 @@
-package svelte
+package common
 
-var stdlibModules = map[string]struct{}{
+import "strings"
+
+var nodeBuiltins = map[string]struct{}{
 	"assert": {}, "async_hooks": {}, "buffer": {}, "child_process": {},
 	"cluster": {}, "console": {}, "constants": {}, "crypto": {},
 	"dgram": {}, "diagnostics_channel": {}, "dns": {}, "domain": {},
@@ -17,13 +19,7 @@ var stdlibModules = map[string]struct{}{
 	"worker_threads": {}, "zlib": {},
 }
 
-func IsStdLib(name string) bool {
-	if len(name) > 5 && name[:5] == "node:" {
-		name = name[5:]
-	}
-	if name == "" {
-		return false
-	}
-	_, ok := stdlibModules[name]
+func IsNodeBuiltin(name string) bool {
+	_, ok := nodeBuiltins[strings.TrimPrefix(name, "node:")]
 	return ok
 }

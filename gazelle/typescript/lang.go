@@ -243,7 +243,7 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 				}
 				continue
 			}
-			if !ref.Relative && IsStdLib(ref.Root) {
+			if !ref.Relative && common.IsNodeBuiltin(ref.Root) {
 				continue
 			}
 			seen[ref.Root] = true
@@ -335,7 +335,7 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 	}
 	deps := make(map[string]bool)
 	for _, name := range imports.imports {
-		if !imports.local[name] && IsStdLib(name) {
+		if !imports.local[name] && common.IsNodeBuiltin(name) {
 			continue
 		}
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}

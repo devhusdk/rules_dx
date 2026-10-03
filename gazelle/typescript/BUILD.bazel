@@ -10,7 +10,6 @@ go_library(
         "doc.go",
         "lang.go",
         "naming.go",
-        "stdlib.go",
     ],
     importpath = "github.com/ralvik/rules_dx/gazelle/typescript",
     visibility = ["//gazelle/dispatch:__pkg__"],
@@ -52,7 +51,6 @@ go_test(
     srcs = [
         "lang_test.go",
         "naming_test.go",
-        "stdlib_test.go",
     ],
     embed = [":typescript"],
     pure = "on",

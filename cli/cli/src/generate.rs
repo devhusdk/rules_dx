@@ -3,7 +3,7 @@ use dx_output::{ChangeEvent, ChangeKind, Edit, FinishedCounts, MutationOutcome, 
 use generation_result::{
     file_text,
     proto::{GenerationManifest, Mode, WriteOutcome},
-    validate, Error, FileText,
+    Error, FileText,
 };
 
 pub const IGNORED_IMPORT_CODE: &str = "ignored_import";
@@ -157,8 +157,8 @@ fn map_outcome(
     }
 }
 
+/// Projects a manifest the boundary already validated.
 pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error> {
-    validate(manifest)?;
     let is_check = manifest_is_check(manifest);
     let results_complete = manifest
         .scopes
@@ -619,30 +619,69 @@ mod tests {
     }
 
     #[test]
-    fn invalid_manifests_fail_closed_without_partial_output() {
-        let mut bad_major = check_manifest();
-        bad_major.schema_major = 99;
-        assert!(project(&bad_major).is_err());
-
-        let mut empty_scopes = check_manifest();
-        empty_scopes.scopes.clear();
-        assert!(project(&empty_scopes).is_err());
-
-        let mut duplicate = default_manifest();
-        duplicate.files.push(duplicate.files[0].clone());
-        assert!(project(&duplicate).is_err());
-
+    fn projection_rejects_what_it_reads() {
         let mut bad_digest = check_manifest();
         if let Some(file_result::Change::Modification(modification)) =
             bad_digest.files[0].change.as_mut()
         {
             modification.original_digest = vec![0u8; 3];
         }
-        assert!(project(&bad_digest).is_err());
+        assert!(matches!(
+            project(&bad_digest),
+            Err(Error::BadDigestLen { .. })
+        ));
+
+        let mut inverted = check_manifest();
+        if let Some(file_result::Change::Modification(modification)) =
+            inverted.files[0].change.as_mut()
+        {
+            modification.edits[0].start_byte = 2;
+            modification.edits[0].end_byte = 1;
+        }
+        assert!(matches!(
+            project(&inverted),
+            Err(Error::InvertedEdit { .. })
+        ));
+
+        let mut no_change = check_manifest();
+        no_change.files[0].change = None;
+        assert!(matches!(
+            project(&no_change),
+            Err(Error::MissingChange { .. })
+        ));
+
+        let mut bad_outcome = default_manifest();
+        bad_outcome.files[1].outcome = 99;
+        assert!(matches!(
+            project(&bad_outcome),
+            Err(Error::InvalidOutcome { .. })
+        ));
+    }
+
+    #[test]
+    fn projection_assumes_a_validated_manifest() {
+        let mut bad_major = check_manifest();
+        bad_major.schema_major = 99;
+        assert!(project(&bad_major).is_ok());
+
+        let mut empty_scopes = check_manifest();
+        empty_scopes.scopes.clear();
+        assert!(project(&empty_scopes).is_ok());
+
+        let mut duplicate = default_manifest();
+        duplicate.files.push(duplicate.files[0].clone());
+        assert_eq!(project(&duplicate).expect("projected").files.len(), 3);
 
         let mut check_outcome = check_manifest();
         check_outcome.files[0].outcome = WriteOutcome::Applied as i32;
-        assert!(project(&check_outcome).is_err());
+        assert!(project(&check_outcome).is_ok());
+
+        for manifest in [bad_major, empty_scopes, duplicate, check_outcome] {
+            assert!(
+                generation_result::validate(&manifest).is_err(),
+                "the boundary rejects what projection trusts"
+            );
+        }
     }
 
     #[test]

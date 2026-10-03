@@ -534,6 +534,14 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
     Ok(entries)
 }
 
+/// The NOTICE section header one inventory entry renders as.
+pub fn notice_entry_header(entry: &NoticeEntry) -> String {
+    format!(
+        "=== {} {} ({}) ===",
+        entry.package, entry.version, entry.license
+    )
+}
+
 pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     let mut sorted = entries.to_vec();
     sorted.sort_by(|a, b| {
@@ -551,10 +559,7 @@ pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     );
     out.push('\n');
     for (entry, words) in &sorted {
-        out.push_str(&format!(
-            "=== {} {} ({}) ===\n",
-            entry.package, entry.version, entry.license
-        ));
+        out.push_str(&format!("{}\n", notice_entry_header(entry)));
         let trimmed = words.trim_end_matches('\n');
         out.push_str(trimmed);
         out.push('\n');
@@ -670,10 +675,7 @@ pub fn notice_verify_files(
                 ),
             )
         })?;
-        let header = format!(
-            "=== {} {} ({}) ===",
-            entry.package, entry.version, entry.license
-        );
+        let header = notice_entry_header(entry);
         if !notice_text.contains(&header) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,

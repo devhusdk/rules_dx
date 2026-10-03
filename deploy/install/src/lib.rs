@@ -265,47 +265,9 @@ impl Verifier for SystemVerifier {
     }
 }
 
-struct NoticeEntry {
-    package: String,
-    version: String,
-    license: String,
-    text_basename: String,
-}
-
-fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
-    let mut entries = Vec::new();
-    for (index, raw) in text.lines().enumerate() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let fields: Vec<&str> = line.split('|').collect();
-        if fields.len() != 5 {
-            return Err(format!(
-                "dx_verify: notice manifest line {}: want 5 '|' fields, got {}",
-                index + 1,
-                fields.len()
-            ));
-        }
-        let entry = NoticeEntry {
-            package: fields[0].trim().to_owned(),
-            version: fields[2].trim().to_owned(),
-            license: fields[3].trim().to_owned(),
-            text_basename: fields[4].trim().to_owned(),
-        };
-        if entry.package.is_empty() || entry.version.is_empty() || entry.license.is_empty() {
-            return Err(format!(
-                "dx_verify: notice manifest line {}: package, version, and license must be non-empty",
-                index + 1
-            ));
-        }
-        entries.push(entry);
-    }
-    Ok(entries)
-}
-
 fn verify_notice(notice_text: &str, manifest_text: &str) -> Result<usize, String> {
-    let entries = parse_notice_manifest(manifest_text)?;
+    let entries = dx_release_tools::parse_notice_manifest(manifest_text)
+        .map_err(|error| format!("dx_verify: {error}"))?;
     if entries.is_empty() {
         return Err(
             "dx_verify: notice manifest lists no packages; refusing empty NOTICE".to_owned(),
@@ -321,10 +283,7 @@ fn verify_notice(notice_text: &str, manifest_text: &str) -> Result<usize, String
                 entry.package, entry.version, entry.license
             ));
         }
-        let header = format!(
-            "=== {} {} ({}) ===",
-            entry.package, entry.version, entry.license
-        );
+        let header = dx_release_tools::notice_entry_header(entry);
         if !notice_text.contains(&header) {
             return Err(format!(
                 "dx_verify: NOTICE missing entry '{header}' (fail closed before install)"
@@ -963,26 +922,37 @@ mod tests {
 
     #[test]
     fn notice_manifest_failures_are_actionable() {
-        let entries =
-            parse_notice_manifest("# audited inventory\n\ndemo-lib-a|cargo|1.0.0|MIT|demo.txt\n")
-                .expect("comments and blanks skip");
-        assert_eq!(entries.len(), 1);
-        let err = parse_notice_manifest("demo-lib-a|cargo|1.0.0\n")
-            .err()
-            .expect("field count");
+        let manifest = "# audited inventory\n\ndemo-lib-a|cargo|1.0.0|MIT|demo.txt\n";
+        let notice = dx_release_tools::render_notice(
+            "//demo:root",
+            &[(
+                dx_release_tools::NoticeEntry {
+                    package: "demo-lib-a".to_owned(),
+                    set: "cargo".to_owned(),
+                    version: "1.0.0".to_owned(),
+                    license: "MIT".to_owned(),
+                    text_basename: "demo.txt".to_owned(),
+                },
+                "Fixture words for demo-lib-a.\n".to_owned(),
+            )],
+        );
+        assert_eq!(
+            verify_notice(&notice, manifest).expect("generated NOTICE verifies"),
+            1
+        );
+        let err = verify_notice(&notice, "demo-lib-a|cargo|1.0.0\n").expect_err("field count");
         assert!(err.contains("want 5 '|' fields"), "got {err}");
-        let err = parse_notice_manifest(" |cargo|1.0.0|MIT|demo.txt\n")
-            .err()
-            .expect("empty package");
+        let err = verify_notice(&notice, " |cargo|1.0.0|MIT|demo.txt\n").expect_err("no package");
         assert!(err.contains("must be non-empty"), "got {err}");
+        let err = verify_notice(&notice, "demo-lib-a||1.0.0|MIT|demo.txt\n").expect_err("no set");
+        assert!(err.contains("must be non-empty"), "got {err}");
+        let err =
+            verify_notice(&notice, "demo-lib-a|cargo|1.0.0|MIT|\n").expect_err("no text file");
+        assert!(err.contains("missing-notice-text"), "got {err}");
         let err = verify_notice("NOTICE for //demo:root\n", "# no packages\n")
             .expect_err("empty manifest");
         assert!(err.contains("lists no packages"), "got {err}");
-        let err = verify_notice(
-            "NOTICE for //demo:root\n",
-            "demo-lib-a|cargo|1.0.0|MIT|demo.txt\n",
-        )
-        .expect_err("missing entry");
+        let err = verify_notice("NOTICE for //demo:root\n", manifest).expect_err("missing entry");
         assert!(err.contains("NOTICE missing entry"), "got {err}");
     }
 

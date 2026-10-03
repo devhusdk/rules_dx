@@ -58,7 +58,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{env, invocation, Truncated};
+    use crate::adopt::test_support::{env, invocation, run, Truncated};
 
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {
@@ -192,41 +192,33 @@ mod tests {
         let inv = invocation(&["init", "--dry-run", "--quiet", "demo"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-init-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").is_empty());
+        assert!(out.is_empty());
 
         let inv = invocation(&["status", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-status-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(!String::from_utf8(out).expect("out").is_empty());
+        assert!(!out.is_empty());
 
         let inv = invocation(&["version", "--dry-run", "--pin=0.0.0", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-version-dryrun-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").is_empty());
+        assert!(out.is_empty());
 
         let inv = invocation(&["version", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-version-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(!String::from_utf8(out).expect("out").is_empty());
+        assert!(!out.is_empty());
     }
 }

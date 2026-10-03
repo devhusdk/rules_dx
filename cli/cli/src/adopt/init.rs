@@ -49,19 +49,16 @@ pub(crate) fn execute_init(
 
 #[cfg(test)]
 mod tests {
-    use crate::adopt::execute_adoption;
-    use crate::adopt::test_support::{env, invocation};
+    use crate::adopt::test_support::{invocation, run};
 
     #[test]
     fn init_dry_run_lists_without_writing() {
         let inv = invocation(&["init", "--dry-run", "demo"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-dry-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").contains(".dx/version"));
+        assert!(out.contains(".dx/version"));
         assert!(!root.join(".dx/version").exists());
     }
 
@@ -70,9 +67,7 @@ mod tests {
         let inv = invocation(&["init"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(root.join(".dx/version").exists());
         assert!(root.join(".devcontainer/devcontainer.json").exists());

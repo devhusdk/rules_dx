@@ -70,19 +70,16 @@ pub(crate) fn execute_new(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::execute_adoption;
-    use crate::adopt::test_support::{env, invocation};
+    use crate::adopt::test_support::{invocation, run};
 
     #[test]
     fn new_dry_run_lists_without_writing() {
         let inv = invocation(&["new", "rust", "demo", "--dry-run"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-new-dry-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         assert!(text.contains("demo/Cargo.toml"), "{text}");
         assert!(text.contains("demo/.dx/version"), "{text}");
         assert!(!root.join("demo/Cargo.toml").exists());
@@ -93,9 +90,7 @@ mod tests {
         let inv = invocation(&["new", "go", "demo"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-new-apply-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(root.join("demo/go.mod").exists());
         assert!(root.join("demo/.dx/version").exists());
@@ -106,12 +101,8 @@ mod tests {
         let inv = invocation(&["new", "ruby", "demo"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-new-unknown-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, pre_exec_code());
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("unknown language"));
+        assert!(err.contains("unknown language"));
     }
 }

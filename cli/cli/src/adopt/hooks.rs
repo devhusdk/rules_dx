@@ -429,9 +429,8 @@ fn first_line(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::execute_adoption;
     use crate::adopt::test_support::{
-        env, env_with, env_with_query, invocation, NullQuery, NullRunner,
+        invocation, run, run_with, run_with_query, NullQuery, NullRunner,
     };
     use std::cell::RefCell;
     use std::io;
@@ -592,11 +591,9 @@ mod tests {
         let inv = invocation(&["hooks", "status"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-status-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         assert!(text.contains("baseline:"));
         assert!(text.contains("overlay:"));
         assert!(text.contains("timings:"));
@@ -610,13 +607,9 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-status-bad-");
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("dx.hooks.toml"), "not toml = [").expect("bad baseline");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("hooks status"));
+        assert!(err.contains("hooks status"));
     }
 
     #[test]
@@ -630,11 +623,9 @@ mod tests {
             "[timings]\n\"format --check\" = 1.23\n",
         )
         .expect("timings");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         assert!(text.contains("1.23s (measured)"));
         assert!(!text.contains("p95 12s"));
     }
@@ -653,24 +644,17 @@ mod tests {
             let inv = invocation(&words);
             let scratch = dx_test_scratch::scratch("dx-adopt-hooks-dry-");
             let root = scratch.path().to_path_buf();
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, _err) = run(&inv, &root);
             assert_eq!(code, 0, "words: {words:?}");
-            assert!(
-                String::from_utf8(out).expect("out").contains(want),
-                "words: {words:?}"
-            );
+            assert!(out.contains(want), "words: {words:?}");
             assert!(!root.join(".git/hooks/pre-commit").exists());
         }
         let inv = invocation(&["hooks", "status", "--dry-run", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-dry-quiet-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").is_empty());
+        assert!(out.is_empty());
     }
 
     struct ScriptQuery {
@@ -844,13 +828,11 @@ mod tests {
         write_workspace(&root);
         let query = ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n");
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
+        let (code, out, _err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 0);
         assert_eq!(runner.seen.borrow().len(), 2);
         assert!(runner.seen.borrow()[0][1..].contains(&"format".to_owned()));
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         assert!(text.contains("format --check ok"));
         assert!(!text.contains("budget 120s)") || text.contains("/ budget 120s)"));
         assert!(!text.contains("ran pre-commit: ok (budget 120s)"));
@@ -873,11 +855,9 @@ mod tests {
         write_workspace(&root);
         let query = ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n");
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(1), Some(0)]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
+        let (code, _out, err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err).expect("err").contains("failed"));
+        assert!(err.contains("failed"));
     }
 
     #[test]
@@ -890,13 +870,9 @@ mod tests {
             .expect("zero budget");
         let query = ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n");
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
+        let (code, _out, err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("exceeded budget"));
+        assert!(err.contains("exceeded budget"));
     }
 
     #[test]
@@ -910,11 +886,9 @@ mod tests {
             codes: RefCell::new(vec![]),
             seen: RefCell::new(Vec::new()),
         };
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &NullQuery, &mut out, &mut err));
+        let (code, _out, err) = run_with_query(&inv, &root, &NullQuery);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err).expect("err").contains("hermetic"));
+        assert!(err.contains("hermetic"));
         assert!(runner.seen.borrow().is_empty());
     }
 
@@ -933,13 +907,9 @@ mod tests {
             seen: RefCell::new(Vec::new()),
         };
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
+        let (code, out, _err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out)
-            .expect("out")
-            .contains("no staged files"));
+        assert!(out.contains("no staged files"));
         assert!(runner.seen.borrow().is_empty());
     }
 }

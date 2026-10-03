@@ -101,8 +101,7 @@ fn execute_completion_check(
 
 #[cfg(test)]
 mod tests {
-    use crate::adopt::execute_adoption;
-    use crate::adopt::test_support::{env, invocation};
+    use crate::adopt::test_support::{invocation, run};
 
     #[test]
     fn completion_renders_from_single_source() {
@@ -110,11 +109,9 @@ mod tests {
             let inv = invocation(&["completion", shell]);
             let scratch = dx_test_scratch::scratch("dx-adopt-completion-renders-");
             let root = scratch.path().to_path_buf();
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, _err) = run(&inv, &root);
             assert_eq!(code, 0, "shell {shell}");
-            let text = String::from_utf8(out).expect("out");
+            let text = out;
             assert!(
                 crate::args::registers_callback(&text, shell),
                 "shell {shell} must ask dx for candidates: {text}"
@@ -157,27 +154,19 @@ mod tests {
         let inv = invocation(&["completion", "bash", "--dry-run"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-completion-dry-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         assert!(text.contains("would render completion for bash"));
         assert!(!text.contains("complete -c dx"));
         let inv = invocation(&["completion", "bash", "--dry-run", "--quiet"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").is_empty());
+        assert!(out.is_empty());
         let inv = invocation(&["completion", "tcsh", "--dry-run"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 2);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("unknown-shell"));
+        assert!(err.contains("unknown-shell"));
     }
 
     #[test]
@@ -189,11 +178,9 @@ mod tests {
             let inv = invocation(&words);
             let scratch = dx_test_scratch::scratch("dx-adopt-completion-check-");
             let root = scratch.path().to_path_buf();
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, _err) = run(&inv, &root);
             assert_eq!(code, 0, "words: {words:?}");
-            let text = String::from_utf8(out).expect("out");
+            let text = out;
             assert!(text.contains("completion ok"), "words: {words:?}: {text}");
             assert!(
                 !text.contains("COMPREPLY=()") || text.contains("completion ok"),
@@ -203,28 +190,16 @@ mod tests {
         let inv = invocation(&["completion", "bash", "--check"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-completion-check-one-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out)
-            .expect("out")
-            .contains("completion ok for bash"));
+        assert!(out.contains("completion ok for bash"));
         let inv = invocation(&["completion", "tcsh", "--check"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 2);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("unknown-shell"));
+        assert!(err.contains("unknown-shell"));
         let inv = invocation(&["completion", "--check", "--dry-run"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out)
-            .expect("out")
-            .contains("would check completion"));
+        assert!(out.contains("would check completion"));
     }
 }

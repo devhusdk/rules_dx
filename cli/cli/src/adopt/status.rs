@@ -99,8 +99,7 @@ pub(crate) fn execute_status(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::execute_adoption;
-    use crate::adopt::test_support::{env, event_kinds, invocation, json_events};
+    use crate::adopt::test_support::{event_kinds, invocation, json_events, run};
     use std::io;
 
     #[test]
@@ -110,11 +109,9 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").contains("pin: ok"));
+        assert!(out.contains("pin: ok"));
     }
 
     #[test]
@@ -124,11 +121,9 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         assert!(!events.is_empty());
         for event in &events {
@@ -157,7 +152,7 @@ mod tests {
             })
             .expect("pin status event");
         assert_eq!(status["status"], serde_json::json!("ok"));
-        assert!(String::from_utf8(err).expect("err").is_empty());
+        assert!(err.is_empty());
     }
 
     #[test]
@@ -168,18 +163,11 @@ mod tests {
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
-            assert!(
-                String::from_utf8(err)
-                    .expect("err")
-                    .contains("pin mismatch"),
-                "words: {words:?}"
-            );
+            assert!(err.contains("pin mismatch"), "words: {words:?}");
             if words.contains(&"--output=json") {
-                let text = String::from_utf8(out).expect("out");
+                let text = out;
                 let events = json_events(&text);
                 assert_eq!(
                     events.last().expect("finished")["exit_code"],
@@ -206,17 +194,10 @@ mod tests {
             let inv = invocation(&words);
             let scratch = dx_test_scratch::scratch("dx-adopt-status-missing-");
             let root = scratch.path().to_path_buf();
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
-            assert!(
-                String::from_utf8(err)
-                    .expect("err")
-                    .contains("read version pin"),
-                "words: {words:?}"
-            );
-            let stdout = String::from_utf8(out).expect("out");
+            assert!(err.contains("read version pin"), "words: {words:?}");
+            let stdout = out;
             assert!(!stdout.contains("pin: ok"), "words: {words:?}");
             if words.contains(&"--output=json") {
                 let events = json_events(&stdout);
@@ -249,14 +230,10 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "\n").expect("empty pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("pin mismatch"));
-        assert!(!String::from_utf8(out).expect("out").contains("pin: ok"));
+        assert!(err.contains("pin mismatch"));
+        assert!(!out.contains("pin: ok"));
     }
 
     #[test]
@@ -264,19 +241,13 @@ mod tests {
         let inv = invocation(&["status", "--dry-run"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-dry-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out)
-            .expect("out")
-            .contains("would report status"));
+        assert!(out.contains("would report status"));
         let inv = invocation(&["status", "--dry-run", "--quiet"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").is_empty());
+        assert!(out.is_empty());
     }
 
     #[test]
@@ -284,11 +255,9 @@ mod tests {
         let inv = invocation(&["status", "--dry-run", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-dry-json-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(kinds, vec!["command_started", "command_finished"]);

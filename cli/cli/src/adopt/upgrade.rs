@@ -88,8 +88,7 @@ pub(crate) fn execute_upgrade(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::execute_adoption;
-    use crate::adopt::test_support::{env, event, event_kinds, invocation, json_events};
+    use crate::adopt::test_support::{event, event_kinds, invocation, json_events, run};
     use dx_process::pre_exec_code;
 
     #[test]
@@ -97,11 +96,9 @@ mod tests {
         let inv = invocation(&["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-dry-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         assert!(text.contains("1.2.3 -> 2.0.0"), "{text}");
         assert!(text.contains("migrate-v1-to-v2.json"), "{text}");
         assert!(text.contains("pin 2.0.0"), "{text}");
@@ -119,11 +116,9 @@ mod tests {
         ]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-dry-json-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
@@ -142,11 +137,9 @@ mod tests {
         let inv = invocation(&["upgrade", "--from=1.2.3", "--to=2.0.0"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-live-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        let err_text = String::from_utf8(err).expect("err");
+        let err_text = err;
         assert!(err_text.contains(CODE_UPGRADE_FAILED), "{err_text}");
         assert!(err_text.contains("migrate-v1-to-v2.json"), "{err_text}");
         assert!(
@@ -161,14 +154,10 @@ mod tests {
         let inv = invocation(&["upgrade", "--from=1.2.3", "--to=2.0.0", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-live-json-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains(CODE_UPGRADE_FAILED));
-        let text = String::from_utf8(out).expect("out");
+        assert!(err.contains(CODE_UPGRADE_FAILED));
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
@@ -189,12 +178,8 @@ mod tests {
         let inv = invocation(&["upgrade", "--from=2.0.0", "--to=1.0.0", "--dry-run"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-downgrade-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, pre_exec_code());
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("upgrade-only"));
+        assert!(err.contains("upgrade-only"));
     }
 }

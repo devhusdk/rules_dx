@@ -505,9 +505,8 @@ fn execute_why_json(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::execute_adoption;
     use crate::adopt::test_support::{
-        env_with_query, event_kinds, events_of_kind, invocation, json_events, Truncated,
+        event_kinds, events_of_kind, invocation, json_events, run_with_query, Truncated,
     };
     use crate::resolve::QueryResult;
     use std::io;
@@ -743,11 +742,9 @@ mod tests {
         let inv = invocation(&["owners", "//a:one"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-single-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, out, err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 0);
-        assert_eq!(String::from_utf8(out).expect("out"), "//a:one\n//z:two\n");
+        assert_eq!(out, "//a:one\n//z:two\n");
         let calls = runner.calls.borrow();
         assert_eq!(calls.len(), 1);
         assert_eq!(
@@ -758,7 +755,7 @@ mod tests {
                 "kind('rule', rdeps(//..., //a:one, 1))".to_owned(),
             ]
         );
-        assert!(String::from_utf8(err).expect("err").is_empty());
+        assert!(err.is_empty());
     }
 
     #[test]
@@ -767,9 +764,7 @@ mod tests {
         let inv = invocation(&["deps", "--configured", "//a:one"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-configured-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, _out, _err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 0);
         let calls = runner.calls.borrow();
         assert_eq!(calls.len(), 1);
@@ -783,9 +778,7 @@ mod tests {
         let inv = invocation(&["why", "src/lib.rs", "//app:server"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-why-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, out, _err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 0);
         let calls = runner.calls.borrow();
         assert_eq!(calls.len(), 2);
@@ -798,9 +791,7 @@ mod tests {
                 "somepath(//owner:lib, //app:server)".to_owned(),
             ]
         );
-        assert!(String::from_utf8(out)
-            .expect("out")
-            .contains("//app:server"));
+        assert!(out.contains("//app:server"));
     }
 
     #[test]
@@ -809,11 +800,9 @@ mod tests {
         let inv = invocation(&["why", "src/orphan.rs", "//app:server"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-why-orphan-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, _out, err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err).expect("err").contains("no owner"));
+        assert!(err.contains("no owner"));
         assert_eq!(runner.calls.borrow().len(), 1);
     }
 
@@ -823,23 +812,15 @@ mod tests {
         let inv = invocation(&["owners", "//a:one", "--dry-run"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-dry-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, out, _err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out)
-            .expect("out")
-            .contains("would run bazel"));
+        assert!(out.contains("would run bazel"));
         assert_eq!(runner.calls.borrow().len(), 0);
         let runner = ScriptedQuery::with(&["//owner:lib\n"]);
         let inv = invocation(&["why", "src/lib.rs", "//app:server", "--dry-run"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, out, _err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out)
-            .expect("out")
-            .contains("would run bazel"));
+        assert!(out.contains("would run bazel"));
         assert_eq!(runner.calls.borrow().len(), 0);
     }
 
@@ -860,14 +841,10 @@ mod tests {
             let runner = ScriptedQuery::with(&["//owner:lib\n"]);
             let scratch = dx_test_scratch::scratch("dx-adopt-inspect-why-malformed-");
             let root = scratch.path().to_path_buf();
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute_adoption(&bad, env_with_query(&root, &runner, &mut out, &mut err));
+            let (code, _out, err) = run_with_query(&bad, &root, &runner);
             assert_eq!(code, 2, "targets: {:?}", bad.targets);
             assert!(
-                String::from_utf8(err)
-                    .expect("err")
-                    .contains("why needs exactly"),
+                err.contains("why needs exactly"),
                 "targets: {:?}",
                 bad.targets
             );
@@ -881,11 +858,9 @@ mod tests {
         let inv = invocation(&["owners", "//a:one", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-json-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, out, err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
@@ -905,7 +880,7 @@ mod tests {
             assert_eq!(event["status"], serde_json::json!("ok"), "{event}");
             assert_eq!(event["hint"], serde_json::json!("//a:one"), "{event}");
         }
-        assert!(String::from_utf8(err).expect("err").is_empty());
+        assert!(err.is_empty());
     }
 
     #[test]
@@ -927,14 +902,8 @@ mod tests {
         let inv = invocation(&["deps", "//a:one", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-json-fail-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            env_with_query(&root, &FailingQuery, &mut out, &mut err),
-        );
+        let (code, text, _err) = run_with_query(&inv, &root, &FailingQuery);
         assert_eq!(code, 1);
-        let text = String::from_utf8(out).expect("out");
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(
@@ -962,11 +931,9 @@ mod tests {
             let inv = invocation(&words);
             let scratch = dx_test_scratch::scratch("dx-adopt-inspect-dry-json-");
             let root = scratch.path().to_path_buf();
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+            let (code, out, _err) = run_with_query(&inv, &root, &runner);
             assert_eq!(code, 0, "words: {words:?}");
-            let text = String::from_utf8(out).expect("out");
+            let text = out;
             let events = json_events(&text);
             let kinds = event_kinds(&events);
             assert_eq!(
@@ -985,11 +952,9 @@ mod tests {
         let inv = invocation(&["why", "src/lib.rs", "//app:server", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-why-json-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, out, _err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
@@ -1011,11 +976,9 @@ mod tests {
         let inv = invocation(&["why", "src/orphan.rs", "//app:server", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-inspect-why-json-orphan-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env_with_query(&root, &runner, &mut out, &mut err));
+        let (code, out, _err) = run_with_query(&inv, &root, &runner);
         assert_eq!(code, 1);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(

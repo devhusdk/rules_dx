@@ -310,9 +310,8 @@ pub(crate) fn execute_version(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::execute_adoption;
     use crate::adopt::test_support::{
-        env, event_kinds, events_of_kind, invocation, json_events, Truncated,
+        event_kinds, events_of_kind, invocation, json_events, run, Truncated,
     };
 
     #[test]
@@ -418,10 +417,8 @@ mod tests {
     fn version_pins_and_reports() {
         let scratch = dx_test_scratch::scratch("dx-adopt-version-pins-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
         let pin = invocation(&["version", "--pin=0.0.0"]);
-        let code = execute_adoption(&pin, env(&root, &mut out, &mut err));
+        let (code, _out, _err) = run(&pin, &root);
         assert_eq!(code, 0);
         assert!(root.join(".dx/version").exists());
     }
@@ -431,38 +428,24 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-version-rollback-");
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["version", "--rollback"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("read version pin"));
+        assert!(err.contains("read version pin"));
         assert!(!root.join(".dx/version").exists());
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "\n").expect("empty pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("rollback refused"));
+        assert!(err.contains("rollback refused"));
         std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").contains("rollback"));
+        assert!(out.contains("rollback"));
         let pinned = std::fs::read_to_string(root.join(".dx/version")).expect("pin");
         assert_eq!(pinned.trim(), dx_adopt::PREVIOUS_VERSION);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err)
-            .expect("err")
-            .contains("rollback refused"));
+        assert!(err.contains("rollback refused"));
     }
 
     #[test]
@@ -474,10 +457,8 @@ mod tests {
             vec!["version", "--pin=0.0.0", "--check"],
             vec!["version", "--rollback", "--check"],
         ] {
-            let mut out = Vec::new();
-            let mut err = Vec::new();
             let inv = invocation(&words);
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, _out, _err) = run(&inv, &root);
             assert_eq!(code, 2, "words: {words:?}");
         }
     }
@@ -488,18 +469,14 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
         let inv = invocation(&["version", "--check"]);
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        assert!(String::from_utf8(out).expect("out").contains("version ok"));
+        assert!(out.contains("version ok"));
         std::fs::write(root.join(".dx/version"), "0.1.0\n").expect("drift");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err).expect("err").contains("drift"));
+        assert!(err.contains("drift"));
     }
 
     #[test]
@@ -507,21 +484,11 @@ mod tests {
         for words in [vec!["version", "--check"], vec!["version"]] {
             let scratch = dx_test_scratch::scratch("dx-adopt-version-missing-");
             let root = scratch.path().to_path_buf();
-            let mut out = Vec::new();
-            let mut err = Vec::new();
             let inv = invocation(&words);
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
-            assert!(
-                String::from_utf8(err)
-                    .expect("err")
-                    .contains("read version pin"),
-                "words: {words:?}"
-            );
-            assert!(
-                !String::from_utf8(out).expect("out").contains("version ok"),
-                "words: {words:?}"
-            );
+            assert!(err.contains("read version pin"), "words: {words:?}");
+            assert!(!out.contains("version ok"), "words: {words:?}");
         }
     }
 
@@ -536,15 +503,10 @@ mod tests {
                 "would check version pin",
             ),
         ] {
-            let mut out = Vec::new();
-            let mut err = Vec::new();
             let inv = invocation(&words);
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, _err) = run(&inv, &root);
             assert_eq!(code, 0, "words: {words:?}");
-            assert!(
-                String::from_utf8(out).expect("out").contains(want),
-                "words: {words:?}"
-            );
+            assert!(out.contains(want), "words: {words:?}");
         }
     }
 
@@ -554,12 +516,10 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
         let inv = invocation(&["version", "--output=json"]);
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
@@ -575,7 +535,7 @@ mod tests {
             .map(|event| event["name"].as_str().expect("name"))
             .collect();
         assert_eq!(names, vec!["binary", "module", "pin"], "{names:?}");
-        assert!(String::from_utf8(err).expect("err").is_empty());
+        assert!(err.is_empty());
     }
 
     #[test]
@@ -584,12 +544,10 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
         let inv = invocation(&["version", "--check", "--output=json"]);
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(
@@ -598,11 +556,9 @@ mod tests {
             "{kinds:?}"
         );
         std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drift");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(
@@ -618,7 +574,7 @@ mod tests {
             events[2]["code"],
             serde_json::json!(CODE_STATUS_PIN_MISMATCH)
         );
-        assert!(String::from_utf8(err).expect("err").contains("drift"));
+        assert!(err.contains("drift"));
     }
 
     #[test]
@@ -629,12 +585,10 @@ mod tests {
             vec!["version", "--dry-run", "--output=json"],
             vec!["version", "--check", "--dry-run", "--output=json"],
         ] {
-            let mut out = Vec::new();
-            let mut err = Vec::new();
             let inv = invocation(&words);
-            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+            let (code, out, _err) = run(&inv, &root);
             assert_eq!(code, 0, "words: {words:?}");
-            let text = String::from_utf8(out).expect("out");
+            let text = out;
             let events = json_events(&text);
             let kinds = event_kinds(&events);
             assert_eq!(
@@ -650,12 +604,10 @@ mod tests {
     fn version_missing_pin_json_fails_closed() {
         let scratch = dx_test_scratch::scratch("dx-adopt-version-missing-json-");
         let root = scratch.path().to_path_buf();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
         let inv = invocation(&["version", "--output=json"]);
-        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 1);
-        let text = String::from_utf8(out).expect("out");
+        let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(

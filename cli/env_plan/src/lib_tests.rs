@@ -71,6 +71,10 @@ fn output(label: &str, files: Vec<(&str, Vec<u8>)>) -> TargetOutput {
     }
 }
 
+fn collect_records(outputs: &[TargetOutput]) -> Result<Vec<EnvRecord>, CollectError> {
+    collect_plan(outputs).map(|plan| plan.records)
+}
+
 #[test]
 fn frozen_identities_match_starlark() {
     assert_eq!(OUTPUT_GROUP, "dx_env_plans");
@@ -172,7 +176,7 @@ fn exec_suffix_matches_on_component_boundaries() {
 }
 
 #[test]
-fn collect_shards_accepts_logical_only_without_artifacts() {
+fn collect_records_accepts_logical_only_without_artifacts() {
     let outputs = vec![output(
         "//env:beta",
         vec![(
@@ -180,7 +184,7 @@ fn collect_shards_accepts_logical_only_without_artifacts() {
             shard_bytes("//env:beta", "rust", vec![("abi", "gnu", "")]),
         )],
     )];
-    let records = collect_shards(&outputs).expect("collect");
+    let records = collect_records(&outputs).expect("collect");
     assert_eq!(
         records,
         vec![record("//env:beta", "rust", vec![entry("abi", "gnu")])]
@@ -188,7 +192,7 @@ fn collect_shards_accepts_logical_only_without_artifacts() {
 }
 
 #[test]
-fn collect_shards_preserves_exec_paths() {
+fn collect_records_preserves_exec_paths() {
     let outputs = vec![output(
         "//env:rust",
         vec![
@@ -206,7 +210,7 @@ fn collect_shards_preserves_exec_paths() {
             ),
         ],
     )];
-    let records = collect_shards(&outputs).expect("collect");
+    let records = collect_records(&outputs).expect("collect");
     assert_eq!(
         records,
         vec![record(
@@ -222,7 +226,7 @@ fn collect_shards_preserves_exec_paths() {
 }
 
 #[test]
-fn collect_shards_binds_exec_suffix_to_one_artifact() {
+fn collect_records_binds_exec_suffix_to_one_artifact() {
     let outputs = vec![output(
         "//env:rust",
         vec![
@@ -237,7 +241,7 @@ fn collect_shards_binds_exec_suffix_to_one_artifact() {
             ("/bazel-out/k8-fastbuild/bin/env/toolchain/rustc", vec![7]),
         ],
     )];
-    let records = collect_shards(&outputs).expect("collect");
+    let records = collect_records(&outputs).expect("collect");
     assert_eq!(
         records,
         vec![record(
@@ -249,7 +253,7 @@ fn collect_shards_binds_exec_suffix_to_one_artifact() {
 }
 
 #[test]
-fn collect_shards_rejects_missing_ambiguous_and_unreported() {
+fn collect_records_rejects_missing_ambiguous_and_unreported() {
     let missing = vec![output(
         "//env:rust",
         vec![(
@@ -262,7 +266,7 @@ fn collect_shards_rejects_missing_ambiguous_and_unreported() {
         )],
     )];
     assert_eq!(
-        collect_shards(&missing),
+        collect_records(&missing),
         Err(CollectError::MissingArtifact {
             producer: "//env:rust".to_owned(),
             key: "toolchain".to_owned(),
@@ -285,7 +289,7 @@ fn collect_shards_rejects_missing_ambiguous_and_unreported() {
         ],
     )];
     assert!(matches!(
-        collect_shards(&ambiguous),
+        collect_records(&ambiguous),
         Err(CollectError::AmbiguousArtifact { .. })
     ));
     let unreported = vec![output(
@@ -299,7 +303,7 @@ fn collect_shards_rejects_missing_ambiguous_and_unreported() {
         ],
     )];
     assert_eq!(
-        collect_shards(&unreported),
+        collect_records(&unreported),
         Err(CollectError::UnreportedArtifact {
             path: "/out/backing.lib.rs".to_owned(),
         })
@@ -307,7 +311,7 @@ fn collect_shards_rejects_missing_ambiguous_and_unreported() {
 }
 
 #[test]
-fn collect_shards_allows_shared_backing_artifact() {
+fn collect_records_allows_shared_backing_artifact() {
     let outputs = vec![output(
         "//env:rust",
         vec![
@@ -325,18 +329,18 @@ fn collect_shards_allows_shared_backing_artifact() {
             ("/out/shared/rustc", vec![1]),
         ],
     )];
-    let records = collect_shards(&outputs).expect("shared backing");
+    let records = collect_records(&outputs).expect("shared backing");
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].entries.len(), 2);
 }
 
 #[test]
-fn collect_shards_rejects_invalid_shards_with_path() {
+fn collect_records_rejects_invalid_shards_with_path() {
     let outputs = vec![output(
         "//env:evil",
         vec![("/out/evil.dxenv.pb", vec![0xff, 0x00, 0x01])],
     )];
-    let error = collect_shards(&outputs).expect_err("invalid shard");
+    let error = collect_records(&outputs).expect_err("invalid shard");
     assert!(matches!(error, CollectError::Shard { .. }));
     assert!(error.to_string().contains("invalid shard"));
 }

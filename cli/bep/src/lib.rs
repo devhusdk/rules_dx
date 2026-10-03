@@ -152,11 +152,17 @@ pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
         return false;
     }
     let rendered = artifact_path.as_os_str().to_string_lossy();
-    rendered.as_ref() == exec_path || rendered.ends_with(&format!("/{exec_path}"))
+    suffix_matches(&rendered, exec_path)
 }
 
+/// Whether `exec_path` names `artifact` outright or as a whole trailing path suffix.
 pub fn suffix_matches(artifact: &str, exec_path: &str) -> bool {
-    artifact == exec_path || artifact.ends_with(&format!("/{exec_path}"))
+    if artifact == exec_path {
+        return true;
+    }
+    artifact
+        .strip_suffix(exec_path)
+        .is_some_and(|head| head.ends_with('/'))
 }
 
 pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<String> {

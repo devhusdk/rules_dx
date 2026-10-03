@@ -157,8 +157,7 @@ pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
     dx_bep::exec_matches(artifact_path, exec_path)
 }
 
-pub fn collect_shards(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, CollectError> {
-    let generated_paths = generated_artifact_paths(outputs);
+pub fn decode_shards(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, CollectError> {
     let mut records = Vec::new();
     for output in outputs {
         for artifact in &output.artifacts {
@@ -186,7 +185,6 @@ pub fn collect_shards(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, Co
             });
         }
     }
-    let _ = index_artifacts(&records, &generated_paths)?;
     Ok(records)
 }
 
@@ -194,17 +192,22 @@ fn generated_artifact_paths(outputs: &[TargetOutput]) -> Vec<String> {
     dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX)
 }
 
-fn index_artifacts<'a>(
-    records: &'a [CodegenRecord],
-    generated_paths: &[String],
-) -> Result<BTreeMap<(&'a str, &'a str), String>, CollectError> {
-    let claimed: Vec<(&CodegenRecord, &CodegenEntry)> = records
+type Bound<'a> = [(&'a CodegenRecord, &'a CodegenEntry)];
+
+fn bound_entries(records: &[CodegenRecord]) -> Vec<(&CodegenRecord, &CodegenEntry)> {
+    records
         .iter()
         .flat_map(|record| record.entries.iter().map(move |entry| (record, entry)))
         .filter(|(_, entry)| !entry.exec_path.is_empty())
-        .collect();
-    let mut resolved: BTreeMap<(&str, &str), String> = BTreeMap::new();
-    for (record, entry) in &claimed {
+        .collect()
+}
+
+fn bind_artifacts<'p>(
+    bound: &Bound<'_>,
+    generated_paths: &'p [String],
+) -> Result<Vec<&'p str>, CollectError> {
+    let mut resolved: Vec<&str> = Vec::with_capacity(bound.len());
+    for (record, entry) in bound {
         let matches: Vec<&String> = generated_paths
             .iter()
             .filter(|path| dx_bep::suffix_matches(path, &entry.exec_path))
@@ -222,13 +225,10 @@ fn index_artifacts<'a>(
                 claimants: matches.into_iter().map(|path| (*path).clone()).collect(),
             });
         }
-        resolved.insert(
-            (record.producer.as_str(), entry.logical_path.as_str()),
-            (*matches[0]).clone(),
-        );
+        resolved.push(matches[0]);
     }
     for path in generated_paths {
-        let claimants: Vec<(&CodegenRecord, &CodegenEntry)> = claimed
+        let claimants: Vec<(&CodegenRecord, &CodegenEntry)> = bound
             .iter()
             .filter(|(_, entry)| dx_bep::suffix_matches(path, &entry.exec_path))
             .map(|(record, entry)| (*record, *entry))
@@ -373,7 +373,7 @@ pub struct CollectedPlan {
 }
 
 pub fn collect_plan(outputs: &[TargetOutput]) -> Result<CollectedPlan, CollectError> {
-    let records = collect_shards(outputs)?;
+    let records = decode_shards(outputs)?;
     let conflict = conflict_error(&records);
     if !conflict.is_empty() {
         return Err(CollectError::Conflict(conflict));
@@ -403,27 +403,20 @@ fn plan_projection(
     records: &[CodegenRecord],
     outputs: &[TargetOutput],
 ) -> Result<Vec<ProjectionEntry>, CollectError> {
+    let bound = bound_entries(records);
     let generated_paths = generated_artifact_paths(outputs);
-    let resolved = index_artifacts(records, &generated_paths)?;
-    let mut projection: Vec<ProjectionEntry> = Vec::new();
-    for record in records {
-        for entry in &record.entries {
-            if entry.exec_path.is_empty() {
-                continue;
-            }
-            let artifact = resolved
-                .get(&(record.producer.as_str(), entry.logical_path.as_str()))
-                .cloned()
-                .unwrap_or_else(|| entry.exec_path.clone());
-            projection.push(ProjectionEntry {
-                logical_path: entry.logical_path.clone(),
-                artifact,
-                import_root: entry.import_root.clone(),
-                namespace: entry.namespace.clone(),
-                replaces: entry.replaces.clone(),
-            });
-        }
-    }
+    let resolved = bind_artifacts(&bound, &generated_paths)?;
+    let mut projection: Vec<ProjectionEntry> = bound
+        .iter()
+        .zip(&resolved)
+        .map(|((_, entry), artifact)| ProjectionEntry {
+            logical_path: entry.logical_path.clone(),
+            artifact: (*artifact).to_owned(),
+            import_root: entry.import_root.clone(),
+            namespace: entry.namespace.clone(),
+            replaces: entry.replaces.clone(),
+        })
+        .collect();
     projection.sort_by(|left, right| left.logical_path.cmp(&right.logical_path));
     Ok(projection)
 }

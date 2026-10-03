@@ -122,6 +122,10 @@ fn output(label: &str, files: Vec<(&str, Vec<u8>)>) -> TargetOutput {
     }
 }
 
+fn collect_records(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, CollectError> {
+    collect_plan(outputs).map(|plan| plan.records)
+}
+
 #[test]
 fn frozen_identities_match_starlark() {
     assert_eq!(OUTPUT_GROUP, "dx_codegen_plans");
@@ -304,7 +308,7 @@ fn exec_suffix_matches_on_component_boundaries() {
 }
 
 #[test]
-fn collect_shards_accepts_logical_only_without_artifacts() {
+fn collect_records_accepts_logical_only_without_artifacts() {
     let outputs = vec![output(
         "//gen:beta",
         vec![(
@@ -316,7 +320,7 @@ fn collect_shards_accepts_logical_only_without_artifacts() {
             ),
         )],
     )];
-    let records = collect_shards(&outputs).expect("collect");
+    let records = collect_records(&outputs).expect("collect");
     assert_eq!(
         records,
         vec![record(
@@ -328,7 +332,7 @@ fn collect_shards_accepts_logical_only_without_artifacts() {
 }
 
 #[test]
-fn collect_shards_binds_exec_suffix_to_one_artifact() {
+fn collect_records_binds_exec_suffix_to_one_artifact() {
     let outputs = vec![output(
         "//gen:beta",
         vec![
@@ -343,7 +347,7 @@ fn collect_shards_binds_exec_suffix_to_one_artifact() {
             ("/bazel-out/k8-fastbuild/bin/gen/beta.lib.rs", vec![1, 2, 3]),
         ],
     )];
-    let records = collect_shards(&outputs).expect("collect");
+    let records = collect_records(&outputs).expect("collect");
     assert_eq!(
         records,
         vec![record(
@@ -355,7 +359,7 @@ fn collect_shards_binds_exec_suffix_to_one_artifact() {
 }
 
 #[test]
-fn collect_shards_rejects_missing_duplicate_and_unreported() {
+fn collect_records_rejects_missing_duplicate_and_unreported() {
     let missing = vec![output(
         "//gen:beta",
         vec![(
@@ -368,7 +372,7 @@ fn collect_shards_rejects_missing_duplicate_and_unreported() {
         )],
     )];
     assert_eq!(
-        collect_shards(&missing),
+        collect_records(&missing),
         Err(CollectError::MissingArtifact {
             producer: "//gen:beta".to_owned(),
             logical_path: "gen/beta.rs".to_owned(),
@@ -391,7 +395,7 @@ fn collect_shards_rejects_missing_duplicate_and_unreported() {
         ],
     )];
     assert!(matches!(
-        collect_shards(&ambiguous),
+        collect_records(&ambiguous),
         Err(CollectError::DuplicateArtifact { .. })
     ));
     let unreported = vec![output(
@@ -409,7 +413,7 @@ fn collect_shards_rejects_missing_duplicate_and_unreported() {
         ],
     )];
     assert_eq!(
-        collect_shards(&unreported),
+        collect_records(&unreported),
         Err(CollectError::UnreportedArtifact {
             path: "/out/beta.lib.rs".to_owned(),
         })
@@ -432,18 +436,18 @@ fn collect_shards_rejects_missing_duplicate_and_unreported() {
         ],
     )];
     assert!(matches!(
-        collect_shards(&duplicate),
+        collect_records(&duplicate),
         Err(CollectError::DuplicateArtifact { .. })
     ));
 }
 
 #[test]
-fn collect_shards_rejects_invalid_shards_with_path() {
+fn collect_records_rejects_invalid_shards_with_path() {
     let outputs = vec![output(
         "//gen:evil",
         vec![("/out/evil.dxcodegen.pb", vec![0xff, 0x00, 0x01])],
     )];
-    let error = collect_shards(&outputs).expect_err("invalid shard");
+    let error = collect_records(&outputs).expect_err("invalid shard");
     assert!(matches!(error, CollectError::Shard { .. }));
     assert!(error.to_string().contains("invalid shard"));
 }
@@ -671,7 +675,7 @@ fn replaces_binds_into_merge_conflict_and_fingerprint() {
 }
 
 #[test]
-fn collect_shards_round_trips_replacement_contract() {
+fn collect_records_round_trips_replacement_contract() {
     let outputs = vec![output(
         "//gen:beta",
         vec![
@@ -686,9 +690,9 @@ fn collect_shards_round_trips_replacement_contract() {
             ("/bazel-out/k8-fastbuild/bin/gen/beta.lib.rs", vec![1, 2, 3]),
         ],
     )];
-    let records = collect_shards(&outputs).expect("collect");
+    let plan = collect_plan(&outputs).expect("collect");
     assert_eq!(
-        records,
+        plan.records,
         vec![record(
             "//gen:beta",
             "rust",
@@ -701,14 +705,13 @@ fn collect_shards_round_trips_replacement_contract() {
             )]
         )]
     );
-    let projection = plan_projection(&records, &outputs).expect("projection");
-    assert_eq!(projection.len(), 1);
-    assert_eq!(projection[0].logical_path, "gen/beta.rs");
-    assert_eq!(projection[0].replaces, "gen/beta.rs");
+    assert_eq!(plan.projection.len(), 1);
+    assert_eq!(plan.projection[0].logical_path, "gen/beta.rs");
+    assert_eq!(plan.projection[0].replaces, "gen/beta.rs");
 }
 
 #[test]
-fn collect_shards_rejects_bad_replacement_contract() {
+fn collect_records_rejects_bad_replacement_contract() {
     let bad = DxCodegenShard {
         producer: "//gen:beta".to_owned(),
         language: "rust".to_owned(),

@@ -97,6 +97,12 @@ pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 
 pub use dx_adopt::defaults::FileDefaults;
 
+/// Parse test words into one invocation, panicking on a failure.
+#[cfg(test)]
+pub(crate) fn parsed(words: &[&str]) -> Invocation {
+    parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>()).expect("parse")
+}
+
 /// Assert that a parse failure is clap-rendered and names every needle.
 #[cfg(test)]
 pub(crate) fn assert_usage<D: std::fmt::Debug>(words: D, error: ArgsError, needles: &[&str]) {

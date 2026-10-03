@@ -99,39 +99,9 @@ pub(crate) fn execute_status(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::{execute_adoption, AdoptEnv};
-    use crate::args::parse;
-    use crate::resolve::QueryResult;
+    use crate::adopt::execute_adoption;
+    use crate::adopt::test_support::{env, invocation};
     use std::io;
-
-    fn invocation(words: &[&str]) -> Invocation {
-        parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>()).expect("parse")
-    }
-
-    struct NullQuery;
-
-    impl crate::resolve::QueryRunner for NullQuery {
-        fn run_query(&self, _argv: &[String], _cwd: &std::path::Path) -> io::Result<QueryResult> {
-            Ok(QueryResult {
-                code: Some(0),
-                stdout: b"//a:one\n".to_vec(),
-                stderr: Vec::new(),
-            })
-        }
-    }
-
-    struct NullRunner;
-
-    impl dx_process::Runner for NullRunner {
-        fn run(
-            &self,
-            _argv: &[String],
-            _cwd: &std::path::Path,
-            _env: &[(&str, &str)],
-        ) -> io::Result<dx_process::ChildStatus> {
-            Ok(dx_process::ChildStatus { code: Some(0) })
-        }
-    }
 
     #[test]
     fn status_reports_pin_and_checks() {
@@ -142,16 +112,7 @@ mod tests {
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(String::from_utf8(out).expect("out").contains("pin: ok"));
     }
@@ -165,16 +126,7 @@ mod tests {
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         let text = String::from_utf8(out).expect("out");
         let events: Vec<serde_json::Value> = text
@@ -225,16 +177,7 @@ mod tests {
             std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
             let mut out = Vec::new();
             let mut err = Vec::new();
-            let code = execute_adoption(
-                &inv,
-                AdoptEnv {
-                    workspace: &root,
-                    query_runner: &NullQuery,
-                    runner: &NullRunner,
-                    out: &mut out,
-                    err: &mut err,
-                },
-            );
+            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
             assert_eq!(code, 1, "words: {words:?}");
             assert!(
                 String::from_utf8(err)
@@ -279,16 +222,7 @@ mod tests {
             let root = scratch.path().to_path_buf();
             let mut out = Vec::new();
             let mut err = Vec::new();
-            let code = execute_adoption(
-                &inv,
-                AdoptEnv {
-                    workspace: &root,
-                    query_runner: &NullQuery,
-                    runner: &NullRunner,
-                    out: &mut out,
-                    err: &mut err,
-                },
-            );
+            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
             assert_eq!(code, 1, "words: {words:?}");
             assert!(
                 String::from_utf8(err)
@@ -338,16 +272,7 @@ mod tests {
         std::fs::write(root.join(".dx/version"), "\n").expect("empty pin");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 1);
         assert!(String::from_utf8(err)
             .expect("err")
@@ -362,16 +287,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(String::from_utf8(out)
             .expect("out")
@@ -379,16 +295,7 @@ mod tests {
         let inv = invocation(&["status", "--dry-run", "--quiet"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(String::from_utf8(out).expect("out").is_empty());
     }
@@ -400,16 +307,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         let text = String::from_utf8(out).expect("out");
         let events: Vec<serde_json::Value> = text

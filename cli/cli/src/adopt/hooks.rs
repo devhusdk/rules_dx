@@ -429,15 +429,13 @@ fn first_line(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::{execute_adoption, AdoptEnv};
-    use crate::args::parse;
+    use crate::adopt::execute_adoption;
+    use crate::adopt::test_support::{
+        env, env_with, env_with_query, invocation, NullQuery, NullRunner,
+    };
     use std::cell::RefCell;
     use std::io;
     use std::path::{Path, PathBuf};
-
-    fn invocation(words: &[&str]) -> Invocation {
-        parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>()).expect("parse")
-    }
 
     #[test]
     fn hooks_install_uninstall_and_collisions_are_reported() {
@@ -589,51 +587,6 @@ mod tests {
         assert_eq!(first_line(b"  \nreal error"), "no Git diagnostic");
     }
 
-    struct NullQuery;
-
-    impl crate::resolve::QueryRunner for NullQuery {
-        fn run_query(
-            &self,
-            _argv: &[String],
-            _cwd: &std::path::Path,
-        ) -> io::Result<crate::resolve::QueryResult> {
-            Ok(crate::resolve::QueryResult {
-                code: Some(0),
-                stdout: b"//a:one\n".to_vec(),
-                stderr: Vec::new(),
-            })
-        }
-    }
-
-    struct NullRunner;
-
-    impl dx_process::Runner for NullRunner {
-        fn run(
-            &self,
-            _argv: &[String],
-            _cwd: &Path,
-            _env: &[(&str, &str)],
-        ) -> io::Result<dx_process::ChildStatus> {
-            Ok(dx_process::ChildStatus { code: Some(0) })
-        }
-    }
-
-    fn env<'a>(
-        root: &'a Path,
-        query: &'a dyn QueryRunner,
-        runner: &'a dyn dx_process::Runner,
-        out: &'a mut Vec<u8>,
-        err: &'a mut Vec<u8>,
-    ) -> AdoptEnv<'a> {
-        AdoptEnv {
-            workspace: root,
-            query_runner: query,
-            runner,
-            out,
-            err,
-        }
-    }
-
     #[test]
     fn hooks_status_shows_merged_layers() {
         let inv = invocation(&["hooks", "status"]);
@@ -641,10 +594,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            env(&root, &NullQuery, &NullRunner, &mut out, &mut err),
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         let text = String::from_utf8(out).expect("out");
         assert!(text.contains("baseline:"));
@@ -662,10 +612,7 @@ mod tests {
         std::fs::write(root.join("dx.hooks.toml"), "not toml = [").expect("bad baseline");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            env(&root, &NullQuery, &NullRunner, &mut out, &mut err),
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 1);
         assert!(String::from_utf8(err)
             .expect("err")
@@ -685,10 +632,7 @@ mod tests {
         .expect("timings");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            env(&root, &NullQuery, &NullRunner, &mut out, &mut err),
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         let text = String::from_utf8(out).expect("out");
         assert!(text.contains("1.23s (measured)"));
@@ -711,10 +655,7 @@ mod tests {
             let root = scratch.path().to_path_buf();
             let mut out = Vec::new();
             let mut err = Vec::new();
-            let code = execute_adoption(
-                &inv,
-                env(&root, &NullQuery, &NullRunner, &mut out, &mut err),
-            );
+            let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
             assert_eq!(code, 0, "words: {words:?}");
             assert!(
                 String::from_utf8(out).expect("out").contains(want),
@@ -727,10 +668,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            env(&root, &NullQuery, &NullRunner, &mut out, &mut err),
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(String::from_utf8(out).expect("out").is_empty());
     }
@@ -908,7 +846,7 @@ mod tests {
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &query, &runner, &mut out, &mut err));
+        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
         assert_eq!(code, 0);
         assert_eq!(runner.seen.borrow().len(), 2);
         assert!(runner.seen.borrow()[0][1..].contains(&"format".to_owned()));
@@ -937,7 +875,7 @@ mod tests {
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(1), Some(0)]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &query, &runner, &mut out, &mut err));
+        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
         assert_eq!(code, 1);
         assert!(String::from_utf8(err).expect("err").contains("failed"));
     }
@@ -954,7 +892,7 @@ mod tests {
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &query, &runner, &mut out, &mut err));
+        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
         assert_eq!(code, 1);
         assert!(String::from_utf8(err)
             .expect("err")
@@ -974,7 +912,7 @@ mod tests {
         };
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &NullQuery, &runner, &mut out, &mut err));
+        let code = execute_adoption(&inv, env_with_query(&root, &NullQuery, &mut out, &mut err));
         assert_eq!(code, 1);
         assert!(String::from_utf8(err).expect("err").contains("hermetic"));
         assert!(runner.seen.borrow().is_empty());
@@ -997,7 +935,7 @@ mod tests {
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(&inv, env(&root, &query, &runner, &mut out, &mut err));
+        let code = execute_adoption(&inv, env_with(&root, &query, &runner, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(String::from_utf8(out)
             .expect("out")

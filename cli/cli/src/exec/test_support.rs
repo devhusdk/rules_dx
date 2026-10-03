@@ -1,5 +1,4 @@
 use super::{execute, Env};
-use crate::args::parse;
 use crate::args::Invocation;
 use crate::plan::GENERATE_ENV_INTENDED;
 use crate::resolve::{QueryResult, QueryRunner};
@@ -19,9 +18,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-pub(crate) fn invocation(words: &[&str]) -> Invocation {
-    parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>()).expect("parse")
-}
+pub(crate) use crate::args::parsed as invocation;
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))

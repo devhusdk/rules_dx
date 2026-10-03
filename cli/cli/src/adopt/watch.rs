@@ -131,29 +131,9 @@ fn changed_line(paths: &[PathBuf]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::args::parse;
+    use crate::adopt::test_support::{invocation, NullQuery, Truncated};
     use std::cell::RefCell;
-    use std::io::{self, Write};
-
-    fn invocation(words: &[&str]) -> Invocation {
-        parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>()).expect("parse")
-    }
-
-    struct NullQuery;
-
-    impl crate::resolve::QueryRunner for NullQuery {
-        fn run_query(
-            &self,
-            _argv: &[String],
-            _cwd: &Path,
-        ) -> io::Result<crate::resolve::QueryResult> {
-            Ok(crate::resolve::QueryResult {
-                code: Some(0),
-                stdout: b"//a:one\n".to_vec(),
-                stderr: Vec::new(),
-            })
-        }
-    }
+    use std::io;
 
     struct CountingRunner {
         seen: RefCell<Vec<String>>,
@@ -208,24 +188,6 @@ mod tests {
                 passed_bep(bep, "//a:one");
             }
             Ok(dx_process::ChildStatus { code: Some(0) })
-        }
-    }
-
-    struct Truncated {
-        remaining: usize,
-    }
-
-    impl Write for Truncated {
-        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-            if self.remaining == 0 {
-                return Err(io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe"));
-            }
-            let written = self.remaining.min(bytes.len());
-            self.remaining -= written;
-            Ok(written)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
         }
     }
 
@@ -296,7 +258,7 @@ mod tests {
             let runner = CountingRunner {
                 seen: RefCell::new(Vec::new()),
             };
-            let mut out = Truncated { remaining: 0 };
+            let mut out = Truncated::after_bytes(0);
             let mut err = Vec::new();
             watch(
                 &invocation(words),

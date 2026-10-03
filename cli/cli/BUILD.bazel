@@ -17,6 +17,7 @@ rust_library(
         "src/adopt/inspect.rs",
         "src/adopt/new.rs",
         "src/adopt/status.rs",
+        "src/adopt/test_support.rs",
         "src/adopt/upgrade.rs",
         "src/adopt/version.rs",
         "src/adopt/watch.rs",

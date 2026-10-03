@@ -4,6 +4,8 @@ mod init;
 mod inspect;
 mod new;
 mod status;
+#[cfg(test)]
+mod test_support;
 mod upgrade;
 mod version;
 pub(crate) mod watch;
@@ -56,33 +58,14 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::args::parse;
-    use std::io;
-
-    fn invocation(words: &[&str]) -> Invocation {
-        parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>()).expect("parse")
-    }
-
-    struct LimitedOutput {
-        remaining: usize,
-    }
+    use crate::adopt::test_support::{env, invocation, Truncated};
 
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {
         let scratch = dx_test_scratch::scratch("status-missing-pipe-");
         let inv = invocation(&["status", "--output=json"]);
-        let run = |out: &mut dyn Write| {
-            execute_adoption(
-                &inv,
-                AdoptEnv {
-                    workspace: scratch.path(),
-                    query_runner: &NullQuery,
-                    runner: &NullRunner,
-                    out,
-                    err: &mut Vec::new(),
-                },
-            )
-        };
+        let run =
+            |out: &mut dyn Write| execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()));
         let mut baseline = Vec::new();
         assert_eq!(run(&mut baseline), 1);
         let events: Vec<serde_json::Value> = String::from_utf8(baseline.clone())
@@ -101,7 +84,7 @@ mod tests {
                 + 1,
             baseline.len() - 1,
         ] {
-            assert_eq!(run(&mut LimitedOutput { remaining }), 141);
+            assert_eq!(run(&mut Truncated::after_bytes(remaining)), 141);
         }
     }
 
@@ -111,18 +94,8 @@ mod tests {
         dx_adopt::write_version_pin(scratch.path(), "9.9.9").expect("drifted pin");
         let inv = invocation(&["status", "--output=json"]);
         let mut baseline = Vec::new();
-        let run = |out: &mut dyn Write| {
-            execute_adoption(
-                &inv,
-                AdoptEnv {
-                    workspace: scratch.path(),
-                    query_runner: &NullQuery,
-                    runner: &NullRunner,
-                    out,
-                    err: &mut Vec::new(),
-                },
-            )
-        };
+        let run =
+            |out: &mut dyn Write| execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()));
         assert_eq!(run(&mut baseline), 1);
         for remaining in baseline
             .iter()
@@ -131,7 +104,7 @@ mod tests {
             .map(|(index, _)| index + 1)
             .filter(|offset| *offset < baseline.len())
         {
-            assert_eq!(run(&mut LimitedOutput { remaining }), 141);
+            assert_eq!(run(&mut Truncated::after_bytes(remaining)), 141);
         }
         for verb in ["install", "uninstall"] {
             let scratch = dx_test_scratch::scratch("hooks-live-pipe-");
@@ -143,30 +116,14 @@ mod tests {
             assert_eq!(
                 execute_adoption(
                     &inv,
-                    AdoptEnv {
-                        workspace: scratch.path(),
-                        query_runner: &NullQuery,
-                        runner: &NullRunner,
-                        out: &mut LimitedOutput { remaining: 0 },
-                        err: &mut Vec::new()
-                    }
+                    env(
+                        scratch.path(),
+                        &mut Truncated::after_bytes(0),
+                        &mut Vec::new()
+                    )
                 ),
                 141
             );
-        }
-    }
-
-    impl Write for LimitedOutput {
-        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-            if self.remaining == 0 {
-                return Err(io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe"));
-            }
-            let written = self.remaining.min(bytes.len());
-            self.remaining -= written;
-            Ok(written)
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
         }
     }
 
@@ -201,16 +158,7 @@ mod tests {
             dx_adopt::write_version_pin(scratch.path(), "0.0.0").expect("pin");
             let inv = invocation(&words);
             let run = |out: &mut dyn Write| {
-                execute_adoption(
-                    &inv,
-                    AdoptEnv {
-                        workspace: scratch.path(),
-                        query_runner: &NullQuery,
-                        runner: &NullRunner,
-                        out,
-                        err: &mut Vec::new(),
-                    },
-                )
+                execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()))
             };
             let mut baseline = Vec::new();
             let code = run(&mut baseline);
@@ -231,40 +179,11 @@ mod tests {
             boundaries.dedup();
             for remaining in boundaries {
                 assert_eq!(
-                    run(&mut LimitedOutput { remaining }),
+                    run(&mut Truncated::after_bytes(remaining)),
                     141,
                     "{words:?} after {remaining} bytes"
                 );
             }
-        }
-    }
-
-    struct NullQuery;
-
-    impl QueryRunner for NullQuery {
-        fn run_query(
-            &self,
-            _argv: &[String],
-            _cwd: &std::path::Path,
-        ) -> io::Result<crate::resolve::QueryResult> {
-            Ok(crate::resolve::QueryResult {
-                code: Some(0),
-                stdout: b"//a:one\n".to_vec(),
-                stderr: Vec::new(),
-            })
-        }
-    }
-
-    struct NullRunner;
-
-    impl dx_process::Runner for NullRunner {
-        fn run(
-            &self,
-            _argv: &[String],
-            _cwd: &std::path::Path,
-            _env: &[(&str, &str)],
-        ) -> io::Result<dx_process::ChildStatus> {
-            Ok(dx_process::ChildStatus { code: Some(0) })
         }
     }
 
@@ -275,16 +194,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(String::from_utf8(out).expect("out").is_empty());
 
@@ -295,16 +205,7 @@ mod tests {
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(!String::from_utf8(out).expect("out").is_empty());
 
@@ -313,16 +214,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(String::from_utf8(out).expect("out").is_empty());
 
@@ -333,16 +225,7 @@ mod tests {
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute_adoption(
-            &inv,
-            AdoptEnv {
-                workspace: &root,
-                query_runner: &NullQuery,
-                runner: &NullRunner,
-                out: &mut out,
-                err: &mut err,
-            },
-        );
+        let code = execute_adoption(&inv, env(&root, &mut out, &mut err));
         assert_eq!(code, 0);
         assert!(!String::from_utf8(out).expect("out").is_empty());
     }

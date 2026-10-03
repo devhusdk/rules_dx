@@ -200,11 +200,11 @@ fn known_spelled<'a>(
     files: &[&'a str],
     path: &str,
 ) -> Result<&'a str, ParseError> {
-    let wanted = path.replace('\\', "/");
+    let wanted = dx_path::posix(Path::new(path));
     files
         .iter()
         .copied()
-        .find(|file| file.replace('\\', "/") == wanted)
+        .find(|file| dx_path::posix(Path::new(file)) == wanted)
         .ok_or_else(|| ParseError::UnknownFile {
             tool,
             path: path.to_owned(),

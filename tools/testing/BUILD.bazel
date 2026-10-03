@@ -22,7 +22,7 @@ rust_library(
     deps = crate_deps(
         ["serde_json"],
         package_name = "tools/dx_testing",
-    ),
+    ) + ["//cli/path:dx_path"],
 )
 
 rust_test(

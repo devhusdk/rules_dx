@@ -96,7 +96,7 @@ pub fn here_scope(workspace: &std::path::Path, cwd: &std::path::Path) -> Result<
                         cwd.display()
                     )
                 })?;
-                for piece in text.replace('\\', "/").split('/') {
+                for piece in dx_path::posix(std::path::Path::new(&text)).split('/') {
                     if !piece.is_empty() && piece != "." {
                         parts.push(piece.to_owned());
                     }

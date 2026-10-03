@@ -14,7 +14,7 @@ pub mod host;
 pub mod spelling;
 
 pub use spelling::spell;
-pub use spelling::{manifest, msys, posix, uri};
+pub use spelling::{manifest, msys, native, posix, uri, Spelling};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathProblem {

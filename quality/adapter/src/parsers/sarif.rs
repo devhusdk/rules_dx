@@ -1,4 +1,4 @@
-use std::path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
+use std::path::{Path, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
 use serde_sarif::sarif::{ArtifactLocation, Region, ResultLevel, Sarif};
 
@@ -49,15 +49,12 @@ fn normalize_path(path: &str) -> String {
 }
 
 fn suffix_for(path: &str) -> String {
+    let spelled = dx_path::native(Path::new(path));
     if rooted(path) {
-        native(path)
+        spelled
     } else {
-        format!("{MAIN_SEPARATOR_STR}{}", native(path))
+        format!("{}{spelled}", dx_path::native(Path::new("/")))
     }
-}
-
-fn native(path: &str) -> String {
-    path.replace('/', MAIN_SEPARATOR_STR)
 }
 
 fn percent_decode(path: &str) -> Option<String> {
@@ -119,7 +116,7 @@ fn resolve_file<'a>(
     }
     if rooted(&normalized) {
         let raw = strip_file_uri(uri);
-        let raw_suffix = suffix_for(&native(raw));
+        let raw_suffix = suffix_for(&dx_path::native(Path::new(raw)));
         if let Some(hit) = unique_suffix(files, &raw_suffix) {
             return Ok(hit);
         }
@@ -307,7 +304,10 @@ mod tests {
         assert_eq!(normalize_path("C:/src/a.cs"), drive);
         assert_eq!(normalize_path("/C:/src/a.cs"), drive);
         assert_eq!(normalize_path("/src/a.cs"), rooted);
-        assert_eq!(suffix_for("C:/src/a.cs"), native("C:/src/a.cs"));
+        assert_eq!(
+            suffix_for("C:/src/a.cs"),
+            dx_path::native(Path::new("C:/src/a.cs"))
+        );
         assert_eq!(
             suffix_for("src/a.cs"),
             format!("{MAIN_SEPARATOR_STR}{relative}")

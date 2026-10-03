@@ -49,6 +49,12 @@ VIS_CLI_WIDE = VIS_CLI + [
     "//quality:__subpackages__",
 ]
 
+# The platform facts every package reads, so tools and deploy resolve them too.
+VIS_CLI_PLATFORM = VIS_CLI_WIDE + [
+    "//deploy:__subpackages__",
+    "//tools:__subpackages__",
+]
+
 VIS_CLI_DEPLOY = VIS_CLI + [
     "//deploy:__subpackages__",
 ]

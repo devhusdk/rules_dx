@@ -27,11 +27,6 @@ pub const STAGE_DIR_NAME: &str = "bin.next";
 pub const PREV_DIR_NAME: &str = "bin.prev";
 pub const IDENTITY_LEN: usize = 32;
 pub const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
-const EXECUTABLE_SUFFIXES: &[&str] = &[".exe", ".bat", ".cmd", ".com"];
-const WINDOWS_RESERVED_STEMS: &[&str] = &[
-    "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
-    "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
-];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolPlan {
@@ -242,15 +237,13 @@ fn validate_host_name(bin_name: &str, name: &str) -> Result<(), Error> {
     if lower == MARKER_FILE_NAME {
         return Err(bad("is reserved for the provenance marker"));
     }
-    for suffix in EXECUTABLE_SUFFIXES.iter().copied() {
-        if lower.ends_with(suffix) {
-            return Err(bad(&format!(
-                "must not carry an executable suffix (found '{suffix}')"
-            )));
-        }
+    if let Some(suffix) = dx_path::host::executable_suffix(&lower) {
+        return Err(bad(&format!(
+            "must not carry an executable suffix (found '{suffix}')"
+        )));
     }
-    let stem = lower.split('.').next().unwrap_or_default();
-    if WINDOWS_RESERVED_STEMS.contains(&stem) {
+    if dx_path::host::is_reserved_device(name) {
+        let stem = lower.split('.').next().unwrap_or_default();
         return Err(bad(&format!("stem '{stem}' is reserved on Windows")));
     }
     Ok(())

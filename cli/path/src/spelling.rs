@@ -28,6 +28,11 @@ pub fn spell(path: &Path, spelling: Spelling) -> String {
     }
 }
 
+/// Returns one path in the host's own slashes.
+pub fn native(path: &Path) -> String {
+    spell(path, Spelling::Native)
+}
+
 /// Returns one path with forward slashes.
 pub fn posix(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")

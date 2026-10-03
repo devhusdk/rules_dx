@@ -28,7 +28,7 @@ fn collect_sources(root: &Path) -> Vec<PathBuf> {
 }
 
 pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
-    let s = path.to_string_lossy().replace('\\', "/");
+    let s = dx_path::posix(path);
     let name = path
         .file_name()
         .and_then(|n| n.to_str())

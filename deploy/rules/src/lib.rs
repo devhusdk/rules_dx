@@ -1118,8 +1118,8 @@ fn which_on_path(tool: &str) -> Option<std::path::PathBuf> {
             return Some(candidate);
         }
         #[cfg(windows)]
-        {
-            let exe = std::path::Path::new(dir).join(tool.to_owned() + ".exe");
+        for suffix in dx_path::host::EXECUTABLE_SUFFIXES {
+            let exe = std::path::Path::new(dir).join(format!("{tool}{suffix}"));
             if exe.is_file() {
                 return Some(exe);
             }

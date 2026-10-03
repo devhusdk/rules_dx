@@ -435,12 +435,25 @@ pub fn spawn_success(argv: &[String]) -> bool {
         .is_ok_and(|out| out.status.success())
 }
 
+/// Suffixes the host appends to an executable name.
+fn suffixes() -> &'static [&'static str] {
+    if cfg!(windows) {
+        dx_path::host::EXECUTABLE_SUFFIXES
+    } else {
+        &[]
+    }
+}
+
 pub fn exe_available(bin: &str) -> bool {
     spawn_success(&[bin.to_owned(), "--help".to_owned()])
         || Path::new(bin).is_file()
         || std::env::var_os("PATH").is_some_and(|paths| {
-            std::env::split_paths(&paths)
-                .any(|dir| dir.join(bin).is_file() || dir.join(format!("{bin}.exe")).is_file())
+            std::env::split_paths(&paths).any(|dir| {
+                dir.join(bin).is_file()
+                    || suffixes()
+                        .iter()
+                        .any(|suffix| dir.join(format!("{bin}{suffix}")).is_file())
+            })
         })
 }
 

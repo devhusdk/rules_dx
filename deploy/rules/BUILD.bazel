@@ -78,7 +78,10 @@ rust_library(
             "tar",
         ],
         package_name = "deploy/dx_deploy_tools",
-    ) + ["//cli/digest:dx_digest"],
+    ) + [
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
+    ],
 )
 
 rust_binary(

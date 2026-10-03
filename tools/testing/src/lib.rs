@@ -96,11 +96,11 @@ fn read_lines(path: &Path) -> std::io::Result<Vec<String>> {
     Ok(text.split('\n').map(str::to_owned).collect())
 }
 
-const WINDOWS_SUFFIXES: [&str; 4] = [".bat", ".cmd", ".exe", ".ps1"];
+const POWERSHELL_SUFFIXES: [&str; 1] = [".ps1"];
 
 fn suffixes() -> &'static [&'static str] {
     if cfg!(windows) {
-        &WINDOWS_SUFFIXES
+        &POWERSHELL_SUFFIXES
     } else {
         &[]
     }
@@ -109,11 +109,17 @@ fn suffixes() -> &'static [&'static str] {
 fn candidates(rel: &Path) -> Vec<PathBuf> {
     let mut out = vec![rel.to_path_buf()];
     if rel.extension().is_none() {
-        out.extend(suffixes().iter().map(|suffix| {
-            let mut name = rel.as_os_str().to_os_string();
-            name.push(suffix);
-            PathBuf::from(name)
-        }));
+        out.extend(
+            dx_path::host::EXECUTABLE_SUFFIXES
+                .iter()
+                .copied()
+                .chain(suffixes().iter().copied())
+                .map(|suffix| {
+                    let mut name = rel.as_os_str().to_os_string();
+                    name.push(suffix);
+                    PathBuf::from(name)
+                }),
+        );
     }
     out
 }
@@ -125,10 +131,7 @@ fn first_existing(base: &Path) -> Option<PathBuf> {
 fn manifest_lookup(root: &Path, workspace: &str, rel: &Path) -> Option<PathBuf> {
     let text = std::fs::read_to_string(root.join("MANIFEST")).ok()?;
     for candidate in candidates(rel) {
-        let prefix = format!(
-            "{workspace}/{} ",
-            candidate.to_string_lossy().replace('\\', "/")
-        );
+        let prefix = format!("{workspace}/{} ", dx_path::posix(&candidate));
         if let Some(entry) = text.lines().find(|line| line.starts_with(&prefix)) {
             let resolved = Path::new(entry[prefix.len()..].trim());
             if resolved.exists() {

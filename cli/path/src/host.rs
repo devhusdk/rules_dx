@@ -18,12 +18,18 @@ pub fn host_filename(name: &str) -> String {
     }
 }
 
-/// Reports whether one name carries an executable suffix.
-pub fn has_executable_suffix(name: &str) -> bool {
+/// Returns the executable suffix one name carries.
+pub fn executable_suffix(name: &str) -> Option<&'static str> {
     let lower = name.to_ascii_lowercase();
     EXECUTABLE_SUFFIXES
         .iter()
-        .any(|suffix| lower.ends_with(suffix))
+        .copied()
+        .find(|suffix| lower.ends_with(suffix))
+}
+
+/// Reports whether one name carries an executable suffix.
+pub fn has_executable_suffix(name: &str) -> bool {
+    executable_suffix(name).is_some()
 }
 
 /// Removes an executable suffix from one name.
@@ -54,6 +60,13 @@ mod tests {
         assert!(has_executable_suffix("prettier.EXE"));
         assert!(has_executable_suffix("build.bat"));
         assert!(!has_executable_suffix("pydoclint"));
+    }
+
+    #[test]
+    fn a_matched_suffix_is_named() {
+        assert_eq!(executable_suffix("prettier.EXE"), Some(".exe"));
+        assert_eq!(executable_suffix("build.bat"), Some(".bat"));
+        assert_eq!(executable_suffix("pydoclint"), None);
     }
 
     #[test]

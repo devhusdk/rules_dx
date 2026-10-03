@@ -11,6 +11,7 @@ dx_rust_crate(
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
+    extra_deps = ["//cli/path:dx_path"],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
     deps = [
         "thiserror",

@@ -251,7 +251,7 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
             match dir.strip_prefix(workspace) {
                 Ok(rel) if rel.as_os_str().is_empty() => {}
                 Ok(rel) => {
-                    let rel = rel.to_string_lossy().replace('\\', "/");
+                    let rel = dx_path::posix(rel);
                     let pattern = format!("//{rel}/...");
                     if pattern.starts_with(current) {
                         patterns.push(pattern);

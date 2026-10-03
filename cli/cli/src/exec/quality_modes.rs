@@ -268,6 +268,14 @@ fn dry_run_prints_summary_without_executing() {
 }
 
 #[test]
+fn dry_run_diff_mode_prints_no_summary() {
+    let harness = Harness::new("dry-diff");
+    let (code, out, _) = harness.run(&["lint", "--dry-run", "--output=diff"]);
+    assert_eq!(code, 0);
+    assert_eq!(out, "", "diff mode owns stdout: {out}");
+}
+
+#[test]
 fn conflicting_user_option_fails_before_execution() {
     let harness = Harness::new("conflict");
     let (code, _, err) = harness.run(&["lint", "--", "--nokeep_going"]);

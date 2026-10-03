@@ -100,10 +100,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
                 let _ = write_event(out, &event);
             }
             let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if !matches!(invocation.output, OutputMode::Text { quiet: true })
-            && !stdout_report
-            && !invocation.quiet
-        {
+        } else if invocation.chatty() && !stdout_report {
             let _ = writeln!(out, "{}", plan.summary);
         }
         return 0;

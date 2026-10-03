@@ -68,11 +68,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
             let finished = command_finished(0, &FinishedCounts::default());
             let _ = write_event(out, &finished);
-        } else if !matches!(invocation.output, OutputMode::Diff)
-            && !matches!(invocation.output, OutputMode::Text { quiet: true })
-            && !stdout_report
-            && !invocation.quiet
-        {
+        } else if invocation.chatty() && !stdout_report {
             let _ = writeln!(out, "{}", build.summary);
         }
         return 0;

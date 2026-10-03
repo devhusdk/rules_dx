@@ -1,7 +1,6 @@
 use super::common::*;
 use crate::args::Invocation;
 use crate::plan::plan_bazel;
-use dx_output::OutputMode;
 
 pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
@@ -13,7 +12,7 @@ pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
     } = env;
     let plan = plan_bazel(&invocation.bazel_options);
     if invocation.dry_run {
-        if !matches!(invocation.output, OutputMode::Text { quiet: true }) && !invocation.quiet {
+        if invocation.chatty() {
             let _ = writeln!(out, "{}", plan.summary);
         }
         return 0;

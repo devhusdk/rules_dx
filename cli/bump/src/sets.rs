@@ -53,10 +53,6 @@ impl BumpSet {
         Self::names().join("|")
     }
 
-    pub fn canonical_alias(text: &str) -> Option<&'static str> {
-        Self::parse(text).map(|set| set.name())
-    }
-
     pub fn manifests(self) -> &'static [&'static str] {
         match self {
             BumpSet::Bazel => &[".bazelversion", "MODULE.bazel"],
@@ -136,13 +132,10 @@ mod tests {
     }
 
     #[test]
-    fn aliases_canonicalize_without_new_sets() {
+    fn aliases_parse_to_canonical_sets() {
         assert_eq!(BumpSet::parse("gomod"), Some(BumpSet::Go));
         assert_eq!(BumpSet::parse("gha"), Some(BumpSet::GithubActions));
-        assert_eq!(BumpSet::canonical_alias("gomod"), Some("go"));
-        assert_eq!(BumpSet::canonical_alias("gha"), Some("github-actions"));
-        assert_eq!(BumpSet::canonical_alias("cargo"), Some("cargo"));
-        assert_eq!(BumpSet::canonical_alias("unknown"), None);
+        assert_eq!(BumpSet::parse("unknown"), None);
     }
 
     #[test]

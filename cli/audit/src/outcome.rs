@@ -46,14 +46,6 @@ impl AuditReport {
                 .all(|outcome| outcome.status == FamilyStatus::Clean)
     }
 
-    pub fn with_findings(&self) -> Vec<AuditFamily> {
-        self.outcomes
-            .iter()
-            .filter(|outcome| outcome.status == FamilyStatus::Findings)
-            .map(|outcome| outcome.family)
-            .collect()
-    }
-
     pub fn incomplete(&self) -> Vec<AuditFamily> {
         self.outcomes
             .iter()
@@ -86,20 +78,18 @@ mod tests {
             outcome(AuditFamily::License, FamilyStatus::Clean),
         ]);
         assert!(report.is_clean());
-        assert!(report.with_findings().is_empty());
         assert!(report.incomplete().is_empty());
         assert_eq!(exit_code(&report), EXIT_SUCCESS);
         assert_eq!(exit_code(&report), 0);
     }
 
     #[test]
-    fn findings_exit_one_and_name_the_family() {
+    fn findings_exit_one() {
         let report = AuditReport::aggregate(vec![
             outcome(AuditFamily::Security, FamilyStatus::Findings),
             outcome(AuditFamily::License, FamilyStatus::Clean),
         ]);
         assert!(!report.is_clean());
-        assert_eq!(report.with_findings(), vec![AuditFamily::Security]);
         assert_eq!(exit_code(&report), EXIT_FAILURE);
         assert_eq!(exit_code(&report), 1);
     }

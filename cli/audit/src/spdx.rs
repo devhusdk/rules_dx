@@ -124,6 +124,26 @@ pub fn package_url(set: &str, name: &str, version: &str) -> String {
     }
 }
 
+/// Returns the namespace URI for one document's own content, so the same inputs render the same bytes.
+pub fn document_namespace(
+    roots: &[String],
+    packages: &[SpdxPackage],
+    contains: &[(String, String)],
+) -> String {
+    let mut sorted_roots = roots.to_vec();
+    sorted_roots.sort();
+    let mut sorted_packages = packages.to_vec();
+    sorted_packages.sort_by(|a, b| a.id.cmp(&b.id));
+    let mut sorted_contains = contains.to_vec();
+    sorted_contains.sort();
+    let identity =
+        serde_json::to_vec(&(sorted_roots, sorted_packages, sorted_contains)).unwrap_or_default();
+    format!(
+        "https://dx-audit.local/{}",
+        dx_digest::sha256_hex(&identity)
+    )
+}
+
 pub fn render_spdx(
     roots: &[String],
     packages: &[SpdxPackage],
@@ -366,6 +386,45 @@ mod tests {
             serde_json::json!("//services/payments:image")
         );
         assert_eq!(rels[1]["relationshipType"], serde_json::json!("CONTAINS"));
+    }
+
+    #[test]
+    fn the_document_namespace_names_the_content_not_the_process() {
+        let roots = vec!["//b:two".to_owned(), "//a:one".to_owned()];
+        let packages = vec![
+            spdx_package("npm", "react", "18.2.0", "MIT", 2),
+            spdx_package("cargo", "serde", "1.0.100", "MIT", 1),
+        ];
+        let contains = vec![
+            ("//b:two".to_owned(), "//a:one".to_owned()),
+            ("//a:one".to_owned(), "//b:two".to_owned()),
+        ];
+        let first = document_namespace(&roots, &packages, &contains);
+        let shuffled_roots = vec!["//a:one".to_owned(), "//b:two".to_owned()];
+        let mut shuffled_packages = packages.clone();
+        shuffled_packages.reverse();
+        let shuffled_contains = vec![
+            ("//a:one".to_owned(), "//b:two".to_owned()),
+            ("//b:two".to_owned(), "//a:one".to_owned()),
+        ];
+        assert_eq!(
+            first,
+            document_namespace(&shuffled_roots, &shuffled_packages, &shuffled_contains),
+            "input order does not change the namespace"
+        );
+        let digest = first
+            .strip_prefix("https://dx-audit.local/")
+            .expect("namespace prefix");
+        assert!(dx_digest::is_lower_hex(digest, 32), "{digest}");
+
+        let other = document_namespace(&roots, &packages[1..], &contains);
+        assert_ne!(first, other, "different content names a different document");
+        let strip = |text: String| text.replace(&first, "NS").replace(&other, "NS");
+        assert_eq!(
+            strip(render_spdx(&roots, &packages, &contains, &first)),
+            strip(render_spdx(&roots, &packages, &contains, &other)),
+            "the namespace is the only thing that differs between two renders"
+        );
     }
 
     #[test]

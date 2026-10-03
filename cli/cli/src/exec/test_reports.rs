@@ -11,6 +11,25 @@ use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
 use std::path::Path;
 
+/// Returns one exec path spelled without the build directory, so a report reads the same on every host.
+fn stable_exec_path(exec_path: &Path) -> String {
+    let text = exec_path.to_string_lossy().replace('\\', "/");
+    if let Some(out) = text.find("/bazel-out/") {
+        let rest = &text[out + "/bazel-out/".len()..];
+        return match rest.find("/bin/") {
+            Some(bin) => rest[bin + "/bin/".len()..].to_owned(),
+            None => rest.to_owned(),
+        };
+    }
+    if let Some(bin) = text.find("/bin/") {
+        return text[bin + "/bin/".len()..].to_owned();
+    }
+    exec_path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or(text)
+}
+
 fn unusable_detail(count: usize, first: &str) -> String {
     if count > 1 {
         format!("{count} missing or invalid results: {first}")
@@ -94,7 +113,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 Err(error) => {
                     error_count += 1;
                     if first_error.is_empty() {
-                        first_error = format!("unreadable {}: {error}", output.exec_path.display());
+                        first_error = format!(
+                            "unreadable {}: {error}",
+                            stable_exec_path(&output.exec_path)
+                        );
                     }
                     continue;
                 }
@@ -112,7 +134,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 Err(error) => {
                     error_count += 1;
                     if first_error.is_empty() {
-                        first_error = format!("invalid {}: {error}", output.exec_path.display());
+                        first_error =
+                            format!("invalid {}: {error}", stable_exec_path(&output.exec_path));
                     }
                 }
             }
@@ -156,7 +179,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 Err(error) => {
                     error_count += 1;
                     if first_error.is_empty() {
-                        first_error = format!("unreadable {}: {error}", output.exec_path.display());
+                        first_error = format!(
+                            "unreadable {}: {error}",
+                            stable_exec_path(&output.exec_path)
+                        );
                     }
                     continue;
                 }
@@ -169,7 +195,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     }
                     error_count += 1;
                     if first_error.is_empty() {
-                        first_error = format!("invalid {}: {error}", output.exec_path.display());
+                        first_error =
+                            format!("invalid {}: {error}", stable_exec_path(&output.exec_path));
                     }
                 }
             }
@@ -368,6 +395,49 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+    use super::stable_exec_path;
+    use std::path::Path;
+
+    #[test]
+    fn an_exec_path_reads_the_same_on_every_host() {
+        let execroot = "/home/someone/.cache/bazel/_bazel_x/abc123/execroot/_main";
+        assert_eq!(
+            stable_exec_path(Path::new(&format!(
+                "{execroot}/bazel-out/k8-fastbuild/bin/env/shard/doctor_test/test.xml"
+            ))),
+            "env/shard/doctor_test/test.xml"
+        );
+        assert_eq!(
+            stable_exec_path(Path::new(&format!(
+                "{execroot}/bazel-out/x64_windows-fastbuild/bin/env/shard/doctor_test/test.xml"
+            ))),
+            "env/shard/doctor_test/test.xml",
+            "the configuration does not reach the report"
+        );
+        assert_eq!(
+            stable_exec_path(Path::new(&format!("{execroot}/bin/env/shard/test.xml"))),
+            "env/shard/test.xml"
+        );
+    }
+
+    #[test]
+    fn a_windows_exec_path_keeps_its_forward_slashes() {
+        assert_eq!(
+            stable_exec_path(Path::new(
+                r"C:/bz/out/execroot/_main/bazel-out/x64_windows-fastbuild/bin/env/shard/test.xml"
+            )),
+            "env/shard/test.xml"
+        );
+    }
+
+    #[test]
+    fn a_path_outside_the_build_directory_keeps_its_file_name() {
+        assert_eq!(
+            stable_exec_path(Path::new("/tmp/somewhere/test.xml")),
+            "test.xml"
+        );
+        assert_eq!(stable_exec_path(Path::new("test.xml")), "test.xml");
+    }
 
     /// A local `file://` URI for a path that is not there, spelled the way this host spells one.
     ///

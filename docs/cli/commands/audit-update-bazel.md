@@ -97,6 +97,10 @@ An `expires` date on or before the audit date fails the run. An exception that
 matches no current finding in its own set fails the run, so remove it when the
 finding goes away. `versions` uses the range syntax of the `set` ecosystem.
 
+Advisory freshness and exception windows are judged against today's UTC date. Set
+`DX_AUDIT_TODAY` to `YYYY-MM-DD` to pin that date and make a run reproducible.
+A value that is not ten digits and dashes is ignored.
+
 `dx security` scans secrets with Gitleaks. Set `DX_GITLEAKS_BIN` to the absolute
 path of the pinned `@dx_tools//:gitleaks` artifact. A relative path is rejected
 and `PATH` is never searched. Without it the run exits `1` with `secrets

@@ -828,26 +828,22 @@ fn audit_spdx_live_golden_is_single_deterministic_document() {
     assert_eq!(first_code, 0);
     assert_eq!(second_code, 0);
     assert_eq!(first, second, "packages plus relationships deterministic");
-    assert_ne!(first_text, second_text);
-    let first_ns = serde_json::from_str::<serde_json::Value>(&first_text).expect("json")
+    assert_eq!(
+        first_text, second_text,
+        "the whole document is byte-identical"
+    );
+    let namespace = serde_json::from_str::<serde_json::Value>(&first_text).expect("json")
         ["documentNamespace"]
         .as_str()
         .expect("ns")
         .to_owned();
-    let second_ns = serde_json::from_str::<serde_json::Value>(&second_text).expect("json")
-        ["documentNamespace"]
-        .as_str()
-        .expect("ns")
-        .to_owned();
+    let digest = namespace
+        .strip_prefix("https://dx-audit.local/")
+        .unwrap_or_default();
     assert!(
-        first_ns.starts_with("https://dx-audit.local/"),
-        "{first_ns}"
+        dx_digest::is_lower_hex(digest, 32),
+        "the namespace names the document content: {namespace}"
     );
-    assert!(
-        second_ns.starts_with("https://dx-audit.local/"),
-        "{second_ns}"
-    );
-    assert_ne!(first_ns, second_ns);
 }
 
 #[test]

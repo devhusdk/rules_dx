@@ -9,8 +9,47 @@ use dx_output::{
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+/// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
+pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
+
 fn today_utc() -> String {
-    chrono::Utc::now().format("%Y-%m-%d").to_string()
+    today_utc_from(std::env::var(AUDIT_TODAY_ENV).ok())
+}
+
+/// Returns the audit date, preferring a pinned `YYYY-MM-DD` and ignoring anything else.
+fn today_utc_from(pinned: Option<String>) -> String {
+    pinned
+        .filter(|date| date.len() == 10 && date.bytes().all(|b| b.is_ascii_digit() || b == b'-'))
+        .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{today_utc_from, AUDIT_TODAY_ENV};
+
+    #[test]
+    fn a_pinned_date_makes_the_audit_date_reproducible() {
+        assert_eq!(today_utc_from(Some("2020-01-02".to_owned())), "2020-01-02");
+        assert_eq!(AUDIT_TODAY_ENV, "DX_AUDIT_TODAY");
+    }
+
+    #[test]
+    fn an_unusable_pin_falls_back_to_today() {
+        for bad in [
+            "",
+            "2020-1-2",
+            "2020-01-02T00:00",
+            "not-a-date",
+            "2020/01/02x",
+        ] {
+            let today = today_utc_from(None);
+            assert_eq!(
+                today_utc_from(Some(bad.to_owned())),
+                today,
+                "{bad:?} is not a pinned date"
+            );
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -1030,8 +1069,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 );
             }
         } else if name == "spdx" {
-            let namespace = format!("https://dx-audit.local/{pid}-{nonce}");
             let contains: Vec<(String, String)> = Vec::new();
+            let namespace =
+                dx_audit::spdx::document_namespace(&effective, &spdx_packages, &contains);
             let document =
                 dx_audit::spdx::render_spdx(&effective, &spdx_packages, &contains, &namespace);
             let written = write_report_document(out, workspace, &planned.destination, &document);

@@ -1,18 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-pub use dx_preset::PRESET_BAZEL_VERSION;
-
-pub fn render_preset_fragment() -> String {
-    dx_preset::render_fragment()
-}
-
-pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<String> {
-    dx_preset::owned_collisions_in_content(root_content, rendered)
-}
-
-pub fn preset_paths(workspace: &Path) -> (PathBuf, PathBuf) {
-    dx_preset::preset_paths(workspace)
-}
+pub use dx_preset::{
+    owned_collisions_in_content, preset_paths, render_fragment as render_preset_fragment,
+    PRESET_BAZEL_VERSION,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum PresetError {
@@ -94,31 +85,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fragment_matches_preset_inventory() {
-        let rendered = render_preset_fragment();
-        assert!(rendered.contains("GENERATED, do not edit"));
-        assert!(rendered.contains("# Regenerate: `bazel run //tools/bazelrc:preset_update`."));
-        assert!(!rendered.contains("Version-matched to Bazel"));
-        assert!(!rendered.contains("Consumer refresh:"));
-        assert!(!rendered.contains("Upstream-derived flags"));
-        assert!(rendered.ends_with('\n'));
-        assert!(!rendered.ends_with("\n\n"));
-    }
-
-    #[test]
     fn dx_stamp_tracks_single_version() {
         assert_eq!(crate::version::DX_VERSION, "0.0.0");
         assert_eq!(PRESET_BAZEL_VERSION, "9.2.0");
-    }
-
-    #[test]
-    fn collisions_ignore_imports_comments_and_blanks() {
-        let rendered = render_preset_fragment();
-        let root = "# comment\n\nimport %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\nbuild --verbose_failures\n";
-        let collisions = owned_collisions_in_content(root, &rendered);
-        assert_eq!(collisions, vec!["build --verbose_failures".to_owned()]);
-        let clean = "import %workspace%/tools/bazelrc/preset.bazelrc\nbuild --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings\n";
-        assert!(owned_collisions_in_content(clean, &rendered).is_empty());
     }
 
     #[test]
@@ -162,19 +131,6 @@ mod tests {
             Err(PresetError::OwnedCollision { .. })
         ));
         scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn repeated_offending_line_is_reported_once() {
-        let rendered = render_preset_fragment();
-        let root = "build --verbose_failures\nbuild --verbose_failures\ncommon --enable_bzlmod\n";
-        assert_eq!(
-            owned_collisions_in_content(root, &rendered),
-            vec![
-                "build --verbose_failures".to_owned(),
-                "common --enable_bzlmod".to_owned()
-            ]
-        );
     }
 
     #[test]

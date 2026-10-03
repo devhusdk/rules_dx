@@ -190,6 +190,23 @@ fn every_command_page_is_published() {
 }
 
 #[test]
+fn every_command_page_is_indexed() {
+    let index = "docs/cli/commands/README.md";
+    let mut indexed = indexed_docs(&read_runfiles(index), index);
+    indexed.retain(|page| page.starts_with("docs/cli/commands/"));
+    let mut pages = files_under(&runfiles_root().join("docs/cli/commands"), &|name| {
+        name.ends_with(".md")
+    });
+    pages.retain(|page| page != index);
+    assert_eq!(
+        unique(indexed),
+        unique(pages),
+        "docs/cli/commands/README.md must link every page in docs/cli/commands/, so no page \
+         ships unlinked"
+    );
+}
+
+#[test]
 fn the_examples_index_names_every_example_workspace_once() {
     let index = read_runfiles("examples/README.md");
     let named: Vec<String> = sorted(

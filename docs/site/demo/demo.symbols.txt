@@ -1,2 +1,4 @@
 AccountService.create|Creates a new account.
+AccountService.escape|Reads a path like C:\temp.
 AccountService.get|Fetches an account by ID.
+AccountService.quote|Accepts a "quoted" name.

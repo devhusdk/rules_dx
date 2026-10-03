@@ -5,6 +5,10 @@ MDBOOK_VERSION = "0.4.43"
 DOC_IR_SCHEMA_MAJOR = 1
 DOC_IR_SCHEMA_MINOR = 1
 
+_AWK_TEXTPROTO_CHARS = "BEGIN { BS = \"\\134\"; Q = \"\\042\" }"
+
+_AWK_ESCAPE_FIELDS = "{ n = $$1; d = $$2; gsub(/\\\\/, BS BS, n); gsub(/\\\\/, BS BS, d); gsub(/\"/, BS Q, n); gsub(/\"/, BS Q, d); "
+
 def site_symbol_id(language, package, qualified):
     """Returns the stable symbol ID language:package:qualified."""
     return language + ":" + package + ":" + qualified
@@ -118,7 +122,7 @@ def docs_extract(name, language, package, srcs):
         name = name + "_shard",
         srcs = srcs,
         outs = [shard],
-        cmd = "(printf '" + header + "'; LC_ALL=C sort $(SRCS) | awk -F'|' '{printf \"symbols {\\n  id: \\\"" + language + ":" + package + ":%s\\\"\\n  doc_markdown: \\\"%s\\\"\\n}\\n\", $$1, $$2}')" + " > $@",
+        cmd = "(printf '" + header + "'; LC_ALL=C sort $(SRCS) | awk -F'|' '" + _AWK_TEXTPROTO_CHARS + " " + _AWK_ESCAPE_FIELDS + "printf \"symbols {\\n  id: \\\"" + language + ":" + package + ":%s\\\"\\n  doc_markdown: \\\"%s\\\"\\n}\\n\", n, d }')" + " > $@",
     )
     native.filegroup(
         name = name,

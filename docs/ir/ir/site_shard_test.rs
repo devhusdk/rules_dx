@@ -33,6 +33,37 @@ fn symbol_ids(text: &str) -> Vec<String> {
         .collect()
 }
 
+fn doc_markdowns(text: &str) -> Vec<&str> {
+    text.lines()
+        .filter_map(|line| line.strip_prefix("  doc_markdown: "))
+        .collect()
+}
+
+fn unescape_textproto(raw: &str) -> Result<String, String> {
+    let body = raw
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .ok_or_else(|| format!("{raw} is not a closed quoted textproto string"))?;
+    let mut out = String::with_capacity(body.len());
+    let mut chars = body.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            if ch == '"' {
+                return Err(format!("{raw} leaves a quote unescaped"));
+            }
+            out.push(ch);
+            continue;
+        }
+        match chars.next() {
+            Some('\\') => out.push('\\'),
+            Some('"') => out.push('"'),
+            Some(other) => return Err(format!("{raw} carries the invalid escape \\{other}")),
+            None => return Err(format!("{raw} ends in a dangling escape")),
+        }
+    }
+    Ok(out)
+}
+
 #[test]
 fn the_emitted_shard_carries_the_published_schema_version() {
     let text = shard();
@@ -74,6 +105,63 @@ fn every_symbol_id_is_namespaced_and_strictly_increasing() {
             "symbol ids must strictly increase: {} then {}",
             pair[0],
             pair[1]
+        );
+    }
+}
+
+#[test]
+fn doc_markdown_is_escaped_for_textproto_and_round_trips() {
+    let text = shard();
+    let raw = doc_markdowns(&text);
+    assert_eq!(
+        raw,
+        [
+            r#""Creates a new account.""#,
+            r#""Reads a path like C:\\temp.""#,
+            r#""Fetches an account by ID.""#,
+            r#""Accepts a \"quoted\" name.""#,
+        ],
+        "doc_ir.proto types doc_markdown as a string, so a quote and a backslash must be escaped"
+    );
+    assert_eq!(
+        raw.iter()
+            .copied()
+            .map(unescape_textproto)
+            .collect::<Result<Vec<_>, _>>(),
+        Ok(vec![
+            "Creates a new account.".to_owned(),
+            r"Reads a path like C:\temp.".to_owned(),
+            "Fetches an account by ID.".to_owned(),
+            r#"Accepts a "quoted" name."#.to_owned(),
+        ]),
+        "escaping must be lossless, so the shard decodes back to the fixture prose"
+    );
+}
+
+#[test]
+fn the_textproto_reader_rejects_what_the_emitter_must_never_write() {
+    assert_eq!(
+        unescape_textproto(r#""plain text""#),
+        Ok("plain text".to_owned())
+    );
+    assert_eq!(
+        unescape_textproto(r#""a \"quoted\" name""#),
+        Ok(r#"a "quoted" name"#.to_owned())
+    );
+    assert_eq!(
+        unescape_textproto(r#""C:\\temp""#),
+        Ok(r"C:\temp".to_owned())
+    );
+    for bad in [
+        r#""a "quoted" name""#,
+        r#""C:\temp""#,
+        r#""dangling\"#,
+        r#""unterminated"#,
+        r#"not quoted"#,
+    ] {
+        assert!(
+            unescape_textproto(bad).is_err(),
+            "{bad} is malformed textproto and must not decode"
         );
     }
 }

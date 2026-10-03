@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn build_profile_flags_reach_bazel_argv() {
-        use crate::exec::{execute, Env};
+        use crate::exec::execute;
         use std::cell::RefCell;
         use std::rc::Rc;
         for (words, flag) in [
@@ -189,20 +189,7 @@ mod tests {
             let inv = invocation(&words);
             let mut out = Vec::new();
             let mut err = Vec::new();
-            let code = execute(
-                &inv,
-                Env {
-                    workspace: &harness.workspace,
-                    runner: &probe,
-                    query_runner: &harness.query,
-                    temp_dir: &harness.temp,
-                    pid: std::process::id(),
-                    nonce: 0,
-                    out: &mut out,
-                    err: &mut err,
-                    ci: false,
-                },
-            );
+            let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
             assert_eq!(code, 0, "{words:?}");
             let seen = seen.borrow();
             assert_eq!(seen.len(), 1, "{words:?}");

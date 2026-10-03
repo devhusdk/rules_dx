@@ -466,7 +466,7 @@ fn missing_bep_file_is_operational() {
 #[test]
 #[cfg(unix)]
 fn non_utf8_temp_path_is_operational() {
-    use crate::exec::{execute, Env};
+    use crate::exec::execute;
     use std::os::unix::ffi::OsStringExt;
     use std::path::PathBuf;
     let harness = Harness::new("nonutf8-tmp");
@@ -477,20 +477,9 @@ fn non_utf8_temp_path_is_operational() {
     let runner = harness.runner();
     let mut out = Vec::new();
     let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner: &runner,
-            query_runner: &harness.query,
-            temp_dir: &temp,
-            pid: std::process::id(),
-            nonce: 0,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
+    let mut env = harness.env(&runner, &mut out, &mut err);
+    env.temp_dir = &temp;
+    let code = execute(&invocation, env);
     assert_eq!(code, 1);
     assert!(String::from_utf8(err)
         .expect("stderr")

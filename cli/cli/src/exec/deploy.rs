@@ -110,7 +110,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
     use crate::args::parse;
-    use crate::exec::{execute, Env};
+    use crate::exec::execute;
     use crate::resolve::QueryResult;
     use dx_process::{ChildStatus, Runner};
     use std::cell::RefCell;
@@ -205,20 +205,7 @@ mod tests {
         let inv = invocation(&["deploy", "--release", "//deploy:prod"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 0);
         let seen = seen.borrow();
         assert_eq!(seen.len(), 2, "build then run");
@@ -247,20 +234,7 @@ mod tests {
         let inv = invocation(&["deploy", "//deploy:prod"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 0);
         let seen = seen.borrow();
         assert!(
@@ -279,20 +253,7 @@ mod tests {
         let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 3);
         assert_eq!(
             seen.borrow().len(),
@@ -308,20 +269,7 @@ mod tests {
         let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 7);
         let seen = seen.borrow();
         assert_eq!(seen.len(), 2);

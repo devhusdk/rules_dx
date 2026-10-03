@@ -267,20 +267,43 @@ impl Harness {
         let runner = self.runner();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &self.workspace,
-                runner: &runner,
-                query_runner: &self.query,
-                temp_dir: &self.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci,
-            },
-        );
+        let mut env = self.env(&runner, &mut out, &mut err);
+        env.ci = ci;
+        let code = execute(&inv, env);
+        (
+            code,
+            String::from_utf8(out).expect("stdout"),
+            String::from_utf8(err).expect("stderr"),
+        )
+    }
+
+    pub(crate) fn env<'a>(
+        &'a self,
+        runner: &'a dyn Runner,
+        out: &'a mut Vec<u8>,
+        err: &'a mut Vec<u8>,
+    ) -> Env<'a> {
+        Env {
+            workspace: &self.workspace,
+            runner,
+            query_runner: &self.query,
+            temp_dir: &self.temp,
+            pid: std::process::id(),
+            nonce: 0,
+            out,
+            err,
+            ci: false,
+        }
+    }
+
+    pub(crate) fn execute_with<R: Runner>(
+        &self,
+        inv: &Invocation,
+        runner: &R,
+    ) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = execute(inv, self.env(runner, &mut out, &mut err));
         (
             code,
             String::from_utf8(out).expect("stdout"),

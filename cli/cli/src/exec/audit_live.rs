@@ -81,7 +81,6 @@ pub(super) fn run_with(
     setup: &dyn Fn(&Harness),
 ) -> (i32, String, String) {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -97,27 +96,7 @@ pub(super) fn run_with(
         id
     ));
     setup(&harness);
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner,
-            query_runner: &harness.query,
-            temp_dir: &harness.temp,
-            pid: std::process::id(),
-            nonce: 0,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
-    (
-        code,
-        String::from_utf8(out).expect("stdout"),
-        String::from_utf8(err).expect("stderr"),
-    )
+    harness.execute_with(&invocation, runner)
 }
 
 pub(super) fn clean_workspace(harness: &Harness) {
@@ -351,32 +330,11 @@ pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
     assert!(runner.gitleaks_tool().is_none());
     let (code, _out, err) = {
         use crate::args::parse;
-        use crate::exec::{execute, Env};
         let words: Vec<String> = ["security"].iter().map(ToString::to_string).collect();
         let invocation = parse(&words).expect("parse");
         let harness = Harness::new("audit-no-tool");
         write_all_lock_families_with_advisories(&harness);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(
-            &invocation,
-            Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
-        (
-            code,
-            String::from_utf8(out).expect("stdout"),
-            String::from_utf8(err).expect("stderr"),
-        )
+        harness.execute_with(&invocation, &runner)
     };
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");

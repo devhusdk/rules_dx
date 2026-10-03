@@ -208,7 +208,7 @@ mod tests {
     use super::*;
     use crate::args::parse;
     use crate::args::Command;
-    use crate::exec::{execute, Env};
+    use crate::exec::execute;
 
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {
@@ -382,20 +382,7 @@ mod tests {
         let inv = invocation(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 0);
         let seen = seen.borrow();
         assert_eq!(seen.len(), 2, "{seen:?}");
@@ -420,20 +407,7 @@ mod tests {
         let inv = invocation(&["run", "//a:bin", "//b:bin"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 7);
         assert_eq!(seen.borrow().len(), 1, "{:?}", seen.borrow());
     }
@@ -452,20 +426,7 @@ mod tests {
         let inv = invocation(&["run", "//demo/..."]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 0, "{}", String::from_utf8_lossy(&err));
         let seen = seen.borrow();
         assert_eq!(seen.len(), 2, "{seen:?}");
@@ -529,31 +490,6 @@ mod tests {
         }
     }
 
-    fn execute_with(invocation: &Invocation, harness: &Harness) -> (i32, String, String) {
-        let runner = harness.runner();
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(
-            invocation,
-            Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
-        (
-            code,
-            String::from_utf8(out).expect("stdout"),
-            String::from_utf8(err).expect("stderr"),
-        )
-    }
-
     #[test]
     fn run_manual_invocations_cover_defense_branches() {
         let harness = Harness::new("run-manual-report");
@@ -566,12 +502,12 @@ mod tests {
             }],
             false,
         );
-        let (code, _, err) = execute_with(&inv, &harness);
+        let (code, _, err) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 2, "{err}");
 
         let harness = Harness::new("run-manual-json");
         let inv = run_invocation(Command::Run, OutputMode::Json, Vec::new(), true);
-        let (code, out, _) = execute_with(&inv, &harness);
+        let (code, out, _) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("command_started"), "{out}");
         assert!(out.contains("command_finished"), "{out}");
@@ -595,20 +531,7 @@ mod tests {
             let inv = invocation(&words);
             let mut out = Vec::new();
             let mut err = Vec::new();
-            let code = execute(
-                &inv,
-                Env {
-                    workspace: &harness.workspace,
-                    runner: &probe,
-                    query_runner: &harness.query,
-                    temp_dir: &harness.temp,
-                    pid: std::process::id(),
-                    nonce: 0,
-                    out: &mut out,
-                    err: &mut err,
-                    ci: false,
-                },
-            );
+            let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
             assert_eq!(code, 0, "{words:?}");
             let seen = seen.borrow();
             assert_eq!(seen.len(), 1, "{words:?}");

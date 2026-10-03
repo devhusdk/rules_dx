@@ -1,5 +1,6 @@
 use super::super::test_support::*;
 use super::audit_live::*;
+use crate::exec::execute;
 
 #[test]
 fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
@@ -379,7 +380,6 @@ fn lock_loading_requires_readable_inputs_and_deduplicates_npm_siblings() {
 #[test]
 fn audit_live_names_the_lockfile_each_finding_came_from() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     fn sarif_paths(
         harness: &Harness,
         report: &str,
@@ -442,20 +442,7 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
         .expect("parse");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &invocation,
-            Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&invocation, harness.env(&runner, &mut out, &mut err));
         let out_text = String::from_utf8(out).expect("stdout");
         let err_text = String::from_utf8(err).expect("stderr");
         assert_eq!(code, 1, "{command}: {out_text}{err_text}");
@@ -481,7 +468,6 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
 #[test]
 fn audit_live_names_the_gemfile_lock_each_ruby_finding_came_from() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     let harness = Harness::new("audit-ruby-lock-paths");
     harness.write_source(
         "third_party/ruby/Gemfile.lock",
@@ -506,17 +492,7 @@ fn audit_live_names_the_gemfile_lock_each_ruby_finding_came_from() {
     let mut err = Vec::new();
     let code = execute(
         &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner: &AuditRunner::clean(),
-            query_runner: &harness.query,
-            temp_dir: &harness.temp,
-            pid: std::process::id(),
-            nonce: 0,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
+        harness.env(&AuditRunner::clean(), &mut out, &mut err),
     );
     let out_text = String::from_utf8(out).expect("stdout");
     let err_text = String::from_utf8(err).expect("stderr");
@@ -662,7 +638,6 @@ fn audit_update_dry_run_quiet_prints_nothing() {
 #[test]
 fn audit_reports_sarif_and_spdx_to_files() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-reports-cargo");
     write_cargo_license_set(&harness);
@@ -673,25 +648,8 @@ fn audit_reports_sarif_and_spdx_to_files() {
         "--report=spdx=out.spdx.json".to_owned(),
     ])
     .expect("parse");
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner: &runner,
-            query_runner: &harness.query,
-            temp_dir: &harness.temp,
-            pid: std::process::id(),
-            nonce: 0,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
+    let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
     assert_eq!(runner.calls.borrow().len(), 0);
-    let out_text = String::from_utf8(out).expect("stdout");
-    let err_text = String::from_utf8(err).expect("stderr");
     assert_eq!(code, 0, "{out_text}{err_text}");
     let sarif = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
     let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
@@ -766,7 +724,6 @@ fn audit_reports_sarif_and_spdx_to_files() {
 #[test]
 fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-sarif-license-shape");
     write_cargo_license_set(&harness);
@@ -776,29 +733,8 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
         "--report=sarif=out.sarif".to_owned(),
     ])
     .expect("parse");
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner: &runner,
-            query_runner: &harness.query,
-            temp_dir: &harness.temp,
-            pid: std::process::id(),
-            nonce: 0,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
-    assert_eq!(
-        code,
-        0,
-        "{}{}",
-        String::from_utf8(out).unwrap(),
-        String::from_utf8(err).unwrap()
-    );
+    let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
+    assert_eq!(code, 0, "{out_text}{err_text}");
     let sarif = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
     let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
     let names: Vec<&str> = value["runs"]
@@ -813,29 +749,8 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     write_all_lock_families_with_advisories(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner: &runner,
-            query_runner: &harness.query,
-            temp_dir: &harness.temp,
-            pid: std::process::id(),
-            nonce: 1,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
-    assert_eq!(
-        code,
-        0,
-        "{}{}",
-        String::from_utf8(out).unwrap(),
-        String::from_utf8(err).unwrap()
-    );
+    let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
+    assert_eq!(code, 0, "{out_text}{err_text}");
     let sarif = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
     let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
     assert_eq!(value["version"], serde_json::json!("2.1.0"));
@@ -861,7 +776,6 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
 #[test]
 fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     let github = format!("{}{}", "ghp_", "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8");
     let sarif_in = format!(
         "{{\"version\": \"2.1.0\", \"runs\": [{{\"tool\": {{\"driver\": {{\"name\": \"gitleaks\"}}}}, \"results\": [{{\"ruleId\": \"gitleaks/aws-key\", \"message\": {{\"text\": \"leaked {github}\"}}, \"locations\": [{{\"physicalLocation\": {{\"artifactLocation\": {{\"uri\": \"src/app.py\"}}}}}}]}}]}}]}}"
@@ -871,29 +785,8 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
     write_all_lock_families(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner: &runner,
-            query_runner: &harness.query,
-            temp_dir: &harness.temp,
-            pid: std::process::id(),
-            nonce: 2,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
-    assert_eq!(
-        code,
-        1,
-        "{}{}",
-        String::from_utf8(out).unwrap(),
-        String::from_utf8(err).unwrap()
-    );
+    let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
+    assert_eq!(code, 1, "{out_text}{err_text}");
     let sarif = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
     let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
     assert_eq!(value["version"], serde_json::json!("2.1.0"));
@@ -931,7 +824,6 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
 #[test]
 fn audit_spdx_live_golden_is_single_deterministic_document() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     fn emit(nonce: u64) -> (serde_json::Value, i32, String) {
         let runner = AuditRunner::clean();
         let harness = Harness::new(&format!("audit-spdx-determinism-{nonce}"));
@@ -944,20 +836,9 @@ fn audit_spdx_live_golden_is_single_deterministic_document() {
         .expect("parse");
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &invocation,
-            Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: 999,
-                nonce,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let mut env = harness.env(&runner, &mut out, &mut err);
+        env.nonce = nonce;
+        let code = execute(&invocation, env);
         let text = std::fs::read_to_string(harness.workspace.join("out.spdx.json")).expect("spdx");
         let mut value: serde_json::Value = serde_json::from_str(&text).expect("spdx JSON");
         value["documentNamespace"] = serde_json::json!("NORMALIZED");
@@ -1305,7 +1186,6 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
 #[test]
 fn audit_sarif_spdx_write_failures_are_fail_closed() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     for (format, path) in [
         ("sarif", "missing-dir/out.sarif"),
         ("spdx", "missing-dir/out.spdx.json"),
@@ -1319,24 +1199,7 @@ fn audit_sarif_spdx_write_failures_are_fail_closed() {
             format!("--report={format}={path}"),
         ])
         .expect("parse");
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(
-            &invocation,
-            Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
-        let out_text = String::from_utf8(out).expect("stdout");
-        let err_text = String::from_utf8(err).expect("stderr");
+        let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
         assert_eq!(code, 1, "{out_text}{err_text} {format}");
         assert!(err_text.contains("report_failed"), "{err_text} {format}");
         assert!(
@@ -1349,7 +1212,6 @@ fn audit_sarif_spdx_write_failures_are_fail_closed() {
 #[test]
 fn audit_report_write_failure_json_reports_error_event() {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-report-fail-json");
     write_cargo_license_set(&harness);
@@ -1360,24 +1222,7 @@ fn audit_report_write_failure_json_reports_error_event() {
         "--output=json".to_owned(),
     ])
     .expect("parse");
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: &harness.workspace,
-            runner: &runner,
-            query_runner: &harness.query,
-            temp_dir: &harness.temp,
-            pid: std::process::id(),
-            nonce: 0,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
-    let out_text = String::from_utf8(out).expect("stdout");
-    let err_text = String::from_utf8(err).expect("stderr");
+    let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
     assert_eq!(code, 1, "{out_text}{err_text}");
     assert!(out_text.contains("report_failed"), "{out_text}");
     assert!(out_text.contains("command_finished"), "{out_text}");

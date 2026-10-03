@@ -88,39 +88,13 @@ impl Runner for ScriptRunner {
 
 pub(super) fn run_with(argv: &[&str], runner: &ScriptRunner) -> (i32, String, String) {
     use crate::args::parse;
-    use crate::exec::{execute, Env};
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
     let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
     let invocation = parse(&words).expect("parse");
-    let workspace_guard = temp_dir(&format!("update-live-{id}"));
-    let temp_guard = temp_dir(&format!("update-live-tmp-{id}"));
-    let query = ScriptQuery {
-        calls: RefCell::new(Vec::new()),
-        outputs: RefCell::new(Vec::new()),
-    };
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        Env {
-            workspace: workspace_guard.path(),
-            runner,
-            query_runner: &query,
-            temp_dir: temp_guard.path(),
-            pid: std::process::id(),
-            nonce: 0,
-            out: &mut out,
-            err: &mut err,
-            ci: false,
-        },
-    );
-    (
-        code,
-        String::from_utf8(out).expect("stdout"),
-        String::from_utf8(err).expect("stderr"),
-    )
+    let harness = Harness::new(&format!("update-live-{id}"));
+    harness.execute_with(&invocation, runner)
 }
 
 #[test]

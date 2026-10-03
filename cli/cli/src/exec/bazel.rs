@@ -29,7 +29,7 @@ pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use crate::exec::{execute, Env};
+    use crate::exec::execute;
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -44,20 +44,7 @@ mod tests {
         let inv = invocation(&["bazel", "build", "//...", "--", "--jobs=4"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 3);
         let seen = seen.borrow();
         assert_eq!(seen.len(), 1);
@@ -86,20 +73,7 @@ mod tests {
         let inv = invocation(&["bazel", "build", "--jobs=4"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(
-            &inv,
-            Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 0);
         assert_eq!(
             *seen.borrow(),

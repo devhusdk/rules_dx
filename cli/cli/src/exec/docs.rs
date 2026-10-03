@@ -322,20 +322,7 @@ mod tests {
         let inv = invocation(&["docs", "--", "--config=ci", "--jobs=4"]);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = super::execute_docs(
-            &inv,
-            super::super::common::Env {
-                workspace: &harness.workspace,
-                runner: &probe,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = super::execute_docs(&inv, harness.env(&probe, &mut out, &mut err));
         assert_eq!(code, 0);
         let seen = seen.borrow();
         assert_eq!(seen.len(), 1, "{seen:?}");
@@ -436,20 +423,7 @@ mod tests {
         };
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = super::execute_docs(
-            &inv,
-            super::super::common::Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
         assert_eq!(code, 0);
         let calls = seen.borrow();
         assert_eq!(calls.len(), 3, "{calls:?}");
@@ -489,20 +463,7 @@ mod tests {
         let runner = LaunchFailRunner;
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = super::execute_docs(
-            &inv,
-            super::super::common::Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
         assert_eq!(code, 1, "launch failure is operational");
         let err_text = String::from_utf8(err).expect("stderr");
         assert!(err_text.contains("serve_failed"), "{err_text}");
@@ -575,20 +536,7 @@ mod tests {
         let runner = ServeFailRunner;
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = super::execute_docs(
-            &inv,
-            super::super::common::Env {
-                workspace: &harness.workspace,
-                runner: &runner,
-                query_runner: &harness.query,
-                temp_dir: &harness.temp,
-                pid: std::process::id(),
-                nonce: 0,
-                out: &mut out,
-                err: &mut err,
-                ci: false,
-            },
-        );
+        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
         assert_eq!(code, 3, "{code}");
         let text = String::from_utf8(out).expect("out");
         let events: Vec<serde_json::Value> = text

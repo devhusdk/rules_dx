@@ -1,5 +1,15 @@
 //! Reports whether a docs aggregate's links all resolve.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

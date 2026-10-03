@@ -1,5 +1,15 @@
 //! Forwards a repin request to dx update, which owns the pinned versions.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {

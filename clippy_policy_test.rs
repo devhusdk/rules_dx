@@ -3,6 +3,9 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::runfiles_root;
 
+/// Crate roots this target's data must name, one label each.
+const REGISTERED_CRATE_ROOTS: usize = 72;
+
 fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).expect("readable runfiles dir") {
         let path = entry.expect("readable dir entry").path();
@@ -101,9 +104,10 @@ fn every_crate_root_denies_the_lints_clippy_toml_documents() {
             "{rel} must deny every lint clippy.toml documents outside cfg(test)",
         );
     }
-    assert!(
-        roots >= 61,
-        "the crate root sweep found {roots} roots; its data list stopped reaching them",
+    assert_eq!(
+        roots, REGISTERED_CRATE_ROOTS,
+        "the crate root sweep found {roots} roots; name every one of them in \
+         //:clippy_policy_test's data, then raise this count"
     );
 }
 
@@ -128,7 +132,7 @@ fn every_denied_lint_list_matches_the_documented_policy() {
         );
     }
     assert!(
-        annotated >= 61,
+        annotated >= REGISTERED_CRATE_ROOTS,
         "the lint sweep found {annotated} annotated sources; its data list stopped reaching them",
     );
 }

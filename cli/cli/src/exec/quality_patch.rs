@@ -92,12 +92,12 @@ mod tests {
             FileChange {
                 path: "src/a.py".to_owned(),
                 original_digest: dx_digest::blake3(original),
-                edits: vec![(0, original.len() as u64, b"line one\nline TWO\n".to_vec())],
+                edits: vec![(0, original.len() as u64, "line one\nline TWO\n".to_owned())],
             },
             FileChange {
                 path: "src/long.py".to_owned(),
                 original_digest: dx_digest::blake3(b"old\n"),
-                edits: vec![(0, 4, long_body.as_bytes().to_vec())],
+                edits: vec![(0, 4, long_body.clone())],
             },
         ];
         let first = render_diff_patch(&sources, &changes).expect("render patch");

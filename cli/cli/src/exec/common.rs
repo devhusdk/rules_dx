@@ -46,8 +46,6 @@ pub const REASON_INCOMPLETE_COLLECTION: &str = "incomplete_collection";
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub(crate) enum ExecError {
-    #[error("invalid_edits")]
-    InvalidEdits,
     #[error("generated logical path is empty")]
     EmptyLogicalPath,
     #[error("generated logical path {path:?} is absolute")]
@@ -127,7 +125,7 @@ pub(crate) fn collect_targets(
 pub(crate) struct FileChange {
     pub(crate) path: String,
     pub(crate) original_digest: [u8; 32],
-    pub(crate) edits: Vec<(u64, u64, Vec<u8>)>,
+    pub(crate) edits: Vec<(u64, u64, String)>,
 }
 
 pub(crate) fn hex_digest(bytes: &[u8; 32]) -> String {
@@ -153,7 +151,7 @@ pub(crate) fn read_verified(workspace: &Path, path: &str, expected: &[u8; 32]) -
     }
 }
 
-pub(crate) fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, Vec<u8>)]) -> Option<Vec<u8>> {
+pub(crate) fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, String)]) -> Option<Vec<u8>> {
     let text = std::str::from_utf8(original).ok()?;
     let mut candidate = Vec::with_capacity(original.len());
     let mut cursor = 0usize;
@@ -169,11 +167,8 @@ pub(crate) fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, Vec<u8>)]) -> 
         if std::str::from_utf8(head).is_err() {
             return None; // LCOV_EXCL_LINE - reason: utf8 slice of valid text, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         }
-        if std::str::from_utf8(replacement).is_err() {
-            return None;
-        }
         candidate.extend_from_slice(head);
-        candidate.extend_from_slice(replacement);
+        candidate.extend_from_slice(replacement.as_bytes());
         cursor = end;
     }
     let tail = &original[cursor..];
@@ -315,23 +310,21 @@ pub(crate) fn run_bazel(
     }
 }
 
-pub(crate) fn change_event_for(change: &FileChange) -> Result<ChangeEvent, ExecError> {
+pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
     let mut edits = Vec::with_capacity(change.edits.len());
     for (start, end, replacement) in &change.edits {
-        let replacement =
-            String::from_utf8(replacement.clone()).map_err(|_| ExecError::InvalidEdits)?;
         edits.push(dx_output::Edit {
             start: *start,
             end: *end,
-            replacement,
+            replacement: replacement.clone(),
         });
     }
-    Ok(ChangeEvent {
+    ChangeEvent {
         path: change.path.clone(),
         kind: ChangeKind::Modify,
         source_digest: Some(hex_digest(&change.original_digest)),
         edits,
-    })
+    }
 }
 
 #[cfg(test)]
@@ -463,14 +456,14 @@ mod tests {
     #[test]
     fn apply_rejects_overlapping_edits_without_writing() {
         let original = b"abcdef";
-        assert!(apply_to_bytes(original, &[(0, 2, b"AB".to_vec())]).is_some());
+        assert!(apply_to_bytes(original, &[(0, 2, "AB".to_owned())]).is_some());
         assert!(
-            apply_to_bytes(original, &[(0, 2, b"AB".to_vec()), (1, 3, b"X".to_vec())]).is_none()
+            apply_to_bytes(original, &[(0, 2, "AB".to_owned()), (1, 3, "X".to_owned())]).is_none()
         );
         assert!(
-            apply_to_bytes(original, &[(0, 6, b"AB".to_vec()), (6, 7, b"X".to_vec())]).is_none()
+            apply_to_bytes(original, &[(0, 6, "AB".to_owned()), (6, 7, "X".to_owned())]).is_none()
         );
-        assert!(apply_to_bytes(b"\xff\xfe", &[(0, 1, b"a".to_vec())]).is_none());
+        assert!(apply_to_bytes(b"\xff\xfe", &[(0, 1, "a".to_owned())]).is_none());
     }
 
     #[test]
@@ -498,11 +491,11 @@ mod tests {
 
     #[test]
     fn apply_rejects_boundary_and_encoding_violations() {
-        assert!(apply_to_bytes("héllo".as_bytes(), &[(2, 3, b"X".to_vec())]).is_none());
-        assert!(apply_to_bytes("héllo".as_bytes(), &[(1, 2, b"X".to_vec())]).is_none());
-        assert!(apply_to_bytes(b"ab", &[(0, 1, b"\xff".to_vec())]).is_none());
+        assert!(apply_to_bytes("héllo".as_bytes(), &[(2, 3, "X".to_owned())]).is_none());
+        assert!(apply_to_bytes("héllo".as_bytes(), &[(1, 2, "X".to_owned())]).is_none());
+        assert!(apply_to_bytes(b"\xff", &[(0, 1, "X".to_owned())]).is_none());
         assert_eq!(
-            apply_to_bytes(b"ab", &[(0, 1, b"X".to_vec())]),
+            apply_to_bytes(b"ab", &[(0, 1, "X".to_owned())]),
             Some(b"Xb".to_vec())
         );
     }
@@ -510,14 +503,14 @@ mod tests {
     #[test]
     fn change_event_is_deterministic_and_reconstructs_candidate() {
         let original = b"BAD\n";
-        let terminal = b"GOOD\n";
+        let terminal = "GOOD\n";
         let change = FileChange {
             path: "src/lib.rs".to_owned(),
             original_digest: digest(original),
-            edits: vec![(0, original.len() as u64, terminal.to_vec())],
+            edits: vec![(0, original.len() as u64, terminal.to_owned())],
         };
-        let first = change_event_for(&change).expect("change event");
-        let second = change_event_for(&change).expect("change event");
+        let first = change_event_for(&change);
+        let second = change_event_for(&change);
         assert_eq!(first.path, "src/lib.rs");
         assert_eq!(first.path, second.path);
         assert_eq!(first.source_digest, second.source_digest);
@@ -525,15 +518,19 @@ mod tests {
         assert_eq!(first.edits.len(), 1);
         assert_eq!(first.edits[0].start, 0);
         assert_eq!(first.edits[0].end, original.len() as u64);
-        assert_eq!(first.edits[0].replacement, "GOOD\n");
+        assert_eq!(first.edits[0].replacement, terminal);
+        assert_eq!(
+            first, second,
+            "the event must not depend on how many times it is built"
+        );
         let planned = apply_to_bytes(original, &change.edits).expect("apply");
-        assert_eq!(planned, terminal);
+        assert_eq!(planned, terminal.as_bytes());
         let other = FileChange {
             path: "src/other.rs".to_owned(),
             original_digest: digest(original),
-            edits: vec![(0, original.len() as u64, terminal.to_vec())],
+            edits: vec![(0, original.len() as u64, terminal.to_owned())],
         };
-        let other_event = change_event_for(&other).expect("other event");
+        let other_event = change_event_for(&other);
         assert_ne!(first.path, other_event.path);
     }
 

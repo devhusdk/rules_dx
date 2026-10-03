@@ -29,8 +29,8 @@ pub use diagnostics::{
     styled_status_for, truncate_line, ColorMode, LogLevel, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
 };
 pub use findings::{
-    diagnostic_event, notice_event, notice_value, sort_diagnostics, DiagnosticEvent, NoticeEvent,
-    Resolution, Snapshot,
+    diagnostic_event, diagnostic_value, notice_event, notice_value, sort_diagnostics,
+    DiagnosticEvent, NoticeEvent, Resolution, Snapshot,
 };
 pub use lifecycle::{
     command_finished, command_started, error_event, operation_event, report_event, schema,

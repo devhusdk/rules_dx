@@ -122,18 +122,18 @@ mod tests {
         workspace
     }
 
-    fn full_replace(path: &str, original: &[u8], terminal: &[u8]) -> FileChange {
+    fn full_replace(path: &str, original: &[u8], terminal: &str) -> FileChange {
         FileChange {
             path: path.to_owned(),
             original_digest: digest(original),
-            edits: vec![(0, original.len() as u64, terminal.to_vec())],
+            edits: vec![(0, original.len() as u64, terminal.to_owned())],
         }
     }
 
     #[test]
     fn check_mode_writes_nothing() {
         let workspace = write_workspace("apply-check", &[("src/a.rs", b"BAD\n")]);
-        let change = full_replace("src/a.rs", b"BAD\n", b"GOOD\n");
+        let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
         let outcome = apply_collected_changes(workspace.path(), true, true, &[change]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn incomplete_collection_writes_nothing() {
         let workspace = write_workspace("apply-incomplete", &[("src/a.rs", b"BAD\n")]);
-        let change = full_replace("src/a.rs", b"BAD\n", b"GOOD\n");
+        let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
         let outcome = apply_collected_changes(workspace.path(), false, false, &[change]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
@@ -165,11 +165,11 @@ mod tests {
             "apply-mixed",
             &[("src/a.rs", b"BAD\n"), ("src/b.rs", b"STALE\n")],
         );
-        let valid = full_replace("src/a.rs", b"BAD\n", b"GOOD\n");
+        let valid = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
         let stale = FileChange {
             path: "src/b.rs".to_owned(),
             original_digest: digest(b"OTHER\n"),
-            edits: vec![(0, 6, b"NEW\n".to_vec())],
+            edits: vec![(0, 6, "NEW\n".to_owned())],
         };
         let outcome = apply_collected_changes(workspace.path(), false, true, &[valid, stale]);
         assert_eq!(
@@ -194,7 +194,7 @@ mod tests {
         let change = FileChange {
             path: "src/a.rs".to_owned(),
             original_digest: digest(b"BAD\n"),
-            edits: vec![(5, 2, b"X".to_vec())],
+            edits: vec![(5, 2, "X".to_owned())],
         };
         let outcome = apply_collected_changes(workspace.path(), false, true, &[change]);
         assert_eq!(

@@ -2,13 +2,11 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use dx_output::{
-    change_event, diagnostic_event, mutation_event, write_event, ChangeKind, DiagnosticEvent,
+    change_value, diagnostic_value, mutation_value, write_event, ChangeKind, DiagnosticEvent,
     MutationOutcome, OutputMode, Resolution, Snapshot,
 };
 
-use super::common::{
-    change_event_for, text_diagnostic, FileChange, CODE_INVALID_BEP, REASON_INCOMPLETE_COLLECTION,
-};
+use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
 use crate::args::Invocation;
 
 pub(crate) struct EmitInputs<'a> {
@@ -30,7 +28,7 @@ pub(crate) fn emit_findings(
     inputs: EmitInputs<'_>,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> Result<EmitCounts, (&'static str, String)> {
+) -> EmitCounts {
     let EmitInputs {
         invocation,
         status,
@@ -57,41 +55,10 @@ pub(crate) fn emit_findings(
                     Resolution::NotApplied
                 });
             }
-            match diagnostic_event(&event_diagnostic, mutating) {
-                Ok(event) => {
-                    let _ = write_event(out, &event);
-                }
-                // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                Err(error) => {
-                    return Err((
-                        CODE_INVALID_BEP,
-                        format!("invalid finding for output: {error}"),
-                    ));
-                } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
+            let _ = write_event(out, &diagnostic_value(&event_diagnostic));
         }
         for change in changes {
-            match change_event_for(change) {
-                Ok(change_event_value) => match change_event(&change_event_value) {
-                    Ok(event) => {
-                        let _ = write_event(out, &event);
-                    }
-                    // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    Err(error) => {
-                        return Err((
-                            CODE_INVALID_BEP,
-                            format!("invalid change for output: {error}"),
-                        ));
-                    } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                },
-                // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                Err(reason) => {
-                    return Err((
-                        CODE_INVALID_BEP,
-                        format!("invalid change for {}: {reason}", change.path),
-                    ));
-                } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
+            let _ = write_event(out, &change_value(&change_event_for(change)));
         }
         if !invocation.check {
             for change in changes {
@@ -107,32 +74,24 @@ pub(crate) fn emit_findings(
                             .unwrap_or(REASON_INCOMPLETE_COLLECTION),
                     )
                 };
-                match mutation_event(
-                    &change.path,
-                    ChangeKind::Modify,
-                    if is_applied {
-                        MutationOutcome::Applied
-                    } else {
-                        MutationOutcome::NotApplied
-                    },
-                    reason,
-                ) {
-                    Ok(event) => {
-                        if is_applied {
-                            applied_count += 1;
-                        } else {
-                            not_applied_count += 1;
-                        }
-                        let _ = write_event(out, &event);
-                    }
-                    // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    Err(error) => {
-                        return Err((
-                            CODE_INVALID_BEP,
-                            format!("invalid mutation for output: {error}"),
-                        ));
-                    } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+                if is_applied {
+                    applied_count += 1;
+                } else {
+                    not_applied_count += 1;
                 }
+                let _ = write_event(
+                    out,
+                    &mutation_value(
+                        &change.path,
+                        ChangeKind::Modify,
+                        if is_applied {
+                            MutationOutcome::Applied
+                        } else {
+                            MutationOutcome::NotApplied
+                        },
+                        reason,
+                    ),
+                );
             }
         }
     } else if matches!(invocation.output, OutputMode::Text { .. }) {
@@ -156,8 +115,8 @@ pub(crate) fn emit_findings(
         }
         out.write_all(patch.as_bytes()).ok();
     }
-    Ok(EmitCounts {
+    EmitCounts {
         applied_count,
         not_applied_count,
-    })
+    }
 }

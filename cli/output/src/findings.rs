@@ -43,6 +43,11 @@ pub fn diagnostic_event(
     diagnostic: &DiagnosticEvent,
     mutating: bool,
 ) -> Result<Value, OutputError> {
+    check_diagnostic(diagnostic, mutating)?;
+    Ok(diagnostic_value(diagnostic))
+}
+
+fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), OutputError> {
     nonempty("tool", &diagnostic.tool)?;
     nonempty("message", &diagnostic.message)?;
     if let Some(path) = &diagnostic.path {
@@ -62,6 +67,11 @@ pub fn diagnostic_event(
         (Snapshot::Initial, None, true) => return Err(OutputError::MissingResolution),
         (Snapshot::Initial, _, _) | (Snapshot::Terminal, None, _) => {}
     }
+    Ok(())
+}
+
+/// Builds the event for a diagnostic whose producer already validated it.
+pub fn diagnostic_value(diagnostic: &DiagnosticEvent) -> Value {
     let mut map = base("diagnostic");
     map.insert(
         "severity".to_owned(),
@@ -101,7 +111,7 @@ pub fn diagnostic_event(
             Value::String(resolution.name().to_owned()),
         );
     }
-    Ok(Value::Object(map))
+    Value::Object(map)
 }
 
 pub fn sort_diagnostics(diagnostics: &mut [DiagnosticEvent]) {
@@ -309,6 +319,29 @@ mod tests {
         assert_eq!(event["snapshot"], Value::from("initial"));
         assert_eq!(event["fixable"], Value::from(true));
         assert!(event.get("resolution").is_none());
+    }
+
+    #[test]
+    fn diagnostic_value_matches_the_checked_event() {
+        let mut resolved = finding();
+        resolved.resolution = Some(Resolution::Remaining);
+        let event = diagnostic_value(&resolved);
+        assert_eq!(
+            event["resolution"],
+            Value::from("remaining"),
+            "an unset resolution must still be rendered when the producer set one"
+        );
+        assert_eq!(event["tool"], Value::from("ruff"));
+        assert_eq!(event["range"]["end_byte"], Value::from(24));
+        assert_eq!(
+            event,
+            diagnostic_event(&resolved, true).expect("resolved"),
+            "the checked entry point must agree with the value builder"
+        );
+        let initial = diagnostic_value(&finding());
+        assert!(initial.get("resolution").is_none());
+        assert_eq!(initial["snapshot"], Value::from("initial"));
+        assert_eq!(initial["rule"], Value::from("F401"));
     }
 
     #[test]

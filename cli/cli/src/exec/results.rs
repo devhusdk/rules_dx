@@ -102,7 +102,11 @@ fn map_change(change: &proto::FileEdits) -> Option<FileChange> {
     let original_digest: [u8; 32] = change.original_digest.as_slice().try_into().ok()?;
     let mut edits = Vec::with_capacity(change.edits.len());
     for edit in &change.edits {
-        edits.push((edit.start_byte, edit.end_byte, edit.replacement.clone()));
+        edits.push((
+            edit.start_byte,
+            edit.end_byte,
+            String::from_utf8(edit.replacement.clone()).ok()?,
+        ));
     }
     Some(FileChange {
         path: change.path.clone(),
@@ -231,6 +235,23 @@ mod tests {
                 "a producer cannot send what staging rejects"
             );
         }
+    }
+
+    #[test]
+    fn staging_rejects_non_utf8_replacements() {
+        let harness = Harness::new("stage-bytes");
+        harness.write_source("src/a.py", "x = 1\n");
+        let bytes = harness.valid_result(vec![], vec![harness.replacement(b"y")]);
+        let mut result = decode_validated(&bytes).expect("valid result");
+        result.replacements[0].edits[0].replacement = vec![0xFF];
+        assert!(
+            stage_result(&result).is_none(),
+            "a change whose replacement is not text never reaches the report"
+        );
+        assert!(
+            encode_validated(&result).is_err(),
+            "a producer cannot send what staging rejects"
+        );
     }
 
     #[test]

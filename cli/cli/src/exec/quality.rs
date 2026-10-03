@@ -134,7 +134,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
 
-    let emit_counts = match emit_findings(
+    let emit_counts = emit_findings(
         EmitInputs {
             invocation,
             status: &status,
@@ -146,10 +146,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         },
         out,
         err,
-    ) {
-        Ok(counts) => counts,
-        Err((code, message)) => return operational(invocation, out, err, code, &message),
-    };
+    );
     let applied_count = emit_counts.applied_count;
     let not_applied_count = emit_counts.not_applied_count;
     let change_count = collected.changes.len() as u64;

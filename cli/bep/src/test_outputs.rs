@@ -195,19 +195,25 @@ mod tests {
         )
     }
 
+    /// A file URI naming one path under a root this host can resolve.
+    fn out_uri(rel: &str) -> String {
+        let root = if cfg!(windows) { "C:/out" } else { "/out" };
+        dx_path::uri(&std::path::Path::new(root).join(rel))
+    }
+
     #[test]
     fn test_outputs_collect_sorted_records() {
         let stream = [
             test_result(
                 "//z:t",
                 &[
-                    ("test.xml", "file:///out/z/test.xml"),
-                    ("test.log", "file:///out/z/test.log"),
+                    ("test.xml", out_uri("z/test.xml").as_str()),
+                    ("test.log", out_uri("z/test.log").as_str()),
                 ],
             ),
             r#"{"id":{"targetCompleted":{"label":"//z:t"}},"completed":{"success":true}}"#
                 .to_owned(),
-            test_result("//a:t", &[("test.xml", "file:///out/a/test.xml")]),
+            test_result("//a:t", &[("test.xml", out_uri("a/test.xml").as_str())]),
         ]
         .join("\n");
         let got = collect_test_outputs(Cursor::new(stream)).expect("collect");
@@ -262,9 +268,9 @@ mod tests {
     #[test]
     fn test_outputs_capture_run_shard_attempt() {
         let stream = [
-            test_result_with_identity("//a:t", 2, 3, 4, &[("test.xml", "file:///out/a.xml")]),
-            test_result_with_identity("//a:t", 1, 1, 2, &[("test.xml", "file:///out/b.xml")]),
-            test_result_with_identity("//a:t", 1, 1, 1, &[("test.xml", "file:///out/c.xml")]),
+            test_result_with_identity("//a:t", 2, 3, 4, &[("test.xml", out_uri("a.xml").as_str())]),
+            test_result_with_identity("//a:t", 1, 1, 2, &[("test.xml", out_uri("b.xml").as_str())]),
+            test_result_with_identity("//a:t", 1, 1, 1, &[("test.xml", out_uri("c.xml").as_str())]),
         ]
         .join("\n");
         let got = collect_test_outputs(Cursor::new(stream)).expect("collect");
@@ -281,7 +287,10 @@ mod tests {
 
     #[test]
     fn test_outputs_default_missing_identity_to_one() {
-        let stream = r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"status":"PASSED","testActionOutput":[{"name":"test.xml","uri":"file:///out/a.xml"}]}}"#;
+        let stream = format!(
+            r#"{{"id":{{"testResult":{{"label":"//a:t"}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
+            out_uri("a.xml")
+        );
         let got = collect_test_outputs(Cursor::new(stream)).expect("collect");
         assert_eq!(got.len(), 1);
         assert_eq!((got[0].run, got[0].shard, got[0].attempt), (1, 1, 1));
@@ -291,14 +300,16 @@ mod tests {
     fn test_outputs_reject_non_positive_identity() {
         for field in ["run", "shard", "attempt"] {
             let stream = format!(
-                r#"{{"id":{{"testResult":{{"label":"//a:t","{field}":0}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"file:///out/a.xml"}}]}}}}"#
+                r#"{{"id":{{"testResult":{{"label":"//a:t","{field}":0}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
+                out_uri("a.xml")
             );
             assert!(
                 collect_test_outputs(Cursor::new(stream)).is_err(),
                 "{field}=0 must fail"
             );
             let stream = format!(
-                r#"{{"id":{{"testResult":{{"label":"//a:t","{field}":"one"}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"file:///out/a.xml"}}]}}}}"#
+                r#"{{"id":{{"testResult":{{"label":"//a:t","{field}":"one"}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
+                out_uri("a.xml")
             );
             assert!(
                 collect_test_outputs(Cursor::new(stream)).is_err(),
@@ -330,7 +341,10 @@ mod tests {
                 .to_owned(),
             r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"testActionOutput":["x"]}}"#
                 .to_owned(),
-            r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"testActionOutput":[{"uri":"file:///out/a.xml"}]}}"#
+            format!(
+                r#"{{"id":{{"testResult":{{"label":"//a:t"}}}},"testResult":{{"testActionOutput":[{{"uri":"{}"}}]}}}}"#,
+                out_uri("a.xml")
+            )
                 .to_owned(),
             r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"testActionOutput":[{"name":"test.xml"}]}}"#
                 .to_owned(),
@@ -376,7 +390,10 @@ mod tests {
                 "must be an object",
             ),
             (
-                r#"{"id":{"testResult":{"label":"//a:t"}},"testResult":{"testActionOutput":[{"uri":"file:///out/a.xml"}]}}"#,
+                &format!(
+                    r#"{{"id":{{"testResult":{{"label":"//a:t"}}}},"testResult":{{"testActionOutput":[{{"uri":"{}"}}]}}}}"#,
+                    out_uri("a.xml")
+                ),
                 "testResult.testActionOutput[0].name",
                 "without name",
             ),

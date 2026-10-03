@@ -181,6 +181,12 @@ pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<S
 mod tests {
     use super::*;
 
+    /// A file URI naming one path under a root this host can resolve.
+    fn out_uri(rel: &str) -> String {
+        let root = if cfg!(windows) { "C:/out" } else { "/out" };
+        dx_path::uri(&std::path::Path::new(root).join(rel))
+    }
+
     #[test]
     fn shard_helpers_split_on_suffix_and_component_boundaries() {
         assert!(is_shard_artifact(Path::new("/out/a.dxenv.pb"), ".dxenv.pb"));
@@ -199,7 +205,7 @@ mod tests {
     #[test]
     fn file_uri_forms() {
         assert_eq!(
-            file_uri_to_path("file:///out/a.pb").expect("abs"),
+            file_uri_to_path(&out_uri("a.pb")).expect("abs"),
             PathBuf::from("/out/a.pb")
         );
         assert_eq!(
@@ -207,7 +213,7 @@ mod tests {
             PathBuf::from("/out/a.pb")
         );
         assert_eq!(
-            file_uri_to_path("file:///out/a%20b.pb").expect("space"),
+            file_uri_to_path(&out_uri("a%20b.pb")).expect("space"),
             PathBuf::from("/out/a b.pb")
         );
         assert_eq!(
@@ -267,7 +273,7 @@ mod tests {
         assert!(is_bytestream_uri(
             "bytestream://remote.buildbuddy.io/blobs/abc/269"
         ));
-        assert!(!is_bytestream_uri("file:///out/a.pb"));
+        assert!(!is_bytestream_uri(&out_uri("a.pb")));
         let ws = Path::new("/ws");
         assert_eq!(
             local_path_for_bep_file(

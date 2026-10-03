@@ -23,9 +23,7 @@ rust_binary(
     deps = crate_deps(
         [],
         package_name = "tools/repin_all",
-    ) + [
-        "//cli/process:dx_process",
-    ],
+    ),
 )
 
 real_source_target(

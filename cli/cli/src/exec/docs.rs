@@ -311,23 +311,13 @@ mod tests {
 
     #[test]
     fn docs_forwards_command_options_to_inner_bazel() {
-        use std::cell::RefCell;
-        use std::rc::Rc;
         let harness = Harness::new("docs-forward");
-        let seen = Rc::new(RefCell::new(Vec::new()));
-        let probe = ArgvProbe {
-            code: Some(0),
-            seen: Rc::clone(&seen),
-        };
         let inv = invocation(&["docs", "--", "--config=ci", "--jobs=4"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = super::execute_docs(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 0);
-        let seen = seen.borrow();
-        assert_eq!(seen.len(), 1, "{seen:?}");
-        assert!(seen[0].contains(&"--config=ci".to_owned()), "{:?}", seen[0]);
-        assert!(seen[0].contains(&"--jobs=4".to_owned()), "{:?}", seen[0]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(run.argv[0].contains(&"--config=ci".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"--jobs=4".to_owned()), "{run:?}");
     }
 
     #[test]

@@ -310,6 +310,55 @@ impl Harness {
             String::from_utf8(err).expect("stderr"),
         )
     }
+
+    /// Runs one invocation through a recording runner and returns what it saw.
+    pub(crate) fn probe_with(&self, inv: &Invocation, codes: &[Option<i32>]) -> ProbeRun {
+        let probe = ArgvProbe {
+            codes: codes.to_vec(),
+            seen: Rc::new(RefCell::new(Vec::new())),
+            seen_env: Rc::clone(&self.seen_env),
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = execute(inv, self.env(&probe, &mut out, &mut err));
+        let argv = probe.seen.borrow().clone();
+        ProbeRun {
+            code,
+            out: String::from_utf8(out).expect("stdout"),
+            argv,
+        }
+    }
+}
+
+/// What one probe run saw: the exit code, its stdout and every argv it launched.
+#[derive(Debug)]
+pub(crate) struct ProbeRun {
+    pub(crate) code: i32,
+    pub(crate) out: String,
+    pub(crate) argv: Vec<Vec<String>>,
+}
+
+/// A runner that records each argv and environment and answers each launch with the next code.
+struct ArgvProbe {
+    codes: Vec<Option<i32>>,
+    seen: Rc<RefCell<Vec<Vec<String>>>>,
+    seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+}
+
+impl Runner for ArgvProbe {
+    fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        let launch = self.seen.borrow().len();
+        let last = self.codes.len().saturating_sub(1);
+        self.seen.borrow_mut().push(argv.to_vec());
+        self.seen_env.borrow_mut().push(
+            env.iter()
+                .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                .collect(),
+        );
+        Ok(ChildStatus {
+            code: self.codes[launch.min(last)],
+        })
+    }
 }
 
 pub(crate) struct FakeRunner {
@@ -404,18 +453,6 @@ pub(crate) fn intended_ignored(path: &str, language: &str, import: &str) -> Stri
         "scope_index": 0,
     })
     .to_string()
-}
-
-pub(crate) struct ArgvProbe {
-    pub(crate) code: Option<i32>,
-    pub(crate) seen: Rc<RefCell<Vec<Vec<String>>>>,
-}
-
-impl Runner for ArgvProbe {
-    fn run(&self, argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        self.seen.borrow_mut().push(argv.to_vec());
-        Ok(ChildStatus { code: self.code })
-    }
 }
 
 pub(crate) fn json_events(out: &str) -> Vec<serde_json::Value> {

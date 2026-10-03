@@ -110,12 +110,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
     use crate::args::parse;
-    use crate::exec::execute;
     use crate::resolve::QueryResult;
-    use dx_process::{ChildStatus, Runner};
-    use std::cell::RefCell;
-    use std::io;
-    use std::rc::Rc;
 
     fn deploy_query_output(output: &str) -> QueryResult {
         QueryResult {
@@ -192,89 +187,49 @@ mod tests {
 
     #[test]
     fn deploy_flag_over_attr_precedence() {
-        use std::cell::RefCell;
-        use std::rc::Rc;
         let harness = harness_with_deploy("deploy-prec", "True|debug|None|True");
-        let seen: Rc<RefCell<Vec<Vec<String>>>> = Rc::new(RefCell::new(Vec::new()));
-        let seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>> = Rc::new(RefCell::new(Vec::new()));
-        let probe = RecordingRunner {
-            code: Some(0),
-            seen: Rc::clone(&seen),
-            seen_env: Rc::clone(&seen_env),
-        };
         let inv = invocation(&["deploy", "--release", "//deploy:prod"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 0);
-        let seen = seen.borrow();
-        assert_eq!(seen.len(), 2, "build then run");
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0);
+        assert_eq!(run.argv.len(), 2, "build then run");
         assert!(
-            seen[0].contains(&"--config=dx_release".to_owned()),
-            "{seen:?}"
+            run.argv[0].contains(&"--config=dx_release".to_owned()),
+            "{run:?}"
         );
         assert!(
-            seen[1].contains(&"--config=dx_release".to_owned()),
-            "{seen:?}"
+            run.argv[1].contains(&"--config=dx_release".to_owned()),
+            "{run:?}"
         );
-        let seen_env = seen_env.borrow();
+        let seen_env = harness.seen_env.borrow();
         assert_eq!(seen_env.len(), 2);
         assert!(
             seen_env[1].contains(&("DX_PROFILE".to_owned(), "release".to_owned())),
             "{seen_env:?}"
         );
         let harness = harness_with_deploy("deploy-attr", "True|debug|None|True");
-        let seen: Rc<RefCell<Vec<Vec<String>>>> = Rc::new(RefCell::new(Vec::new()));
-        let seen_env2: Rc<RefCell<Vec<Vec<(String, String)>>>> = Rc::new(RefCell::new(Vec::new()));
-        let probe = RecordingRunner {
-            code: Some(0),
-            seen: Rc::clone(&seen),
-            seen_env: Rc::clone(&seen_env2),
-        };
         let inv = invocation(&["deploy", "//deploy:prod"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 0);
-        let seen = seen.borrow();
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0);
         assert!(
-            seen[0].contains(&"--config=dx_debug".to_owned()),
-            "{seen:?}"
+            run.argv[0].contains(&"--config=dx_debug".to_owned()),
+            "{run:?}"
         );
     }
 
     #[test]
     fn deploy_preserves_exit_codes_and_forwards_args() {
         let harness = harness_with_deploy("deploy-buildfail", "True|release|None|True");
-        let seen: Rc<RefCell<Vec<Vec<String>>>> = Rc::new(RefCell::new(Vec::new()));
-        let probe = FailFirstRunner {
-            seen: Rc::clone(&seen),
-        };
         let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 3);
-        assert_eq!(
-            seen.borrow().len(),
-            1,
-            "run never launches after build failure"
-        );
+        let run = harness.probe_with(&inv, &[Some(3)]);
+        assert_eq!(run.code, 3);
+        assert_eq!(run.argv.len(), 1, "run never launches after build failure");
         let harness = harness_with_deploy("deploy-runfail", "True|release|None|True");
-        let seen: Rc<RefCell<Vec<Vec<String>>>> = Rc::new(RefCell::new(Vec::new()));
-        let probe = SucceedBuildFailRun {
-            code: 7,
-            seen: Rc::clone(&seen),
-        };
         let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 7);
-        let seen = seen.borrow();
-        assert_eq!(seen.len(), 2);
-        assert!(seen[1].contains(&"--".to_owned()), "{seen:?}");
-        assert!(seen[1].contains(&"--port=8080".to_owned()), "{seen:?}");
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
+        assert_eq!(run.code, 7);
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert!(run.argv[1].contains(&"--".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"--port=8080".to_owned()), "{run:?}");
     }
 
     #[test]
@@ -291,68 +246,5 @@ mod tests {
             .collect();
         let err = parse(&args).expect_err("deploy json must fail parse");
         assert!(err.to_string().contains("--output"), "{err:?}");
-    }
-
-    struct RecordingRunner {
-        code: Option<i32>,
-        seen: Rc<RefCell<Vec<Vec<String>>>>,
-        seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
-    }
-
-    impl Runner for RecordingRunner {
-        fn run(
-            &self,
-            argv: &[String],
-            _cwd: &std::path::Path,
-            env: &[(&str, &str)],
-        ) -> io::Result<ChildStatus> {
-            self.seen.borrow_mut().push(argv.to_vec());
-            self.seen_env.borrow_mut().push(
-                env.iter()
-                    .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
-                    .collect(),
-            );
-            Ok(ChildStatus { code: self.code })
-        }
-    }
-
-    struct FailFirstRunner {
-        seen: Rc<RefCell<Vec<Vec<String>>>>,
-    }
-
-    impl Runner for FailFirstRunner {
-        fn run(
-            &self,
-            argv: &[String],
-            _cwd: &std::path::Path,
-            _env: &[(&str, &str)],
-        ) -> io::Result<ChildStatus> {
-            self.seen.borrow_mut().push(argv.to_vec());
-            Ok(ChildStatus { code: Some(3) })
-        }
-    }
-
-    struct SucceedBuildFailRun {
-        code: i32,
-        seen: Rc<RefCell<Vec<Vec<String>>>>,
-    }
-
-    impl Runner for SucceedBuildFailRun {
-        fn run(
-            &self,
-            argv: &[String],
-            _cwd: &std::path::Path,
-            _env: &[(&str, &str)],
-        ) -> io::Result<ChildStatus> {
-            let n = self.seen.borrow().len();
-            self.seen.borrow_mut().push(argv.to_vec());
-            if n == 0 {
-                Ok(ChildStatus { code: Some(0) })
-            } else {
-                Ok(ChildStatus {
-                    code: Some(self.code),
-                })
-            }
-        }
     }
 }

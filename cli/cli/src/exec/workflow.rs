@@ -172,31 +172,20 @@ mod tests {
 
     #[test]
     fn build_profile_flags_reach_bazel_argv() {
-        use crate::exec::execute;
-        use std::cell::RefCell;
-        use std::rc::Rc;
         for (words, flag) in [
             (vec!["build"], "--config=dx_dev"),
             (vec!["build", "--debug"], "--config=dx_debug"),
             (vec!["build", "--release"], "--config=dx_release"),
         ] {
             let harness = Harness::new("build-profile");
-            let seen = Rc::new(RefCell::new(Vec::new()));
-            let probe = ArgvProbe {
-                code: Some(0),
-                seen: Rc::clone(&seen),
-            };
             let inv = invocation(&words);
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-            assert_eq!(code, 0, "{words:?}");
-            let seen = seen.borrow();
-            assert_eq!(seen.len(), 1, "{words:?}");
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            assert_eq!(run.code, 0, "{words:?}");
+            assert_eq!(run.argv.len(), 1, "{words:?}");
             assert!(
-                seen[0].contains(&flag.to_owned()),
+                run.argv[0].contains(&flag.to_owned()),
                 "{words:?} argv missing {flag}: {:?}",
-                seen[0]
+                run.argv
             );
         }
     }

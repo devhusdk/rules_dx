@@ -29,27 +29,16 @@ pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use crate::exec::execute;
-    use std::cell::RefCell;
-    use std::rc::Rc;
 
     #[test]
     fn bazel_forwards_argv_verbatim_and_exit_code() {
         let harness = Harness::new("bazel-passthrough");
-        let seen = Rc::new(RefCell::new(Vec::new()));
-        let probe = ArgvProbe {
-            code: Some(3),
-            seen: Rc::clone(&seen),
-        };
         let inv = invocation(&["bazel", "build", "//...", "--", "--jobs=4"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 3);
-        let seen = seen.borrow();
-        assert_eq!(seen.len(), 1);
+        let run = harness.probe_with(&inv, &[Some(3)]);
+        assert_eq!(run.code, 3);
+        assert_eq!(run.argv.len(), 1);
         assert_eq!(
-            seen[0],
+            run.argv[0],
             vec![
                 "bazel".to_owned(),
                 "build".to_owned(),
@@ -57,26 +46,20 @@ mod tests {
                 "--jobs=4".to_owned(),
             ]
         );
-        assert!(String::from_utf8(out)
-            .expect("stdout")
-            .contains("Running bazel build //... --jobs=4"));
+        assert!(
+            run.out.contains("Running bazel build //... --jobs=4"),
+            "{run:?}"
+        );
     }
 
     #[test]
     fn bazel_passthrough_forwards_a_dry_run_argv_verbatim() {
         let harness = Harness::new("bazel-dry");
-        let seen = Rc::new(RefCell::new(Vec::new()));
-        let probe = ArgvProbe {
-            code: Some(0),
-            seen: Rc::clone(&seen),
-        };
         let inv = invocation(&["bazel", "build", "--jobs=4"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 0);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0);
         assert_eq!(
-            *seen.borrow(),
+            run.argv,
             vec![vec![
                 "bazel".to_owned(),
                 "build".to_owned(),
@@ -84,9 +67,7 @@ mod tests {
             ]],
             "dx bazel forwards every word verbatim"
         );
-        assert!(String::from_utf8(out)
-            .expect("stdout")
-            .contains("Running bazel build"));
+        assert!(run.out.contains("Running bazel build"), "{run:?}");
     }
 
     #[test]

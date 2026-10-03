@@ -208,7 +208,6 @@ mod tests {
     use super::*;
     use crate::args::parse;
     use crate::args::Command;
-    use crate::exec::execute;
 
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {
@@ -374,23 +373,15 @@ mod tests {
         assert!(err.contains("Running run for //a:bin"), "{err}");
         assert!(err.contains("Running run for //b:bin"), "{err}");
         let harness = Harness::new("run-multi-argv");
-        let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
-        let probe = ArgvProbe {
-            code: Some(0),
-            seen: std::rc::Rc::clone(&seen),
-        };
         let inv = invocation(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 0);
-        let seen = seen.borrow();
-        assert_eq!(seen.len(), 2, "{seen:?}");
-        for argv in seen.iter() {
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0);
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        for argv in &run.argv {
             assert!(argv.contains(&"--port=8080".to_owned()), "{argv:?}");
         }
-        assert!(seen[0].contains(&"//a:bin".to_owned()), "{seen:?}");
-        assert!(seen[1].contains(&"//b:bin".to_owned()), "{seen:?}");
+        assert!(run.argv[0].contains(&"//a:bin".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"//b:bin".to_owned()), "{run:?}");
     }
 
     #[test]
@@ -399,17 +390,10 @@ mod tests {
             bazel_code: 7,
             ..Harness::new("run-multi-fail")
         };
-        let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
-        let probe = ArgvProbe {
-            code: Some(7),
-            seen: std::rc::Rc::clone(&seen),
-        };
         let inv = invocation(&["run", "//a:bin", "//b:bin"]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 7);
-        assert_eq!(seen.borrow().len(), 1, "{:?}", seen.borrow());
+        let run = harness.probe_with(&inv, &[Some(7)]);
+        assert_eq!(run.code, 7);
+        assert_eq!(run.argv.len(), 1, "{run:?}");
     }
 
     #[test]
@@ -418,20 +402,18 @@ mod tests {
         harness
             .query
             .script_owners("//demo:backend\n//demo:frontend\n");
-        let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
-        let probe = ArgvProbe {
-            code: Some(0),
-            seen: std::rc::Rc::clone(&seen),
-        };
         let inv = invocation(&["run", "//demo/..."]);
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-        assert_eq!(code, 0, "{}", String::from_utf8_lossy(&err));
-        let seen = seen.borrow();
-        assert_eq!(seen.len(), 2, "{seen:?}");
-        assert!(seen[0].contains(&"//demo:backend".to_owned()), "{seen:?}");
-        assert!(seen[1].contains(&"//demo:frontend".to_owned()), "{seen:?}");
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert!(
+            run.argv[0].contains(&"//demo:backend".to_owned()),
+            "{run:?}"
+        );
+        assert!(
+            run.argv[1].contains(&"//demo:frontend".to_owned()),
+            "{run:?}"
+        );
     }
 
     #[test]
@@ -515,30 +497,20 @@ mod tests {
 
     #[test]
     fn run_profile_flags_reach_bazel_argv() {
-        use std::cell::RefCell;
-        use std::rc::Rc;
         for (words, flag) in [
             (vec!["run", "//app:bin"], "--config=dx_dev"),
             (vec!["run", "--debug", "//app:bin"], "--config=dx_debug"),
             (vec!["run", "//app:bin", "--release"], "--config=dx_release"),
         ] {
             let harness = Harness::new("run-profile");
-            let seen = Rc::new(RefCell::new(Vec::new()));
-            let probe = ArgvProbe {
-                code: Some(0),
-                seen: Rc::clone(&seen),
-            };
             let inv = invocation(&words);
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            let code = execute(&inv, harness.env(&probe, &mut out, &mut err));
-            assert_eq!(code, 0, "{words:?}");
-            let seen = seen.borrow();
-            assert_eq!(seen.len(), 1, "{words:?}");
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            assert_eq!(run.code, 0, "{words:?}");
+            assert_eq!(run.argv.len(), 1, "{words:?}");
             assert!(
-                seen[0].contains(&flag.to_owned()),
+                run.argv[0].contains(&flag.to_owned()),
                 "{words:?} argv missing {flag}: {:?}",
-                seen[0]
+                run.argv
             );
         }
     }

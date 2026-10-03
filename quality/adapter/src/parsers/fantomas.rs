@@ -1,7 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{check_output_size, code_name, known, unformatted_at, FileFinding, ParseError};
 
 #[derive(Debug, Deserialize)]
 struct FantomasReport {
@@ -48,19 +47,7 @@ pub fn parse_fantomas(
             }
             "needs-formatting" => {
                 let checked = known(TOOL, files, normalized)?;
-                let (start, end) = point(1, 1);
-                findings.push(FileFinding {
-                    file: checked.to_owned(),
-                    finding: Finding {
-                        tool_id: TOOL.to_owned(),
-                        rule_id: String::new(),
-                        message: "file is not formatted".to_owned(),
-                        severity: ToolSeverity::Warning,
-                        start,
-                        end,
-                        suggestions: Vec::new(),
-                    },
-                });
+                findings.push(unformatted_at(TOOL, checked, 1, 1));
             }
             other => {
                 return Err(ParseError::Shape {

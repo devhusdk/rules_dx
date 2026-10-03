@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{as_text, code_name, known_relative, FileFinding, Finding, ParseError, ToolSeverity};
+use super::{listed_paths, FileFinding, ParseError, Spelling};
 
 pub fn parse_terraform(
     stdout: &[u8],
@@ -8,45 +8,7 @@ pub fn parse_terraform(
     files: &[&str],
     cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "terraform";
-    let text = as_text(TOOL, stdout)?;
-    let mut paths = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if !paths.contains(&trimmed.to_owned()) {
-            paths.push(trimmed.to_owned());
-        }
-    }
-    if paths.is_empty() {
-        if code == Some(0) {
-            return Ok(Vec::new());
-        }
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no paths", code_name(code)),
-        });
-    }
-    let mut findings = Vec::with_capacity(paths.len());
-    for path in paths {
-        let checked = known_relative(TOOL, files, cwd, &path)?;
-        let (start, end) = super::point(1, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: String::new(),
-                message: "file is not formatted".to_owned(),
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
-    }
-    Ok(findings)
+    listed_paths("terraform", stdout, code, files, &[], Spelling::Below(cwd))
 }
 
 #[cfg(test)]

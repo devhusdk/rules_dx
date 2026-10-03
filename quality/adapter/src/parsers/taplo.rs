@@ -1,5 +1,7 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{
+    check_output_size, code_name, finding, known, missing, unformatted_at, FileFinding, ParseError,
+};
+use crate::ToolSeverity;
 
 struct TaploBlock {
     file: String,
@@ -93,19 +95,15 @@ pub fn parse_taplo_lint(
     let mut findings = Vec::new();
     for block in taplo_blocks(stderr_text)? {
         let checked = known(TOOL, files, &block.file)?;
-        let (start, end) = point(block.line, block.column);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: String::new(),
-                message: block.message,
-                severity: ToolSeverity::Error,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        findings.push(finding(
+            TOOL,
+            checked,
+            String::new(),
+            block.message,
+            ToolSeverity::Error,
+            block.line,
+            block.column,
+        ));
     }
     if findings.is_empty() && code != Some(0) {
         return Err(ParseError::Shape {
@@ -139,19 +137,7 @@ pub fn parse_taplo_format_check(
                 })
                 .ok_or_else(|| missing(TOOL, "format path", line))?;
             let checked = known(TOOL, files, path)?;
-            let (start, end) = point(1, 1);
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: String::new(),
-                    message: "file is not formatted".to_owned(),
-                    severity: ToolSeverity::Warning,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                },
-            });
+            findings.push(unformatted_at(TOOL, checked, 1, 1));
         }
     }
     if findings.is_empty() && code != Some(0) {

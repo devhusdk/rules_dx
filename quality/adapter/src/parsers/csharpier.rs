@@ -1,46 +1,11 @@
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{listed_paths, FileFinding, ParseError, Spelling};
 
 pub fn parse_csharpier(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "csharpier";
-    check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
-    let mut findings = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let normalized = trimmed.strip_prefix("./").unwrap_or(trimmed);
-        let checked = known(TOOL, files, normalized)?;
-        let (start, end) = point(1, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: TOOL.to_owned(),
-                rule_id: String::new(),
-                message: "file is not formatted".to_owned(),
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
-    }
-    if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no unformatted paths", code_name(code)),
-        });
-    }
-    Ok(findings)
+    listed_paths("csharpier", stdout, code, files, &[], Spelling::Exact)
 }
 
 #[cfg(test)]
@@ -69,5 +34,17 @@ mod tests {
         );
         assert!(parse_csharpier(stdout.as_bytes(), Some(1), &["other.cs"]).is_err());
         assert!(parse_csharpier(&[0xff], Some(1), &["x"]).is_err());
+    }
+
+    /// `csharpier` names each file from the directory it ran in, so the path carries a `./`.
+    #[test]
+    fn csharpier_accepts_a_path_spelled_below_the_dot() {
+        let findings = parse_csharpier(
+            b"./csharpier/Sample.cs\n",
+            Some(1),
+            &["csharpier/Sample.cs"],
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].file, "csharpier/Sample.cs");
     }
 }

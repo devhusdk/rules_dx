@@ -1,11 +1,11 @@
-use super::{listed_paths, FileFinding, ParseError};
+use super::{listed_paths, FileFinding, ParseError, Spelling};
 
 pub fn parse_pkl(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    listed_paths("pkl", stdout, code, files)
+    listed_paths("pkl", stdout, code, files, &[], Spelling::Exact)
 }
 
 #[cfg(test)]

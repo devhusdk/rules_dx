@@ -1,5 +1,7 @@
-use super::{check_output_size, code_name, known, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use super::{
+    check_output_size, code_name, finding, known, missing, unformatted_at, FileFinding, ParseError,
+};
+use crate::ToolSeverity;
 
 pub fn parse_rustfmt(
     stdout: &[u8],
@@ -23,19 +25,7 @@ pub fn parse_rustfmt(
         if let Some(header) = line.strip_prefix("Diff in ") {
             let (path, line) = rustfmt_header(header)?;
             let checked = known(TOOL, files, path)?;
-            let (start, end) = point(line, 1);
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: String::new(),
-                    message: "file is not formatted".to_owned(),
-                    severity: ToolSeverity::Warning,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                },
-            });
+            findings.push(unformatted_at(TOOL, checked, line, 1));
         }
     }
     let mut pending: Option<String> = None;
@@ -49,19 +39,15 @@ pub fn parse_rustfmt(
             if let Some(message) = pending.take() {
                 let (path, line, column) = rustfmt_location(arrow)?;
                 let checked = known(TOOL, files, path)?;
-                let (start, end) = point(line, column);
-                findings.push(FileFinding {
-                    file: checked.to_owned(),
-                    finding: Finding {
-                        tool_id: TOOL.to_owned(),
-                        rule_id: String::new(),
-                        message,
-                        severity: ToolSeverity::Error,
-                        start,
-                        end,
-                        suggestions: Vec::new(),
-                    },
-                });
+                findings.push(finding(
+                    TOOL,
+                    checked,
+                    String::new(),
+                    message,
+                    ToolSeverity::Error,
+                    line,
+                    column,
+                ));
             }
         }
     }

@@ -173,6 +173,7 @@ mod tests {
         let findings = parse_ruff_format(RUFF_FORMAT_DIRTY.as_bytes(), Some(1), &["/s/dirty.py"])
             .expect("parsed");
         assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.tool_id, "ruff");
         assert_eq!(findings[0].finding.rule_id, "unformatted");
         assert_eq!(findings[0].finding.message, "File would be reformatted");
         assert_eq!(

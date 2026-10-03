@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
+use super::{check_output_size, code_name, known, unformatted_at, FileFinding, ParseError};
 use crate::{Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -115,6 +115,8 @@ pub fn parse_biome_format(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "biome_format";
+    /// The id the registry knows biome by, which both of its capabilities report under.
+    const REGISTRY: &str = "biome";
     check_output_size(TOOL, stdout)?;
     let report: BiomeReport = serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
         tool: TOOL,
@@ -145,19 +147,7 @@ pub fn parse_biome_format(
             });
         }
         let checked = known(TOOL, files, &diagnostic.location.path)?;
-        let (start, end) = point(1, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: "biome".to_owned(),
-                rule_id: String::new(),
-                message: "file is not formatted".to_owned(),
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
+        findings.push(unformatted_at(REGISTRY, checked, 1, 1));
     }
     if findings.is_empty() && code != Some(0) {
         return Err(ParseError::Shape {
@@ -231,6 +221,7 @@ mod tests {
         let findings = parse_biome_format(BIOME_FMT_DIRTY.as_bytes(), Some(1), &["/s/fmt.js"])
             .expect("parsed");
         assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.tool_id, "biome");
         assert_eq!(findings[0].finding.rule_id, "");
         assert_eq!(findings[0].finding.message, "file is not formatted");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);

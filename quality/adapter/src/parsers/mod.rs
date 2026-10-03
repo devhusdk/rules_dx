@@ -620,27 +620,43 @@ fn diff_format(
     unformatted(tool, files, paths)
 }
 
+/// How a tool spells a path it listed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Spelling<'a> {
+    /// The path the tool wrote, held to the run's own files.
+    Exact,
+    /// The path the tool wrote, taken from the directory it ran in.
+    Below(&'a Path),
+}
+
 /// Report one "file is not formatted" finding per path a tool listed, one per line.
 ///
 /// `jsonnetfmt --test`, `pkl format --diff-name-only` and `modfmt -c -l` name the files
-/// they would reformat instead of printing a diff. `yamlfmt -lint -q` writes the same list
-/// to stderr. The exit code is not pinned: `modfmt -l` lists and exits 0, while `pkl`
-/// exits 11, so only an empty list needs one.
+/// they would reformat instead of printing a diff, and so do `google-java-format`, `ktfmt`,
+/// `csharpier`, `qmlformat`, `yamlfmt -lint -q` and `terraform fmt -check`. A tool that runs
+/// in the directory it lists from spells a path below `./` or below its working directory,
+/// and `yamlfmt -lint -q` writes its list to stderr under a header, so `noise` names the
+/// lines that name no file. A path the run owns is reported once however often it is
+/// listed. The exit code is not pinned: `modfmt -l` lists and exits 0, while `pkl` exits 11,
+/// so only an empty list needs one.
 pub(super) fn listed_paths(
     tool: &'static str,
     bytes: &[u8],
     code: Option<i32>,
     files: &[&str],
+    noise: &[&str],
+    spelling: Spelling<'_>,
 ) -> Result<Vec<FileFinding>, ParseError> {
     let text = as_text(tool, bytes)?;
-    let mut paths = Vec::new();
+    let mut paths: Vec<&str> = Vec::new();
     for line in text.lines() {
         let trimmed = line.trim();
-        if trimmed.is_empty() {
+        if trimmed.is_empty() || noise.contains(&trimmed) {
             continue;
         }
-        if !paths.contains(&trimmed.to_owned()) {
-            paths.push(trimmed.to_owned());
+        let path = trimmed.strip_prefix("./").unwrap_or(trimmed);
+        if !paths.contains(&path) {
+            paths.push(path);
         }
     }
     if paths.is_empty() {
@@ -652,7 +668,15 @@ pub(super) fn listed_paths(
             detail: format!("exit {} with no paths", code_name(code)),
         });
     }
-    unformatted(tool, files, paths)
+    let mut findings = Vec::with_capacity(paths.len());
+    for path in paths {
+        let checked = match spelling {
+            Spelling::Exact => known(tool, files, path)?,
+            Spelling::Below(cwd) => known_relative(tool, files, cwd, path)?,
+        };
+        findings.push(unformatted_at(tool, checked, 1, 1));
+    }
+    Ok(findings)
 }
 
 /// The bytes as UTF-8 text, or a shape error naming the tool.
@@ -670,33 +694,39 @@ fn unformatted(
     files: &[&str],
     paths: Vec<String>,
 ) -> Result<Vec<FileFinding>, ParseError> {
-    let mut findings = Vec::with_capacity(paths.len());
-    for path in paths {
-        let checked = known(tool, files, &path)?;
-        let (start, end) = point(1, 1);
-        findings.push(FileFinding {
-            file: checked.to_owned(),
-            finding: Finding {
-                tool_id: tool.to_owned(),
-                rule_id: String::new(),
-                message: "file is not formatted".to_owned(),
-                severity: ToolSeverity::Warning,
-                start,
-                end,
-                suggestions: Vec::new(),
-            },
-        });
-    }
-    Ok(findings)
+    paths
+        .iter()
+        .map(|path| Ok(unformatted_at(tool, known(tool, files, path)?, 1, 1)))
+        .collect()
+}
+
+/// A "file is not formatted" finding at a line and column.
+pub(super) fn unformatted_at(
+    tool: &'static str,
+    file: &str,
+    line: u64,
+    column: u64,
+) -> FileFinding {
+    finding(
+        tool,
+        file,
+        String::new(),
+        "file is not formatted".to_owned(),
+        ToolSeverity::Warning,
+        line,
+        column,
+    )
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::{
-        bracketed, check_output_size, columned, finding, lines, located, missing, numbered,
-        require_findings, FileFinding, ParseError, MAX_OUTPUT_BYTES,
+        bracketed, check_output_size, code_name, columned, finding, lines, located, missing,
+        numbered, require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
     };
-    use crate::{Finding, ToolSeverity};
+    use crate::{Finding, TextPosition, ToolSeverity};
 
     #[test]
     fn lines_drops_blank_lines_and_trims_the_rest() {
@@ -1087,6 +1117,100 @@ mod tests {
                 .expect("clean")
                 .is_empty());
         }
+    }
+
+    #[test]
+    fn listed_paths_reports_each_listed_file_once() {
+        let listed = b"\n  x.go  \n./x.go\n\nx.go\n";
+        let findings = super::listed_paths("t", listed, Some(1), &["x.go"], &[], Spelling::Exact)
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "x.go");
+        assert_eq!(findings[0].finding.message, "file is not formatted");
+        assert_eq!(
+            findings[0].finding.start,
+            TextPosition { line: 1, column: 1 }
+        );
+        assert!(matches!(
+            super::listed_paths("t", b"y.go\n", Some(1), &["x.go"], &[], Spelling::Exact),
+            Err(super::ParseError::UnknownFile { path, .. }) if path == "y.go"
+        ));
+    }
+
+    #[test]
+    fn listed_paths_skips_lines_that_name_no_file() {
+        let listed = b"HEADER: none\nx.go\n";
+        let findings = super::listed_paths(
+            "t",
+            listed,
+            Some(1),
+            &["x.go"],
+            &["HEADER: none"],
+            Spelling::Exact,
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert!(super::listed_paths(
+            "t",
+            b"HEADER: none\n",
+            Some(0),
+            &["x.go"],
+            &["HEADER: none"],
+            Spelling::Exact
+        )
+        .expect("clean")
+        .is_empty());
+    }
+
+    #[test]
+    fn listed_paths_gates_an_empty_list_on_the_exit_code() {
+        for code in [Some(3), None] {
+            let err = super::listed_paths("t", b"", code, &["x.go"], &[], Spelling::Exact)
+                .expect_err("a listed tool that named nothing");
+            assert_eq!(
+                err.to_string(),
+                format!(
+                    "t output is outside the pinned grammar: exit {} with no paths",
+                    code_name(code)
+                )
+            );
+        }
+        assert!(matches!(
+            super::listed_paths("t", &[0xff], Some(1), &["x.go"], &[], Spelling::Exact),
+            Err(super::ParseError::Shape { .. })
+        ));
+    }
+
+    /// `terraform fmt -check` names a file by its path from the directory it ran in.
+    #[test]
+    fn listed_paths_reads_a_path_spelled_below_the_working_directory() {
+        let cwd = Path::new("/w");
+        let files = ["/w/sub/x.tf"];
+        let findings = super::listed_paths(
+            "t",
+            b"sub/x.tf\n",
+            Some(3),
+            &files,
+            &[],
+            Spelling::Below(cwd),
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].file, "/w/sub/x.tf");
+        assert!(matches!(
+            super::listed_paths("t", b"sub/x.tf\n", Some(3), &files, &[], Spelling::Exact),
+            Err(super::ParseError::UnknownFile { .. })
+        ));
+        assert!(matches!(
+            super::listed_paths(
+                "t",
+                b"../w/sub/x.tf\n",
+                Some(3),
+                &files,
+                &[],
+                Spelling::Below(cwd)
+            ),
+            Err(super::ParseError::UnknownFile { .. })
+        ));
     }
 
     fn xorshift(state: &mut u64) -> u64 {

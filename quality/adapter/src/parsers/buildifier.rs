@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use super::{check_output_size, known, point, FileFinding, ParseError};
+use super::{check_output_size, finding, known, unformatted_at, FileFinding, ParseError};
 use crate::{Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -52,35 +52,19 @@ pub fn parse_buildifier(
         let checked = known(TOOL, files, &file.filename)?;
         if !file.valid {
             let (line, column, message) = buildifier_syntax(&stderr_text, &file.filename);
-            let (start, end) = point(line, column);
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: String::new(),
-                    message,
-                    severity: ToolSeverity::Error,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                },
-            });
+            findings.push(finding(
+                TOOL,
+                checked,
+                String::new(),
+                message,
+                ToolSeverity::Error,
+                line,
+                column,
+            ));
             continue;
         }
         if !file.formatted {
-            let (start, end) = point(1, 1);
-            findings.push(FileFinding {
-                file: checked.to_owned(),
-                finding: Finding {
-                    tool_id: TOOL.to_owned(),
-                    rule_id: String::new(),
-                    message: "file is not formatted".to_owned(),
-                    severity: ToolSeverity::Warning,
-                    start,
-                    end,
-                    suggestions: Vec::new(),
-                },
-            });
+            findings.push(unformatted_at(TOOL, checked, 1, 1));
         }
         for warning in &file.warnings {
             findings.push(FileFinding {

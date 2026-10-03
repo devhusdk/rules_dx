@@ -5,6 +5,7 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_GENERATION")
 
 # gazelle:resolve rust proto //generation:codegen_proto_rs
 # gazelle:resolve rust codegen_proto //generation:codegen_proto_rs
+# gazelle:resolve rust codegen_shard //generation/codegen_shard:codegen_shard
 
 package(default_visibility = VIS_CLI_GENERATION)
 
@@ -69,6 +70,7 @@ rust_test(
     deps = crate_deps(
         [
             "clap",
+            "tempfile",
             "thiserror",
             "tracing",
         ],
@@ -85,6 +87,7 @@ rustfmt_test(
     targets = [
         ":codegen_shard",
         ":codegen_shard_writer",
+        ":codegen_shard_writer_bin_test",
     ],
 )
 
@@ -94,6 +97,32 @@ rust_clippy_test(
     targets = [
         ":codegen_shard",
         ":codegen_shard_writer",
+    ],
+)
+
+# keep
+rust_test(
+    name = "codegen_shard_writer_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "generation/codegen_shard",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":codegen_shard_writer",
+    deps = crate_deps(
+        [
+            "clap",
+            "tempfile",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "generation/codegen_shard",
+    ) + [
+        ":codegen_shard",
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/output:dx_output",
+        "//generation:codegen_proto_rs",
     ],
 )
 

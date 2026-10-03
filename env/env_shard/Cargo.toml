@@ -12,6 +12,9 @@ clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 tracing = "0.1"
 
+[dev-dependencies]
+tempfile = "3"
+
 [[bin]]
 name = "env_shard_writer"
 path = "src/main.rs"

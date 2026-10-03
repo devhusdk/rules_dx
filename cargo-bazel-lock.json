@@ -1,5 +1,5 @@
 {
-  "checksum": "2d2e21389426f504505280592be5103e6fbcf43909fae8a81259c329d2ecb67f",
+  "checksum": "a6d7cd8e66a101f8d5369007dae7d5486601bcb34427d75fcfdaee7e1f53aa59",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1633,6 +1633,12 @@
           {
             "id": "tracing 0.1.44",
             "target": "tracing"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
           }
         ],
         "edition": "2021"
@@ -3604,6 +3610,12 @@
           {
             "id": "tracing 0.1.44",
             "target": "tracing"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
           }
         ],
         "edition": "2021"

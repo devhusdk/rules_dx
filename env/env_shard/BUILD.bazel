@@ -5,6 +5,7 @@ load("//tools/visibility:visibility.bzl", "VIS_ENV_SHARD")
 
 # gazelle:resolve rust proto //env:plan_proto_rs
 # gazelle:resolve rust plan_proto //env:plan_proto_rs
+# gazelle:resolve rust env_shard //env/env_shard:env_shard
 
 package(default_visibility = VIS_ENV_SHARD)
 
@@ -69,6 +70,7 @@ rust_test(
     deps = crate_deps(
         [
             "clap",
+            "tempfile",
             "thiserror",
             "tracing",
         ],
@@ -85,6 +87,7 @@ rustfmt_test(
     targets = [
         ":env_shard",
         ":env_shard_writer",
+        ":env_shard_writer_bin_test",
     ],
 )
 
@@ -94,6 +97,32 @@ rust_clippy_test(
     targets = [
         ":env_shard",
         ":env_shard_writer",
+    ],
+)
+
+# keep
+rust_test(
+    name = "env_shard_writer_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "env/env_shard",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":env_shard_writer",
+    deps = crate_deps(
+        [
+            "clap",
+            "tempfile",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "env/env_shard",
+    ) + [
+        ":env_shard",
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/output:dx_output",
+        "//env:plan_proto_rs",
     ],
 )
 

@@ -312,6 +312,7 @@ name = "codegen_shard"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "tempfile",
  "thiserror",
  "tracing",
 ]
@@ -795,6 +796,7 @@ name = "env_shard"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "tempfile",
  "thiserror",
  "tracing",
 ]

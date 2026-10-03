@@ -17,7 +17,10 @@ pub mod modes;
 pub mod severity;
 pub mod validation;
 
-pub use changes::{change_event, mutation_event, ChangeEvent, ChangeKind, MutationOutcome};
+pub use changes::{
+    change_event, change_value, mutation_event, mutation_value, ChangeEvent, ChangeKind,
+    MutationOutcome,
+};
 pub use clap_errors::{first_line, missing_value_flag, parse_error, rejected_value, unknown_token};
 pub use diagnostics::{
     color_enabled, color_enabled_for, color_override, colors_allowed, colors_allowed_for,
@@ -26,8 +29,8 @@ pub use diagnostics::{
     styled_status_for, truncate_line, ColorMode, LogLevel, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
 };
 pub use findings::{
-    diagnostic_event, notice_event, sort_diagnostics, DiagnosticEvent, NoticeEvent, Resolution,
-    Snapshot,
+    diagnostic_event, notice_event, notice_value, sort_diagnostics, DiagnosticEvent, NoticeEvent,
+    Resolution, Snapshot,
 };
 pub use lifecycle::{
     command_finished, command_started, error_event, operation_event, report_event, schema,

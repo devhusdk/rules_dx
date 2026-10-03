@@ -26,6 +26,11 @@ pub struct ChangeEvent {
 }
 
 pub fn change_event(change: &ChangeEvent) -> Result<Value, OutputError> {
+    check_change(change)?;
+    Ok(change_value(change))
+}
+
+fn check_change(change: &ChangeEvent) -> Result<(), OutputError> {
     check_path(&change.path)?;
     check_edits(&change.edits)?;
     match change.kind {
@@ -54,6 +59,11 @@ pub fn change_event(change: &ChangeEvent) -> Result<Value, OutputError> {
             }
         }
     }
+    Ok(())
+}
+
+/// Builds the event for a change whose producer already validated it.
+pub fn change_value(change: &ChangeEvent) -> Value {
     let mut map = base("change");
     map.insert("path".to_owned(), Value::String(change.path.clone()));
     map.insert(
@@ -79,7 +89,7 @@ pub fn change_event(change: &ChangeEvent) -> Result<Value, OutputError> {
                 .collect(),
         ),
     );
-    Ok(Value::Object(map))
+    Value::Object(map)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,6 +104,15 @@ pub fn mutation_event(
     outcome: MutationOutcome,
     reason: Option<&str>,
 ) -> Result<Value, OutputError> {
+    check_mutation(path, outcome, reason)?;
+    Ok(mutation_value(path, kind, outcome, reason))
+}
+
+fn check_mutation(
+    path: &str,
+    outcome: MutationOutcome,
+    reason: Option<&str>,
+) -> Result<(), OutputError> {
     check_path(path)?;
     match (outcome, reason) {
         (MutationOutcome::NotApplied, None) | (MutationOutcome::NotApplied, Some("")) => {
@@ -108,6 +127,16 @@ pub fn mutation_event(
         }
         (MutationOutcome::Applied, None) | (MutationOutcome::NotApplied, Some(_)) => {}
     }
+    Ok(())
+}
+
+/// Builds the event for a mutation whose producer already validated it.
+pub fn mutation_value(
+    path: &str,
+    kind: ChangeKind,
+    outcome: MutationOutcome,
+    reason: Option<&str>,
+) -> Value {
     let mut map = base("mutation");
     map.insert("path".to_owned(), Value::String(path.to_owned()));
     map.insert("kind".to_owned(), Value::String(kind.name().to_owned()));
@@ -124,7 +153,7 @@ pub fn mutation_event(
     if let Some(reason) = reason {
         map.insert("reason".to_owned(), Value::String(reason.to_owned()));
     }
-    Ok(Value::Object(map))
+    Value::Object(map)
 }
 
 #[cfg(test)]
@@ -190,6 +219,66 @@ mod tests {
             Some("stale_source"),
         )
         .is_err());
+    }
+
+    #[test]
+    fn change_events_carry_every_field() {
+        let modify = ChangeEvent {
+            path: "src/app.py".to_owned(),
+            kind: ChangeKind::Modify,
+            source_digest: Some(DIGEST.to_owned()),
+            edits: vec![Edit {
+                start: 0,
+                end: 3,
+                replacement: "b".to_owned(),
+            }],
+        };
+        let event = change_value(&modify);
+        assert_eq!(event, change_event(&modify).expect("modify"));
+        assert_eq!(event["path"], Value::from("src/app.py"));
+        assert_eq!(event["kind"], Value::from("modify"));
+        assert_eq!(event["source_digest"], Value::from(DIGEST));
+        assert_eq!(event["edits"][0]["replacement"], Value::from("b"));
+
+        let create = ChangeEvent {
+            path: "new/package/BUILD.bazel".to_owned(),
+            kind: ChangeKind::Create,
+            source_digest: None,
+            edits: vec![Edit {
+                start: 0,
+                end: 0,
+                replacement: "py_library(\n)\n".to_owned(),
+            }],
+        };
+        let event = change_value(&create);
+        assert_eq!(event, change_event(&create).expect("create"));
+        assert_eq!(event["kind"], Value::from("create"));
+        assert_eq!(
+            event["edits"][0]["replacement"],
+            Value::from("py_library(\n)\n")
+        );
+        assert!(event.get("source_digest").is_none());
+    }
+
+    #[test]
+    fn mutation_events_carry_every_field() {
+        let applied = mutation_value("a.py", ChangeKind::Create, MutationOutcome::Applied, None);
+        assert_eq!(
+            applied,
+            mutation_event("a.py", ChangeKind::Create, MutationOutcome::Applied, None)
+                .expect("applied")
+        );
+        assert_eq!(applied["path"], Value::from("a.py"));
+        assert_eq!(applied["kind"], Value::from("create"));
+        assert_eq!(applied["outcome"], Value::from("applied"));
+        assert!(applied.get("reason").is_none());
+        let reasoned = mutation_value(
+            "a.py",
+            ChangeKind::Modify,
+            MutationOutcome::NotApplied,
+            Some("io_error"),
+        );
+        assert_eq!(reasoned["reason"], Value::from("io_error"));
     }
 
     #[test]

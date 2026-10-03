@@ -134,6 +134,11 @@ pub struct NoticeEvent {
 }
 
 pub fn notice_event(notice: &NoticeEvent) -> Result<Value, OutputError> {
+    check_notice(notice)?;
+    Ok(notice_value(notice))
+}
+
+fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
     if notice.level != "info" && notice.level != "warning" {
         return Err(OutputError::EmptyField { field: "level" });
     }
@@ -151,6 +156,11 @@ pub fn notice_event(notice: &NoticeEvent) -> Result<Value, OutputError> {
             return Err(OutputError::UnexpectedResolution);
         }
     }
+    Ok(())
+}
+
+/// Builds the event for a notice whose producer already validated it.
+pub fn notice_value(notice: &NoticeEvent) -> Value {
     let mut map = base("notice");
     map.insert("level".to_owned(), Value::String(notice.level.clone()));
     map.insert("code".to_owned(), Value::String(notice.code.clone()));
@@ -173,7 +183,7 @@ pub fn notice_event(notice: &NoticeEvent) -> Result<Value, OutputError> {
     if let Some(import) = &notice.import {
         map.insert("import".to_owned(), Value::String(import.clone()));
     }
-    Ok(Value::Object(map))
+    Value::Object(map)
 }
 
 #[cfg(test)]
@@ -284,6 +294,59 @@ mod tests {
         let mut bad = notice.clone();
         bad.language = None;
         assert!(notice_event(&bad).is_err());
+    }
+
+    #[test]
+    fn diagnostic_events_carry_every_field() {
+        let event = diagnostic_event(&finding(), false).expect("check initial");
+        assert_eq!(event["severity"], Value::from("warning"));
+        assert_eq!(event["tool"], Value::from("ruff"));
+        assert_eq!(event["message"], Value::from("Imported but unused"));
+        assert_eq!(event["rule"], Value::from("F401"));
+        assert_eq!(event["path"], Value::from("src/app.py"));
+        assert_eq!(event["range"]["start_byte"], Value::from(18));
+        assert_eq!(event["range"]["end_byte"], Value::from(24));
+        assert_eq!(event["snapshot"], Value::from("initial"));
+        assert_eq!(event["fixable"], Value::from(true));
+        assert!(event.get("resolution").is_none());
+    }
+
+    #[test]
+    fn notice_events_carry_every_field() {
+        let notice = NoticeEvent {
+            level: "warning".to_owned(),
+            code: "ignored_import".to_owned(),
+            message: "ignored".to_owned(),
+            related_command: None,
+            scope: None,
+            path: Some("src/plugin.py".to_owned()),
+            language: Some("python".to_owned()),
+            import: Some("optional_runtime_module".to_owned()),
+        };
+        let event = notice_value(&notice);
+        assert_eq!(event, notice_event(&notice).expect("ignored import"));
+        assert_eq!(event["level"], Value::from("warning"));
+        assert_eq!(event["code"], Value::from("ignored_import"));
+        assert_eq!(event["message"], Value::from("ignored"));
+        assert_eq!(event["path"], Value::from("src/plugin.py"));
+        assert_eq!(event["language"], Value::from("python"));
+        assert!(event.get("scope").is_none());
+
+        let plain = NoticeEvent {
+            level: "info".to_owned(),
+            code: "other".to_owned(),
+            message: "m".to_owned(),
+            related_command: Some("lint".to_owned()),
+            scope: Some(vec!["//src/...".to_owned()]),
+            path: None,
+            language: None,
+            import: None,
+        };
+        let event = notice_value(&plain);
+        assert_eq!(event, notice_event(&plain).expect("plain"));
+        assert_eq!(event["related_command"], Value::from("lint"));
+        assert_eq!(event["scope"][0], Value::from("//src/..."));
+        assert!(event.get("path").is_none());
     }
 
     #[test]

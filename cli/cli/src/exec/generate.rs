@@ -9,8 +9,8 @@ use crate::plan::{
 use crate::reports::plan_reports;
 use crate::resolve::resolve;
 use dx_output::{
-    change_event, command_finished, command_started, mutation_event, notice_event, write_event,
-    FinishedCounts, MutationOutcome, OutputMode,
+    change_value, command_finished, command_started, mutation_value, notice_value, write_event,
+    FinishedCounts, OutputMode,
 };
 use std::io::Write;
 
@@ -125,73 +125,23 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if invocation.output == OutputMode::Json {
         for file in projected.sorted_files() {
-            match change_event(&file.change) {
-                Ok(event) => {
-                    let _ = write_event(env.out, &event);
-                }
-                // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                Err(error) => {
-                    return operational(
-                        invocation,
-                        env.out,
-                        env.err,
-                        CODE_INVALID_RESULT,
-                        &format!("invalid change for output: {error}"),
-                    );
-                } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
+            let _ = write_event(env.out, &change_value(&file.change));
         }
         if !invocation.check {
-            for file in &projected.files {
-                let (outcome, reason) = match file.outcome {
-                    Some(MutationOutcome::Applied) => (MutationOutcome::Applied, None),
-                    Some(MutationOutcome::NotApplied) => {
-                        (MutationOutcome::NotApplied, file.failure_code.as_deref())
-                    }
-                    // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    None => {
-                        return operational(
-                            invocation,
-                            env.out,
-                            env.err,
-                            CODE_INVALID_RESULT,
-                            &format!("invalid mutation for output: {}", file.change.path),
-                        );
-                    } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                };
-                match mutation_event(&file.change.path, file.kind(), outcome, reason) {
-                    Ok(event) => {
-                        let _ = write_event(env.out, &event);
-                    }
-                    // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                    Err(error) => {
-                        return operational(
-                            invocation,
-                            env.out,
-                            env.err,
-                            CODE_INVALID_RESULT,
-                            &format!("invalid mutation for output: {error}"),
-                        );
-                    } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                }
+            for mutation in projected.mutations() {
+                let _ = write_event(
+                    env.out,
+                    &mutation_value(
+                        mutation.path,
+                        mutation.kind,
+                        mutation.outcome,
+                        mutation.reason,
+                    ),
+                );
             }
         }
         for notice in &projected.notices {
-            match notice_event(notice) {
-                Ok(event) => {
-                    let _ = write_event(env.out, &event);
-                }
-                // LCOV_EXCL_START - reason: defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                Err(error) => {
-                    return operational(
-                        invocation,
-                        env.out,
-                        env.err,
-                        CODE_INVALID_RESULT,
-                        &format!("invalid notice for output: {error}"),
-                    );
-                } // LCOV_EXCL_STOP - reason: end defensive unreachable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-            }
+            let _ = write_event(env.out, &notice_value(notice));
         }
         let code = projected.exit_code(bazel_code);
         let _ = write_event(

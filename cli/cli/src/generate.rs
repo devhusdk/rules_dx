@@ -20,18 +20,20 @@ pub struct ProjectedFile {
     pub failure_code: Option<String>,
 }
 
-impl ProjectedFile {
-    pub fn kind(&self) -> ChangeKind {
-        self.change.kind
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectedManifest {
     pub files: Vec<ProjectedFile>,
     pub notices: Vec<NoticeEvent>,
     pub results_complete: bool,
     pub is_check: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectedMutation<'a> {
+    pub path: &'a str,
+    pub kind: ChangeKind,
+    pub outcome: MutationOutcome,
+    pub reason: Option<&'a str>,
 }
 
 impl ProjectedManifest {
@@ -67,6 +69,18 @@ impl ProjectedManifest {
         let mut ordered: Vec<&ProjectedFile> = self.files.iter().collect();
         ordered.sort_by(|a, b| a.change.path.as_bytes().cmp(b.change.path.as_bytes()));
         ordered
+    }
+
+    /// Yields one mutation per written file; check runs carry none.
+    pub fn mutations(&self) -> impl Iterator<Item = ProjectedMutation<'_>> {
+        self.files.iter().filter_map(|file| {
+            Some(ProjectedMutation {
+                path: &file.change.path,
+                kind: file.change.kind,
+                outcome: file.outcome?,
+                reason: file.failure_code.as_deref(),
+            })
+        })
     }
 
     pub fn finished_counts(&self) -> FinishedCounts {
@@ -411,7 +425,7 @@ mod tests {
         assert_eq!(projected.not_applied(), 0);
         assert_eq!(projected.files[0].outcome, None);
         assert_eq!(projected.files[0].failure_code, None);
-        assert_eq!(projected.files[0].kind(), ChangeKind::Modify);
+        assert_eq!(projected.files[0].change.kind, ChangeKind::Modify);
         assert_eq!(projected.files[0].original, "a\n");
         assert_eq!(projected.files[0].candidate, "b\n");
         assert_eq!(projected.files[0].change.edits.len(), 1);
@@ -426,6 +440,7 @@ mod tests {
         );
         assert!(change_event(&projected.files[0].change).is_ok());
         assert!(notice_event(&projected.notices[0]).is_ok());
+        assert_eq!(projected.mutations().count(), 0, "check runs write nothing");
         assert_eq!(projected.notices[0].code, IGNORED_IMPORT_CODE);
         assert_eq!(projected.notices[0].level, IGNORED_IMPORT_LEVEL);
         assert_eq!(projected.notices[0].message, IGNORED_IMPORT_MESSAGE);
@@ -466,7 +481,7 @@ mod tests {
             Some(MutationOutcome::NotApplied)
         );
         assert_eq!(projected.files[1].failure_code.as_deref(), Some("io_error"));
-        assert_eq!(projected.files[0].kind(), ChangeKind::Create);
+        assert_eq!(projected.files[0].change.kind, ChangeKind::Create);
         assert_eq!(projected.files[0].original, "");
         let sorted: Vec<&str> = projected
             .sorted_files()
@@ -484,6 +499,16 @@ mod tests {
             )
             .is_ok());
         }
+        let mutations = projected.mutations().collect::<Vec<_>>();
+        assert_eq!(mutations.len(), 2, "both files report a mutation");
+        assert_eq!(mutations[0].path, "z/BUILD.bazel");
+        assert_eq!(mutations[0].kind, ChangeKind::Create);
+        assert_eq!(mutations[0].outcome, MutationOutcome::Applied);
+        assert_eq!(mutations[0].reason, None);
+        assert_eq!(mutations[1].path, "a/BUILD.bazel");
+        assert_eq!(mutations[1].kind, ChangeKind::Modify);
+        assert_eq!(mutations[1].outcome, MutationOutcome::NotApplied);
+        assert_eq!(mutations[1].reason, Some("io_error"));
         let counts = projected.finished_counts();
         assert_eq!(counts.changes, Some([1, 1]));
         assert_eq!(counts.mutations, Some([1, 1]));

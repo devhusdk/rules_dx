@@ -105,12 +105,9 @@ impl BumpRequest {
 
     pub fn refresh_selector(&self) -> String {
         match self.set {
-            BumpSet::Cargo => "cargo".to_owned(),
-            BumpSet::Npm => format!("npm:{}", self.package),
-            BumpSet::Go => "go".to_owned(),
-            BumpSet::Maven => "maven".to_owned(),
-            BumpSet::NuGet => "nuget".to_owned(),
+            BumpSet::Npm => format!("{}:{}", self.set.name(), self.package),
             BumpSet::Bazel | BumpSet::GithubActions => String::new(),
+            set => set.name().to_owned(),
         }
     }
 

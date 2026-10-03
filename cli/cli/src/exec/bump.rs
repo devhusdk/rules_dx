@@ -73,7 +73,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         let _ = writeln!(out, "{summary}");
     }
     if invocation.offline && request.needs_update_refresh() {
-        if let Some((set, req, _)) = refresh_target(&request) {
+        if let Some((set, req)) = refresh_target(&request) {
             if let Err(dx_update::backend::BackendError::OfflineRequired { .. }) =
                 dx_update::backend::plan(workspace, set, &req, true)
             {
@@ -153,7 +153,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return 0;
     }
-    let (update_set, update_request, update_selector) = match refresh_target(&request) {
+    let (update_set, update_request) = match refresh_target(&request) {
         Some(target) => target,
         None => {
             return operational(
@@ -168,6 +168,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             );
         }
     };
+    let update_selector = request.refresh_selector();
     let plan = match dx_update::backend::plan(
         workspace,
         update_set,
@@ -465,39 +466,27 @@ fn bump_refresh_failed(
 
 fn refresh_target(
     request: &dx_bump::BumpRequest,
-) -> Option<(
-    dx_update::sets::SetId,
-    dx_update::selector::SetRequest,
-    String,
-)> {
+) -> Option<(dx_update::sets::SetId, dx_update::selector::SetRequest)> {
     match request.set {
         dx_bump::BumpSet::Cargo => Some((
             dx_update::sets::SetId::Cargo,
             dx_update::selector::SetRequest::Full,
-            "cargo".to_owned(),
         )),
-        dx_bump::BumpSet::Npm => {
-            let package = request.package.clone();
-            Some((
-                dx_update::sets::SetId::Npm,
-                dx_update::selector::SetRequest::Packages(vec![package.clone()]),
-                format!("npm:{package}"),
-            ))
-        }
+        dx_bump::BumpSet::Npm => Some((
+            dx_update::sets::SetId::Npm,
+            dx_update::selector::SetRequest::Packages(vec![request.package.clone()]),
+        )),
         dx_bump::BumpSet::Go => Some((
             dx_update::sets::SetId::Go,
             dx_update::selector::SetRequest::Full,
-            "go".to_owned(),
         )),
         dx_bump::BumpSet::Maven => Some((
             dx_update::sets::SetId::Maven,
             dx_update::selector::SetRequest::Full,
-            "maven".to_owned(),
         )),
         dx_bump::BumpSet::NuGet => Some((
             dx_update::sets::SetId::NuGet,
             dx_update::selector::SetRequest::Full,
-            "nuget".to_owned(),
         )),
         dx_bump::BumpSet::Bazel | dx_bump::BumpSet::GithubActions => None,
     }
@@ -520,15 +509,7 @@ fn bump_offline_failed(
             "failed to refresh {}: {} (widen kept in {manifest})",
             request.selector,
             dx_update::backend::BackendError::OfflineRequired {
-                set: match request.set {
-                    dx_bump::BumpSet::Cargo => "cargo",
-                    dx_bump::BumpSet::Npm => "npm",
-                    dx_bump::BumpSet::Go => "go",
-                    dx_bump::BumpSet::Maven => "maven",
-                    dx_bump::BumpSet::NuGet => "nuget",
-                    dx_bump::BumpSet::Bazel => "bazel",
-                    dx_bump::BumpSet::GithubActions => "github-actions",
-                }
+                set: request.set.name(),
             }
         ),
     )

@@ -483,6 +483,35 @@ fn refresh_selector_chains_automatically_per_set() {
 }
 
 #[test]
+fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
+    let cases = [
+        ("cargo:anyhow", "1.2.3"),
+        ("npm:jest", "30.3.0"),
+        ("go:example.com/mod", "1.2.3"),
+        ("maven:junit:junit", "4.13.2"),
+        ("nuget:FSharp.Core", "10.1.201"),
+        ("bazel:rules_rust", "0.74.0"),
+        (
+            "github-actions:actions/checkout",
+            "3d3d42e5aac5ba805825da76410c181273ba90b1",
+        ),
+    ];
+    assert_eq!(cases.len(), BumpSet::ALL.len(), "one case per set");
+    for (selector, version) in cases {
+        let bump = BumpRequest::parse(selector, version).expect("parse");
+        let name = bump.set.name();
+        let expected = if bump.set == BumpSet::Npm {
+            format!("{name}:{}", bump.package)
+        } else if bump.needs_update_refresh() {
+            name.to_owned()
+        } else {
+            String::new()
+        };
+        assert_eq!(bump.refresh_selector(), expected, "{selector}");
+    }
+}
+
+#[test]
 fn edits_rewrite_exactly_one_requirement() {
     let bump = BumpRequest::parse("bazel:.bazelversion", "9.3.0").expect("bazelversion");
     assert_eq!(bump.plan_edit("9.2.0\n").expect("edit"), "9.3.0\n");

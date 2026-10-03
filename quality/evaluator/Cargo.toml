@@ -12,6 +12,9 @@ clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 tracing = "0.1"
 
+[dev-dependencies]
+tempfile = "3"
+
 [[bin]]
 name = "quality_evaluator"
 path = "src/main.rs"

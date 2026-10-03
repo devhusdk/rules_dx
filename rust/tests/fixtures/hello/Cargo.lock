@@ -1669,6 +1669,7 @@ name = "quality_evaluator"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "tempfile",
  "thiserror",
  "tracing",
 ]

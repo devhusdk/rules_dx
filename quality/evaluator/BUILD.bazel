@@ -50,10 +50,37 @@ rust_binary(
     ],
 )
 
+# keep
+rust_test(
+    name = "quality_evaluator_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "quality/quality_evaluator",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":quality_evaluator",
+    deps = crate_deps(
+        [
+            "clap",
+            "tempfile",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "quality/quality_evaluator",
+    ) + [
+        ":quality_evaluator_lib",
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/output:dx_output",
+        "//quality/result:quality_result",
+    ],
+)
+
 rustfmt_test(
     name = "quality_evaluator_fmt_test",
     size = "small",
     targets = [
+        ":quality_evaluator_bin_test",
         ":quality_evaluator_lib",
         ":quality_evaluator",
     ],
@@ -85,6 +112,7 @@ rust_test(
     deps = crate_deps(
         [
             "clap",
+            "tempfile",
             "thiserror",
             "tracing",
         ],

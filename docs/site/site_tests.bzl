@@ -1,7 +1,7 @@
 """Unit plus execution tests for docs site execution."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":site.bzl", "DOC_IR_SCHEMA_MAJOR", "DOC_IR_SCHEMA_MINOR", "MDBOOK_VERSION", "site_api_name", "site_api_path", "site_guide_step_error", "site_html_name", "site_index_name", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_shard_name", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
+load(":site.bzl", "DOC_IR_SCHEMA_MAJOR", "DOC_IR_SCHEMA_MINOR", "MDBOOK_VERSION", "site_api_name", "site_api_path", "site_guide_step_error", "site_header_value_error", "site_html_name", "site_index_name", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_shard_name", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
 
 def site_unit_tests(name):
     starlark_test(
@@ -42,6 +42,23 @@ def site_unit_tests(name):
                 "API paths mirror symbol IDs workspace-relatively",
                 site_api_path("python:demo:AccountService.create"),
                 "api/python/demo/AccountService.create.md",
+            ),
+            expect_equal(
+                "header values stay emittable into quoted textproto",
+                [
+                    site_header_value_error("language", "python"),
+                    site_header_value_error("package", "demo"),
+                    site_header_value_error("language", "two\nlines"),
+                    site_header_value_error("language", "py\"thon"),
+                    site_header_value_error("package", "c:\\tmp"),
+                ],
+                [
+                    "",
+                    "",
+                    "docs_site: language must be one line",
+                    "docs_site: language must not contain a double quote",
+                    "docs_site: package must not contain a backslash",
+                ],
             ),
             expect_equal(
                 "rendered URLs mirror symbol IDs",

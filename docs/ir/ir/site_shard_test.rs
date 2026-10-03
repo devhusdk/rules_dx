@@ -1,118 +1,111 @@
-use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
+use documentation_ir::{decode_shard_text, encode_shard, proto, SCHEMA_MAJOR, SCHEMA_MINOR};
+use proto::{DocIr, Symbol};
 
 const SHARD: &str = "docs/site/demo_extract.ir.textproto";
+
+const ID_NAMES: [&str; 6] = [
+    "AccountService",
+    "AccountService.create",
+    "AccountService.escape",
+    "AccountService.get",
+    "AccountService.quote",
+    "AccountService.union",
+];
+
+const DOCS: [&str; 6] = [
+    "Creates and reads accounts.",
+    "Creates a new account.",
+    r"Reads a path like C:\temp.",
+    "Fetches an account by ID.",
+    r#"Accepts a "quoted" name."#,
+    "Reads a Result<A | B, Error>.",
+];
 
 fn shard() -> String {
     dx_testing::read_runfiles(SHARD)
 }
 
-fn header_fields(text: &str) -> Vec<(String, String)> {
-    text.lines()
-        .filter(|line| !line.starts_with(' ') && line.contains(": "))
-        .map(|line| {
-            let (name, value) = line
-                .split_once(':')
-                .unwrap_or_else(|| panic!("shard line names no field: {line}"));
-            (name.to_owned(), value.trim().trim_matches('"').to_owned())
-        })
-        .collect()
+fn decoded() -> DocIr {
+    decode_shard_text(&shard()).unwrap_or_else(|error| panic!("{SHARD} does not decode: {error:?}"))
 }
 
-fn field(text: &str, name: &str) -> String {
-    header_fields(text)
-        .into_iter()
-        .find(|(field, _)| field == name)
-        .map(|(_, value)| value)
-        .unwrap_or_else(|| panic!("{SHARD} names no {name} field"))
+fn encoded(shard: &DocIr) -> Vec<u8> {
+    encode_shard(shard).unwrap_or_else(|error| panic!("shard does not encode: {error:?}"))
 }
 
-fn symbol_ids(text: &str) -> Vec<String> {
-    text.lines()
-        .filter_map(|line| line.strip_prefix("  id: "))
-        .map(|value| value.trim().trim_matches('"').to_owned())
-        .collect()
-}
-
-fn doc_markdowns(text: &str) -> Vec<&str> {
-    text.lines()
-        .filter_map(|line| line.strip_prefix("  doc_markdown: "))
-        .collect()
-}
-
-fn unescape_textproto(raw: &str) -> Result<String, String> {
-    let body = raw
-        .strip_prefix('"')
-        .and_then(|rest| rest.strip_suffix('"'))
-        .ok_or_else(|| format!("{raw} is not a closed quoted textproto string"))?;
-    let mut out = String::with_capacity(body.len());
-    let mut chars = body.chars();
-    while let Some(ch) = chars.next() {
-        if ch != '\\' {
-            if ch == '"' {
-                return Err(format!("{raw} leaves a quote unescaped"));
-            }
-            out.push(ch);
-            continue;
-        }
-        match chars.next() {
-            Some('\\') => out.push('\\'),
-            Some('"') => out.push('"'),
-            Some(other) => return Err(format!("{raw} carries the invalid escape \\{other}")),
-            None => return Err(format!("{raw} ends in a dangling escape")),
-        }
+fn expected() -> DocIr {
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "python".to_owned(),
+        package: "demo".to_owned(),
+        symbols: ID_NAMES
+            .iter()
+            .zip(DOCS)
+            .map(|(name, doc)| Symbol {
+                id: format!("python:demo:{name}"),
+                doc_markdown: doc.to_owned(),
+                ..Symbol::default()
+            })
+            .collect(),
     }
-    Ok(out)
 }
 
 #[test]
-fn the_emitted_shard_carries_the_published_schema_version() {
+fn the_emitted_shard_decodes_to_the_message_the_binary_codec_encodes() {
+    let decoded = decoded();
+    assert_eq!(decoded, expected());
+    assert_eq!(
+        encoded(&decoded),
+        encoded(&expected()),
+        "doc_ir.proto is the spec of the shard docs_extract emits"
+    );
+    assert_eq!(decoded.schema_major, SCHEMA_MAJOR);
+    assert_eq!(decoded.schema_minor, SCHEMA_MINOR);
+}
+
+#[test]
+fn the_emitted_header_numbers_the_proto_fields_in_order() {
     let text = shard();
-    let names: Vec<String> = header_fields(&text)
-        .into_iter()
-        .map(|(name, _)| name)
+    let names: Vec<&str> = text
+        .lines()
+        .take(4)
+        .map(|line| line.split(':').next().unwrap_or_default())
         .collect();
     assert_eq!(
         names,
         ["schema_major", "schema_minor", "language", "package"],
         "doc_ir.proto numbers the DocIr header fields 1 to 4 in that order"
     );
-    assert_eq!(field(&text, "schema_major"), SCHEMA_MAJOR.to_string());
-    assert_eq!(field(&text, "schema_minor"), SCHEMA_MINOR.to_string());
 }
 
 #[test]
-fn every_symbol_id_is_namespaced_and_strictly_increasing() {
-    let text = shard();
-    let prefix = format!("{}:{}:", field(&text, "language"), field(&text, "package"));
-    let ids = symbol_ids(&text);
-    assert!(!ids.is_empty(), "{SHARD} carries no symbols");
-    assert_eq!(
-        text.lines()
-            .filter(|line| line.starts_with("  doc_markdown: "))
-            .count(),
-        ids.len(),
-        "every symbol must carry its doc_markdown"
-    );
-    for id in &ids {
+fn every_symbol_is_namespaced_and_documented() {
+    let decoded = decoded();
+    assert!(!decoded.symbols.is_empty(), "{SHARD} carries no symbols");
+    for symbol in &decoded.symbols {
         assert!(
-            id.starts_with(&prefix),
-            "symbol id {id} must name its language and package"
+            symbol
+                .id
+                .starts_with(&format!("{}:{}:", decoded.language, decoded.package)),
+            "symbol id {} must name its language and package",
+            symbol.id
         );
-    }
-    for pair in ids.windows(2) {
         assert!(
-            pair[0] < pair[1],
-            "symbol ids must strictly increase: {} then {}",
-            pair[0],
-            pair[1]
+            !symbol.doc_markdown.is_empty(),
+            "symbol {} lost its doc_markdown",
+            symbol.id
         );
     }
 }
 
 #[test]
-fn doc_markdown_is_escaped_for_textproto_and_round_trips() {
+fn doc_markdown_is_escaped_for_textproto_and_decodes_whole() {
     let text = shard();
-    let raw = doc_markdowns(&text);
+    let raw: Vec<&str> = text
+        .lines()
+        .filter_map(|line| line.strip_prefix("  doc_markdown: "))
+        .collect();
     assert_eq!(
         raw,
         [
@@ -125,47 +118,12 @@ fn doc_markdown_is_escaped_for_textproto_and_round_trips() {
         ],
         "doc_ir.proto types doc_markdown as a string, so a quote and a backslash must be escaped"
     );
-    assert_eq!(
-        raw.iter()
-            .copied()
-            .map(unescape_textproto)
-            .collect::<Result<Vec<_>, _>>(),
-        Ok(vec![
-            "Creates and reads accounts.".to_owned(),
-            "Creates a new account.".to_owned(),
-            r"Reads a path like C:\temp.".to_owned(),
-            "Fetches an account by ID.".to_owned(),
-            r#"Accepts a "quoted" name."#.to_owned(),
-            "Reads a Result<A | B, Error>.".to_owned(),
-        ]),
-        "escaping must be lossless, so the shard decodes back to the fixture prose"
-    );
-}
-
-#[test]
-fn the_textproto_reader_rejects_what_the_emitter_must_never_write() {
-    assert_eq!(
-        unescape_textproto(r#""plain text""#),
-        Ok("plain text".to_owned())
-    );
-    assert_eq!(
-        unescape_textproto(r#""a \"quoted\" name""#),
-        Ok(r#"a "quoted" name"#.to_owned())
-    );
-    assert_eq!(
-        unescape_textproto(r#""C:\\temp""#),
-        Ok(r"C:\temp".to_owned())
-    );
-    for bad in [
-        r#""a "quoted" name""#,
-        r#""C:\temp""#,
-        r#""dangling\"#,
-        r#""unterminated"#,
-        r#"not quoted"#,
-    ] {
-        assert!(
-            unescape_textproto(bad).is_err(),
-            "{bad} is malformed textproto and must not decode"
-        );
-    }
+    let decoded = decode_shard_text(&text)
+        .unwrap_or_else(|error| panic!("{SHARD} does not decode: {error:?}"));
+    let docs: Vec<&str> = decoded
+        .symbols
+        .iter()
+        .map(|symbol| symbol.doc_markdown.as_str())
+        .collect();
+    assert_eq!(docs, DOCS, "escaping must be lossless");
 }

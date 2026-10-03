@@ -25,6 +25,16 @@ def site_symbol_id_error(language, package, qualified):
         return "docs_site: qualified name is required"
     return ""
 
+def site_header_value_error(attr, value):
+    """Validates one header value is emittable into quoted textproto."""
+    if "\n" in value:
+        return "docs_site: " + attr + " must be one line"
+    if "\"" in value:
+        return "docs_site: " + attr + " must not contain a double quote"
+    if "\\" in value:
+        return "docs_site: " + attr + " must not contain a backslash"
+    return ""
+
 def site_api_path(symbol_id):
     """Returns the workspace-relative API page for one symbol ID."""
     return "api/" + symbol_id.replace(":", "/") + ".md"
@@ -116,6 +126,10 @@ def docs_extract(name, language, package, srcs):
     unit_err = site_symbol_id_error(language, package, "unit")
     if unit_err != "":
         fail(unit_err + " (in " + native.package_name() + ":" + name + ")")
+    for attr, value in [("language", language), ("package", package)]:
+        header_err = site_header_value_error(attr, value)
+        if header_err != "":
+            fail(header_err + " (in " + native.package_name() + ":" + name + ")")
     if len(srcs) == 0:
         fail("docs_extract " + native.package_name() + ":" + name + ": need at least one src")
     shard = site_shard_name(name)

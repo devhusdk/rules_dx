@@ -10,6 +10,7 @@
 
 pub use doc_ir_proto::dx::documentation::v1 as proto;
 use proto::{DocIr, Symbol};
+use std::collections::BTreeSet;
 
 use dx_path::reject_reason;
 use dx_proto_validate::{
@@ -21,6 +22,7 @@ pub use dx_schema::SCHEMA_MINOR;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Decode(String),
+    MalformedText(String),
     UnsupportedMajor {
         found: u32,
     },
@@ -123,6 +125,134 @@ pub fn encode_shard(shard: &DocIr) -> Result<Vec<u8>, Error> {
 
 pub fn decode_shard(bytes: &[u8]) -> Result<DocIr, Error> {
     decode_with_validation(bytes, validate_shard, Error::Decode)
+}
+
+const TEXT_HEADER_FIELDS: [&str; 4] = ["schema_major", "schema_minor", "language", "package"];
+const TEXT_SYMBOL_FIELDS: [&str; 2] = ["id", "doc_markdown"];
+
+pub fn decode_shard_text(text: &str) -> Result<DocIr, Error> {
+    let mut shard = DocIr::default();
+    let mut header = BTreeSet::new();
+    let mut open: Option<(Symbol, BTreeSet<&str>)> = None;
+    for (index, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(name) = line.strip_suffix('{') {
+            let name = name.trim();
+            if name != "symbols" {
+                return Err(text_error(index, format!("unknown block {name}")));
+            }
+            if open.is_some() {
+                return Err(text_error(index, "symbols blocks do not nest"));
+            }
+            open = Some((Symbol::default(), BTreeSet::new()));
+            continue;
+        }
+        if line == "}" {
+            let (symbol, seen) = open
+                .take()
+                .ok_or_else(|| text_error(index, "} closes no block"))?;
+            for field in TEXT_SYMBOL_FIELDS {
+                if !seen.contains(field) {
+                    return Err(text_error(index, format!("symbol names no {field}")));
+                }
+            }
+            shard.symbols.push(symbol);
+            continue;
+        }
+        let (name, value) = line
+            .split_once(':')
+            .ok_or_else(|| text_error(index, format!("{line} names no field")))?;
+        let (name, value) = (name.trim(), value.trim());
+        match open.as_mut() {
+            Some((symbol, seen)) => {
+                if !TEXT_SYMBOL_FIELDS.contains(&name) {
+                    return Err(text_error(
+                        index,
+                        format!("symbol field not supported: {name}"),
+                    ));
+                }
+                if !seen.insert(name) {
+                    return Err(text_error(index, format!("symbol repeats {name}")));
+                }
+                if name == "id" {
+                    symbol.id = text_string(index, name, value)?;
+                } else {
+                    symbol.doc_markdown = text_string(index, name, value)?;
+                }
+            }
+            None => {
+                if !TEXT_HEADER_FIELDS.contains(&name) {
+                    return Err(text_error(
+                        index,
+                        format!("header field not supported: {name}"),
+                    ));
+                }
+                if !header.insert(name) {
+                    return Err(text_error(index, format!("header repeats {name}")));
+                }
+                match name {
+                    "schema_major" => shard.schema_major = text_uint(index, name, value)?,
+                    "schema_minor" => shard.schema_minor = text_uint(index, name, value)?,
+                    "language" => shard.language = text_string(index, name, value)?,
+                    _ => shard.package = text_string(index, name, value)?,
+                }
+            }
+        }
+    }
+    if open.is_some() {
+        return Err(Error::MalformedText(
+            "symbols block is never closed".to_owned(),
+        ));
+    }
+    for field in TEXT_HEADER_FIELDS {
+        if !header.contains(field) {
+            return Err(Error::MalformedText(format!("header names no {field}")));
+        }
+    }
+    validate_shard(&shard)?;
+    Ok(shard)
+}
+
+fn text_error(line: usize, message: impl std::fmt::Display) -> Error {
+    Error::MalformedText(format!("line {}: {message}", line + 1))
+}
+
+fn text_uint(line: usize, name: &str, value: &str) -> Result<u32, Error> {
+    value
+        .parse::<u32>()
+        .map_err(|_| text_error(line, format!("{name} is not a uint32: {value}")))
+}
+
+fn text_string(line: usize, name: &str, raw: &str) -> Result<String, Error> {
+    let body = raw
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+        .ok_or_else(|| text_error(line, format!("{name} is not a quoted string: {raw}")))?;
+    let mut out = String::with_capacity(body.len());
+    let mut chars = body.chars();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\\' => match chars.next() {
+                Some('\\') => out.push('\\'),
+                Some('"') => out.push('"'),
+                Some(other) => {
+                    return Err(text_error(line, format!("{name} escapes \\{other}")));
+                }
+                None => {
+                    return Err(text_error(
+                        line,
+                        format!("{name} ends in a dangling escape"),
+                    ));
+                }
+            },
+            '"' => return Err(text_error(line, format!("{name} leaves a quote unescaped"))),
+            _ => out.push(ch),
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -359,5 +489,168 @@ mod tests {
         shard.schema_minor = 3;
         let bytes = encode_shard(&shard).unwrap();
         assert_eq!(decode_shard(&bytes).unwrap(), shard);
+    }
+
+    fn text_header() -> String {
+        format!(
+            "schema_major: {SCHEMA_MAJOR}\nschema_minor: {SCHEMA_MINOR}\nlanguage: \"python\"\npackage: \"mylib\"\n"
+        )
+    }
+
+    fn text_symbol(id: &str, doc: &str) -> String {
+        format!("symbols {{\n  id: \"{id}\"\n  doc_markdown: \"{doc}\"\n}}\n")
+    }
+
+    #[test]
+    fn text_shards_decode_into_the_same_message_the_binary_codec_encodes() {
+        let text = text_header()
+            + &text_symbol(
+                "python:mylib:AccountService.create",
+                "Creates a new account.",
+            )
+            + &text_symbol("python:mylib:AccountService.get", "Fetches by ID.");
+        let decoded = decode_shard_text(&text).unwrap();
+        assert_eq!(decoded.schema_major, SCHEMA_MAJOR);
+        assert_eq!(decoded.schema_minor, SCHEMA_MINOR);
+        assert_eq!(decoded.language, "python");
+        assert_eq!(decoded.package, "mylib");
+        assert_eq!(
+            decoded.symbols,
+            vec![
+                Symbol {
+                    id: "python:mylib:AccountService.create".to_owned(),
+                    doc_markdown: "Creates a new account.".to_owned(),
+                    ..Symbol::default()
+                },
+                Symbol {
+                    id: "python:mylib:AccountService.get".to_owned(),
+                    doc_markdown: "Fetches by ID.".to_owned(),
+                    ..Symbol::default()
+                },
+            ]
+        );
+        let bytes = encode_shard(&decoded).unwrap();
+        assert_eq!(decode_shard(&bytes).unwrap(), decoded);
+        assert_eq!(encode_shard(&decoded).unwrap(), bytes);
+    }
+
+    #[test]
+    fn text_escapes_decode_back_to_the_original_prose() {
+        let text = text_header()
+            + &text_symbol("python:mylib:AccountService.escape", "")
+            + &text_symbol(
+                "python:mylib:AccountService.quote",
+                r#"Reads C:\\temp and a \"quoted\" name."#,
+            );
+        let decoded = decode_shard_text(&text).unwrap();
+        assert_eq!(decoded.symbols[0].doc_markdown, "");
+        assert_eq!(
+            decoded.symbols[1].doc_markdown,
+            r#"Reads C:\temp and a "quoted" name."#
+        );
+    }
+
+    #[test]
+    fn text_decoding_runs_the_same_validation_as_the_binary_codec() {
+        assert_eq!(
+            decode_shard_text(&text_header().replace('1', "0")),
+            Err(Error::UnsupportedMajor { found: 0 })
+        );
+        assert_eq!(
+            decode_shard_text(
+                &(text_header().replace("\"mylib\"", "\"\"") + &text_symbol("a", ""))
+            ),
+            Err(Error::EmptyPackage)
+        );
+        assert_eq!(
+            decode_shard_text(
+                &(text_header()
+                    + &text_symbol("python:mylib:b", "")
+                    + &text_symbol("python:mylib:a", ""))
+            ),
+            Err(Error::UnsortedSymbols {
+                id: "python:mylib:a".to_owned()
+            })
+        );
+        assert_eq!(
+            decode_shard_text(&(text_header() + &text_symbol("", ""))),
+            Err(Error::EmptySymbolId { index: 0 })
+        );
+    }
+
+    #[test]
+    fn text_decoding_rejects_malformed_and_unsupported_text() {
+        let head = text_header();
+        for (text, expected) in [
+            (
+                format!("{head}kind: FUNCTION\n"),
+                "line 5: header field not supported: kind",
+            ),
+            (
+                format!("{head}language: \"python\"\n"),
+                "line 5: header repeats language",
+            ),
+            (
+                "schema_major: 1x\n".to_owned(),
+                "line 1: schema_major is not a uint32: 1x",
+            ),
+            (
+                "language: python\n".to_owned(),
+                "line 1: language is not a quoted string: python",
+            ),
+            (
+                "language: \"python\n".to_owned(),
+                "line 1: language is not a quoted string: \"python",
+            ),
+            (
+                "language: \"py\"thon\"\n".to_owned(),
+                "line 1: language leaves a quote unescaped",
+            ),
+            (
+                "language: \"a\\nb\"\n".to_owned(),
+                "line 1: language escapes \\n",
+            ),
+            (
+                "language: \"a\\\"\n".to_owned(),
+                "line 1: language ends in a dangling escape",
+            ),
+            (
+                "schema_major: 1\n".to_owned(),
+                "header names no schema_minor",
+            ),
+            ("symbol {\n}\n".to_owned(), "line 1: unknown block symbol"),
+            (
+                format!("{head}symbols {{\nsymbols {{\n}}\n}}\n"),
+                "line 6: symbols blocks do not nest",
+            ),
+            (
+                format!("{head}symbols {{\n"),
+                "symbols block is never closed",
+            ),
+            ("}\n".to_owned(), "line 1: } closes no block"),
+            (
+                format!("{head}symbols {{\n  id: \"a\"\n}}\n"),
+                "line 7: symbol names no doc_markdown",
+            ),
+            (
+                format!("{head}symbols {{\n  id: \"a\"\n  id: \"b\"\n}}\n"),
+                "line 7: symbol repeats id",
+            ),
+            (
+                format!("{head}symbols {{\n  kind: FUNCTION\n}}\n"),
+                "line 6: symbol field not supported: kind",
+            ),
+            (format!("{head}symbols\n"), "line 5: symbols names no field"),
+            (
+                format!("{head}symbols {{\n  doc_markdown: \"first\nsecond\"\n}}\n"),
+                "line 6: doc_markdown is not a quoted string: \"first",
+            ),
+        ] {
+            assert_eq!(
+                decode_shard_text(&text),
+                Err(Error::MalformedText(expected.to_owned())),
+                "text must not decode: {text}"
+            );
+        }
     }
 }

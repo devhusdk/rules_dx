@@ -1,8 +1,8 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "dx_rust_crate")
-load("//tools/visibility:visibility.bzl", "VIS_CLI_PLATFORM")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY")
 
-package(default_visibility = VIS_CLI_PLATFORM)
+package(default_visibility = VIS_CLI_DEPLOY)
 
 dx_rust_crate(
     name = "dx_process",

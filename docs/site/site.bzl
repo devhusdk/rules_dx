@@ -22,10 +22,10 @@ _AWK_SYMBOLS = (
 
 _AWK_MISSING_SEPARATOR = "index($$0, \"|\") < 2 { print }"
 
-SITE_CHECK = "site_check.sh"
+SITE_CHECK = "//docs/site/check:site_check"
 
 def site_check_args(api, shards, prose, data = []):
-    """Returns the site_check.sh arguments for one aggregate's inputs."""
+    """Returns the site_check arguments for one aggregate's inputs."""
     parts = ["--api " + api]
     for shard in shards:
         parts.append("--shard $(location " + shard + ")")
@@ -208,7 +208,7 @@ def docs_aggregate(name, shards, prose, book_toml):
               "printf '[\\n' > \"$$records\"; " +
               "LC_ALL=C grep -h '^  id: ' " + shard_locs + " | LC_ALL=C sort -u | sed 's/^  id: \"//;s/\"$$//' | awk '{url=$$0; gsub(/:/, \"/\", url); printf \"  {\\\"body\\\": \\\"API docs for %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"api/%s\\\"},\\n\", $$0, $$0, url}' | LC_ALL=C sort -u | sed '$$s/,$$//' >> \"$$records\"; " +
               "printf ']\\n' >> \"$$records\"; " +
-              "bash $(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose),
+              "$(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose),
     )
     native.filegroup(
         name = name,
@@ -285,7 +285,7 @@ def docs_user_aggregate(name, shards, prose, book_toml, data = []):
               "for _f in $$(printf '%s\\n' " + prose_locs + " | LC_ALL=C sort -u); do _t=$$(LC_ALL=C grep -m1 '^# ' \"$$_f\" | sed 's/^# //'); if [ \"$$_first\" = 1 ]; then _first=0; else printf ',\\n'; fi; printf '  {\\\"body\\\": \\\"User guide %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"%s.html\\\"}' \"$$_f\" \"$$_t\" \"$$_f\"; done; " +
               "for _sid in $$(LC_ALL=C grep -h '^  id: ' " + shard_locs + " | sed 's/^  id: \"//;s/\"$$//' | LC_ALL=C sort -u); do if [ \"$$_first\" = 1 ]; then _first=0; else printf ',\\n'; fi; _url=$$(printf '%s' \"$$_sid\" | sed 's/:/\\//g;s/^/api\\//'); printf '  {\\\"body\\\": \\\"API docs for %s\\\", \\\"title\\\": \\\"%s\\\", \\\"url\\\": \\\"%s\\\"}' \"$$_sid\" \"$$_sid\" \"$$_url\"; done; " +
               "printf '\\n]\\n'; } > \"$$records\"; " +
-              "bash $(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose, data),
+              "$(location " + SITE_CHECK + ") --book " + book_loc + " " + site_check_args(api_loc, shards, prose, data),
     )
     native.filegroup(
         name = name,

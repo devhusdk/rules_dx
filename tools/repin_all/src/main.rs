@@ -3,9 +3,7 @@
 use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {
-    let cwd = std::env::current_dir().unwrap_or_default();
     let status = Command::new(bazel())
-        .current_dir(dx_process::workspace_start(&cwd))
         .args(["run", "//cli/cli:dx", "--", "update"])
         .args(std::env::args_os().skip(1))
         .status();

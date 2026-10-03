@@ -1,12 +1,12 @@
 [package]
-name = "env_fixtures"
+name = "env_stubs"
 version = "0.0.0"
 edition = "2021"
 
 [[bin]]
-name = "doctor_fixture"
+name = "doctor"
 path = "src/bin_doctor.rs"
 
 [[bin]]
-name = "tool_fixture"
+name = "tool_sh"
 path = "src/bin_tool.rs"

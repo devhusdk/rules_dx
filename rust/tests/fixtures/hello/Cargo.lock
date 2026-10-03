@@ -752,10 +752,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
-name = "env_fixtures"
-version = "0.0.0"
-
-[[package]]
 name = "env_shard"
 version = "0.0.0"
 dependencies = [
@@ -764,6 +760,10 @@ dependencies = [
  "thiserror",
  "tracing",
 ]
+
+[[package]]
+name = "env_stubs"
+version = "0.0.0"
 
 [[package]]
 name = "equivalent"
@@ -1996,6 +1996,10 @@ checksum = "4f66ca1f7aca2474dc10c942eb22feffc897735f54cd1db90138c2fddb490987"
 dependencies = [
  "bstr",
 ]
+
+[[package]]
+name = "site_check"
+version = "0.0.0"
 
 [[package]]
 name = "slab"

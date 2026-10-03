@@ -1,47 +1,50 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
 
-exports_files(["Cargo.toml"])
+exports_files([
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/main.rs",
+])
 
-rust_binary(
-    name = "doctor_fixture",
-    srcs = ["src/bin_doctor.rs"],
+rust_library(
+    name = "dx_site_check",
+    srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "env/env_fixtures",
+        package_name = "docs/site/site_check",
         normal = True,
     ),
-    crate_name = "doctor_fixture",
-    crate_root = "src/bin_doctor.rs",
+    crate_name = "dx_site_check",
+    crate_root = "src/lib.rs",
     edition = "2021",
     deps = crate_deps(
         [],
-        package_name = "env/env_fixtures",
+        package_name = "docs/site/site_check",
     ),
 )
 
 rust_binary(
-    name = "tool_fixture",
-    srcs = ["src/bin_tool.rs"],
+    name = "site_check",
+    srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "env/env_fixtures",
+        package_name = "docs/site/site_check",
         normal = True,
     ),
-    crate_name = "tool_fixture",
-    crate_root = "src/bin_tool.rs",
+    crate_name = "site_check",
+    crate_root = "src/main.rs",
     edition = "2021",
     deps = crate_deps(
         [],
-        package_name = "env/env_fixtures",
-    ),
+        package_name = "docs/site/site_check",
+    ) + [":dx_site_check"],
 )
 
 real_source_target(
     name = "corpus_starlark",
-    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
@@ -49,7 +52,6 @@ real_source_target(
 
 real_source_target(
     name = "corpus_toml",
-    testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )

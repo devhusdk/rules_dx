@@ -73,12 +73,11 @@ impl Site {
     }
 
     fn check(&self, args: &[&str]) -> Run {
-        let output = Command::new("bash")
-            .arg(script())
+        let output = Command::new(script())
             .args(args)
             .current_dir(&self.root)
             .output()
-            .unwrap_or_else(|error| panic!("run site_check.sh: {error}"));
+            .unwrap_or_else(|error| panic!("run site_check: {error}"));
         Run {
             code: output.status.code().unwrap_or(-1),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -100,7 +99,7 @@ impl Site {
 }
 
 fn script() -> PathBuf {
-    let rel = std::env::var("DX_SITE_CHECK").expect("DX_SITE_CHECK must name the script");
+    let rel = std::env::var("DX_SITE_CHECK").expect("DX_SITE_CHECK must name the checker");
     dx_testing::resolve_runfiles(&rel)
 }
 

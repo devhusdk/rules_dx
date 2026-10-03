@@ -9,7 +9,6 @@ exports_files(
     [
         "BUILD.bazel",
         "site.bzl",
-        "site_check.sh",
         "site_tests.bzl",
     ],
 )
@@ -113,8 +112,8 @@ rust_test(
     name = "site_check_test",
     size = "small",
     srcs = ["site_check_test.rs"],
-    data = ["site_check.sh"],
-    env = {"DX_SITE_CHECK": "$(rootpath :site_check.sh)"},
+    data = ["//docs/site/check:site_check"],
+    env = {"DX_SITE_CHECK": "$(rootpath //docs/site/check:site_check)"},
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],

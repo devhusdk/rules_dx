@@ -4,5 +4,5 @@ version = "0.0.0"
 edition = "2021"
 
 [[bin]]
-name = "repin-all"
+name = "repin_all"
 path = "src/main.rs"

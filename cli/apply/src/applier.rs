@@ -1,7 +1,9 @@
 use std::io;
 use std::path::Path;
 
-use super::envelope::{sha256_hex, Envelope};
+use dx_digest::sha256_hex;
+
+use super::envelope::Envelope;
 use super::validators::{validate, ValidationError};
 
 pub trait FileSystem {

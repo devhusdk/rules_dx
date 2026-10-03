@@ -21,8 +21,7 @@ pub use applier::{
 };
 pub use consensus::{merge, ConsensusError};
 pub use envelope::{
-    emit_envelope, is_sha256_hex, parse_envelope, sha256_hex, Envelope, EnvelopeError,
-    FileOperation, ENVELOPE_VERSION,
+    emit_envelope, parse_envelope, Envelope, EnvelopeError, FileOperation, ENVELOPE_VERSION,
 };
 pub use validators::{validate, ValidationError, BLOCKED_EXTENSIONS, MAX_OPERATION_BYTES};
 // LCOV_EXCL_STOP - reason: end re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

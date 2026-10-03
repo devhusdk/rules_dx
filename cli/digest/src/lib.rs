@@ -115,10 +115,6 @@ pub fn is_commit_sha(text: &str) -> bool {
     is_hex_any_case(text, SHA1_LEN) || is_hex_any_case(text, DIGEST_LEN)
 }
 
-pub fn is_sha256_hex(text: &str) -> bool {
-    is_hex(text)
-}
-
 pub fn to_hex(bytes: &RawDigest) -> String {
     hex::encode(bytes)
 }
@@ -149,7 +145,6 @@ mod tests {
             let hex = to_hex(&bytes);
             prop_assert_eq!(hex.len(), 64);
             prop_assert!(is_hex(&hex));
-            prop_assert!(is_sha256_hex(&hex));
             prop_assert_eq!(parse_hex(&hex), Ok(bytes));
             let wrapped = Digest::new(bytes);
             prop_assert_eq!(wrapped.to_hex(), hex.clone());
@@ -245,7 +240,6 @@ mod tests {
     fn hex_spellings_rejected() {
         let good = to_hex(&blake3(b"x"));
         assert!(is_hex(&good));
-        assert!(is_sha256_hex(&good));
         assert!(parse_hex(&good).is_ok());
         assert!(parse_hex(&good.to_uppercase()).is_err());
         assert!(!is_hex(&good.to_uppercase()));

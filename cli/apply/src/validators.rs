@@ -1,4 +1,6 @@
-use super::envelope::{is_sha256_hex, sha256_hex, FileOperation};
+use dx_digest::{is_hex, sha256_hex};
+
+use super::envelope::FileOperation;
 
 pub const MAX_OPERATION_BYTES: usize = 1024 * 1024;
 
@@ -75,7 +77,7 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
             path: op.path.clone(),
         }),
         (Some(expected), Some(bytes)) => {
-            debug_assert!(is_sha256_hex(expected));
+            debug_assert!(is_hex(expected));
             if sha256_hex(bytes) == *expected {
                 Ok(())
             } else {

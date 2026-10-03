@@ -49,7 +49,7 @@ pub fn parse_envelope(json: &str) -> Result<Envelope, EnvelopeError> {
             return Err(EnvelopeError::EmptyPath);
         }
         if let Some(digest) = &op.original_sha256 {
-            if !is_sha256_hex(digest) {
+            if !dx_digest::is_hex(digest) {
                 return Err(EnvelopeError::InvalidDigest {
                     path: op.path.clone(),
                 });
@@ -65,14 +65,6 @@ pub fn emit_envelope(envelope: &Envelope) -> Result<String, EnvelopeError> {
     // LCOV_EXCL_STOP - reason: end unreachable serialize, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 }
 
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    dx_digest::sha256_hex(bytes)
-}
-
-pub fn is_sha256_hex(text: &str) -> bool {
-    dx_digest::is_sha256_hex(text)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,7 +74,7 @@ mod tests {
             version: ENVELOPE_VERSION,
             operations: vec![FileOperation {
                 path: "a.txt".to_owned(),
-                original_sha256: Some(sha256_hex(b"old\n")),
+                original_sha256: Some(dx_digest::sha256_hex(b"old\n")),
                 content: "new\n".to_owned(),
             }],
         }
@@ -109,14 +101,6 @@ mod tests {
         let json = emit_envelope(&envelope)?;
         assert_eq!(parse_envelope(&json), Ok(envelope));
         Ok(())
-    }
-
-    #[test]
-    fn sha256_known_vector() {
-        assert_eq!(
-            sha256_hex(b"abc"),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
     }
 
     #[test]
@@ -161,7 +145,7 @@ mod tests {
 
     #[test]
     fn uppercase_digest_fails() {
-        let digest = sha256_hex(b"old\n").to_uppercase();
+        let digest = dx_digest::sha256_hex(b"old\n").to_uppercase();
         let json = format!(
             r#"{{"version":1,"operations":[{{"path":"a.txt","original_sha256":"{digest}","content":"x"}}]}}"#
         );

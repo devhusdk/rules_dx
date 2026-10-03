@@ -562,20 +562,12 @@ fn system_runner_preserves_exit_codes() {
 
 /// A host command that succeeds.
 fn success_command() -> Vec<String> {
-    if cfg!(windows) {
-        ["cmd.exe", "/c", "exit 0"].map(String::from).to_vec()
-    } else {
-        vec!["/bin/true".to_owned()]
-    }
+    script_command("exit 0")
 }
 
 /// A host command that fails.
 fn failure_command() -> Vec<String> {
-    if cfg!(windows) {
-        ["cmd.exe", "/c", "exit 1"].map(String::from).to_vec()
-    } else {
-        vec!["/bin/false".to_owned()]
-    }
+    script_command("exit 1")
 }
 
 /// A host command that prints one environment variable, failing when it is unset.
@@ -603,7 +595,7 @@ fn present_executable() -> String {
     if cfg!(windows) {
         dx_path::host::host_filename("cmd")
     } else {
-        "/usr/bin/true".to_owned()
+        "/bin/sh".to_owned()
     }
 }
 

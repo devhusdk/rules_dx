@@ -161,6 +161,39 @@ rust_test(
     ),
 )
 
+# keep
+rust_test(
+    name = "release_artifacts_verify",
+    size = "small",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":notice_demo_a.txt",
+        ":notice_demo_b.txt",
+        ":notice_demo_inventory.txt",
+        ":notice_demo_notice",
+        ":sbom_demo_provenance",
+        ":sbom_demo_spdx",
+        "//deploy/rules:release_demo_archive",
+    ],
+    env = {
+        "DX_NOTICE": "$(rootpath :notice_demo_notice)",
+        "DX_NOTICE_MANIFEST": "$(rootpath :notice_demo_inventory.txt)",
+        "DX_NOTICE_TEXT_A": "$(rootpath :notice_demo_a.txt)",
+        "DX_NOTICE_TEXT_B": "$(rootpath :notice_demo_b.txt)",
+        "DX_SBOM_ARTIFACT": "$(rootpath //deploy/rules:release_demo_archive)",
+        "DX_SBOM_PROVENANCE": "$(rootpath :sbom_demo_provenance)",
+        "DX_SBOM_SPDX": "$(rootpath :sbom_demo_spdx)",
+    },
+    deps = crate_deps(
+        ["tempfile"],
+        package_name = "deploy/dx_release_tools",
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
@@ -275,6 +308,7 @@ test_suite(
         ":matrix_unit",
         ":notice_demo_contains_words",
         ":notice_unit",
+        ":release_artifacts_verify",
         ":sbom_unit",
         ":signing_unit",
     ],

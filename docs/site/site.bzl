@@ -2,6 +2,9 @@
 
 MDBOOK_VERSION = "0.4.43"
 
+DOC_IR_SCHEMA_MAJOR = 1
+DOC_IR_SCHEMA_MINOR = 1
+
 def site_symbol_id(language, package, qualified):
     """Returns the stable symbol ID language:package:qualified."""
     return language + ":" + package + ":" + qualified
@@ -110,11 +113,12 @@ def docs_extract(name, language, package, srcs):
     if len(srcs) == 0:
         fail("docs_extract " + native.package_name() + ":" + name + ": need at least one src")
     shard = site_shard_name(name)
+    header = "schema_major: " + str(DOC_IR_SCHEMA_MAJOR) + "\\nschema_minor: " + str(DOC_IR_SCHEMA_MINOR) + "\\nlanguage: \"" + language + "\"\\npackage: \"" + package + "\"\\n"
     native.genrule(
         name = name + "_shard",
         srcs = srcs,
         outs = [shard],
-        cmd = "(printf 'schema_major: 1\\nschema_minor: 0\\nlanguage: \"" + language + "\"\\npackage: \"" + package + "\"\\n'; LC_ALL=C sort $(SRCS) | awk -F'|' '{printf \"symbols {\\n  id: \\\"" + language + ":" + package + ":%s\\\"\\n  doc_markdown: \\\"%s\\\"\\n}\\n\", $$1, $$2}')" + " > $@",
+        cmd = "(printf '" + header + "'; LC_ALL=C sort $(SRCS) | awk -F'|' '{printf \"symbols {\\n  id: \\\"" + language + ":" + package + ":%s\\\"\\n  doc_markdown: \\\"%s\\\"\\n}\\n\", $$1, $$2}')" + " > $@",
     )
     native.filegroup(
         name = name,

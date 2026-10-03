@@ -1,7 +1,7 @@
 """Unit plus execution tests for docs site execution."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":site.bzl", "MDBOOK_VERSION", "site_api_name", "site_api_path", "site_guide_step_error", "site_html_name", "site_index_name", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_shard_name", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
+load(":site.bzl", "DOC_IR_SCHEMA_MAJOR", "DOC_IR_SCHEMA_MINOR", "MDBOOK_VERSION", "site_api_name", "site_api_path", "site_guide_step_error", "site_html_name", "site_index_name", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_shard_name", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
 
 def site_unit_tests(name):
     starlark_test(
@@ -12,6 +12,11 @@ def site_unit_tests(name):
                 "pinned mdBook version stays explicit",
                 MDBOOK_VERSION,
                 "0.4.43",
+            ),
+            expect_equal(
+                "emitted shards carry the published schema version",
+                [str(DOC_IR_SCHEMA_MAJOR), str(DOC_IR_SCHEMA_MINOR)],
+                ["1", "1"],
             ),
             expect_equal(
                 "symbol IDs join language package and name",
@@ -145,7 +150,7 @@ def site_file_tests(name, shard, summary, api, records, html, index):
         name = name,
         mode = "execution",
         file_checks = {
-            shard: "language: \"python\"\npackage: \"demo\"",
+            shard: "schema_major: 1\nschema_minor: 1\nlanguage: \"python\"\npackage: \"demo\"",
             summary: "# Summary",
             api: "# API Reference",
             records: "\"title\"",

@@ -46,6 +46,18 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "site_shard_test",
+    size = "small",
+    srcs = ["site_shard_test.rs"],
+    data = ["//docs/site:demo_extract"],
+    deps = [
+        ":documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 rustfmt_test(
     name = "documentation_ir_fmt_test",
     size = "small",

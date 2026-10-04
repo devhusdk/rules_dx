@@ -1,0 +1,16 @@
+--- a/ruby/private/download.bzl
++++ b/ruby/private/download.bzl
+@@ -178,7 +178,12 @@
+         # Windows tarballs. Applies whether the platform was inferred from the
+         # host (single-platform mode) or set explicitly via the `platform` attr
+         # (multi-platform mode picking the Windows per-platform repo).
+-        _install_via_rubyinstaller(repository_ctx, version)
++        if repository_ctx.os.name.startswith("windows"):
++            _install_via_rubyinstaller(repository_ctx, version)
++        else:
++            repository_ctx.report_progress("Skipping RubyInstaller for a Windows target on a %s host." % repository_ctx.os.name)
++            for stub in ["ruby.exe", "ruby", "gem.cmd", "gem", "bundle.cmd", "bundle"]:
++                repository_ctx.file("dist/bin/" + stub, "")
+     elif repository_ctx.attr.portable_ruby:
+         _install_portable_ruby(
+             repository_ctx,

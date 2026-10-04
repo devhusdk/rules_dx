@@ -50,6 +50,7 @@ Patterns, paths, and multiple labels are usage errors.
 - Labels and patterns: `//...`, `//pkg:target`, `@repo//...`.
 - Files and dirs: workspace-relative paths resolved through `bazel query`
   to the owning targets.
+- Paths with control characters in a file or directory name are refused.
 - `--here` (`--cwd` alias): the current directory tree (`//path/...`,
   `//...` at the root). Never combines with explicit scopes. Accepted by
   `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,

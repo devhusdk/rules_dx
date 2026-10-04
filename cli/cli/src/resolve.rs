@@ -189,19 +189,29 @@ mod tests {
     fn control_chars_in_names_are_rejected() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-control-names-");
         let workspace = scratch.path().to_path_buf();
-        let dir = "app\x01";
-        let file = "app\x01/main.py";
-        std::fs::create_dir_all(workspace.join(dir)).expect("dir");
-        write(&workspace, file, "x = 1\n");
-        write(&workspace, "app\x01/BUILD.bazel", "");
         let query = NeverQuery;
-        assert!(matches!(
-            resolve_run(&strings(&[dir]), &workspace, &query).expect_err("dir"),
-            ResolveError::UnsupportedName { .. }
-        ));
-        assert!(matches!(
-            resolve_run(&strings(&[file]), &workspace, &query).expect_err("file"),
-            ResolveError::UnsupportedName { .. }
-        ));
+        for scope in ["app\x01", "app\x01/main.py"] {
+            assert_eq!(
+                resolve_run(&strings(&[scope]), &workspace, &query).expect_err("control"),
+                ResolveError::UnsupportedName {
+                    scope: scope.to_owned(),
+                },
+                "{scope:?}"
+            );
+            assert_eq!(
+                resolve(&strings(&[scope]), &workspace, &query).expect_err("control"),
+                ResolveError::UnsupportedName {
+                    scope: scope.to_owned(),
+                },
+                "{scope:?}"
+            );
+            assert_eq!(
+                resolve_for_test(&strings(&[scope]), &workspace, &query).expect_err("control"),
+                ResolveError::UnsupportedName {
+                    scope: scope.to_owned(),
+                },
+                "{scope:?}"
+            );
+        }
     }
 }

@@ -2987,9 +2987,10 @@ fn versions_pin(name: &str) -> String {
 #[test]
 fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
     let expected = format!(
-        "rust {} via rules_rust {} (MODULE.bazel)",
+        "rust {} via rules_rust {}; cc via llvm {} (MinGW by default, MSVC opt-in)",
         versions_pin("RUST_VERSION"),
-        versions_pin("RULES_RUST_VERSION")
+        versions_pin("RULES_RUST_VERSION"),
+        versions_pin("LLVM_VERSION")
     );
     let toolchain = dx_adopt::default_status_checks("0.0.0")
         .into_iter()

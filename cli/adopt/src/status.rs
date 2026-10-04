@@ -29,6 +29,14 @@ pub fn render_status_json(
     dx_fingerprint::to_json(&StatusPayload { checks })
 }
 
+const RUST_VERSION: &str = "1.98.0";
+const RULES_RUST_VERSION: &str = "0.74.0";
+const LLVM_VERSION: &str = "0.8.19";
+const LLVM_ABI: &str = "MinGW by default, MSVC opt-in";
+const PLATFORM_DETAIL: &str =
+    "linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, windows_arm64";
+const TOOLS_WITHOUT_WINDOWS_ARM64: &str = "gofumpt, staticcheck";
+
 pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
     let pin_status = if version_pin_matches_module(pinned, MODULE_VERSION) {
         "ok"
@@ -39,21 +47,24 @@ pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
         StatusCheck {
             name: "toolchain".to_owned(),
             status: "ok".to_owned(),
-            detail: "rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)".to_owned(),
+            detail: format!(
+                "rust {RUST_VERSION} via rules_rust {RULES_RUST_VERSION}; cc via llvm {LLVM_VERSION} ({LLVM_ABI})"
+            ),
             hint: "bazel build //...".to_owned(),
         },
         StatusCheck {
             name: "platform".to_owned(),
             status: "ok".to_owned(),
-            detail:
-                "linux_x86_64 + linux_arm64 glibc plus macos_arm64 plus windows_x86_64 qualified"
-                    .to_owned(),
+            detail: PLATFORM_DETAIL.to_owned(),
             hint: "out-of-v1 hosts stay unqualified".to_owned(),
         },
         StatusCheck {
             name: "tools".to_owned(),
             status: "ok".to_owned(),
-            detail: "bazel-resolved pinned tools (//quality/artifacts)".to_owned(),
+            detail: format!(
+                "bazel-resolved pinned tools (//quality/artifacts); {} have no windows_arm64 artifact",
+                TOOLS_WITHOUT_WINDOWS_ARM64
+            ),
             hint: "no ambient tools required".to_owned(),
         },
         StatusCheck {
@@ -83,7 +94,7 @@ mod tests {
             .find(|c| c.name == "toolchain")
             .expect("toolchain check");
         assert!(
-            toolchain.detail.contains("MODULE.bazel"),
+            toolchain.detail.contains("llvm 0.8.19"),
             "{}",
             toolchain.detail
         );
@@ -97,7 +108,7 @@ mod tests {
             tools.detail
         );
         let json = render_status_json(&checks).expect("status json");
-        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"linux_x86_64 + linux_arm64 glibc plus macos_arm64 plus windows_x86_64 qualified","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts)","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0"}]}"#);
+        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0; cc via llvm 0.8.19 (MinGW by default, MSVC opt-in)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, windows_arm64","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts); gofumpt, staticcheck have no windows_arm64 artifact","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0"}]}"#);
     }
 
     #[test]

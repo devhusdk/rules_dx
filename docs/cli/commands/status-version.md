@@ -23,10 +23,13 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 `dx status` prints one line per check:
 
 ```text
-toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
+toolchain: ok (rust 1.98.0 via rules_rust 0.74.0; cc via llvm 0.8.19 (MinGW by default, MSVC opt-in)) hint: bazel build //...
 ```
 
-The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
+The four checks are `toolchain`, `platform`, `tools`, and `pin`. `toolchain`
+names the pinned Rust and LLVM versions and the default Windows ABI.
+`platform` lists the supported platforms. `tools` names the pinned tool
+directory and any tool without an artifact for a platform. `pin`
 compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
 fails, and the hint is the fix, for example `dx version --pin <version>`.
 

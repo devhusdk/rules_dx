@@ -233,6 +233,58 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "yamlfmt": {
+        "upstream_version": "v0.21.0",
+        "release_page": "https://github.com/google/yamlfmt/releases/tag/v0.21.0",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/google/yamlfmt/blob/main/LICENSE",
+            },
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "yamlfmt_0.21.0_Linux_x86_64.tar.gz",
+                "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Linux_x86_64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "yamlfmt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "yamlfmt_0.21.0_Linux_arm64.tar.gz",
+                "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Linux_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "yamlfmt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "yamlfmt_0.21.0_Darwin_arm64.tar.gz",
+                "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Darwin_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "yamlfmt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "yamlfmt_0.21.0_Windows_x86_64.tar.gz",
+                "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_x86_64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "yamlfmt.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "yamlfmt_0.21.0_Windows_arm64.tar.gz",
+                "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "yamlfmt.exe",
+            },
+        },
+    },
     "taplo": {
         "upstream_version": "0.10.0",
         "release_page": "https://github.com/tamasfe/taplo/releases/tag/0.10.0",

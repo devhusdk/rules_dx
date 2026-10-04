@@ -50,6 +50,11 @@ load("//quality/artifacts:vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT
 load("//quality/artifacts:vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.windows_arm64.bzl", _vale_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.windows_x86_64.bzl", _vale_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.linux_arm64.bzl", _yamlfmt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.linux_x86_64.bzl", _yamlfmt_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.macos_arm64.bzl", _yamlfmt_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.windows_arm64.bzl", _yamlfmt_windows_arm64 = "ARTIFACT")
+load("//quality/artifacts:yamlfmt.windows_x86_64.bzl", _yamlfmt_windows_x86_64 = "ARTIFACT")
 
 _ARTIFACTS = [
     _biome_windows_arm64,
@@ -90,6 +95,11 @@ _ARTIFACTS = [
     _shfmt_linux_arm64,
     _shfmt_macos_arm64,
     _shfmt_windows_x86_64,
+    _yamlfmt_linux_x86_64,
+    _yamlfmt_linux_arm64,
+    _yamlfmt_macos_arm64,
+    _yamlfmt_windows_x86_64,
+    _yamlfmt_windows_arm64,
     _taplo_linux_x86_64,
     _taplo_linux_arm64,
     _taplo_macos_arm64,

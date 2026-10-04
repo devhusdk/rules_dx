@@ -52,6 +52,11 @@ DX_TOOL_REPOS = [
     "dx_vale_macos_arm64",
     "dx_vale_windows_arm64",
     "dx_vale_windows_x86_64",
+    "dx_yamlfmt_linux_arm64",
+    "dx_yamlfmt_linux_x86_64",
+    "dx_yamlfmt_macos_arm64",
+    "dx_yamlfmt_windows_arm64",
+    "dx_yamlfmt_windows_x86_64",
 
 ]
 

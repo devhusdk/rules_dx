@@ -1,0 +1,3 @@
+input {"DX_PLATFORMS": "[]"}
+exit 1
+says dx-ci: DX_PLATFORMS is an empty array.

@@ -1,0 +1,3 @@
+input {"DX_SCHEDULING_MODE": "sequential"}
+exit 1
+says dx-ci: DX_SCHEDULING_MODE='sequential' is not implemented.

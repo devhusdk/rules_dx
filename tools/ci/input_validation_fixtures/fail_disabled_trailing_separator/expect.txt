@@ -1,0 +1,3 @@
+input {"DX_DISABLED_CHECKS": "lint,"}
+exit 1
+says dx-ci: DX_DISABLED_CHECKS holds an empty check ID in 'lint,'.

@@ -1,0 +1,4 @@
+input {"NEEDS": {"validate": {"result": "success"}, "lint": {"result": "success"}, "typecheck": {"result": "success"}, "format": {"result": "success"}, "generate": {"result": "success"}, "security-audit": {"result": "success"}, "license-audit": {"result": "success"}, "test": {"result": "success"}, "build": {"result": "success"}, "coverage": {"result": "success"}}, "DISABLED": ""}
+exit 0
+says "aggregate": "dx-ci"
+says "disabled": []

@@ -13,22 +13,22 @@ on:
         default: ""
         type: string
       platforms:
-        description: 'JSON array of platform labels for every check (e.g. ["linux_x86_64"]). Empty runs Linux x86_64 only.'
+        description: 'JSON array of platform labels for every check (e.g. ["linux_x86_64"]). Omit it to run Linux x86_64 only; [] fails validation.'
         required: false
         default: ""
         type: string
       scheduling_mode:
-        description: "parallel (default) or sequential. Accepted and ignored for now; checks run in parallel until sequential qualifies."
+        description: "parallel. Only parallel is implemented; sequential fails validation instead of being ignored."
         required: false
         default: "parallel"
         type: string
       code_scanning_opt_in:
-        description: "Accepted and ignored. No SARIF upload step ships in this workflow."
+        description: "Must be false. No SARIF upload step ships in this workflow, so true fails validation instead of being ignored."
         required: false
         default: false
         type: boolean
       min_coverage:
-        description: "Required line-coverage percent for the coverage check (e.g. 80). Empty collects without enforcing a threshold."
+        description: "Required line-coverage percent for the coverage check (e.g. 80), a whole number from 0 to 100. Empty collects without enforcing a threshold."
         required: false
         default: ""
         type: string
@@ -53,8 +53,251 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  validate:
+    name: validate (inputs)
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Validate workflow inputs
+        env:
+          DX_PLATFORMS: ${{ inputs.platforms }}
+          DX_DISABLED_CHECKS: ${{ inputs.disabled_checks }}
+          DX_SCHEDULING_MODE: ${{ inputs.scheduling_mode }}
+          DX_CODE_SCANNING_OPT_IN: ${{ inputs.code_scanning_opt_in }}
+          DX_MIN_COVERAGE: ${{ inputs.min_coverage }}
+        run: |
+          python3 - <<'DX_INPUT_VALIDATION'
+          """Validates the consumer workflow inputs before any matrix job starts.
+
+          The consumer workflow passes each workflow_call input through one environment
+          variable and runs this file from standard input. A rejected input prints one
+          diagnostic naming the accepted values, and an accepted input is written to
+          GITHUB_OUTPUT so the matrix, runner, threshold and disabled-check wiring all
+          read one validated source.
+          """
+
+          import json
+          import os
+          import re
+          import sys
+
+          PLATFORMS_ENV = "DX_PLATFORMS"
+          DISABLED_ENV = "DX_DISABLED_CHECKS"
+          SCHEDULING_ENV = "DX_SCHEDULING_MODE"
+          SCANNING_ENV = "DX_CODE_SCANNING_OPT_IN"
+          MIN_COVERAGE_ENV = "DX_MIN_COVERAGE"
+          OUTPUT_ENV = "GITHUB_OUTPUT"
+
+          PLATFORMS = {
+              "linux_x86_64": "ubuntu-latest",
+              "linux_arm64": "ubuntu-24.04-arm",
+              "macos_arm64": "macos-14",
+              "windows_x86_64": "windows-latest",
+              "windows_arm64": "windows-11-arm",
+          }
+          DEFAULT_PLATFORMS = ["linux_x86_64"]
+          CHECKS = (
+              "lint",
+              "typecheck",
+              "format",
+              "generate",
+              "security-audit",
+              "license-audit",
+              "test",
+              "build",
+              "coverage",
+          )
+          SCHEDULING = "parallel"
+          WHOLE_PERCENT = re.compile(r"[0-9]+")
+
+
+          def fail(message):
+              """Reports one diagnostic and returns a failing exit status."""
+              print(f"dx-ci: {message}", file=sys.stderr)
+              return 1
+
+
+          def accepted(values):
+              """Returns the accepted values as one comma-separated list."""
+              return ", ".join(values)
+
+
+          def json_type(value):
+              """Returns the JSON type name of one parsed value."""
+              if value is None:
+                  return "null"
+              if isinstance(value, bool):
+                  return "boolean"
+              if isinstance(value, (int, float)):
+                  return "number"
+              if isinstance(value, str):
+                  return "string"
+              if isinstance(value, list):
+                  return "array"
+              return "object"
+
+
+          def validate_platforms(text):
+              """Returns the platform labels to run, or None after a diagnostic."""
+              if text == "":
+                  return DEFAULT_PLATFORMS
+              try:
+                  parsed = json.loads(text)
+              except ValueError as error:
+                  fail(f"{PLATFORMS_ENV} is not a JSON array: {error}. {platform_hint()}")
+                  return None
+              if not isinstance(parsed, list):
+                  fail(
+                      f"{PLATFORMS_ENV} is a JSON {json_type(parsed)}, not an array. {platform_hint()}"
+                  )
+                  return None
+              if parsed == []:
+                  fail(f"{PLATFORMS_ENV} is an empty array. {platform_hint()}")
+                  return None
+              for item in parsed:
+                  if not isinstance(item, str):
+                      fail(
+                          f"{PLATFORMS_ENV} holds a JSON {json_type(item)}, not a platform label "
+                          f"string. {platform_hint()}"
+                      )
+                      return None
+              for item in parsed:
+                  if item not in PLATFORMS:
+                      fail(
+                          f"{PLATFORMS_ENV} names unknown platform {item!r}. "
+                          f"Accepted: {accepted(PLATFORMS)}."
+                      )
+                      return None
+              seen = []
+              for item in parsed:
+                  if item in seen:
+                      fail(f"{PLATFORMS_ENV} lists {item!r} twice. List every platform once.")
+                      return None
+                  seen.append(item)
+              return parsed
+
+
+          def platform_hint():
+              """Returns the one sentence naming the accepted platforms and the default."""
+              return f"Accepted: {accepted(PLATFORMS)}. Omit it to run {DEFAULT_PLATFORMS[0]}."
+
+
+          def validate_disabled(text):
+              """Returns the normalized disabled check IDs, or None after a diagnostic."""
+              if text.strip() == "":
+                  return []
+              ids = []
+              for part in text.split(","):
+                  name = part.strip()
+                  if name == "":
+                      fail(
+                          f"{DISABLED_ENV} holds an empty check ID in {text!r}. "
+                          f"Accepted: {accepted(CHECKS)}."
+                      )
+                      return None
+                  if name not in CHECKS:
+                      fail(
+                          f"{DISABLED_ENV} names unknown check {name!r}. Accepted: {accepted(CHECKS)}."
+                      )
+                      return None
+                  if name in ids:
+                      fail(f"{DISABLED_ENV} lists {name!r} twice. List every check ID once.")
+                      return None
+                  ids.append(name)
+              return ids
+
+
+          def validate_scheduling(text):
+              """Returns the accepted scheduling mode, or None after a diagnostic."""
+              if text != SCHEDULING:
+                  fail(
+                      f"{SCHEDULING_ENV}={text!r} is not implemented. Checks always run in "
+                      f"parallel, so pass {SCHEDULING!r}."
+                  )
+                  return None
+              return text
+
+
+          def validate_scanning(text):
+              """Returns the accepted code scanning opt-in, or None after a diagnostic."""
+              if text == "false":
+                  return text
+              if text == "true":
+                  fail(
+                      f"{SCANNING_ENV}=true is not implemented. No SARIF upload step ships "
+                      "in this workflow, so leave it false."
+                  )
+                  return None
+              fail(f"{SCANNING_ENV}={text!r} is not true or false.")
+              return None
+
+
+          def validate_min_coverage(text):
+              """Returns the coverage threshold to enforce, or None after a diagnostic."""
+              if text == "":
+                  return ""
+              if WHOLE_PERCENT.fullmatch(text) is None or not 0 <= int(text) <= 100:
+                  fail(
+                      f"{MIN_COVERAGE_ENV}={text!r} is not a whole percent from 0 to 100. "
+                      "Write a whole number such as 80, or omit it to collect without a "
+                      "threshold."
+                  )
+                  return None
+              return text
+
+
+          def compact(value):
+              """Returns value as JSON without spaces."""
+              return json.dumps(value, separators=(",", ":"))
+
+
+          def write_outputs(outputs):
+              """Appends the validated values to the job output file."""
+              path = os.environ.get(OUTPUT_ENV, "")
+              if path == "":
+                  fail(f"{OUTPUT_ENV} is unset, so the validated inputs cannot reach the jobs.")
+                  return False
+              with open(path, "a", encoding="utf-8") as handle:
+                  for key in sorted(outputs):
+                      print(f"{key}={outputs[key]}", file=handle)
+              return True
+
+
+          def main():
+              """Validates every input, then writes the validated values as job outputs."""
+              accepted_values = {
+                  PLATFORMS_ENV: validate_platforms(os.environ.get(PLATFORMS_ENV, "")),
+                  DISABLED_ENV: validate_disabled(os.environ.get(DISABLED_ENV, "")),
+                  SCHEDULING_ENV: validate_scheduling(os.environ.get(SCHEDULING_ENV, SCHEDULING)),
+                  SCANNING_ENV: validate_scanning(os.environ.get(SCANNING_ENV, "false")),
+                  MIN_COVERAGE_ENV: validate_min_coverage(os.environ.get(MIN_COVERAGE_ENV, "")),
+              }
+              if any(value is None for value in accepted_values.values()):
+                  return 1
+              outputs = {
+                  "platforms": compact(accepted_values[PLATFORMS_ENV]),
+                  "runners": compact(PLATFORMS),
+                  "disabled": ",".join(accepted_values[DISABLED_ENV]),
+                  "min_coverage": accepted_values[MIN_COVERAGE_ENV],
+              }
+              if not write_outputs(outputs):
+                  return 1
+              print(f"{PLATFORMS_ENV} {outputs['platforms']}")
+              print(f"{DISABLED_ENV} {outputs['disabled'] or '(none)'}")
+              print(f"{SCHEDULING_ENV} {accepted_values[SCHEDULING_ENV]}")
+              print(f"{SCANNING_ENV} {accepted_values[SCANNING_ENV]}")
+              print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
+              return 0
+
+
+          if __name__ == "__main__":
+              sys.exit(main())
+          DX_INPUT_VALIDATION
   lint:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',lint,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',lint,') }}
     timeout-minutes: 30
     defaults:
       run:
@@ -62,8 +305,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -233,7 +476,8 @@ jobs:
           DX_MODULE_PIN
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- lint --check //... -- $BAZEL_CONFIG $BB_ARGS
   typecheck:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',typecheck,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',typecheck,') }}
     timeout-minutes: 30
     defaults:
       run:
@@ -241,8 +485,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -412,7 +656,8 @@ jobs:
           DX_MODULE_PIN
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- typecheck --check //... -- $BAZEL_CONFIG $BB_ARGS
   format:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',format,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',format,') }}
     timeout-minutes: 30
     defaults:
       run:
@@ -420,8 +665,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -591,7 +836,8 @@ jobs:
           DX_MODULE_PIN
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- format --check //... -- $BAZEL_CONFIG $BB_ARGS
   generate:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',generate,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',generate,') }}
     timeout-minutes: 30
     defaults:
       run:
@@ -599,8 +845,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -770,7 +1016,8 @@ jobs:
           DX_MODULE_PIN
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- generate --check //... -- $BAZEL_CONFIG $BB_ARGS
   security-audit:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',security-audit,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}
     timeout-minutes: 30
     defaults:
       run:
@@ -778,8 +1025,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -1004,7 +1251,8 @@ jobs:
       # Audit backends run no Bazel and take no passthrough flags.
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- security //...
   license-audit:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',license-audit,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',license-audit,') }}
     timeout-minutes: 30
     defaults:
       run:
@@ -1012,8 +1260,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -1184,7 +1432,8 @@ jobs:
       # Audit backends run no Bazel and take no passthrough flags.
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- license //...
   test:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',test,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',test,') }}
     timeout-minutes: 60
     defaults:
       run:
@@ -1192,8 +1441,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -1363,7 +1612,8 @@ jobs:
           DX_MODULE_PIN
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- test //... -- $BAZEL_CONFIG $BB_ARGS
   build:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',build,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',build,') }}
     timeout-minutes: 60
     defaults:
       run:
@@ -1371,8 +1621,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -1542,7 +1792,8 @@ jobs:
           DX_MODULE_PIN
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- build //... -- $BAZEL_CONFIG $BB_ARGS
   coverage:
-    if: ${{ !contains(format(',{0},', inputs.disabled_checks), ',coverage,') }}
+    needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
     timeout-minutes: 60
     defaults:
       run:
@@ -1550,8 +1801,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON(inputs.platforms != '' && inputs.platforms || '["linux_x86_64"]') }}
-    runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
       checks: write
@@ -1722,17 +1973,14 @@ jobs:
           DX_MODULE_PIN
       - name: Run coverage with optional threshold
         env:
-          DX_MIN_COVERAGE: ${{ inputs.min_coverage }}
+          DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
         run: |
           set +e
           extra=()
+          # Bash array keeps an empty threshold at zero words.
           if [ -n "$DX_MIN_COVERAGE" ]; then
-            case "$DX_MIN_COVERAGE" in
-              ''|*[!0-9.]*|*.*.*|.*|*.) echo "dx-ci: invalid min_coverage '$DX_MIN_COVERAGE': want e.g. 80 or 80.5" >&2; exit 1 ;;
-            esac
             extra=(--min-coverage "$DX_MIN_COVERAGE")
           fi
-          # Bash array keeps an empty threshold at zero words.
           bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- coverage "${extra[@]}" //... -- $BAZEL_CONFIG $BB_ARGS 2>&1 | tee ${RUNNER_TEMP:-/tmp}/dx_coverage.log
           rc=${PIPESTATUS[0]}
           echo "$rc" > ${RUNNER_TEMP:-/tmp}/dx_coverage.rc
@@ -1791,7 +2039,7 @@ jobs:
 
   dx-ci:
     name: dx-ci (aggregate)
-    needs: [lint, typecheck, format, generate, security-audit, license-audit, test, build, coverage]
+    needs: [validate, lint, typecheck, format, generate, security-audit, license-audit, test, build, coverage]
     if: ${{ always() }}
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -1807,16 +2055,28 @@ jobs:
           python3 - <<'EOF'
           import json, os, sys
           needs = json.loads(os.environ["NEEDS"])
+          disabled = {name for name in os.environ["DISABLED"].split(",") if name}
           results = {name: info.get("result") for name, info in needs.items()}
-          print(json.dumps({"aggregate": "dx-ci", "needs": results}))
-          # Skipped needs stay green; everything else fails the aggregate.
+          print(json.dumps({"aggregate": "dx-ci", "disabled": sorted(disabled), "needs": results}))
+          if results.get("validate") != "success":
+              print("dx-ci: input validation failed; see the validate job")
+              sys.exit(1)
+          checks = {name: result for name, result in results.items() if name != "validate"}
           bad = sorted(
-              name for name, result in results.items()
+              name for name, result in checks.items()
               if result not in ("success", "skipped")
           )
+          lost = sorted(
+              name for name, result in checks.items()
+              if result == "skipped" and name not in disabled
+          )
+          if lost:
+              print(f"dx-ci: skipped without disabled_checks: {', '.join(lost)}")
           if bad:
               print(f"dx-ci: failing checks: {', '.join(bad)}")
+          if bad or lost:
               sys.exit(1)
           EOF
         env:
           NEEDS: ${{ toJSON(needs) }}
+          DISABLED: ${{ needs.validate.outputs.disabled }}

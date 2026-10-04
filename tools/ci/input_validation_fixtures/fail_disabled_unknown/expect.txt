@@ -1,0 +1,3 @@
+input {"DX_DISABLED_CHECKS": "lint,lintc"}
+exit 1
+says dx-ci: DX_DISABLED_CHECKS names unknown check 'lintc'.

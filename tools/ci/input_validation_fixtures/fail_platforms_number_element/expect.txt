@@ -1,0 +1,3 @@
+input {"DX_PLATFORMS": "[80]"}
+exit 1
+says dx-ci: DX_PLATFORMS holds a JSON number, not a platform label string.

@@ -56,18 +56,36 @@ every platform in `platforms`:
 `--check` applies to the four quality checks. `dx security`, `dx license`,
 `dx test`, `dx build`, and `dx coverage` reject it.
 
+A `validate` job runs first. It reads every input, rejects a bad one with the
+accepted values, and starts no check.
+
 Inputs:
 
 - `rules_dx_version`: the version your `rules_dx` declaration carries. The
   pin check compares it with `MODULE.bazel`.
-- `disabled_checks`: job IDs above to skip. Empty runs all nine.
+- `disabled_checks`: job IDs above to skip, comma-separated. Empty runs all
+  nine. Surrounding spaces are ignored. An unknown ID, a repeated ID and an
+  empty ID fail.
 - `platforms`: JSON array of platform labels, such as `["linux_x86_64"]`.
-  Defaults to `["linux_x86_64"]`. Valid labels: `linux_x86_64`, `linux_arm64`,
-  `macos_arm64`, `windows_x86_64`, `windows_arm64`. Any other label fails the
-  workflow.
-- `scheduling_mode`: `parallel` or `sequential`. Checks run in parallel either way.
-- `code_scanning_opt_in`: accepted and ignored.
-- `min_coverage`: fails below that percent. Coverage comes from `dx coverage`.
+  Omit it to run `["linux_x86_64"]`. Valid labels: `linux_x86_64`, `linux_arm64`,
+  `macos_arm64`, `windows_x86_64`, `windows_arm64`. Malformed JSON, a JSON value
+  that is not an array, an empty array, a repeated label, an unknown label and a
+  label carrying spaces all fail.
+- `scheduling_mode`: `parallel` only. `sequential` fails; checks always run in
+  parallel.
+- `code_scanning_opt_in`: `false` only. `true` fails; no SARIF upload step ships
+  in this workflow.
+- `min_coverage`: fails below that percent, a whole number from 0 to 100 such as
+  `80`. Empty collects without enforcing a threshold. `80%`, `80.5`, `-1`, `101`,
+  `eighty` and a leading space fail. Coverage comes from `dx coverage`.
+
+A rejected input fails in the `validate` job before any check starts. The nine
+checks need it, so none of them run. `dx-ci (aggregate)` names the validation
+failure and fails with them.
+
+`dx-ci (aggregate)` fails when a check fails, and also when a check is skipped
+without being listed in `disabled_checks`. A check you disabled stays
+distinguishable from a check that never ran.
 
 The workflow needs `contents: read` plus `checks: write` for check runs.
 `coverage` also needs `pull-requests: write` for its pull-request comment.

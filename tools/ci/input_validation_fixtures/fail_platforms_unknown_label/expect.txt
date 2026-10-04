@@ -1,0 +1,3 @@
+input {"DX_PLATFORMS": "[\"linux_ppc64le\"]"}
+exit 1
+says dx-ci: DX_PLATFORMS names unknown platform 'linux_ppc64le'.

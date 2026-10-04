@@ -389,6 +389,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "keep_sorted": {
+        "upstream_version": "v0.10.0",
+        "release_page": "https://github.com/google/keep-sorted/releases/tag/v0.10.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/google/keep-sorted/blob/main/LICENSE",
+            },
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "keep-sorted_linux_amd64",
+                "url": "https://github.com/google/keep-sorted/releases/download/v0.10.0/keep-sorted_linux_amd64",
+                "kind": "raw",
+                "executable": "keep-sorted_linux_amd64",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "keep-sorted_linux_arm64",
+                "url": "https://github.com/google/keep-sorted/releases/download/v0.10.0/keep-sorted_linux_arm64",
+                "kind": "raw",
+                "executable": "keep-sorted_linux_arm64",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "keep-sorted_darwin_arm64",
+                "url": "https://github.com/google/keep-sorted/releases/download/v0.10.0/keep-sorted_darwin_arm64",
+                "kind": "raw",
+                "executable": "keep-sorted_darwin_arm64",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "keep-sorted_windows_amd64.exe",
+                "url": "https://github.com/google/keep-sorted/releases/download/v0.10.0/keep-sorted_windows_amd64.exe",
+                "kind": "raw",
+                "executable": "keep-sorted_windows_amd64.exe",
+            },
+        },
+    },
     "taplo": {
         "upstream_version": "0.10.0",
         "release_page": "https://github.com/tamasfe/taplo/releases/tag/0.10.0",

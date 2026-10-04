@@ -381,7 +381,7 @@ def metadata_tests(name):
     )
 
     derived_repos = sorted(["dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"]) for artifact in TOOL_ARTIFACTS])
-    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 65))
+    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 69))
     checks.append(expect_equal("dx tool repos match metadata", DX_TOOL_REPOS, derived_repos))
     checks.append(expect_equal("dx tool repos sorted", DX_TOOL_REPOS, sorted(DX_TOOL_REPOS)))
     checks.append(expect_equal("dx tool hub", DX_TOOL_HUB, "dx_tools"))

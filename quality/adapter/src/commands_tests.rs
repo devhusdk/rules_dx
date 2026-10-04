@@ -935,7 +935,11 @@ fn file_family_lint_checks_are_check_only() {
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
         argv_strings(&keep_sorted_check(Path::new(BIN), &[txt])),
-        vec![BIN, "/scratch/notes.txt"]
+        vec![BIN, "--mode", "lint", "/scratch/notes.txt"]
+    );
+    assert_eq!(
+        argv_strings(&keep_sorted_fix(Path::new(BIN), &[txt])),
+        vec![BIN, "--mode", "fix", "/scratch/notes.txt"]
     );
 }
 

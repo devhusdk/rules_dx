@@ -102,6 +102,8 @@ const TERRAFORM_CHECK_ARGS: &[&str] = &["fmt", "-check"];
 const TERRAFORM_FIX_ARGS: &[&str] = &["fmt"];
 const ZIG_FORMAT_CHECK_ARGS: &[&str] = &["fmt", "--check"];
 const ZIG_FORMAT_FIX_ARGS: &[&str] = &["fmt"];
+const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
+const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
@@ -874,7 +876,11 @@ pub fn shellcheck_check(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, EMPTY_ARGS, files, "")
+    fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
+}
+
+pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, KEEP_SORTED_FIX_ARGS, files, "")
 }
 
 #[path = "commands_tests.rs"]

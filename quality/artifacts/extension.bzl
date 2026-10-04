@@ -29,6 +29,10 @@ load("//quality/artifacts:jsonnetfmt.linux_x86_64.bzl", _jsonnetfmt_linux_x86_64
 load("//quality/artifacts:jsonnetfmt.macos_arm64.bzl", _jsonnetfmt_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:jsonnetfmt.windows_arm64.bzl", _jsonnetfmt_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:jsonnetfmt.windows_x86_64.bzl", _jsonnetfmt_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:keep_sorted.linux_arm64.bzl", _keep_sorted_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:keep_sorted.linux_x86_64.bzl", _keep_sorted_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:keep_sorted.macos_arm64.bzl", _keep_sorted_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:keep_sorted.windows_x86_64.bzl", _keep_sorted_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
@@ -120,6 +124,10 @@ _ARTIFACTS = [
     _jsonnetfmt_macos_arm64,
     _jsonnetfmt_windows_x86_64,
     _jsonnetfmt_windows_arm64,
+    _keep_sorted_linux_x86_64,
+    _keep_sorted_linux_arm64,
+    _keep_sorted_macos_arm64,
+    _keep_sorted_windows_x86_64,
     _taplo_linux_x86_64,
     _taplo_linux_arm64,
     _taplo_macos_arm64,

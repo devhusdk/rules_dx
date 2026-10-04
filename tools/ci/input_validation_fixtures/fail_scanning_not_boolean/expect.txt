@@ -1,0 +1,3 @@
+input {"DX_CODE_SCANNING_OPT_IN": "yes"}
+exit 1
+says dx-ci: DX_CODE_SCANNING_OPT_IN='yes' is not true or false.

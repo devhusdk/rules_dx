@@ -1,0 +1,3 @@
+input {"DX_DISABLED_CHECKS": "lint,coverage,lint"}
+exit 1
+says dx-ci: DX_DISABLED_CHECKS lists 'lint' twice.

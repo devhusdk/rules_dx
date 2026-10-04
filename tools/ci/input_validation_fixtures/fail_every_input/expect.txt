@@ -1,0 +1,7 @@
+input {"DX_CODE_SCANNING_OPT_IN": "true", "DX_DISABLED_CHECKS": "lint,lint", "DX_MIN_COVERAGE": "80.5", "DX_PLATFORMS": "[\"plan9_x86_64\"]", "DX_SCHEDULING_MODE": "sequential"}
+exit 1
+says dx-ci: DX_PLATFORMS names unknown platform 'plan9_x86_64'.
+says dx-ci: DX_DISABLED_CHECKS lists 'lint' twice.
+says dx-ci: DX_SCHEDULING_MODE='sequential' is not implemented.
+says dx-ci: DX_CODE_SCANNING_OPT_IN=true is not implemented.
+says dx-ci: DX_MIN_COVERAGE='80.5' is not a whole percent from 0 to 100.

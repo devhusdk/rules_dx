@@ -9,6 +9,40 @@ filegroup(
     srcs = glob(["module_pin_fixtures/**"]),
 )
 
+filegroup(
+    name = "aggregate_fixtures",
+    srcs = glob(["aggregate_fixtures/**"]),
+)
+
+filegroup(
+    name = "input_validation_fixtures",
+    srcs = glob(["input_validation_fixtures/**"]),
+)
+
+# keep
+python_library(
+    name = "input_validation",
+    srcs = ["input_validation.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_test(
+    name = "input_validation_test",
+    size = "small",
+    srcs = ["input_validation_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        "input_validation.py",
+        ":aggregate_fixtures",
+        ":input_validation_fixtures",
+        "//.github:workflows/reusable-consumer.yml",
+    ],
+    dep_group = "hello",
+    deps = ["@pypi//pytest"],
+)
+
 # keep
 python_library(
     name = "module_pin",
@@ -83,6 +117,19 @@ rust_test(
         "//modules:versions.bzl",
     ],
     deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "consumer_inputs_test",
+    size = "small",
+    srcs = ["consumer_inputs_test.rs"],
+    data = ["//.github:workflows/reusable-consumer.yml"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
 )
 
 # keep

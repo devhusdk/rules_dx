@@ -1,0 +1,7 @@
+input {"DX_PLATFORMS": "[\"linux_x86_64\",\"linux_arm64\",\"macos_arm64\",\"windows_x86_64\",\"windows_arm64\"]"}
+exit 0
+says DX_PLATFORMS ["linux_x86_64","linux_arm64","macos_arm64","windows_x86_64","windows_arm64"]
+out disabled ""
+out min_coverage ""
+out platforms ["linux_x86_64","linux_arm64","macos_arm64","windows_x86_64","windows_arm64"]
+out runners {"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-14","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}

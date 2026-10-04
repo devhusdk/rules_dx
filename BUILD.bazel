@@ -288,6 +288,7 @@ real_source_target(
         "ruff.toml",
         "rustfmt.toml",
         "licenses.toml",
+        "security.toml",
     ],
 )
 

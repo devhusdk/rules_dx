@@ -115,7 +115,6 @@ pub fn apply_exceptions(
             !active.iter().any(|exception| {
                 exception.advisory == finding.advisory
                     && exception.package == finding.package
-                    && exception.set == finding.set
                     && version_affected(&finding.set, &exception.versions, &finding.version)
                     && check_expiry(&exception.expires, today).is_ok()
             })

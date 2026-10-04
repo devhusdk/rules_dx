@@ -1,0 +1,25 @@
+schema_version = 1
+
+[[exception]]
+advisory = "GHSA-vfj7-8cjw-p6xm"
+package = "braces"
+set = "npm"
+versions = "<=3.0.3"
+reason = "No fixed release exists. braces 3.0.3 is the last version and micromatch requires it. Only jest dev tooling reaches it, on repo-controlled globs."
+expires = "2027-03-01"
+
+[[exception]]
+advisory = "GHSA-vfj7-8cjw-p6xm"
+package = "braces"
+set = "npm-adopt"
+versions = "<=3.0.3"
+reason = "No fixed release exists. braces 3.0.3 is the last version and micromatch requires it. Only jest dev tooling reaches it, on repo-controlled globs."
+expires = "2027-03-01"
+
+[[exception]]
+advisory = "GHSA-vfj7-8cjw-p6xm"
+package = "braces"
+set = "npm-adopt-polyglot"
+versions = "<=3.0.3"
+reason = "No fixed release exists. braces 3.0.3 is the last version and micromatch requires it. Only jest dev tooling reaches it, on repo-controlled globs."
+expires = "2027-03-01"

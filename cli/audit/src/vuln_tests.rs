@@ -444,6 +444,38 @@ fn npm_exceptions_narrow_with_npm_semantics() {
 }
 
 #[test]
+fn scoped_set_exceptions_exempt_a_base_ecosystem_finding() {
+    let packages = vec![LockedPackage {
+        name: "braces".to_owned(),
+        version: "3.0.3".to_owned(),
+        set: "npm".to_owned(),
+        is_git: false,
+        is_private: false,
+    }];
+    let advisories = vec![Advisory {
+        id: "GHSA-npm-scoped".to_owned(),
+        package: "braces".to_owned(),
+        versions: "<=3.0.3".to_owned(),
+        severity: "high".to_owned(),
+        fixed: vec![],
+        set: "npm".to_owned(),
+    }];
+    let (findings, _) = match_packages(&packages, &advisories);
+    assert_eq!(findings.len(), 1);
+    let scoped = RiskException {
+        advisory: "GHSA-npm-scoped".to_owned(),
+        package: "braces".to_owned(),
+        set: "npm-adopt".to_owned(),
+        versions: "<=3.0.3".to_owned(),
+        reason: "No fixed release exists.".to_owned(),
+        expires: "2027-03-01".to_owned(),
+    };
+    let (unexempted, problems) = apply_exceptions(&findings, &[scoped], "2026-09-18");
+    assert!(problems.is_empty());
+    assert!(unexempted.is_empty());
+}
+
+#[test]
 fn go_exceptions_narrow_with_go_semantics() {
     let packages = vec![LockedPackage {
         name: "example.com/mod".to_owned(),

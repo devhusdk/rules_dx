@@ -24,6 +24,13 @@ load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.windows_arm64.bzl", _ruff_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.windows_x86_64.bzl", _ruff_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:shellcheck.linux_arm64.bzl", _shellcheck_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:shellcheck.linux_x86_64.bzl", _shellcheck_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:shellcheck.macos_arm64.bzl", _shellcheck_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.linux_arm64.bzl", _shfmt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.linux_x86_64.bzl", _shfmt_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.macos_arm64.bzl", _shfmt_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.windows_x86_64.bzl", _shfmt_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:staticcheck.linux_arm64.bzl", _staticcheck_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:staticcheck.linux_x86_64.bzl", _staticcheck_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:staticcheck.macos_arm64.bzl", _staticcheck_macos_arm64 = "ARTIFACT")
@@ -76,6 +83,13 @@ _ARTIFACTS = [
     _ruff_linux_arm64,
     _ruff_macos_arm64,
     _ruff_windows_x86_64,
+    _shellcheck_linux_x86_64,
+    _shellcheck_linux_arm64,
+    _shellcheck_macos_arm64,
+    _shfmt_linux_x86_64,
+    _shfmt_linux_arm64,
+    _shfmt_macos_arm64,
+    _shfmt_windows_x86_64,
     _taplo_linux_x86_64,
     _taplo_linux_arm64,
     _taplo_macos_arm64,
@@ -235,12 +249,11 @@ _HUB_ALIAS = """alias(
             ":linux_x86_64": "@{repo_linux_x86_64}//:tool",
             ":linux_arm64": "@{repo_linux_arm64}//:tool",
             ":macos_arm64": "@{repo_macos_arm64}//:tool",
-            ":windows_x86_64": "@{repo_windows_x86_64}//:tool",
-{repo_windows_arm64}        }},
+{repo_windows_x86_64}{repo_windows_arm64}        }},
         no_match_error = (
             "rules_dx: no {tool} artifact for this execution platform; " +
             "want one of linux_x86_64, linux_arm64, macos_arm64, " +
-            "windows_x86_64, windows_arm64."
+            "windows_x86_64, windows_arm64 that the tool publishes."
         ),
     ),
     visibility = ["//visibility:public"],
@@ -264,7 +277,11 @@ def _hub_repo_impl(ctx):
             repo_linux_x86_64 = repos["linux_x86_64"],
             repo_linux_arm64 = repos["linux_arm64"],
             repo_macos_arm64 = repos["macos_arm64"],
-            repo_windows_x86_64 = repos["windows_x86_64"],
+            repo_windows_x86_64 = (
+                '":windows_x86_64": "@%s//:tool",' % repos["windows_x86_64"]
+                if "windows_x86_64" in repos
+                else ""
+            ),
             repo_windows_arm64 = (
                 '":windows_arm64": "@%s//:tool",' % repos["windows_arm64"]
                 if "windows_arm64" in repos

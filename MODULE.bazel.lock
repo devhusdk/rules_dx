@@ -419,7 +419,7 @@
   "moduleExtensions": {
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "7JDBVuvU3ueH1Zi9X2IltXuZq3hmIFWgEUqz1PenbYM=",
+        "bzlTransitiveDigest": "N/q8gP+zacbGm7k+MM6TYauSJEdTSmly6CTpVT92eC8=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -766,6 +766,83 @@
               "executable_sha256": "bf56979a91062b3d1862874d65cfc17157f0c55d89a9a6615ebbfac615a4a270"
             }
           },
+          "dx_shellcheck_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz",
+              "sha256": "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6",
+              "asset": "shellcheck-v0.11.0.linux.x86_64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "shellcheck-v0.11.0/shellcheck",
+              "executable_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b"
+            }
+          },
+          "dx_shellcheck_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.gz",
+              "sha256": "68a8133197a50beb8803f8d42f9908d1af1c5540d4bb05fdfca8c1fa47decefc",
+              "asset": "shellcheck-v0.11.0.linux.aarch64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "shellcheck-v0.11.0/shellcheck",
+              "executable_sha256": "127f13925eadd52c341bca0ebaf9ab0dbd78c6468f30a8f262a528bf8de47546"
+            }
+          },
+          "dx_shellcheck_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+              "sha256": "339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f",
+              "asset": "shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "shellcheck-v0.11.0/shellcheck",
+              "executable_sha256": "61c17246d69f012cd458ae82f244c46023dac75d1b69733ca1cc7d28fb270fd7"
+            }
+          },
+          "dx_shfmt_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64",
+              "sha256": "76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf",
+              "asset": "shfmt_v3.14.1_linux_amd64",
+              "archive_format": "none",
+              "executable": "shfmt_v3.14.1_linux_amd64",
+              "executable_sha256": "76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf"
+            }
+          },
+          "dx_shfmt_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_arm64",
+              "sha256": "5f2db09dae91fca848f7adbdd014632e921a383863a2ad7e0450ad3aba0c6489",
+              "asset": "shfmt_v3.14.1_linux_arm64",
+              "archive_format": "none",
+              "executable": "shfmt_v3.14.1_linux_arm64",
+              "executable_sha256": "5f2db09dae91fca848f7adbdd014632e921a383863a2ad7e0450ad3aba0c6489"
+            }
+          },
+          "dx_shfmt_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_darwin_arm64",
+              "sha256": "b7c872db63553ccffc7253aba3ed7d4885a27d83f1ba567b1138c6315a5847e5",
+              "asset": "shfmt_v3.14.1_darwin_arm64",
+              "archive_format": "none",
+              "executable": "shfmt_v3.14.1_darwin_arm64",
+              "executable_sha256": "b7c872db63553ccffc7253aba3ed7d4885a27d83f1ba567b1138c6315a5847e5"
+            }
+          },
+          "dx_shfmt_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_windows_amd64.exe",
+              "sha256": "13629ce28442ca80b6b5a819f7574ab39e1c28c6e26734ca816c9714e04851df",
+              "asset": "shfmt_v3.14.1_windows_amd64.exe",
+              "archive_format": "none",
+              "executable": "shfmt_v3.14.1_windows_amd64.exe",
+              "executable_sha256": "13629ce28442ca80b6b5a819f7574ab39e1c28c6e26734ca816c9714e04851df"
+            }
+          },
           "dx_taplo_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -935,6 +1012,17 @@
                   "dx_ruff_macos_arm64",
                   "dx_ruff_windows_x86_64",
                   "dx_ruff_windows_arm64"
+                ],
+                "shellcheck": [
+                  "dx_shellcheck_linux_x86_64",
+                  "dx_shellcheck_linux_arm64",
+                  "dx_shellcheck_macos_arm64"
+                ],
+                "shfmt": [
+                  "dx_shfmt_linux_x86_64",
+                  "dx_shfmt_linux_arm64",
+                  "dx_shfmt_macos_arm64",
+                  "dx_shfmt_windows_x86_64"
                 ],
                 "staticcheck": [
                   "dx_staticcheck_linux_x86_64",

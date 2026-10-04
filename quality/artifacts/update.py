@@ -154,6 +154,85 @@ TOOLS: dict[str, dict[str, Any]] = {
         "platforms": {
         },
     },
+    "shellcheck": {
+        "upstream_version": "v0.11.0",
+        "release_page": "https://github.com/koalaman/shellcheck/releases/tag/v0.11.0",
+        "licenses": [
+            {
+                "name": "GPL-3.0",
+                "source": "https://github.com/koalaman/shellcheck/blob/v0.11.0/LICENSE",
+            },
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "shellcheck-v0.11.0.linux.x86_64.tar.gz",
+                "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "shellcheck-v0.11.0/shellcheck",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "shellcheck-v0.11.0.linux.aarch64.tar.gz",
+                "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "shellcheck-v0.11.0/shellcheck",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+                "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "shellcheck-v0.11.0/shellcheck",
+            },        },
+    },
+    "shfmt": {
+        "upstream_version": "v3.14.1",
+        "release_page": "https://github.com/mvdan/sh/releases/tag/v3.14.1",
+        "licenses": [
+            {
+                "name": "BSD-3-Clause",
+                "source": "https://github.com/mvdan/sh/blob/v3.14.1/LICENSE",
+            },
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "shfmt_v3.14.1_linux_amd64",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64",
+                "kind": "raw",
+                "executable": "shfmt_v3.14.1_linux_amd64",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "shfmt_v3.14.1_linux_arm64",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_arm64",
+                "kind": "raw",
+                "executable": "shfmt_v3.14.1_linux_arm64",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "shfmt_v3.14.1_darwin_arm64",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_darwin_arm64",
+                "kind": "raw",
+                "executable": "shfmt_v3.14.1_darwin_arm64",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "shfmt_v3.14.1_windows_amd64.exe",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_windows_amd64.exe",
+                "kind": "raw",
+                "executable": "shfmt_v3.14.1_windows_amd64.exe",
+            },
+        },
+    },
     "taplo": {
         "upstream_version": "0.10.0",
         "release_page": "https://github.com/tamasfe/taplo/releases/tag/0.10.0",

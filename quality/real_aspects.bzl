@@ -37,6 +37,8 @@ _REAL_TOOL_TABLE = {
     "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
+    "shellcheck": {"capabilities": ["lint"], "shard": "shell"},
+    "shfmt": {"capabilities": ["format"], "shard": "shell"},
     "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
     "staticcheck": {"capabilities": ["lint"], "shard": "go"},
     "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
@@ -60,8 +62,11 @@ _RUST_TYPECHECK_TOOLS = _shard_tools("rust", "typecheck")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 _CPP_FORMAT_TOOLS = _shard_tools("cpp", "format")
+_CPP_LINT_TOOLS = _shard_tools("cpp", "lint")
 _GO_FORMAT_TOOLS = _shard_tools("go", "format")
 _GO_LINT_TOOLS = _shard_tools("go", "lint")
+_SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
+_SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     if QualitySourcesInfo not in target:
@@ -192,6 +197,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["vale"] = ctx.file._vale
     if "clang_format" in stage_tools:
         tool_binaries["clang_format"] = ctx.file._clang_format
+    if "shellcheck" in stage_tools:
+        tool_binaries["shellcheck"] = ctx.file._shellcheck
+    if "shfmt" in stage_tools:
+        tool_binaries["shfmt"] = ctx.file._shfmt
+    if "clang_tidy" in stage_tools:
+        tool_binaries["clang_tidy"] = ctx.file._clang_tidy
     if "gofumpt" in stage_tools:
         tool_binaries["gofumpt"] = ctx.file._gofumpt
     if "staticcheck" in stage_tools:
@@ -377,7 +388,8 @@ def real_allowed_tools_error():
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS +
-        _CPP_FORMAT_TOOLS + _GO_FORMAT_TOOLS + _GO_LINT_TOOLS
+        _CPP_FORMAT_TOOLS + _CPP_LINT_TOOLS + _GO_FORMAT_TOOLS + _GO_LINT_TOOLS +
+        _SHELL_FORMAT_TOOLS + _SHELL_LINT_TOOLS
     )
     for tool in allowed:
         if tool not in REAL_ADAPTERS:
@@ -433,6 +445,16 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
         default = "@llvm//tools:clang-format",
+    ),
+    "shellcheck": attr.label(
+        allow_single_file = True,
+        cfg = "exec",
+        default = "@dx_tools//:shellcheck",
+    ),
+    "shfmt": attr.label(
+        allow_single_file = True,
+        cfg = "exec",
+        default = "@dx_tools//:shfmt",
     ),
     "gofumpt": attr.label(
         allow_single_file = True,
@@ -523,9 +545,11 @@ _REAL_JVM_FORMAT_ATTRS = _real_attrs_for(_JVM_FORMAT_TOOLS)
 _REAL_PY_LINT_ATTRS = _real_attrs_for(_PY_LINT_TOOLS)
 _REAL_RUST_ATTRS = _REAL_BASE_ATTRS
 _REAL_CPP_FORMAT_ATTRS = _real_attrs_for(_CPP_FORMAT_TOOLS)
+_REAL_CPP_LINT_ATTRS = _real_attrs_for(_CPP_LINT_TOOLS)
 _REAL_GO_FORMAT_ATTRS = _real_attrs_for(_GO_FORMAT_TOOLS)
 _REAL_GO_LINT_ATTRS = _real_attrs_for(_GO_LINT_TOOLS)
-
+_REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
+_REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_SHARDS = {
     "real_cpp_format": {"attrs": _REAL_CPP_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cpp", "tools": _CPP_FORMAT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
@@ -540,6 +564,9 @@ _REAL_SHARDS = {
     "real_rust_format": {"attrs": _REAL_RUST_ATTRS, "capability": "format", "doc": "Additive Rust format family aspect (toolchain rustfmt).", "has_rust": True, "suffix": "-rust", "tools": _RUST_FORMAT_TOOLS},
     "real_rust_lint": {"attrs": _REAL_RUST_ATTRS, "capability": "lint", "doc": "Additive Rust lint family aspect (delegated Clippy).", "has_rust": True, "suffix": "-rust", "tools": _RUST_LINT_TOOLS},
     "real_rust_typecheck": {"attrs": _REAL_RUST_ATTRS, "capability": "typecheck", "doc": "Additive Rust typecheck family aspect (delegated rustc).", "has_rust": True, "suffix": "-rust", "tools": _RUST_TYPECHECK_TOOLS},
+    "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
+    "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint aspect (shellcheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
+    "real_cpp_lint": {"attrs": _REAL_CPP_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy).", "has_rust": False, "suffix": "-cpp", "tools": _CPP_LINT_TOOLS},
     "real_typecheck": {"attrs": _REAL_CORE_ATTRS, "capability": "typecheck", "doc": "Registers the exact-input real typecheck pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_TYPECHECK_TOOLS},
 }
 
@@ -574,6 +601,12 @@ real_format_aspect = _make_real_aspect("real_format")
 real_typecheck_aspect = _make_real_aspect("real_typecheck")
 
 real_cpp_format_aspect = _make_real_aspect("real_cpp_format")
+
+real_shell_format_aspect = _make_real_aspect("real_shell_format")
+
+real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
+
+real_cpp_lint_aspect = _make_real_aspect("real_cpp_lint")
 
 real_go_format_aspect = _make_real_aspect("real_go_format")
 

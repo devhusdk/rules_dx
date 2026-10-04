@@ -1,0 +1,3 @@
+pin 1.2.3
+exit 1
+says dx-ci: MODULE.bazel declares no bazel_dep(name = "rules_dx", version = "1.2.3")

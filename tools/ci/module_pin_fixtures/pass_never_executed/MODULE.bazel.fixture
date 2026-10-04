@@ -1,0 +1,9 @@
+"""Fixture that leaves a marker when the module is executed as Python."""
+
+import pathlib
+
+pathlib.Path("EXECUTED").write_text("executed")
+
+module(name = "consumer_app")
+
+bazel_dep(name = "rules_dx", version = "1.2.3")

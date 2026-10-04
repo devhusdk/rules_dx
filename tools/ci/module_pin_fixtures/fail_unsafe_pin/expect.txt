@@ -1,0 +1,3 @@
+pin 1.2.3", name = "rules_dx"
+exit 1
+says dx-ci: RULES_DX_PIN='1.2.3", name = "rules_dx"' is not a plain rules_dx version string

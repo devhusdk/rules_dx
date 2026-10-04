@@ -1524,6 +1524,9 @@ fn job_blocks(text: &str) -> Vec<(String, Vec<&str>)> {
         if !in_jobs {
             continue;
         }
+        if line.is_empty() {
+            continue;
+        }
         if !line.starts_with("  ") {
             break;
         }

@@ -12,6 +12,31 @@ cp examples/docs-ci/caller.yml .github/workflows/docs.yml
 bazel_dep(name = "rules_dx", version = "0.0.0")
 ```
 
+## Pin Check
+
+Every job reads `MODULE.bazel` before it runs `dx` and checks the `rules_dx`
+declaration. Pass that same version as `rules_dx_version`. A repository that
+calls the workflow from its own tree declares itself instead:
+
+```python
+module(
+    name = "rules_dx",
+    version = "0.0.0",
+)
+```
+
+The check reads the file as text. It never runs it.
+
+- A multiline call, reordered arguments and comments are fine.
+- A commented-out pin never counts.
+- The version must be a quoted string.
+- One declaration only. A second one fails.
+- An unrelated dependency at the same version never passes.
+- A missing, ambiguous or mismatched pin fails with the line, the declared
+  version and the expected one.
+
+The step needs `python3` on `PATH` on every platform.
+
 ## Consumer Workflow
 
 `examples/consumer-ci/` calls `reusable-consumer.yml`. Nine checks run on
@@ -33,7 +58,8 @@ every platform in `platforms`:
 
 Inputs:
 
-- `rules_dx_version`: must match your `MODULE.bazel` pin.
+- `rules_dx_version`: the version your `rules_dx` declaration carries. The
+  pin check compares it with `MODULE.bazel`.
 - `disabled_checks`: job IDs above to skip. Empty runs all nine.
 - `platforms`: JSON array of platform labels, such as `["linux_x86_64"]`.
   Defaults to `["linux_x86_64"]`. Valid labels: `linux_x86_64`, `linux_arm64`,
@@ -58,7 +84,8 @@ broken links fail before deploy.
 
 Inputs:
 
-- `rules_dx_version`: must match your `MODULE.bazel` pin.
+- `rules_dx_version`: the version your `rules_dx` declaration carries. The
+  pin check compares it with `MODULE.bazel`.
 - `docs_scope`: scope covered by the docs check. Default `//...`.
 - `publish`: build the rendered site and deploy to Pages. Default false.
 - `environment`: Pages environment name. Default `github-pages`.

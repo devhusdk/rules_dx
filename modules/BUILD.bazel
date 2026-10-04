@@ -11,6 +11,7 @@ test_suite(
 )
 
 exports_files([
+    "c.bzl",
     "rust.bzl",
     "python.bzl",
     "js.bzl",

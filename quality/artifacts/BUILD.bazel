@@ -32,7 +32,11 @@ metadata_tests(name = "metadata")
 
 test_suite(
     name = "all",
-    tests = [":metadata"],
+    tests = [
+        ":metadata",
+        "//quality/artifacts/hub_test:hub_selection_analysis",
+        "//quality/artifacts/hub_test:hub_selection_unit",
+    ],
 )
 
 real_source_target(
@@ -56,6 +60,7 @@ real_source_target(
         "buildifier.macos_arm64.bzl",
         "buildifier.windows_x86_64.bzl",
         "extension.bzl",
+        "hub.bzl",
         "metadata_tests.bzl",
         "repos.bzl",
         "gitleaks.linux_arm64.bzl",

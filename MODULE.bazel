@@ -345,3 +345,29 @@ use_repo(
     "jvm_pmd_dist",
     "jvm_spotbugs_dist",
 )
+
+_hub_fixture_repo = use_repo_rule("//quality/artifacts/hub_test:repos.bzl", "hub_fixture_repo")
+
+_hub_fixture_repo(
+    name = "dx_hub_fixture_taplo_linux_x86_64",
+    platform = "linux_x86_64",
+    tool = "taplo",
+)
+
+_hub_fixture_repo(
+    name = "dx_hub_fixture_taplo_linux_arm64",
+    platform = "linux_arm64",
+    tool = "taplo",
+)
+
+_hub_fixture_repo(
+    name = "dx_hub_fixture_taplo_macos_arm64",
+    platform = "macos_arm64",
+    tool = "taplo",
+)
+
+_hub_fixture_repo(
+    name = "dx_hub_fixture_taplo_windows_x86_64",
+    platform = "windows_x86_64",
+    tool = "taplo",
+)

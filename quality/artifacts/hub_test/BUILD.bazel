@@ -1,0 +1,18 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+load(":selection.bzl", "hub_selection_tests")
+
+package(default_visibility = VIS_QUALITY)
+
+hub_selection_tests(name = "hub_selection")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+        "selection.bzl",
+    ],
+    tags = ["corpus"],
+)

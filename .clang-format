@@ -1,0 +1,7 @@
+---
+BasedOnStyle: LLVM
+AllowShortFunctionsOnASingleLine: None
+ColumnLimit: 100
+DerivePointerAlignment: false
+PointerAlignment: Left
+SortIncludes: CaseSensitive

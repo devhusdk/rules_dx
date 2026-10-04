@@ -308,6 +308,16 @@ fn biome_policy_matches_the_hinted_fixture() {
 
 const SHELL_CONFIGS: [&str; 2] = [".editorconfig", ".shellcheckrc"];
 
+/// The C/C++ sources clang-format owns. Test fixtures are excluded on purpose:
+/// they carry third-party code and deliberately unsorted samples.
+const CPP_SOURCES: [&str; 5] = [
+    "examples/adopt-cpp/greet/greet.cc",
+    "examples/adopt-cpp/greet/greet.h",
+    "examples/adopt-cpp/greet/helper.cc",
+    "examples/adopt-cpp/solo/pure.cc",
+    "examples/adopt-polyglot/native_cpp/shapes.cc",
+];
+
 /// Comment words that name a file inside the workspace.
 fn named_files(text: &str) -> Vec<String> {
     text.lines()
@@ -471,4 +481,24 @@ fn the_emitted_runfiles_block_names_no_issue_or_another_page() {
         "deploy/rules/launcher.bzl",
         &read_runfiles("deploy/rules/launcher.bzl"),
     );
+}
+
+#[test]
+fn the_clang_format_config_ships() {
+    let text = read_runfiles(".clang-format");
+    assert!(
+        text.contains("BasedOnStyle: LLVM"),
+        ".clang-format must pin a base style so a clang-format upgrade cannot restyle the tree"
+    );
+}
+
+#[test]
+fn every_owned_cpp_source_shipped_by_the_filegroups_exists() {
+    let root = runfiles_root();
+    for source in CPP_SOURCES {
+        assert!(
+            root.join(source).exists(),
+            "CPP_SOURCES names {source}, which this workspace does not ship"
+        );
+    }
 }

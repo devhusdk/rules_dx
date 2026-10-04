@@ -61,6 +61,7 @@ rust_test(
     srcs = ["config_consistency_test.rs"],
     data = [
         "//:.buildifier.json",
+        "//:.clang-format",
         "//:.editorconfig",
         "//:.shellcheckrc",
         "//:.vale.ini",
@@ -73,6 +74,9 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//:ruff.toml",
+        "//examples/adopt-cpp/greet:cpp_sources",
+        "//examples/adopt-cpp/solo:cpp_sources",
+        "//examples/adopt-polyglot/native_cpp:cpp_sources",
         "//deploy/offline/bootstrap:src/lib.rs",
         "//deploy/rules:launcher.bzl",
         "//quality:corpus_styles/Dx/Markers.yml",

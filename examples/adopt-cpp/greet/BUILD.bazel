@@ -3,6 +3,23 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+filegroup(
+    name = "cpp_sources",
+    srcs = [
+        "greet.cc",
+        "greet.h",
+        "helper.cc",
+        "helper.h",
+    ],
+)
+
+exports_files([
+    "greet.cc",
+    "greet.h",
+    "helper.cc",
+    "helper.h",
+])
+
 cc_test(
     name = "greet_test",
     srcs = ["greet_test.cc"],

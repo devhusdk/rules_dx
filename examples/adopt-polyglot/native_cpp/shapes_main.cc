@@ -3,8 +3,8 @@
 #include <cassert>
 
 int main() {
-    assert(Area("square") == 4.0);
-    assert(Area("triangle") == 2.0);
-    assert(Area("unknown") == 0.0);
-    return 0;
+  assert(Area("square") == 4.0);
+  assert(Area("triangle") == 2.0);
+  assert(Area("unknown") == 0.0);
+  return 0;
 }

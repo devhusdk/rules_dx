@@ -19,6 +19,7 @@ workspace below records exact commands and expected evidence in its own
 - [adopt-java](adopt-java/) foreign Maven-layout tree adopted by the Java Gazelle extension.
 - [adopt-kotlin](adopt-kotlin/) foreign Maven-layout tree adopted by the Kotlin Gazelle extension.
 - [adopt-scala](adopt-scala/) foreign sbt-layout tree adopted by the Scala Gazelle extension.
+- [adopt-zig](adopt-zig/) Zig library adopted without upstream changes.
 - [adopt-csharp](adopt-csharp/) foreign SDK-style tree adopted by the C# Gazelle extension.
 - [adopt-fsharp](adopt-fsharp/) foreign SDK-style tree adopted by the F# Gazelle extension.
 - [adopt-ruby](adopt-ruby/) foreign Bundler-layout tree adopted by the Ruby Gazelle extension.

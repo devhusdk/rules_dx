@@ -3,6 +3,20 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+filegroup(
+    name = "cpp_sources",
+    srcs = [
+        "shapes.cc",
+        "shapes.h",
+        "shapes_main.cc",
+    ],
+)
+
+exports_files([
+    "shapes.cc",
+    "shapes.h",
+])
+
 cc_binary(
     name = "shapes_main",
     srcs = ["shapes_main.cc"],

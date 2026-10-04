@@ -104,6 +104,7 @@ npm_link_all_packages(name = "node_modules")
 
 exports_files([
     ".bazelignore",
+    ".clang-format",
     ".bazelrc",
     ".bazelversion",
     ".editorconfig",

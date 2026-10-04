@@ -8,8 +8,10 @@ name = "dx_adopt"
 path = "src/lib.rs"
 
 [dependencies]
-notify = "8"
-notify-debouncer-mini = "0.6"
+# hermetic-llvm ships no CoreServices framework, so the FSEvents backend cannot
+# link on macOS. kqueue is notify's other macOS backend and is used instead.
+notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
+notify-debouncer-mini = { version = "0.6", default-features = false, features = ["macos_kqueue"] }
 semver = "1"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"

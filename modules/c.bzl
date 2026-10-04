@@ -28,4 +28,5 @@ LLVM_WINDOWS_ABI = "windows_arm64_msvc"
 LLVM_KNOWN_LIMITS = [
     "The MSVC-ABI platform has no sanitizers, coverage, or FDO.",
     "Module maps and header parsing are unavailable on every platform.",
+    "The macOS SDK ships no CoreServices framework, so FSEvents cannot link.",
 ]

@@ -1,5 +1,5 @@
 {
-  "checksum": "993dc4ed882ac779f2c109046083e5eaf61df1e2ddbc3a91a9802084e021361a",
+  "checksum": "a5de76f8b99d5734202b678d66166235c431485d1cd00115d712a343de464441",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6391,7 +6391,10 @@
         "crate_features": [
           "default",
           "fsevent-sys",
-          "macos_fsevent"
+          "kqueue",
+          "macos_fsevent",
+          "macos_kqueue",
+          "mio"
         ],
         "deps": {
           "common": [
@@ -6417,6 +6420,20 @@
               {
                 "id": "fsevent-sys 4.1.0",
                 "target": "fsevent_sys"
+              },
+              {
+                "id": "kqueue 1.2.1",
+                "target": "kqueue"
+              },
+              {
+                "id": "mio 1.2.3",
+                "target": "mio"
+              }
+            ],
+            "aarch64-unknown-linux-gnu": [
+              {
+                "id": "mio 1.2.3",
+                "target": "mio"
               }
             ],
             "cfg(any(target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"dragonflybsd\", target_os = \"ios\"))": [
@@ -6450,6 +6467,18 @@
                 "id": "windows-sys 0.60.2",
                 "target": "windows_sys"
               }
+            ],
+            "x86_64-unknown-linux-gnu": [
+              {
+                "id": "mio 1.2.3",
+                "target": "mio"
+              }
+            ],
+            "x86_64-unknown-nixos-gnu": [
+              {
+                "id": "mio 1.2.3",
+                "target": "mio"
+              }
             ]
           }
         },
@@ -6482,8 +6511,7 @@
     "notify-debouncer-mini 0.6.0": {
       "common_attrs": {
         "crate_features": [
-          "default",
-          "macos_fsevent"
+          "macos_kqueue"
         ],
         "deps": [
           {

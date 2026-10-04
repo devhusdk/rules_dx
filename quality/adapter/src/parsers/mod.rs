@@ -52,6 +52,7 @@ pub mod ty;
 pub mod vale;
 pub mod yamlfmt;
 pub mod yamllint;
+pub mod zig;
 
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
@@ -106,6 +107,7 @@ pub use ty::parse_ty;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
+pub use zig::parse_zig_fmt;
 
 use std::path::Path;
 
@@ -272,7 +274,7 @@ fn bracketed(tail: &str) -> (String, String) {
 }
 
 /// A finding at a line and column, spanning nothing and suggesting nothing.
-fn finding(
+pub(crate) fn finding(
     tool: &'static str,
     file: &str,
     rule_id: String,

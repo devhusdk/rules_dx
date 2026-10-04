@@ -45,6 +45,7 @@ WRAPPER_OWNERS = {
     "vue": "//vue/rules:defs.bzl",
     "xml": "other",
     "yaml": "other",
+    "zig": "//zig/rules:defs.bzl",
 }
 
 def _taxonomy_families():

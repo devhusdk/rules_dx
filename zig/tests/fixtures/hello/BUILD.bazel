@@ -1,0 +1,21 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//zig/rules:defs.bzl", "zig_binary", "zig_library")
+
+package(default_testonly = True, default_visibility = ["//:__subpackages__"])
+
+zig_binary(
+    name = "hello",
+    srcs = ["main.zig"],
+)
+
+zig_library(
+    name = "hello_lib",
+    srcs = ["lib.zig"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

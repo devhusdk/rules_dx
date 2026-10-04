@@ -21,6 +21,7 @@ ADOPT_READMES = [
     "//examples/adopt-ruby:README.md",
     "//examples/adopt-rust:README.md",
     "//examples/adopt-scala:README.md",
+    "//examples/adopt-zig:README.md",
 ]
 
 filegroup(
@@ -55,6 +56,7 @@ real_source_target(
         "//examples/adopt-ruby:README.md",
         "//examples/adopt-rust:README.md",
         "//examples/adopt-scala:README.md",
+    "//examples/adopt-zig:README.md",
         "//examples/mixed/hello:README.md",
     ],
     markdown_srcs = [

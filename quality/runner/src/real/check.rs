@@ -547,6 +547,14 @@ impl RealBackend {
                     parsers::parse_yamlfmt(&out.stderr, out.code, &strs),
                 )
             }
+            "zig" => {
+                let invocation = commands::zig_format_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_zig_fmt(&out.stdout, out.code, &strs),
+                )
+            }
             "shfmt" => {
                 let invocation = commands::shfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

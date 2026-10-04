@@ -20,6 +20,7 @@ exports_files([
     "powershell.bzl",
     "toolchains.bzl",
     "versions.bzl",
+    "zig.bzl",
 ])
 
 real_source_target(
@@ -37,6 +38,7 @@ real_source_target(
         "ruby.bzl",
         "versions.bzl",
         "versions_tests.bzl",
+        "zig.bzl",
     ],
     tags = ["corpus"],
 )

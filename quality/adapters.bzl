@@ -78,6 +78,7 @@ REAL_ADAPTERS = {
     "tsc": {"typecheck": ["typescript", "tsx"]},
     "ty": {"typecheck": ["python", "python_stub"]},
     "vale": {"lint": ["markdown"]},
+    "zig": {"format": ["zig"], "typecheck": ["zig"]},
     "yamlfmt": {"format": ["yaml"]},
     "yamllint": {"lint": ["yaml"]},
 }
@@ -130,6 +131,7 @@ REAL_CLASS_TO_FAMILY = {
     "jsonnet": "jsonnet",
     "xml": "xml",
     "yaml": "yaml",
+    "zig": "zig",
 }
 
 def real_supported_classes(tool_id, capability):

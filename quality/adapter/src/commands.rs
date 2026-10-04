@@ -100,6 +100,8 @@ const MODFMT_CHECK_ARGS: &[&str] = &["-c", "-l"];
 const MODFMT_FIX_ARGS: &[&str] = &["-w"];
 const TERRAFORM_CHECK_ARGS: &[&str] = &["fmt", "-check"];
 const TERRAFORM_FIX_ARGS: &[&str] = &["fmt"];
+const ZIG_FORMAT_CHECK_ARGS: &[&str] = &["fmt", "--check"];
+const ZIG_FORMAT_FIX_ARGS: &[&str] = &["fmt"];
 const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
@@ -781,6 +783,14 @@ pub fn terraform_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn terraform_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_FIX_ARGS, files, "")
+}
+
+pub fn zig_format_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ZIG_FORMAT_CHECK_ARGS, files, "")
+}
+
+pub fn zig_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ZIG_FORMAT_FIX_ARGS, files, "")
 }
 
 pub fn yamlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

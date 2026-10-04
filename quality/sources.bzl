@@ -60,6 +60,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "starlark",
     "terraform",
     "go_module",
+    "zig",
 ]
 
 RUST = "rust"

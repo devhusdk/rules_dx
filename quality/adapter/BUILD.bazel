@@ -66,6 +66,7 @@ rust_library(
         "src/parsers/ty.rs",
         "src/parsers/vale.rs",
         "src/parsers/yamlfmt.rs",
+        "src/parsers/zig.rs",
         "src/parsers/yamllint.rs",
     ],
     aliases = aliases(

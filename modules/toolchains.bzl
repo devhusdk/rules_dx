@@ -20,5 +20,6 @@ DX_TOOL_PLATFORMS = [
     "linux_x86_64",
     "linux_arm64",
     "macos_arm64",
+    "windows_arm64",
     "windows_x86_64",
 ]

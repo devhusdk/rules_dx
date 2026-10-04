@@ -3,41 +3,55 @@
 load("//quality/artifacts:biome.linux_arm64.bzl", _biome_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:biome.linux_x86_64.bzl", _biome_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:biome.macos_arm64.bzl", _biome_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:biome.windows_arm64.bzl", _biome_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:biome.windows_x86_64.bzl", _biome_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.linux_arm64.bzl", _buildifier_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.linux_x86_64.bzl", _buildifier_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.macos_arm64.bzl", _buildifier_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:buildifier.windows_arm64.bzl", _buildifier_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.windows_x86_64.bzl", _buildifier_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:gitleaks.windows_arm64.bzl", _gitleaks_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:gofumpt.linux_x86_64.bzl", _gofumpt_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gofumpt.linux_arm64.bzl", _gofumpt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:gofumpt.linux_x86_64.bzl", _gofumpt_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gofumpt.macos_arm64.bzl", _gofumpt_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gofumpt.windows_x86_64.bzl", _gofumpt_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:staticcheck.linux_x86_64.bzl", _staticcheck_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:staticcheck.linux_arm64.bzl", _staticcheck_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:staticcheck.macos_arm64.bzl", _staticcheck_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:staticcheck.windows_x86_64.bzl", _staticcheck_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:ruff.windows_arm64.bzl", _ruff_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.windows_x86_64.bzl", _ruff_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.linux_arm64.bzl", _staticcheck_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.linux_x86_64.bzl", _staticcheck_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.macos_arm64.bzl", _staticcheck_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.windows_x86_64.bzl", _staticcheck_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:taplo.windows_arm64.bzl", _taplo_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:taplo.windows_x86_64.bzl", _taplo_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ty.linux_arm64.bzl", _ty_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ty.linux_x86_64.bzl", _ty_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ty.macos_arm64.bzl", _ty_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:ty.windows_arm64.bzl", _ty_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:ty.windows_x86_64.bzl", _ty_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:vale.linux_arm64.bzl", _vale_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:vale.windows_arm64.bzl", _vale_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.windows_x86_64.bzl", _vale_windows_x86_64 = "ARTIFACT")
 
 _ARTIFACTS = [
+    _biome_windows_arm64,
+    _buildifier_windows_arm64,
+    _gitleaks_windows_arm64,
+    _ruff_windows_arm64,
+    _taplo_windows_arm64,
+    _ty_windows_arm64,
+    _vale_windows_arm64,
     _biome_linux_x86_64,
     _biome_linux_arm64,
     _biome_macos_arm64,
@@ -83,6 +97,7 @@ _PLATFORMS = [
     "linux_arm64",
     "macos_arm64",
     "windows_x86_64",
+    "windows_arm64",
 ]
 
 def _repo_name(artifact):
@@ -204,6 +219,13 @@ config_setting(
         "{cpu_x86_64}",
     ],
 )
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "{os_windows}",
+        "{cpu_arm64}",
+    ],
+)
 """
 
 _HUB_ALIAS = """alias(
@@ -214,11 +236,11 @@ _HUB_ALIAS = """alias(
             ":linux_arm64": "@{repo_linux_arm64}//:tool",
             ":macos_arm64": "@{repo_macos_arm64}//:tool",
             ":windows_x86_64": "@{repo_windows_x86_64}//:tool",
-        }},
+{repo_windows_arm64}        }},
         no_match_error = (
             "rules_dx: no {tool} artifact for this execution platform; " +
             "want one of linux_x86_64, linux_arm64, macos_arm64, " +
-            "windows_x86_64."
+            "windows_x86_64, windows_arm64."
         ),
     ),
     visibility = ["//visibility:public"],
@@ -243,6 +265,11 @@ def _hub_repo_impl(ctx):
             repo_linux_arm64 = repos["linux_arm64"],
             repo_macos_arm64 = repos["macos_arm64"],
             repo_windows_x86_64 = repos["windows_x86_64"],
+            repo_windows_arm64 = (
+                '":windows_arm64": "@%s//:tool",' % repos["windows_arm64"]
+                if "windows_arm64" in repos
+                else ""
+            ),
         ))
     ctx.file("BUILD.bazel", "\n".join(lines))
 
@@ -287,7 +314,7 @@ def _dx_tools_impl(ctx):
         by_tool.setdefault(artifact["tool"], {})[platform] = name
     hub_entries = {}
     for tool in sorted(by_tool.keys()):
-        hub_entries[tool] = [by_tool[tool][platform] for platform in _PLATFORMS]
+        hub_entries[tool] = [by_tool[tool][platform] for platform in _PLATFORMS if platform in by_tool[tool]]
     _hub_repo(
         name = "dx_tools",
         artifacts = hub_entries,

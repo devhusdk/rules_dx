@@ -419,12 +419,89 @@
   "moduleExtensions": {
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "O83OUnb1HQcq1m+ahMejJfI+s95LOrNes3YCWL+L3iI=",
+        "bzlTransitiveDigest": "7JDBVuvU3ueH1Zi9X2IltXuZq3hmIFWgEUqz1PenbYM=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
         ],
         "generatedRepoSpecs": {
+          "dx_biome_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-win32-arm64.exe",
+              "sha256": "e0148babfa207b79bc9ed50c22479722e314ae07e989c9bdae9611cd3c6511bf",
+              "asset": "biome-win32-arm64.exe",
+              "archive_format": "none",
+              "executable": "biome.exe",
+              "executable_sha256": "e0148babfa207b79bc9ed50c22479722e314ae07e989c9bdae9611cd3c6511bf"
+            }
+          },
+          "dx_buildifier_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bazel-contrib/buildtools/releases/download/v8.5.1/buildifier-windows-arm64.exe",
+              "sha256": "55a276ad8b1ff46be48bf64e432264034ea69a45aa3914e89c1d1936f5c2d85c",
+              "asset": "buildifier-windows-arm64.exe",
+              "archive_format": "none",
+              "executable": "buildifier-windows-arm64.exe",
+              "executable_sha256": "55a276ad8b1ff46be48bf64e432264034ea69a45aa3914e89c1d1936f5c2d85c"
+            }
+          },
+          "dx_gitleaks_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_arm64.zip",
+              "sha256": "b95f5e4f5c425cedca7ee203d9afd29597e692c4924a12ed42f970537c72cc0f",
+              "asset": "gitleaks_8.30.1_windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "gitleaks.exe",
+              "executable_sha256": "200df852fdecbedb19a33960657333cba5e231740bc8968972b507b50f93b194"
+            }
+          },
+          "dx_ruff_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/astral-sh/ruff/releases/download/0.16.10/ruff-aarch64-pc-windows-msvc.zip",
+              "sha256": "cde60dbdf2697144474e6d87b8b51b73bb1fd218f4c180acb40abbd3b659d56f",
+              "asset": "ruff-aarch64-pc-windows-msvc.zip",
+              "archive_format": "zip",
+              "executable": "ruff.exe",
+              "executable_sha256": "61c12392f1b0faaa1929532146266e001d881f15d5fed11f1ab3cb099d8cb7ff"
+            }
+          },
+          "dx_taplo_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-windows-aarch64.gz",
+              "sha256": "c16a9a1248bdd746fde657b0196bfc47c8bede1e50ae73b7d9d33088a6682180",
+              "asset": "taplo-windows-aarch64.gz",
+              "archive_format": "gzip",
+              "executable": "taplo.exe",
+              "executable_sha256": "467616481c9c9b96b5a80385c6ec5bfee03b214ab62538d9ed1175cb286702de"
+            }
+          },
+          "dx_ty_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/astral-sh/ty/releases/download/0.0.84/ty-aarch64-pc-windows-msvc.zip",
+              "sha256": "5310f17fc594e29e525ccd0eaa27b719b2af2a88ec7be38092af7036eaab5235",
+              "asset": "ty-aarch64-pc-windows-msvc.zip",
+              "archive_format": "zip",
+              "executable": "ty.exe",
+              "executable_sha256": "5e63a78e4728fed2d071faa3dd619560c2f735777a77b59c7a9258766403619a"
+            }
+          },
+          "dx_vale_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_Windows_arm64.zip",
+              "sha256": "397cf247252f205145c991b339031a39d02d947d97ac48e6516bb62118ed411f",
+              "asset": "vale_3.20.0_Windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "vale.exe",
+              "executable_sha256": "097e5bfb09e4dfaf3a957b280a297ec3f6991b0560f4d66d14ad2a5b9c94d822"
+            }
+          },
           "dx_biome_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -829,19 +906,22 @@
                   "dx_biome_linux_x86_64",
                   "dx_biome_linux_arm64",
                   "dx_biome_macos_arm64",
-                  "dx_biome_windows_x86_64"
+                  "dx_biome_windows_x86_64",
+                  "dx_biome_windows_arm64"
                 ],
                 "buildifier": [
                   "dx_buildifier_linux_x86_64",
                   "dx_buildifier_linux_arm64",
                   "dx_buildifier_macos_arm64",
-                  "dx_buildifier_windows_x86_64"
+                  "dx_buildifier_windows_x86_64",
+                  "dx_buildifier_windows_arm64"
                 ],
                 "gitleaks": [
                   "dx_gitleaks_linux_x86_64",
                   "dx_gitleaks_linux_arm64",
                   "dx_gitleaks_macos_arm64",
-                  "dx_gitleaks_windows_x86_64"
+                  "dx_gitleaks_windows_x86_64",
+                  "dx_gitleaks_windows_arm64"
                 ],
                 "gofumpt": [
                   "dx_gofumpt_linux_x86_64",
@@ -853,7 +933,8 @@
                   "dx_ruff_linux_x86_64",
                   "dx_ruff_linux_arm64",
                   "dx_ruff_macos_arm64",
-                  "dx_ruff_windows_x86_64"
+                  "dx_ruff_windows_x86_64",
+                  "dx_ruff_windows_arm64"
                 ],
                 "staticcheck": [
                   "dx_staticcheck_linux_x86_64",
@@ -865,19 +946,22 @@
                   "dx_taplo_linux_x86_64",
                   "dx_taplo_linux_arm64",
                   "dx_taplo_macos_arm64",
-                  "dx_taplo_windows_x86_64"
+                  "dx_taplo_windows_x86_64",
+                  "dx_taplo_windows_arm64"
                 ],
                 "ty": [
                   "dx_ty_linux_x86_64",
                   "dx_ty_linux_arm64",
                   "dx_ty_macos_arm64",
-                  "dx_ty_windows_x86_64"
+                  "dx_ty_windows_x86_64",
+                  "dx_ty_windows_arm64"
                 ],
                 "vale": [
                   "dx_vale_linux_x86_64",
                   "dx_vale_linux_arm64",
                   "dx_vale_macos_arm64",
-                  "dx_vale_windows_x86_64"
+                  "dx_vale_windows_x86_64",
+                  "dx_vale_windows_arm64"
                 ]
               },
               "os_linux": "'@@platforms//os:linux'",

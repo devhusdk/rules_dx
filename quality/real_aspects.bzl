@@ -25,6 +25,7 @@ _REAL_TOOL_TABLE = {
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},
+    "gofumpt": {"capabilities": ["format"], "shard": "go"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
     "ktfmt": {"capabilities": ["format"], "shard": "jvm"},
     "ktlint": {"capabilities": ["lint"], "shard": "jvm"},
@@ -37,6 +38,7 @@ _REAL_TOOL_TABLE = {
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
     "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
+    "staticcheck": {"capabilities": ["lint"], "shard": "go"},
     "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
     "ty": {"capabilities": ["typecheck"], "shard": "core"},
     "vale": {"capabilities": ["lint"], "shard": "core"},
@@ -58,6 +60,8 @@ _RUST_TYPECHECK_TOOLS = _shard_tools("rust", "typecheck")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 _CPP_FORMAT_TOOLS = _shard_tools("cpp", "format")
+_GO_FORMAT_TOOLS = _shard_tools("go", "format")
+_GO_LINT_TOOLS = _shard_tools("go", "lint")
 
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     if QualitySourcesInfo not in target:
@@ -188,6 +192,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["vale"] = ctx.file._vale
     if "clang_format" in stage_tools:
         tool_binaries["clang_format"] = ctx.file._clang_format
+    if "gofumpt" in stage_tools:
+        tool_binaries["gofumpt"] = ctx.file._gofumpt
+    if "staticcheck" in stage_tools:
+        tool_binaries["staticcheck"] = ctx.file._staticcheck
     if "google_java_format" in stage_tools:
         tool_binaries["google_java_format"] = ctx.executable._google_java_format
     if "ktfmt" in stage_tools:
@@ -369,7 +377,7 @@ def real_allowed_tools_error():
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS +
-        _CPP_FORMAT_TOOLS
+        _CPP_FORMAT_TOOLS + _GO_FORMAT_TOOLS + _GO_LINT_TOOLS
     )
     for tool in allowed:
         if tool not in REAL_ADAPTERS:
@@ -425,6 +433,16 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
         default = "@llvm//tools:clang-format",
+    ),
+    "gofumpt": attr.label(
+        allow_single_file = True,
+        cfg = "exec",
+        default = "@dx_tools//:gofumpt",
+    ),
+    "staticcheck": attr.label(
+        allow_single_file = True,
+        cfg = "exec",
+        default = "@dx_tools//:staticcheck",
     ),
     "google_java_format": attr.label(
         default = "//quality/tools/jvm:google_java_format",
@@ -505,12 +523,16 @@ _REAL_JVM_FORMAT_ATTRS = _real_attrs_for(_JVM_FORMAT_TOOLS)
 _REAL_PY_LINT_ATTRS = _real_attrs_for(_PY_LINT_TOOLS)
 _REAL_RUST_ATTRS = _REAL_BASE_ATTRS
 _REAL_CPP_FORMAT_ATTRS = _real_attrs_for(_CPP_FORMAT_TOOLS)
+_REAL_GO_FORMAT_ATTRS = _real_attrs_for(_GO_FORMAT_TOOLS)
+_REAL_GO_LINT_ATTRS = _real_attrs_for(_GO_LINT_TOOLS)
 
 _REAL_SHARDS = {
     "real_cpp_format": {"attrs": _REAL_CPP_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cpp", "tools": _CPP_FORMAT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
     "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
+    "real_go_format": {"attrs": _REAL_GO_FORMAT_ATTRS, "capability": "format", "doc": "Additive Go format family aspect (gofumpt).", "has_rust": False, "suffix": "-go", "tools": _GO_FORMAT_TOOLS},
+    "real_go_lint": {"attrs": _REAL_GO_LINT_ATTRS, "capability": "lint", "doc": "Additive Go lint family aspect (staticcheck).", "has_rust": False, "suffix": "-go", "tools": _GO_LINT_TOOLS},
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},
     "real_lint": {"attrs": _REAL_CORE_ATTRS, "capability": "lint", "doc": "Registers the exact-input real lint pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_LINT_TOOLS},
@@ -552,6 +574,10 @@ real_format_aspect = _make_real_aspect("real_format")
 real_typecheck_aspect = _make_real_aspect("real_typecheck")
 
 real_cpp_format_aspect = _make_real_aspect("real_cpp_format")
+
+real_go_format_aspect = _make_real_aspect("real_go_format")
+
+real_go_lint_aspect = _make_real_aspect("real_go_lint")
 
 real_js_lint_aspect = _make_real_aspect("real_js_lint")
 

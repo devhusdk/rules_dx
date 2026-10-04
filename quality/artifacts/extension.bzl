@@ -12,6 +12,14 @@ load("//quality/artifacts:gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "AR
 load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:gofumpt.linux_x86_64.bzl", _gofumpt_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:gofumpt.linux_arm64.bzl", _gofumpt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:gofumpt.macos_arm64.bzl", _gofumpt_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:gofumpt.windows_x86_64.bzl", _gofumpt_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.linux_x86_64.bzl", _staticcheck_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.linux_arm64.bzl", _staticcheck_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.macos_arm64.bzl", _staticcheck_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:staticcheck.windows_x86_64.bzl", _staticcheck_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
@@ -42,6 +50,14 @@ _ARTIFACTS = [
     _gitleaks_linux_arm64,
     _gitleaks_macos_arm64,
     _gitleaks_windows_x86_64,
+    _gofumpt_linux_x86_64,
+    _gofumpt_linux_arm64,
+    _gofumpt_macos_arm64,
+    _gofumpt_windows_x86_64,
+    _staticcheck_linux_x86_64,
+    _staticcheck_linux_arm64,
+    _staticcheck_macos_arm64,
+    _staticcheck_windows_x86_64,
     _ruff_linux_x86_64,
     _ruff_linux_arm64,
     _ruff_macos_arm64,

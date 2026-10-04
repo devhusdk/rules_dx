@@ -419,7 +419,7 @@
   "moduleExtensions": {
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "tC5W0eDN2lxfbmfXLFUPwV4jVnTcu+oFvZH+av7e21Q=",
+        "bzlTransitiveDigest": "O83OUnb1HQcq1m+ahMejJfI+s95LOrNes3YCWL+L3iI=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -555,6 +555,94 @@
               "archive_format": "zip",
               "executable": "gitleaks.exe",
               "executable_sha256": "17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c"
+            }
+          },
+          "dx_gofumpt_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_linux_amd64",
+              "sha256": "3bc4fcad497439918f5f56d4987de4709a99da0a355e6bec13a7278532b01d38",
+              "asset": "gofumpt_v0.12.0_linux_amd64",
+              "archive_format": "none",
+              "executable": "gofumpt_v0.12.0_linux_amd64",
+              "executable_sha256": "3bc4fcad497439918f5f56d4987de4709a99da0a355e6bec13a7278532b01d38"
+            }
+          },
+          "dx_gofumpt_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_linux_arm64",
+              "sha256": "4322f081241ab0618356aa5921a8c110e4c7acfc17175cc15dc57b2f4a4b652d",
+              "asset": "gofumpt_v0.12.0_linux_arm64",
+              "archive_format": "none",
+              "executable": "gofumpt_v0.12.0_linux_arm64",
+              "executable_sha256": "4322f081241ab0618356aa5921a8c110e4c7acfc17175cc15dc57b2f4a4b652d"
+            }
+          },
+          "dx_gofumpt_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_darwin_arm64",
+              "sha256": "1a3e325b956ed12c21031d9e13382bd51a4fabb57de8d40428819b9583c3cfb9",
+              "asset": "gofumpt_v0.12.0_darwin_arm64",
+              "archive_format": "none",
+              "executable": "gofumpt_v0.12.0_darwin_arm64",
+              "executable_sha256": "1a3e325b956ed12c21031d9e13382bd51a4fabb57de8d40428819b9583c3cfb9"
+            }
+          },
+          "dx_gofumpt_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_windows_amd64.exe",
+              "sha256": "66bd679908b64864fc85417e7ea01148774b477364b9a02ab1c194333a55c997",
+              "asset": "gofumpt_v0.12.0_windows_amd64.exe",
+              "archive_format": "none",
+              "executable": "gofumpt_v0.12.0_windows_amd64.exe",
+              "executable_sha256": "66bd679908b64864fc85417e7ea01148774b477364b9a02ab1c194333a55c997"
+            }
+          },
+          "dx_staticcheck_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2.1/staticcheck_linux_amd64.tar.gz",
+              "sha256": "91186205a78db3f2d40efb3c102749aef66f85c2204793de7488d163b655aa7c",
+              "asset": "staticcheck_linux_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck",
+              "executable_sha256": "cafc8e0e9bd4b8310c2a05654b711b6c97b0b494cee30be84894bd4d79069b1e"
+            }
+          },
+          "dx_staticcheck_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2.1/staticcheck_linux_arm64.tar.gz",
+              "sha256": "594421f28ba620ea14b98377cb84a309cf73cc420ba0f52f30c7fa4d92fd2b0e",
+              "asset": "staticcheck_linux_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck",
+              "executable_sha256": "8c1eb39fac43f5b01b73a9404bb0ebb740127f62e660f266f5ab8b43e1bf7d86"
+            }
+          },
+          "dx_staticcheck_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2.1/staticcheck_darwin_arm64.tar.gz",
+              "sha256": "06db0a00e5d44d0d60bc99dab10e1bd49103531054d560af658775450a25f72c",
+              "asset": "staticcheck_darwin_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck",
+              "executable_sha256": "32053b44a877e01aadd13343e504f386efff56d7f344ccb2ccf20b4e045dba79"
+            }
+          },
+          "dx_staticcheck_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2.1/staticcheck_windows_amd64.tar.gz",
+              "sha256": "c111b68123d4fb738d09184d8dae37211488431259150c658a4b80d7ef3c1c2c",
+              "asset": "staticcheck_windows_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck.exe",
+              "executable_sha256": "f06891e46b30b96d8bbf19dad1c8364f821e30c26e0bddee08638b32b0be3e5a"
             }
           },
           "dx_ruff_linux_x86_64": {
@@ -755,11 +843,23 @@
                   "dx_gitleaks_macos_arm64",
                   "dx_gitleaks_windows_x86_64"
                 ],
+                "gofumpt": [
+                  "dx_gofumpt_linux_x86_64",
+                  "dx_gofumpt_linux_arm64",
+                  "dx_gofumpt_macos_arm64",
+                  "dx_gofumpt_windows_x86_64"
+                ],
                 "ruff": [
                   "dx_ruff_linux_x86_64",
                   "dx_ruff_linux_arm64",
                   "dx_ruff_macos_arm64",
                   "dx_ruff_windows_x86_64"
+                ],
+                "staticcheck": [
+                  "dx_staticcheck_linux_x86_64",
+                  "dx_staticcheck_linux_arm64",
+                  "dx_staticcheck_macos_arm64",
+                  "dx_staticcheck_windows_x86_64"
                 ],
                 "taplo": [
                   "dx_taplo_linux_x86_64",

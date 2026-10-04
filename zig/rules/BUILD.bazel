@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = "//:__subpackages__")
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["defs.bzl"])
 

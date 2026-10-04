@@ -32,7 +32,13 @@ zig.mirrors(urls = [
 ])
 use_repo(zig, "zig_toolchains")
 
-register_toolchains("@rules_zig//zig/target:all")
+register_toolchains(
+    "@rules_zig//zig/target:x86_64-linux-gnu_toolchain",
+    "@rules_zig//zig/target:aarch64-linux-gnu_toolchain",
+    "@rules_zig//zig/target:aarch64-macos_toolchain",
+    "@rules_zig//zig/target:x86_64-windows-gnu_toolchain",
+    "@rules_zig//zig/target:aarch64-windows-gnu_toolchain",
+)
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
@@ -245,6 +251,7 @@ rust.toolchain(
     edition = "2021",
     extra_target_triples = [
         "aarch64-apple-darwin",
+        "aarch64-pc-windows-msvc",
         "x86_64-apple-darwin",
         "x86_64-pc-windows-gnu",
         "x86_64-pc-windows-msvc",

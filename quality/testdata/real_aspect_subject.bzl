@@ -4,6 +4,7 @@ load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load(
     "//quality:real_aspects.bzl",
+    "real_cpp_format_aspect",
     "real_format_aspect",
     "real_js_format_aspect",
     "real_js_lint_aspect",
@@ -53,6 +54,7 @@ real_aspect_subject = rule(
                 real_python_lint_aspect,
                 real_jvm_lint_aspect,
                 real_jvm_format_aspect,
+                real_cpp_format_aspect,
                 real_rust_lint_aspect,
                 real_rust_format_aspect,
             ],

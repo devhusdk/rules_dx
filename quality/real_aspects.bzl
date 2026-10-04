@@ -21,6 +21,7 @@ _REAL_TOOL_TABLE = {
     "biome": {"capabilities": ["format", "lint"], "shard": "core"},
     "buildifier": {"capabilities": ["format", "lint"], "shard": "core"},
     "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
+    "clang_format": {"capabilities": ["format"], "shard": "cpp"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},
@@ -56,6 +57,7 @@ _RUST_FORMAT_TOOLS = _shard_tools("rust", "format")
 _RUST_TYPECHECK_TOOLS = _shard_tools("rust", "typecheck")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
+_CPP_FORMAT_TOOLS = _shard_tools("cpp", "format")
 
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     if QualitySourcesInfo not in target:
@@ -184,6 +186,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["ty"] = ctx.file._ty
     if "vale" in stage_tools:
         tool_binaries["vale"] = ctx.file._vale
+    if "clang_format" in stage_tools:
+        tool_binaries["clang_format"] = ctx.file._clang_format
     if "google_java_format" in stage_tools:
         tool_binaries["google_java_format"] = ctx.executable._google_java_format
     if "ktfmt" in stage_tools:
@@ -364,7 +368,8 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS
+        _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS +
+        _CPP_FORMAT_TOOLS
     )
     for tool in allowed:
         if tool not in REAL_ADAPTERS:
@@ -415,6 +420,11 @@ _REAL_TOOL_ATTR_DEFS = {
         default = "//quality/tools/python:flake8",
         cfg = "exec",
         executable = True,
+    ),
+    "clang_format": attr.label(
+        allow_single_file = True,
+        cfg = "exec",
+        default = "@llvm//tools:clang-format",
     ),
     "google_java_format": attr.label(
         default = "//quality/tools/jvm:google_java_format",
@@ -494,8 +504,10 @@ _REAL_JVM_LINT_ATTRS = _real_attrs_for(_JVM_LINT_TOOLS)
 _REAL_JVM_FORMAT_ATTRS = _real_attrs_for(_JVM_FORMAT_TOOLS)
 _REAL_PY_LINT_ATTRS = _real_attrs_for(_PY_LINT_TOOLS)
 _REAL_RUST_ATTRS = _REAL_BASE_ATTRS
+_REAL_CPP_FORMAT_ATTRS = _real_attrs_for(_CPP_FORMAT_TOOLS)
 
 _REAL_SHARDS = {
+    "real_cpp_format": {"attrs": _REAL_CPP_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cpp", "tools": _CPP_FORMAT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
     "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
@@ -538,6 +550,8 @@ real_lint_aspect = _make_real_aspect("real_lint")
 real_format_aspect = _make_real_aspect("real_format")
 
 real_typecheck_aspect = _make_real_aspect("real_typecheck")
+
+real_cpp_format_aspect = _make_real_aspect("real_cpp_format")
 
 real_js_lint_aspect = _make_real_aspect("real_js_lint")
 

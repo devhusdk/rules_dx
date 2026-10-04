@@ -502,3 +502,56 @@ fn every_owned_cpp_source_shipped_by_the_filegroups_exists() {
         );
     }
 }
+
+/// Every tool the generator declares must ship at least one platform.
+///
+/// A tool with an empty platform map still generates no metadata, so nothing
+/// else notices. It happened once: gofumpt and staticcheck kept their tool
+/// entries while a revert emptied their platform maps, and CI only caught it
+/// as a ruff formatting failure on an unrelated-looking file.
+#[test]
+fn every_declared_tool_ships_at_least_one_repo() {
+    let source = read_runfiles("quality/artifacts/update.py");
+    let lines: Vec<&str> = source.lines().collect();
+    let mut declared = 0;
+    for (index, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with('"') || !trimmed.ends_with("\": {") {
+            continue;
+        }
+        // Only indent-4 keys are tools; their platform entries sit deeper.
+        if !(*line).starts_with("    \"") {
+            continue;
+        }
+        let end = trimmed.find('"').filter(|end| *end > 1).unwrap_or(trimmed.len());
+        let name = &trimmed[1..end];
+        let platforms = lines[index..]
+            .iter()
+            .position(|probe| probe.trim() == "\"platforms\": {")
+            .map(|offset| index + offset);
+        let Some(platforms) = platforms else {
+            continue;
+        };
+        declared += 1;
+        let mut count = 0;
+        let mut depth = 0i32;
+        for probe in &lines[platforms + 1..] {
+            let t = probe.trim();
+            if t.ends_with('{') {
+                depth += 1;
+            }
+            if t == "}," || t == "}" {
+                if depth == 0 {
+                    break;
+                }
+                depth -= 1;
+                continue;
+            }
+            if depth == 1 && t.starts_with('"') && t.ends_with("\": {") {
+                count += 1;
+            }
+        }
+        assert!(count > 0, "{name} pins no platform and would generate no artifact");
+    }
+    assert!(declared > 10, "found only {declared} tools, so the scan is wrong");
+}

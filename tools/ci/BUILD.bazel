@@ -74,6 +74,7 @@ rust_test(
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//:ruff.toml",
+        "//quality/artifacts:update.py",
         "//examples/adopt-cpp/greet:cpp_sources",
         "//examples/adopt-cpp/solo:cpp_sources",
         "//examples/adopt-polyglot/native_cpp:cpp_sources",

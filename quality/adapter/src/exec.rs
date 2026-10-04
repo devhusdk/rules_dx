@@ -193,13 +193,49 @@ pub struct ChildOutput {
     pub stderr: Vec<u8>,
 }
 
+const SYSTEM_VARS: &[&str] = &[
+    "ALLUSERSPROFILE",
+    "APPDATA",
+    "COMMONPROGRAMFILES",
+    "COMMONPROGRAMFILES(X86)",
+    "COMPUTERNAME",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "LOCALAPPDATA",
+    "NUMBER_OF_PROCESSORS",
+    "OS",
+    "PATHEXT",
+    "PROCESSOR_ARCHITECTURE",
+    "PROGRAMDATA",
+    "PROGRAMFILES",
+    "PROGRAMFILES(X86)",
+    "PROGRAMDATA",
+    "PUBLIC",
+    "SYSTEMDRIVE",
+    "SYSTEMROOT",
+    "TEMP",
+    "USERDOMAIN",
+    "USERNAME",
+    "USERPROFILE",
+    "WINDIR",
+];
+
+const PINNED_VARS: &[&str] = &["TMPDIR", "LANG", "TZ"];
+
 pub fn hermetic_env(tmpdir: &Path, extra: &[(&str, &str)]) -> Vec<(String, String)> {
     let mut env = Vec::with_capacity(3 + extra.len());
     env.push(("TMPDIR".to_owned(), tmpdir.to_string_lossy().into_owned()));
     env.push(("LANG".to_owned(), "C.UTF-8".to_owned()));
     env.push(("TZ".to_owned(), "UTC".to_owned()));
+    if cfg!(windows) {
+        for key in SYSTEM_VARS {
+            if let Ok(value) = std::env::var(key) {
+                env.push(((*key).to_owned(), value));
+            }
+        }
+    }
     for (key, value) in extra {
-        if *key != "TMPDIR" && *key != "LANG" && *key != "TZ" {
+        if !PINNED_VARS.contains(key) {
             env.push((key.to_string(), value.to_string()));
         }
     }
@@ -575,6 +611,28 @@ mod tests {
         let root = scratch.root().to_owned();
         std::fs::remove_dir_all(&root).expect("pre-remove");
         assert!(scratch.close().is_err(), "missing tree is an error");
+    }
+
+    #[test]
+    fn hermetic_env_forwards_windows_system_vars() {
+        let env = hermetic_env(Path::new("C:\\Temp\\dx"), &[]);
+        if cfg!(windows) {
+            assert!(
+                env.iter().any(|(key, _)| key == "SYSTEMROOT"),
+                "SYSTEMROOT is forwarded on Windows: {env:?}"
+            );
+            assert_eq!(env[0], ("TMPDIR".to_owned(), "C:\\Temp\\dx".to_owned()));
+            assert!(
+                !env.iter().any(|(key, _)| key == "PATH"),
+                "PATH stays scrubbed on Windows"
+            );
+        } else {
+            assert!(
+                !env.iter()
+                    .any(|(key, _)| SYSTEM_VARS.contains(&key.as_str())),
+                "no system vars on other hosts"
+            );
+        }
     }
 
     #[test]

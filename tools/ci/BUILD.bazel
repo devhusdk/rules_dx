@@ -56,6 +56,18 @@ rust_test(
 
 # keep
 rust_test(
+    name = "crate_platform_pins_test",
+    size = "small",
+    srcs = ["crate_platform_pins_test.rs"],
+    data = [
+        "//:MODULE.bazel",
+        "//:cargo-bazel-lock.json",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "config_consistency_test",
     size = "small",
     srcs = ["config_consistency_test.rs"],

@@ -92,6 +92,9 @@ pub(crate) fn classify_scopes(
             return Err(ResolveError::RelativeLabel { scope: raw.clone() });
         }
         let rel = normalize_rel(raw)?;
+        if rel.chars().any(char::is_control) {
+            return Err(ResolveError::UnsupportedName { scope: raw.clone() });
+        }
         let entry = workspace.join(&rel);
         let metadata = std::fs::symlink_metadata(&entry).map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {
@@ -106,15 +109,9 @@ pub(crate) fn classify_scopes(
             }
         })?;
         if metadata.is_dir() {
-            if rel.chars().any(char::is_control) {
-                return Err(ResolveError::UnsupportedName { scope: raw.clone() });
-            }
             classified.patterns.push(dir_pattern(&rel));
             classified.paths.push(raw.clone());
         } else if metadata.is_file() {
-            if rel.chars().any(char::is_control) {
-                return Err(ResolveError::UnsupportedName { scope: raw.clone() });
-            }
             let label = cache.file_label(workspace, &rel, raw)?;
             classified.files.push(FileScope {
                 scope: raw.clone(),
@@ -485,14 +482,52 @@ mod tests {
     fn control_characters_in_names_fail_before_query() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-control-");
         let workspace = scratch.path().to_path_buf();
-        write(&workspace, "a\nb.py", "x = 1\n");
-        let query = NeverQuery;
         assert_eq!(
-            resolve(&strings(&["a\nb.py"]), &workspace, &query).expect_err("control"),
-            ResolveError::UnsupportedName {
-                scope: "a\nb.py".to_owned(),
-            }
+            std::fs::read_dir(&workspace)
+                .expect("read workspace")
+                .count(),
+            0,
+            "no scope below names a real file, so the rejection never needed one"
         );
+        let query = FakeQuery::new(Vec::new());
+        for scope in [
+            "a\nb.py",
+            "a\u{1}b.py",
+            "pkg/a\rb.py",
+            "pkg/del\u{7f}.py",
+            "pkg/dir\u{1}t",
+        ] {
+            assert_eq!(
+                resolve(&strings(&[scope]), &workspace, &query).expect_err("control character"),
+                ResolveError::UnsupportedName {
+                    scope: scope.to_owned(),
+                },
+                "{scope:?}"
+            );
+        }
+        assert!(
+            query.calls().is_empty(),
+            "invalid names never reach a Bazel query"
+        );
+    }
+
+    #[test]
+    fn unicode_and_space_names_still_resolve() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-unicode-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/naïve file.py", "x = 1\n");
+        write(&workspace, "src/ünïcode dir/nested.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n")]);
+        let got = resolve(&strings(&["pkg/naïve file.py"]), &workspace, &query).expect("resolve");
+        assert_eq!(
+            got.targets,
+            strings(&["//pkg:lib"]),
+            "unicode and spaces stay inside the label"
+        );
+        let query = NeverQuery;
+        let got = resolve(&strings(&["src/ünïcode dir"]), &workspace, &query).expect("resolve");
+        assert_eq!(got.targets, strings(&["//src/ünïcode dir/..."]));
     }
 
     #[test]

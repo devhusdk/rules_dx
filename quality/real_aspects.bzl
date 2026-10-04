@@ -28,6 +28,7 @@ _REAL_TOOL_TABLE = {
     "gofumpt": {"capabilities": ["format"], "shard": "go"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
     "ktfmt": {"capabilities": ["format"], "shard": "jvm"},
+    "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet"},
     "ktlint": {"capabilities": ["lint"], "shard": "jvm"},
     "markdown_check": {"capabilities": ["lint"], "shard": "core"},
     "pmd": {"capabilities": ["lint"], "shard": "jvm"},
@@ -69,6 +70,7 @@ _GO_LINT_TOOLS = _shard_tools("go", "lint")
 _SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
 _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 _YAML_FORMAT_TOOLS = _shard_tools("yaml", "format")
+_JSONNET_FORMAT_TOOLS = _shard_tools("jsonnet", "format")
 
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     if QualitySourcesInfo not in target:
@@ -203,6 +205,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["shellcheck"] = ctx.file._shellcheck
     if "shfmt" in stage_tools:
         tool_binaries["shfmt"] = ctx.file._shfmt
+    if "jsonnetfmt" in stage_tools:
+        tool_binaries["jsonnetfmt"] = ctx.file._jsonnetfmt
     if "yamlfmt" in stage_tools:
         tool_binaries["yamlfmt"] = ctx.file._yamlfmt
     if "clang_tidy" in stage_tools:
@@ -393,7 +397,8 @@ def real_allowed_tools_error():
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS +
         _CPP_FORMAT_TOOLS + _CPP_LINT_TOOLS + _GO_FORMAT_TOOLS + _GO_LINT_TOOLS +
-        _SHELL_FORMAT_TOOLS + _SHELL_LINT_TOOLS + _YAML_FORMAT_TOOLS
+        _SHELL_FORMAT_TOOLS + _SHELL_LINT_TOOLS + _YAML_FORMAT_TOOLS +
+        _JSONNET_FORMAT_TOOLS
     )
     for tool in allowed:
         if tool not in REAL_ADAPTERS:
@@ -449,6 +454,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
         default = "@llvm//tools:clang-format",
+    ),
+    "jsonnetfmt": attr.label(
+        allow_single_file = True,
+        cfg = "exec",
+        default = "@dx_tools//:jsonnetfmt",
     ),
     "yamlfmt": attr.label(
         allow_single_file = True,
@@ -560,6 +570,7 @@ _REAL_GO_LINT_ATTRS = _real_attrs_for(_GO_LINT_TOOLS)
 _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
 _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_YAML_FORMAT_ATTRS = _real_attrs_for(_YAML_FORMAT_TOOLS)
+_REAL_JSONNET_FORMAT_ATTRS = _real_attrs_for(_JSONNET_FORMAT_TOOLS)
 _REAL_SHARDS = {
     "real_cpp_format": {"attrs": _REAL_CPP_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cpp", "tools": _CPP_FORMAT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
@@ -578,6 +589,7 @@ _REAL_SHARDS = {
     "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint aspect (shellcheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
     "real_cpp_lint": {"attrs": _REAL_CPP_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy).", "has_rust": False, "suffix": "-cpp", "tools": _CPP_LINT_TOOLS},
     "real_yaml_format": {"attrs": _REAL_YAML_FORMAT_ATTRS, "capability": "format", "doc": "Additive YAML format aspect (yamlfmt).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_FORMAT_TOOLS},
+    "real_jsonnet_format": {"attrs": _REAL_JSONNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive Jsonnet format aspect (jsonnetfmt).", "has_rust": False, "suffix": "-jsonnet", "tools": _JSONNET_FORMAT_TOOLS},
     "real_typecheck": {"attrs": _REAL_CORE_ATTRS, "capability": "typecheck", "doc": "Registers the exact-input real typecheck pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_TYPECHECK_TOOLS},
 }
 
@@ -618,6 +630,9 @@ real_shell_format_aspect = _make_real_aspect("real_shell_format")
 real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 
 real_cpp_lint_aspect = _make_real_aspect("real_cpp_lint")
+
+
+real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 
 real_yaml_format_aspect = _make_real_aspect("real_yaml_format")
 

@@ -10,6 +10,11 @@ load("//quality/artifacts:buildifier.linux_x86_64.bzl", _buildifier_linux_x86_64
 load("//quality/artifacts:buildifier.macos_arm64.bzl", _buildifier_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.windows_arm64.bzl", _buildifier_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:buildifier.windows_x86_64.bzl", _buildifier_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:cue.linux_arm64.bzl", _cue_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:cue.linux_x86_64.bzl", _cue_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:cue.macos_arm64.bzl", _cue_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:cue.windows_arm64.bzl", _cue_windows_arm64 = "ARTIFACT")
+load("//quality/artifacts:cue.windows_x86_64.bzl", _cue_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
@@ -19,6 +24,11 @@ load("//quality/artifacts:gofumpt.linux_arm64.bzl", _gofumpt_linux_arm64 = "ARTI
 load("//quality/artifacts:gofumpt.linux_x86_64.bzl", _gofumpt_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gofumpt.macos_arm64.bzl", _gofumpt_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gofumpt.windows_x86_64.bzl", _gofumpt_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:jsonnetfmt.linux_arm64.bzl", _jsonnetfmt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:jsonnetfmt.linux_x86_64.bzl", _jsonnetfmt_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:jsonnetfmt.macos_arm64.bzl", _jsonnetfmt_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:jsonnetfmt.windows_arm64.bzl", _jsonnetfmt_windows_arm64 = "ARTIFACT")
+load("//quality/artifacts:jsonnetfmt.windows_x86_64.bzl", _jsonnetfmt_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
@@ -100,6 +110,16 @@ _ARTIFACTS = [
     _yamlfmt_macos_arm64,
     _yamlfmt_windows_x86_64,
     _yamlfmt_windows_arm64,
+    _cue_linux_x86_64,
+    _cue_linux_arm64,
+    _cue_macos_arm64,
+    _cue_windows_x86_64,
+    _cue_windows_arm64,
+    _jsonnetfmt_linux_x86_64,
+    _jsonnetfmt_linux_arm64,
+    _jsonnetfmt_macos_arm64,
+    _jsonnetfmt_windows_x86_64,
+    _jsonnetfmt_windows_arm64,
     _taplo_linux_x86_64,
     _taplo_linux_arm64,
     _taplo_macos_arm64,

@@ -419,7 +419,7 @@
   "moduleExtensions": {
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "h/my4vPVZkfyK0I4tFUy2TC39iUmmHq2xhEWBk5dZXU=",
+        "bzlTransitiveDigest": "KEesMQhCW43qhQgVJ0Q+1Xwrp90rMGwI2hY9FGJTIUU=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -898,6 +898,116 @@
               "executable_sha256": "b9872f82cb12794a61bfbd9fc01035e3fa28eea4bd783e1581ad2199870e31ca"
             }
           },
+          "dx_cue_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_linux_amd64.tar.gz",
+              "sha256": "a39b0c97695069d95d276d99be0f5dbabb081d801bfdc9ba49b76efaf94e2369",
+              "asset": "cue_v0.17.1_linux_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "cue",
+              "executable_sha256": "b1e73b13d87ed1812de7626108324600f478b9b862bc926f9a360ffd01d19297"
+            }
+          },
+          "dx_cue_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_linux_arm64.tar.gz",
+              "sha256": "0d729be30d52c952ca38fc9dcb692caa09d8463fa0b64df5781312779183fbcd",
+              "asset": "cue_v0.17.1_linux_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "cue",
+              "executable_sha256": "60aa52c46fc02226b9790698900ab578764227a1e7801da5630324b4b72e2df3"
+            }
+          },
+          "dx_cue_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_darwin_arm64.tar.gz",
+              "sha256": "64921403f012a97f89494c03605db2fbf7d9daa77dc2631819ac4406cb2e8074",
+              "asset": "cue_v0.17.1_darwin_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "cue",
+              "executable_sha256": "96fe60cbbe4dac69bae9199a2c4c69837559251dae3120609c0ecc666ec744c2"
+            }
+          },
+          "dx_cue_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_amd64.zip",
+              "sha256": "9f15378dc52b9a1bb6fa1755adc0410c9f17f330a621b784a5b31fdbc91c6d7a",
+              "asset": "cue_v0.17.1_windows_amd64.zip",
+              "archive_format": "zip",
+              "executable": "cue.exe",
+              "executable_sha256": "a2452301a1abeaec8b46d4ce13b5ad5875851d447bcaeda43c556418b9b57e08"
+            }
+          },
+          "dx_cue_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_arm64.zip",
+              "sha256": "db88b2c302be1829e653e20ea87e3f1adc10ae2052d58fe87d21d0ed97102e51",
+              "asset": "cue_v0.17.1_windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "cue.exe",
+              "executable_sha256": "3c8f78a928c6b6039194ea5c11b44bd587b804c8489526ee3c7150b330d09959"
+            }
+          },
+          "dx_jsonnetfmt_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_amd64.tar.gz",
+              "sha256": "e87a93ea44e34da92c15636205c7f2240bf3ac92d00ccb855dbb4e7e03ea6941",
+              "asset": "go-jsonnet_0.22.0_linux_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnetfmt",
+              "executable_sha256": "a4e08e923ae45ae7f6314f7e64b6bee24dd31135e5c83e80c488cc87ba9d8aef"
+            }
+          },
+          "dx_jsonnetfmt_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_arm64.tar.gz",
+              "sha256": "3016b049254cb92548ba99304b6f44ec3795e6173f908e3ce3c5add57243fe20",
+              "asset": "go-jsonnet_0.22.0_linux_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnetfmt",
+              "executable_sha256": "ae7ac5b125e54e21542bcb54836da7f5c869cbb2247777cce4da98c990c377ab"
+            }
+          },
+          "dx_jsonnetfmt_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+              "sha256": "112534191b6e27f2ae01bb80c6ab82950fb7bf5772e2e81c5472f59a069700f5",
+              "asset": "go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnetfmt",
+              "executable_sha256": "1315b9d8fbd1bacfd337d2cccb904a8a50b21f1d05d7ed5f2d124093604f3db8"
+            }
+          },
+          "dx_jsonnetfmt_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_amd64.tar.gz",
+              "sha256": "277b83ddbe836a627dcde0655720aa42b02277fdf3a9cdaebeef2a53e98599b1",
+              "asset": "go-jsonnet_0.22.0_windows_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnetfmt.exe",
+              "executable_sha256": "16f5862cdf64ef3cd04a6e9332305d0c1480878173dbf402409108e5189d1db7"
+            }
+          },
+          "dx_jsonnetfmt_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_arm64.tar.gz",
+              "sha256": "663d4b9258e201ce9471a02e329167027e68bf4063192a937d83d8b6bac8b044",
+              "asset": "go-jsonnet_0.22.0_windows_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnetfmt.exe",
+              "executable_sha256": "2aa9ee71de55e24271972fde97051e4327d0c861b80ebb91788d9c93e37f95e8"
+            }
+          },
           "dx_taplo_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -1048,6 +1158,13 @@
                   "dx_buildifier_windows_x86_64",
                   "dx_buildifier_windows_arm64"
                 ],
+                "cue": [
+                  "dx_cue_linux_x86_64",
+                  "dx_cue_linux_arm64",
+                  "dx_cue_macos_arm64",
+                  "dx_cue_windows_x86_64",
+                  "dx_cue_windows_arm64"
+                ],
                 "gitleaks": [
                   "dx_gitleaks_linux_x86_64",
                   "dx_gitleaks_linux_arm64",
@@ -1060,6 +1177,13 @@
                   "dx_gofumpt_linux_arm64",
                   "dx_gofumpt_macos_arm64",
                   "dx_gofumpt_windows_x86_64"
+                ],
+                "jsonnetfmt": [
+                  "dx_jsonnetfmt_linux_x86_64",
+                  "dx_jsonnetfmt_linux_arm64",
+                  "dx_jsonnetfmt_macos_arm64",
+                  "dx_jsonnetfmt_windows_x86_64",
+                  "dx_jsonnetfmt_windows_arm64"
                 ],
                 "ruff": [
                   "dx_ruff_linux_x86_64",

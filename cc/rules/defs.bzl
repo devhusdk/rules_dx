@@ -8,6 +8,8 @@ load("//quality:sources.bzl", "QualitySourcesInfo")
 _CC_SRCS = [".c", ".cc", ".cpp", ".cxx", ".cu"]
 _CC_HDRS = [".h", ".hh", ".hpp", ".hxx", ".cuh"]
 
+_MSVC_ABI_CONFIG = "//cc/rules:msvc_abi"
+
 _DX_CC_LIBRARY_PROVIDES = [
     CcInfo,
     DefaultInfo,
@@ -83,7 +85,8 @@ def cc_copts_with_werror(kwargs):
 
     win_copts = [_msvc_opt(c) for c in copts] + ["/Zc:__cplusplus", "/WX"]
     upstream_kwargs["copts"] = select({
-        "@platforms//os:windows": win_copts,
+        _MSVC_ABI_CONFIG: win_copts,
+        "@platforms//os:windows": copts + ["-Werror"],
         "@platforms//os:macos": copts + ["-Werror", "-fno-profile-instr-generate", "-fno-coverage-mapping"],
         "//conditions:default": copts + ["-Werror"],
     })

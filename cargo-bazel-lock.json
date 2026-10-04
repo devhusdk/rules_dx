@@ -1,11 +1,14 @@
 {
-  "checksum": "993dc4ed882ac779f2c109046083e5eaf61df1e2ddbc3a91a9802084e021361a",
+  "checksum": "247638f5d0a91d58c026983dc260bdc515731a08f4450d6d4d0eb1282b4fde92",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
     ],
     "aarch64-linux-android": [],
     "aarch64-pc-windows-gnullvm": [],
+    "aarch64-pc-windows-msvc": [
+      "aarch64-pc-windows-msvc"
+    ],
     "aarch64-unknown-linux-gnu": [
       "aarch64-unknown-linux-gnu"
     ],
@@ -28,7 +31,9 @@
       "wasm32-unknown-unknown",
       "wasm32-wasip1"
     ],
-    "cfg(all(target_arch = \"aarch64\", target_env = \"msvc\", not(windows_raw_dylib)))": [],
+    "cfg(all(target_arch = \"aarch64\", target_env = \"msvc\", not(windows_raw_dylib)))": [
+      "aarch64-pc-windows-msvc"
+    ],
     "cfg(all(target_arch = \"aarch64\", target_os = \"android\"))": [],
     "cfg(all(target_arch = \"aarch64\", target_os = \"linux\"))": [
       "aarch64-unknown-linux-gnu"
@@ -51,6 +56,7 @@
     "cfg(any())": [],
     "cfg(any(target_arch = \"aarch64\", target_arch = \"x86_64\", target_arch = \"x86\"))": [
       "aarch64-apple-darwin",
+      "aarch64-pc-windows-msvc",
       "aarch64-unknown-linux-gnu",
       "x86_64-pc-windows-msvc",
       "x86_64-unknown-linux-gnu",
@@ -111,6 +117,7 @@
       "wasm32-wasip1"
     ],
     "cfg(target_os = \"windows\")": [
+      "aarch64-pc-windows-msvc",
       "x86_64-pc-windows-msvc"
     ],
     "cfg(target_vendor = \"apple\")": [
@@ -123,6 +130,7 @@
       "x86_64-unknown-nixos-gnu"
     ],
     "cfg(windows)": [
+      "aarch64-pc-windows-msvc",
       "x86_64-pc-windows-msvc"
     ],
     "cfg(windows_raw_dylib)": [],
@@ -299,6 +307,12 @@
             }
           ],
           "selects": {
+            "aarch64-pc-windows-msvc": [
+              {
+                "id": "anstyle-wincon 3.0.11",
+                "target": "anstyle_wincon"
+              }
+            ],
             "x86_64-pc-windows-msvc": [
               {
                 "id": "anstyle-wincon 3.0.11",
@@ -1163,6 +1177,12 @@
               {
                 "id": "iana-time-zone 0.1.65",
                 "target": "iana_time_zone"
+              }
+            ],
+            "aarch64-pc-windows-msvc": [
+              {
+                "id": "windows-link 0.2.1",
+                "target": "windows_link"
               }
             ],
             "aarch64-unknown-linux-gnu": [
@@ -9905,6 +9925,12 @@
           ],
           "selects": {
             "aarch64-apple-darwin": [
+              {
+                "id": "getrandom 0.4.3",
+                "target": "getrandom"
+              }
+            ],
+            "aarch64-pc-windows-msvc": [
               {
                 "id": "getrandom 0.4.3",
                 "target": "getrandom"

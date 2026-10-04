@@ -110,6 +110,7 @@ exports_files([
     ".gitignore",
     ".shellcheckrc",
     "MODULE.bazel",
+    "cargo-bazel-lock.json",
     "package.json",
     "pnpm-lock.yaml",
     ".vale.ini",

@@ -12,6 +12,7 @@ load("//quality/artifacts:gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "AR
 load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "decode_artifacts", "encode_artifacts", "hub_build")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
@@ -61,13 +62,6 @@ _ARTIFACTS = [
 ]
 
 TOOL_ARTIFACTS = _ARTIFACTS
-
-_PLATFORMS = [
-    "linux_x86_64",
-    "linux_arm64",
-    "macos_arm64",
-    "windows_x86_64",
-]
 
 def _repo_name(artifact):
     return "dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"])
@@ -160,80 +154,25 @@ _standalone_tool_repo = repository_rule(
     },
 )
 
-_HUB_BUILD = """config_setting(
-    name = "linux_x86_64",
-    constraint_values = [
-        "{os_linux}",
-        "{cpu_x86_64}",
-    ],
-)
-config_setting(
-    name = "linux_arm64",
-    constraint_values = [
-        "{os_linux}",
-        "{cpu_arm64}",
-    ],
-)
-config_setting(
-    name = "macos_arm64",
-    constraint_values = [
-        "{os_macos}",
-        "{cpu_arm64}",
-    ],
-)
-config_setting(
-    name = "windows_x86_64",
-    constraint_values = [
-        "{os_windows}",
-        "{cpu_x86_64}",
-    ],
-)
-"""
-
-_HUB_ALIAS = """alias(
-    name = "{tool}",
-    actual = select(
-        {{
-            ":linux_x86_64": "@{repo_linux_x86_64}//:tool",
-            ":linux_arm64": "@{repo_linux_arm64}//:tool",
-            ":macos_arm64": "@{repo_macos_arm64}//:tool",
-            ":windows_x86_64": "@{repo_windows_x86_64}//:tool",
-        }},
-        no_match_error = (
-            "rules_dx: no {tool} artifact for this execution platform; " +
-            "want one of linux_x86_64, linux_arm64, macos_arm64, " +
-            "windows_x86_64."
-        ),
-    ),
-    visibility = ["//visibility:public"],
-)
-"""
-
 def _hub_repo_impl(ctx):
-    lines = [_HUB_BUILD.format(
-        os_linux = ctx.attr.os_linux,
-        os_macos = ctx.attr.os_macos,
-        os_windows = ctx.attr.os_windows,
-        cpu_x86_64 = ctx.attr.cpu_x86_64,
-        cpu_arm64 = ctx.attr.cpu_arm64,
-    )]
-    for tool in sorted(ctx.attr.artifacts.keys()):
-        repos = {}
-        for platform, repo in zip(_PLATFORMS, ctx.attr.artifacts[tool]):
-            repos[platform] = repo
-        lines.append(_HUB_ALIAS.format(
-            tool = tool,
-            repo_linux_x86_64 = repos["linux_x86_64"],
-            repo_linux_arm64 = repos["linux_arm64"],
-            repo_macos_arm64 = repos["macos_arm64"],
-            repo_windows_x86_64 = repos["windows_x86_64"],
-        ))
-    ctx.file("BUILD.bazel", "\n".join(lines))
+    decoded = decode_artifacts(ctx.attr.artifacts)
+    if decoded.error != "":
+        fail("dx_tools hub: " + decoded.error)
+    errors = artifact_map_errors(decoded.artifacts)
+    if len(errors) > 0:
+        fail("dx_tools hub: " + "; ".join(errors))
+    ctx.file("BUILD.bazel", hub_build(decoded.artifacts, {
+        "cpu_arm64": ctx.attr.cpu_arm64,
+        "cpu_x86_64": ctx.attr.cpu_x86_64,
+        "os_linux": ctx.attr.os_linux,
+        "os_macos": ctx.attr.os_macos,
+        "os_windows": ctx.attr.os_windows,
+    }))
 
 _hub_repo = repository_rule(
     implementation = _hub_repo_impl,
     attrs = {
-        "artifacts": attr.string_list_dict(mandatory = True),
+        "artifacts": attr.string(mandatory = True),
         "cpu_arm64": attr.string(mandatory = True),
         "cpu_x86_64": attr.string(mandatory = True),
         "os_linux": attr.string(mandatory = True),
@@ -255,6 +194,9 @@ def _dx_tools_impl(ctx):
             cpu_arm64 = str(tag.cpu_arm64)
     if os_linux == None:
         fail("dx_tools.platform(os_linux, os_macos, os_windows, cpu_x86_64, cpu_arm64) is required in MODULE.bazel")
+    errors = artifact_metadata_errors(_ARTIFACTS)
+    if len(errors) > 0:
+        fail("dx_tools: " + "; ".join(errors))
     by_tool = {}
     for artifact in _ARTIFACTS:
         name = _repo_name(artifact)
@@ -269,12 +211,9 @@ def _dx_tools_impl(ctx):
         )
         platform = artifact["os"] + "_" + artifact["cpu"]
         by_tool.setdefault(artifact["tool"], {})[platform] = name
-    hub_entries = {}
-    for tool in sorted(by_tool.keys()):
-        hub_entries[tool] = [by_tool[tool][platform] for platform in _PLATFORMS]
     _hub_repo(
         name = "dx_tools",
-        artifacts = hub_entries,
+        artifacts = encode_artifacts(by_tool),
         os_linux = os_linux,
         os_macos = os_macos,
         os_windows = os_windows,

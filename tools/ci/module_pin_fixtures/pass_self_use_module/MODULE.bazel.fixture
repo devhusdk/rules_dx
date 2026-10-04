@@ -1,0 +1,6 @@
+module(
+    name = "rules_dx",
+    version = "1.2.3",
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.22")

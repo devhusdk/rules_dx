@@ -1,7 +1,38 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//python/rules:defs.bzl", "python_library", "python_test")
 load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
+
+filegroup(
+    name = "module_pin_fixtures",
+    srcs = glob(["module_pin_fixtures/**"]),
+)
+
+# keep
+python_library(
+    name = "module_pin",
+    srcs = ["module_pin.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_test(
+    name = "module_pin_test",
+    size = "small",
+    srcs = ["module_pin_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        ":module_pin_fixtures",
+        "//:MODULE.bazel",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+    ],
+    dep_group = "hello",
+    deps = ["@pypi//pytest"],
+)
 
 # keep
 rust_test(
@@ -141,6 +172,7 @@ rust_test(
     size = "small",
     srcs = ["workflow_pins_test.rs"],
     data = [
+        "module_pin.py",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//examples:consumer-ci/caller.yml",

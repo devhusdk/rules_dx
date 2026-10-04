@@ -1,0 +1,4 @@
+pin 1.2.3
+exit 0
+absent EXECUTED
+says MODULE.bazel:9 bazel_dep(name = "rules_dx", version = "1.2.3") matches the workflow pin

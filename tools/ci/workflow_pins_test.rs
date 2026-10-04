@@ -9,6 +9,16 @@ const REUSABLE: [&str; 2] = ["reusable-consumer.yml", "reusable-docs.yml"];
 
 const PIN_STEP: &str = "- name: Verify rules_dx pin";
 
+const VALIDATOR: &str = "tools/ci/module_pin.py";
+
+const PIN_ENV: &str = "RULES_DX_PIN";
+
+const HEREDOC: &str = "python3 - <<'DX_MODULE_PIN'";
+
+const MARKER: &str = "DX_MODULE_PIN";
+
+const STEP_KEY: &str = "        ";
+
 fn pinned_commit(caller: &str, workflow: &str) -> String {
     let want = format!("rules_dx/.github/workflows/{workflow}@");
     let text = read_runfiles(caller);
@@ -113,6 +123,95 @@ fn every_checkout_job_verifies_the_rules_dx_pin() {
             assert_eq!(
                 pins, 1,
                 "{workflow} job {name} must carry exactly one {PIN_STEP:?} step, found {pins}"
+            );
+        }
+    }
+}
+
+/// Returns every pin step of a workflow, as the file lines of the step block.
+fn pin_steps(workflow: &str) -> Vec<Vec<String>> {
+    let text = read_runfiles(&format!(".github/workflows/{workflow}"));
+    let lines: Vec<&str> = text.lines().collect();
+    let mut steps = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        if line.trim() != PIN_STEP {
+            continue;
+        }
+        let mut block = Vec::new();
+        for key in lines.iter().skip(index + 1) {
+            if !key.is_empty() && !key.starts_with(STEP_KEY) {
+                break;
+            }
+            block.push((*key).to_owned());
+        }
+        steps.push(block);
+    }
+    steps
+}
+
+/// Returns the validator a pin step runs, dedented to its own file text.
+fn embedded_validator(step: &[String], workflow: &str) -> String {
+    let opening = step
+        .iter()
+        .position(|line| line.trim() == HEREDOC)
+        .unwrap_or_else(|| panic!("{workflow} runs no {HEREDOC:?} validator"));
+    let base = step[opening].len() - step[opening].trim_start().len();
+    let mut body = Vec::new();
+    for line in &step[opening + 1..] {
+        if line.trim() == MARKER {
+            return format!("{}\n", body.join("\n"));
+        }
+        assert!(
+            line.is_empty() || line.len() >= base,
+            "{workflow} runs a validator line at a shallower indent: {line}"
+        );
+        body.push(line.get(base..).unwrap_or_default().to_owned());
+    }
+    panic!("{workflow} has no {MARKER} terminator");
+}
+
+#[test]
+fn every_pin_step_runs_the_shared_validator_verbatim() {
+    let canonical = read_runfiles(VALIDATOR);
+    for workflow in REUSABLE {
+        let steps = pin_steps(workflow);
+        assert!(!steps.is_empty(), "{workflow} runs no {PIN_STEP:?} step");
+        for step in &steps {
+            assert_eq!(
+                embedded_validator(step, workflow),
+                canonical,
+                "{workflow} must run {VALIDATOR} verbatim, so one validator owns every pin check"
+            );
+        }
+    }
+}
+
+#[test]
+fn no_pin_step_matches_a_version_string_anywhere_in_the_module() {
+    for workflow in REUSABLE {
+        for step in pin_steps(workflow) {
+            assert!(
+                !step.join("\n").contains("grep"),
+                "{workflow} pin step greps MODULE.bazel instead of reading the rules_dx declaration"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_expected_version_reaches_the_validator_through_the_environment() {
+    let wanted = format!("{PIN_ENV}: ${{{{ inputs.rules_dx_version }}}}");
+    for workflow in REUSABLE {
+        for step in pin_steps(workflow) {
+            let text = step.join("\n");
+            assert!(
+                text.contains(&wanted),
+                "{workflow} pin step must pass the expected version as {PIN_ENV}"
+            );
+            let script = text.split_once("run: |").map_or("", |(_, rest)| rest);
+            assert!(
+                !script.contains("inputs.rules_dx_version"),
+                "{workflow} pin step must not interpolate the version into the validator"
             );
         }
     }

@@ -1,0 +1,3 @@
+pin 1.2.3
+exit 1
+says dx-ci: MODULE.bazel:3 bazel_dep version must be a quoted string, found rules_dx_version.

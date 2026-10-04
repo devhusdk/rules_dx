@@ -1,0 +1,4 @@
+module(name = "consumer_app", version = "1.0.0")
+
+bazel_dep(name = "rules_cc", version = "1.2.3")
+bazel_dep(name = "rules_rust", version = "1.2.3")

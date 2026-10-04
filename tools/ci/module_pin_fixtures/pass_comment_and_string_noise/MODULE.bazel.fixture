@@ -1,0 +1,5 @@
+module(name = "consumer_app")
+
+# bazel_dep(name = "rules_dx", version = "9.9.9")
+RELEASES = "https://example.invalid/rules_dx#1.2.3"
+bazel_dep(name = "rules_dx", repo_name = "rules_dx#internal", version = "1.2.3")

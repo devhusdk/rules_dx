@@ -1,0 +1,10 @@
+module(
+    name = "consumer_app",
+    version = "1.0.0",
+)
+
+bazel_dep(
+    version = "1.2.3",
+    # The reviewed rules_dx pin.
+    name = "rules_dx",
+)

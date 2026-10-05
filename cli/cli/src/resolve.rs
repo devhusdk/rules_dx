@@ -121,18 +121,25 @@ mod tests {
     }
 
     #[test]
-    fn not_a_directory_maps_to_query_failed() {
+    fn scope_through_a_regular_file_is_not_found() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-not-a-dir-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg", "file, not dir\n");
         let query = NeverQuery;
-        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
-        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
-        let err =
-            resolve_for_test(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
-        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
-        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("enotdir");
-        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
+        for err in [
+            resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("resolve"),
+            resolve_for_test(&strings(&["pkg/a.py"]), &workspace, &query)
+                .expect_err("resolve_for_test"),
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("resolve_run"),
+        ] {
+            assert_eq!(
+                err,
+                ResolveError::PathNotFound {
+                    scope: "pkg/a.py".to_owned(),
+                },
+                "{err:?}"
+            );
+        }
     }
 
     #[test]

@@ -97,7 +97,9 @@ pub(crate) fn classify_scopes(
         }
         let entry = workspace.join(&rel);
         let metadata = std::fs::symlink_metadata(&entry).map_err(|error| {
-            if error.kind() == io::ErrorKind::NotFound {
+            if error.kind() == io::ErrorKind::NotFound
+                || error.kind() == io::ErrorKind::NotADirectory
+            {
                 ResolveError::PathNotFound { scope: raw.clone() }
             } else {
                 ResolveError::QueryFailed {

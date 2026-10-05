@@ -1,0 +1,103 @@
+module(name = "dx_acquire_fixture")
+
+acquire_fixture_repo = use_repo_rule("//quality/artifacts/acquire_test:repos.bzl", "acquire_fixture_repo")
+
+acquire_fixture_repo(
+    name = "dx_acquire_raw",
+    archive_format = "none",
+    asset = "taplo-x86_64",
+    executable = "taplo-x86_64",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    url = "{fixtures}/taplo-x86_64",
+)
+
+acquire_fixture_repo(
+    name = "dx_acquire_gzip_named",
+    archive_format = "gzip",
+    asset = "taplo-x86_64.gz",
+    executable = "taplo-x86_64",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "607db866b1623a66373a2b85199982fa30077c1f66fb84dea138085acd679922",
+    url = "{fixtures}/taplo-x86_64.gz",
+)
+
+acquire_fixture_repo(
+    name = "dx_acquire_gzip_unnamed",
+    archive_format = "gzip",
+    asset = "taplo-linux-aarch64.gz",
+    executable = "taplo-aarch64",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "003594e2bf9bfb6761946bb00509c9e0c5c1075c4ce2f1e426ff7d4e99e2e1d5",
+    url = "{fixtures}/taplo-linux-aarch64.gz",
+)
+
+acquire_fixture_repo(
+    name = "dx_acquire_tar",
+    archive_format = "tar.gz",
+    asset = "taplo-linux-x86_64.tar.gz",
+    executable = "taplo-linux-x86_64/taplo",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "60b5c37fc459698e0cc41059a9ff157aa050342348579fda0e3369a9d0aa267c",
+    url = "{fixtures}/taplo-linux-x86_64.tar.gz",
+)
+
+acquire_fixture_repo(
+    name = "dx_acquire_zip",
+    archive_format = "zip",
+    asset = "taplo-windows-x86_64.zip",
+    executable = "taplo.exe",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "0d607d5076a456a9493ccd8b18d4af25a5b40b88c32b802d979c0ed757a66ce4",
+    url = "{fixtures}/taplo-windows-x86_64.zip",
+)
+
+acquire_fixture_repo(
+    name = "dx_reject_archive_digest",
+    archive_format = "gzip",
+    asset = "taplo-x86_64.gz",
+    executable = "taplo-x86_64",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+    url = "{fixtures}/taplo-x86_64.gz",
+)
+
+acquire_fixture_repo(
+    name = "dx_reject_broken_archive",
+    archive_format = "gzip",
+    asset = "broken.gz",
+    executable = "taplo-x86_64",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "6c7e821f9e6b0e41be0a81c22fbf5fafc242b4e2dbac7f7a96a3e0738b6d7fe8",
+    url = "{fixtures}/broken.gz",
+)
+
+acquire_fixture_repo(
+    name = "dx_reject_tampered_member",
+    archive_format = "gzip",
+    asset = "tampered.gz",
+    executable = "taplo-x86_64",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "71178619cffa4a582e44db081c3fa489f0b65de8333da3bfc0e6f3e9006cf695",
+    url = "{fixtures}/tampered.gz",
+)
+
+acquire_fixture_repo(
+    name = "dx_reject_truncated_member",
+    archive_format = "gzip",
+    asset = "prefixed.gz",
+    executable = "prefixed",
+    executable_sha256 = "e11360251d1173650cdcd20f111d8f1ca2e412f572e8b36a4dc067121c1799b8",
+    sha256 = "8d6f300726ea0c920aea8e8e673c26e5418791b8fe8a86ba8a6dc69e5a7e8fc3",
+    url = "{fixtures}/prefixed.gz",
+)
+
+acquire_fixture_repo(
+    name = "dx_reject_absent_member",
+    archive_format = "tar.gz",
+    asset = "taplo-linux-x86_64.tar.gz",
+    executable = "taplo-linux-x86_64/absent",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "60b5c37fc459698e0cc41059a9ff157aa050342348579fda0e3369a9d0aa267c",
+    url = "{fixtures}/taplo-linux-x86_64.tar.gz",
+)

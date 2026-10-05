@@ -1,5 +1,6 @@
 """Standalone quality-tool acquisition."""
 
+load("//quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
 load("//quality/artifacts:biome.linux_arm64.bzl", _biome_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:biome.linux_x86_64.bzl", _biome_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:biome.macos_arm64.bzl", _biome_macos_arm64 = "ARTIFACT")
@@ -66,92 +67,12 @@ TOOL_ARTIFACTS = _ARTIFACTS
 def _repo_name(artifact):
     return "dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"])
 
-def _sha256_of(ctx, path):
-    """Returns the sha256 hex of one repo-relative file, or "" when unavailable."""
-    for argv in (
-        ["sha256sum", path],
-        ["shasum", "-a", "256", path],
-        ["python3", "-c", "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())", path],
-    ):
-        result = ctx.execute(argv)
-        if result.return_code == 0:
-            return result.stdout.split(" ")[0].strip()
-    return ""
-
-def _verify_executable_sha256(ctx, executable, want):
-    """Fails closed unless the extracted executable matches its inner digest."""
-    if want == None or want == "":
-        fail("standalone tool repo: missing executable_sha256 for '" + executable +
-             "' (regenerate metadata with //quality/artifacts:update)")
-    got = _sha256_of(ctx, executable)
-    if got == "":
-        fail("standalone tool repo: cannot hash '" + executable +
-             "' (need sha256sum, shasum, or python3 on PATH to verify the inner digest)")
-    if got != want:
-        fail("standalone tool repo: executable sha256 mismatch for '" + executable +
-             "': got " + got + ", want " + want)
-
 def _standalone_tool_repo_impl(ctx):
-    kind = ctx.attr.archive_format
-    if kind == "none":
-        ctx.download(
-            url = ctx.attr.url,
-            output = ctx.attr.executable,
-            sha256 = ctx.attr.sha256,
-            executable = True,
-            canonical_id = "dx-tool:" + ctx.attr.url,
-        )
-    elif kind == "gzip":
-        ctx.download(
-            url = ctx.attr.url,
-            output = ctx.attr.asset,
-            sha256 = ctx.attr.sha256,
-            canonical_id = "dx-tool:" + ctx.attr.url,
-        )
-
-        ctx.extract(ctx.attr.asset)
-        ctx.execute(["chmod", "755", ctx.attr.executable])
-    elif kind == "tar.gz":
-        ctx.download(
-            url = ctx.attr.url,
-            output = ctx.attr.asset,
-            sha256 = ctx.attr.sha256,
-            canonical_id = "dx-tool:" + ctx.attr.url,
-        )
-
-        ctx.extract(ctx.attr.asset)
-    elif kind == "zip":
-        ctx.download(
-            url = ctx.attr.url,
-            output = ctx.attr.asset,
-            sha256 = ctx.attr.sha256,
-            canonical_id = "dx-tool:" + ctx.attr.url,
-        )
-
-        ctx.extract(ctx.attr.asset)
-    else:
-        fail("unsupported archive format: " + kind)
-
-    _verify_executable_sha256(ctx, ctx.attr.executable, ctx.attr.executable_sha256)
-    ctx.file("BUILD.bazel", "\n".join([
-        "filegroup(",
-        '    name = "tool",',
-        "    srcs = [%r]," % ctx.attr.executable,
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-    ]))
+    acquire_tool(ctx)
 
 _standalone_tool_repo = repository_rule(
     implementation = _standalone_tool_repo_impl,
-    attrs = {
-        "archive_format": attr.string(mandatory = True),
-        "asset": attr.string(mandatory = True),
-        "executable": attr.string(mandatory = True),
-        "executable_sha256": attr.string(mandatory = True),
-        "sha256": attr.string(mandatory = True),
-        "url": attr.string(mandatory = True),
-    },
+    attrs = ACQUIRE_ATTRS,
 )
 
 def _hub_repo_impl(ctx):

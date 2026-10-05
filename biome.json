@@ -12,6 +12,11 @@
       "!!**/.opencode",
       "!!**/.dx",
       "!!**/bazel-*",
+      "!!bin",
+      "!!out",
+      "!!testlogs",
+      "!!rules_dx",
+      "!!scratch_*",
       "!!**/dist",
       "!!**/release"
     ]

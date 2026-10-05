@@ -19,6 +19,14 @@ filegroup(
     srcs = glob(["input_validation_fixtures/**"]),
 )
 
+filegroup(
+    name = "actionlint_fixtures",
+    srcs = [
+        "actionlint_fixtures/.github/workflows/invalid.yml",
+        "actionlint_fixtures/.github/workflows/reusable.yml",
+    ],
+)
+
 # keep
 python_library(
     name = "input_validation",
@@ -66,6 +74,38 @@ python_test(
     ],
     dep_group = "hello",
     deps = ["@pypi//pytest"],
+)
+
+# keep
+rust_test(
+    name = "actionlint_test",
+    size = "small",
+    srcs = ["actionlint_test.rs"],
+    data = [
+        "input_validation.py",
+        ":actionlint_fixtures",
+        "//.github:BUILD.bazel",
+        "//.github:actionlint.yaml",
+        "//.github:workflows/bump.yml",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/ghcr.yml",
+        "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+        "//examples:consumer-ci/caller.yml",
+        "//examples:docs-ci/caller.yml",
+        "@dx_tools//:actionlint",
+        "@dx_tools//:shellcheck",
+    ],
+    env = {
+        "DX_ACTIONLINT": "$(rootpath @dx_tools//:actionlint)",
+        "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
+    },
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
 )
 
 # keep

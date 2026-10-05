@@ -1,6 +1,10 @@
 """Load tests pinning standalone-artifact metadata."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load(":actionlint.linux_arm64.bzl", _actionlint_linux_arm64 = "ARTIFACT")
+load(":actionlint.linux_x86_64.bzl", _actionlint_linux_x86_64 = "ARTIFACT")
+load(":actionlint.macos_arm64.bzl", _actionlint_macos_arm64 = "ARTIFACT")
+load(":actionlint.windows_x86_64.bzl", _actionlint_windows_x86_64 = "ARTIFACT")
 load(":biome.linux_arm64.bzl", _biome_linux_arm64 = "ARTIFACT")
 load(":biome.linux_x86_64.bzl", _biome_linux_x86_64 = "ARTIFACT")
 load(":biome.macos_arm64.bzl", _biome_macos_arm64 = "ARTIFACT")
@@ -19,6 +23,10 @@ load(":ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load(":ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load(":ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
 load(":ruff.windows_x86_64.bzl", _ruff_windows_x86_64 = "ARTIFACT")
+load(":shellcheck.linux_arm64.bzl", _shellcheck_linux_arm64 = "ARTIFACT")
+load(":shellcheck.linux_x86_64.bzl", _shellcheck_linux_x86_64 = "ARTIFACT")
+load(":shellcheck.macos_arm64.bzl", _shellcheck_macos_arm64 = "ARTIFACT")
+load(":shellcheck.windows_x86_64.bzl", _shellcheck_windows_x86_64 = "ARTIFACT")
 load(":taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT")
 load(":taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
 load(":taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
@@ -71,6 +79,50 @@ def _artifact_checks(artifact, tool, platform, version, url, sha256, size, exe, 
 def metadata_tests(name):
     """Declare the standalone-artifact metadata pin test."""
     checks = []
+    checks += _artifact_checks(
+        _actionlint_linux_arm64,
+        "actionlint",
+        "linux_arm64",
+        "1.7.12",
+        "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_arm64.tar.gz",
+        "325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6",
+        2111482,
+        "actionlint",
+        "ac0323433c2853ec3fb978c611430c5b3dc5d43c58d1a1ec031b00ab572beb60",
+    )
+    checks += _artifact_checks(
+        _actionlint_linux_x86_64,
+        "actionlint",
+        "linux_x86_64",
+        "1.7.12",
+        "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+        "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+        2353908,
+        "actionlint",
+        "c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4",
+    )
+    checks += _artifact_checks(
+        _actionlint_macos_arm64,
+        "actionlint",
+        "macos_arm64",
+        "1.7.12",
+        "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_arm64.tar.gz",
+        "aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f",
+        2164202,
+        "actionlint",
+        "8db11704dc296f096216db4db65d86cd7f0ebfdf4c38453a1da276b137b88388",
+    )
+    checks += _artifact_checks(
+        _actionlint_windows_x86_64,
+        "actionlint",
+        "windows_x86_64",
+        "1.7.12",
+        "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip",
+        "6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9",
+        2479065,
+        "actionlint.exe",
+        "54ca21be3de4c7cfa26914aa8b61bd76bf573ef3caac5f80d110558cdf241718",
+    )
     checks += _artifact_checks(
         _biome_linux_arm64,
         "biome",
@@ -248,6 +300,50 @@ def metadata_tests(name):
         "bf56979a91062b3d1862874d65cfc17157f0c55d89a9a6615ebbfac615a4a270",
     )
     checks += _artifact_checks(
+        _shellcheck_linux_arm64,
+        "shellcheck",
+        "linux_arm64",
+        "0.11.0",
+        "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.gz",
+        "68a8133197a50beb8803f8d42f9908d1af1c5540d4bb05fdfca8c1fa47decefc",
+        11668131,
+        "shellcheck-v0.11.0/shellcheck",
+        "127f13925eadd52c341bca0ebaf9ab0dbd78c6468f30a8f262a528bf8de47546",
+    )
+    checks += _artifact_checks(
+        _shellcheck_linux_x86_64,
+        "shellcheck",
+        "linux_x86_64",
+        "0.11.0",
+        "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz",
+        "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6",
+        3773312,
+        "shellcheck-v0.11.0/shellcheck",
+        "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
+    )
+    checks += _artifact_checks(
+        _shellcheck_macos_arm64,
+        "shellcheck",
+        "macos_arm64",
+        "0.11.0",
+        "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+        "339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f",
+        11370575,
+        "shellcheck-v0.11.0/shellcheck",
+        "61c17246d69f012cd458ae82f244c46023dac75d1b69733ca1cc7d28fb270fd7",
+    )
+    checks += _artifact_checks(
+        _shellcheck_windows_x86_64,
+        "shellcheck",
+        "windows_x86_64",
+        "0.11.0",
+        "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip",
+        "8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e",
+        8068167,
+        "shellcheck.exe",
+        "c9e82ada36ef4b8d4caf1f97fa89289048c8f4a33c2c76ffffc88bfe09ff00c5",
+    )
+    checks += _artifact_checks(
         _taplo_linux_arm64,
         "taplo",
         "linux_arm64",
@@ -381,7 +477,7 @@ def metadata_tests(name):
     )
 
     derived_repos = sorted(["dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"]) for artifact in TOOL_ARTIFACTS])
-    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 28))
+    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 36))
     checks.append(expect_equal("dx tool repos match metadata", DX_TOOL_REPOS, derived_repos))
     checks.append(expect_equal("dx tool repos sorted", DX_TOOL_REPOS, sorted(DX_TOOL_REPOS)))
     checks.append(expect_equal("dx tool hub", DX_TOOL_HUB, "dx_tools"))

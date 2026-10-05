@@ -55,6 +55,8 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
           if [[ -z "${SELECTOR:-}" || -z "${VERSION:-}" ]]; then
             echo "Scheduled discovery (issue #639): enumerating outdated via upstream registry clients (stable only, never custom HTTP)."
             echo "Discovery policy: stable only; prerelease follows upstream resolver/project config, never a private policy; transitives stay resolver-governed."
@@ -145,7 +147,7 @@ jobs:
             exit 0
           fi
           # Exactly one requirement per invocation, never batch.
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$VERSION" --dry-run -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$VERSION" --dry-run -- "$@"
       - name: Widen one requirement plus resolver-owned refresh
         if: inputs.selector != '' && inputs.version != ''
         env:
@@ -153,6 +155,8 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
           # Unknown tags fail closed; never invent a SHA.
           RESOLVED_VERSION="$VERSION"
           set_name="${SELECTOR%%:*}"
@@ -171,26 +175,28 @@ jobs:
               RESOLVED_VERSION="$SHA"
             fi
           fi
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$RESOLVED_VERSION" -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$RESOLVED_VERSION" -- "$@"
           set_name="${SELECTOR%%:*}"
           case "$set_name" in
-            cargo|npm|go|gomod|maven|nuget) bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- update "$set_name" -- $BAZEL_CONFIG $BB_ARGS || exit 1 ;;
+            cargo|npm|go|gomod|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
             *) echo "File-only set ($set_name): no resolver refresh; preset flag-diff review plus build below." ;;
           esac
       - name: Bump-PR verification (regen, flag-diff, build, test, coverage, dogfood)
         if: inputs.selector != '' && inputs.version != ''
         run: |
           set -euo pipefail
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- generate --check //... -- $BAZEL_CONFIG $BB_ARGS
-          bazel run --noshow_progress $BAZEL_CONFIG $BB_ARGS //tools/bazelrc:preset_update -- --verify-only
-          bazel build --noshow_progress //... $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //... $BAZEL_CONFIG $BB_ARGS
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- coverage --min-coverage 96 //... -- $BAZEL_CONFIG $BB_ARGS
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- lint --check //... -- $BAZEL_CONFIG $BB_ARGS
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- typecheck --check //... -- $BAZEL_CONFIG $BB_ARGS
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- format --check //... -- $BAZEL_CONFIG $BB_ARGS
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- security //...
-          bazel run $BAZEL_CONFIG $BB_ARGS --noshow_progress //cli/cli:dx -- license //...
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" --noshow_progress //cli/cli:dx -- generate --check //... -- "$@"
+          bazel run --noshow_progress "$@" //tools/bazelrc:preset_update -- --verify-only
+          bazel build --noshow_progress //... "$@"
+          bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //... "$@"
+          bazel run "$@" --noshow_progress //cli/cli:dx -- coverage --min-coverage 96 //... -- "$@"
+          bazel run "$@" --noshow_progress //cli/cli:dx -- lint --check //... -- "$@"
+          bazel run "$@" --noshow_progress //cli/cli:dx -- typecheck --check //... -- "$@"
+          bazel run "$@" --noshow_progress //cli/cli:dx -- format --check //... -- "$@"
+          bazel run "$@" --noshow_progress //cli/cli:dx -- security //...
+          bazel run "$@" --noshow_progress //cli/cli:dx -- license //...
       - name: Open one PR if green (fork-safe, no retry-until-green)
         if: inputs.selector != '' && inputs.version != ''
         env:

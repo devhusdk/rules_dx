@@ -20,6 +20,10 @@ bazel-bin
 bazel-out
 bazel-testlogs
 bazel-rules_dx
+bin
+out
+testlogs
+rules_dx
 # Parity notes (mirrors .gitignore): .ruff_cache is the Ruff cache dir;
 # bazel-* covers output symlinks (git: /bazel-*); .opencode/ is agent-local
 # whole-dir state (git: .opencode/); .dx/ is dx managed state (git: .dx/).

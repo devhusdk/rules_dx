@@ -46,3 +46,12 @@ opencode.json
 # publish dry-run's checkout-left-clean proof.)
 *.profraw
 *.profdata
+# Bazel convenience symlinks (created by `bazel build` convenience links or by
+# hand; they point into the output base and are machine-managed).
+/bin
+/out
+/testlogs
+
+# Agent scratch directories (whole-dir scope; never part of a change).
+/scratch_*/
+/rules_dx

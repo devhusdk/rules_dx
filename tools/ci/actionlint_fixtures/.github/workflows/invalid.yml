@@ -1,0 +1,17 @@
+name: invalid-fixture
+on: push
+jobs:
+  unknown-input:
+    uses: ./.github/workflows/reusable.yml
+    with:
+      platform: linux_x86_64
+  missing-callee:
+    uses: ./.github/workflows/absent.yml
+  malformed-expression:
+    runs-on: windows-11-arm
+    steps:
+      - run: echo "${{ github.event_name === }}"
+  unquoted-expansion:
+    runs-on: ubuntu-latest
+    steps:
+      - run: cd /tmp && echo $RELEASE_CHANNEL

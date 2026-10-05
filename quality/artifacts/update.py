@@ -302,6 +302,98 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "actionlint": {
+        "upstream_version": "1.7.12",
+        "release_page": "https://github.com/rhysd/actionlint/releases/tag/v1.7.12",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/rhysd/actionlint/blob/v1.7.12/LICENSE.txt",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "actionlint_1.7.12_linux_amd64.tar.gz",
+                "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "actionlint",
+                "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "actionlint_1.7.12_linux_arm64.tar.gz",
+                "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "actionlint",
+                "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "actionlint_1.7.12_darwin_arm64.tar.gz",
+                "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "actionlint",
+                "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "actionlint_1.7.12_windows_amd64.zip",
+                "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "actionlint.exe",
+                "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+            },
+        },
+    },
+    "shellcheck": {
+        "upstream_version": "0.11.0",
+        "release_page": "https://github.com/koalaman/shellcheck/releases/tag/v0.11.0",
+        "licenses": [
+            {
+                "name": "GPL-3.0",
+                "source": "https://github.com/koalaman/shellcheck/blob/v0.11.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "shellcheck-v0.11.0.linux.x86_64.tar.gz",
+                "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "shellcheck-v0.11.0/shellcheck",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "shellcheck-v0.11.0.linux.aarch64.tar.gz",
+                "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "shellcheck-v0.11.0/shellcheck",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+                "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "shellcheck-v0.11.0/shellcheck",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "shellcheck-v0.11.0.zip",
+                "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip",
+                "kind": "zip",
+                "executable": "shellcheck.exe",
+            },
+        },
+    },
     "ty": {
         "upstream_version": "0.0.80",
         "release_page": "https://github.com/astral-sh/ty/releases/tag/0.0.80",

@@ -1,6 +1,10 @@
 """dx_tools use_repo inventory."""
 
 DX_TOOL_REPOS = [
+    "dx_actionlint_linux_arm64",
+    "dx_actionlint_linux_x86_64",
+    "dx_actionlint_macos_arm64",
+    "dx_actionlint_windows_x86_64",
     "dx_biome_linux_arm64",
     "dx_biome_linux_x86_64",
     "dx_biome_macos_arm64",
@@ -17,6 +21,10 @@ DX_TOOL_REPOS = [
     "dx_ruff_linux_x86_64",
     "dx_ruff_macos_arm64",
     "dx_ruff_windows_x86_64",
+    "dx_shellcheck_linux_arm64",
+    "dx_shellcheck_linux_x86_64",
+    "dx_shellcheck_macos_arm64",
+    "dx_shellcheck_windows_x86_64",
     "dx_taplo_linux_arm64",
     "dx_taplo_linux_x86_64",
     "dx_taplo_macos_arm64",

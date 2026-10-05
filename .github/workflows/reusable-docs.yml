@@ -209,8 +209,14 @@ jobs:
           if __name__ == "__main__":
               sys.exit(main(sys.argv))
           DX_MODULE_PIN
-      - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- lint --check ${{ inputs.docs_scope }} -- $BAZEL_CONFIG $BB_ARGS
-      - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- docs --check -- $BAZEL_CONFIG $BB_ARGS
+      - run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//cli/cli:dx -- lint --check ${{ inputs.docs_scope }} -- "$@"
+      - run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//cli/cli:dx -- docs --check -- "$@"
   docs-publish:
     name: docs-publish (GitHub Pages)
     needs: [docs-check]
@@ -388,7 +394,10 @@ jobs:
               sys.exit(main(sys.argv))
           DX_MODULE_PIN
       - name: Build rendered site
-        run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- docs -- $BAZEL_CONFIG $BB_ARGS
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//cli/cli:dx -- docs -- "$@"
       - name: Stage rendered site in a temp dir
         # Stage under RUNNER_TEMP so the checkout is never left dirty.
         run: |

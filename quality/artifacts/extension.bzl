@@ -1,6 +1,10 @@
 """Standalone quality-tool acquisition."""
 
 load("//quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
+load("//quality/artifacts:actionlint.linux_arm64.bzl", _actionlint_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:actionlint.linux_x86_64.bzl", _actionlint_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:actionlint.macos_arm64.bzl", _actionlint_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:actionlint.windows_x86_64.bzl", _actionlint_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:biome.linux_arm64.bzl", _biome_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:biome.linux_x86_64.bzl", _biome_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:biome.macos_arm64.bzl", _biome_macos_arm64 = "ARTIFACT")
@@ -18,6 +22,10 @@ load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.windows_x86_64.bzl", _ruff_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:shellcheck.linux_arm64.bzl", _shellcheck_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:shellcheck.linux_x86_64.bzl", _shellcheck_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:shellcheck.macos_arm64.bzl", _shellcheck_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:shellcheck.windows_x86_64.bzl", _shellcheck_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
@@ -32,6 +40,10 @@ load("//quality/artifacts:vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.windows_x86_64.bzl", _vale_windows_x86_64 = "ARTIFACT")
 
 _ARTIFACTS = [
+    _actionlint_linux_x86_64,
+    _actionlint_linux_arm64,
+    _actionlint_macos_arm64,
+    _actionlint_windows_x86_64,
     _biome_linux_x86_64,
     _biome_linux_arm64,
     _biome_macos_arm64,
@@ -48,6 +60,10 @@ _ARTIFACTS = [
     _ruff_linux_arm64,
     _ruff_macos_arm64,
     _ruff_windows_x86_64,
+    _shellcheck_linux_x86_64,
+    _shellcheck_linux_arm64,
+    _shellcheck_macos_arm64,
+    _shellcheck_windows_x86_64,
     _taplo_linux_x86_64,
     _taplo_linux_arm64,
     _taplo_macos_arm64,

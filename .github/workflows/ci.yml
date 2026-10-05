@@ -21,6 +21,7 @@ jobs:
   dogfood:
     name: dogfood (self-call reusable consumer workflow)
     # Dogfoods the reusable file end to end on the working tree.
+    needs: [workflow-check]
     uses: ./.github/workflows/reusable-consumer.yml
     with:
       rules_dx_version: "0.0.0"
@@ -59,7 +60,10 @@ jobs:
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Prove dx init scaffold matches checked-in definition
-        run: bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //.devcontainer:devcontainer_parity_test $BAZEL_CONFIG $BB_ARGS
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
       - name: Validate devcontainer definition shape
         run: |
           python3 --version
@@ -78,6 +82,29 @@ jobs:
         run: |
           echo "### devcontainer-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
+  workflow-check:
+    name: workflow-check (actionlint semantics, before the matrix)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Validate workflow semantics with the pinned actionlint
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //tools/ci:actionlint_test "$@"
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "### workflow-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
     # One green gate covers every job in this workflow.
@@ -87,6 +114,7 @@ jobs:
         dogfood,
         docs,
         devcontainer-check,
+        workflow-check,
       ]
     timeout-minutes: 5
     runs-on: ubuntu-latest

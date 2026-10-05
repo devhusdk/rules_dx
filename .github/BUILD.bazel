@@ -6,6 +6,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 # Reusable callers plus the self-called routes share one export list.
 exports_files([
+    "actionlint.yaml",
     "workflows/README.md",
     "workflows/bump.yml",
     "workflows/ci.yml",

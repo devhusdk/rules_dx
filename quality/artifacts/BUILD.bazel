@@ -34,6 +34,7 @@ test_suite(
     name = "all",
     tests = [
         ":metadata",
+        "//quality/artifacts/acquire_test",
         "//quality/artifacts/hub_test:hub_selection_analysis",
         "//quality/artifacts/hub_test:hub_selection_unit",
     ],
@@ -51,6 +52,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "acquire.bzl",
         "biome.linux_arm64.bzl",
         "biome.linux_x86_64.bzl",
         "biome.macos_arm64.bzl",

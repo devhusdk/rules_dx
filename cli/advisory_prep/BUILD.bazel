@@ -1,0 +1,154 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "Cargo.toml",
+    "src/archive.rs",
+    "src/lib.rs",
+    "src/lib_tests.rs",
+    "src/main.rs",
+    "src/main_tests.rs",
+])
+
+rust_binary(
+    name = "advisory_prep",
+    srcs = [
+        "src/main.rs",
+        "src/main_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_advisory_prep",
+        normal = True,
+    ),
+    crate_name = "advisory_prep",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "chrono",
+            "clap",
+            "crc32fast",
+            "flate2",
+            "thiserror",
+        ],
+        package_name = "cli/dx_advisory_prep",
+    ) + [
+        ":dx_advisory_prep",
+        "//cli/audit:dx_audit",
+    ],
+)
+
+rust_test(
+    name = "dx_advisory_prep_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_advisory_prep",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_advisory_prep",
+    deps = crate_deps(
+        [
+            "chrono",
+            "clap",
+            "crc32fast",
+            "flate2",
+            "tempfile",
+            "thiserror",
+        ],
+        package_name = "cli/dx_advisory_prep",
+    ) + [
+        "//cli/audit:dx_audit",
+        "//cli/digest:dx_digest",
+    ],
+)
+
+rust_test(
+    name = "advisory_prep_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_advisory_prep",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":advisory_prep",
+    deps = crate_deps(
+        [
+            "chrono",
+            "clap",
+            "crc32fast",
+            "flate2",
+            "tempfile",
+            "thiserror",
+        ],
+        package_name = "cli/dx_advisory_prep",
+    ) + [
+        ":dx_advisory_prep",
+        "//cli/audit:dx_audit",
+    ],
+)
+
+rustfmt_test(
+    name = "advisory_prep_fmt_test",
+    size = "small",
+    targets = [
+        ":advisory_prep",
+        ":advisory_prep_bin_test",
+        ":dx_advisory_prep",
+    ],
+)
+
+rust_clippy_test(
+    name = "advisory_prep_clippy_test",
+    size = "small",
+    targets = [
+        ":advisory_prep",
+        ":dx_advisory_prep",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+rust_library(
+    name = "dx_advisory_prep",
+    srcs = [
+        "src/archive.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_advisory_prep",
+        normal = True,
+    ),
+    crate_name = "dx_advisory_prep",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "chrono",
+            "clap",
+            "crc32fast",
+            "flate2",
+            "thiserror",
+        ],
+        package_name = "cli/dx_advisory_prep",
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/audit:dx_audit",
+    ],
+)

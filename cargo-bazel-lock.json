@@ -1,5 +1,5 @@
 {
-  "checksum": "247638f5d0a91d58c026983dc260bdc515731a08f4450d6d4d0eb1282b4fde92",
+  "checksum": "c33559b7457f06e5e5521f5fc1be4d54d129a0488956954b50ad4854942953e8",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1894,6 +1894,10 @@
     "crc32fast 1.5.2": {
       "build_script_attrs": {},
       "common_attrs": {
+        "crate_features": [
+          "default",
+          "std"
+        ],
         "deps": [
           {
             "id": "cfg-if 1.0.4",
@@ -2340,6 +2344,51 @@
       ],
       "version": "0.0.0"
     },
+    "dx_advisory_prep 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          },
+          {
+            "id": "crc32fast 1.5.2",
+            "target": "crc32fast"
+          },
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_advisory_prep",
+      "name": "dx_advisory_prep",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_advisory_prep",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_apply 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -2464,6 +2513,12 @@
           {
             "id": "yarn-lock-parser 0.14.0",
             "target": "yarn_lock_parser"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
           }
         ],
         "edition": "2021"
@@ -13590,6 +13645,7 @@
     "clap_complete 4.6.11",
     "clap_mangen 0.2.33",
     "console 0.15.11",
+    "crc32fast 1.5.2",
     "deunicode 1.6.2",
     "flate2 1.1.10",
     "globset 0.4.20",
@@ -13641,6 +13697,7 @@
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "documentation_ir 0.0.0": "docs/ir/documentation_ir",
     "dx_adopt 0.0.0": "cli/dx_adopt",
+    "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",
     "dx_atomic_fs 0.0.0": "cli/dx_atomic_fs",
     "dx_audit 0.0.0": "cli/dx_audit",

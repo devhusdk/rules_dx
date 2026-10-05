@@ -449,6 +449,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_advisory_prep"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "crc32fast",
+ "flate2",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "dx_apply"
 version = "0.0.0"
 dependencies = [
@@ -480,6 +492,7 @@ dependencies = [
  "serde-sarif",
  "serde_json",
  "spdx",
+ "tempfile",
  "thiserror",
  "toml",
  "url",

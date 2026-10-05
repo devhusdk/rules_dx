@@ -9,6 +9,7 @@
 )]
 
 pub mod advisory;
+pub mod advisory_prep;
 pub mod backend;
 pub mod curator;
 pub mod exception;

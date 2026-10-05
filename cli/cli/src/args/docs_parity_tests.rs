@@ -2247,38 +2247,67 @@ fn offline_bundle_accepts_every_curated_advisory_set() {
     );
 }
 
-fn workflow_advisory_populates() -> Vec<(String, String)> {
-    let workflow =
-        std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
-            .expect("reusable-consumer.yml ships as test data");
-    workflow
-        .lines()
-        .filter_map(|line| {
-            let rest = line.trim().strip_prefix("populate ")?;
-            let (set, url) = rest.split_once(' ')?;
-            Some((set.to_owned(), url.trim().trim_matches('"').to_owned()))
-        })
-        .collect()
+const PREP_TARGET: &str = "@rules_dx//cli/advisory_prep";
+
+fn consumer_workflow() -> String {
+    std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
+        .expect("reusable-consumer.yml ships as test data")
+}
+
+fn preparation_job() -> (String, String) {
+    workflow_jobs(&consumer_workflow())
+        .into_iter()
+        .find(|(id, _)| id == "advisory-snapshots")
+        .expect("reusable-consumer.yml prepares the advisory snapshots in one job")
+}
+
+fn names_an_advisory_database(body: &str) -> bool {
+    body.contains("all.zip") || body.contains("osv-vulnerabilities")
+}
+
+fn planned_advisory_families() -> Vec<String> {
+    let mut families: Vec<String> = dx_audit::advisory_prep::AUDITED_SETS
+        .iter()
+        .filter_map(|set| dx_audit::advisory::advisory_family(set))
+        .map(str::to_owned)
+        .collect();
+    families.sort();
+    families.dedup();
+    families
 }
 
 #[test]
-fn security_audit_populates_every_curated_advisory_set() {
-    let populates = workflow_advisory_populates();
+fn one_preparation_job_covers_every_curated_advisory_set() {
+    let (id, body) = preparation_job();
     assert_eq!(
-        sorted(populates.iter().map(|(set, _)| set.clone()).collect()),
+        body.matches(PREP_TARGET).count(),
+        1,
+        "the {id} job runs {PREP_TARGET} exactly once, so one run prepares one snapshot set"
+    );
+    assert!(
+        !body.contains("@rules_dx//cli/cli:dx -- security"),
+        "the {id} job prepares snapshots; it must not audit a scope"
+    );
+    for (other, body) in workflow_jobs(&consumer_workflow()) {
+        assert!(
+            !names_an_advisory_database(&body),
+            "job {other} must audit the shared snapshots instead of downloading a database"
+        );
+    }
+    assert_eq!(
+        planned_advisory_families(),
         sorted(
             dx_audit::curator::CURATOR_ADVISORY_SETS
                 .iter()
                 .map(|set| (*set).to_owned())
-                .collect()
+                .collect(),
         ),
-        "the security-audit job must populate every curated advisory set, and nothing else"
+        "{PREP_TARGET} must prepare every curated advisory set, and nothing else"
     );
-    for (set, url) in &populates {
-        assert_eq!(
-            dx_audit::advisory::advisory_source(set),
-            Some(url.as_str()),
-            "the security-audit job downloads {set} from the wrong OSV source"
+    for set in dx_audit::curator::CURATOR_ADVISORY_SETS {
+        assert!(
+            dx_audit::advisory::advisory_source(set).is_some(),
+            "the {id} job cannot prepare {set} without a source"
         );
     }
 }

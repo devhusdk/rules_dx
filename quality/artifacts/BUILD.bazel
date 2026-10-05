@@ -1,6 +1,7 @@
 load("@rules_python//python:defs.bzl", "py_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+load(":corpus_tests.bzl", "corpus_coverage_test")
 load(":metadata_tests.bzl", "metadata_tests")
 
 package(default_visibility = VIS_QUALITY)
@@ -30,9 +31,15 @@ exports_files(
 
 metadata_tests(name = "metadata")
 
+corpus_coverage_test(
+    name = "corpus_coverage",
+    subject = ":corpus_starlark",
+)
+
 test_suite(
     name = "all",
     tests = [
+        ":corpus_coverage",
         ":metadata",
         "//quality/artifacts/acquire_test",
         "//quality/artifacts/hub_test:hub_selection_analysis",
@@ -50,49 +57,6 @@ real_source_target(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = [
-        "BUILD.bazel",
-        "acquire.bzl",
-        "actionlint.linux_arm64.bzl",
-        "actionlint.linux_x86_64.bzl",
-        "actionlint.macos_arm64.bzl",
-        "actionlint.windows_x86_64.bzl",
-        "biome.linux_arm64.bzl",
-        "biome.linux_x86_64.bzl",
-        "biome.macos_arm64.bzl",
-        "biome.windows_x86_64.bzl",
-        "buildifier.linux_arm64.bzl",
-        "buildifier.linux_x86_64.bzl",
-        "buildifier.macos_arm64.bzl",
-        "buildifier.windows_x86_64.bzl",
-        "extension.bzl",
-        "hub.bzl",
-        "metadata_tests.bzl",
-        "repos.bzl",
-        "gitleaks.linux_arm64.bzl",
-        "gitleaks.linux_x86_64.bzl",
-        "gitleaks.macos_arm64.bzl",
-        "gitleaks.windows_x86_64.bzl",
-        "shellcheck.linux_arm64.bzl",
-        "shellcheck.linux_x86_64.bzl",
-        "shellcheck.macos_arm64.bzl",
-        "shellcheck.windows_x86_64.bzl",
-        "ruff.linux_arm64.bzl",
-        "ruff.linux_x86_64.bzl",
-        "ruff.macos_arm64.bzl",
-        "ruff.windows_x86_64.bzl",
-        "taplo.linux_arm64.bzl",
-        "taplo.linux_x86_64.bzl",
-        "taplo.macos_arm64.bzl",
-        "taplo.windows_x86_64.bzl",
-        "ty.linux_arm64.bzl",
-        "ty.linux_x86_64.bzl",
-        "ty.macos_arm64.bzl",
-        "ty.windows_x86_64.bzl",
-        "vale.linux_arm64.bzl",
-        "vale.linux_x86_64.bzl",
-        "vale.macos_arm64.bzl",
-        "vale.windows_x86_64.bzl",
-    ],
+    starlark_srcs = ["BUILD.bazel"] + glob(["*.bzl"]),
     tags = ["corpus"],
 )

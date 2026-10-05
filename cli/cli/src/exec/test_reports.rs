@@ -1,12 +1,14 @@
 use super::common::*;
 use crate::args::Invocation;
-use crate::plan::WorkflowVerb;
+use crate::plan::{workspace_flag, WorkflowVerb};
 use crate::reports::{
     coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
     JunitCase, PlannedReport,
 };
-use dx_bep::{collect_test_outputs_with_workspace, ArtifactReader};
+use crate::resolve::QueryRunner;
+use dx_bep::{collect_test_outputs, ArtifactReader, OutputLocations};
 use dx_output::{command_finished, report_event, write_event, FinishedCounts, OutputMode};
+use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
 use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
 use std::path::Path;
@@ -14,6 +16,12 @@ use std::path::Path;
 /// Returns one exec path spelled without the build directory, so a report reads the same on every host.
 fn stable_exec_path(exec_path: &Path) -> String {
     let text = exec_path.to_string_lossy().replace('\\', "/");
+    if let Some(out) = text.find("/bazel-testlogs/") {
+        return text[out + "/bazel-testlogs/".len()..].to_owned();
+    }
+    if let Some(out) = text.find("/testlogs/") {
+        return text[out + "/testlogs/".len()..].to_owned();
+    }
     if let Some(out) = text.find("/bazel-out/") {
         let rest = &text[out + "/bazel-out/".len()..];
         return match rest.find("/bin/") {
@@ -53,6 +61,41 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) planned_reports: &'a [PlannedReport],
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
+    pub(crate) query_runner: &'a dyn QueryRunner,
+}
+
+/// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
+fn output_locations(
+    invocation: &Invocation,
+    workspace: &Path,
+    verb: WorkflowVerb,
+    query_runner: &dyn QueryRunner,
+) -> OutputLocations {
+    let mut locations = OutputLocations::new(workspace);
+    let mut argv = vec![launcher_argv0().to_owned()];
+    argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.push("info".to_owned());
+    argv.push(workspace_flag());
+    if verb != WorkflowVerb::Coverage {
+        argv.push(invocation.profile().config_flag());
+    }
+    argv.extend(invocation.bazel_options.iter().cloned());
+    argv.push("bazel-testlogs".to_owned());
+    argv.push("execution_root".to_owned());
+    if let Ok(result) = query_runner.run_info(&argv, workspace) {
+        if result.code == Some(0) {
+            locations.apply_bazel_info(&result.stdout);
+        }
+    }
+    locations
+}
+
+/// Names one test result's file so a missing artifact is traceable to its run, shard, and attempt.
+fn result_where(output: &dx_bep::TestOutputFile) -> String {
+    format!(
+        "{} for {} (run {}, shard {}, attempt {})",
+        output.name, output.label, output.run, output.shard, output.attempt
+    )
 }
 
 pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
@@ -66,6 +109,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         planned_reports,
         stdout_report,
         bazel_code,
+        query_runner,
     } = request;
     let outputs = match std::fs::File::open(bep).map_err(|err| {
         (
@@ -74,7 +118,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         )
     }) {
         Ok(file) => {
-            match collect_test_outputs_with_workspace(BufReader::new(file), Some(workspace)) {
+            let locations = output_locations(invocation, workspace, verb, query_runner);
+            match collect_test_outputs(BufReader::new(file), Some(&locations)) {
                 Ok(outputs) => outputs,
                 Err(error) => {
                     let _ = std::fs::remove_file(bep);
@@ -114,7 +159,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     error_count += 1;
                     if first_error.is_empty() {
                         first_error = format!(
-                            "unreadable {}: {error}",
+                            "unreadable {} at {}: {error}",
+                            result_where(output),
                             stable_exec_path(&output.exec_path)
                         );
                     }
@@ -134,8 +180,11 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 Err(error) => {
                     error_count += 1;
                     if first_error.is_empty() {
-                        first_error =
-                            format!("invalid {}: {error}", stable_exec_path(&output.exec_path));
+                        first_error = format!(
+                            "invalid {} at {}: {error}",
+                            result_where(output),
+                            stable_exec_path(&output.exec_path)
+                        );
                     }
                 }
             }
@@ -180,7 +229,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     error_count += 1;
                     if first_error.is_empty() {
                         first_error = format!(
-                            "unreadable {}: {error}",
+                            "unreadable {} at {}: {error}",
+                            result_where(output),
                             stable_exec_path(&output.exec_path)
                         );
                     }
@@ -195,8 +245,11 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     }
                     error_count += 1;
                     if first_error.is_empty() {
-                        first_error =
-                            format!("invalid {}: {error}", stable_exec_path(&output.exec_path));
+                        first_error = format!(
+                            "invalid {} at {}: {error}",
+                            result_where(output),
+                            stable_exec_path(&output.exec_path)
+                        );
                     }
                 }
             }
@@ -1242,5 +1295,157 @@ mod tests {
         ]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("report_failed"), "{out}");
+    }
+
+    #[test]
+    fn a_testlogs_path_keeps_its_package_and_identity() {
+        let execroot = "/home/someone/.cache/bazel/_bazel_x/abc123/execroot/_main";
+        assert_eq!(
+            stable_exec_path(Path::new(&format!(
+                "{execroot}/bazel-out/k8-fastbuild/testlogs/cli/bep/dx_bep_test/run_2_of_2/test.xml"
+            ))),
+            "cli/bep/dx_bep_test/run_2_of_2/test.xml"
+        );
+        assert_eq!(
+            stable_exec_path(Path::new("/ws/bazel-testlogs/a/t/shard_1_of_2/test.xml")),
+            "a/t/shard_1_of_2/test.xml"
+        );
+    }
+
+    #[test]
+    fn test_bytestream_outputs_resolve_through_info_testlogs() {
+        let harness = Harness::new("test-info-roots");
+        let testlogs = harness.temp.join("testlogs");
+        harness.query.script_info(&format!(
+            "bazel-testlogs: {}\nexecution_root: {}\nignored: {}\n",
+            testlogs.display(),
+            harness.temp.join("execroot").display(),
+            harness.temp.display(),
+        ));
+        let root = testlogs.join("a").join("t");
+        std::fs::create_dir_all(&root).expect("testlogs dir");
+        std::fs::write(root.join("test.xml"), MINIMAL_TEST_XML).expect("test.xml");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(
+                    String::from("test.xml"),
+                    "bytestream://remote.buildbuddy.io/blobs/abc/10".to_owned(),
+                )],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let document = std::fs::read(harness.workspace.join("out.xml")).expect("junit");
+        let text = String::from_utf8(document).expect("utf8");
+        assert!(text.contains("tests=\"1\""), "{text}");
+        let calls = harness.query.info_calls.borrow();
+        assert_eq!(calls.len(), 1, "one bazel info run per report run");
+        let argv = &calls[0];
+        assert!(argv.contains(&"info".to_owned()), "{argv:?}");
+        assert!(argv.contains(&"bazel-testlogs".to_owned()), "{argv:?}");
+        assert!(argv.contains(&"execution_root".to_owned()), "{argv:?}");
+        assert!(argv.contains(&crate::plan::workspace_flag()), "{argv:?}");
+        assert!(
+            argv.contains(&"--config=dx_dev".to_owned()),
+            "the test profile reaches info: {argv:?}"
+        );
+        assert!(
+            harness.query.calls.borrow().is_empty(),
+            "info must not consume query outputs"
+        );
+    }
+
+    #[test]
+    fn test_sharded_and_retried_bytestream_outputs_keep_identity() {
+        let harness = Harness::new("test-info-identity");
+        let testlogs = harness.temp.join("testlogs");
+        harness
+            .query
+            .script_info(&format!("bazel-testlogs: {}\n", testlogs.display()));
+        let unit = testlogs.join("a").join("t");
+        let attempts = unit.join("shard_1_of_2").join("test_attempts");
+        std::fs::create_dir_all(&attempts).expect("attempt dir");
+        std::fs::create_dir_all(unit.join("shard_2_of_2")).expect("shard dir");
+        std::fs::write(attempts.join("attempt_1.xml"), MINIMAL_TEST_XML).expect("attempt xml");
+        std::fs::write(unit.join("shard_1_of_2").join("test.xml"), MINIMAL_TEST_XML)
+            .expect("shard xml");
+        std::fs::write(unit.join("shard_2_of_2").join("test.xml"), MINIMAL_TEST_XML)
+            .expect("shard xml");
+        let entry = || {
+            vec![(
+                String::from("test.xml"),
+                "bytestream://remote.buildbuddy.io/blobs/abc/10".to_owned(),
+            )]
+        };
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_summary_line("//a:t", 2),
+                test_result_identity_line("//a:t", 1, 1, 1, &entry()),
+                test_result_identity_line("//a:t", 1, 1, 2, &entry()),
+                test_result_identity_line("//a:t", 1, 2, 1, &entry()),
+            ]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let document = std::fs::read(harness.workspace.join("out.xml")).expect("junit");
+        let text = String::from_utf8(document).expect("utf8");
+        assert!(text.contains("tests=\"3\""), "{text}");
+    }
+
+    #[test]
+    fn test_unreadable_bytestream_names_label_and_identity() {
+        let harness = Harness::new("test-info-missing");
+        harness.query.script_info(&format!(
+            "bazel-testlogs: {}\n",
+            harness.temp.join("testlogs").display()
+        ));
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_identity_line(
+                "//a:t",
+                2,
+                3,
+                1,
+                &[(
+                    String::from("test.xml"),
+                    "bytestream://remote.buildbuddy.io/blobs/abc/10".to_owned(),
+                )],
+            )]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(
+            err.contains("unreadable test.xml for //a:t (run 2, shard 3, attempt 1)"),
+            "{err}"
+        );
+        assert!(
+            err.contains("a/t/shard_3_of_3_run_2_of_2/test.xml"),
+            "the stable path keeps package and identity: {err}"
+        );
+    }
+
+    #[test]
+    fn test_workspace_fallback_survives_without_info() {
+        let harness = Harness::new("test-no-info");
+        let root = harness.workspace.join("bazel-testlogs").join("a").join("t");
+        std::fs::create_dir_all(&root).expect("testlogs dir");
+        std::fs::write(root.join("test.xml"), MINIMAL_TEST_XML).expect("test.xml");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(
+                    String::from("test.xml"),
+                    "bytestream://remote.buildbuddy.io/blobs/abc/10".to_owned(),
+                )],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(harness.query.info_calls.borrow().len(), 1);
     }
 }

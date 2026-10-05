@@ -46,6 +46,8 @@ pub(crate) struct Harness {
 pub(crate) struct ScriptQuery {
     pub(crate) calls: RefCell<Vec<Vec<String>>>,
     pub(crate) outputs: RefCell<Vec<QueryResult>>,
+    pub(crate) info_calls: RefCell<Vec<Vec<String>>>,
+    pub(crate) info: RefCell<Option<QueryResult>>,
 }
 
 impl ScriptQuery {
@@ -56,12 +58,29 @@ impl ScriptQuery {
             stderr: Vec::new(),
         });
     }
+
+    pub(crate) fn script_info(&self, output: &str) {
+        self.info.replace(Some(QueryResult {
+            code: Some(0),
+            stdout: output.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        }));
+    }
 }
 
 impl QueryRunner for ScriptQuery {
     fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
         self.calls.borrow_mut().push(argv.to_vec());
         Ok(self.outputs.borrow_mut().remove(0))
+    }
+
+    fn run_info(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        self.info_calls.borrow_mut().push(argv.to_vec());
+        Ok(self.info.borrow().clone().unwrap_or(QueryResult {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        }))
     }
 }
 
@@ -88,6 +107,8 @@ impl Harness {
             query: ScriptQuery {
                 calls: RefCell::new(Vec::new()),
                 outputs: RefCell::new(Vec::new()),
+                info_calls: RefCell::new(Vec::new()),
+                info: RefCell::new(None),
             },
             intended: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
@@ -460,13 +481,31 @@ pub(crate) fn write_bep_artifact(harness: &Harness, name: &str, bytes: &[u8]) ->
 }
 
 pub(crate) fn test_result_line(label: &str, entries: &[(String, String)]) -> String {
+    test_result_identity_line(label, 1, 1, 1, entries)
+}
+
+pub(crate) fn test_result_identity_line(
+    label: &str,
+    run: u32,
+    shard: u32,
+    attempt: u32,
+    entries: &[(String, String)],
+) -> String {
     let outputs: Vec<serde_json::Value> = entries
         .iter()
         .map(|(name, uri)| serde_json::json!({"name": name, "uri": uri}))
         .collect();
     serde_json::json!({
-        "id": {"testResult": {"label": label}},
+        "id": {"testResult": {"label": label, "run": run, "shard": shard, "attempt": attempt}},
         "testResult": {"status": "PASSED", "testActionOutput": outputs},
+    })
+    .to_string()
+}
+
+pub(crate) fn test_summary_line(label: &str, shard_count: u32) -> String {
+    serde_json::json!({
+        "id": {"testSummary": {"label": label}},
+        "testSummary": {"status": "PASSED", "shardCount": shard_count},
     })
     .to_string()
 }

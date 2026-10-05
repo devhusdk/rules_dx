@@ -696,10 +696,7 @@ def _emit(artifact, tool, platform_key):
     filename = "%s.%s.bzl" % (tool, platform_key)
     path = os.path.join(_source_dir(), filename)
     content = (
-        '"""%s standalone artifact metadata (%s) -- GENERATED, do not edit.\n'
-        "\n"
-        "Regenerate with: bazel run //quality/artifacts:update\n"
-        '"""\n'
+        '"""%s standalone artifact metadata (%s) -- GENERATED, do not edit."""\n'
         "\n"
         "# buildifier: disable=attr-licenses\n"
         "ARTIFACT = %s\n" % (tool, platform_key, _starlark(artifact))

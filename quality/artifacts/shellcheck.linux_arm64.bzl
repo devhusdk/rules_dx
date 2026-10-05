@@ -1,7 +1,4 @@
-"""shellcheck standalone artifact metadata (linux_arm64) -- GENERATED, do not edit.
-
-Regenerate with: bazel run //quality/artifacts:update
-"""
+"""shellcheck standalone artifact metadata (linux_arm64) -- GENERATED, do not edit."""
 
 # buildifier: disable=attr-licenses
 ARTIFACT = {

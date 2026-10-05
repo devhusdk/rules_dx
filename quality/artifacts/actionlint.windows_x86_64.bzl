@@ -1,7 +1,4 @@
-"""actionlint standalone artifact metadata (windows_x86_64) -- GENERATED, do not edit.
-
-Regenerate with: bazel run //quality/artifacts:update
-"""
+"""actionlint standalone artifact metadata (windows_x86_64) -- GENERATED, do not edit."""
 
 # buildifier: disable=attr-licenses
 ARTIFACT = {

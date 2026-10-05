@@ -523,7 +523,7 @@ fn unmanaged_current_states_fail_closed() {
     let current = setups.join("current");
     let pointed = fs::read_link(&current).expect("pointer");
 
-    fs::remove_file(&current).expect("remove pointer");
+    dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
     fs::write(&current, "not a symlink").expect("file pointer");
     assert!(matches!(
         read_current_pair(&workspace),
@@ -547,7 +547,7 @@ fn unmanaged_current_states_fail_closed() {
         read_current_pair(&workspace),
         Err(CommitError::CurrentInvalid { .. })
     ));
-    fs::remove_file(&current).expect("remove dangling");
+    dx_test_scratch::remove_directory_link(&current).expect("remove dangling");
     symlink_dir(Path::new(&pointed), &current).expect("restore pointer");
     assert_eq!(
         read_current_pair(&workspace).expect("read"),
@@ -583,7 +583,7 @@ fn digest_spoofed_pointer_fails_closed() {
         &setups.join(&other).join("generated"),
     )
     .expect("gen link");
-    fs::remove_file(&current).expect("remove pointer");
+    dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
     symlink_dir(Path::new(&other), &current).expect("spoofed pointer");
     assert!(matches!(
         read_current_pair(&workspace),
@@ -610,6 +610,52 @@ fn stale_staged_pointer_is_reclaimed() {
     );
     assert!(!setups.join("current.next").exists());
     let _ = fs::remove_dir_all(&root);
+}
+
+#[cfg(windows)]
+fn symlink_file(target: &Path, link: &Path) -> io::Result<()> {
+    std::os::windows::fs::symlink_file(target, link)
+}
+
+#[cfg(not(windows))]
+fn symlink_file(target: &Path, link: &Path) -> io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[test]
+fn staged_pointer_clear_matches_the_entry_kind() {
+    let scratch = dx_test_scratch::scratch("dx-setup-test-stage-kinds-");
+    let stage = scratch.path().join("current.next");
+    assert!(
+        clear_staged_pointer(&stage).is_ok(),
+        "a missing staged pointer needs no clearing"
+    );
+
+    symlink_dir(Path::new("missing-setup"), &stage).expect("dangling directory link");
+    clear_staged_pointer(&stage).expect("clear dangling directory link");
+    assert!(stage.symlink_metadata().is_err(), "directory link removed");
+
+    let file = scratch.path().join("foreign.txt");
+    fs::write(&file, "foreign").expect("foreign file");
+    symlink_file(&file, &stage).expect("file link");
+    clear_staged_pointer(&stage).expect("clear file link");
+    assert!(stage.symlink_metadata().is_err(), "file link removed");
+    assert!(file.is_file(), "the linked file survives");
+
+    fs::write(&stage, "foreign").expect("foreign staged file");
+    clear_staged_pointer(&stage).expect("clear foreign staged file");
+    assert!(stage.symlink_metadata().is_err(), "file removed");
+
+    fs::create_dir(&stage).expect("foreign staged dir");
+    assert!(
+        matches!(
+            clear_staged_pointer(&stage),
+            Err(CommitError::Install { .. })
+        ),
+        "a staged directory stays refused"
+    );
+    assert!(stage.is_dir(), "the refused directory survives");
+    let _ = fs::remove_dir_all(scratch.path());
 }
 
 #[test]

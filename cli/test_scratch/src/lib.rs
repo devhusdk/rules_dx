@@ -8,6 +8,7 @@
     )
 )]
 
+use std::path::Path;
 pub use tempfile::TempDir;
 
 /// Longest prefix kept verbatim; the rest is folded into a checksum.
@@ -52,9 +53,28 @@ pub fn scratch(prefix: &str) -> TempDir {
         .unwrap_or_else(|err| panic!("test scratch creates {prefix:?}: {err}"))
 }
 
+/// Removes a directory link without following it into its target.
+pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    let removed = std::fs::remove_dir(path);
+    #[cfg(not(windows))]
+    let removed = std::fs::remove_file(path);
+    removed
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    fn directory_link(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::windows::fs::symlink_dir(target, link)
+    }
+
+    #[cfg(not(windows))]
+    fn directory_link(target: &Path, link: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(target, link)
+    }
 
     #[test]
     fn long_prefixes_stay_inside_the_windows_path_limit() {
@@ -102,5 +122,22 @@ mod tests {
             path
         };
         assert!(!path.exists(), "removed on drop: {path:?}");
+    }
+
+    #[test]
+    fn remove_directory_link_keeps_the_target() {
+        let dir = scratch("dx-test-scratch-link-");
+        let target = dir.path().join("target");
+        std::fs::create_dir(&target).expect("target");
+        std::fs::write(target.join("marker"), "marker").expect("marker");
+        let link = dir.path().join("link");
+        directory_link(&target, &link).expect("directory link");
+        remove_directory_link(&link).expect("remove directory link");
+        assert!(std::fs::symlink_metadata(&link).is_err(), "link removed");
+        assert_eq!(
+            std::fs::read_to_string(target.join("marker")).expect("marker survives"),
+            "marker",
+            "the target is not followed"
+        );
     }
 }

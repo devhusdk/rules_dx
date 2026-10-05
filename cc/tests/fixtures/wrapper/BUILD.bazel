@@ -1,0 +1,105 @@
+load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//cc/rules:probe.bzl", "dx_cc_wrapper_subject")
+load("//libs/starlark:defs.bzl", "starlark_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "greet_lib",
+    srcs = ["greet.cc"],
+    hdrs = ["greet.h"],
+)
+
+cc_binary(
+    name = "greet",
+    srcs = ["greet_main.cc"],
+    hdrs = ["greet.h"],
+    deps = [":greet_lib"],
+)
+
+cc_test(
+    name = "greet_test",
+    srcs = ["greet_test.cc"],
+    hdrs = ["greet.h"],
+    deps = [":greet_lib"],
+)
+
+cc_test(
+    name = "public_test_attrs_test",
+    size = "large",
+    timeout = "moderate",
+    srcs = ["public_test_attrs.c"],
+    env = {
+        "DX_PUBLIC_TEST_ENV": "declared-value",
+    },
+    shard_count = 2,
+)
+
+cc_test(
+    name = "manual_test",
+    srcs = ["manual_test.c"],
+    tags = ["manual"],
+)
+
+dx_cc_wrapper_subject(
+    name = "greet_subject",
+    upstream = ":greet_upstream",
+    wrapper = ":greet",
+)
+
+dx_cc_wrapper_subject(
+    name = "greet_test_subject",
+    upstream = ":greet_test_upstream",
+    wrapper = ":greet_test",
+)
+
+starlark_test(
+    name = "wrapper_quality_sources",
+    expected_observations = """subject //cc/tests/fixtures/wrapper:greet_subject
+file greet_subject.txt
+field direct_sources=c:greet.h;cpp:greet_main.cc
+field upstream=//cc/tests/fixtures/wrapper:greet_upstream
+field upstream_has_instrumented_files=True
+field upstream_has_quality_sources=False
+field wrapper=//cc/tests/fixtures/wrapper:greet
+field wrapper_has_instrumented_files=True
+field wrapper_has_quality_sources=True
+field wrapper_runfiles=True
+aspect_field aspect_seen=True
+aspect_field field_count=8
+aspect_field has_subject=True
+aspect_field subject_label=//cc/tests/fixtures/wrapper:greet_subject
+aspect_field transitive_count=0
+subject //cc/tests/fixtures/wrapper:greet_test_subject
+file greet_test_subject.txt
+field direct_sources=c:greet.h;cpp:greet_test.cc
+field upstream=//cc/tests/fixtures/wrapper:greet_test_upstream
+field upstream_has_instrumented_files=True
+field upstream_has_quality_sources=False
+field wrapper=//cc/tests/fixtures/wrapper:greet_test
+field wrapper_has_instrumented_files=True
+field wrapper_has_quality_sources=True
+field wrapper_runfiles=True
+aspect_field aspect_seen=True
+aspect_field field_count=8
+aspect_field has_subject=True
+aspect_field subject_label=//cc/tests/fixtures/wrapper:greet_test_subject
+aspect_field transitive_count=0""",
+    mode = "analysis",
+    subjects = [
+        ":greet_subject",
+        ":greet_test_subject",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

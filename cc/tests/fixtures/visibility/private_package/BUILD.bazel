@@ -1,0 +1,16 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+cc_library(
+    name = "private_only_lib",
+    srcs = ["private_only.cc"],
+    hdrs = ["private_only.h"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

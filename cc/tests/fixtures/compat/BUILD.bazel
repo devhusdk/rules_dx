@@ -1,0 +1,38 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+constraint_setting(name = "dx_cell")
+
+constraint_value(
+    name = "dx_cell_value",
+    constraint_setting = ":dx_cell",
+)
+
+platform(
+    name = "cell",
+    constraint_values = [
+        ":dx_cell_value",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+cc_library(
+    name = "cell_lib",
+    srcs = ["cell.cc"],
+    tags = ["manual"],
+    target_compatible_with = [":dx_cell_value"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

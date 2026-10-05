@@ -26,6 +26,18 @@ _DX_CC_SOURCE_SPECS = [
     ("cuda", ["cu", "cuh"]),
 ]
 
+_DX_CC_HDRS_ATTR = {
+    "hdrs": attr.label_list(
+        allow_files = _CC_HDRS,
+    ),
+}
+
+def _dx_cc_attrs(extra):
+    """Builds the cc forwarder attribute dict for one shape."""
+    attrs = dict(_DX_CC_HDRS_ATTR)
+    attrs.update(extra)
+    return attrs
+
 _cc_library_forward = dx_library_forward_rule(
     provides = _DX_CC_LIBRARY_PROVIDES,
     required_providers = [(CcInfo, "CcInfo")],
@@ -33,11 +45,7 @@ _cc_library_forward = dx_library_forward_rule(
     what = "cc_*",
     allow_files = _CC_SRCS,
     upstream_providers = [[CcInfo]],
-    extra_attrs = {
-        "hdrs": attr.label_list(
-            allow_files = _CC_HDRS,
-        ),
-    },
+    extra_attrs = _DX_CC_HDRS_ATTR,
     extra_quality_attrs = ["hdrs"],
 )
 
@@ -49,7 +57,9 @@ _cc_binary_forward = dx_executable_forward_rule(
     what = "cc_*",
     allow_files = _CC_SRCS,
     upstream_providers = [[CcInfo]],
+    extra_attrs = _DX_CC_HDRS_ATTR,
     optional_providers = [CcInfo],
+    extra_quality_attrs = ["hdrs"],
     runtime = "besteffort",
 )
 
@@ -61,8 +71,9 @@ _cc_forward_test = dx_executable_forward_rule(
     what = "cc_*",
     allow_files = _CC_SRCS,
     upstream_providers = [[CcInfo]],
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = _dx_cc_attrs(dx_lcov_merger_attr()),
     optional_providers = [CcInfo],
+    extra_quality_attrs = ["hdrs"],
 )
 
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
@@ -71,10 +82,28 @@ def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
     effective_hdrs = hdrs if hdrs != None else []
     dx_wrap(name, _cc_library, _cc_library_forward, effective_srcs, hdrs = effective_hdrs, visibility = visibility, **kwargs)
 
-def cc_binary(name, srcs, visibility = None, **kwargs):
+def cc_binary(name, srcs, hdrs = None, visibility = None, **kwargs):
     """Experimental minimal wrapper over cc_binary."""
-    dx_wrap(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, **kwargs)
+    dx_wrap(
+        name,
+        _cc_binary,
+        _cc_binary_forward,
+        srcs,
+        visibility = visibility,
+        forward_only_attrs = ["hdrs"],
+        hdrs = hdrs if hdrs != None else [],
+        **kwargs
+    )
 
-def cc_test(name, srcs, visibility = None, **kwargs):
+def cc_test(name, srcs, hdrs = None, visibility = None, **kwargs):
     """Experimental minimal wrapper over cc_test."""
-    dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, **kwargs)
+    dx_wrap_test(
+        name,
+        _cc_test,
+        _cc_forward_test,
+        srcs,
+        visibility = visibility,
+        forward_only_attrs = ["hdrs"],
+        hdrs = hdrs if hdrs != None else [],
+        **kwargs
+    )

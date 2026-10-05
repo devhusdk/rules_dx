@@ -1,0 +1,41 @@
+load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "consumer_lib",
+    srcs = ["consumer.cc"],
+    hdrs = ["consumer.h"],
+    deps = [
+        "//cc/tests/fixtures/visibility/default_package:default_visible_lib",
+        "//cc/tests/fixtures/visibility/explicit_package:explicit_visible_lib",
+    ],
+)
+
+cc_test(
+    name = "consumer_test",
+    srcs = ["consumer_test.cc"],
+    deps = [":consumer_lib"],
+)
+
+filegroup(
+    name = "private_upstream_reader",
+    srcs = ["//cc/tests/fixtures/visibility/default_package:default_visible_lib_upstream"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "private_upstream_stays_private_test",
+    expected_failure_substring = "is not visible",
+    target = ":private_upstream_reader",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

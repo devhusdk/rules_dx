@@ -1,0 +1,17 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+cc_library(
+    name = "explicit_visible_lib",
+    srcs = ["explicit_visible.cc"],
+    hdrs = ["explicit_visible.h"],
+    visibility = ["//cc/tests/fixtures/visibility/consumer:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

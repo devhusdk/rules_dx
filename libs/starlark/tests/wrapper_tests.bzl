@@ -1,7 +1,7 @@
 """Unit tests proving optional-provider forwarding warns instead of silently skipping."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "DX_BINARY_FORWARD_ATTRS", "DX_LIBRARY_FORWARD_ATTRS", "DX_TEST_FORWARD_ATTRS", "dx_binary_forward_kwargs", "dx_forwarded_contract_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 
 def wrapper_optional_forward_tests(name):
     starlark_test(
@@ -90,8 +90,59 @@ def wrapper_shape_kwargs_tests(name):
                 {"target_compatible_with": ["@platforms//os:linux"]},
             ),
             expect_equal(
+                "binary execution constraints ride forwarder",
+                dx_binary_forward_kwargs({
+                    "compatible_with": ["@platforms//os:linux"],
+                    "exec_compatible_with": ["@platforms//os:linux"],
+                }),
+                {
+                    "compatible_with": ["@platforms//os:linux"],
+                    "exec_compatible_with": ["@platforms//os:linux"],
+                },
+            ),
+            expect_equal(
                 "binary none tags stay empty",
                 dx_binary_forward_kwargs({"tags": None}),
+                {},
+            ),
+            expect_equal(
+                "library shape forwards compatibility and execution constraints",
+                dx_forwarded_contract_kwargs({
+                    "compatible_with": ["@platforms//os:linux"],
+                    "exec_compatible_with": ["@platforms//os:linux"],
+                    "hdrs": ["greet.h"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                }, DX_LIBRARY_FORWARD_ATTRS),
+                {
+                    "compatible_with": ["@platforms//os:linux"],
+                    "exec_compatible_with": ["@platforms//os:linux"],
+                    "hdrs": ["greet.h"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                },
+            ),
+            expect_equal(
+                "library shape drops language kwargs",
+                dx_forwarded_contract_kwargs({"deps": [":greet_lib"], "copts": ["-Wall"]}, DX_LIBRARY_FORWARD_ATTRS),
+                {},
+            ),
+            expect_equal(
+                "binary shape does not forward library headers",
+                dx_forwarded_contract_kwargs({"hdrs": ["greet.h"]}, DX_BINARY_FORWARD_ATTRS),
+                {},
+            ),
+            expect_equal(
+                "test shape does not forward library headers",
+                dx_forwarded_contract_kwargs({"hdrs": ["greet.h"]}, DX_TEST_FORWARD_ATTRS),
+                {},
+            ),
+            expect_equal(
+                "test shape drops language kwargs",
+                dx_forwarded_contract_kwargs({"crate": ":greet", "deps": [":greet_lib"]}, DX_TEST_FORWARD_ATTRS),
+                {},
+            ),
+            expect_equal(
+                "an undeclared attribute is never forwarded",
+                dx_forwarded_contract_kwargs({"data": ["greet.txt"]}, DX_TEST_FORWARD_ATTRS),
                 {},
             ),
             expect_equal(
@@ -130,19 +181,19 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
-                "test forward strips manual",
+                "test forward keeps the user manual tag",
                 dx_test_forward_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["cpu:4"]},
+                {"tags": ["manual", "cpu:4"]},
             ),
             expect_equal(
-                "test forward keeps timeout, drops flaky",
+                "test forward keeps timeout and flaky",
                 dx_test_forward_kwargs({"timeout": "short", "flaky": True}),
-                {"timeout": "short"},
+                {"flaky": True, "timeout": "short"},
             ),
             expect_equal(
-                "test forward flaky-only stays empty",
-                dx_test_forward_kwargs({"flaky": True}),
-                {},
+                "test forward declares the test environment",
+                dx_test_forward_kwargs({"env": {"A": "b"}, "env_inherit": ["PATH"]}),
+                {"env": {"A": "b"}, "env_inherit": ["PATH"]},
             ),
             expect_equal(
                 "test forward rides hints",
@@ -153,6 +204,19 @@ def wrapper_shape_kwargs_tests(name):
                 "test forward drops non-test attrs",
                 dx_test_forward_kwargs({"copts": ["-Werror"]}),
                 {},
+            ),
+            expect_equal(
+                "test forward rides the execution constraints",
+                dx_test_forward_kwargs({
+                    "compatible_with": ["@platforms//os:linux"],
+                    "exec_compatible_with": ["@platforms//os:linux"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                }),
+                {
+                    "compatible_with": ["@platforms//os:linux"],
+                    "exec_compatible_with": ["@platforms//os:linux"],
+                    "target_compatible_with": ["@platforms//os:linux"],
+                },
             ),
         ],
     )

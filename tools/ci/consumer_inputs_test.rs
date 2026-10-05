@@ -6,6 +6,8 @@ const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 const VALIDATE: &str = "validate";
 
+const PREP: &str = "advisory-snapshots";
+
 const AGGREGATE: &str = "dx-ci";
 
 const CHECKS: [&str; 9] = [
@@ -81,13 +83,15 @@ fn text_at(value: &Value, what: &str) -> String {
 fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
     let mut wanted: Vec<String> = std::iter::once(VALIDATE.to_owned())
         .chain(CHECKS.iter().map(|name| (*name).to_owned()))
+        .chain(std::iter::once(PREP.to_owned()))
         .chain(std::iter::once(AGGREGATE.to_owned()))
         .collect();
     wanted.sort();
     assert_eq!(
         job_names(),
         wanted,
-        "{WORKFLOW} must name the validate job, the nine checks and the aggregate"
+        "{WORKFLOW} must name the validate job, the nine checks, the shared advisory \
+preparation and the aggregate"
     );
 }
 
@@ -108,10 +112,15 @@ fn the_validate_job_needs_nothing_so_it_rejects_input_first() {
 #[test]
 fn every_check_job_waits_for_the_validated_inputs() {
     for name in CHECKS {
+        let wanted: Vec<&str> = if name == "security-audit" {
+            vec![VALIDATE, PREP]
+        } else {
+            vec![VALIDATE]
+        };
         assert_eq!(
             job(name)["needs"],
-            json!([VALIDATE]),
-            "{WORKFLOW} job {name} must need the validate job"
+            json!(wanted),
+            "{WORKFLOW} job {name} must need the validate job and nothing else it can skip"
         );
         let gate = text_at(&job(name)["if"], &format!("{name} if"));
         assert!(
@@ -161,15 +170,21 @@ fn the_coverage_job_takes_its_threshold_from_the_validated_inputs() {
 #[test]
 fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
     let aggregate = job(AGGREGATE);
-    let wanted: Vec<&str> = std::iter::once(VALIDATE)
-        .chain(CHECKS.iter().copied())
-        .collect();
+    let mut wanted: Vec<&str> = vec![VALIDATE];
+    for name in CHECKS {
+        wanted.push(name);
+        if name == "security-audit" {
+            wanted.push(PREP);
+        }
+    }
     assert_eq!(aggregate["needs"], json!(wanted));
     let step = aggregate["steps"][0].clone();
     assert_eq!(step["env"]["DISABLED"], json!(DISABLED));
     let script = text_at(&step["run"], "aggregate steps.0.run");
     for needle in [
         "os.environ[\"DISABLED\"]",
+        "if \"security-audit\" in disabled:",
+        "disabled.add(\"advisory-snapshots\")",
         "result == \"skipped\" and name not in disabled",
         "skipped without disabled_checks",
         "results.get(\"validate\") != \"success\"",

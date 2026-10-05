@@ -13,6 +13,8 @@ dx_rust_crate(
     package_name = "cli/dx_audit",
     srcs = [
         "src/advisory.rs",
+        "src/advisory_prep.rs",
+        "src/advisory_prep_tests.rs",
         "src/backend.rs",
         "src/curator.rs",
         "src/exception.rs",
@@ -47,6 +49,7 @@ dx_rust_crate(
         "src/vuln_tests.rs",
         "src/vuln_types.rs",
     ],
+    dev_deps = ["tempfile"],
     extra_deps = [
         "//cli/digest:dx_digest",
         "//libs/gomod:dx_gomod",

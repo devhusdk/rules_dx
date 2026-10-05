@@ -84,6 +84,19 @@ rust_test(
 
 # keep
 rust_test(
+    name = "advisory_snapshots_test",
+    size = "small",
+    srcs = ["advisory_snapshots_test.rs"],
+    data = ["//.github:workflows/reusable-consumer.yml"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "action_pins_test",
     size = "small",
     srcs = ["action_pins_test.rs"],

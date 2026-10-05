@@ -94,6 +94,49 @@ Pull requests use the read-only cache config automatically.
 A called workflow can only narrow the calling job's token, so grant those
 scopes on the calling job. `examples/consumer-ci/caller.yml` does.
 
+## Advisory Snapshots
+
+`security-audit` reads `.dx/advisory/`. One `advisory snapshots (one run,
+every platform)` job fills that directory once per run, uploads it as the
+`advisory-snapshots` artifact, and every platform cell downloads the same
+bytes. No cell downloads a database of its own.
+
+```sh
+bazel run @rules_dx//cli/advisory_prep --workspace . --out .dx/advisory
+```
+
+The command converts one archive per advisory family the dependency locks need,
+so a repository with only `Cargo.lock` prepares the `cargo` snapshot alone. It
+writes `<out>/<family>.json` and `<out>/<family>.meta.json`. The sidecar holds
+the set, the source URL, the `sha256` of the payload, the stamped date and the
+payload path. The payload is the same for the same advisories whatever order
+the archive lists them in.
+
+- `--workspace <dir>`: dependency set locks to read. Default `.`.
+- `--out <dir>`: where the snapshots are written. Default `.dx/advisory`.
+- `--date YYYY-MM-DD`: date every sidecar carries. Default today, UTC.
+- `--max-time <seconds>`: wall clock limit for one download. Default 600.
+- `--connect-timeout <seconds>`: connect limit for one download. Default 30.
+- `--retries <count>`: attempts one download may spend. Default 3.
+- `--retry-delay <seconds>`: pause between two attempts. Default 5.
+- `--archive FAMILY=PATH`: convert a local archive instead of fetching it.
+  Repeatable.
+
+Only `https` and `file` URLs are fetched, a redirect stays on `https`, and an
+archive entry is refused when its length or checksum disagrees with the
+archive. Exit codes: `0` success, `2` usage error, `1` preparation failure. A
+failure prints one line starting with `advisory_prepare_failed:` naming the
+family and the archive entry, path or limit it could not use, and writes no
+snapshot for that family.
+
+The artifact is kept for one day. Each `security-audit` cell judges freshness
+against the date the job stamped, passed to `dx security` as `DX_AUDIT_TODAY`,
+so every cell accepts or rejects the same snapshot. `security-audit` needs the
+job, so a failed preparation skips every cell and `dx-ci (aggregate)` fails. A
+missing, stale or corrupt snapshot fails the audit with `advisory_refresh_failed`
+naming the set and the file. The job needs `contents: read` and no secret, so
+fork pull requests run it.
+
 ## Docs Workflow
 
 `examples/docs-ci/` calls `reusable-docs.yml`. It runs `dx lint --check` over

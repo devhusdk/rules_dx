@@ -1,0 +1,22 @@
+[package]
+name = "dx_advisory_prep"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_advisory_prep"
+path = "src/lib.rs"
+
+[[bin]]
+name = "advisory_prep"
+path = "src/main.rs"
+
+[dependencies]
+chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
+crc32fast = "1"
+flate2 = { version = "1", default-features = false, features = ["zlib"] }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"

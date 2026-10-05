@@ -1015,8 +1015,196 @@ jobs:
               sys.exit(main(sys.argv))
           DX_MODULE_PIN
       - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- generate --check //... -- $BAZEL_CONFIG $BB_ARGS
-  security-audit:
+  advisory-snapshots:
+    name: advisory snapshots (one run, every platform)
     needs: [validate]
+    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      retrieved_at: ${{ steps.prepare.outputs.retrieved_at }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Verify rules_dx pin
+        env:
+          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
+        run: |
+          python3 - <<'DX_MODULE_PIN'
+          """Reports whether a MODULE.bazel declares rules_dx at one expected version.
+
+          The consumer and docs workflows pass the expected version through the
+          RULES_DX_PIN environment variable and run this file from standard input.
+          The module is read as text: the file is never imported, executed or
+          evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
+          counts as a declaration, and its version must be a quoted string literal.
+          """
+
+          import os
+          import re
+          import sys
+
+          MODULE_FILE = "MODULE.bazel"
+          PIN_ENV = "RULES_DX_PIN"
+
+          CALL = re.compile(r"^(bazel_dep|module)[ \t]*\(", re.MULTILINE)
+          NAME = re.compile(r'\bname[ \t]*=[ \t]*"rules_dx"')
+          VERSION = re.compile(r'\bversion[ \t]*=[ \t]*("[^"]*"|[^\s,()]+)')
+
+
+          def strip_comments(text):
+              """Returns text with every # comment outside a string literal removed."""
+              kept = []
+              quote = ""
+              index = 0
+              while index < len(text):
+                  char = text[index]
+                  if quote:
+                      if char == "\\" and index + 1 < len(text):
+                          kept.append(text[index : index + 2])
+                          index += 2
+                          continue
+                      kept.append(char)
+                      if char == quote:
+                          quote = ""
+                  elif char in "\"'":
+                      quote = char
+                      kept.append(char)
+                  elif char == "#":
+                      end = text.find("\n", index)
+                      index = len(text) if end < 0 else end
+                      continue
+                  else:
+                      kept.append(char)
+                  index += 1
+              return "".join(kept)
+
+
+          def call_arguments(text, opening):
+              """Returns the arguments of the call whose opening paren is at opening."""
+              depth = 0
+              quote = ""
+              index = opening
+              while index < len(text):
+                  char = text[index]
+                  if quote:
+                      if char == "\\" and index + 1 < len(text):
+                          index += 2
+                          continue
+                      if char == quote:
+                          quote = ""
+                  elif char in "\"'":
+                      quote = char
+                  elif char == "(":
+                      depth += 1
+                  elif char == ")":
+                      depth -= 1
+                      if depth == 0:
+                          return text[opening + 1 : index]
+                  index += 1
+              return None
+
+
+          def declarations(text):
+              """Returns the line, call name and arguments of every top-level call."""
+              found = []
+              for match in CALL.finditer(text):
+                  arguments = call_arguments(text, match.end() - 1)
+                  if arguments is None:
+                      continue
+                  line = text.count("\n", 0, match.start()) + 1
+                  found.append((line, match.group(1), arguments))
+              return found
+
+
+          def rules_dx_declarations(text):
+              """Returns every declaration naming rules_dx."""
+              return [entry for entry in declarations(text) if NAME.search(entry[2])]
+
+
+          def fail(message):
+              """Reports one diagnostic and returns a failing exit status."""
+              print(f"dx-ci: {message}", file=sys.stderr)
+              return 1
+
+
+          def verify(path, pin):
+              """Reports whether path declares rules_dx at pin, and returns the status."""
+              if pin == "" or '"' in pin or "\\" in pin or any(c.isspace() for c in pin):
+                  return fail(f"{PIN_ENV}={pin!r} is not a plain rules_dx version string")
+              try:
+                  with open(path, encoding="utf-8") as handle:
+                      text = strip_comments(handle.read())
+              except OSError as error:
+                  return fail(f"{path} cannot be read: {error}")
+              found = rules_dx_declarations(text)
+              if not found:
+                  return fail(
+                      f'{path} declares no bazel_dep(name = "rules_dx", version = "{pin}")'
+                  )
+              if len(found) > 1:
+                  where = " and ".join(f"line {line} ({call})" for line, call, _ in found)
+                  return fail(
+                      f"{path} declares rules_dx {len(found)} times, at {where}. "
+                      "Keep one declaration."
+                  )
+              line, call, arguments = found[0]
+              version = VERSION.search(arguments)
+              if version is None:
+                  return fail(
+                      f'{path}:{line} {call}(name = "rules_dx") declares no version. '
+                      f'Add version = "{pin}".'
+                  )
+              if not version.group(1).startswith('"'):
+                  return fail(
+                      f"{path}:{line} {call} version must be a quoted string, "
+                      f'found {version.group(1)}. Write version = "{pin}".'
+                  )
+              if version.group(1)[1:-1] != pin:
+                  return fail(
+                      f"{path}:{line} declares rules_dx {version.group(1)}, "
+                      f'the workflow expects "{pin}". Pin both to the same version.'
+                  )
+              print(
+                  f'{path}:{line} {call}(name = "rules_dx", version = "{pin}") '
+                  "matches the workflow pin"
+              )
+              return 0
+
+
+          def main(argv):
+              """Verifies one module file and returns its exit status."""
+              path = argv[1] if len(argv) > 1 else MODULE_FILE
+              return verify(path, os.environ.get(PIN_ENV, ""))
+
+
+          if __name__ == "__main__":
+              sys.exit(main(sys.argv))
+          DX_MODULE_PIN
+      - name: Prepare one advisory snapshot set
+        id: prepare
+        run: |
+          retrieved_at="$(date -u +%F)"
+          echo "retrieved_at=$retrieved_at" >> "$GITHUB_OUTPUT"
+          bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/advisory_prep \
+            --workspace . --out .dx/advisory --date "$retrieved_at"
+      - name: Publish the advisory snapshots
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: advisory-snapshots
+          path: .dx/advisory
+          if-no-files-found: error
+          retention-days: 1
+  security-audit:
+    needs: [validate, advisory-snapshots]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}
     timeout-minutes: 30
     defaults:
@@ -1198,58 +1386,16 @@ jobs:
         run: |
           rel="$(bazel cquery --output=files @dx_tools//:gitleaks $BAZEL_CONFIG $BB_ARGS 2>/dev/null | tail -1)"
           echo "DX_GITLEAKS_BIN=$(bazel info output_base)/$rel" >> "$GITHUB_ENV"
-      - name: Populate advisory snapshots (OSV offline sets)
-        # A set with a lockfile and no snapshot fails the audit.
-        run: |
-          set -euo pipefail
-          mkdir -p .dx/advisory
-          today="$(date -u +%F)"
-          populate() {
-            set="$1"
-            url="$2"
-            tmp="$(mktemp -d)"
-            curl -fsSL -o "$tmp/all.zip" "$url"
-            python3 - "$tmp" "$set" "$url" "$today" <<'PY'
-          import hashlib, json, pathlib, sys, zipfile
-          tmp, set_name, url, today = sys.argv[1:5]
-          root = pathlib.Path(tmp)
-          with zipfile.ZipFile(root / "all.zip") as zf:
-              zf.extractall(root / "db")
-          vulns = []
-          for path in sorted((root / "db").rglob("*.json")):
-              text = path.read_text(encoding="utf-8")
-              if not text.strip():
-                  continue
-              data = json.loads(text)
-              if isinstance(data, list):
-                  vulns.extend(data)
-              else:
-                  vulns.append(data)
-          out = pathlib.Path(".dx/advisory") / f"{set_name}.json"
-          payload = json.dumps(vulns, separators=(",", ":"), sort_keys=True).encode("utf-8")
-          out.write_bytes(payload)
-          meta = {
-              "set": set_name,
-              "url": url,
-              "sha256": hashlib.sha256(payload).hexdigest(),
-              "retrieved_at": today,
-              "path": str(out),
-          }
-          pathlib.Path(str(out).replace(".json", ".meta.json")).write_text(
-              json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-          )
-          print(f"{set_name}: {len(vulns)} advisories")
-          PY
-            rm -rf "$tmp"
-          }
-          populate cargo "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"
-          populate npm "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"
-          populate maven "https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip"
-          populate nuget "https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip"
-          populate go "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"
-          populate rubygems "https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"
+      - name: Restore the advisory snapshots this run prepared
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: advisory-snapshots
+          path: .dx/advisory
       # Audit backends run no Bazel and take no passthrough flags.
-      - run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- security //...
+      - name: Audit against the shared snapshots
+        env:
+          DX_AUDIT_TODAY: ${{ needs.advisory-snapshots.outputs.retrieved_at }}
+        run: bazel run $BAZEL_CONFIG $BB_ARGS @rules_dx//cli/cli:dx -- security //...
   license-audit:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',license-audit,') }}
@@ -2039,7 +2185,7 @@ jobs:
 
   dx-ci:
     name: dx-ci (aggregate)
-    needs: [validate, lint, typecheck, format, generate, security-audit, license-audit, test, build, coverage]
+    needs: [validate, lint, typecheck, format, generate, security-audit, advisory-snapshots, license-audit, test, build, coverage]
     if: ${{ always() }}
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -2056,6 +2202,8 @@ jobs:
           import json, os, sys
           needs = json.loads(os.environ["NEEDS"])
           disabled = {name for name in os.environ["DISABLED"].split(",") if name}
+          if "security-audit" in disabled:
+              disabled.add("advisory-snapshots")
           results = {name: info.get("result") for name, info in needs.items()}
           print(json.dumps({"aggregate": "dx-ci", "disabled": sorted(disabled), "needs": results}))
           if results.get("validate") != "success":

@@ -102,6 +102,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":quality_adapter",
+    data = ["//tools/testing/process_probe"],
+    env = {
+        "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
+    },
     deps = crate_deps(
         [
             "line-index",
@@ -114,7 +118,7 @@ rust_test(
             "thiserror",
         ],
         package_name = "quality/quality_adapter",
-    ),
+    ) + ["//tools/testing:dx_testing"],
 )
 
 rustfmt_test(

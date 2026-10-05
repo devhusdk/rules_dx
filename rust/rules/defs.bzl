@@ -210,6 +210,8 @@ def dx_rust_crate(
         dev_deps = None,
         extra_deps = None,
         extra_test_deps = None,
+        test_data = None,
+        test_env = None,
         crate_name = None,
         srcs = None,
         size = "small",
@@ -242,10 +244,12 @@ def dx_rust_crate(
             normal_dev = True,
         ),
         crate = ":" + name,
+        data = test_data or [],
         deps = _crate_deps(
             deps + (dev_deps or []),
             package_name = package_name,
         ) + (extra_deps or []) + (extra_test_deps or []),
+        env = test_env or {},
         visibility = visibility,
     )
     rustfmt_test(

@@ -1,0 +1,53 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files(["src/main.rs"])
+
+rust_binary(
+    name = "process_probe",
+    srcs = ["src/main.rs"],
+    crate_name = "process_probe",
+    crate_root = "src/main.rs",
+)
+
+rust_test(
+    name = "process_probe_test",
+    size = "small",
+    srcs = ["probe_test.rs"],
+    data = [":process_probe"],
+    env = {
+        "DX_PROCESS_PROBE": "$(rootpath :process_probe)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "process_probe_fmt_test",
+    size = "small",
+    targets = [
+        ":process_probe",
+        ":process_probe_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "process_probe_clippy_test",
+    size = "small",
+    targets = [
+        ":process_probe",
+        ":process_probe_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

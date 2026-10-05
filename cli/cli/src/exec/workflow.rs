@@ -149,6 +149,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         planned_reports: &planned_reports,
         stdout_report,
         bazel_code,
+        query_runner,
     })
 }
 

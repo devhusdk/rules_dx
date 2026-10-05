@@ -12,6 +12,11 @@ pub struct QueryResult {
 
 pub trait QueryRunner {
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult>;
+
+    /// Runs one capturing `bazel info` for output roots.
+    fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        self.run_query(argv, cwd)
+    }
 }
 
 // LCOV_EXCL_START - reason: prod spawn, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

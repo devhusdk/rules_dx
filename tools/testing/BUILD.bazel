@@ -34,6 +34,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_testing",
+    data = ["//tools/testing/process_probe"],
+    env = {
+        "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
+    },
     deps = crate_deps(
         [
             "serde_json",

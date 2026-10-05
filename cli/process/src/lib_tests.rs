@@ -550,101 +550,119 @@ fn fake_runner_substitutes_the_boundary() {
 #[test]
 fn system_runner_preserves_exit_codes() {
     let runner = SystemRunner;
+    let cwd = std::env::temp_dir();
     let ok = runner
-        .run(&success_command(), Path::new("/"), &[])
-        .expect("true");
+        .run(&probe_argv(&["--exit-code=0"]), &cwd, &[])
+        .expect("probe");
     assert_eq!(ok.code, Some(0));
     let fail = runner
-        .run(&failure_command(), Path::new("/"), &[])
-        .expect("false");
+        .run(&probe_argv(&["--exit-code=1"]), &cwd, &[])
+        .expect("probe");
     assert_eq!(fail.code, Some(1));
 }
 
-/// A host command that succeeds.
-fn success_command() -> Vec<String> {
-    script_command("exit 0")
-}
-
-/// A host command that fails.
-fn failure_command() -> Vec<String> {
-    script_command("exit 1")
-}
-
-/// A host command that prints one environment variable, failing when it is unset.
-fn print_env_command(name: &str) -> Vec<String> {
-    if cfg!(windows) {
-        ["cmd.exe", "/c", &format!("echo %{}%", name)]
-            .map(String::from)
-            .to_vec()
-    } else {
-        vec!["/usr/bin/printenv".to_owned(), name.to_owned()]
-    }
-}
-
-/// A host command that runs one script.
-fn script_command(script: &str) -> Vec<String> {
-    if cfg!(windows) {
-        ["cmd.exe", "/c", script].map(String::from).to_vec()
-    } else {
-        vec!["/bin/sh".to_owned(), "-c".to_owned(), script.to_owned()]
-    }
-}
-
-/// A host path that names a command that exists.
-fn present_executable() -> String {
-    if cfg!(windows) {
-        dx_path::host::host_filename("cmd")
-    } else {
-        "/bin/sh".to_owned()
-    }
+/// A probe argv that runs the Bazel-built probe with the given flags.
+fn probe_argv(flags: &[&str]) -> Vec<String> {
+    let mut argv = vec![dx_testing::process_probe().to_string_lossy().into_owned()];
+    argv.extend(flags.iter().map(|flag| (*flag).to_owned()));
+    argv
 }
 
 #[test]
 fn system_runner_forwards_extra_environment() {
     let runner = SystemRunner;
+    let cwd = std::env::temp_dir();
     let probed = runner
         .run(
-            &script_command("test \"$DX_RUNNER_PROBE\" = forwarded"),
-            Path::new("/"),
+            &probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]),
+            &cwd,
             &[("DX_RUNNER_PROBE", "forwarded")],
         )
         .expect("probe");
     assert_eq!(probed.code, Some(0));
+    let rejected = runner
+        .run(
+            &probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]),
+            &cwd,
+            &[("DX_RUNNER_PROBE", "other")],
+        )
+        .expect("probe");
+    assert_eq!(rejected.code, Some(70), "a wrong value must not pass");
 }
 
 #[test]
 fn system_runner_rejects_bad_invocations() {
     let runner = SystemRunner;
-    assert!(runner.run(&[], Path::new("/"), &[]).is_err());
+    assert!(runner.run(&[], Path::new("."), &[]).is_err());
     assert!(runner
-        .run(&["/nonexistent-dx-tool".to_owned()], Path::new("/"), &[])
+        .run(&["/nonexistent-dx-tool".to_owned()], Path::new("."), &[])
         .is_err());
 }
 
 #[test]
-fn hermetic_runner_clears_parent_environment() {
+fn hermetic_runner_clears_the_parent_environment() {
+    let cwd = std::env::temp_dir();
+    let inherited = std::env::var("TEST_SRCDIR").expect("Bazel sets TEST_SRCDIR for every test");
+    let argv = probe_argv(&[
+        "--forbid-env=TEST_SRCDIR",
+        "--print-env=TEST_SRCDIR",
+        "--print-env=DX_HERMETIC_PROBE",
+    ]);
+    let kept = spawn_output(&argv, &cwd, &[("DX_HERMETIC_PROBE", "kept")], false)
+        .expect("probe inherits the parent environment");
+    assert_eq!(
+        kept.status.code(),
+        Some(71),
+        "an uncleared child still sees TEST_SRCDIR"
+    );
+    let cleared = spawn_output(&argv, &cwd, &[("DX_HERMETIC_PROBE", "kept")], true)
+        .expect("probe runs with a cleared environment");
+    assert_eq!(cleared.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8_lossy(&cleared.stdout),
+        format!("<unset>\nkept\n"),
+        "inherited={inherited}"
+    );
+}
+
+#[test]
+fn hermetic_runner_forwards_extra_environment() {
     let runner = SystemRunner;
-    std::env::set_var("DX_HERMETIC_PROBE_PARENT", "parent");
-    let cleared = runner
+    let cwd = std::env::temp_dir();
+    let kept = runner
         .run_hermetic(
-            &script_command(
-                "test -z \"$DX_HERMETIC_PROBE_PARENT\" && test \"$DX_HERMETIC_PROBE\" = kept",
-            ),
-            Path::new("/"),
+            &probe_argv(&["--require-env=DX_HERMETIC_PROBE=kept"]),
+            &cwd,
             &[("DX_HERMETIC_PROBE", "kept")],
         )
-        .expect("hermetic probe");
-    std::env::remove_var("DX_HERMETIC_PROBE_PARENT");
-    assert_eq!(cleared.code, Some(0));
+        .expect("probe");
+    assert_eq!(kept.code, Some(0));
+    let missing = runner
+        .run_hermetic(
+            &probe_argv(&["--require-env=DX_HERMETIC_PROBE=kept"]),
+            &cwd,
+            &[],
+        )
+        .expect("probe");
+    assert_eq!(missing.code, Some(70), "an unset variable must not pass");
 }
 
 #[test]
 fn hermetic_runner_sets_no_path() {
     let runner = SystemRunner;
+    let cwd = std::env::temp_dir();
     let no_path = runner
-        .run_hermetic(&print_env_command("PATH"), Path::new("/"), &[])
-        .expect("no PATH");
-    assert_eq!(no_path.code, Some(1));
+        .run_hermetic(&probe_argv(&["--forbid-env=PATH"]), &cwd, &[])
+        .expect("probe");
+    assert_eq!(no_path.code, Some(0));
+    let inherited = runner
+        .run(&probe_argv(&["--forbid-env=PATH"]), &cwd, &[])
+        .expect("probe");
+    assert_eq!(
+        inherited.code,
+        Some(71),
+        "only the hermetic runner clears PATH"
+    );
 }
 
 #[test]
@@ -657,15 +675,17 @@ fn gitleaks_tool_defaults_to_absent() {
 
 #[test]
 fn spawn_success_reports_status_without_triplication() {
-    assert!(spawn_success(&success_command()));
-    assert!(!spawn_success(&failure_command()));
+    assert!(spawn_success(&probe_argv(&["--exit-code=0"])));
+    assert!(!spawn_success(&probe_argv(&["--exit-code=1"])));
     assert!(!spawn_success(&[]));
     assert!(!spawn_success(&["/nonexistent-dx-tool".to_owned()]));
 }
 
 #[test]
 fn exe_available_covers_help_file_and_path() {
-    assert!(exe_available(&present_executable()));
+    assert!(exe_available(
+        &dx_testing::process_probe().to_string_lossy().into_owned()
+    ));
     assert!(!exe_available("/nonexistent-dx-tool-xyz"));
     assert!(!exe_available(""));
 }

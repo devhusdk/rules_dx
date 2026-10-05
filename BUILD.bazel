@@ -41,6 +41,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude quality/testdata
 # gazelle:exclude tools/coverage
+# gazelle:exclude tools/testing/process_probe
 # gazelle:exclude tools/depcheck/testdata
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude cc/tests/fixtures/hello
@@ -206,6 +207,7 @@ rust_test(
         "//tools/depcheck:src/main.rs",
         "//tools/repin_all:src/main.rs",
         "//tools/testing:src/lib.rs",
+        "//tools/testing/process_probe:src/main.rs",
     ],
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],

@@ -633,26 +633,36 @@ mod tests {
 
     #[test]
     fn spawn_runs_absolute_binaries_without_path() {
-        let env = hermetic_env(&std::env::temp_dir(), &[]);
-        let ok = spawn(&[OsStr::new("/usr/bin/true")], Path::new("/"), &env).expect("spawn");
+        let probe = dx_testing::process_probe();
+        let cwd = std::env::temp_dir();
+        let env = hermetic_env(&cwd, &[]);
+        let ok = spawn(
+            &[probe.as_os_str(), OsStr::new("--exit-code=0")],
+            &cwd,
+            &env,
+        )
+        .expect("spawn");
         assert_eq!(ok.code, Some(0));
-        let fail = spawn(&[OsStr::new("/usr/bin/false")], Path::new("/"), &env).expect("spawn");
-        assert_eq!(fail.code, Some(1));
-        assert!(spawn(&[OsStr::new("/nonexistent-dx-tool")], Path::new("/"), &env).is_err());
+        let fail = spawn(
+            &[probe.as_os_str(), OsStr::new("--exit-code=3")],
+            &cwd,
+            &env,
+        )
+        .expect("spawn");
+        assert_eq!(fail.code, Some(3));
+        assert!(spawn(&[OsStr::new("/nonexistent-dx-tool")], &cwd, &env).is_err());
         let empty: Vec<&OsStr> = Vec::new();
-        assert!(spawn(&empty, Path::new("/"), &env).is_err());
+        assert!(spawn(&empty, &cwd, &env).is_err());
     }
 
     #[test]
     fn spawn_enforces_timeout_and_kills_the_child() {
-        let env = hermetic_env(&std::env::temp_dir(), &[]);
+        let probe = dx_testing::process_probe();
+        let cwd = std::env::temp_dir();
+        let env = hermetic_env(&cwd, &[]);
         let err = spawn_with_timeout(
-            &[
-                OsStr::new("/bin/sh"),
-                OsStr::new("-c"),
-                OsStr::new("exec sleep 30"),
-            ],
-            Path::new("/"),
+            &[probe.as_os_str(), OsStr::new("--sleep-ms=30000")],
+            &cwd,
             &env,
             Duration::from_millis(50),
         )
@@ -663,32 +673,55 @@ mod tests {
 
     #[test]
     fn spawn_drains_large_output_without_faking_a_timeout() {
-        let env = hermetic_env(&std::env::temp_dir(), &[]);
+        let probe = dx_testing::process_probe();
+        let cwd = std::env::temp_dir();
+        let env = hermetic_env(&cwd, &[]);
         let out = spawn_with_timeout(
-            &[
-                OsStr::new("/bin/sh"),
-                OsStr::new("-c"),
-                OsStr::new("head -c 1048576 /dev/zero"),
-            ],
-            Path::new("/"),
+            &[probe.as_os_str(), OsStr::new("--stdout-bytes=1048576")],
+            &cwd,
             &env,
             Duration::from_secs(10),
         )
         .expect("large output");
         assert_eq!(out.code, Some(0));
-        assert_eq!(out.stdout.len(), 1_048_576);
+        assert_eq!(out.stdout, vec![0u8; 1_048_576]);
         assert!(out.stderr.is_empty());
     }
 
     #[test]
+    fn spawn_captures_exact_stdout_and_stderr_bytes() {
+        let probe = dx_testing::process_probe();
+        let cwd = std::env::temp_dir();
+        let env = hermetic_env(&cwd, &[]);
+        let out = spawn_with_timeout(
+            &[
+                probe.as_os_str(),
+                OsStr::new("--stdout-text=out:"),
+                OsStr::new("--stdout-bytes=2"),
+                OsStr::new("--stderr-text=err:"),
+                OsStr::new("--stderr-bytes=1"),
+                OsStr::new("--exit-code=5"),
+            ],
+            &cwd,
+            &env,
+            Duration::from_secs(10),
+        )
+        .expect("both streams");
+        assert_eq!(out.code, Some(5));
+        assert_eq!(out.stdout, b"out:\0\0");
+        assert_eq!(out.stderr, b"err:\0");
+    }
+
+    #[test]
     fn spawn_rejects_oversized_output() {
-        let env = hermetic_env(&std::env::temp_dir(), &[]);
+        let probe = dx_testing::process_probe();
+        let cwd = std::env::temp_dir();
+        let env = hermetic_env(&cwd, &[]);
         let limit = crate::parsers::MAX_OUTPUT_BYTES;
-        let bytes = limit + 1;
-        let script = format!("head -c {bytes} /dev/zero");
+        let flag = format!("--stdout-bytes={}", limit + 1);
         let err = spawn_with_timeout(
-            &[OsStr::new("/bin/sh"), OsStr::new("-c"), OsStr::new(&script)],
-            Path::new("/"),
+            &[probe.as_os_str(), OsStr::new(&flag)],
+            &cwd,
             &env,
             Duration::from_secs(30),
         )

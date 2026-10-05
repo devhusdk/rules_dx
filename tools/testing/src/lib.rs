@@ -167,6 +167,13 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
     direct
 }
 
+/// Names the Bazel-built process probe from the runfiles of the calling test.
+pub fn process_probe() -> PathBuf {
+    let rel = std::env::var("DX_PROCESS_PROBE")
+        .unwrap_or_else(|_| panic!("DX_PROCESS_PROBE must name the process probe"));
+    resolve_runfiles(&rel)
+}
+
 pub fn runfiles_root() -> PathBuf {
     let root =
         std::env::var("TEST_SRCDIR").unwrap_or_else(|_| panic!("TEST_SRCDIR is set under Bazel"));
@@ -475,14 +482,9 @@ mod tests {
         let back = read_json(&path).expect("read");
         assert_eq!(back["tools"][0]["bin_name"], "dx");
         assert!(read_json(&first.join("missing.json")).is_err());
-        let (echo_bin, echo_args): (&str, Vec<&str>) = if cfg!(windows) {
-            ("cmd.exe", vec!["/c", "echo hello"])
-        } else {
-            ("/bin/echo", vec!["hello"])
-        };
         let echo = run(
-            &PathBuf::from(echo_bin),
-            &echo_args,
+            &process_probe(),
+            &["--stdout-text=hello"],
             &[("DX_HELPER_CHECK", "1")],
         )
         .expect("run");

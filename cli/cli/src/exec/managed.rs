@@ -415,7 +415,7 @@ mod tests {
         let generations = harness.workspace.join(".dx").join(GENERATED_DIR_NAME);
         assert!(generations.is_dir(), "first commit stages generations");
         let pointer = harness.workspace.join(".dx/setups/current");
-        std::fs::remove_file(&pointer).expect("remove pointer");
+        dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
         let (code, _, err) = harness.run(&["codegen"]);
         assert_eq!(code, 1, "{err}");

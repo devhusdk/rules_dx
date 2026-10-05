@@ -415,12 +415,30 @@ fn clear_staged_pointer(stage: &Path) -> Result<(), CommitError> {
                     ),
                 })
             } else {
-                fs::remove_file(stage).map_err(|e| CommitError::Install {
+                remove_staged_entry(stage).map_err(|e| CommitError::Install {
                     reason: format!("cannot clear stale {}: {e}", stage.display()),
                 })
             }
         }
     }
+}
+
+/// Removes the staged entry itself and never its target.
+#[cfg(windows)]
+fn remove_staged_entry(stage: &Path) -> io::Result<()> {
+    use std::os::windows::fs::MetadataExt;
+
+    const DIRECTORY_ATTRIBUTE: u32 = 0x10;
+    if fs::symlink_metadata(stage)?.file_attributes() & DIRECTORY_ATTRIBUTE != 0 {
+        return fs::remove_dir(stage);
+    }
+    fs::remove_file(stage)
+}
+
+/// Removes the staged entry itself and never its target.
+#[cfg(not(windows))]
+fn remove_staged_entry(stage: &Path) -> io::Result<()> {
+    fs::remove_file(stage)
 }
 
 fn install_and_swap(

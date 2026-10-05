@@ -373,7 +373,7 @@ mod tests {
         let harness = Harness::new("clean-bad-current");
         let stale = commit_clean_pair(&harness, '3', '4');
         let pointer = harness.workspace.join(".dx/setups/current");
-        std::fs::remove_file(&pointer).expect("remove pointer");
+        dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
         for args in [&["clean", "--dry-run"][..], &["clean"][..]] {
             let (code, out, err) = harness.run(args);
@@ -462,7 +462,7 @@ mod tests {
         let harness = Harness::new("clean-json-fail");
         let stale = commit_clean_pair(&harness, '3', '4');
         let pointer = harness.workspace.join(".dx/setups/current");
-        std::fs::remove_file(&pointer).expect("remove pointer");
+        dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
         let (code, out, err) = harness.run(&["clean", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");

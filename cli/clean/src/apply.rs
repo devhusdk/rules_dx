@@ -173,7 +173,7 @@ mod tests {
         let workspace = workspace_of(&root);
         dx_setup::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit");
         let current = workspace.join(".dx").join("setups").join("current");
-        fs::remove_file(&current).expect("remove pointer");
+        dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
         fs::write(&current, "not a symlink").expect("file pointer");
         assert!(matches!(
             collect_inventory(&workspace, &[], &[]),

@@ -1,9 +1,9 @@
 # `dx check`, `dx fix`, And `dx clean`
 
 ```sh
-bazel run //cli/cli:dx -- check //...
-bazel run //cli/cli:dx -- fix //...
-bazel run //cli/cli:dx -- clean
+bazel run @rules_dx//:dx -- check //...
+bazel run @rules_dx//:dx -- fix //...
+bazel run @rules_dx//:dx -- clean
 ```
 
 ## `dx check` And `dx fix`
@@ -37,8 +37,8 @@ capture could not be collected, or a report could not be written. The failing
 phase's code wins, so a `generate` phase keeps Bazel's code.
 
 ```sh
-bazel run //cli/cli:dx -- check //...
-bazel run //cli/cli:dx -- fix --here
+bazel run @rules_dx//:dx -- check //...
+bazel run @rules_dx//:dx -- fix --here
 ```
 
 ## `dx clean`
@@ -58,5 +58,5 @@ or launch failure. With `--bazel`, a `bazel clean` failure keeps Bazel's
 code.
 
 ```sh
-bazel run //cli/cli:dx -- clean --dry-run
+bazel run @rules_dx//:dx -- clean --dry-run
 ```

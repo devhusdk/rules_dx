@@ -23,9 +23,9 @@ preview failure. Bazel failures keep Bazel's code. Under `--serve` the
 preview server's code is the exit code.
 
 ```sh
-bazel run //cli/cli:dx -- docs --check
-bazel run //cli/cli:dx -- docs
-bazel run //cli/cli:dx -- docs --serve --port 8080
+bazel run @rules_dx//:dx -- docs --check
+bazel run @rules_dx//:dx -- docs
+bazel run @rules_dx//:dx -- docs --serve --port 8080
 ```
 
 The build never changes sources. Serve runs a local preview only. The site

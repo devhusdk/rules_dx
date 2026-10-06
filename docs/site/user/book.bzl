@@ -10,7 +10,7 @@ BOOK_INTRO = (
     "Install Bazel via Bazelisk, then run `dx` through Bazel:"
 )
 
-INDEX_LINK_LIST = "```sh" + "\n" + "bazel run //cli/cli:dx -- --help" + "\n" + "```"
+INDEX_LINK_LIST = "```sh" + "\n" + "bazel run @rules_dx//:dx -- --help" + "\n" + "```"
 
 USER_BOOK = [
     mdbook_index(BOOK_TITLE, BOOK_INTRO + "\n\n" + INDEX_LINK_LIST),

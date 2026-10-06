@@ -21,7 +21,7 @@ Exit codes: `0` success, `2` usage or scope errors, `1` a query failed or
 `dx why` found no owner.
 
 ```sh
-bazel run //cli/cli:dx -- owners cli/cli/src/main.rs
-bazel run //cli/cli:dx -- deps //cli/cli:dx
-bazel run //cli/cli:dx -- why cli/cli/src/main.rs //cli/cli:dx
+bazel run @rules_dx//:dx -- owners cli/cli/src/main.rs
+bazel run @rules_dx//:dx -- deps @rules_dx//:dx
+bazel run @rules_dx//:dx -- why cli/cli/src/main.rs @rules_dx//:dx
 ```

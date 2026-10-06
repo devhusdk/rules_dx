@@ -1,9 +1,9 @@
 # Quality Commands
 
 ```sh
-bazel run //cli/cli:dx -- lint //...
-bazel run //cli/cli:dx -- typecheck //...
-bazel run //cli/cli:dx -- format //...
+bazel run @rules_dx//:dx -- lint //...
+bazel run @rules_dx//:dx -- typecheck //...
+bazel run @rules_dx//:dx -- format //...
 ```
 
 No scope means `//...`. Use `--here` for the current dir tree. All three
@@ -27,9 +27,9 @@ Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
 failures report `1`, not Bazel's code.
 
 ```sh
-bazel run //cli/cli:dx -- lint --check //...
-bazel run //cli/cli:dx -- format --here
-bazel run //cli/cli:dx -- typecheck --fail-on error //cli/...
+bazel run @rules_dx//:dx -- lint --check //...
+bazel run @rules_dx//:dx -- format --here
+bazel run @rules_dx//:dx -- typecheck --fail-on error //cli/...
 ```
 
 ## Policy
@@ -40,8 +40,8 @@ The three commands check with the workspace policy that
 to select your own.
 
 ```sh
-bazel run //cli/cli:dx -- lint -- --@rules_dx//config:workspace=//quality:my_policy
-bazel run //cli/cli:dx -- format --check //... -- --@rules_dx//config:workspace=//quality:my_policy
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:workspace=//quality:my_policy
+bazel run @rules_dx//:dx -- format --check //... -- --@rules_dx//config:workspace=//quality:my_policy
 ```
 
 A policy is a `workspace_policy` of `quality_family` sections, loaded from

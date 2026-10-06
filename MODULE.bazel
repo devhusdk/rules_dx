@@ -305,6 +305,10 @@ _consumer_hub_repo(
     name = "consumer_hub",
 )
 
+_consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
+
+_consumer_dx_repo(name = "dx_consumer_entry")
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

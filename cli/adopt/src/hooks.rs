@@ -60,7 +60,7 @@ pub fn render_local_overlay() -> Result<String, AdoptError> {
 
 pub fn render_hook_shim(trigger: &str) -> String {
     format!(
-        "#!/bin/sh\n{HOOK_MANAGED_MARKER} {trigger}\nexec bazel run //cli/cli:dx -- hooks run {trigger} -- \"$@\"\n"
+        "#!/bin/sh\n{HOOK_MANAGED_MARKER} {trigger}\nexec bazel run @rules_dx//:dx -- hooks run {trigger} -- \"$@\"\n"
     )
 }
 
@@ -329,7 +329,7 @@ mod tests {
         hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks, is_hook_trigger,
         load_hook_timings, load_hooks_config, render_hook_timings, render_hooks_status_merged,
         render_local_overlay, uninstall_hooks, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER,
-        LOCAL_OVERLAY_COMMENT,
+        HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
     };
     use super::{render_hook_shim, render_hooks_status};
 
@@ -340,6 +340,20 @@ mod tests {
         assert_eq!(super::LOCAL_OVERLAY_COMMENT, LOCAL_OVERLAY_COMMENT);
         assert!(render_hook_shim("pre-commit").contains(HOOK_MANAGED_MARKER));
         assert!(render_hooks_status("b", "o", "t").contains("baseline:\nb"));
+    }
+
+    #[test]
+    fn hook_shim_runs_dx_through_the_public_label() {
+        for trigger in HOOK_TRIGGERS {
+            let shim = render_hook_shim(trigger);
+            assert!(
+                shim.contains(&format!(
+                    "exec bazel run @rules_dx//:dx -- hooks run {trigger} -- \"$@\"\n"
+                )),
+                "{shim}"
+            );
+            assert!(!shim.contains("//cli/cli:dx"), "{shim}");
+        }
     }
 
     #[test]

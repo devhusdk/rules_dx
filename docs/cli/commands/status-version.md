@@ -1,8 +1,8 @@
 # `dx status` And `dx version`
 
 ```sh
-bazel run //cli/cli:dx -- status
-bazel run //cli/cli:dx -- version
+bazel run @rules_dx//:dx -- status
+bazel run @rules_dx//:dx -- version
 ```
 
 ## `dx status`
@@ -53,9 +53,9 @@ Exit codes: `0` success, `2` usage errors including conflicting flags, `1`
 pin drift or a refused pin.
 
 ```sh
-bazel run //cli/cli:dx -- version --check
-bazel run //cli/cli:dx -- version --pin 0.0.0
-bazel run //cli/cli:dx -- version --rollback
+bazel run @rules_dx//:dx -- version --check
+bazel run @rules_dx//:dx -- version --pin 0.0.0
+bazel run @rules_dx//:dx -- version --rollback
 ```
 
 ## Version Skew
@@ -77,7 +77,7 @@ error event, then `command_finished` with `exit_code` `1` and
 `results_complete` `false`.
 
 ```sh
-bazel run //cli/cli:dx -- version --check
-bazel run //cli/cli:dx -- version --pin 0.0.0
-bazel run //cli/cli:dx -- build //...
+bazel run @rules_dx//:dx -- version --check
+bazel run @rules_dx//:dx -- version --pin 0.0.0
+bazel run @rules_dx//:dx -- build //...
 ```

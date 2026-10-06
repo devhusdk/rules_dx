@@ -40,6 +40,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude quality/testdata
+# gazelle:exclude cli/entrypoint
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/process_probe
 # gazelle:exclude tools/depcheck/testdata
@@ -99,6 +100,12 @@ load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
+alias(
+    name = "dx",
+    actual = "//cli/cli:dx",
+    visibility = ["//visibility:public"],
+)
+
 js_library(
     name = "package_json",
     srcs = ["package.json"],
@@ -114,6 +121,7 @@ exports_files([
     ".gitignore",
     ".shellcheckrc",
     "MODULE.bazel",
+    "README.md",
     "cargo-bazel-lock.json",
     "package.json",
     "pnpm-lock.yaml",

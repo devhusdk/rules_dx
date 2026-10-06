@@ -194,6 +194,7 @@ SCOPED_PACKAGES = {
 }
 
 EXPLICIT_PUBLIC_TARGETS = {
+    "": ["dx"],
     "cli/cli": ["dx", "man_pages"],
     "cli/env": ["env"],
     "deploy/rules": ["archiver", "dx_deploy_tools", "hasher"],

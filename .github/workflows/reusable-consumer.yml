@@ -483,7 +483,7 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- lint --check //... -- "$@"
+          bazel run "$@" @rules_dx//:dx -- lint --check //... -- "$@"
   typecheck:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',typecheck,') }}
@@ -666,7 +666,7 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- typecheck --check //... -- "$@"
+          bazel run "$@" @rules_dx//:dx -- typecheck --check //... -- "$@"
   format:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',format,') }}
@@ -849,7 +849,7 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- format --check //... -- "$@"
+          bazel run "$@" @rules_dx//:dx -- format --check //... -- "$@"
   generate:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',generate,') }}
@@ -1032,7 +1032,7 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- generate --check //... -- "$@"
+          bazel run "$@" @rules_dx//:dx -- generate --check //... -- "$@"
   advisory-snapshots:
     name: advisory snapshots (one run, every platform)
     needs: [validate]
@@ -1420,7 +1420,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- security //...
+          bazel run "$@" @rules_dx//:dx -- security //...
   license-audit:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',license-audit,') }}
@@ -1604,7 +1604,7 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- license //...
+          bazel run "$@" @rules_dx//:dx -- license //...
   test:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',test,') }}
@@ -1787,7 +1787,7 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- test //... -- "$@"
+          bazel run "$@" @rules_dx//:dx -- test //... -- "$@"
   build:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',build,') }}
@@ -1970,7 +1970,7 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//cli/cli:dx -- build //... -- "$@"
+          bazel run "$@" @rules_dx//:dx -- build //... -- "$@"
   coverage:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
@@ -2163,7 +2163,7 @@ jobs:
           if [ -n "$DX_MIN_COVERAGE" ]; then
             extra=(--min-coverage "$DX_MIN_COVERAGE")
           fi
-          bazel run "$@" @rules_dx//cli/cli:dx -- coverage "${extra[@]}" //... -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
+          bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" //... -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
           rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"

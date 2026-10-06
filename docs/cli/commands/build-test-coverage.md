@@ -1,9 +1,9 @@
 # Build, Test, And Coverage Commands
 
 ```sh
-bazel run //cli/cli:dx -- build //...
-bazel run //cli/cli:dx -- test //...
-bazel run //cli/cli:dx -- coverage //...
+bazel run @rules_dx//:dx -- build //...
+bazel run @rules_dx//:dx -- test //...
+bazel run @rules_dx//:dx -- coverage //...
 ```
 
 No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
@@ -31,9 +31,9 @@ a quarter of the reported results are unusable. More than that fails as
 incomplete.
 
 ```sh
-bazel run //cli/cli:dx -- build //cli/...
-bazel run //cli/cli:dx -- test --here
-bazel run //cli/cli:dx -- test //... -- --jobs=4
+bazel run @rules_dx//:dx -- build //cli/...
+bazel run @rules_dx//:dx -- test --here
+bazel run @rules_dx//:dx -- test //... -- --jobs=4
 ```
 
 ## `dx run`
@@ -52,7 +52,7 @@ Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
 a launch failure. The app's own code is the exit code.
 
 ```sh
-bazel run //cli/cli:dx -- run //cli/cli:dx -- --help
+bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
 ```
 
 ## `dx deploy`
@@ -88,8 +88,8 @@ other results exist, and at most a quarter of the reported results are
 unusable. More than that fails as incomplete.
 
 ```sh
-bazel run //cli/cli:dx -- coverage //...
-bazel run //cli/cli:dx -- coverage --min-coverage 96 //...
+bazel run @rules_dx//:dx -- coverage //...
+bazel run @rules_dx//:dx -- coverage --min-coverage 96 //...
 ```
 
 Coverage ignores use `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`

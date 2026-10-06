@@ -21,6 +21,6 @@ Exit codes: `0` success, `2` usage errors including an unknown shell, `1` a
 completion check failed.
 
 ```sh
-bazel run //cli/cli:dx -- completion bash > ~/.cache/dx-completion.bash
-bazel run //cli/cli:dx -- completion --check
+bazel run @rules_dx//:dx -- completion bash > ~/.cache/dx-completion.bash
+bazel run @rules_dx//:dx -- completion --check
 ```

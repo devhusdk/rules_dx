@@ -58,6 +58,6 @@ Patterns, paths, and multiple labels are usage errors.
   `dx license`, and `dx docs`.
 
 ```sh
-bazel run //cli/cli:dx -- lint --here
-bazel run //cli/cli:dx -- build //cli/...
+bazel run @rules_dx//:dx -- lint --here
+bazel run @rules_dx//:dx -- build //cli/...
 ```

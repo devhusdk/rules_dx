@@ -2,12 +2,13 @@ use std::path::{Component, Path, PathBuf};
 
 use dx_testing::{read_runfiles, runfiles_root};
 
-const INDEXES: [&str; 4] = [
-    "README.md",
+const INDEXES: [&str; 3] = [
     "docs/README.md",
     "docs/cli/commands/README.md",
     "examples/README.md",
 ];
+
+const NOT_PUBLISHED: [&str; 3] = ["AGENTS.md", "CONTRIBUTING.md", "README.md"];
 
 fn normalize(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
@@ -34,36 +35,39 @@ fn unique(mut names: Vec<String>) -> Vec<String> {
     names
 }
 
-/// Returns USER_PROSE from docs/site/BUILD.bazel as workspace-relative paths.
+/// Returns the curated book's source labels as workspace-relative paths.
 fn published() -> Vec<String> {
-    let build = read_runfiles("docs/site/BUILD.bazel");
+    let book = read_runfiles("docs/site/user/book.bzl");
     let mut names = Vec::new();
+    let mut pages = 0;
+    let mut call = String::new();
     let mut inside = false;
-    for line in build.lines() {
+    for line in book.lines() {
         let line = line.trim();
-        if line.starts_with("USER_PROSE") {
+        if line.starts_with("mdbook_page(") {
+            pages += 1;
             inside = true;
+            call.clear();
+        }
+        if inside {
+            call.push_str(line);
+            call.push(' ');
+        }
+        if !inside || !line.ends_with("),") {
             continue;
         }
-        if !inside {
-            continue;
-        }
-        if line.starts_with(']') {
-            break;
-        }
-        let label = line
-            .trim_end_matches(',')
-            .trim()
-            .trim_matches('"')
-            .to_owned();
-        assert!(
-            label.starts_with("//"),
-            "USER_PROSE entry {label:?} is not a label"
-        );
-        let rest = label.trim_start_matches("/");
+        inside = false;
+        let Some(label) = call
+            .split('"')
+            .find(|part| part.starts_with("//"))
+            .map(|label| label.to_owned())
+        else {
+            panic!("a curated book page names no source label: {}", call.trim());
+        };
+        let rest = label.trim_start_matches('/');
         let (package, file) = rest
             .split_once(':')
-            .unwrap_or_else(|| panic!("USER_PROSE label {label} names no file"));
+            .unwrap_or_else(|| panic!("curated book label {label} names no file"));
         let mut path = PathBuf::new();
         if !package.is_empty() {
             path.push(package);
@@ -71,9 +75,11 @@ fn published() -> Vec<String> {
         path.push(file);
         names.push(path.to_string_lossy().replace('\\', "/"));
     }
-    assert!(
-        !names.is_empty(),
-        "docs/site/BUILD.bazel ships no USER_PROSE"
+    assert!(pages > 0, "docs/site/user/book.bzl curates no pages");
+    assert_eq!(
+        pages,
+        names.len(),
+        "every mdbook_page in docs/site/user/book.bzl must name one source label"
     );
     unique(names)
 }
@@ -158,7 +164,18 @@ fn every_published_user_doc_ships_in_the_workspace() {
     for doc in published() {
         assert!(
             runfiles_root().join(&doc).is_file(),
-            "docs/site/BUILD.bazel publishes {doc}, which the tree does not ship"
+            "the curated book publishes {doc}, which the tree does not ship"
+        );
+    }
+}
+
+#[test]
+fn the_curated_book_publishes_no_agent_or_repository_page() {
+    let published = published();
+    for page in NOT_PUBLISHED {
+        assert!(
+            !published.iter().any(|doc| doc == page),
+            "the curated book publishes {page}, which is not a user doc"
         );
     }
 }
@@ -170,7 +187,7 @@ fn every_indexed_user_doc_is_published() {
         for doc in indexed_docs(&read_runfiles(page_rel), page_rel) {
             assert!(
                 published.contains(&doc),
-                "{page_rel} links {doc}, which docs/site/BUILD.bazel does not publish"
+                "{page_rel} links {doc}, which the curated book does not publish"
             );
         }
     }
@@ -184,7 +201,7 @@ fn every_command_page_is_published() {
     }) {
         assert!(
             published.contains(&page),
-            "{page} is not in the docs/site/BUILD.bazel USER_PROSE list"
+            "{page} is not in the curated book in docs/site/user/book.bzl"
         );
     }
 }

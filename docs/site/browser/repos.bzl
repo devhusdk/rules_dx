@@ -40,22 +40,18 @@ _ARTIFACT_KEYS = [
     "sha256",
 ]
 
-
 def repository_name(platform):
     """Returns the repository name one platform's Firefox is acquired into."""
     return _REPOSITORY_PREFIX + platform
-
 
 def artifact_repositories():
     """Returns the platform-keyed Firefox repository names."""
     return {platform: repository_name(platform) for platform in sorted(ARTIFACTS.keys())}
 
-
 def no_match_error():
     """Returns the diagnostic for an execution platform upstream ships no Firefox for."""
     return ("rules_dx: no pinned Firefox " + FIREFOX_VERSION + " artifact for this execution " +
             "platform; want one of " + ", ".join(sorted(ARTIFACTS.keys())))
-
 
 def artifact_errors():
     """Returns one error string per artifact that is not ready to download."""
@@ -74,11 +70,9 @@ def artifact_errors():
                           "', want the pinned '" + expected + "'")
     return errors
 
-
 def url_for(artifact):
     """Returns the download URL one pinned Firefox artifact lives at."""
     return FIREFOX_CDN + "/" + artifact.directory + "/en-US/" + artifact.asset
-
 
 def hub_build():
     """Returns the hub BUILD file selecting one pinned artifact per platform."""
@@ -111,7 +105,6 @@ def hub_build():
     lines.append(")")
     return "\n".join(lines) + "\n"
 
-
 def _firefox_repo_impl(ctx):
     ctx.download_and_extract(
         url = ctx.attr.url,
@@ -142,7 +135,6 @@ def _tool_build():
         ")",
         "",
     ])
-
 
 def _hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build())

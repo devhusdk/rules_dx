@@ -35,17 +35,32 @@ pub struct Browser {
 
 impl Browser {
     /// Starts Firefox on a private profile and opens one control session.
+    ///
+    /// Two browsers started at the same moment can pick the same control port,
+    /// so a lost race is retried on a fresh port.
     pub fn start(firefox: &Path, profile: &Path) -> Result<Self, String> {
+        let mut last = String::new();
+        for attempt in 0..3 {
+            match Browser::attempt(firefox, profile, attempt) {
+                Ok(browser) => return Ok(browser),
+                Err(error) => last = error,
+            }
+        }
+        Err(last)
+    }
+
+    fn attempt(firefox: &Path, profile: &Path, attempt: u32) -> Result<Self, String> {
         let port = control_port();
-        let _ = std::fs::remove_dir_all(profile);
-        std::fs::create_dir_all(profile).map_err(|error| {
+        let home = profile.join(format!("attempt-{attempt}"));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).map_err(|error| {
             format!(
                 "browser: cannot create the profile '{}': {error}",
-                profile.display()
+                home.display()
             )
         })?;
         std::fs::write(
-            profile.join("user.js"),
+            home.join("user.js"),
             format!("user_pref(\"marionette.port\", {port});\n"),
         )
         .map_err(|error| format!("browser: cannot write the profile prefs: {error}"))?;
@@ -54,7 +69,7 @@ impl Browser {
             .arg("--marionette")
             .arg("--no-remote")
             .arg("--profile")
-            .arg(profile)
+            .arg(&home)
             .arg("about:blank")
             .env("MOZ_HEADLESS", "1")
             .env("MOZ_DISABLE_CONTENT_SANDBOX", "1")
@@ -62,7 +77,7 @@ impl Browser {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(
-                std::fs::File::create(profile.join("browser.log"))
+                std::fs::File::create(home.join("browser.log"))
                     .map_err(|error| format!("browser: cannot open the browser log: {error}"))?,
             )
             .spawn()
@@ -70,7 +85,7 @@ impl Browser {
         let control = match wait_for_control(port) {
             Ok(control) => control,
             Err(error) => {
-                let log = std::fs::read_to_string(profile.join("browser.log")).unwrap_or_default();
+                let log = std::fs::read_to_string(home.join("browser.log")).unwrap_or_default();
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(format!("{error}\n{log}"));
@@ -83,10 +98,13 @@ impl Browser {
             next_id: 0,
             port,
         };
-        browser.call(
+        if let Err(error) = browser.call(
             "WebDriver:NewSession",
             serde_json::json!({ "capabilities": {} }),
-        )?;
+        ) {
+            drop(browser);
+            return Err(error);
+        }
         Ok(browser)
     }
 

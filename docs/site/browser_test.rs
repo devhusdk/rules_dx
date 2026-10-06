@@ -92,12 +92,38 @@ fn serve(mut stream: TcpStream, root: &Path, prefix: &str) -> std::io::Result<()
     let Ok(body) = std::fs::read(&candidate) else {
         return reply(&mut stream, 404, "text/plain", b"Not Found");
     };
-    let kind = if candidate.extension().is_some_and(|ext| ext == "html") {
-        "text/html; charset=utf-8"
-    } else {
-        "application/octet-stream"
-    };
-    reply(&mut stream, 200, kind, &body)
+    reply(&mut stream, 200, content_type(&candidate), &body)
+}
+
+/// Returns the media type one served file needs, or the binary default.
+///
+/// Firefox refuses a stylesheet or a font whose media type is wrong, so the
+/// preview serves the same types a static host does.
+fn content_type(path: &Path) -> &'static str {
+    let extension = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or_default();
+    match extension {
+        "html" => "text/html; charset=utf-8",
+        "css" => "text/css; charset=utf-8",
+        "js" | "mjs" => "text/javascript; charset=utf-8",
+        "json" | "map" => "application/json",
+        "svg" => "image/svg+xml",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "jpg" | "jpeg" => "image/jpeg",
+        "ico" => "image/x-icon",
+        "webp" => "image/webp",
+        "woff" => "font/woff",
+        "woff2" => "font/woff2",
+        "ttf" => "font/ttf",
+        "otf" => "font/otf",
+        "eot" => "application/vnd.ms-fontobject",
+        "txt" | "md" => "text/plain; charset=utf-8",
+        "wasm" => "application/wasm",
+        _ => "application/octet-stream",
+    }
 }
 
 fn reply(stream: &mut TcpStream, status: u16, kind: &str, body: &[u8]) -> std::io::Result<()> {
@@ -138,8 +164,12 @@ fn search_query(browser: &mut Browser, term: &str) {
             .unwrap_or_else(|error| panic!("type {character:?}: {error}"));
     }
     assert!(
-        wait_for(browser, "return document.querySelectorAll('#searchresults li').length > 0", 30)
-            .unwrap_or_else(|error| panic!("poll the search results: {error}")),
+        wait_for(
+            browser,
+            "return document.querySelectorAll('#searchresults li').length > 0",
+            30
+        )
+        .unwrap_or_else(|error| panic!("poll the search results: {error}")),
         "searching for {term:?} returned no result"
     );
 }
@@ -148,8 +178,12 @@ fn search_query(browser: &mut Browser, term: &str) {
 fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
     let server = Server::start(user_site(), "");
     let mut browser = browser_at("root");
-    browser.set_viewport(DESKTOP.0, DESKTOP.1).expect("size the viewport");
-    browser.navigate(&server.url("/")).expect("load the landing page");
+    browser
+        .set_viewport(DESKTOP.0, DESKTOP.1)
+        .expect("size the viewport");
+    browser
+        .navigate(&server.url("/"))
+        .expect("load the landing page");
 
     assert_eq!(
         browser.text("return document.title").expect("a title"),
@@ -193,16 +227,22 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
     );
 
     for route in &routes {
-        browser.navigate(&server.url(&format!("/{route}"))).expect("load every route");
+        browser
+            .navigate(&server.url(&format!("/{route}")))
+            .expect("load every route");
         let title = browser.text("return document.title").expect("a page title");
         assert!(!title.is_empty(), "{route} rendered no title");
-        let broken = browser.count(
-            "return document.querySelectorAll('img[src=\"\"]').length",
+        let broken = browser.count("return document.querySelectorAll('img[src=\"\"]').length");
+        assert_eq!(
+            broken.unwrap_or_default(),
+            0,
+            "{route} has an empty image source"
         );
-        assert_eq!(broken.unwrap_or_default(), 0, "{route} has an empty image source");
     }
 
-    browser.navigate(&server.url("/")).expect("return to the landing page");
+    browser
+        .navigate(&server.url("/"))
+        .expect("return to the landing page");
     search_query(&mut browser, "scope");
     assert!(
         browser
@@ -214,8 +254,14 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
     let first = browser
         .text("return document.querySelector('#searchresults a').getAttribute('href')")
         .expect("the first result");
-    assert!(first.ends_with(".html"), "a search hit must link a page: {first}");
-    browser.navigate(&server.url(&format!("/{first}"))).expect("follow the search hit");
+    let route = first.split(['?', '#']).next().unwrap_or_default();
+    assert!(
+        route.ends_with(".html"),
+        "a search hit must link a page: {first}"
+    );
+    browser
+        .navigate(&server.url(&format!("/{first}")))
+        .expect("follow the search hit");
     assert!(
         browser
             .truthy("return document.querySelector('h1') !== null")
@@ -228,20 +274,31 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
 fn keyboard_navigation_walks_the_book_forward_and_back() {
     let server = Server::start(user_site(), "");
     let mut browser = browser_at("root");
-    browser.set_viewport(DESKTOP.0, DESKTOP.1).expect("size the viewport");
-    browser.navigate(&server.url("/")).expect("load the landing page");
+    browser
+        .set_viewport(DESKTOP.0, DESKTOP.1)
+        .expect("size the viewport");
+    browser
+        .navigate(&server.url("/index.html"))
+        .expect("load the landing page");
 
-    let landing = browser.text("return location.pathname").expect("the landing path");
+    let landing = browser
+        .text("return location.pathname")
+        .expect("the landing path");
+    assert_eq!(landing, "/index.html");
     browser.press("\u{e014}").expect("press the right arrow");
-    let forward = browser.text("return location.pathname").expect("the next path");
+    let forward = browser
+        .text("return location.pathname")
+        .expect("the next path");
     assert_ne!(forward, landing, "the right arrow must open the next page");
     browser.press("\u{e012}").expect("press the left arrow");
     assert_eq!(
-        browser.text("return location.pathname").expect("the back path"),
+        browser
+            .text("return location.pathname")
+            .expect("the back path"),
         landing,
         "the left arrow must return to the landing page"
     );
-    browser.press("\u{e017}").expect("press the slash key");
+    browser.press("/").expect("press the slash key");
     assert_eq!(
         browser
             .text("return document.activeElement.id")
@@ -255,29 +312,50 @@ fn keyboard_navigation_walks_the_book_forward_and_back() {
 fn the_sidebar_toggle_hides_the_navigation_and_focus_is_visible() {
     let server = Server::start(user_site(), "");
     let mut browser = browser_at("root");
-    browser.set_viewport(DESKTOP.0, DESKTOP.1).expect("size the viewport");
-    browser.navigate(&server.url("/")).expect("load the landing page");
+    browser
+        .set_viewport(DESKTOP.0, DESKTOP.1)
+        .expect("size the viewport");
+    browser
+        .navigate(&server.url("/"))
+        .expect("load the landing page");
 
     let shown = browser
         .text("return getComputedStyle(document.getElementById('sidebar')).display")
         .expect("the sidebar display");
     assert_ne!(shown, "none", "the sidebar must start open");
+    assert!(
+        browser
+            .truthy("return document.getElementById('sidebar').getBoundingClientRect().right > 0")
+            .expect("the open sidebar box"),
+        "the sidebar must start on screen"
+    );
     browser
         .script("document.getElementById('sidebar-toggle').click(); return 1")
         .expect("toggle the sidebar");
+    assert!(
+        wait_for(
+            &mut browser,
+            "return document.getElementById('sidebar').getAttribute('aria-hidden') === 'true'",
+            30,
+        )
+        .expect("poll the hidden sidebar"),
+        "the toggle must mark the navigation hidden"
+    );
     thread::sleep(Duration::from_millis(800));
-    assert_eq!(
+    assert!(
         browser
-            .text("return getComputedStyle(document.getElementById('sidebar')).display")
-            .expect("the hidden sidebar display"),
-        "none",
-        "the toggle must hide the navigation"
+            .truthy("return document.getElementById('sidebar').getBoundingClientRect().right <= 0")
+            .expect("the hidden sidebar box"),
+        "the toggle must move the navigation off screen"
     );
 
     let contrast = browser
         .text("return getComputedStyle(document.body).getPropertyValue('--fg').trim()")
         .expect("the body foreground");
-    assert!(!contrast.is_empty(), "the stylesheet must define the body foreground");
+    assert!(
+        !contrast.is_empty(),
+        "the stylesheet must define the body foreground"
+    );
     assert!(
         browser
             .truthy(
@@ -295,8 +373,12 @@ fn the_sidebar_toggle_hides_the_navigation_and_focus_is_visible() {
 fn the_same_build_works_from_the_project_subdirectory_base() {
     let server = Server::start(user_site(), "rules_dx");
     let mut browser = browser_at("subdirectory");
-    browser.set_viewport(DESKTOP.0, DESKTOP.1).expect("size the viewport");
-    browser.navigate(&server.url("/rules_dx/")).expect("load the landing page");
+    browser
+        .set_viewport(DESKTOP.0, DESKTOP.1)
+        .expect("size the viewport");
+    browser
+        .navigate(&server.url("/rules_dx/"))
+        .expect("load the landing page");
 
     assert_eq!(
         browser.text("return document.title").expect("a title"),
@@ -315,7 +397,9 @@ fn the_same_build_works_from_the_project_subdirectory_base() {
         .navigate(&server.url("/rules_dx/docs/cli/commands/docs.html"))
         .expect("load a nested page from the subdirectory base");
     assert_eq!(
-        browser.text("return document.title").expect("a nested title"),
+        browser
+            .text("return document.title")
+            .expect("a nested title"),
         "Docs - rules_dx"
     );
     assert!(
@@ -338,8 +422,12 @@ fn the_same_build_works_from_the_project_subdirectory_base() {
 fn a_phone_sized_viewport_collapses_the_navigation() {
     let server = Server::start(user_site(), "rules_dx");
     let mut browser = browser_at("subdirectory");
-    browser.set_viewport(PHONE.0, PHONE.1).expect("size the viewport");
-    browser.navigate(&server.url("/rules_dx/")).expect("load the landing page");
+    browser
+        .set_viewport(PHONE.0, PHONE.1)
+        .expect("size the viewport");
+    browser
+        .navigate(&server.url("/rules_dx/"))
+        .expect("load the landing page");
 
     let width = browser
         .text("return String(window.innerWidth)")
@@ -366,9 +454,8 @@ fn a_phone_sized_viewport_collapses_the_navigation() {
         "none",
         "the toggle must open the navigation on a phone"
     );
-    let overflow = browser.count(
-        "return document.documentElement.scrollWidth > window.innerWidth + 2 ? 1 : 0",
-    );
+    let overflow = browser
+        .count("return document.documentElement.scrollWidth > window.innerWidth + 2 ? 1 : 0");
     assert_eq!(
         overflow.unwrap_or_default(),
         0,
@@ -380,8 +467,12 @@ fn a_phone_sized_viewport_collapses_the_navigation() {
 fn a_wide_viewport_shows_the_navigation_and_the_search_bar() {
     let server = Server::start(user_site(), "rules_dx");
     let mut browser = browser_at("subdirectory");
-    browser.set_viewport(WIDE.0, WIDE.1).expect("size the viewport");
-    browser.navigate(&server.url("/rules_dx/")).expect("load the landing page");
+    browser
+        .set_viewport(WIDE.0, WIDE.1)
+        .expect("size the viewport");
+    browser
+        .navigate(&server.url("/rules_dx/"))
+        .expect("load the landing page");
 
     assert_ne!(
         browser
@@ -397,18 +488,25 @@ fn a_wide_viewport_shows_the_navigation_and_the_search_bar() {
         "none",
         "a wide viewport must show the search bar"
     );
-    let overflow = browser.count(
-        "return document.documentElement.scrollWidth > window.innerWidth + 2 ? 1 : 0",
+    let overflow = browser
+        .count("return document.documentElement.scrollWidth > window.innerWidth + 2 ? 1 : 0");
+    assert_eq!(
+        overflow.unwrap_or_default(),
+        0,
+        "a wide layout must not scroll sideways"
     );
-    assert_eq!(overflow.unwrap_or_default(), 0, "a wide layout must not scroll sideways");
 }
 
 #[test]
 fn the_browser_reports_a_page_it_cannot_load() {
     let server = Server::start(user_site(), "");
     let mut browser = browser_at("root");
-    browser.navigate(&server.url("/no-such-page.html")).expect("request a missing page");
-    let text = browser.text("return document.body.textContent").expect("the 404 body");
+    browser
+        .navigate(&server.url("/no-such-page.html"))
+        .expect("request a missing page");
+    let text = browser
+        .text("return document.body.textContent")
+        .expect("the 404 body");
     assert!(
         text.contains("Not Found"),
         "an unknown route must render the server's refusal: {text}"

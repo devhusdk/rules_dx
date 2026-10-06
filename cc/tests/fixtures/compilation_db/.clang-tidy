@@ -1,0 +1,2 @@
+Checks: '-*,readability-else-after-return'
+WarningsAsErrors: 'readability-else-after-return'

@@ -1,5 +1,5 @@
 {
-  "checksum": "15dfc2a187f5a9e2d984dff14af7031c9da1eaf2fb20e1b8666a00cab6c71407",
+  "checksum": "a23414908029c3b21eaf0b3dbfa83d03909d6740f8717c3b10989dc058024bb2",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1114,6 +1114,37 @@
         }
       ],
       "version": "1.4.5"
+    },
+    "cc_context 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "cc_context",
+      "name": "cc_context",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "cc_context",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "cfg-if 1.0.4": {
       "common_attrs": {
@@ -13746,6 +13777,7 @@
     "proptest 1.11.0"
   ],
   "workspace_members": {
+    "cc_context 0.0.0": "cc/cc_context",
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "documentation_ir 0.0.0": "docs/ir/documentation_ir",
     "dx_adopt 0.0.0": "cli/dx_adopt",

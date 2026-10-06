@@ -134,6 +134,8 @@ rust_test(
     srcs = ["clippy_policy_test.rs"],
     data = [
         "clippy.toml",
+        "//cc/context:src/lib.rs",
+        "//cc/context:src/main.rs",
         "//cli/adopt:src/lib.rs",
         "//cli/apply:src/lib.rs",
         "//cli/atomic_fs:src/lib.rs",
@@ -310,3 +312,4 @@ buildifier_config(
     src = ".buildifier.json",
     visibility = ["//:__subpackages__"],
 )
+# gazelle:exclude cc/tests/fixtures/compilation_db

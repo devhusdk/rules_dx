@@ -5,6 +5,7 @@ module(
 
 bazel_dep(name = "rules_rust", version = "0.74.0")
 bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "llvm", version = "0.8.19")
 bazel_dep(name = "googletest", version = "1.18.0")
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "rules_go", version = "0.63.0")
@@ -234,6 +235,7 @@ crate.from_cargo(
     lockfile = "//:cargo-bazel-lock.json",
     manifests = [
         "//rust/tests/fixtures/hello:Cargo.toml",
+        "//cc/context:Cargo.toml",
         "//cli/process:Cargo.toml",
         "//cli/apply:Cargo.toml",
         "//cli/atomic_fs:Cargo.toml",

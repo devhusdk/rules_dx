@@ -1,0 +1,31 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":inventory_tests.bzl", "v1_inventory_registry_tests")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files([
+    "inventory_tests.bzl",
+    "testdata/test_targets.txt",
+    "v1_inventory.bzl",
+])
+
+v1_inventory_registry_tests(name = "inventory_registry")
+
+test_suite(
+    name = "all",
+    tests = [":inventory_registry"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "inventory_tests.bzl",
+        "v1_inventory.bzl",
+    ],
+    tags = ["corpus"],
+)

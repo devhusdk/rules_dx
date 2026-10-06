@@ -65,7 +65,7 @@ fn produce(
     name: &str,
     label: &str,
     out: &str,
-) -> Result<Vec<cc_context::Entry>, String> {
+) -> Result<(Vec<cc_context::Entry>, Vec<cc_context::CompileCommand>), String> {
     let graph = cc_context::AqueryGraph::parse(&record(name)).map_err(|err| err.to_string())?;
     let commands = graph
         .compile_commands(&env.tree)
@@ -76,7 +76,19 @@ fn produce(
     let dir = env.root.join(out);
     let policy = std::fs::read_to_string(policy(env)).expect("policy body");
     cc_context::write_bundle(&dir, &entries, &policy).map_err(|err| err.to_string())?;
-    Ok(entries)
+    Ok((entries, commands))
+}
+
+fn assert_consumer_compiler(commands: &[cc_context::CompileCommand]) {
+    let compiler = &commands[0].arguments[0];
+    assert!(
+        compiler.ends_with("bin/clang"),
+        "the consumer's own compiler must be carried verbatim: {compiler}"
+    );
+    assert_ne!(
+        compiler, "/usr/bin/gcc",
+        "the autodetected toolchain is not the consumer's"
+    );
 }
 
 fn tidy(env: &Env, bundle: &str) -> (Option<i32>, String) {
@@ -97,17 +109,27 @@ fn tidy(env: &Env, bundle: &str) -> (Option<i32>, String) {
 #[test]
 fn the_legacy_configuration_reports_a_real_include_and_macro_finding() {
     let env = stage("legacy");
-    let entries = produce(
+    let (entries, commands) = produce(
         &env,
         "probe_legacy",
         "//cc/tests/fixtures/compilation_db:probe_legacy",
         "legacy",
     )
     .expect("legacy bundle");
+    assert_consumer_compiler(&commands);
+    assert_eq!(entries[0].arguments, commands[0].arguments);
     assert_eq!(entries.len(), 1);
     assert!(entries[0]
         .arguments
         .contains(&"-DDX_ENABLE_LEGACY_BRANCH".to_string()));
+    assert!(
+        commands[0].inputs.contains(
+            &"bazel-out/k8-fastbuild/bin/cc/tests/fixtures/compilation_db/generated/limits.h"
+                .to_string()
+        ),
+        "{:?}",
+        commands[0].inputs
+    );
     assert!(entries[0]
         .file
         .ends_with("cc/tests/fixtures/compilation_db/probe.c"));
@@ -138,13 +160,14 @@ fn the_legacy_configuration_reports_a_real_include_and_macro_finding() {
 #[test]
 fn the_plain_configuration_is_clean_because_the_macro_is_absent() {
     let env = stage("plain");
-    let entries = produce(
+    let (entries, commands) = produce(
         &env,
         "probe_plain",
         "//cc/tests/fixtures/compilation_db:probe_plain",
         "plain",
     )
     .expect("plain bundle");
+    assert_consumer_compiler(&commands);
     assert!(!entries[0]
         .arguments
         .contains(&"-DDX_ENABLE_LEGACY_BRANCH".to_string()));
@@ -158,13 +181,15 @@ fn the_plain_configuration_is_clean_because_the_macro_is_absent() {
 #[test]
 fn a_consumer_defined_macro_wins_over_the_generated_default() {
     let env = stage("consumer");
-    let entries = produce(
+    let (entries, commands) = produce(
         &env,
         "probe_consumer_toolchain",
         "//cc/tests/fixtures/compilation_db:probe_consumer_toolchain",
         "consumer",
     )
     .expect("consumer bundle");
+    assert_consumer_compiler(&commands);
+    assert_eq!(entries[0].arguments, commands[0].arguments);
     assert!(entries[0]
         .arguments
         .contains(&"-DDX_ZERO_RESULT=9".to_string()));

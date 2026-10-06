@@ -31,3 +31,21 @@ The command exits non-zero and writes no bundle when the record has no compile a
 `--label`, a `--require-source` has no compile command, one source has two conflicting
 compile commands, `--execroot` is relative, or `--config` is missing, empty or not named
 `.clang-tidy`.
+
+Every recorded argument reaches `compile_commands.json` unchanged, including the
+compiler, its sysroot and include flags, the macros and any `@response` file. A flag the
+clang driver does not know is a clang-tidy error, never a run without flags.
+
+## Fixture records
+
+`//cc/tests/fixtures/compilation_db` holds one aquery record per fixture target, taken
+with the consumer's own clang as the C compiler:
+
+```sh
+CC="$(bazel info output_base)/external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/clang"
+bazel aquery "mnemonic(CppCompile, //cc/tests/fixtures/compilation_db:probe_legacy_upstream)" \
+  --output=jsonproto --repo_env=CC="$CC" > probe_legacy.aquery.json
+```
+
+The recorded compiler is the configured compiler path, absolute because Bazel writes it
+that way.

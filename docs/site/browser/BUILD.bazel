@@ -1,0 +1,88 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+alias(
+    name = "firefox",
+    actual = "@dx_firefox//:firefox",
+)
+
+alias(
+    name = "firefox_tree",
+    actual = "@dx_firefox//:tree",
+)
+
+exports_files([
+    "Cargo.toml",
+    "repos.bzl",
+    "src/lib.rs",
+    "src/lib_tests.rs",
+])
+
+rust_library(
+    name = "dx_site_browser",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "docs/site/site_browser",
+        normal = True,
+    ),
+    crate_name = "dx_site_browser",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "docs/site/site_browser",
+    ),
+)
+
+rust_test(
+    name = "dx_site_browser_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "docs/site/site_browser",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_site_browser",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "docs/site/site_browser",
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "dx_site_browser_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_site_browser",
+        ":dx_site_browser_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_site_browser_clippy_test",
+    size = "small",
+    targets = [":dx_site_browser"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

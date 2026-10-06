@@ -1,5 +1,5 @@
 {
-  "checksum": "b39134d010f53ffee15ab6ba8324ea79a349335bfe539abc2884926ca4562061",
+  "checksum": "15dfc2a187f5a9e2d984dff14af7031c9da1eaf2fb20e1b8666a00cab6c71407",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9350,6 +9350,46 @@
       ],
       "version": "3.2.0"
     },
+    "site_browser 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_site_browser",
+      "name": "site_browser",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_site_browser",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "site_build 0.0.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "dx_site_build",
+      "name": "site_build",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_site_build",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "site_check 0.0.0": {
       "common_attrs": {
         "edition": "2021"
@@ -13753,6 +13793,8 @@
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
     "repin_all 0.0.0": "tools/repin_all",
+    "site_browser 0.0.0": "docs/site/site_browser",
+    "site_build 0.0.0": "docs/site/site_build",
     "site_check 0.0.0": "docs/site/site_check"
   }
 }

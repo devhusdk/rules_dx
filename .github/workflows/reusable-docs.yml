@@ -402,13 +402,15 @@ jobs:
         # Stage under RUNNER_TEMP so the checkout is never left dirty.
         run: |
           set -euo pipefail
+          site="bazel-bin/docs/site/user_site"
           stage="$RUNNER_TEMP/pages"
+          test -f "$site/index.html"
+          test -f "$site/searchindex.js"
+          test -f "$site/css/general.css"
+          test -f "$site/book.js"
           rm -rf "$stage"
           mkdir -p "$stage"
-          test -f "bazel-bin/docs/site/user_site_index.html"
-          test -f "bazel-bin/docs/site/user_site_searchindex.json"
-          cp "bazel-bin/docs/site/user_site_index.html" "$stage/index.html"
-          cp "bazel-bin/docs/site/user_site_searchindex.json" "$stage/searchindex.json"
+          cp -R "$site/." "$stage/"
           echo "PAGES_STAGE=$stage" >> "$GITHUB_ENV"
       - name: Upload rendered site as Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3

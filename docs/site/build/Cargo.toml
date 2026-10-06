@@ -1,0 +1,12 @@
+[package]
+name = "site_build"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_site_build"
+path = "src/lib.rs"
+
+[[bin]]
+name = "site_build"
+path = "src/main.rs"

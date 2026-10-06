@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use dx_testing::runfiles_root;
 
 /// Crate roots this target's data must name, one label each.
-const REGISTERED_CRATE_ROOTS: usize = 73;
+const REGISTERED_CRATE_ROOTS: usize = 75;
 
 fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).expect("readable runfiles dir") {

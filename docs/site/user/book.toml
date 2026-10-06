@@ -1,5 +1,17 @@
 [book]
 title = "rules_dx"
-authors = ["rules_dx"]
+description = "One dx CLI for Bazel build, test, lint, typecheck, format, generate, audit, and release tasks."
 language = "en"
 src = "src"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+site-url = "./"
+
+[output.html.search]
+enable = true

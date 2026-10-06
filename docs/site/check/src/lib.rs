@@ -10,6 +10,8 @@
     )
 )]
 
+pub mod rendered;
+
 use std::collections::BTreeSet;
 use std::path::Path;
 

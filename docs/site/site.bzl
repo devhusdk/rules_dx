@@ -1,6 +1,6 @@
 """Bazel-cached docs site execution (extract to render)."""
 
-MDBOOK_VERSION = "0.4.43"
+load(":render.bzl", "mdbook_site")
 
 DOC_IR_SCHEMA_MAJOR = 1
 DOC_IR_SCHEMA_MINOR = 1
@@ -82,14 +82,6 @@ def site_api_name(name):
 def site_records_name(name):
     """Returns the search-records output name for one aggregate."""
     return name + "_search_records.json"
-
-def site_html_name(name):
-    """Returns the rendered site entry output name for one render."""
-    return name + "_index.html"
-
-def site_index_name(name):
-    """Returns the single search-index output name for one render."""
-    return name + "_searchindex.json"
 
 def site_prose_error(path):
     """Validates one prose input is mdBook-compatible Markdown."""
@@ -215,28 +207,8 @@ def docs_aggregate(name, shards, prose, book_toml):
         srcs = [":" + name + "_aggregate"],
     )
 
-def docs_render(name, summary, api, records, book_toml):
-    """Runs one DocsRender action emitting the complete static site."""
-    html = site_html_name(name)
-    index = site_index_name(name)
-    native.genrule(
-        name = name + "_render",
-        srcs = [summary, api, records, book_toml],
-        outs = [html, index],
-        cmd = "set -e; " +
-              "html=$(location :" + html + "); index=$(location :" + index + "); " +
-              "title=$$(grep '^title' $(location " + book_toml + ") | cut -d '\"' -f 2); " +
-              "{ printf '<!doctype html>\\n<html lang=\"en\">\\n<head><meta charset=\"utf-8\"><title>%s</title></head>\\n<body>\\n<!-- rendered by mdBook " + MDBOOK_VERSION + " fixture -->\\n' \"$$title\"; " +
-              "printf '<h1>%s</h1>\\n' \"$$title\"; cat $(location " + summary + "); printf '\\n'; cat $(location " + api + "); printf '\\n</body>\\n</html>\\n'; } > \"$$html\"; " +
-              "{ printf '{\\n  \"book\": \"%s\",\\n  \"docs\": ' \"$$title\"; cat $(location " + records + "); printf '\\n}\\n'; } > \"$$index\"",
-    )
-    native.filegroup(
-        name = name,
-        srcs = [":" + name + "_render"],
-    )
-
-def docs_site(name, language, package, srcs, prose, book_toml):
-    """Chains extract, aggregate, and render for one (language, package) demo."""
+def docs_site(name, language, package, srcs, prose, book_toml, prose_route = "prose.md"):
+    """Chains extract, aggregate, and the pinned mdBook render for one demo."""
     docs_extract(
         name = name + "_extract",
         language = language,
@@ -249,12 +221,12 @@ def docs_site(name, language, package, srcs, prose, book_toml):
         prose = prose,
         book_toml = book_toml,
     )
-    docs_render(
+    mdbook_site(
         name = name,
-        summary = ":" + name + "_aggregate_SUMMARY.md",
-        api = ":" + name + "_aggregate_api.md",
-        records = ":" + name + "_aggregate_search_records.json",
         book_toml = book_toml,
+        pages = prose + [":" + name + "_aggregate_api.md"],
+        routes = [prose_route, "api.md"],
+        summary = ":" + name + "_aggregate_SUMMARY.md",
     )
 
 def docs_user_aggregate(name, shards, prose, book_toml, data = []):
@@ -290,51 +262,4 @@ def docs_user_aggregate(name, shards, prose, book_toml, data = []):
     native.filegroup(
         name = name,
         srcs = [":" + name + "_aggregate"],
-    )
-
-def docs_user_render(name, summary, api, records, book_toml, prose):
-    """Runs one DocsRender action emitting the user site with guide bodies."""
-    html = site_html_name(name)
-    index = site_index_name(name)
-    prose_locs = " ".join(["$(location " + p + ")" for p in prose])
-    native.genrule(
-        name = name + "_render",
-        srcs = [summary, api, records, book_toml] + prose,
-        outs = [html, index],
-        cmd = "set -e; " +
-              "html=$(location :" + html + "); index=$(location :" + index + "); " +
-              "title=$$(grep '^title' $(location " + book_toml + ") | cut -d '\"' -f 2); " +
-              "{ printf '<!doctype html>\\n<html lang=\"en\">\\n<head><meta charset=\"utf-8\"><title>%s</title></head>\\n<body>\\n<!-- rendered by mdBook " + MDBOOK_VERSION + " fixture -->\\n' \"$$title\"; " +
-              "printf '<h1>%s</h1>\\n' \"$$title\"; cat $(location " + summary + "); printf '\\n'; " +
-              "for _f in $$(printf '%s\\n' " + prose_locs + " | LC_ALL=C sort -u); do printf '<hr>\\n<!-- %s -->\\n' \"$$_f\"; sed 's/&/\\&amp;/g; s/</\\&lt;/g; s/>/\\&gt;/g' \"$$_f\"; printf '\\n'; done; " +
-              "sed 's/&/\\&amp;/g; s/</\\&lt;/g; s/>/\\&gt;/g' $(location " + api + "); printf '\\n</body>\\n</html>\\n'; } > \"$$html\"; " +
-              "{ printf '{\\n  \"book\": \"%s\",\\n  \"docs\": ' \"$$title\"; cat $(location " + records + "); printf '\\n}\\n'; } > \"$$index\"",
-    )
-    native.filegroup(
-        name = name,
-        srcs = [":" + name + "_render"],
-    )
-
-def docs_user_site(name, language, package, srcs, prose, book_toml, data = []):
-    """Chains extract, user aggregate, and user render for the user site."""
-    docs_extract(
-        name = name + "_extract",
-        language = language,
-        package = package,
-        srcs = srcs,
-    )
-    docs_user_aggregate(
-        name = name + "_aggregate",
-        shards = [":" + name + "_extract"],
-        prose = prose,
-        book_toml = book_toml,
-        data = data,
-    )
-    docs_user_render(
-        name = name,
-        summary = ":" + name + "_aggregate_SUMMARY.md",
-        api = ":" + name + "_aggregate_api.md",
-        records = ":" + name + "_aggregate_search_records.json",
-        book_toml = book_toml,
-        prose = prose,
     )

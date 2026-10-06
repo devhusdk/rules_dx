@@ -1,0 +1,11 @@
+[package]
+name = "site_browser"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_site_browser"
+path = "src/lib.rs"
+
+[dependencies]
+serde_json = "1"

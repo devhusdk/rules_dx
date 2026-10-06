@@ -1,4 +1,8 @@
+"""Platform-constrained C/C++ wrapper fixture."""
+
 load("//cc/rules:defs.bzl", "cc_library")
+load("//cc/rules:probe.bzl", "dx_cc_wrapper_subject")
+load("//libs/starlark:defs.bzl", "starlark_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -6,27 +10,61 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-constraint_setting(name = "dx_cell")
+constraint_setting(
+    name = "dx_cell",
+    default_constraint_value = ":dx_cell_host",
+)
 
 constraint_value(
-    name = "dx_cell_value",
+    name = "dx_cell_foreign",
     constraint_setting = ":dx_cell",
 )
 
-platform(
-    name = "cell",
-    constraint_values = [
-        ":dx_cell_value",
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+constraint_value(
+    name = "dx_cell_host",
+    constraint_setting = ":dx_cell",
 )
 
 cc_library(
-    name = "cell_lib",
+    name = "foreign_lib",
     srcs = ["cell.cc"],
     tags = ["manual"],
-    target_compatible_with = [":dx_cell_value"],
+    target_compatible_with = [":dx_cell_foreign"],
+)
+
+cc_library(
+    name = "host_lib",
+    srcs = ["cell.cc"],
+    target_compatible_with = [":dx_cell_host"],
+)
+
+dx_cc_wrapper_subject(
+    name = "host_lib_subject",
+    upstream = ":host_lib_upstream",
+    wrapper = ":host_lib",
+)
+
+starlark_test(
+    name = "host_lib_attributes",
+    expected_observations = """subject //cc/tests/fixtures/compat:host_lib_subject
+file host_lib_subject.txt
+field direct_sources=cpp:cell.cc
+field upstream=//cc/tests/fixtures/compat:host_lib_upstream
+field upstream_declared=compatible_with=,env=(unset),env_inherit=(unset),exec_compatible_with=,flaky=(unset),hdrs=,shard_count=(unset),size=(unset),tags=,target_compatible_with=dx_cell_host,testonly=True,timeout=(unset)
+field upstream_has_instrumented_files=True
+field upstream_has_quality_sources=False
+field wrapper=//cc/tests/fixtures/compat:host_lib
+field wrapper_declared=compatible_with=,env=(unset),env_inherit=(unset),exec_compatible_with=,flaky=(unset),hdrs=,shard_count=(unset),size=(unset),tags=,target_compatible_with=dx_cell_host,testonly=True,timeout=(unset)
+field wrapper_has_instrumented_files=True
+field wrapper_has_quality_sources=True
+field wrapper_runfiles=False
+aspect_field aspect_seen=True
+aspect_field field_count=10
+aspect_field has_subject=True
+aspect_field subject_label=//cc/tests/fixtures/compat:host_lib_subject
+aspect_field transitive_count=0""",
+    mode = "analysis",
+    subjects = [":host_lib_subject"],
 )
 
 real_source_target(

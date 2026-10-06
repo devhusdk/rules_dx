@@ -58,20 +58,34 @@ dx_cc_wrapper_subject(
     wrapper = ":greet_test",
 )
 
+dx_cc_wrapper_subject(
+    name = "public_test_attrs_subject",
+    upstream = ":public_test_attrs_test_upstream",
+    wrapper = ":public_test_attrs_test",
+)
+
+dx_cc_wrapper_subject(
+    name = "manual_test_subject",
+    upstream = ":manual_test_upstream",
+    wrapper = ":manual_test",
+)
+
 starlark_test(
-    name = "wrapper_quality_sources",
+    name = "wrapper_public_attributes",
     expected_observations = """subject //cc/tests/fixtures/wrapper:greet_subject
 file greet_subject.txt
 field direct_sources=c:greet.h;cpp:greet_main.cc
 field upstream=//cc/tests/fixtures/wrapper:greet_upstream
+field upstream_declared=compatible_with=,env=,env_inherit=(unset),exec_compatible_with=,flaky=(unset),hdrs=(unset),shard_count=(unset),size=(unset),tags=,target_compatible_with=,testonly=True,timeout=(unset)
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
 field wrapper=//cc/tests/fixtures/wrapper:greet
+field wrapper_declared=compatible_with=,env=(unset),env_inherit=(unset),exec_compatible_with=,flaky=(unset),hdrs=greet.h,shard_count=(unset),size=(unset),tags=,target_compatible_with=,testonly=True,timeout=(unset)
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 field wrapper_runfiles=True
 aspect_field aspect_seen=True
-aspect_field field_count=8
+aspect_field field_count=10
 aspect_field has_subject=True
 aspect_field subject_label=//cc/tests/fixtures/wrapper:greet_subject
 aspect_field transitive_count=0
@@ -79,21 +93,59 @@ subject //cc/tests/fixtures/wrapper:greet_test_subject
 file greet_test_subject.txt
 field direct_sources=c:greet.h;cpp:greet_test.cc
 field upstream=//cc/tests/fixtures/wrapper:greet_test_upstream
+field upstream_declared=compatible_with=,env=,env_inherit=,exec_compatible_with=,flaky=False,hdrs=(unset),shard_count=-1,size=medium,tags=,target_compatible_with=,testonly=True,timeout=moderate
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
 field wrapper=//cc/tests/fixtures/wrapper:greet_test
+field wrapper_declared=compatible_with=,env=,env_inherit=,exec_compatible_with=,flaky=False,hdrs=greet.h,shard_count=-1,size=medium,tags=,target_compatible_with=,testonly=True,timeout=moderate
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 field wrapper_runfiles=True
 aspect_field aspect_seen=True
-aspect_field field_count=8
+aspect_field field_count=10
 aspect_field has_subject=True
 aspect_field subject_label=//cc/tests/fixtures/wrapper:greet_test_subject
+aspect_field transitive_count=0
+subject //cc/tests/fixtures/wrapper:manual_test_subject
+file manual_test_subject.txt
+field direct_sources=c:manual_test.c
+field upstream=//cc/tests/fixtures/wrapper:manual_test_upstream
+field upstream_declared=compatible_with=,env=,env_inherit=,exec_compatible_with=,flaky=False,hdrs=(unset),shard_count=-1,size=medium,tags=,target_compatible_with=,testonly=True,timeout=moderate
+field upstream_has_instrumented_files=True
+field upstream_has_quality_sources=False
+field wrapper=//cc/tests/fixtures/wrapper:manual_test
+field wrapper_declared=compatible_with=,env=,env_inherit=,exec_compatible_with=,flaky=False,hdrs=,shard_count=-1,size=medium,tags=manual,target_compatible_with=,testonly=True,timeout=moderate
+field wrapper_has_instrumented_files=True
+field wrapper_has_quality_sources=True
+field wrapper_runfiles=True
+aspect_field aspect_seen=True
+aspect_field field_count=10
+aspect_field has_subject=True
+aspect_field subject_label=//cc/tests/fixtures/wrapper:manual_test_subject
+aspect_field transitive_count=0
+subject //cc/tests/fixtures/wrapper:public_test_attrs_subject
+file public_test_attrs_subject.txt
+field direct_sources=c:public_test_attrs.c
+field upstream=//cc/tests/fixtures/wrapper:public_test_attrs_test_upstream
+field upstream_declared=compatible_with=,env=DX_PUBLIC_TEST_ENV=declared-value,env_inherit=,exec_compatible_with=,flaky=True,hdrs=(unset),shard_count=2,size=large,tags=,target_compatible_with=,testonly=True,timeout=moderate
+field upstream_has_instrumented_files=True
+field upstream_has_quality_sources=False
+field wrapper=//cc/tests/fixtures/wrapper:public_test_attrs_test
+field wrapper_declared=compatible_with=,env=DX_PUBLIC_TEST_ENV=declared-value,env_inherit=,exec_compatible_with=,flaky=True,hdrs=,shard_count=2,size=large,tags=,target_compatible_with=,testonly=True,timeout=moderate
+field wrapper_has_instrumented_files=True
+field wrapper_has_quality_sources=True
+field wrapper_runfiles=True
+aspect_field aspect_seen=True
+aspect_field field_count=10
+aspect_field has_subject=True
+aspect_field subject_label=//cc/tests/fixtures/wrapper:public_test_attrs_subject
 aspect_field transitive_count=0""",
     mode = "analysis",
     subjects = [
         ":greet_subject",
         ":greet_test_subject",
+        ":manual_test_subject",
+        ":public_test_attrs_subject",
     ],
 )
 

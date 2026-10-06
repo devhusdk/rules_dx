@@ -32,8 +32,11 @@ commands. See [Version Skew](status-version.md#version-skew).
 ## Global Flags
 
 - `--workspace <dir>`: run in another workspace.
-- `--dry-run`: print the plan without running it.
-- `--quiet`, `--verbose`: less or more output.
+- `--dry-run[=bool]`: print the plan without running it. Bare means `true`, and
+  `=false` turns off a default inherited from the environment or a config file.
+- `--quiet[=bool]`, `--verbose[=bool]`: less or more output. Bare means `true`,
+  and `=false` turns off a default inherited from the environment or a config
+  file.
 - `--log-level error|warn|info|debug|trace`: log verbosity.
 - `--color auto|always|never`: color output. Default `auto`.
 - `--output text|diff|json`: result shape. `diff` is limited to `lint`,
@@ -100,7 +103,9 @@ them by target or set.
 
 ## Environment
 
-Every variable below supplies a default. A flag on the command line wins.
+Every variable below supplies a default. A flag on the command line wins, and
+`--dry-run=false`, `--quiet=false`, and `--verbose=false` turn an inherited
+default off.
 
 - `DX_WORKSPACE=<dir>`: default for `--workspace`.
 - `DX_DRY_RUN=<bool>`: default for `--dry-run`.
@@ -113,7 +118,9 @@ Every variable below supplies a default. A flag on the command line wins.
 - `NO_COLOR=<any>`: disables color output.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
 
-A `<bool>` is on for `1`, `true`, `yes`, `y`, or `on`.
+A `<bool>` is on for `1`, `true`, `yes`, `y`, or `on`, and off for `0`, `false`,
+`no`, `n`, or `off`. Any other non-empty value is a usage error. An empty value
+is unset.
 
 ## Config File
 
@@ -133,9 +140,11 @@ fail-on = "error"
 
 `dry_run` and `fail_on` also work. Values are TOML, so a boolean key takes
 `true` or `false`, not the `<bool>` spellings above. An empty value is unset.
-An unknown key is ignored.
+An unknown key is a usage error that names the key and the keys it accepts.
 
 Keys go under `[dx]` or at the top level, and `[dx]` wins. When a directory
 holds both `.dx/config.toml` and `.dx/config`, the `.toml` one wins. The
 nearest file to the working directory wins, and its values sit below the
-environment. Under `bazel run` the search starts at the workspace root.
+environment. The search reads the working directory and each directory above
+it, so a neighboring or nested workspace tree never supplies defaults. Under
+`bazel run` the search starts at the workspace root.

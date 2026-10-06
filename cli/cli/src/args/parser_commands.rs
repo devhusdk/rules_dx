@@ -448,6 +448,20 @@ fn file_defaults_load_from_workspace_and_reject_invalid_toml() {
     );
     std::fs::write(scratch.path().join(".dx/config.toml"), "[broken").expect("bad defaults");
     assert!(super::load_file_defaults(scratch.path()).is_err());
+    std::fs::write(
+        scratch.path().join(".dx/config.toml"),
+        "[dx]\nqiet = true\n",
+    )
+    .expect("misspelled key");
+    let detail = super::load_file_defaults(scratch.path()).expect_err("a typo is not ignored");
+    assert!(
+        detail.contains("unknown field `qiet`"),
+        "the diagnostic names the key: {detail}"
+    );
+    assert!(
+        detail.contains("config.toml"),
+        "the diagnostic names the file: {detail}"
+    );
 }
 
 #[test]

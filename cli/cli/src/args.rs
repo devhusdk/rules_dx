@@ -45,6 +45,9 @@ pub enum ArgsError {
     /// The resolved --color value is not a mode.
     #[error("unknown --color {value:?}: want auto|always|never")]
     BadColor { value: String },
+    /// An environment default is not a value dx reads.
+    #[error("{detail}")]
+    BadDefault { detail: String },
     /// The completion shell is not one of the four.
     #[error("unknown-shell: {shell}")]
     UnknownShell { shell: String },

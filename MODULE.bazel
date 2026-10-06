@@ -275,6 +275,7 @@ crate.from_cargo(
         "//quality/result:Cargo.toml",
         "//quality/runner:Cargo.toml",
         "//docs/ir/ir:Cargo.toml",
+        "//docs/site/browser:Cargo.toml",
         "//docs/site/build:Cargo.toml",
         "//docs/site/check:Cargo.toml",
         "//tools/bazelrc:Cargo.toml",
@@ -353,6 +354,14 @@ use_repo(
     "dx_mdbook_linux_x86_64",
     "dx_mdbook_macos_arm64",
     "dx_mdbook_windows_x86_64",
+)
+
+firefox = use_extension("//docs/site/browser:repos.bzl", "firefox")
+use_repo(
+    firefox,
+    "dx_firefox",
+    "dx_firefox_linux_arm64",
+    "dx_firefox_linux_x86_64",
 )
 
 jvm_tools = use_extension("//quality/tools/jvm:extension.bzl", "jvm_tools")

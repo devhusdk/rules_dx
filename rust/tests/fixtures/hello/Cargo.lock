@@ -2019,6 +2019,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "site_browser"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "site_build"
 version = "0.0.0"
 

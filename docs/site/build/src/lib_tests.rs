@@ -1,6 +1,6 @@
 use super::{
-    alias_errors, alias_route, manifest_error, manifest_pages, pages_error, parse, route_error,
-    run, usage, Options, Page,
+    alias_errors, alias_route, log_error, manifest_error, manifest_pages, pages_error, parse,
+    route_error, run, usage, Options, Page,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -142,6 +142,24 @@ fn manifest_lines_carry_a_route_and_a_path() {
     assert_eq!(
         manifest_error("docs/README.md\t\n"),
         "docs_site: page line for route 'docs/README.md' names no path"
+    );
+}
+
+#[test]
+fn mdbook_warnings_and_errors_fail_even_when_mdbook_exits_zero() {
+    let clean = "2026-10-06 [INFO] (mdbook::book): Book building has started\n";
+    assert_eq!(log_error(clean), "");
+    assert_eq!(
+        log_error("2026-10-06 [WARN] (mdbook::preprocess::links): missing page\n"),
+        "mdbook reported [WARN] (mdbook::preprocess::links): missing page"
+    );
+    assert_eq!(
+        log_error("2026-10-06 [ERROR] (mdbook::utils): Error: no SUMMARY.md\n"),
+        "mdbook reported [ERROR] (mdbook::utils): Error: no SUMMARY.md"
+    );
+    assert_eq!(
+        log_error("2026-10-06 [INFO] first\n2026-10-06 [WARN] second\n"),
+        "mdbook reported [WARN] second"
     );
 }
 

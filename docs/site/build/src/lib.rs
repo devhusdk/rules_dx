@@ -150,6 +150,22 @@ pub fn manifest_pages(text: &str) -> Vec<Page> {
         .collect()
 }
 
+/// Returns the first mdBook warning or error line, or "" when the run was clean.
+///
+/// mdBook exits 0 after logging a warning, so its log decides whether the
+/// render is trustworthy.
+pub fn log_error(log: &str) -> String {
+    for line in log.lines() {
+        for marker in ["[WARN]", "[ERROR]"] {
+            if let Some(at) = line.find(marker) {
+                let text = line[at..].trim();
+                return format!("mdbook reported {text}");
+            }
+        }
+    }
+    String::new()
+}
+
 /// Assembles the book and runs mdBook, returning "" on success.
 pub fn run(options: &Options) -> String {
     let manifest = read(&options.manifest);
@@ -190,19 +206,25 @@ pub fn run(options: &Options) -> String {
         .arg("--dest-dir")
         .arg(&out)
         .arg(&book)
-        .status();
+        .output();
     let _ = fs::remove_dir_all(&scratch);
-    match build {
-        Ok(status) if status.success() => {
-            let aliases = alias_errors(&pages, &out);
-            if !aliases.is_empty() {
-                return aliases;
-            }
-            String::new()
-        }
-        Ok(status) => format!("mdbook {} exited with {status}", options.mdbook),
-        Err(error) => format!("cannot run mdbook '{}': {error}", options.mdbook),
+    let build = match build {
+        Ok(build) => build,
+        Err(error) => return format!("cannot run mdbook '{}': {error}", options.mdbook),
+    };
+    let log = format!(
+        "{}{}",
+        String::from_utf8_lossy(&build.stdout),
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let reported = log_error(&log);
+    if !reported.is_empty() {
+        return reported;
     }
+    if !build.status.success() {
+        return format!("mdbook {} exited with {}", options.mdbook, build.status);
+    }
+    alias_errors(&pages, &out)
 }
 
 fn stage(book: &Path, options: &Options, pages: &[Page]) -> Result<(), String> {

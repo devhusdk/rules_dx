@@ -404,6 +404,39 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//docs/site/browser:repos.bzl%firefox": {
+      "general": {
+        "bzlTransitiveDigest": "DfzfF9sgnAZZeTn7NMKpoIsYn31drQiRRZrSYRnRa8Q=",
+        "usagesDigest": "uQFv4oZKHTBF1moFOlnTx1/Y02RUXVqWXJhfG+aAJdo=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_firefox_linux_arm64": {
+            "repoRuleId": "@@//docs/site/browser:repos.bzl%_firefox_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "firefox-157.0.tar.xz",
+              "executable": "firefox/firefox",
+              "sha256": "73fc3d6f6f4d3fcdeee59db90156568af9959405120ad686e535f572995074d0",
+              "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-aarch64/en-US/firefox-157.0.tar.xz"
+            }
+          },
+          "dx_firefox_linux_x86_64": {
+            "repoRuleId": "@@//docs/site/browser:repos.bzl%_firefox_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "firefox-157.0.tar.xz",
+              "executable": "firefox/firefox",
+              "sha256": "42f2c62a562316982ef5a796738c57602bf84a984f5c616e80bcff4627f78fff",
+              "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-x86_64/en-US/firefox-157.0.tar.xz"
+            }
+          },
+          "dx_firefox": {
+            "repoRuleId": "@@//docs/site/browser:repos.bzl%_firefox_hub_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "//docs/site/mdbook:repos.bzl%mdbook": {
       "general": {
         "bzlTransitiveDigest": "6jpUQmrmWiNnIfpDnc+6+GmCFEd8w6ifoMUoJzoiLoI=",
@@ -463,7 +496,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "Hm/E8rQb25v5u6u5/0i9XDCUXIGPROQf997sdQ1ZCqM=",
+        "bzlTransitiveDigest": "l9FtEvFcH9o+Ef8vaEch06tOemBzlzvv+3NGtWkbWEk=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"

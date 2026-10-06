@@ -12,7 +12,7 @@ with a scope.
 
 - `dx generate`: runs Gazelle over the whole repo.
 - `dx docs`: builds `//docs/site:user_site`, or
-  `//docs/site:user_site_aggregate` in `--check`.
+  `//docs/site:user_site_check` in `--check`.
 
 ## Repository-Wide Or One Exact Label
 

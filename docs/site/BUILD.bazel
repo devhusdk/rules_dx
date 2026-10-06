@@ -62,6 +62,35 @@ mdbook_check(
     chapters = USER_BOOK,
 )
 
+exports_files(
+    [
+        "browser_test.rs",
+        "serve_test.rs",
+    ],
+)
+
+# keep
+rust_test(
+    name = "browser_test",
+    size = "large",
+    srcs = ["browser_test.rs"],
+    data = [
+        ":user_site",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_USER_SITE": "$(rootpath :user_site)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 # keep
 rust_test(
     name = "serve_test",

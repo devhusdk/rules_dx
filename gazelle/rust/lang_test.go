@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -284,17 +285,56 @@ func TestLanguageMetadata(t *testing.T) {
 		}
 		return ""
 	})
-	if loads[0].Name != "@renamed_dx//rust/rules:defs.bzl" || loads[1].Name != "@rules_rust//cargo:defs.bzl" || loads[2].Name != "@renamed_crates//:crates.bzl" {
-		t.Errorf("apparent loads = %+v", loads)
+	if got := missingLoads(loads, map[string]string{
+		binaryKind:           "@renamed_dx//rust/rules:defs.bzl",
+		dxCrateKind:          "@renamed_dx//rust/rules:crate.bzl",
+		scriptKind:           "@rules_rust//cargo:defs.bzl",
+		"crate_deps":         "@renamed_crates//:crates.bzl",
+		"buildifier_config":  "@renamed_dx//quality:native_config.bzl",
+		"real_source_target": "@renamed_dx//quality:fixtures.bzl",
+	}); len(got) != 0 {
+		t.Errorf("apparent loads miss %v", got)
 	}
-	if defaults := l.Loads(); defaults[0].Name != "@rules_dx//rust/rules:defs.bzl" || defaults[1].Name != "@rules_rust//cargo:defs.bzl" || defaults[3].Name != "@rules_dx//quality:native_config.bzl" {
-		t.Errorf("default loads = %+v", defaults)
+	if got := missingLoads(l.Loads(), map[string]string{
+		binaryKind:           "@rules_dx//rust/rules:defs.bzl",
+		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
+		scriptKind:           "@rules_rust//cargo:defs.bzl",
+		"crate_deps":         "@crates//:crates.bzl",
+		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
+		"real_source_target": "@rules_dx//quality:fixtures.bzl",
+	}); len(got) != 0 {
+		t.Errorf("default loads miss %v", got)
 	}
-	defaultApparent := l.ApparentLoads(func(string) string { return "" })
-	if defaultApparent[0].Name != "@rules_dx//rust/rules:defs.bzl" || defaultApparent[1].Name != "@rules_rust//cargo:defs.bzl" || defaultApparent[2].Name != "@crates//:crates.bzl" {
-		t.Errorf("default apparent loads = %+v", defaultApparent)
+	if got := missingLoads(l.ApparentLoads(func(string) string { return "" }), map[string]string{
+		binaryKind:           "@rules_dx//rust/rules:defs.bzl",
+		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
+		scriptKind:           "@rules_rust//cargo:defs.bzl",
+		"crate_deps":         "@crates//:crates.bzl",
+		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
+		"real_source_target": "@rules_dx//quality:fixtures.bzl",
+	}); len(got) != 0 {
+		t.Errorf("default apparent loads miss %v", got)
 	}
 	l.DoneGeneratingRules()
+}
+
+func missingLoads(loads []rule.LoadInfo, want map[string]string) []string {
+	var missing []string
+	for symbol, name := range want {
+		found := false
+		for _, load := range loads {
+			for _, got := range load.Symbols {
+				if got == symbol && load.Name == name {
+					found = true
+				}
+			}
+		}
+		if !found {
+			missing = append(missing, symbol+"@"+name)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 func TestConfigureDirectiveForms(t *testing.T) {

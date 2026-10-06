@@ -4,13 +4,16 @@
 dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
 ```
 
-Builds the docs site with Bazel: all user guides plus the API reference.
+Builds the documentation site with Bazel and the pinned upstream mdBook:
+every `dx` command page, the GitHub CI guide, and the examples.
 With no scope it builds the repository site (`//docs/site:user_site`,
-`//docs/site:user_site_aggregate` in `--check`). `--here` limits to the
+`//docs/site:user_site_check` in `--check`). `--here` limits to the
 current directory tree. Args after `--` go to Bazel unchanged.
 
-- `--check`: validate without rendering. Builds extract plus aggregate only.
-- `--serve`: preview the last build locally after building.
+- `--check`: validate the book without rendering it. Builds the generated
+  summary and landing page only.
+- `--serve`: preview the last build locally after building. Serves the
+  rendered site tree, so every page has its own URL.
 - `--port <n>`, `--host <addr>`, `--open`: need `--serve`. `--open` opens
   the preview in a browser.
 - `--output text|json`: result shape. `diff` has no patch.
@@ -25,6 +28,9 @@ bazel run //cli/cli:dx -- docs
 bazel run //cli/cli:dx -- docs --serve --port 8080
 ```
 
-The build never changes sources. Serve runs a local preview only. The demo
+The build never changes sources. Serve runs a local preview only. The site
+renders Markdown to HTML with syntax-highlighted code, a sidebar, a search
+index, and one route per page. Internal links are relative, so the same
+build serves at a domain root and from a project subdirectory. The demo
 targets (`//docs/site:demo_*`) stay fixture-only for tests and are never
 published.

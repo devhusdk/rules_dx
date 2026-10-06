@@ -180,6 +180,8 @@ rust_test(
         "//deploy/rules:src/bin_npm_pack.rs",
         "//deploy/rules:src/lib.rs",
         "//docs/ir/ir:src/lib.rs",
+        "//docs/site/build:src/lib.rs",
+        "//docs/site/build:src/main.rs",
         "//docs/site/check:src/lib.rs",
         "//docs/site/check:src/main.rs",
         "//env/env_shard:src/lib.rs",

@@ -1,5 +1,5 @@
 {
-  "checksum": "b39134d010f53ffee15ab6ba8324ea79a349335bfe539abc2884926ca4562061",
+  "checksum": "0aabf9f981536a1a94a9d5a7d5b7e8012ba53507eb8a12420b3404b2ceeed55b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9350,6 +9350,23 @@
       ],
       "version": "3.2.0"
     },
+    "site_build 0.0.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "dx_site_build",
+      "name": "site_build",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_site_build",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "site_check 0.0.0": {
       "common_attrs": {
         "edition": "2021"
@@ -13753,6 +13770,7 @@
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
     "repin_all 0.0.0": "tools/repin_all",
+    "site_build 0.0.0": "docs/site/site_build",
     "site_check 0.0.0": "docs/site/site_check"
   }
 }

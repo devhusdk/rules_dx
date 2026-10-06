@@ -404,6 +404,63 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
+    "//docs/site/mdbook:repos.bzl%mdbook": {
+      "general": {
+        "bzlTransitiveDigest": "6jpUQmrmWiNnIfpDnc+6+GmCFEd8w6ifoMUoJzoiLoI=",
+        "usagesDigest": "VLTSZOIep5jAbPE6r/DwOnN8lESvwiV8PauFls4iniA=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_mdbook_linux_arm64": {
+            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "tar.gz",
+              "asset": "mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "207696773a2ce4f37c58782d0853f4179694a289cb7508eaa93e0dc595407294",
+              "sha256": "7273dda980915a1e2f114d63d432aa6284551e37f0358e3ce7653d1e49e6fa3f",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz"
+            }
+          },
+          "dx_mdbook_linux_x86_64": {
+            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "tar.gz",
+              "asset": "mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "29b7e5ba01321e3bbc4487012544cea516f01377ffd1e26b4adeed9b8ed875a9",
+              "sha256": "c0b903f01dd8f4edc644372ad2b80b1fdddd12552d37b6a098657cbd8eddd768",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz"
+            }
+          },
+          "dx_mdbook_macos_arm64": {
+            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "tar.gz",
+              "asset": "mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "80ca3d4d6dfc1a12d231b14ece0dd6bd9cf6233f74b45f3c7ff915b6923eeac5",
+              "sha256": "4aee6a8ff54dc59fbe9bcf1c38b8f58583fba63535dff7a5ec8205f0cffc3fd4",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-apple-darwin.tar.gz"
+            }
+          },
+          "dx_mdbook_windows_x86_64": {
+            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "zip",
+              "asset": "mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+              "executable": "mdbook.exe",
+              "executable_sha256": "8400c017423686ad8025532baaf4b1683b8caf7147fbe6fc4cddf7a85902cbde",
+              "sha256": "33510a5745c593e06f4b8e21f531d9204c6f4444846b4bd57994e82a7bdfec98",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-pc-windows-msvc.zip"
+            }
+          },
+          "dx_mdbook": {
+            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_hub_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
         "bzlTransitiveDigest": "Hm/E8rQb25v5u6u5/0i9XDCUXIGPROQf997sdQ1ZCqM=",

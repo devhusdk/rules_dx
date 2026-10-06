@@ -1,15 +1,19 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
-load(":site.bzl", "docs_aggregate", "docs_extract", "docs_render", "docs_site", "docs_user_site")
+load(":render.bzl", "mdbook_book", "mdbook_check")
+load(":site.bzl", "docs_aggregate", "docs_extract", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
+load(":user/book.bzl", "USER_BOOK")
 
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files(
     [
         "BUILD.bazel",
+        "render.bzl",
         "site.bzl",
         "site_tests.bzl",
+        "user/book.bzl",
     ],
 )
 
@@ -20,7 +24,6 @@ exports_files(
         "demo/book.toml",
         "demo/guide.md",
         "demo/guide_steps.txt",
-        "user/book.toml",
     ],
     visibility = ["//visibility:private"],
 )
@@ -39,14 +42,6 @@ docs_aggregate(
     shards = [":demo_extract"],
 )
 
-docs_render(
-    name = "demo_render",
-    api = ":demo_aggregate_api.md",
-    book_toml = "demo/book.toml",
-    records = ":demo_aggregate_search_records.json",
-    summary = ":demo_aggregate_SUMMARY.md",
-)
-
 docs_site(
     name = "demo_site",
     srcs = ["demo/demo.symbols.txt"],
@@ -56,55 +51,47 @@ docs_site(
     prose = ["demo/demo_prose.md"],
 )
 
-USER_PROSE = [
-    "//:AGENTS.md",
-    "//:CONTRIBUTING.md",
-    "//:README.md",
-    "//docs:README.md",
-    "//docs:cli/commands/README.md",
-    "//docs:cli/commands/audit-update-bazel.md",
-    "//docs:cli/commands/build-test-coverage.md",
-    "//docs:cli/commands/check-fix-clean.md",
-    "//docs:cli/commands/completion.md",
-    "//docs:cli/commands/docs.md",
-    "//docs:cli/commands/environment-codegen-setup.md",
-    "//docs:cli/commands/generate.md",
-    "//docs:cli/commands/hooks.md",
-    "//docs:cli/commands/inspect.md",
-    "//docs:cli/commands/migrate.md",
-    "//docs:cli/commands/new-upgrade.md",
-    "//docs:cli/commands/quality.md",
-    "//docs:cli/commands/scope-defaults.md",
-    "//docs:cli/commands/status-version.md",
-    "//docs:cli/commands/watch.md",
-    "//docs:github-ci.md",
-    "//examples:README.md",
-    "//examples:consumer-ci/README.md",
-    "//examples:docs-ci/README.md",
-    "//examples/adopt-cpp:README.md",
-    "//examples/adopt-csharp:README.md",
-    "//examples/adopt-fsharp:README.md",
-    "//examples/adopt-go:README.md",
-    "//examples/adopt-java:README.md",
-    "//examples/adopt-js-ts:README.md",
-    "//examples/adopt-kotlin:README.md",
-    "//examples/adopt-polyglot:README.md",
-    "//examples/adopt-powershell:README.md",
-    "//examples/adopt-python:README.md",
-    "//examples/adopt-ruby:README.md",
-    "//examples/adopt-rust:README.md",
-    "//examples/adopt-scala:README.md",
-    "//examples/mixed/hello:README.md",
-]
-
-docs_user_site(
+mdbook_book(
     name = "user_site",
-    srcs = ["demo/demo.symbols.txt"],
     book_toml = "user/book.toml",
-    data = ["//:LICENSE"],
-    language = "python",
-    package = "demo",
-    prose = USER_PROSE,
+    chapters = USER_BOOK,
+)
+
+mdbook_check(
+    name = "user_site_check",
+    chapters = USER_BOOK,
+)
+
+# keep
+rust_test(
+    name = "serve_test",
+    size = "small",
+    srcs = ["serve_test.rs"],
+    data = [":user_site"],
+    env = {"DX_USER_SITE": "$(rootpath :user_site)"},
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "rendered_site_test",
+    size = "small",
+    srcs = ["rendered_site_test.rs"],
+    data = [
+        ":demo_site",
+        ":user_site",
+        "//docs/site/check:site_check",
+    ],
+    env = {
+        "DX_DEMO_SITE": "$(rootpath :demo_site)",
+        "DX_SITE_CHECK": "$(rootpath //docs/site/check:site_check)",
+        "DX_USER_SITE": "$(rootpath :user_site)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 # keep
@@ -124,8 +111,6 @@ site_unit_tests(name = "site_unit")
 site_file_tests(
     name = "site_files",
     api = ":demo_aggregate_api.md",
-    html = ":demo_render_index.html",
-    index = ":demo_render_searchindex.json",
     records = ":demo_aggregate_search_records.json",
     shard = ":demo_extract.ir.textproto",
     summary = ":demo_aggregate_SUMMARY.md",
@@ -133,9 +118,8 @@ site_file_tests(
 
 site_user_file_tests(
     name = "site_user_files",
-    html = ":user_site_index.html",
-    index = ":user_site_searchindex.json",
-    summary = ":user_site_aggregate_SUMMARY.md",
+    index = ":user_site_index.md",
+    summary = ":user_site_SUMMARY.md",
 )
 
 real_source_target(
@@ -143,8 +127,10 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "render.bzl",
         "site.bzl",
         "site_tests.bzl",
+        "user/book.bzl",
     ],
     tags = ["corpus"],
 )

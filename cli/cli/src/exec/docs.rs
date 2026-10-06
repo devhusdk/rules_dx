@@ -7,12 +7,14 @@ use dx_output::{
 };
 use dx_process::build_workflow_argv;
 
-const DOCS_CHECK_TARGET: &str = "//docs/site:user_site_aggregate";
+const DOCS_CHECK_TARGET: &str = "//docs/site:user_site_check";
 const DOCS_BUILD_TARGET: &str = "//docs/site:user_site";
 
 const DOCS_DEFAULT_PORT: u16 = 8000;
 
 const DOCS_DEFAULT_HOST: &str = "127.0.0.1";
+
+pub(crate) const DOCS_SERVE_DIR: &str = "user_site";
 
 pub(crate) const CODE_SERVE_FAILED: &str = "serve_failed";
 
@@ -60,15 +62,16 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             Err(error) => return pre_exec(err, &error.to_string()),
         }
     };
-    let actions: &[&str] = if invocation.check {
-        &["extract", "aggregate"]
+    let (actions, summary): (&[&str], String) = if invocation.check {
+        (
+            &["summary"],
+            format!("Running docs check for {scope_text} (no render)"),
+        )
     } else {
-        &["extract", "aggregate", "render"]
-    };
-    let summary = if invocation.check {
-        format!("Running docs check for {scope_text} (extract+aggregate, no render)")
-    } else {
-        format!("Running docs build for {scope_text} (extract+aggregate+render)")
+        (
+            &["summary", "render"],
+            format!("Running docs build for {scope_text} (mdBook render)"),
+        )
     };
     let argv = match build_workflow_argv("build", &invocation.bazel_options, &[], &[], &labels) {
         Ok(argv) => argv,
@@ -113,7 +116,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             if let Ok(event) = error_event(
                 "bazel_failed",
                 &format!(
-                    "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit docs/site:user_site, fixture docs/site:demo, pinned mdBook 0.4.43)",
+                    "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit docs/site:user_site, fixture docs/site:demo_site, pinned mdBook 0.4.52)",
                     if invocation.check { "check" } else { "build" },
                 ),
                 None,
@@ -138,7 +141,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
     let host = invocation.host.as_deref().unwrap_or(DOCS_DEFAULT_HOST);
     let url = preview_url(host, port);
-    let serve_dir = workspace.join("bazel-bin/docs/site");
+    let serve_dir = workspace.join("bazel-bin/docs/site").join(DOCS_SERVE_DIR);
     let serve_dir_text = serve_dir.display().to_string();
     if !json && invocation.chatty() {
         let _ = writeln!(out, "Serving docs at {url} ({serve_dir_text})");
@@ -219,7 +222,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET, DOCS_CHECK_TARGET};
+    use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET, DOCS_CHECK_TARGET, DOCS_SERVE_DIR};
     use crate::test_support::strings;
 
     #[test]
@@ -268,6 +271,7 @@ mod tests {
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("Running docs check"), "{out}");
         assert!(out.contains("no render"), "{out}");
+        assert!(!out.contains("mdBook render"), "{out}");
     }
 
     #[test]
@@ -276,7 +280,7 @@ mod tests {
         let (code, out, _) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("Running docs build"), "{out}");
-        assert!(out.contains("render"), "{out}");
+        assert!(out.contains("mdBook render"), "{out}");
     }
 
     #[test]
@@ -480,7 +484,54 @@ mod tests {
         assert_eq!(code, 3, "{out}");
         assert!(out.contains("bazel_failed"), "{out}");
         assert!(out.contains("docs/site:user_site"), "{out}");
-        assert!(out.contains("0.4.43"), "{out}");
+        assert!(out.contains("0.4.52"), "{out}");
+    }
+
+    #[test]
+    fn docs_serve_previews_the_rendered_site_tree() {
+        use std::cell::RefCell;
+        use std::io;
+        use std::rc::Rc;
+        struct Probe {
+            seen: Rc<RefCell<Vec<Vec<String>>>>,
+        }
+        impl dx_process::Runner for Probe {
+            fn run(
+                &self,
+                argv: &[String],
+                _cwd: &std::path::Path,
+                _env: &[(&str, &str)],
+            ) -> io::Result<dx_process::ChildStatus> {
+                self.seen.borrow_mut().push(argv.to_vec());
+                Ok(dx_process::ChildStatus { code: Some(0) })
+            }
+        }
+        let harness = Harness::new("docs-serve-tree");
+        let inv = invocation(&["docs", "--serve", "--output=text"]);
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let runner = Probe {
+            seen: Rc::clone(&seen),
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(code, 0);
+        let calls = seen.borrow();
+        let serve = calls
+            .iter()
+            .find(|argv| argv.contains(&"http.server".to_owned()))
+            .expect("serve argv");
+        assert_eq!(DOCS_SERVE_DIR, "user_site");
+        assert!(
+            serve
+                .iter()
+                .any(|arg| arg.ends_with("bazel-bin/docs/site/user_site")),
+            "the preview must serve the rendered site tree: {serve:?}"
+        );
+        assert!(
+            !serve.iter().any(|arg| arg.ends_with("bazel-bin/docs/site")),
+            "the preview must not serve the whole output directory: {serve:?}"
+        );
     }
 
     #[test]

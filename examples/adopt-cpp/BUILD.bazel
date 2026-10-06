@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_siblings = ["//cc/rules:README.md"],
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

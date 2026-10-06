@@ -1,0 +1,98 @@
+load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+config_setting(
+    name = "select_macos",
+    constraint_values = ["@platforms//os:macos"],
+)
+
+cc_library(
+    name = "select_copts",
+    srcs = ["select_copts.c"],
+    hdrs = ["select_copts.h"],
+    copts = select({
+        ":select_macos": [
+            "-DDX_SELECTED_MACOS",
+            "-DDX_SELECTED_SHARED",
+        ],
+        "//conditions:default": [
+            "-DDX_SELECTED_DEFAULT",
+            "-DDX_SELECTED_SHARED",
+        ],
+    }),
+    defines = select({
+        ":select_macos": ["DX_DEFINE_MACOS=1"],
+        "//conditions:default": ["DX_DEFINE_DEFAULT=1"],
+    }),
+    features = select({
+        ":select_macos": ["treat_warnings_as_errors"],
+        "//conditions:default": [
+            "treat_warnings_as_errors",
+            "user_compile_flags",
+        ],
+    }),
+)
+
+cc_test(
+    name = "select_copts_test",
+    srcs = ["select_copts_test.c"],
+    copts = select({
+        ":select_macos": ["-DDX_SELECTED_MACOS"],
+        "//conditions:default": ["-DDX_SELECTED_DEFAULT"],
+    }),
+    deps = [":select_copts"],
+)
+
+cc_library(
+    name = "cxx23",
+    srcs = ["cxx23.cc"],
+    hdrs = ["cxx23.h"],
+    copts = ["-std=c++23"],
+)
+
+cc_test(
+    name = "cxx23_test",
+    srcs = ["cxx23_test.cc"],
+    copts = ["-std=c++23"],
+    deps = [":cxx23"],
+)
+
+cc_library(
+    name = "strict_c",
+    srcs = ["strict.c"],
+    hdrs = ["strict.h"],
+    copts = ["-std=c17"],
+    features = ["treat_warnings_as_errors"],
+)
+
+cc_test(
+    name = "strict_c_test",
+    srcs = ["strict_test.c"],
+    copts = ["-std=c17"],
+    deps = [":strict_c"],
+)
+
+exports_files([
+    "cxx23.cc",
+    "cxx23.h",
+    "cxx23_test.cc",
+    "select_copts.c",
+    "select_copts.h",
+    "select_copts_test.c",
+    "strict.c",
+    "strict.h",
+    "strict_test.c",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -4,11 +4,19 @@ load(":wrapper_tests.bzl", "cc_wrapper_contract_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "README.md",
     "defs.bzl",
     "wrapper_tests.bzl",
 ])
 
 cc_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
 
 real_source_target(
     name = "corpus_starlark",

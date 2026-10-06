@@ -2,6 +2,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(
+    ["crate.bzl"],
+    visibility = ["//:__subpackages__"],
+)
+
 exports_files([
     "defs.bzl",
     "edition.bzl",
@@ -14,6 +19,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "crate.bzl",
         "defs.bzl",
         "edition.bzl",
         "probe.bzl",

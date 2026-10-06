@@ -524,11 +524,18 @@ func TestCheckExistingClaimsDxCrate(t *testing.T) {
 	}
 }
 
-func TestRustLoadsIncludeDxCrate(t *testing.T) {
+func TestRustLoadsKeepDxCrateOffThePublicModule(t *testing.T) {
 	l := &rustLang{}
 	found := false
 	for _, load := range l.Loads() {
 		if strings.HasSuffix(load.Name, "//rust/rules:defs.bzl") {
+			for _, sym := range load.Symbols {
+				if sym == dxCrateKind {
+					t.Errorf("%s exports %q", load.Name, dxCrateKind)
+				}
+			}
+		}
+		if strings.HasSuffix(load.Name, "//rust/rules:crate.bzl") {
 			for _, sym := range load.Symbols {
 				if sym == dxCrateKind {
 					found = true
@@ -537,7 +544,7 @@ func TestRustLoadsIncludeDxCrate(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("Loads() symbols = %+v, want %q", l.Loads(), dxCrateKind)
+		t.Errorf("Loads() symbols = %+v, want %q on //rust/rules:crate.bzl", l.Loads(), dxCrateKind)
 	}
 }
 

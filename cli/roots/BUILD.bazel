@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "dx_rust_crate")
+load("//rust/rules:crate.bzl", "dx_rust_crate")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 load(":roots.bzl", "repository_roots_file", "roots_aggregate")
 

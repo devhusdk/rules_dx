@@ -1,0 +1,67 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files([
+    "src/lib.rs",
+    "src/main.rs",
+])
+
+rust_library(
+    name = "consumer_std_lib",
+    srcs = ["src/lib.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    crate_name = "consumer_std",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_binary(
+    name = "consumer_std",
+    srcs = ["src/main.rs"],
+    crate_name = "consumer_std",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":consumer_std_lib"],
+)
+
+rust_test(
+    name = "consumer_std_test",
+    crate = ":consumer_std_lib",
+)
+
+rustfmt_test(
+    name = "consumer_std_fmt_test",
+    size = "small",
+    targets = [
+        ":consumer_std_lib",
+        ":consumer_std",
+    ],
+)
+
+rust_clippy_test(
+    name = "consumer_std_clippy_test",
+    size = "small",
+    targets = [
+        ":consumer_std_lib",
+        ":consumer_std",
+    ],
+)
+
+dx_hello_output_test(
+    name = "consumer_std_output_test",
+    binary = ":consumer_std",
+    expected = "Hello from a std-only consumer",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

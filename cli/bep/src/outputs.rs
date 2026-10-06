@@ -317,6 +317,14 @@ mod tests {
         }
     }
 
+    struct FsArtifacts;
+
+    impl ArtifactReader for FsArtifacts {
+        fn read_artifact(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+            std::fs::read(path)
+        }
+    }
+
     fn config() -> CollectorConfig {
         CollectorConfig::new("dx_results").expect("group")
     }
@@ -343,10 +351,13 @@ mod tests {
         format!(r#"{{"name": "{name}", "fileSets": [{}]}}"#, refs.join(","))
     }
 
-    /// A file URI naming one path under a root this host can resolve.
+    /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
-        let root = if cfg!(windows) { "C:/out" } else { "/out" };
-        dx_path::uri(&std::path::Path::new(root).join(rel))
+        if cfg!(windows) {
+            format!("file:///C:/out/{rel}")
+        } else {
+            format!("file:///out/{rel}")
+        }
     }
 
     #[test]
@@ -852,6 +863,52 @@ mod tests {
         };
         assert!(probe.read_artifact(Path::new("/out/a.pb")).is_err());
         assert_eq!(probe.reads.get(), 1);
+    }
+
+    #[test]
+    fn reports_read_the_filenames_their_uris_name() {
+        let dir = tempfile::TempDir::new().expect("scratch");
+        let root = dx_path::posix(dir.path());
+        let names: &[(&str, &str)] = if cfg!(windows) {
+            &[("a b.pb", "a%20b.pb"), ("a%20b.pb", "a%2520b.pb")]
+        } else {
+            &[
+                ("a b.pb", "a%20b.pb"),
+                ("a%20b.pb", "a%2520b.pb"),
+                ("a#b.pb", "a%23b.pb"),
+                ("a?b.pb", "a%3Fb.pb"),
+            ]
+        };
+        let mut uris = Vec::new();
+        for (name, escaped) in names {
+            let path = dir.path().join(name);
+            std::fs::write(&path, name.as_bytes()).expect("write");
+            uris.push(format!("file://{root}/{escaped}"));
+        }
+        let stream = [
+            named_set("1", &uris),
+            completed("//q:a", true, &group_ref("dx_results", &["1"])),
+        ]
+        .join("\n");
+        let got = collect(Cursor::new(stream), &config(), &FsArtifacts).expect("collect");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].artifacts.len(), names.len());
+        let mut read = got[0]
+            .artifacts
+            .iter()
+            .map(|artifact| (artifact.exec_path.clone(), artifact.bytes.clone()))
+            .collect::<Vec<_>>();
+        read.sort();
+        let mut want = names
+            .iter()
+            .map(|(name, _)| {
+                let path = dir.path().join(name);
+                let bytes = std::fs::read(&path).expect("read");
+                (path, bytes)
+            })
+            .collect::<Vec<_>>();
+        want.sort();
+        assert_eq!(read, want);
     }
 
     #[test]

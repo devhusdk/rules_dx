@@ -84,14 +84,9 @@ pub(crate) fn malformed(line: u64, path: &str, detail: &str) -> BepError {
 }
 
 pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
-    let unsupported = || BepError::UnsupportedUri {
+    dx_path::uri_to_path(uri).map_err(|_| BepError::UnsupportedUri {
         uri: uri.to_owned(),
-    };
-    let parsed = url::Url::parse(uri).map_err(|_| unsupported())?;
-    if parsed.scheme() != "file" {
-        return Err(unsupported());
-    }
-    parsed.to_file_path().map_err(|_| unsupported())
+    })
 }
 
 pub fn is_bytestream_uri(uri: &str) -> bool {
@@ -313,10 +308,13 @@ pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<S
 mod tests {
     use super::*;
 
-    /// A file URI naming one path under a root this host can resolve.
+    /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
-        let root = if cfg!(windows) { "C:/out" } else { "/out" };
-        dx_path::uri(&std::path::Path::new(root).join(rel))
+        if cfg!(windows) {
+            format!("file:///C:/out/{rel}")
+        } else {
+            format!("file:///out/{rel}")
+        }
     }
 
     /// One run, one shard, one attempt: the layout Bazel uses without sharding or retries.
@@ -373,7 +371,11 @@ mod tests {
         for uri in [
             "bytestream://x",
             "bytestream://remote/cache/a.pb",
+            "https://example.com/a.pb",
             "/plain/path",
+            "file:a.pb",
+            "file:///out/a.pb?x=1",
+            "file:///out/a.pb#frag",
         ] {
             assert!(
                 matches!(file_uri_to_path(uri), Err(BepError::UnsupportedUri { .. })),

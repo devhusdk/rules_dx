@@ -364,10 +364,13 @@ mod tests {
         )
     }
 
-    /// A file URI naming one path under a root this host can resolve.
+    /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
-        let root = if cfg!(windows) { "C:/out" } else { "/out" };
-        dx_path::uri(&std::path::Path::new(root).join(rel))
+        if cfg!(windows) {
+            format!("file:///C:/out/{rel}")
+        } else {
+            format!("file:///out/{rel}")
+        }
     }
 
     #[test]

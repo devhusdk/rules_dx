@@ -9,6 +9,7 @@ exports_files([
     "src/lib.rs",
     "src/runfiles.rs",
     "src/spelling.rs",
+    "src/uri.rs",
 ])
 
 dx_rust_crate(
@@ -19,9 +20,14 @@ dx_rust_crate(
         "src/lib.rs",
         "src/runfiles.rs",
         "src/spelling.rs",
+        "src/uri.rs",
     ],
+    dev_deps = ["tempfile"],
     extra_deps = ["@rules_rust//rust/runfiles"],
-    deps = [],
+    deps = [
+        "thiserror",
+        "url",
+    ],
 )
 
 real_source_target(

@@ -21,7 +21,6 @@ dx_rust_crate(
     deps = [
         "serde_json",
         "thiserror",
-        "url",
     ],
 )
 

@@ -302,6 +302,15 @@ impl Harness {
         out: &'a mut Vec<u8>,
         err: &'a mut Vec<u8>,
     ) -> Env<'a> {
+        self.env_with(runner, out, err)
+    }
+
+    pub(crate) fn env_with<'a, O: std::io::Write, E: std::io::Write>(
+        &'a self,
+        runner: &'a dyn Runner,
+        out: &'a mut O,
+        err: &'a mut E,
+    ) -> Env<'a> {
         Env {
             workspace: &self.workspace,
             runner,
@@ -313,6 +322,17 @@ impl Harness {
             err,
             ci: false,
         }
+    }
+
+    /// Runs one invocation against arbitrary streams and returns its exit code.
+    pub(crate) fn run_streams<R: Runner, O: std::io::Write, E: std::io::Write>(
+        &self,
+        inv: &Invocation,
+        runner: &R,
+        out: &mut O,
+        err: &mut E,
+    ) -> i32 {
+        execute(inv, self.env_with(runner, out, err))
     }
 
     pub(crate) fn execute_with<R: Runner>(

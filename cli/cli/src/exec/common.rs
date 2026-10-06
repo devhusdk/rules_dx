@@ -75,6 +75,7 @@ pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
 pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";
 pub(crate) const CODE_DIFF_FAILED: &str = "diff_failed";
 pub(crate) const CODE_REPORT_FAILED: &str = "report_failed";
+pub(crate) const CODE_COLLECTION_FAILED: &str = "collection_failed";
 pub(crate) const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
 pub(crate) const CODE_CLEAN_FAILED: &str = "clean_failed";
 pub(crate) const CODE_INVALID_RESULT: &str = "invalid_result";

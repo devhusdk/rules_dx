@@ -3,7 +3,7 @@ use std::ffi::{OsStr, OsString};
 use clap::Parser;
 
 use super::command::Command;
-use super::grammar::{Cli, GlobalArgs, Verb};
+use super::grammar::{Cli, Flags, Verb};
 use super::{help, ArgsError};
 
 /// clap's error text with its own usage block dropped.
@@ -82,10 +82,10 @@ fn collect_bazel_options<S: AsRef<OsStr>>(args: &[S]) -> Result<Vec<String>, Arg
     Ok(forwarded)
 }
 
-/// The parsed invocation: the command, its shared options, its scopes, and its `--` payload.
+/// The parsed invocation: the command, its flags, its scopes, and its `--` payload.
 pub(crate) struct Tokenized {
     pub(crate) command: Command,
-    pub(crate) global: GlobalArgs,
+    pub(crate) flags: Flags,
     pub(crate) targets: Vec<OsString>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -98,16 +98,16 @@ pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<Tokenized, ArgsErr
     {
         return Ok(Tokenized {
             command: Command::Bazel,
-            global: GlobalArgs::default(),
+            flags: Flags::default(),
             targets: Vec::new(),
             bazel_options: collect_bazel_options(&args[1..])?,
         });
     }
     let command = parse_tokens(args)?.ok_or(ArgsError::MissingCommand)?;
-    let (command, global, targets, bazel_options) = command.into_parts();
+    let (command, flags, targets, bazel_options) = command.into_parts();
     Ok(Tokenized {
         command,
-        global,
+        flags,
         targets,
         bazel_options,
     })

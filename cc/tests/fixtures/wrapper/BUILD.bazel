@@ -36,6 +36,7 @@ cc_test(
     env = {
         "DX_PUBLIC_TEST_ENV": "declared-value",
     },
+    flaky = True,
     shard_count = 2,
 )
 

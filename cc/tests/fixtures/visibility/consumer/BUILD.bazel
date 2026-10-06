@@ -39,3 +39,15 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "private_package_reader",
+    srcs = ["//cc/tests/fixtures/visibility/private_package:private_only_lib"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "private_default_stays_private_test",
+    expected_failure_substring = "is not visible from",
+    target = ":private_package_reader",
+)

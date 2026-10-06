@@ -6,11 +6,16 @@ package(default_visibility = VIS_CLI_ENV_GENERATION_QUALITY)
 
 exports_files([
     "src/lib.rs",
+    "src/managed.rs",
 ])
 
 dx_rust_crate(
     name = "dx_atomic_fs",
     package_name = "cli/dx_atomic_fs",
+    srcs = [
+        "src/lib.rs",
+        "src/managed.rs",
+    ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
     deps = ["tempfile"],
 )

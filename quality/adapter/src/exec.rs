@@ -1,3 +1,4 @@
+use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
 use normpath::BasePathBuf;
 use std::ffi::OsStr;
 use std::io::{self, Read};
@@ -15,6 +16,21 @@ pub enum MirrorContents {
 pub struct MirrorFile {
     pub mirror_rel: PathBuf,
     pub contents: MirrorContents,
+}
+
+/// How one mirror file reached the scratch tree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StagedContents {
+    Bytes,
+    Linked,
+    Copied,
+}
+
+/// One mirror file materialized into the scratch tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StagedFile {
+    pub mirror_rel: PathBuf,
+    pub contents: StagedContents,
 }
 
 #[derive(Debug)]
@@ -97,8 +113,9 @@ impl Scratch {
         Ok(absolute.into_path_buf())
     }
 
-    pub fn materialize(&self, files: &[MirrorFile]) -> io::Result<()> {
+    pub fn materialize(&self, files: &[MirrorFile]) -> io::Result<Vec<StagedFile>> {
         let root = self.dir.path();
+        let mut staged = Vec::with_capacity(files.len());
         for file in files {
             let absolute = self.resolve(&file.mirror_rel)?;
             let parent = absolute.parent().ok_or_else(|| {
@@ -109,25 +126,35 @@ impl Scratch {
                 )
             })?;
             ensure_no_symlink_prefix(root, parent, &file.mirror_rel)?;
-            if let Ok(meta) = std::fs::symlink_metadata(&absolute) {
-                if meta.file_type().is_symlink() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        format!(
-                            "mirror path escapes scratch via symlink: {}",
-                            file.mirror_rel.display()
-                        ),
-                    ));
-                }
+            if classify(&absolute)? == EntryKind::Link {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "mirror path escapes scratch via symlink: {}",
+                        file.mirror_rel.display()
+                    ),
+                ));
             }
             std::fs::create_dir_all(parent)?;
             ensure_no_symlink_prefix(root, parent, &file.mirror_rel)?;
-            match &file.contents {
-                MirrorContents::Bytes(bytes) => std::fs::write(&absolute, bytes)?,
-                MirrorContents::Link(target) => link_or_copy(target, &absolute)?,
-            }
+            let contents = match &file.contents {
+                MirrorContents::Bytes(bytes) => {
+                    write_atomic(&absolute, bytes)?;
+                    StagedContents::Bytes
+                }
+                MirrorContents::Link(source) => {
+                    match materialize_file(source, &absolute, LinkPolicy::LinkOrCopy)? {
+                        Mechanism::Linked => StagedContents::Linked,
+                        Mechanism::Copied => StagedContents::Copied,
+                    }
+                }
+            };
+            staged.push(StagedFile {
+                mirror_rel: file.mirror_rel.clone(),
+                contents,
+            });
         }
-        Ok(())
+        Ok(staged)
     }
 
     pub fn close(self) -> io::Result<()> {
@@ -158,32 +185,17 @@ fn ensure_no_symlink_prefix(root: &Path, path: &Path, rel: &Path) -> io::Result<
                 ));
             }
         }
-        match std::fs::symlink_metadata(&current) {
-            Ok(meta) if meta.file_type().is_symlink() => {
+        match classify(&current)? {
+            EntryKind::Link => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
                     format!("mirror path escapes scratch via symlink: {}", rel.display()),
                 ));
             }
-            Ok(_) => {}
-            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
-            Err(err) => return Err(err),
+            EntryKind::Missing | EntryKind::File | EntryKind::Directory => {}
         }
     }
     Ok(())
-}
-
-#[cfg(unix)]
-fn link_or_copy(target: &Path, link: &Path) -> io::Result<()> {
-    match std::os::unix::fs::symlink(target, link) {
-        Ok(()) => Ok(()),
-        Err(_) => std::fs::copy(target, link).map(|_| ()),
-    }
-}
-
-#[cfg(not(unix))]
-fn link_or_copy(target: &Path, link: &Path) -> io::Result<()> {
-    std::fs::copy(target, link).map(|_| ())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -322,7 +334,7 @@ mod tests {
         let scratch = Scratch::create(&parent).expect("scratch");
         let root = scratch.root().to_owned();
         assert!(root.is_dir());
-        scratch
+        let staged = scratch
             .materialize(&[
                 MirrorFile {
                     mirror_rel: PathBuf::from("src/main.rs"),
@@ -342,18 +354,34 @@ mod tests {
             std::fs::read(root.join("taplo.toml")).expect("closure entry"),
             b"config = true\n"
         );
+        let closure = staged
+            .iter()
+            .find(|file| file.mirror_rel == PathBuf::from("taplo.toml"))
+            .expect("staged closure entry");
+        let linked = std::fs::symlink_metadata(root.join("taplo.toml"))
+            .expect("metadata")
+            .file_type()
+            .is_symlink();
+        assert_eq!(
+            closure.contents,
+            if linked {
+                StagedContents::Linked
+            } else {
+                StagedContents::Copied
+            },
+            "the reported mechanism matches what the scratch tree holds"
+        );
+        assert_eq!(
+            staged[0],
+            StagedFile {
+                mirror_rel: PathBuf::from("src/main.rs"),
+                contents: StagedContents::Bytes,
+            }
+        );
         #[cfg(unix)]
         assert_eq!(
             std::fs::read_link(root.join("taplo.toml")).expect("symlink preferred on unix"),
             source,
-        );
-        #[cfg(not(unix))]
-        assert!(
-            !std::fs::symlink_metadata(root.join("taplo.toml"))
-                .expect("metadata")
-                .file_type()
-                .is_symlink(),
-            "non-unix closure entries copy instead of linking",
         );
         drop(scratch);
         assert!(!root.exists(), "scratch is removed on drop");
@@ -373,12 +401,17 @@ mod tests {
         let scratch = Scratch::create(&parent).expect("scratch");
         let dest = scratch.root().join("taplo.toml");
         std::fs::write(&dest, b"stale\n").expect("pre-existing link path");
-        scratch
+        let staged = scratch
             .materialize(&[MirrorFile {
                 mirror_rel: PathBuf::from("taplo.toml"),
                 contents: MirrorContents::Link(source),
             }])
             .expect("fallback copy");
+        assert_eq!(
+            staged[0].contents,
+            StagedContents::Copied,
+            "an occupied name cannot become a link, so the fallback copy reports itself"
+        );
         assert_eq!(
             std::fs::read(&dest).expect("copied entry"),
             b"config = true\n"
@@ -467,12 +500,7 @@ mod tests {
         std::fs::create_dir_all(&outside).expect("outside dir");
         let scratch = Scratch::create(&parent).expect("scratch");
         let root = scratch.root().to_owned();
-        scratch
-            .materialize(&[MirrorFile {
-                mirror_rel: PathBuf::from("evil"),
-                contents: MirrorContents::Link(outside.clone()),
-            }])
-            .expect("plant symlink dir");
+        std::os::unix::fs::symlink(&outside, root.join("evil")).expect("plant symlink dir");
         assert_eq!(
             std::fs::read_link(root.join("evil")).expect("symlink planted"),
             outside,
@@ -485,6 +513,29 @@ mod tests {
             .expect_err("symlink prefix must fail");
         assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
         assert!(!outside.join("pwned").exists(), "outside stays clean");
+        scratch.close().expect("close");
+        parent_tmp.close().expect("cleanup");
+    }
+
+    #[test]
+    fn materialize_rejects_a_directory_source() {
+        let parent_tmp = tempfile::Builder::new()
+            .prefix("dx-mirror-dir-")
+            .tempdir_in(std::env::temp_dir())
+            .expect("mirror dir parent");
+        let parent = parent_tmp.path().to_path_buf();
+        let outside = parent.join("outside");
+        std::fs::create_dir_all(outside.join("nested")).expect("outside dir");
+        let scratch = Scratch::create(&parent).expect("scratch");
+        let err = scratch
+            .materialize(&[MirrorFile {
+                mirror_rel: PathBuf::from("tree"),
+                contents: MirrorContents::Link(outside.clone()),
+            }])
+            .expect_err("mirror entries are immutable files, never trees");
+        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+        assert_eq!(classify(&outside).expect("outside"), EntryKind::Directory);
+        assert!(outside.join("nested").is_dir(), "the tree is untouched");
         scratch.close().expect("close");
         parent_tmp.close().expect("cleanup");
     }

@@ -1,0 +1,107 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality:__pkg__"])
+
+exports_files([
+    "clean.json",
+    "clean.toml",
+])
+
+quality_family(
+    name = "formatted_toml_family",
+    disabled = ["typecheck"],
+    family_id = "toml",
+    format = ["taplo"],
+    lint = ["taplo"],
+)
+
+workspace_policy(
+    name = "format_taplo_policy",
+    families = [":formatted_toml_family"],
+)
+
+quality_family(
+    name = "unformatted_toml_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "toml",
+    lint = ["taplo"],
+)
+
+workspace_policy(
+    name = "format_off_policy",
+    families = [":unformatted_toml_family"],
+)
+
+quality_family(
+    name = "unconfigured_toml_family",
+    family_id = "toml",
+    lint = ["taplo"],
+)
+
+workspace_policy(
+    name = "unconfigured_format_policy",
+    families = [":unconfigured_toml_family"],
+)
+
+quality_family(
+    name = "unwired_toml_family",
+    disabled = ["typecheck"],
+    family_id = "toml",
+    format = ["yamlfmt"],
+    lint = ["taplo"],
+)
+
+workspace_policy(
+    name = "unwired_tool_policy",
+    families = [":unwired_toml_family"],
+)
+
+quality_family(
+    name = "prettier_json_family",
+    disabled = ["typecheck"],
+    family_id = "json",
+    format = ["prettier"],
+    lint = ["biome"],
+)
+
+workspace_policy(
+    name = "json_prettier_policy",
+    families = [":prettier_json_family"],
+)
+
+quality_family(
+    name = "biome_json_family",
+    disabled = ["typecheck"],
+    family_id = "json",
+    format = ["biome"],
+    lint = ["biome"],
+)
+
+workspace_policy(
+    name = "json_biome_policy",
+    families = [":biome_json_family"],
+)
+
+real_source_target(
+    name = "clean_json",
+    aspect_hints = ["//:biome_config"],
+    json_srcs = ["clean.json"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "clean_toml",
+    tags = ["corpus"],
+    toml_srcs = ["clean.toml"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

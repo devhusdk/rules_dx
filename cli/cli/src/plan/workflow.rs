@@ -1,6 +1,6 @@
 use dx_process::{build_workflow_argv, describe_scope, ForwardError, ProtectedFlag};
 
-use super::{workflow_scope_labels, workspace_flag, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG};
+use super::{workflow_scope_labels, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG};
 use crate::resolve::ResolvedScope;
 
 pub use crate::args::WorkflowVerb;
@@ -14,7 +14,7 @@ pub fn workflow_options(
     bep_path: Option<&str>,
     profile: Option<crate::args::Profile>,
 ) -> Vec<String> {
-    let mut required = vec![workspace_flag()];
+    let mut required = Vec::new();
     if let Some(profile) = profile {
         required.push(profile.config_flag());
     }
@@ -34,11 +34,7 @@ pub fn workflow_protected(
     verb: WorkflowVerb,
     profile: Option<crate::args::Profile>,
 ) -> Vec<ProtectedFlag> {
-    let mut protected = vec![ProtectedFlag {
-        name: "@rules_dx//config:workspace".to_owned(),
-        required: None,
-        allowed: Vec::new(),
-    }];
+    let mut protected = Vec::new();
     if let Some(profile) = profile {
         protected.push(ProtectedFlag {
             name: "config".to_owned(),
@@ -127,17 +123,16 @@ mod tests {
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(
-            argv[..6],
+            argv[..5],
             [
                 "bazel",
                 "--nohome_rc",
                 "--nosystem_rc",
                 "test",
-                "--@rules_dx//config:workspace=//dx:config",
                 "--config=dx_dev",
             ]
         );
-        assert_eq!(argv[6..], ["--remote_download_outputs=all", "//..."]);
+        assert_eq!(argv[5..], ["--remote_download_outputs=all", "//..."]);
     }
 
     #[test]
@@ -242,15 +237,8 @@ mod tests {
             .expect("plan");
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
-                argv[..6],
-                [
-                    "bazel",
-                    "--nohome_rc",
-                    "--nosystem_rc",
-                    "build",
-                    "--@rules_dx//config:workspace=//dx:config",
-                    flag,
-                ],
+                argv[..5],
+                ["bazel", "--nohome_rc", "--nosystem_rc", "build", flag,],
                 "{profile:?}: {plan:?}"
             );
         }

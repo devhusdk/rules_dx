@@ -63,6 +63,14 @@ def policy_unit_tests(name):
     )
 
 EXPECTED_POLICY_OBSERVATIONS = """subject //quality:policy_under_test
+field disabled.python.audit=False
+field disabled.python.format=False
+field disabled.python.lint=False
+field disabled.python.typecheck=False
+field disabled.rust.audit=False
+field disabled.rust.format=False
+field disabled.rust.lint=False
+field disabled.rust.typecheck=False
 field family.python.audit=
 field family.python.format=
 field family.python.lint=lint-a
@@ -72,7 +80,7 @@ field family.rust.format=fmt-a
 field family.rust.lint=lint-a,lint-b
 field family.rust.typecheck=
 aspect_field aspect_seen=True
-aspect_field field_count=8
+aspect_field field_count=16
 aspect_field has_subject=True
 aspect_field subject_label=//quality:policy_under_test
 aspect_field transitive_count=0"""

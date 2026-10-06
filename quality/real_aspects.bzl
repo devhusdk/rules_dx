@@ -12,7 +12,7 @@ load("//quality:execution_requirements.bzl", "dx_execution_requirements")
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "resolve_pipeline", "stage_flag")
-load("//quality:policy.bzl", "QualityPolicyInfo")
+load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
@@ -57,15 +57,40 @@ _RUST_TYPECHECK_TOOLS = _shard_tools("rust", "typecheck")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 
+_WIRED_TOOLS = {
+    "format": sorted(set(_CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS)),
+    "lint": sorted(set(_CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS)),
+    "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
+}
+
+def real_policy_error(policy, capability, what):
+    """Validates the selected workspace policy for one real capability."""
+    for family_id in sorted(policy.families.keys()):
+        section = policy.families[family_id]
+        error = family_section_error(
+            family_id,
+            capability,
+            getattr(section, capability),
+            section.disabled,
+            _WIRED_TOOLS[capability],
+        )
+        if error != "":
+            return what + ": " + error
+    return ""
+
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
+    what = "real_aspect (" + str(target.label) + ")"
+    policy = ctx.attr._policy[QualityPolicyInfo]
+    policy_error = real_policy_error(policy, capability, what)
+    if policy_error != "":
+        fail(policy_error)
     if QualitySourcesInfo not in target:
         return []
     if aspect_capability_blocked(ctx.rule.attr, capability):
         return []
     info = target[QualitySourcesInfo]
-    policy = ctx.attr._policy[QualityPolicyInfo]
 
-    (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(info.direct_sources, "real_aspect (" + str(target.label) + ")")
+    (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(info.direct_sources, what)
     selections = aspect_family_selections(policy, capability)
     resolved = resolve_pipeline(
         target_classes,
@@ -78,7 +103,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if len(resolved) == 0:
         err = deferred_pipeline_error(target_classes, capability)
         if err != "":
-            fail("real_aspect (" + str(target.label) + "): " + err)
+            fail(what + ": " + err)
         return []
     resolved = filter_pipeline_by_tools(resolved, allowed_tools)
     if len(resolved) == 0:
@@ -112,7 +137,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
         if not has_rust_toolchain:
-            fail("real_aspect (" + str(target.label) + "): rustfmt needs the Rust family aspect")
+            fail(what + ": rustfmt needs the Rust family aspect")
         if _rust_common.crate_info in target:
             rustfmt_edition = target[_rust_common.crate_info].edition
         elif _rust_common.test_crate_info in target:
@@ -128,7 +153,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     clippy_diagnostics = []
     if "clippy" in [stage["tool"] for stage in resolved]:
         if not has_rust_toolchain:
-            fail("real_aspect (" + str(target.label) + "): clippy needs the Rust family aspect")
+            fail(what + ": clippy needs the Rust family aspect")
         if OutputGroupInfo in target and "clippy_output" in target[OutputGroupInfo]:
             clippy_diagnostics = target[OutputGroupInfo]["clippy_output"].to_list()
     clippy_delegated = len(clippy_diagnostics) > 0
@@ -136,7 +161,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     rustc_diagnostics = []
     if "rustc" in [stage["tool"] for stage in resolved]:
         if not has_rust_toolchain:
-            fail("real_aspect (" + str(target.label) + "): rustc needs the Rust family aspect")
+            fail(what + ": rustc needs the Rust family aspect")
         if OutputGroupInfo in target and "rustc_output" in target[OutputGroupInfo]:
             rustc_diagnostics = target[OutputGroupInfo]["rustc_output"].to_list()
     rustc_delegated = len(rustc_diagnostics) > 0
@@ -147,7 +172,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if DxNativeConfigInfo in hint_target:
                 hints.append(hint_target[DxNativeConfigInfo])
             else:
-                fail("real_aspect (" + str(target.label) + "): aspect_hints must provide DxNativeConfigInfo")
+                fail(what + ": aspect_hints must provide DxNativeConfigInfo")
     stage_tools = [stage["tool"] for stage in resolved]
     configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label))
 
@@ -219,11 +244,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 sibling_files = [sibling]
             for f in sibling_files:
                 if ".." in f.short_path.split("/"):
-                    fail("real_aspect (" + str(target.label) + "): sibling path escapes workspace: '" + f.short_path + "'")
+                    fail(what + ": sibling path escapes workspace: '" + f.short_path + "'")
                 if f.short_path in path_to_file:
-                    fail("real_aspect (" + str(target.label) + "): sibling '" + f.short_path + "' shadows a checked source; siblings must not shadow sources")
+                    fail(what + ": sibling '" + f.short_path + "' shadows a checked source; siblings must not shadow sources")
                 if f.short_path in sibling_pairs:
-                    fail("real_aspect (" + str(target.label) + "): duplicate sibling '" + f.short_path + "'; siblings must be unique")
+                    fail(what + ": duplicate sibling '" + f.short_path + "'; siblings must be unique")
                 sibling_pairs[f.short_path] = f
 
     args = ctx.actions.args()
@@ -379,7 +404,7 @@ def real_allowed_tools_error():
 
 _REAL_BASE_ATTRS = {
     "_policy": attr.label(
-        default = "//quality:real_fixture_policy",
+        default = "//config:workspace",
         providers = [QualityPolicyInfo],
     ),
     "_runner": attr.label(

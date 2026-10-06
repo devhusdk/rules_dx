@@ -1,5 +1,6 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+load(":consumer_policy_tests.bzl", "consumer_policy_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
@@ -74,7 +75,7 @@ workspace_policy(
 )
 
 quality_family(
-    name = "real_rust_family",
+    name = "default_rust_family",
     family_id = "rust",
     format = ["rustfmt"],
     lint = ["clippy"],
@@ -82,21 +83,27 @@ quality_family(
 )
 
 quality_family(
-    name = "real_starlark_family",
+    name = "default_starlark_family",
+    disabled = ["typecheck"],
     family_id = "starlark",
     format = ["buildifier"],
     lint = ["buildifier"],
 )
 
 quality_family(
-    name = "real_toml_family",
+    name = "default_toml_family",
+    disabled = ["typecheck"],
     family_id = "toml",
     format = ["taplo"],
     lint = ["taplo"],
 )
 
 quality_family(
-    name = "real_markdown_family",
+    name = "default_markdown_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
     family_id = "markdown",
     lint = [
         "markdown_check",
@@ -105,7 +112,7 @@ quality_family(
 )
 
 quality_family(
-    name = "real_python_family",
+    name = "default_python_family",
     family_id = "python",
     format = ["ruff"],
     lint = [
@@ -116,29 +123,32 @@ quality_family(
 )
 
 quality_family(
-    name = "real_javascript_family",
+    name = "default_javascript_family",
+    disabled = ["typecheck"],
     family_id = "javascript",
     format = ["biome"],
     lint = ["biome"],
 )
 
 quality_family(
-    name = "real_json_family",
+    name = "default_json_family",
+    disabled = ["typecheck"],
     family_id = "json",
     format = ["prettier"],
     lint = ["biome"],
 )
 
 quality_family(
-    name = "real_typescript_family",
+    name = "default_typescript_family",
+    disabled = ["typecheck"],
     family_id = "typescript",
     format = ["biome"],
     lint = ["biome"],
-    typecheck = ["tsc"],
 )
 
 quality_family(
-    name = "real_java_family",
+    name = "default_java_family",
+    disabled = ["typecheck"],
     family_id = "java",
     format = ["google_java_format"],
     lint = [
@@ -149,25 +159,26 @@ quality_family(
 )
 
 quality_family(
-    name = "real_kotlin_family",
+    name = "default_kotlin_family",
+    disabled = ["typecheck"],
     family_id = "kotlin",
     format = ["ktfmt"],
     lint = ["ktlint"],
 )
 
 workspace_policy(
-    name = "real_fixture_policy",
+    name = "default_workspace_policy",
     families = [
-        ":real_java_family",
-        ":real_javascript_family",
-        ":real_kotlin_family",
-        ":real_json_family",
-        ":real_markdown_family",
-        ":real_python_family",
-        ":real_rust_family",
-        ":real_starlark_family",
-        ":real_toml_family",
-        ":real_typescript_family",
+        ":default_java_family",
+        ":default_javascript_family",
+        ":default_kotlin_family",
+        ":default_json_family",
+        ":default_markdown_family",
+        ":default_python_family",
+        ":default_rust_family",
+        ":default_starlark_family",
+        ":default_toml_family",
+        ":default_typescript_family",
     ],
 )
 
@@ -196,6 +207,47 @@ native_config_unit_tests(name = "native_config_unit")
 
 policy_analysis_tests(name = "policy_analysis")
 
+consumer_policy_tests(
+    name = "consumer_policy",
+    cases = [
+        {
+            "case": "toml_formatted",
+            "expected_dx_results": [
+                "clean_toml-real-format.pb",
+                "clean_toml-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:format_taplo_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_toml",
+        },
+        {
+            "case": "toml_format_off",
+            "expected_dx_results": [
+                "clean_toml-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:format_off_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_toml",
+        },
+        {
+            "case": "json_prettier",
+            "expected_dx_results": [
+                "clean_json-real-format-js.pb",
+                "clean_json-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:json_prettier_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_json",
+        },
+        {
+            "case": "json_biome",
+            "expected_dx_results": [
+                "clean_json-real-format.pb",
+                "clean_json-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:json_biome_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_json",
+        },
+    ],
+)
+
 sources_registry_tests(name = "sources_registry")
 
 fixtures_unit_tests(name = "fixtures_unit")
@@ -203,6 +255,10 @@ fixtures_unit_tests(name = "fixtures_unit")
 test_suite(
     name = "all",
     tests = [
+        ":consumer_policy_json_biome_test",
+        ":consumer_policy_json_prettier_test",
+        ":consumer_policy_toml_format_off_test",
+        ":consumer_policy_toml_formatted_test",
         ":curated_defaults_unit",
         ":execution_requirements_unit",
         ":fixtures_unit",
@@ -238,6 +294,7 @@ real_source_target(
         "applicability.bzl",
         "aspect_subject.bzl",
         "aspects.bzl",
+        "consumer_policy_tests.bzl",
         "curated_defaults.bzl",
         "curated_defaults_tests.bzl",
         "execution_requirements.bzl",

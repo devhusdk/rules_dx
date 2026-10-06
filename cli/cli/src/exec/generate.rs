@@ -530,11 +530,7 @@ mod tests {
         assert!(err.contains("no standard report exists"), "{err}");
 
         let harness = Harness::new("generate-conflict");
-        let (code, _, err) = harness.run(&[
-            "generate",
-            "--",
-            "--@rules_dx//config:workspace=//other:config",
-        ]);
+        let (code, _, err) = harness.run(&["generate", "--", "--home_rc"]);
         assert_eq!(code, 2, "{err}");
     }
 

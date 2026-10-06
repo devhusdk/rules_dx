@@ -5,7 +5,7 @@ use dx_output::{
     command_finished, command_started, error_event, operation_event, write_event, FinishedCounts,
     OutputMode,
 };
-use dx_process::{build_workflow_argv, ProtectedFlag};
+use dx_process::build_workflow_argv;
 
 const DOCS_CHECK_TARGET: &str = "//docs/site:user_site_aggregate";
 const DOCS_BUILD_TARGET: &str = "//docs/site:user_site";
@@ -70,17 +70,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         format!("Running docs build for {scope_text} (extract+aggregate+render)")
     };
-    let argv = match build_workflow_argv(
-        "build",
-        &invocation.bazel_options,
-        &[crate::plan::workspace_flag()],
-        &[ProtectedFlag {
-            name: "@rules_dx//config:workspace".to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        }],
-        &labels,
-    ) {
+    let argv = match build_workflow_argv("build", &invocation.bazel_options, &[], &[], &labels) {
         Ok(argv) => argv,
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
@@ -324,7 +314,6 @@ mod tests {
     #[test]
     fn docs_conflicting_and_startup_options_are_pre_exec() {
         for words in [
-            vec!["docs", "--", "--@rules_dx//config:workspace=//other:config"],
             vec!["docs", "--", "--home_rc"],
             vec!["docs", "--", "--test_arg=foo"],
         ] {

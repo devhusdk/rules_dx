@@ -28,12 +28,6 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-filegroup(
-    name = "config",
-    srcs = [],
-    visibility = ["//visibility:public"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

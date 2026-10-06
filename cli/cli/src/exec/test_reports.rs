@@ -1,6 +1,6 @@
 use super::common::*;
 use crate::args::Invocation;
-use crate::plan::{workspace_flag, WorkflowVerb};
+use crate::plan::WorkflowVerb;
 use crate::reports::{
     coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
     JunitCase, PlannedReport,
@@ -75,7 +75,6 @@ fn output_locations(
     let mut argv = vec![launcher_argv0().to_owned()];
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
     argv.push("info".to_owned());
-    argv.push(workspace_flag());
     if verb != WorkflowVerb::Coverage {
         argv.push(invocation.profile().config_flag());
     }
@@ -1346,7 +1345,6 @@ mod tests {
         assert!(argv.contains(&"info".to_owned()), "{argv:?}");
         assert!(argv.contains(&"bazel-testlogs".to_owned()), "{argv:?}");
         assert!(argv.contains(&"execution_root".to_owned()), "{argv:?}");
-        assert!(argv.contains(&crate::plan::workspace_flag()), "{argv:?}");
         assert!(
             argv.contains(&"--config=dx_dev".to_owned()),
             "the test profile reaches info: {argv:?}"

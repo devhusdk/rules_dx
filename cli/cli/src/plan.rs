@@ -19,12 +19,6 @@ pub use run_deploy::{plan_deploy_build, plan_deploy_run, plan_run, plan_run_targ
 pub use run_temp::{bep_path, create_run_temp_dir, intended_path, run_nonce};
 pub use workflow::{plan_workflow, workflow_options, workflow_protected, WorkflowVerb};
 
-pub const WORKSPACE_POLICY_LABEL: &str = "//dx:config";
-
-pub fn workspace_flag() -> String {
-    format!("--@rules_dx//config:workspace={WORKSPACE_POLICY_LABEL}")
-}
-
 pub const VALIDATE_FLAG: &str = "--@rules_dx//config:validate=false";
 
 pub const CLIPPY_DIAGNOSTICS_FLAG: &str =
@@ -45,18 +39,4 @@ pub const BEP_FLAG_NAME: &str = "build_event_json_file";
 pub struct BuildPlan {
     pub argv: Vec<String>,
     pub summary: String,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn workspace_policy_matches_committed_default() {
-        assert_eq!(WORKSPACE_POLICY_LABEL, "//dx:config");
-        assert_eq!(
-            workspace_flag(),
-            "--@rules_dx//config:workspace=//dx:config"
-        );
-    }
 }

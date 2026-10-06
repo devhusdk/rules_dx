@@ -93,6 +93,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude scala/tests/fixtures/scalafix
 # gazelle:exclude rust/tests/fixtures/cargo_metadata
 # gazelle:exclude quality/tests/fixtures/strict_preset
+# gazelle:exclude quality/tests/fixtures/consumer_policy
 
 package(default_visibility = ["//:__subpackages__"])
 

@@ -14,7 +14,7 @@ pub mod host;
 pub mod runfiles;
 pub mod spelling;
 
-pub use runfiles::{manifest_beside, manifest_for};
+pub use runfiles::{manifest_beside, manifest_for, Resolver};
 pub use spelling::spell;
 pub use spelling::{manifest, msys, native, posix, uri, Spelling};
 

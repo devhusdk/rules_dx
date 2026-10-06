@@ -45,10 +45,7 @@ rust_binary(
     deps = crate_deps(
         [],
         package_name = "quality/tools/javascript/dx_js_launcher",
-    ) + [
-        ":dx_js_launcher",
-        "//cli/path:dx_path",
-    ],
+    ) + [":dx_js_launcher"],
 )
 
 rust_binary(
@@ -75,6 +72,14 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_js_launcher",
+    data = [
+        ":js_entry_point",
+        ":js_launcher",
+    ],
+    env = {
+        "DX_JS_ENTRY_POINT": "$(rootpath :js_entry_point)",
+        "DX_JS_LAUNCHER": "$(rootpath :js_launcher)",
+    },
     deps = crate_deps(
         [],
         package_name = "quality/tools/javascript/dx_js_launcher",

@@ -20,6 +20,7 @@ dx_rust_crate(
         "src/runfiles.rs",
         "src/spelling.rs",
     ],
+    extra_deps = ["@rules_rust//rust/runfiles"],
     deps = [],
 )
 

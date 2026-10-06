@@ -48,15 +48,15 @@ pub enum Error {
 }
 
 fn check_path(producer: &str, path: &str) -> Result<(), Error> {
-    let reason = match dx_path::classify(path) {
-        None => None,
-        Some(dx_path::PathProblem::Empty) => Some("must be a non-empty workspace-relative path"),
-        Some(dx_path::PathProblem::Absolute) => Some("must not be absolute"),
-        Some(dx_path::PathProblem::Backslash) => Some("must not contain '\\'"),
-        Some(dx_path::PathProblem::EmptyComponent) => None,
-        Some(dx_path::PathProblem::Dot) | Some(dx_path::PathProblem::DotDot) => {
+    let reason = match dx_path::WorkspaceRelativePath::new(path) {
+        Err(dx_path::PathProblem::Empty) => Some("must be a non-empty workspace-relative path"),
+        Err(dx_path::PathProblem::Absolute) => Some("must not be absolute"),
+        Err(dx_path::PathProblem::Backslash) => Some("must not contain '\\'"),
+        Err(dx_path::PathProblem::Dot | dx_path::PathProblem::DotDot) => {
             Some("must not contain '.' or '..' segments")
         }
+        Err(dx_path::PathProblem::ControlCharacter) => Some("must not contain a control character"),
+        Err(dx_path::PathProblem::EmptyComponent) | Ok(_) => None,
     };
     match reason {
         Some(reason) => Err(Error::BadPath {
@@ -299,6 +299,8 @@ mod tests {
             "src\\a.rs",
             "src/./a.rs",
             "src/../a.rs",
+            "src/\u{0}/a.rs",
+            "src//./a.rs",
         ] {
             let mut shard = sample();
             shard.entries[0].logical_path = path.into();
@@ -333,9 +335,12 @@ mod tests {
             ("", "must be a non-empty workspace-relative path"),
             ("/src/a.rs", "must not be absolute"),
             ("C:/src/a.rs", "must not be absolute"),
+            ("C:src/a.rs", "must not be absolute"),
             ("src\\a.rs", "must not contain '\\'"),
             ("src/./a.rs", "must not contain '.' or '..' segments"),
             ("src/../a.rs", "must not contain '.' or '..' segments"),
+            ("src//./a.rs", "must not contain '.' or '..' segments"),
+            ("src/\u{0}/a.rs", "must not contain a control character"),
         ] {
             let mut shard = sample();
             shard.entries[0].logical_path = path.into();

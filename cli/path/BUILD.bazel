@@ -10,6 +10,7 @@ exports_files([
     "src/runfiles.rs",
     "src/spelling.rs",
     "src/uri.rs",
+    "src/workspace.rs",
 ])
 
 dx_rust_crate(
@@ -21,6 +22,7 @@ dx_rust_crate(
         "src/runfiles.rs",
         "src/spelling.rs",
         "src/uri.rs",
+        "src/workspace.rs",
     ],
     dev_deps = ["tempfile"],
     extra_deps = ["@rules_rust//rust/runfiles"],

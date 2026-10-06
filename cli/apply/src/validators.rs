@@ -47,6 +47,7 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
         Some(dx_path::PathProblem::Absolute) => return Err(ValidationError::AbsolutePath),
         Some(dx_path::PathProblem::Backslash)
         | Some(dx_path::PathProblem::EmptyComponent)
+        | Some(dx_path::PathProblem::ControlCharacter)
         | Some(dx_path::PathProblem::Dot) => return Err(ValidationError::MalformedPath),
         Some(dx_path::PathProblem::DotDot) => return Err(ValidationError::EscapesWorkspace),
     }

@@ -99,6 +99,9 @@ fn check_exec_path(producer: &str, path: &str) -> Result<(), Error> {
         Some(dx_path::PathProblem::Empty) => None,
         Some(dx_path::PathProblem::Absolute) => Some("must not be absolute"),
         Some(dx_path::PathProblem::Backslash) => Some("must not contain '\\'"),
+        Some(dx_path::PathProblem::ControlCharacter) => {
+            Some("must not contain a control character")
+        }
         Some(dx_path::PathProblem::EmptyComponent) => None,
         Some(dx_path::PathProblem::Dot) | Some(dx_path::PathProblem::DotDot) => {
             Some("must not contain '.' or '..' segments")

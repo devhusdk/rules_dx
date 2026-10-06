@@ -1,0 +1,56 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+rust_test(
+    name = "driver_policy_test",
+    size = "small",
+    srcs = ["driver_policy.rs"],
+    aliases = aliases(
+        package_name = "cc/cc_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "driver_policy_test",
+    crate_root = "driver_policy.rs",
+    data = [
+        "//cc/tests/fixtures/copts:cxx23.cc",
+        "//cc/tests/fixtures/copts:cxx23.h",
+        "//cc/tests/fixtures/copts:strict.c",
+        "//cc/tests/fixtures/copts:strict.h",
+        "//cc/tests/fixtures/warnings:warn.c",
+        "@llvm//tools:clang",
+        "@llvm//tools:clang++",
+        "@llvm//tools:clang-cl",
+    ],
+    edition = "2021",
+    env = {
+        "DX_CLANG": "$(rootpath @llvm//tools:clang)",
+        "DX_CLANGCL": "$(rootpath @llvm//tools:clang-cl)",
+        "DX_CLANGXX": "$(rootpath @llvm//tools:clang++)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = crate_deps(
+        [],
+        package_name = "cc/cc_tests",
+    ),
+)
+
+rustfmt_test(
+    name = "driver_policy_fmt_test",
+    size = "small",
+    targets = [":driver_policy_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

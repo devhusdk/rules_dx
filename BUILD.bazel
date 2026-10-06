@@ -313,3 +313,6 @@ buildifier_config(
     visibility = ["//:__subpackages__"],
 )
 # gazelle:exclude cc/tests/fixtures/compilation_db
+# gazelle:exclude cc/tests/fixtures/copts
+# gazelle:exclude cc/tests/fixtures/warnings
+# gazelle:exclude cc/tests

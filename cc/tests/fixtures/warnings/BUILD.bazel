@@ -1,0 +1,42 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+config_setting(
+    name = "select_macos",
+    constraint_values = ["@platforms//os:macos"],
+)
+
+cc_library(
+    name = "warn_c",
+    srcs = ["warn.c"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "warn_existing_werror",
+    srcs = ["warn_existing_werror.cc"],
+    copts = select({
+        ":select_macos": [
+            "-std=c++23",
+            "-Werror",
+        ],
+        "//conditions:default": [
+            "-std=c++23",
+            "-Werror",
+        ],
+    }),
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

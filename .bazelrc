@@ -11,6 +11,8 @@ build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 build --javacopt=-Werror
 build --javacopt=-Xlint:all
 
+build --features=treat_warnings_as_errors
+
 build --test_env=PYTHONWARNINGS=error
 
 build --java_runtime_version=remotejdk_21

@@ -109,7 +109,16 @@ fn json_report_write_failure_emits_error() {
         "--report=sarif=nodir/out.sarif",
     ]);
     assert_eq!(code, 1);
-    assert!(err.contains("dx: report_failed: failed to write sarif report to nodir/out.sarif"));
+    let destination = harness.workspace.join("nodir/out.sarif");
+    assert!(
+        err.contains(&format!(
+            "dx: report_failed: failed to write sarif report to {}: parent directory {} does not exist",
+            destination.display(),
+            harness.workspace.join("nodir").display()
+        )),
+        "{err}"
+    );
+    assert!(!harness.workspace.join("nodir").exists());
     let events = json_events(&out);
     assert_eq!(
         event(&events, "error")["code"],

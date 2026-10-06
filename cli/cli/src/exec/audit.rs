@@ -920,6 +920,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let planned_reports = match plan_reports(
         invocation.command,
         &invocation.reports,
+        workspace,
         &invocation.output,
         invocation.dry_run,
     ) {
@@ -1041,18 +1042,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     continue;
                 }
             };
-            let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) = write_report_document(out, planned, &document) {
                 reports_ok = false;
-                report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!(
-                        "failed to write sarif report to {}",
-                        planned.destination.display()
-                    ),
-                );
+                report_failed(out, err, invocation.output, &error.to_string());
                 continue;
             }
             if invocation.output == OutputMode::Json {
@@ -1074,18 +1066,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 dx_audit::spdx::document_namespace(&effective, &spdx_packages, &contains);
             let document =
                 dx_audit::spdx::render_spdx(&effective, &spdx_packages, &contains, &namespace);
-            let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) = write_report_document(out, planned, &document) {
                 reports_ok = false;
-                report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!(
-                        "failed to write spdx report to {}",
-                        planned.destination.display()
-                    ),
-                );
+                report_failed(out, err, invocation.output, &error.to_string());
                 continue;
             }
             if invocation.output == OutputMode::Json {

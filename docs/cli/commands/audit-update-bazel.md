@@ -175,6 +175,8 @@ the `set` ecosystem.
 Output: `--output text|json`. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+`dx license` refuses two reports that resolve to one file. See
+[Report Destinations](README.md#report-destinations).
 
 ```sh
 bazel run @rules_dx//:dx -- security //...

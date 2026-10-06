@@ -27,6 +27,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let planned_reports = match plan_reports(
         invocation.command,
         &invocation.reports,
+        workspace,
         &invocation.output,
         invocation.dry_run,
     ) {

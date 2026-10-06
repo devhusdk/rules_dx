@@ -1,4 +1,6 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsString;
+use std::path::{Component, Path, PathBuf};
 
 use super::ReportError;
 use crate::args::{Command, ReportRequest};
@@ -38,17 +40,46 @@ pub fn format_names(formats: &[StandardFormat]) -> Vec<&'static str> {
     formats.iter().map(|format| format.name()).collect()
 }
 
+/// One report destination as requested and as resolved on disk.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReportPath {
+    requested: String,
+    resolved: PathBuf,
+}
+
+impl ReportPath {
+    pub fn requested(&self) -> &str {
+        &self.requested
+    }
+
+    pub fn resolved(&self) -> &Path {
+        &self.resolved
+    }
+}
+
+impl Ord for ReportPath {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.requested.cmp(&other.requested)
+    }
+}
+
+impl PartialOrd for ReportPath {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Destination {
     Stdout,
-    File(String),
+    File(ReportPath),
 }
 
 impl Destination {
     pub fn display(&self) -> &str {
         match self {
             Destination::Stdout => "-",
-            Destination::File(path) => path,
+            Destination::File(path) => path.requested(),
         }
     }
 }
@@ -57,6 +88,84 @@ impl Destination {
 pub struct PlannedReport {
     pub format: StandardFormat,
     pub destination: Destination,
+}
+
+impl PlannedReport {
+    /// The absolute file one report writes to, or `None` when it goes to stdout.
+    pub fn resolved_path(&self) -> Option<&Path> {
+        match &self.destination {
+            Destination::Stdout => None,
+            Destination::File(path) => Some(path.resolved()),
+        }
+    }
+}
+
+/// Drops `.` and folds `..` without asking the filesystem.
+fn normalize(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                let folds = out
+                    .components()
+                    .next_back()
+                    .is_some_and(|last| matches!(last, Component::Normal(_)))
+                    && out.pop();
+                if !folds {
+                    out.push(Component::ParentDir);
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Anchors one destination at the workspace root unless it is already absolute.
+pub fn resolve_report_path(workspace: &Path, requested: &str) -> ReportPath {
+    let raw = Path::new(requested);
+    let anchored = if raw.is_absolute() {
+        raw.to_path_buf()
+    } else {
+        workspace.join(raw)
+    };
+    ReportPath {
+        requested: requested.to_owned(),
+        resolved: normalize(&anchored),
+    }
+}
+
+/// Canonicalizes the longest existing prefix so aliases of one file share an identity.
+fn existing_prefix(path: &Path) -> PathBuf {
+    let mut head = path.to_path_buf();
+    let mut tail: Vec<OsString> = Vec::new();
+    loop {
+        if let Ok(real) = head.canonicalize() {
+            let mut joined = real;
+            for name in tail.iter().rev() {
+                joined.push(name);
+            }
+            return joined;
+        }
+        let Some(name) = head.file_name().map(OsString::from) else {
+            return path.to_path_buf();
+        };
+        tail.push(name);
+        if !head.pop() {
+            return path.to_path_buf();
+        }
+    }
+}
+
+/// The identity two report destinations may not share.
+fn collision_key(path: &Path) -> String {
+    let identity = existing_prefix(path).to_string_lossy().into_owned();
+    if cfg!(windows) {
+        identity.to_lowercase()
+    } else {
+        identity
+    }
 }
 
 fn stdout_conflict(error: OutputError) -> ReportError {
@@ -74,6 +183,7 @@ fn stdout_conflict(error: OutputError) -> ReportError {
 pub fn plan_reports(
     command: Command,
     requests: &[ReportRequest],
+    workspace: &Path,
     mode: &OutputMode,
     dry_run: bool,
 ) -> Result<Vec<PlannedReport>, ReportError> {
@@ -83,6 +193,7 @@ pub fn plan_reports(
     let entry = spec(command);
     let mut planned = Vec::with_capacity(requests.len());
     let mut seen = BTreeSet::new();
+    let mut claimed: BTreeMap<String, String> = BTreeMap::new();
     for request in requests {
         let format = StandardFormat::parse(&request.format).ok_or_else(|| {
             ReportError::UnsupportedFormat {
@@ -101,13 +212,24 @@ pub fn plan_reports(
         let destination = if request.destination == "-" {
             Destination::Stdout
         } else {
-            Destination::File(request.destination.clone())
+            Destination::File(resolve_report_path(workspace, &request.destination))
         };
         if !seen.insert((format, destination.clone())) {
             return Err(ReportError::DuplicateReport {
                 format: format.name().to_owned(),
                 destination: destination.display().to_owned(),
             });
+        }
+        if let Destination::File(path) = &destination {
+            let key = collision_key(path.resolved());
+            if let Some(first) = claimed.get(&key) {
+                return Err(ReportError::DestinationCollision {
+                    first: first.clone(),
+                    second: path.requested().to_owned(),
+                    resolved: path.resolved().display().to_string(),
+                });
+            }
+            claimed.insert(key, path.requested().to_owned());
         }
         planned.push(PlannedReport {
             format,
@@ -143,11 +265,68 @@ mod tests {
         OutputMode::Text { quiet: false }
     }
 
+    fn ws() -> &'static Path {
+        Path::new("/ws")
+    }
+
+    #[test]
+    fn destinations_resolve_against_the_workspace_root() {
+        for (requested, resolved) in [
+            ("out.sarif", "/ws/out.sarif"),
+            ("./out.sarif", "/ws/out.sarif"),
+            ("a//out.sarif", "/ws/a/out.sarif"),
+            ("a/../out.sarif", "/ws/out.sarif"),
+            ("../out.sarif", "/out.sarif"),
+            ("/elsewhere/out.sarif", "/elsewhere/out.sarif"),
+            ("/elsewhere/../out.sarif", "/out.sarif"),
+        ] {
+            let got = resolve_report_path(ws(), requested);
+            assert_eq!(got.requested(), requested);
+            assert_eq!(got.resolved(), Path::new(resolved), "{requested}");
+        }
+    }
+
+    #[test]
+    fn one_file_may_only_hold_one_report() {
+        for (pair, resolved) in [
+            ([("sarif", "out.dat"), ("spdx", "out.dat")], "/ws/out.dat"),
+            (
+                [("sarif", "out.sarif"), ("spdx", "./out.sarif")],
+                "/ws/out.sarif",
+            ),
+            (
+                [("sarif", "out.sarif"), ("spdx", "a/../out.sarif")],
+                "/ws/out.sarif",
+            ),
+            (
+                [("sarif", "/ws/out.sarif"), ("spdx", "out.sarif")],
+                "/ws/out.sarif",
+            ),
+        ] {
+            assert_eq!(
+                plan_reports(
+                    Command::License,
+                    &requests(&pair),
+                    ws(),
+                    &text_mode(),
+                    false
+                ),
+                Err(ReportError::DestinationCollision {
+                    first: pair[0].1.to_owned(),
+                    second: pair[1].1.to_owned(),
+                    resolved: resolved.to_owned(),
+                }),
+                "{pair:?}"
+            );
+        }
+    }
+
     #[test]
     fn file_reports_plan_in_destination_order() {
         let got = plan_reports(
             Command::Lint,
             &requests(&[("sarif", "b.sarif"), ("sarif", "a.sarif")]),
+            ws(),
             &text_mode(),
             false,
         )
@@ -165,6 +344,7 @@ mod tests {
         let got = plan_reports(
             Command::Typecheck,
             &requests(&[("sarif", "-")]),
+            ws(),
             &text_mode(),
             false,
         )
@@ -182,7 +362,13 @@ mod tests {
     fn stdout_report_conflicts_with_diff_and_json_modes() {
         for mode in [OutputMode::Diff, OutputMode::Json] {
             assert_eq!(
-                plan_reports(Command::Lint, &requests(&[("sarif", "-")]), &mode, false),
+                plan_reports(
+                    Command::Lint,
+                    &requests(&[("sarif", "-")]),
+                    ws(),
+                    &mode,
+                    false
+                ),
                 Err(ReportError::StdoutReportConflictsMode { mode: mode.name() })
             );
         }
@@ -190,6 +376,7 @@ mod tests {
             plan_reports(
                 Command::Lint,
                 &requests(&[("sarif", "-"), ("sarif", "second.sarif".into())]),
+                ws(),
                 &text_mode(),
                 false,
             ),
@@ -200,7 +387,7 @@ mod tests {
                 },
                 PlannedReport {
                     format: StandardFormat::Sarif,
-                    destination: Destination::File("second.sarif".to_owned()),
+                    destination: Destination::File(resolve_report_path(ws(), "second.sarif")),
                 },
             ])
         );
@@ -212,6 +399,7 @@ mod tests {
             plan_reports(
                 Command::Lint,
                 &requests(&[("sarif", "a.sarif"), ("sarif", "a.sarif")]),
+                ws(),
                 &text_mode(),
                 false,
             ),
@@ -224,6 +412,7 @@ mod tests {
             plan_reports(
                 Command::Lint,
                 &requests(&[("sarif", "-"), ("sarif", "-")]),
+                ws(),
                 &text_mode(),
                 false,
             ),
@@ -240,6 +429,7 @@ mod tests {
             plan_reports(
                 Command::Lint,
                 &requests(&[("sarif", "a.sarif")]),
+                ws(),
                 &text_mode(),
                 true,
             ),
@@ -249,6 +439,7 @@ mod tests {
             plan_reports(
                 Command::Lint,
                 &requests(&[("junit", "a.xml")]),
+                ws(),
                 &text_mode(),
                 false,
             ),
@@ -262,6 +453,7 @@ mod tests {
             plan_reports(
                 Command::Format,
                 &requests(&[("sarif", "a.sarif")]),
+                ws(),
                 &text_mode(),
                 false,
             ),
@@ -271,9 +463,11 @@ mod tests {
                 supported: vec![],
             })
         );
-        assert!(plan_reports(Command::Format, &[], &text_mode(), false)
-            .expect("plan")
-            .is_empty());
+        assert!(
+            plan_reports(Command::Format, &[], ws(), &text_mode(), false)
+                .expect("plan")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -309,6 +503,15 @@ mod tests {
             }
         )
         .contains("duplicate"));
+        assert!(format!(
+            "{}",
+            ReportError::DestinationCollision {
+                first: "out.sarif".to_owned(),
+                second: "./out.sarif".to_owned(),
+                resolved: "/ws/out.sarif".to_owned(),
+            }
+        )
+        .contains("/ws/out.sarif"));
         assert!(format!("{}", ReportError::MultipleStdoutReports).contains("stdout"));
         assert!(format!(
             "{}",
@@ -409,6 +612,7 @@ mod tests {
         let err = plan_reports(
             Command::Lint,
             &requests(&[("bogus", "a.xml")]),
+            ws(),
             &text_mode(),
             false,
         )
@@ -439,6 +643,7 @@ mod tests {
             plan_reports(
                 command,
                 &requests(&[(format, "out.dat")]),
+                ws(),
                 &text_mode(),
                 false,
             )
@@ -458,6 +663,7 @@ mod tests {
             let err = plan_reports(
                 command,
                 &requests(&[(format, "out.dat")]),
+                ws(),
                 &text_mode(),
                 false,
             )

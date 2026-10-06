@@ -22,7 +22,9 @@ Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
-for stdout. `dx build` has no report format.
+for stdout. `dx build` has no report format. Every destination is resolved
+against the workspace root unless absolute. See
+[Report Destinations](README.md#report-destinations).
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. Missing or invalid `test.xml`
@@ -79,7 +81,9 @@ Collects LCOV coverage over the scope. `--min-coverage` fails below that
 percent. Without it, coverage collects without enforcing.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
-combined LCOV. Repeat the flag for more files. Use `-` for stdout.
+combined LCOV. Repeat the flag for more files. Use `-` for stdout. Every
+destination is resolved against the workspace root unless absolute. See
+[Report Destinations](README.md#report-destinations).
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures or coverage below minimum. Bazel failures keep Bazel's code.

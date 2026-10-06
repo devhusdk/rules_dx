@@ -19,7 +19,10 @@ dx format [--here] [--check] [--fail-on info|warning|error] [scope...]
 - `--check`: report findings without writing files.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
-  Repeatable. `dx format` has no report format.
+  Repeatable. `dx format` has no report format. A relative destination resolves
+  against the workspace root, the parent directory must exist, and two reports
+  may not resolve to the same file. See
+  [Report Destinations](README.md#report-destinations).
 - `--output text|diff|json`: result shape.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above

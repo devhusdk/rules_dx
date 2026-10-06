@@ -34,6 +34,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     match plan_reports(
         invocation.command,
         &invocation.reports,
+        env.workspace,
         &invocation.output,
         invocation.dry_run,
     ) {

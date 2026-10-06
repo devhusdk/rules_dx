@@ -43,7 +43,8 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
   `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
-  Every other command rejects `--report`.
+  Every other command rejects `--report`. See
+  [Report Destinations](#report-destinations).
 - `--fail-on info|warning|error`: severity that fails. Default `warning`. Taken by
   `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
   Every other command rejects it.
@@ -65,6 +66,30 @@ Exit codes: `0` success, `2` usage error, `1` failed check.
 
 A usage error names the offending token, prints a `tip: a similar ...` line when
 a near match exists, then prints the usage line above.
+
+## Report Destinations
+
+Every `--report` destination is resolved once, before the command runs.
+
+- A relative destination resolves against the workspace root, never the current
+  directory. `--workspace DIR` moves that root.
+- An absolute destination is used as given, so a report can land outside the
+  workspace.
+- `.` is dropped, repeated separators collapse, and `..` folds. A `..` may
+  leave the workspace.
+- The parent directory must already exist. `dx` does not create it.
+- Two reports may not resolve to the same file, whatever their formats and
+  whatever they typed. `dx` rejects the invocation with exit `2` and writes
+  neither file. Two destinations that differ only in case are one file on
+  Windows and two files elsewhere.
+- An existing report is replaced atomically. A failed write keeps the previous
+  contents and exits `1` with the resolved path and the cause on stderr.
+- `-` writes the report to stdout. Only one report may use `-`, and `-` is
+  rejected by `--output diff` and `--output json`.
+
+```sh
+bazel run @rules_dx//:dx -- license --report=sarif=reports/sarif.json --report=spdx=reports/spdx.json
+```
 
 ## JSON Output
 

@@ -6,9 +6,14 @@ pub mod lcov;
 pub mod planning;
 pub mod sarif;
 
+use std::path::Path;
+
 pub use junit::{junit_infrastructure_case, parse_test_xml, render_junit, JunitCase, JunitMessage};
 pub use lcov::{coverage_line_rate, validate_lcov};
-pub use planning::{format_names, plan_reports, Destination, PlannedReport, StandardFormat};
+pub use planning::{
+    format_names, plan_reports, resolve_report_path, Destination, PlannedReport, ReportPath,
+    StandardFormat,
+};
 pub use sarif::{byte_to_line, render_sarif};
 
 fn unsupported_format_message(command: &str, format: &str, supported: &[&str]) -> String {
@@ -37,6 +42,14 @@ pub enum ReportError {
     },
     #[error("duplicate report {format:?} for destination {destination:?}")]
     DuplicateReport { format: String, destination: String },
+    #[error(
+        "report destinations {first:?} and {second:?} both resolve to {resolved:?}: give each report its own file"
+    )]
+    DestinationCollision {
+        first: String,
+        second: String,
+        resolved: String,
+    },
     #[error("more than one standard report targets stdout")]
     MultipleStdoutReports,
     #[error(
@@ -65,4 +78,40 @@ pub enum ReportError {
     Fingerprint(#[from] dx_fingerprint::FingerprintError),
     #[error("junit report serialization failed: {detail}")]
     JunitRender { detail: String },
+}
+
+/// Why one report document did not land at its resolved destination.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ReportWriteError {
+    #[error("failed to write {format} report to {destination}: {cause}")]
+    Write {
+        format: &'static str,
+        destination: String,
+        cause: ReportWriteCause,
+    },
+}
+
+/// The filesystem reason behind one failed report write.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ReportWriteCause {
+    #[error("parent directory {0} does not exist")]
+    MissingParent(String),
+    #[error("parent {0} is not a directory")]
+    ParentNotDirectory(String),
+    #[error("{0}")]
+    Io(String),
+}
+
+impl ReportWriteError {
+    pub fn new(
+        format: &'static str,
+        destination: &Path,
+        cause: ReportWriteCause,
+    ) -> ReportWriteError {
+        ReportWriteError::Write {
+            format,
+            destination: destination.display().to_string(),
+            cause,
+        }
+    }
 }

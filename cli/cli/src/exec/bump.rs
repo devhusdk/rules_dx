@@ -21,6 +21,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     match plan_reports(
         invocation.command,
         &invocation.reports,
+        workspace,
         &invocation.output,
         invocation.dry_run,
     ) {

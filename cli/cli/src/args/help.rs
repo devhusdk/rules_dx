@@ -160,6 +160,8 @@ fn render_env_help() -> String {
 
 const EXIT_CODES: &str = "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.";
 
+const REPORT_DESTINATIONS: &str = "Reports: a relative destination resolves against the workspace root, an absolute one is used as given, `..` may leave the workspace, the parent directory must already exist, and two reports may not resolve to the same file. An existing report is replaced.";
+
 pub(crate) fn per_command_flags(command: Command) -> &'static str {
     command.flags()
 }
@@ -295,6 +297,10 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out.push('\n');
     out.push_str(&output_line(command));
     out.push('\n');
+    if !crate::plan::spec(command).reports.is_empty() {
+        out.push_str(REPORT_DESTINATIONS);
+        out.push('\n');
+    }
     out.push_str(&rejected_line(command));
     out
 }

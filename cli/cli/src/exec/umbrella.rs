@@ -344,14 +344,16 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let phase_check = umbrella_check || invocation.check;
     let mode = if phase_check { "check" } else { "default" };
     let command = invocation.command.name();
-    if let Err(error) = plan_reports(
+    let planned_reports = match plan_reports(
         invocation.command,
         &invocation.reports,
+        workspace,
         &invocation.output,
         invocation.dry_run,
     ) {
-        return pre_exec(err, &error.to_string());
-    }
+        Ok(planned) => planned,
+        Err(error) => return pre_exec(err, &error.to_string()),
+    };
     for request in &invocation.reports {
         if request.destination == "-" {
             return pre_exec(
@@ -484,26 +486,18 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if stdout_exit.is_none() {
         let document = collector.document();
-        for request in &invocation.reports {
-            if !write_report_file(workspace, &request.destination, &document) {
+        for planned in &planned_reports {
+            if let Err(error) = write_report_file(planned, &document) {
                 reports_ok = false;
-                report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!(
-                        "failed to write {} report to {}",
-                        request.format, request.destination
-                    ),
-                );
+                report_failed(out, err, invocation.output, &error.to_string());
                 continue;
             }
             let announced = announce_report(
                 out,
                 err,
                 invocation.output,
-                &request.format,
-                &request.destination,
+                planned.format.name(),
+                planned.destination.display(),
                 complete,
                 &reasons,
             );

@@ -1,5 +1,5 @@
 use crate::args::Invocation;
-use crate::reports::Destination;
+use crate::reports::{Destination, PlannedReport, ReportWriteCause, ReportWriteError};
 use crate::resolve::QueryRunner;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
@@ -232,31 +232,73 @@ pub(crate) fn report_failed(
     }
 }
 
-/// Writes one report document to a path under the workspace and reports whether it landed.
-pub(crate) fn write_report_file(workspace: &Path, destination: &str, document: &str) -> bool {
-    let target = workspace.join(destination);
-    let parent_ok = target
+/// Writes one report document to its resolved destination and names why it failed.
+pub(crate) fn write_report_file(
+    report: &PlannedReport,
+    document: &str,
+) -> Result<(), ReportWriteError> {
+    let format = report.format.name();
+    let Some(path) = report.resolved_path() else {
+        return Err(ReportWriteError::new(
+            format,
+            Path::new(report.destination.display()),
+            ReportWriteCause::Io("stdout has no file destination".to_owned()),
+        ));
+    };
+    if let Some(parent) = path
         .parent()
-        .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-    parent_ok
-        && RealFileSystem
-            .write_atomic(&target, document.as_bytes())
-            .is_ok()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        match std::fs::symlink_metadata(parent) {
+            Ok(metadata) if metadata.is_dir() => {}
+            Ok(_) => {
+                return Err(ReportWriteError::new(
+                    format,
+                    path,
+                    ReportWriteCause::ParentNotDirectory(parent.display().to_string()),
+                ));
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                return Err(ReportWriteError::new(
+                    format,
+                    path,
+                    ReportWriteCause::MissingParent(parent.display().to_string()),
+                ));
+            }
+            Err(error) => {
+                return Err(ReportWriteError::new(
+                    format,
+                    path,
+                    ReportWriteCause::Io(error.to_string()),
+                ));
+            }
+        }
+    }
+    RealFileSystem
+        .write_atomic(path, document.as_bytes())
+        .map_err(|error| {
+            ReportWriteError::new(format, path, ReportWriteCause::Io(error.to_string()))
+        })
 }
 
-/// Writes one report document to its planned destination and reports whether it landed.
+/// Writes one report document to its planned destination and names why it failed.
 pub(crate) fn write_report_document(
     out: &mut dyn Write,
-    workspace: &Path,
-    destination: &Destination,
+    report: &PlannedReport,
     document: &str,
-) -> bool {
-    match destination {
+) -> Result<(), ReportWriteError> {
+    match &report.destination {
         Destination::Stdout => out
             .write_all(document.as_bytes())
             .and_then(|()| out.write_all(b"\n"))
-            .is_ok(),
-        Destination::File(path) => write_report_file(workspace, path, document),
+            .map_err(|error| {
+                ReportWriteError::new(
+                    report.format.name(),
+                    Path::new("-"),
+                    ReportWriteCause::Io(error.to_string()),
+                )
+            }),
+        Destination::File(_) => write_report_file(report, document),
     }
 }
 
@@ -342,6 +384,7 @@ pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::reports::StandardFormat;
     use dx_output::{Severity, Snapshot};
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -627,50 +670,107 @@ mod tests {
         assert_eq!(event["message"], "boom");
     }
 
+    fn planned(format: StandardFormat, requested: &str, workspace: &Path) -> PlannedReport {
+        PlannedReport {
+            format,
+            destination: Destination::File(crate::reports::resolve_report_path(
+                workspace, requested,
+            )),
+        }
+    }
+
     #[test]
     fn write_report_document_honours_the_destination() {
         let dir = tempfile::tempdir().expect("tempdir");
+        let file = planned(StandardFormat::Sarif, "out.sarif", dir.path());
+        let stdout = PlannedReport {
+            format: StandardFormat::Sarif,
+            destination: Destination::Stdout,
+        };
         let mut out = Vec::new();
-        assert!(write_report_document(
-            &mut out,
-            dir.path(),
-            &Destination::File("out.sarif".to_owned()),
-            "{}\n"
-        ));
+        assert!(write_report_document(&mut out, &file, "{}\n").is_ok());
         assert_eq!(
             std::fs::read_to_string(dir.path().join("out.sarif")).expect("report"),
             "{}\n"
         );
         assert!(out.is_empty());
 
-        assert!(write_report_document(
-            &mut out,
-            dir.path(),
-            &Destination::Stdout,
-            "{}"
-        ));
+        assert!(write_report_document(&mut out, &stdout, "{}").is_ok());
         assert_eq!(String::from_utf8(out).expect("utf8"), "{}\n");
 
-        assert!(!write_report_document(
-            &mut BrokenPipeWriter,
-            dir.path(),
-            &Destination::Stdout,
-            "{}\n"
-        ));
+        let error =
+            write_report_document(&mut BrokenPipeWriter, &stdout, "{}\n").expect_err("broken pipe");
+        assert_eq!(
+            error.to_string(),
+            "failed to write sarif report to -: broken pipe"
+        );
     }
 
     #[test]
-    fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
+    fn write_report_file_names_the_missing_parent_and_writes_nothing() {
         let dir = tempfile::tempdir().expect("tempdir");
-        assert!(!write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        let nested = planned(StandardFormat::Sarif, "nested/out.sarif", dir.path());
+        let error = write_report_file(&nested, "{}\n").expect_err("missing parent");
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "failed to write sarif report to {}: parent directory {} does not exist",
+                dir.path().join("nested/out.sarif").display(),
+                dir.path().join("nested").display()
+            )
+        );
         assert!(!dir.path().join("nested").exists());
         std::fs::create_dir(dir.path().join("nested")).expect("mkdir");
-        assert!(write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        assert!(write_report_file(&nested, "{}\n").is_ok());
         assert_eq!(
             std::fs::read_to_string(dir.path().join("nested/out.sarif")).expect("report"),
             "{}\n"
         );
-        assert!(!write_report_file(dir.path(), "nested", "{}\n"));
+    }
+
+    #[test]
+    fn write_report_file_replaces_an_existing_report() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let stale = dir.path().join("out.sarif");
+        std::fs::write(&stale, "stale\n").expect("seed");
+        let file = planned(StandardFormat::Sarif, "out.sarif", dir.path());
+        assert!(write_report_file(&file, "{}\n").is_ok());
+        assert_eq!(std::fs::read_to_string(&stale).expect("report"), "{}\n");
+        let entries: Vec<_> = std::fs::read_dir(dir.path())
+            .expect("list")
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        assert_eq!(
+            entries,
+            vec!["out.sarif".to_owned()],
+            "no staging file left"
+        );
+    }
+
+    #[test]
+    fn write_report_file_names_a_parent_that_is_not_a_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("nested"), b"file\n").expect("seed");
+        let nested = planned(StandardFormat::Sarif, "nested/out.sarif", dir.path());
+        let error = write_report_file(&nested, "{}\n").expect_err("not a directory");
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "failed to write sarif report to {}: parent {} is not a directory",
+                dir.path().join("nested/out.sarif").display(),
+                dir.path().join("nested").display()
+            )
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("nested")).expect("seed survives"),
+            "file\n"
+        );
     }
 
     #[test]

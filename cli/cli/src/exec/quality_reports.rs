@@ -80,20 +80,9 @@ pub(crate) fn write_standard_reports(
         };
         match document {
             Ok(document) => {
-                let written =
-                    write_report_document(out, workspace, &planned.destination, &document);
-                if !written {
+                if let Err(error) = write_report_document(out, planned, &document) {
                     reports_ok = false;
-                    report_failed(
-                        out,
-                        err,
-                        *output,
-                        &format!(
-                            "failed to write {} report to {}",
-                            planned.format.name(),
-                            planned.destination.display()
-                        ),
-                    );
+                    report_failed(out, err, *output, &error.to_string());
                     continue;
                 }
                 if *output == OutputMode::Json {

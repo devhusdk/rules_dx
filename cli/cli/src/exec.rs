@@ -19,6 +19,9 @@ mod quality_apply;
 mod quality_emit;
 mod quality_patch;
 mod quality_reports;
+#[cfg(test)]
+#[path = "exec/report_destinations.rs"]
+mod report_destinations;
 mod results;
 mod run;
 mod test_reports;

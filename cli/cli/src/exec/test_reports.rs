@@ -319,19 +319,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             );
             continue;
         };
-        let written = write_report_document(out, workspace, &planned.destination, &document);
-        if !written {
+        if let Err(error) = write_report_document(out, planned, &document) {
             reports_ok = false;
-            report_failed(
-                out,
-                err,
-                invocation.output,
-                &format!(
-                    "failed to write {} report to {}",
-                    planned.format.name(),
-                    planned.destination.display()
-                ),
-            );
+            report_failed(out, err, invocation.output, &error.to_string());
             continue;
         }
         if invocation.output == OutputMode::Json {

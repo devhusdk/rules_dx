@@ -13,8 +13,8 @@ except a launch failure or a signal is `1`.
 Output: `--output text`.
 
 ```sh
-bazel run //cli/cli:dx -- bazel build //...
-bazel run //cli/cli:dx -- bazel query //...
+bazel run @rules_dx//:dx -- bazel build //...
+bazel run @rules_dx//:dx -- bazel query //...
 ```
 
 ## `dx security` And `dx license`
@@ -177,8 +177,8 @@ Output: `--output text|json`. Reports: `dx security` writes
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
 
 ```sh
-bazel run //cli/cli:dx -- security //...
-bazel run //cli/cli:dx -- license --fail-on error //...
+bazel run @rules_dx//:dx -- security //...
+bazel run @rules_dx//:dx -- license --fail-on error //...
 ```
 
 `--offline` and `--frozen` run cache-only with no network fetches. Exit
@@ -203,14 +203,14 @@ Output: `--output text|json`. `json` reports per set plus a summary count.
 Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
 
 ```sh
-bazel run //cli/cli:dx -- update --check
-bazel run //cli/cli:dx -- update go
-bazel run //cli/cli:dx -- update ruby
-bazel run //cli/cli:dx -- update powershell
-bazel run //cli/cli:dx -- update uv uv-tools
-bazel run //cli/cli:dx -- update npm-tools
-bazel run //cli/cli:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
-bazel run //cli/cli:dx -- update --dry-run
+bazel run @rules_dx//:dx -- update --check
+bazel run @rules_dx//:dx -- update go
+bazel run @rules_dx//:dx -- update ruby
+bazel run @rules_dx//:dx -- update powershell
+bazel run @rules_dx//:dx -- update uv uv-tools
+bazel run @rules_dx//:dx -- update npm-tools
+bazel run @rules_dx//:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
+bazel run @rules_dx//:dx -- update --dry-run
 ```
 
 ## `dx bump`
@@ -240,6 +240,6 @@ Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 1 operational failures.
 
 ```sh
-bazel run //cli/cli:dx -- bump cargo:anyhow 1.0.100
-bazel run //cli/cli:dx -- bump go:github.com/google/go-cmp 0.7.0
+bazel run @rules_dx//:dx -- bump cargo:anyhow 1.0.100
+bazel run @rules_dx//:dx -- bump go:github.com/google/go-cmp 0.7.0
 ```

@@ -1,0 +1,46 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_testonly = True)
+
+rust_test(
+    name = "consumer_dx_entry",
+    size = "small",
+    srcs = ["entrypoint_test.rs"],
+    data = [
+        "@dx_consumer_entry//:consumer_dx_probe",
+        "@dx_consumer_entry//:crate_help.txt",
+        "@dx_consumer_entry//:public_completion.txt",
+        "@dx_consumer_entry//:public_drift.txt",
+        "@dx_consumer_entry//:public_help.txt",
+        "@dx_consumer_entry//:public_status.txt",
+        "@dx_consumer_entry//:public_version.txt",
+    ],
+    env = {
+        "DX_CRATE_HELP": "$(rootpath @dx_consumer_entry//:crate_help.txt)",
+        "DX_PUBLIC_COMPLETION": "$(rootpath @dx_consumer_entry//:public_completion.txt)",
+        "DX_PUBLIC_DRIFT": "$(rootpath @dx_consumer_entry//:public_drift.txt)",
+        "DX_PUBLIC_HELP": "$(rootpath @dx_consumer_entry//:public_help.txt)",
+        "DX_PUBLIC_STATUS": "$(rootpath @dx_consumer_entry//:public_status.txt)",
+        "DX_PUBLIC_VERSION": "$(rootpath @dx_consumer_entry//:public_version.txt)",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_rust",
+    aspect_hints = ["//:rustfmt_config"],
+    rust_srcs = ["entrypoint_test.rs"],
+    tags = ["corpus"],
+)

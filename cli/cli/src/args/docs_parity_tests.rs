@@ -11,7 +11,7 @@ use super::super::{parse, ArgsError, Command};
 use super::render_command_help;
 use crate::test_support::strings;
 
-const DX_PREFIX: &str = "bazel run //cli/cli:dx --";
+const DX_PREFIX: &str = "bazel run @rules_dx//:dx --";
 const ENV_LAUNCHER: &str = "bazel run //dx:env";
 
 fn workspace_root() -> PathBuf {
@@ -670,6 +670,34 @@ fn example_readme_shell_examples_run_dx_or_bazel_on_the_example() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn user_facing_text_launches_dx_through_the_public_label() {
+    const CRATE_LABEL: &str = "//cli/cli:dx";
+    const PUBLIC_LABEL: &str = "@rules_dx//:dx";
+    let mut texts = pages();
+    texts.extend(example_readmes());
+    for name in [
+        "README.md",
+        ".github/workflows/reusable-consumer.yml",
+        ".github/workflows/reusable-docs.yml",
+    ] {
+        texts.push((
+            name.to_owned(),
+            std::fs::read_to_string(workspace_root().join(name)).expect(name),
+        ));
+    }
+    for (name, text) in texts {
+        assert!(
+            !text.contains(CRATE_LABEL),
+            "{name} must launch dx through {PUBLIC_LABEL}, never the crate label"
+        );
+        assert!(
+            text.contains(PUBLIC_LABEL),
+            "{name} must name the public dx launcher"
+        );
     }
 }
 
@@ -2285,7 +2313,7 @@ fn one_preparation_job_covers_every_curated_advisory_set() {
         "the {id} job runs {PREP_TARGET} exactly once, so one run prepares one snapshot set"
     );
     assert!(
-        !body.contains("@rules_dx//cli/cli:dx -- security"),
+        !body.contains("@rules_dx//:dx -- security"),
         "the {id} job prepares snapshots; it must not audit a scope"
     );
     for (other, body) in workflow_jobs(&consumer_workflow()) {

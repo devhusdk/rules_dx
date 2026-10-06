@@ -2,9 +2,9 @@
 
 ```sh
 bazel run //dx:env
-bazel run //cli/cli:dx -- setup
-bazel run //cli/cli:dx -- env
-bazel run //cli/cli:dx -- codegen
+bazel run @rules_dx//:dx -- setup
+bazel run @rules_dx//:dx -- env
+bazel run @rules_dx//:dx -- codegen
 ```
 
 ```text
@@ -26,6 +26,6 @@ Exit codes: `0` success, `2` usage or scope errors, `1` a launch or commit
 failure. Bazel failures keep Bazel's code.
 
 ```sh
-bazel run //cli/cli:dx -- env //a:one
-bazel run //cli/cli:dx -- setup --dry-run
+bazel run @rules_dx//:dx -- env //a:one
+bazel run @rules_dx//:dx -- setup --dry-run
 ```

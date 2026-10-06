@@ -99,9 +99,9 @@ def visibility_unit_tests(name):
                 is_private_package("env"),
             ),
             expect_equal(
-                "explicit public targets stay binaries plus facade plus deploy tool",
+                "explicit public targets stay the dx launchers plus facade plus deploy tool",
                 sorted(EXPLICIT_PUBLIC_TARGETS.keys()),
-                ["cli/cli", "cli/env", "deploy/rules", "dx"],
+                ["", "cli/cli", "cli/env", "deploy/rules", "dx"],
             ),
             expect_equal(
                 "explicit public exports stay the two Cargo workspaces",

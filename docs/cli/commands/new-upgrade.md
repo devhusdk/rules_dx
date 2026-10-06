@@ -1,8 +1,8 @@
 # `dx new` And `dx upgrade`
 
 ```sh
-bazel run //cli/cli:dx -- new rust my_project
-bazel run //cli/cli:dx -- upgrade --from 1.0.0 --to 2.0.0
+bazel run @rules_dx//:dx -- new rust my_project
+bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
 ```
 
 ## `dx new`

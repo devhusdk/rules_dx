@@ -15,11 +15,13 @@ bazel build //...
 ## Quickstart
 
 `dx` runs through Bazel. No install step publishes `dx` outside the repo yet.
+`@rules_dx//:dx` is the public launcher. Inside this checkout `//:dx` is the
+same target.
 
 ```sh
-bazel run //cli/cli:dx -- --help
-bazel run //cli/cli:dx -- build //...
-bazel run //cli/cli:dx -- test //...
+bazel run @rules_dx//:dx -- --help
+bazel run @rules_dx//:dx -- build //...
+bazel run @rules_dx//:dx -- test //...
 ```
 
 Next: [docs index](docs/README.md),

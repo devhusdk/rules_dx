@@ -1,8 +1,8 @@
 # `dx init` And `dx hooks`
 
 ```sh
-bazel run //cli/cli:dx -- init
-bazel run //cli/cli:dx -- hooks install
+bazel run @rules_dx//:dx -- init
+bazel run @rules_dx//:dx -- hooks install
 ```
 
 ## `dx init`
@@ -43,6 +43,6 @@ trigger, `1` a hook install, status, or check failed. A failing check reports
 `1`, never the check's own code.
 
 ```sh
-bazel run //cli/cli:dx -- hooks status
-bazel run //cli/cli:dx -- hooks run pre-commit
+bazel run @rules_dx//:dx -- hooks status
+bazel run @rules_dx//:dx -- hooks run pre-commit
 ```

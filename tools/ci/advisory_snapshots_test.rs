@@ -199,7 +199,7 @@ fn every_audit_cell_restores_that_artifact_instead_of_downloading() {
     let download = action_step(&audit, "actions/download-artifact");
     assert_eq!(download["with"]["name"], json!(ARTIFACT));
     assert_eq!(download["with"]["path"], json!(".dx/advisory"));
-    let script = script_running(AUDIT, "@rules_dx//cli/cli:dx -- security");
+    let script = script_running(AUDIT, "@rules_dx//:dx -- security");
     for absent in [
         "curl",
         "all.zip",
@@ -213,7 +213,7 @@ fn every_audit_cell_restores_that_artifact_instead_of_downloading() {
         );
     }
     assert!(
-        script.contains("@rules_dx//cli/cli:dx -- security //..."),
+        script.contains("@rules_dx//:dx -- security //..."),
         "{WORKFLOW} job {AUDIT} must still audit every scope: {script}"
     );
     assert!(

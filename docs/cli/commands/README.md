@@ -1,11 +1,12 @@
 # Command Reference
 
 Every `dx` command runs through Bazel. Put `dx` flags after the command,
-Bazel flags after `--`.
+Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
+checkout `//:dx` is the same target.
 
 ```sh
-bazel run //cli/cli:dx -- build //...
-bazel run //cli/cli:dx -- lint --check //... -- --jobs=4
+bazel run @rules_dx//:dx -- build //...
+bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 ```
 
 - [`dx build`, `dx test`, `dx coverage`, `dx run`, `dx deploy`](build-test-coverage.md)
@@ -73,7 +74,7 @@ a near match exists, then prints the usage line above.
 stderr.
 
 ```sh
-bazel run //cli/cli:dx -- lint --check //... --output=json
+bazel run @rules_dx//:dx -- lint --check //... --output=json
 ```
 
 - `command_started`: the command, whether it is a dry run, and its mode.

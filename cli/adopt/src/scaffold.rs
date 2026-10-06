@@ -20,7 +20,7 @@ pub const DEVCONTAINER_JSON: &str = concat!(
     "      \"extensions\": [\"rust-lang.rust-analyzer\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]\n",
     "    }\n",
     "  },\n",
-    "  \"postCreateCommand\": \"bazel run //dx:env && bazel run //cli/cli:dx -- setup\"\n",
+    "  \"postCreateCommand\": \"bazel run //dx:env && bazel run @rules_dx//:dx -- setup\"\n",
     "}\n",
 );
 
@@ -239,6 +239,18 @@ mod tests {
             "no full build on create: {post_create}"
         );
         assert!(super::super::devcontainer_is_admissible(true, true, false));
+    }
+
+    #[test]
+    fn devcontainer_scaffold_runs_dx_through_the_public_label() {
+        assert!(
+            DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- setup"),
+            "{DEVCONTAINER_JSON}"
+        );
+        assert!(
+            !DEVCONTAINER_JSON.contains("//cli/cli:dx"),
+            "{DEVCONTAINER_JSON}"
+        );
     }
 
     #[test]

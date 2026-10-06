@@ -1,0 +1,55 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files([
+    ".clang-tidy",
+    "probe.c",
+    "probe_consumer_toolchain.aquery.json",
+    "probe_legacy.aquery.json",
+    "probe_plain.aquery.json",
+])
+
+genrule(
+    name = "limits_h",
+    outs = ["generated/limits.h"],
+    cmd = "printf '%s\n' '#ifndef DX_COMPILATION_DB_LIMITS_H_' '#define DX_COMPILATION_DB_LIMITS_H_' '' '#ifndef DX_ZERO_RESULT' '#define DX_ZERO_RESULT 7' '#endif' '' '#endif' > $@",
+)
+
+cc_library(
+    name = "probe_legacy",
+    srcs = ["probe.c"],
+    hdrs = [":limits_h"],
+    copts = ["-DDX_ENABLE_LEGACY_BRANCH"],
+)
+
+cc_library(
+    name = "probe_plain",
+    srcs = ["probe.c"],
+    hdrs = [":limits_h"],
+)
+
+cc_library(
+    name = "probe_consumer_toolchain",
+    srcs = ["probe.c"],
+    hdrs = [":limits_h"],
+    copts = [
+        "-DDX_ENABLE_LEGACY_BRANCH",
+        "-DDX_ZERO_RESULT=9",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "pins.bzl",
+    ],
+    tags = ["corpus"],
+)

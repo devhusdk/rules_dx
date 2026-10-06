@@ -1,0 +1,128 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(["Cargo.toml"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_library(
+    name = "cc_context",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "cc/cc_context",
+        normal = True,
+    ),
+    crate_name = "cc_context",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "cc/cc_context",
+    ),
+)
+
+rust_test(
+    name = "cc_context_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cc/cc_context",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":cc_context",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "cc/cc_context",
+    ),
+)
+
+rust_binary(
+    name = "compile_db",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "cc/cc_context",
+        normal = True,
+    ),
+    crate_name = "compile_db",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "cc/cc_context",
+    ) + [":cc_context"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+rust_test(
+    name = "context_clang_tidy_test",
+    size = "medium",
+    srcs = ["tests/context_clang_tidy.rs"],
+    aliases = aliases(
+        package_name = "cc/cc_context",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "context_clang_tidy_test",
+    crate_root = "tests/context_clang_tidy.rs",
+    data = [
+        "//cc/tests/fixtures/compilation_db:.clang-tidy",
+        "//cc/tests/fixtures/compilation_db:limits_h",
+        "//cc/tests/fixtures/compilation_db:probe.c",
+        "//cc/tests/fixtures/compilation_db:probe_consumer_toolchain.aquery.json",
+        "//cc/tests/fixtures/compilation_db:probe_legacy.aquery.json",
+        "//cc/tests/fixtures/compilation_db:probe_plain.aquery.json",
+        "@llvm//tools:clang-tidy",
+    ],
+    edition = "2021",
+    env = {
+        "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
+        "DX_GENERATED_HEADER": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "cc/cc_context",
+    ) + [":cc_context"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)

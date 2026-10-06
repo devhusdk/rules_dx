@@ -14,31 +14,37 @@ pub mod host;
 pub mod runfiles;
 pub mod spelling;
 pub mod uri;
+pub mod workspace;
 
 pub use runfiles::{manifest_beside, manifest_for, Resolver};
 pub use spelling::spell;
 pub use spelling::{manifest, msys, native, posix, Spelling};
 pub use uri::{uri, uri_to_path, UriError};
+pub use workspace::WorkspaceRelativePath;
 
+/// Why one serialized path is not a workspace-relative path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathProblem {
     Empty,
     Absolute,
     Backslash,
-    EmptyComponent,
     Dot,
     DotDot,
+    ControlCharacter,
+    EmptyComponent,
 }
 
 impl PathProblem {
+    /// The user-facing sentence for one rung.
     pub fn reason(self) -> &'static str {
         match self {
             PathProblem::Empty => "path must be non-empty",
             PathProblem::Absolute => "path must be workspace-relative, not absolute",
             PathProblem::Backslash => "path must use forward slashes",
-            PathProblem::EmptyComponent => "path must have no empty component",
             PathProblem::Dot => "path must have no '.' component",
             PathProblem::DotDot => "path must have no '..' component",
+            PathProblem::ControlCharacter => "path must have no control character",
+            PathProblem::EmptyComponent => "path must have no empty component",
         }
     }
 }
@@ -59,6 +65,7 @@ pub fn drive_rooted(path: &str) -> bool {
     drive_prefix(path) && matches!(path.as_bytes().get(2), Some(b'/' | b'\\'))
 }
 
+/// Names the first rung a serialized path fails, most structural first.
 pub fn classify(path: &str) -> Option<PathProblem> {
     if path.is_empty() {
         return Some(PathProblem::Empty);
@@ -69,14 +76,17 @@ pub fn classify(path: &str) -> Option<PathProblem> {
     if path.contains('\\') {
         return Some(PathProblem::Backslash);
     }
-    if path.split('/').any(str::is_empty) {
-        return Some(PathProblem::EmptyComponent);
-    }
     if path.split('/').any(|component| component == ".") {
         return Some(PathProblem::Dot);
     }
     if path.split('/').any(|component| component == "..") {
         return Some(PathProblem::DotDot);
+    }
+    if path.chars().any(char::is_control) {
+        return Some(PathProblem::ControlCharacter);
+    }
+    if path.split('/').any(str::is_empty) {
+        return Some(PathProblem::EmptyComponent);
     }
     None
 }
@@ -140,13 +150,14 @@ mod tests {
             ("c:/lowercase", PathProblem::Absolute),
             ("C:", PathProblem::Absolute),
             ("back\\slash", PathProblem::Backslash),
-            ("a//b", PathProblem::EmptyComponent),
-            ("trailing/", PathProblem::EmptyComponent),
-            ("/leading", PathProblem::Absolute),
             ("a/./b", PathProblem::Dot),
             (".", PathProblem::Dot),
             ("a/../b", PathProblem::DotDot),
             ("..", PathProblem::DotDot),
+            ("a/\u{0}/b", PathProblem::ControlCharacter),
+            ("a\u{85}b", PathProblem::ControlCharacter),
+            ("a//b", PathProblem::EmptyComponent),
+            ("trailing/", PathProblem::EmptyComponent),
         ] {
             assert_eq!(classify(path), Some(problem), "path: {path:?}");
         }
@@ -157,8 +168,15 @@ mod tests {
         assert_eq!(classify("/a//b"), Some(PathProblem::Absolute));
         assert_eq!(classify("C:\\a"), Some(PathProblem::Absolute));
         assert_eq!(classify("a\\//b"), Some(PathProblem::Backslash));
-        assert_eq!(classify("a//./b"), Some(PathProblem::EmptyComponent));
         assert_eq!(classify("a/./../b"), Some(PathProblem::Dot));
+        assert_eq!(classify("a//./b"), Some(PathProblem::Dot));
+        assert_eq!(classify("a//../b"), Some(PathProblem::DotDot));
+        assert_eq!(classify("a//\u{0}/b"), Some(PathProblem::ControlCharacter));
+        assert_eq!(
+            classify("a//b\u{0}"),
+            Some(PathProblem::ControlCharacter),
+            "an empty component is the least structural rung"
+        );
     }
 
     #[test]
@@ -226,12 +244,16 @@ mod tests {
                 "path must be workspace-relative, not absolute",
             ),
             (PathProblem::Backslash, "path must use forward slashes"),
+            (PathProblem::Dot, "path must have no '.' component"),
+            (PathProblem::DotDot, "path must have no '..' component"),
+            (
+                PathProblem::ControlCharacter,
+                "path must have no control character",
+            ),
             (
                 PathProblem::EmptyComponent,
                 "path must have no empty component",
             ),
-            (PathProblem::Dot, "path must have no '.' component"),
-            (PathProblem::DotDot, "path must have no '..' component"),
         ] {
             assert_eq!(problem.reason(), reason, "rung: {problem:?}");
         }
@@ -243,9 +265,9 @@ mod tests {
             ("", "path must be non-empty"),
             ("/absolute", "path must be workspace-relative, not absolute"),
             ("back\\slash", "path must use forward slashes"),
-            ("a//b", "path must have no empty component"),
             ("a/./b", "path must have no '.' component"),
             ("a/../b", "path must have no '..' component"),
+            ("a//b", "path must have no empty component"),
         ] {
             assert_eq!(reject_reason(path), Some(reason), "path: {path:?}");
         }
@@ -257,6 +279,10 @@ mod tests {
         assert_eq!(
             reject_reason("a/./../b"),
             Some("path must have no '.' component")
+        );
+        assert_eq!(
+            reject_reason("a/\u{0}/b"),
+            Some("path must have no control character")
         );
     }
 }

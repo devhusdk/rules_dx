@@ -189,6 +189,7 @@ fn fresh_scratch(parent: &Path, tool_id: &str) -> Result<Scratch, RunnerError> {
 fn write_all(scratch: &Scratch, tool_id: &str, mirrors: &[MirrorFile]) -> Result<(), RunnerError> {
     scratch
         .materialize(mirrors)
+        .map(|_| ())
         .map_err(|err| execution(tool_id, format!("materialize: {err}")))
 }
 

@@ -8,10 +8,17 @@
     )
 )]
 
+pub mod managed;
+
 use std::fs::File;
 use std::io;
 use std::path::Path;
 use std::time::{Duration, Instant};
+
+pub use managed::{
+    classify, materialize_file, materialize_file_with, remove_managed, replace_pointer, EntryKind,
+    LinkPolicy, Mechanism, PointerKind,
+};
 
 pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     use std::io::Write as _;

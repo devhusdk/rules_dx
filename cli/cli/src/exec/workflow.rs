@@ -208,11 +208,7 @@ mod tests {
     #[test]
     fn workflow_conflicting_option_is_pre_exec() {
         let harness = Harness::new("wf-conflict");
-        let (code, _, err) = harness.run(&[
-            "build",
-            "--",
-            "--@rules_dx//config:workspace=//other:config",
-        ]);
+        let (code, _, err) = harness.run(&["build", "--", "--home_rc"]);
         assert_eq!(code, 2, "{err}");
     }
 

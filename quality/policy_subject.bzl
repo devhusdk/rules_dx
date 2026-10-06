@@ -11,6 +11,9 @@ def _policy_subject_impl(ctx):
             fields["family." + family_id + "." + capability] = ",".join(
                 getattr(section, capability),
             )
+            fields["disabled." + family_id + "." + capability] = str(
+                capability in section.disabled,
+            )
     return [
         DefaultInfo(files = depset([])),
         DxSubjectInfo(fields = fields),

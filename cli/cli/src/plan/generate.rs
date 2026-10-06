@@ -1,6 +1,6 @@
-use dx_process::{build_workflow_argv, describe_scope, ForwardError, ProtectedFlag};
+use dx_process::{build_workflow_argv, describe_scope, ForwardError};
 
-use super::{workflow_scope_labels, workspace_flag, BuildPlan};
+use super::{workflow_scope_labels, BuildPlan};
 use crate::resolve::ResolvedScope;
 
 pub const GENERATE_TARGET: &str = "//dx:generate";
@@ -68,12 +68,8 @@ pub fn plan_generate(
     bazel_options: &[String],
     check: bool,
 ) -> Result<BuildPlan, ForwardError> {
-    let required = vec![workspace_flag()];
-    let protected = vec![ProtectedFlag {
-        name: "@rules_dx//config:workspace".to_owned(),
-        required: None,
-        allowed: Vec::new(),
-    }];
+    let required = Vec::new();
+    let protected = Vec::new();
     let target = if check {
         GENERATE_CHECK_TARGET
     } else {
@@ -126,7 +122,6 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
-                "--@rules_dx//config:workspace=//dx:config",
                 "--jobs=4",
                 "//dx:generate",
             ])
@@ -150,7 +145,6 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
-                "--@rules_dx//config:workspace=//dx:config",
                 "//dx:generate_check",
             ])
         );
@@ -168,17 +162,17 @@ mod tests {
     }
 
     #[test]
-    fn generate_plan_rejects_policy_conflicts_and_startup_options() {
-        let err = plan_generate(
-            &resolved(&[]),
-            &strings(&["--@rules_dx//config:workspace=//other:config"]),
-            false,
-        )
-        .expect_err("workspace override must fail");
+    fn generate_plan_forwards_the_consumer_policy_selection() {
+        let selection = "--@rules_dx//config:workspace=//consumer:policy";
+        let plan = plan_generate(&resolved(&[]), &strings(&[selection]), false).expect("plan");
         assert!(
-            matches!(err, ForwardError::ConflictingOption { .. }),
-            "got {err:?}"
+            plan.argv.contains(&selection.to_owned()),
+            "the consumer policy selection reaches bazel: {plan:?}"
         );
+    }
+
+    #[test]
+    fn generate_plan_rejects_startup_options() {
         let err = plan_generate(&resolved(&[]), &strings(&["--home_rc"]), false)
             .expect_err("startup option must fail");
         assert!(matches!(err, ForwardError::StartupOption { .. }));
@@ -194,7 +188,6 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
-                "--@rules_dx//config:workspace=//dx:config",
                 "//dx:generate",
                 "--",
                 "a",

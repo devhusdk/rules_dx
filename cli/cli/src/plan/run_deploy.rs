@@ -1,4 +1,4 @@
-use super::{workspace_flag, BuildPlan};
+use super::BuildPlan;
 
 pub fn plan_run_targets(
     targets: &[String],
@@ -12,7 +12,6 @@ pub fn plan_run_targets(
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
     argv.push("run".to_owned());
-    argv.push(workspace_flag());
     argv.push(profile.config_flag());
     argv.extend(targets.iter().cloned());
     if !app_args.is_empty() {
@@ -34,7 +33,6 @@ pub fn plan_deploy_build(label: &str, profile: crate::args::Profile) -> BuildPla
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
     argv.push("build".to_owned());
-    argv.push(workspace_flag());
     argv.push(profile.config_flag());
     argv.push(label.to_owned());
     let summary = format!("Running deploy build for {label}");
@@ -88,7 +86,6 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
-                "--@rules_dx//config:workspace=//dx:config",
                 "--config=dx_dev",
                 "//app:bin",
                 "--",
@@ -110,15 +107,8 @@ mod tests {
             let plan = plan_run("//app:bin", &[], profile);
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
-                argv[..6],
-                [
-                    "bazel",
-                    "--nohome_rc",
-                    "--nosystem_rc",
-                    "run",
-                    "--@rules_dx//config:workspace=//dx:config",
-                    flag,
-                ],
+                argv[..5],
+                ["bazel", "--nohome_rc", "--nosystem_rc", "run", flag,],
                 "{profile:?}: {plan:?}"
             );
         }

@@ -1,6 +1,6 @@
 use dx_process::{build_workflow_argv, ForwardError, ProtectedFlag};
 
-use super::{workspace_flag, BuildPlan, BEP_FLAG_NAME};
+use super::{BuildPlan, BEP_FLAG_NAME};
 use crate::args::Command;
 
 pub fn plan_bazel(forwarded: &[String]) -> BuildPlan {
@@ -100,14 +100,13 @@ fn managed_argv(
         ),
         _ => return Err(unsupported()),
     };
-    let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 2);
+    let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 1);
     for aspect in &aspects {
         required.push(format!("--aspects={aspect}"));
     }
     for group in &output_groups {
         required.push(format!("--output_groups={group}"));
     }
-    required.push(workspace_flag());
     required.push(format!("--{BEP_FLAG_NAME}={bep_path}"));
     let protected = vec![
         ProtectedFlag {
@@ -117,11 +116,6 @@ fn managed_argv(
         },
         ProtectedFlag {
             name: "output_groups".to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: "@rules_dx//config:workspace".to_owned(),
             required: None,
             allowed: Vec::new(),
         },
@@ -159,7 +153,6 @@ mod tests {
                 "build",
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_codegen_plans",
-                "--@rules_dx//config:workspace=//dx:config",
                 "--build_event_json_file=/tmp/bep.json",
                 "--jobs=4",
                 "//dx:codegen",
@@ -271,7 +264,6 @@ mod tests {
         for conflicting in [
             "--aspects=//other.bzl%aspect",
             "--output_groups=other",
-            "--@rules_dx//config:workspace=//other:config",
             "--build_event_json_file=/tmp/other.json",
         ] {
             let err = plan_managed(

@@ -4,8 +4,7 @@ use dx_process::{
 
 use super::{
     registry::{spec, CommandSpec},
-    workspace_flag, BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP,
-    VALIDATE_FLAG,
+    BuildPlan, BEP_FLAG_NAME, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, VALIDATE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
@@ -15,7 +14,6 @@ pub fn required_options(entry: &CommandSpec, bep_path: &str) -> Vec<String> {
         format!("--aspects={}", entry.aspects.join(",")),
         format!("--output_groups={OUTPUT_GROUP}"),
         DOWNLOAD_ALL_FLAG.to_owned(),
-        workspace_flag(),
         VALIDATE_FLAG.to_owned(),
         KEEP_GOING_FLAG.to_owned(),
         format!("--{BEP_FLAG_NAME}={bep_path}"),
@@ -64,11 +62,6 @@ pub fn protected_flags(
         ProtectedFlag {
             name: "remote_download_outputs".to_owned(),
             required: Some(DOWNLOAD_ALL_FLAG.to_owned()),
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: "@rules_dx//config:workspace".to_owned(),
-            required: None,
             allowed: Vec::new(),
         },
         ProtectedFlag {
@@ -190,7 +183,7 @@ mod tests {
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(
-            argv[..8],
+            argv[..7],
             [
                 "bazel",
                 "--nohome_rc",
@@ -199,11 +192,10 @@ mod tests {
                 "--aspects=//quality:real_aspects.bzl%real_lint_aspect,//quality:real_aspects.bzl%real_js_lint_aspect,//quality:real_aspects.bzl%real_python_lint_aspect,//quality:real_aspects.bzl%real_jvm_lint_aspect,//quality:real_aspects.bzl%real_rust_lint_aspect",
                 "--output_groups=dx_results",
                 "--remote_download_outputs=all",
-                "--@rules_dx//config:workspace=//dx:config",
             ]
         );
         assert_eq!(
-            argv[8..],
+            argv[7..],
             [
                 "--@rules_dx//config:validate=false",
                 "--keep_going",
@@ -349,11 +341,27 @@ mod tests {
     }
 
     #[test]
+    fn consumer_policy_selection_reaches_bazel() {
+        let selection = "--@rules_dx//config:workspace=//consumer:policy";
+        let plan = plan_build(
+            Command::Lint,
+            &resolved(&[]),
+            &strings(&[selection]),
+            "/tmp/bep.json",
+        )
+        .expect("plan");
+        assert_eq!(
+            plan.argv.iter().filter(|arg| *arg == selection).count(),
+            1,
+            "the consumer policy selection passes through once: {plan:?}"
+        );
+    }
+
+    #[test]
     fn conflicting_workflow_options_fail_before_execution() {
         for conflicting in [
             "--aspects=//other.bzl%aspect",
             "--output_groups=other",
-            "--@rules_dx//config:workspace=//other:config",
             "--@rules_dx//config:validate=true",
             "--nokeep_going",
             "--build_event_json_file=/tmp/other.json",

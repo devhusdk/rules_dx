@@ -5,11 +5,12 @@ CAPABILITIES = ["lint", "typecheck", "format", "audit"]
 FamilyPolicyInfo = provider(
     doc = "Tool-ID selection per capability for one quality policy family.",
     fields = {
-        "audit": "List[str]: selected audit tool IDs, in policy order; [] disables.",
+        "audit": "List[str]: selected audit tool IDs, in policy order.",
+        "disabled": "List[str]: capabilities this family turns off on purpose.",
         "family_id": "Str: policy-family ID owning this selection.",
-        "format": "List[str]: selected formatter IDs, in policy order; [] disables.",
-        "lint": "List[str]: selected lint tool IDs, in policy order; [] disables.",
-        "typecheck": "List[str]: selected typecheck tool IDs, in policy order; [] disables.",
+        "format": "List[str]: selected formatter IDs, in policy order.",
+        "lint": "List[str]: selected lint tool IDs, in policy order.",
+        "typecheck": "List[str]: selected typecheck tool IDs, in policy order.",
     },
 )
 
@@ -31,24 +32,44 @@ def _check_tool_ids(family_id, capability, tool_ids):
                  capability + "' selects tool '" + tool_id + "' twice")
         seen[tool_id] = True
 
+def _check_disabled(family_id, disabled, selections):
+    seen = {}
+    for capability in disabled:
+        if capability not in CAPABILITIES:
+            fail("quality_family (" + family_id + "): disabled names unknown capability '" +
+                 capability + "'; want one of " + ", ".join(CAPABILITIES))
+        if capability in seen:
+            fail("quality_family (" + family_id + "): capability '" + capability +
+                 "' is disabled twice")
+        if len(selections[capability]) > 0:
+            fail("quality_family (" + family_id + "): capability '" + capability +
+                 "' selects tools and is disabled; pick one")
+        seen[capability] = True
+
 def _quality_family_impl(ctx):
     family_id = ctx.attr.family_id
     if type(family_id) != "string" or family_id == "":
         fail("quality_family: family_id must be a non-empty string")
+    selections = {capability: getattr(ctx.attr, capability) for capability in CAPABILITIES}
     for capability in CAPABILITIES:
-        _check_tool_ids(family_id, capability, getattr(ctx.attr, capability))
+        _check_tool_ids(family_id, capability, selections[capability])
+    _check_disabled(family_id, ctx.attr.disabled, selections)
     return [FamilyPolicyInfo(
         family_id = family_id,
-        lint = ctx.attr.lint,
-        typecheck = ctx.attr.typecheck,
-        format = ctx.attr.format,
-        audit = ctx.attr.audit,
+        lint = selections["lint"],
+        typecheck = selections["typecheck"],
+        format = selections["format"],
+        audit = selections["audit"],
+        disabled = ctx.attr.disabled,
     )]
 
 quality_family = rule(
     implementation = _quality_family_impl,
     attrs = {
         "audit": attr.string_list(
+            default = [],
+        ),
+        "disabled": attr.string_list(
             default = [],
         ),
         "family_id": attr.string(),
@@ -83,3 +104,17 @@ workspace_policy = rule(
         ),
     },
 )
+
+def family_section_error(family_id, capability, selection, disabled, wired_tools):
+    """Returns the diagnostic for one family/capability section, or ""."""
+    if len(selection) == 0:
+        if capability in disabled:
+            return ""
+        return ("policy: family '" + family_id + "' leaves capability '" + capability +
+                "' unconfigured; select tools or disable '" + capability + "'")
+    for tool in selection:
+        if tool not in wired_tools:
+            return ("policy: family '" + family_id + "' selects " + capability + " tool '" +
+                    tool + "' with no wired executable; select one of " +
+                    ", ".join(wired_tools) + " or disable '" + capability + "'")
+    return ""

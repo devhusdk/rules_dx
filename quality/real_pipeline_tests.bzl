@@ -3,6 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "drop_pipeline_tool", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "resolve_pipeline", "stage_flag")
+load(":policy.bzl", "family_section_error")
 load(":real_aspects.bzl", "real_allowed_tools_error")
 
 _LINT_SELECTIONS = {
@@ -34,6 +35,22 @@ _TYPECHECK_SELECTIONS = {
     "toml": [],
     "typescript": ["tsc"],
 }
+
+_WIRED_FORMAT_TOOLS = [
+    "biome",
+    "buildifier",
+    "google_java_format",
+    "ktfmt",
+    "prettier",
+    "ruff",
+    "rustfmt",
+    "taplo",
+]
+
+_WIRED_TYPECHECK_TOOLS = [
+    "rustc",
+    "ty",
+]
 
 _DIRECT_SOURCES = {
     "javascript": ["src/app.js", "src/view.jsx"],
@@ -469,6 +486,61 @@ def real_pipeline_unit_tests(name):
                 "aspect shards stay registry subsets",
                 real_allowed_tools_error(),
                 "",
+            ),
+            expect_equal(
+                "family_section_error accepts a selected capability",
+                family_section_error(
+                    "toml",
+                    "format",
+                    ["taplo"],
+                    [],
+                    _WIRED_FORMAT_TOOLS,
+                ),
+                "",
+            ),
+            expect_equal(
+                "family_section_error accepts an explicitly disabled capability",
+                family_section_error(
+                    "toml",
+                    "format",
+                    [],
+                    ["format"],
+                    _WIRED_FORMAT_TOOLS,
+                ),
+                "",
+            ),
+            expect_equal(
+                "family_section_error rejects an omitted capability",
+                family_section_error(
+                    "toml",
+                    "format",
+                    [],
+                    [],
+                    _WIRED_FORMAT_TOOLS,
+                ),
+                "policy: family 'toml' leaves capability 'format' unconfigured; select tools or disable 'format'",
+            ),
+            expect_equal(
+                "family_section_error rejects a tool with no wired executable",
+                family_section_error(
+                    "toml",
+                    "format",
+                    ["yamlfmt"],
+                    [],
+                    _WIRED_FORMAT_TOOLS,
+                ),
+                "policy: family 'toml' selects format tool 'yamlfmt' with no wired executable; select one of biome, buildifier, google_java_format, ktfmt, prettier, ruff, rustfmt, taplo or disable 'format'",
+            ),
+            expect_equal(
+                "family_section_error rejects a tool that is wired for another capability",
+                family_section_error(
+                    "toml",
+                    "typecheck",
+                    ["taplo"],
+                    [],
+                    _WIRED_TYPECHECK_TOOLS,
+                ),
+                "policy: family 'toml' selects typecheck tool 'taplo' with no wired executable; select one of rustc, ty or disable 'typecheck'",
             ),
             expect_equal(
                 "filter_pipeline_by_tools scopes shards to allowed tools",

@@ -11,8 +11,6 @@ pub enum Spelling {
     Posix,
     /// A runfiles manifest key.
     Manifest,
-    /// A `file://` URI.
-    Uri,
     /// The path spelling Git's `sh` on Windows reads.
     Msys,
 }
@@ -23,7 +21,6 @@ pub fn spell(path: &Path, spelling: Spelling) -> String {
         Spelling::Native => path.to_string_lossy().into_owned(),
         Spelling::Posix => posix(path),
         Spelling::Manifest => manifest(path),
-        Spelling::Uri => uri(path),
         Spelling::Msys => msys(path),
     }
 }
@@ -45,19 +42,6 @@ pub fn manifest(path: &Path) -> String {
         Some(rest) => rest.to_owned(),
         None => text,
     }
-}
-
-/// Returns one path as a `file://` URI.
-pub fn uri(path: &Path) -> String {
-    let text = posix(path);
-    let bytes = text.as_bytes();
-    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
-        return format!("file:///{text}");
-    }
-    if text.starts_with('/') {
-        return format!("file://{text}");
-    }
-    text
 }
 
 /// Returns one path the way Git's `sh` on Windows reads it.
@@ -96,15 +80,6 @@ mod tests {
             "C:/tmp/a.py"
         );
         assert_eq!(spell_of("/tmp/a.py", Spelling::Manifest), "/tmp/a.py");
-    }
-
-    #[test]
-    fn uri_names_the_drive_as_a_root() {
-        assert_eq!(
-            spell_of(r"C:\tmp\a.py", Spelling::Uri),
-            "file:///C:/tmp/a.py"
-        );
-        assert_eq!(spell_of("/tmp/a.py", Spelling::Uri), "file:///tmp/a.py");
     }
 
     #[test]

@@ -507,7 +507,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
- "url",
 ]
 
 [[package]]
@@ -694,6 +693,11 @@ dependencies = [
 [[package]]
 name = "dx_path"
 version = "0.0.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
+ "url",
+]
 
 [[package]]
 name = "dx_preset"

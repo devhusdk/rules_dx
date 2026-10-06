@@ -13,10 +13,12 @@
 pub mod host;
 pub mod runfiles;
 pub mod spelling;
+pub mod uri;
 
 pub use runfiles::{manifest_beside, manifest_for, Resolver};
 pub use spelling::spell;
-pub use spelling::{manifest, msys, native, posix, uri, Spelling};
+pub use spelling::{manifest, msys, native, posix, Spelling};
+pub use uri::{uri, uri_to_path, UriError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathProblem {

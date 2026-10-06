@@ -23,9 +23,10 @@ pub mod version;
 pub mod watch;
 
 pub use defaults::{
-    env_bool, env_string, find_config, is_truthy, load_defaults, parse_file_text, resolve_bool,
-    resolve_string, resolve_workspace, FileDefaults, CONFIG_REL, CONFIG_TOML_REL, DX_DRY_RUN_ENV,
-    DX_FAIL_ON_ENV, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV, DX_WORKSPACE_ENV,
+    env_bool, env_string, find_config, is_truthy, load_defaults, parse_bool, parse_file_text,
+    resolve_bool, resolve_string, resolve_workspace, FileDefaults, BOOL_SPELLINGS, CONFIG_REL,
+    CONFIG_TOML_REL, DX_DRY_RUN_ENV, DX_FAIL_ON_ENV, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV,
+    DX_WORKSPACE_ENV, FALSEY,
 };
 pub use error::AdoptError;
 pub use hooks::{

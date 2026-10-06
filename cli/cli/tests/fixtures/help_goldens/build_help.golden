@@ -15,14 +15,20 @@ Options:
       --workspace <WORKSPACE>
           Use this workspace dir
 
-      --dry-run
-          Show the plan without running it
+      --dry-run[=<DRY_RUN>]
+          Show the plan without running it. =false turns off an inherited default
+          
+          [possible values: true, false]
 
-      --quiet
-          Hide summaries
+      --quiet[=<QUIET>]
+          Hide summaries. =false turns off an inherited default
+          
+          [possible values: true, false]
 
-  -v, --verbose
-          Show more logs
+  -v, --verbose[=<VERBOSE>]
+          Show more logs. =false turns off an inherited default
+          
+          [possible values: true, false]
 
       --color <COLOR>
           Set color output
@@ -168,6 +174,8 @@ Environment:
       Default for --output.
   DX_FAIL_ON=<level>
       Default for --fail-on.
+  <bool> is on for 1|true|yes|y|on and off for 0|false|no|n|off.
+      Anything else is a usage error. An empty value is unset.
   RUST_LOG=<filter>
       Override --verbose and --log-level.
   NO_COLOR=<any>
@@ -175,4 +183,6 @@ Environment:
   BUILD_WORKSPACE_DIRECTORY=<dir>
       Workspace start under `bazel run`.
   .dx/config.toml
+  .dx/config
       Same defaults as the DX_ variables, below the environment.
+      An unknown key is a usage error.

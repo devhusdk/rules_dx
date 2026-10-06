@@ -138,13 +138,18 @@ pub(crate) fn render_top_help() -> String {
 }
 
 fn render_env_help() -> String {
-    use dx_adopt::defaults::ENV_DEFAULTS;
+    use dx_adopt::defaults::{ENV_DEFAULTS, FALSEY, TRUTHY};
     let mut out = String::new();
     out.push_str("\nEnvironment:\n");
     for (env, flag, shape) in ENV_DEFAULTS {
         out.push_str(&format!("  {env}=<{shape}>\n"));
         out.push_str(&format!("      Default for {flag}.\n"));
     }
+    out.push_str(&format!(
+        "  <bool> is on for {} and off for {}.\n      Anything else is a usage error. An empty value is unset.\n",
+        TRUTHY.join("|"),
+        FALSEY.join("|")
+    ));
     out.push_str("  RUST_LOG=<filter>\n");
     out.push_str("      Override --verbose and --log-level.\n");
     out.push_str("  NO_COLOR=<any>\n");
@@ -152,8 +157,9 @@ fn render_env_help() -> String {
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
     out.push_str(&format!(
-        "  {}\n      Same defaults as the DX_ variables, below the environment.\n",
-        dx_adopt::defaults::CONFIG_TOML_REL
+        "  {}\n  {}\n      Same defaults as the DX_ variables, below the environment.\n      An unknown key is a usage error.\n",
+        dx_adopt::defaults::CONFIG_TOML_REL,
+        dx_adopt::defaults::CONFIG_REL
     ));
     out
 }

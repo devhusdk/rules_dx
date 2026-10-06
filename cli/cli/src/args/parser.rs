@@ -66,6 +66,13 @@ fn reject_passthrough(command: Command, bazel_options: &[String]) -> Result<(), 
     Ok(())
 }
 
+/// Names an environment default dx will not read.
+fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
+    ArgsError::BadDefault {
+        detail: error.to_string(),
+    }
+}
+
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
 }
@@ -137,17 +144,20 @@ pub fn parse_with<S: AsRef<OsStr>>(
     );
     let dry_run = invocation_defaults::resolve_bool(
         dry_run,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_DRY_RUN_ENV),
+        invocation_defaults::env_bool(env_get, invocation_defaults::DX_DRY_RUN_ENV)
+            .map_err(bad_default)?,
         file.dry_run,
     );
     let quiet = invocation_defaults::resolve_bool(
         quiet,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV),
+        invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
+            .map_err(bad_default)?,
         file.quiet,
     );
     let verbose = invocation_defaults::resolve_bool(
         verbose,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV),
+        invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV)
+            .map_err(bad_default)?,
         file.verbose,
     );
     let output_name = invocation_defaults::resolve_string(

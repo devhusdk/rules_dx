@@ -44,20 +44,41 @@ pub(crate) struct GlobalArgs {
     /// Use this workspace dir.
     #[arg(long, allow_negative_numbers = true, overrides_with = "workspace")]
     pub(crate) workspace: Option<OsString>,
-    /// Show the plan without running it.
-    #[arg(long, overrides_with = "dry_run")]
-    pub(crate) dry_run: bool,
-    /// Hide summaries.
-    #[arg(long, overrides_with = "quiet")]
-    pub(crate) quiet: bool,
-    /// Show more logs.
+    /// Show the plan without running it. =false turns off an inherited default.
+    #[arg(
+        long,
+        action = clap::ArgAction::Set,
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "true",
+        value_parser = clap::value_parser!(bool),
+        overrides_with = "dry_run"
+    )]
+    pub(crate) dry_run: Option<bool>,
+    /// Hide summaries. =false turns off an inherited default.
+    #[arg(
+        long,
+        action = clap::ArgAction::Set,
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "true",
+        value_parser = clap::value_parser!(bool),
+        overrides_with = "quiet"
+    )]
+    pub(crate) quiet: Option<bool>,
+    /// Show more logs. =false turns off an inherited default.
     #[arg(
         long,
         short = 'v',
+        action = clap::ArgAction::Set,
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "true",
+        value_parser = clap::value_parser!(bool),
         overrides_with = "verbose",
         conflicts_with = "log_level"
     )]
-    pub(crate) verbose: bool,
+    pub(crate) verbose: Option<bool>,
     /// Set color output.
     #[arg(long, allow_negative_numbers = true, overrides_with = "color")]
     pub(crate) color: Option<String>,

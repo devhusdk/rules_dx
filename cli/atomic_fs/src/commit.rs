@@ -164,11 +164,19 @@ mod tests {
             root.lock_path(),
             scratch.path().join(DX_DIR_NAME).join(COMMIT_LOCK_FILE_NAME)
         );
-        let _held =
-            acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold commit lock");
+        let _held = acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold commit lock");
         let busy = acquire_commit_lock(&root, Duration::ZERO).expect_err("locked root is busy");
-        assert_eq!(busy, LockError::Busy { path: root.lock_path() });
-        assert!(!LockError::Busy { path: root.lock_path() }.to_string().is_empty());
+        assert_eq!(
+            busy,
+            LockError::Busy {
+                path: root.lock_path()
+            }
+        );
+        assert!(!LockError::Busy {
+            path: root.lock_path()
+        }
+        .to_string()
+        .is_empty());
         drop(_held);
         acquire_commit_lock(&root, Duration::ZERO).expect("released lock acquires");
         scratch.close().expect("cleanup");
@@ -197,7 +205,9 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-commit-root-");
         let blocking = scratch.path().join(DX_DIR_NAME);
         std::fs::write(&blocking, "foreign").expect("blocking file");
-        let error = root_at(&blocking).ensure_dir().expect_err("file blocks root");
+        let error = root_at(&blocking)
+            .ensure_dir()
+            .expect_err("file blocks root");
         assert!(matches!(error, CommitError::Install { .. }));
         assert_eq!(
             std::fs::read(&blocking).expect("foreign preserved"),
@@ -285,15 +295,119 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-commit-stage-parent-");
         let file = scratch.path().join("foreign");
         std::fs::write(&file, "foreign").expect("foreign file");
-        let error =
-            clear_stale_stage(&file.join("child")).expect_err("uninspectable stage fails");
+        let error = clear_stale_stage(&file.join("child")).expect_err("uninspectable stage fails");
         assert!(matches!(error, CommitError::Install { .. }));
+        assert_eq!(std::fs::read(&file).expect("foreign preserved"), b"foreign");
+        scratch.close().expect("cleanup");
+    }
+
+    fn swap_in(dir: &Path, target: &str) -> PointerSwap {
+        PointerSwap {
+            current: dir.join("current"),
+            stage: dir.join("current.next"),
+            target: PathBuf::from(target),
+            kind: PointerKind::Directory,
+        }
+    }
+
+    #[test]
+    fn publish_fresh_swap_installs_the_pointer() {
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-fresh-");
+        let dir = scratch.path().join("setups");
+        std::fs::create_dir_all(&dir).expect("setups dir");
+        let swap = swap_in(&dir, "record-a");
+        publish_pointer_swap(&swap).expect("fresh publish");
         assert_eq!(
-            std::fs::read(&file).expect("foreign preserved"),
-            b"foreign"
+            std::fs::read_link(&swap.current).expect("pointer target"),
+            PathBuf::from("record-a")
+        );
+        assert!(
+            swap.stage.symlink_metadata().is_err(),
+            "the staged entry is consumed by the rename"
         );
         scratch.close().expect("cleanup");
     }
 
-    fn swap SwappedPlaceholder() {}
+    #[test]
+    fn republish_same_swap_is_idempotent() {
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-idempotent-");
+        let dir = scratch.path().join("setups");
+        std::fs::create_dir_all(&dir).expect("setups dir");
+        let swap = swap_in(&dir, "record-a");
+        publish_pointer_swap(&swap).expect("first publish");
+        publish_pointer_swap(&swap).expect("republish");
+        assert_eq!(
+            std::fs::read_link(&swap.current).expect("pointer target"),
+            PathBuf::from("record-a")
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn publish_replaces_the_prior_pointer() {
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-replace-");
+        let dir = scratch.path().join("setups");
+        std::fs::create_dir_all(&dir).expect("setups dir");
+        publish_pointer_swap(&swap_in(&dir, "record-a")).expect("first publish");
+        publish_pointer_swap(&swap_in(&dir, "record-b")).expect("replacement publish");
+        assert_eq!(
+            std::fs::read_link(dir.join("current")).expect("pointer target"),
+            PathBuf::from("record-b")
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn publish_clears_a_stale_file_stage_first() {
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-stale-");
+        let dir = scratch.path().join("setups");
+        std::fs::create_dir_all(&dir).expect("setups dir");
+        std::fs::write(dir.join("current.next"), "stale").expect("stale stage file");
+        publish_pointer_swap(&swap_in(&dir, "record-a")).expect("publish over stale stage");
+        assert_eq!(
+            std::fs::read_link(dir.join("current")).expect("pointer target"),
+            PathBuf::from("record-a")
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn publish_failure_keeps_the_prior_pointer() {
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-failure-");
+        let dir = scratch.path().join("setups");
+        std::fs::create_dir_all(&dir).expect("setups dir");
+        publish_pointer_swap(&swap_in(&dir, "record-a")).expect("first publish");
+        let current = dir.join("current");
+        dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
+        std::fs::create_dir(&current).expect("blocking directory");
+        let marker = current.join("kept.txt");
+        std::fs::write(&marker, "prior").expect("prior marker");
+        let error = publish_pointer_swap(&swap_in(&dir, "record-b")).expect_err("rename must fail");
+        assert!(matches!(error, CommitError::Install { .. }));
+        assert_eq!(
+            std::fs::read(&marker).expect("prior state survives"),
+            b"prior"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn commit_errors_display() {
+        let errors = [
+            CommitError::Foreign {
+                path: PathBuf::from("/ws/.dx/current.next"),
+                reason: "r".to_string(),
+            },
+            CommitError::Install {
+                reason: "r".to_string(),
+            },
+        ];
+        for error in &errors {
+            assert!(!format!("{error}").is_empty());
+        }
+        let busy = LockError::Busy {
+            path: PathBuf::from("/ws/.dx/.commit.lock"),
+        };
+        assert!(!format!("{busy}").is_empty());
+    }
 }

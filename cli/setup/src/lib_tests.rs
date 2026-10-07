@@ -335,8 +335,11 @@ fn commit_ok(workspace: &Path, pair: &SetupPair) -> CommitOutcome {
 }
 
 #[test]
-fn commit_lock_deadline_matches_env_owner() {
-    assert_eq!(COMMIT_LOCK_TIMEOUT, dx_env::LOCK_TIMEOUT);
+fn commit_lock_deadline_matches_shared_owner() {
+    assert_eq!(
+        COMMIT_LOCK_TIMEOUT,
+        dx_atomic_fs::commit::DEFAULT_COMMIT_LOCK_TIMEOUT
+    );
 }
 
 #[test]
@@ -689,7 +692,11 @@ fn busy_lock_fails_after_deadline() {
     let workspace = workspace_of(&root);
     let dx_dir = workspace.join(".dx");
     fs::create_dir_all(&dx_dir).expect("dx dir");
-    let _held = dx_env::acquire_lock(&dx_dir, Duration::from_secs(10)).expect("hold commit lock");
+    let _held = dx_atomic_fs::commit::acquire_commit_lock(
+        &dx_atomic_fs::commit::ManagedRoot::new(dx_dir.clone()),
+        Duration::from_secs(10),
+    )
+    .expect("hold commit lock");
     let error = commit_pair_with_timeout(&workspace, &pair('1', '2'), Duration::from_millis(1))
         .unwrap_err();
     assert!(matches!(error, CommitError::Busy { .. }));
@@ -708,7 +715,8 @@ fn lock_open_failure_aborts() {
     let workspace = workspace_of(&root);
     let dx_dir = workspace.join(".dx");
     fs::create_dir_all(&dx_dir).expect("dx dir");
-    fs::create_dir_all(dx_dir.join(dx_env::LOCK_FILE_NAME)).expect("lock is a directory");
+    fs::create_dir_all(dx_dir.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME))
+        .expect("lock is a directory");
     assert!(matches!(
         commit_pair_with_timeout(&workspace, &pair('1', '2'), Duration::from_secs(1)),
         Err(CommitError::LockFailed { .. })

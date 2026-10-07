@@ -2,8 +2,6 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
-# gazelle:resolve rust dx_env //cli/env:dx_env
-
 package(default_visibility = VIS_CLI)
 
 exports_files([
@@ -19,8 +17,8 @@ dx_rust_crate(
     ],
     dev_deps = ["insta"],
     extra_deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
-        "//cli/env:dx_env",
         "//cli/roots:dx_roots",
     ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],

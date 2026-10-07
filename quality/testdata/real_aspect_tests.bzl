@@ -2,7 +2,17 @@
 
 load("//libs/starlark:defs.bzl", "starlark_test")
 
-EXPECTED_OBSERVATIONS = """subject //quality/testdata:fixture_real_java_hinted_subject
+EXPECTED_OBSERVATIONS = """subject //quality/testdata:fixture_real_delim_python_subject
+field dx_count=1
+field dx_results=fixture_real_delim_python-real-format.pb
+field has_quality_sources=True
+field label=//quality/testdata:fixture_real_delim_python
+aspect_field aspect_seen=True
+aspect_field field_count=4
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:fixture_real_delim_python_subject
+aspect_field transitive_count=0
+subject //quality/testdata:fixture_real_java_hinted_subject
 field dx_count=2
 field dx_results=fixture_real_java_hinted-real-format-jvm.pb,fixture_real_java_hinted-real-lint-jvm.pb
 field has_quality_sources=True

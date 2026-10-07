@@ -1,5 +1,5 @@
 {
-  "checksum": "a23414908029c3b21eaf0b3dbfa83d03909d6740f8717c3b10989dc058024bb2",
+  "checksum": "b3edcd3653a9a048fd42e4d3676c105f6efc3d21013e715820c912a8427948aa",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7780,6 +7780,14 @@
           {
             "id": "clap 4.6.7",
             "target": "clap"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
           },
           {
             "id": "tempfile 3.27.0",

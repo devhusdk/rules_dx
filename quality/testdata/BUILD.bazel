@@ -127,6 +127,13 @@ eslint_config(
 )
 
 real_source_target(
+    name = "fixture_real_delim_python",
+    aspect_hints = [":ruff_cfg"],
+    python_srcs = ["real_delim,a;b=c.py"],
+    tags = ["no-lint"],
+)
+
+real_source_target(
     name = "fixture_real_rust",
     rust_srcs = ["clean.rs"],
 )
@@ -201,6 +208,11 @@ real_source_target(
     aspect_hints = [":ruff_cfg"],
     python_srcs = ["real_clean.py"],
     tags = ["no-typecheck"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_delim_python_subject",
+    target = ":fixture_real_delim_python",
 )
 
 real_aspect_subject(
@@ -458,6 +470,7 @@ failure_test(
 real_aspect_fixture_tests(
     name = "real_aspect_presence",
     subjects = [
+        ":fixture_real_delim_python_subject",
         ":fixture_real_java_hinted_subject",
         ":fixture_real_javascript_subject",
         ":fixture_real_json_subject",

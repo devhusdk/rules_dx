@@ -20,6 +20,7 @@ use quality_result::{
 };
 
 pub mod real;
+pub mod request;
 
 pub const SYNTHETIC_TOOLS: &[&str] = &["fmt-a", "lint-a", "lint-b"];
 

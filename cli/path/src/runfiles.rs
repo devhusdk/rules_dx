@@ -23,10 +23,7 @@ pub fn manifest_for(binary: &Path) -> PathBuf {
     manifest_beside(binary).unwrap_or_else(|| PathBuf::from(named))
 }
 
-/// The runfiles of one binary, read with the upstream runfiles library.
-///
-/// Only the files beside the binary are read, never `RUNFILES_MANIFEST_FILE`,
-/// which describes whatever started this process.
+/// The runfiles one source describes, read with the upstream runfiles library.
 #[derive(Debug)]
 pub struct Resolver {
     inner: Runfiles,
@@ -34,6 +31,28 @@ pub struct Resolver {
 }
 
 impl Resolver {
+    /// Reads one runfiles tree directory as the source of every key.
+    pub fn from_tree(dir: PathBuf) -> io::Result<Self> {
+        if !dir.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("runfiles tree {} is not a directory", dir.display()),
+            ));
+        }
+        Resolver::new(Runfiles::builder().directory(&dir), dir)
+    }
+
+    /// Reads one runfiles manifest file as the source of every key.
+    pub fn from_manifest(path: PathBuf) -> io::Result<Self> {
+        let text = std::fs::read_to_string(&path).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!("runfiles manifest {}: {error}", path.display()),
+            )
+        })?;
+        Resolver::new(Runfiles::builder().manifest(text), path)
+    }
+
     /// Reads the runfiles that sit beside one binary, the manifest first.
     pub fn for_binary(binary: &Path) -> io::Result<Self> {
         if let Some(manifest) = manifest_beside(binary) {
@@ -307,6 +326,48 @@ mod tests {
             error.to_string().contains("RepoMappingInvalidFormat"),
             "error text: {error}"
         );
+    }
+
+    #[test]
+    fn a_tree_source_resolves_the_keys_inside_it() {
+        let dir = scratch("from-tree");
+        let target = write(&dir, "_main/pkg/tool.txt", "from the tree\n");
+        let resolver = Resolver::from_tree(dir.clone()).expect("tree");
+        assert_eq!(resolver.source(), dir);
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), target);
+    }
+
+    #[test]
+    fn a_missing_tree_source_names_the_directory() {
+        let dir = scratch("absent-tree");
+        let error = Resolver::from_tree(dir.join("missing")).expect_err("absent");
+        assert!(
+            error.to_string().contains("is not a directory"),
+            "error text: {error}"
+        );
+    }
+
+    #[test]
+    fn a_manifest_source_resolves_the_keys_inside_it() {
+        let dir = scratch("from-manifest");
+        let manifest = write(
+            &dir,
+            "runfiles_manifest",
+            "_main/pkg/tool.txt out/tool.txt\n",
+        );
+        let resolver = Resolver::from_manifest(manifest.clone()).expect("manifest");
+        assert_eq!(resolver.source(), manifest);
+        assert_eq!(
+            found(&resolver, "_main/pkg/tool.txt"),
+            PathBuf::from("out/tool.txt")
+        );
+    }
+
+    #[test]
+    fn a_missing_manifest_source_names_the_file() {
+        let dir = scratch("absent-manifest");
+        let error = Resolver::from_manifest(dir.join("missing")).expect_err("absent");
+        assert!(error.to_string().contains("missing"), "error text: {error}");
     }
 
     fn found(resolver: &Resolver, key: &str) -> PathBuf {

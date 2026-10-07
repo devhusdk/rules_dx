@@ -53,7 +53,20 @@ impl Resolver {
         ))
     }
 
-    /// Names the manifest or tree this resolver read.
+    /// Reads the runfiles the environment of this process names.
+    ///
+    /// A test or a launcher starts with `RUNFILES_MANIFEST_FILE` or `RUNFILES_DIR`
+    /// already set, so the files beside this binary are never the runfiles it needs.
+    pub fn from_env() -> io::Result<Self> {
+        let inner = Runfiles::create()
+            .map_err(|error| io::Error::new(io::ErrorKind::NotFound, error.to_string()))?;
+        Ok(Resolver {
+            inner,
+            source: env_source(),
+        })
+    }
+
+    /// Names the manifest, tree, or environment variable this resolver read.
     pub fn source(&self) -> &Path {
         &self.source
     }
@@ -92,6 +105,17 @@ fn tree_beside(binary: &Path) -> Option<PathBuf> {
 
 fn dx_path_display(path: &Path) -> String {
     super::spell(path, super::Spelling::Native)
+}
+
+fn env_source() -> PathBuf {
+    ["RUNFILES_MANIFEST_FILE", "RUNFILES_DIR", "TEST_SRCDIR"]
+        .iter()
+        .find_map(|name| {
+            std::env::var_os(*name)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+        })
+        .unwrap_or_else(|| PathBuf::from("runfiles"))
 }
 
 #[cfg(test)]

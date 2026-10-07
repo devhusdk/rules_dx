@@ -1,8 +1,8 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY")
 
-package(default_visibility = VIS_CLI_DEPLOY)
+package(default_visibility = VIS_CLI_DEPLOY_QUALITY)
 
 dx_rust_crate(
     name = "dx_process",
@@ -10,6 +10,8 @@ dx_rust_crate(
     srcs = [
         "src/lib.rs",
         "src/lib_tests.rs",
+        "src/lifecycle.rs",
+        "src/lifecycle_tests.rs",
     ],
     extra_deps = ["//cli/path:dx_path"],
     extra_test_deps = [
@@ -21,7 +23,9 @@ dx_rust_crate(
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
     deps = [
+        "libc",
         "thiserror",
+        "windows-sys",
     ],
 )
 

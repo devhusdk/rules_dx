@@ -1,5 +1,5 @@
 {
-  "checksum": "b3edcd3653a9a048fd42e4d3676c105f6efc3d21013e715820c912a8427948aa",
+  "checksum": "8132faf1b07d5810dd7a9970780e8187287d79bf6b5e0f67bd8faff9595bdf15",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3320,8 +3320,16 @@
       "common_attrs": {
         "deps": [
           {
+            "id": "libc 0.2.189",
+            "target": "libc"
+          },
+          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          },
+          {
+            "id": "windows-sys 0.61.2",
+            "target": "windows_sys"
           }
         ],
         "edition": "2021"
@@ -12183,20 +12191,39 @@
     },
     "windows-sys 0.61.2": {
       "common_attrs": {
-        "crate_features": [
-          "Win32",
-          "Win32_Foundation",
-          "Win32_Security",
-          "Win32_Storage",
-          "Win32_Storage_FileSystem",
-          "Win32_System",
-          "Win32_System_Console",
-          "Win32_System_SystemInformation",
-          "Win32_UI",
-          "Win32_UI_Input",
-          "Win32_UI_Input_KeyboardAndMouse",
-          "default"
-        ],
+        "crate_features": {
+          "common": [
+            "Win32",
+            "Win32_Foundation",
+            "Win32_Security",
+            "Win32_System",
+            "Win32_System_Diagnostics",
+            "Win32_System_Diagnostics_ToolHelp",
+            "Win32_System_JobObjects",
+            "Win32_System_Threading",
+            "default"
+          ],
+          "selects": {
+            "aarch64-pc-windows-msvc": [
+              "Win32_Storage",
+              "Win32_Storage_FileSystem",
+              "Win32_System_Console",
+              "Win32_System_SystemInformation",
+              "Win32_UI",
+              "Win32_UI_Input",
+              "Win32_UI_Input_KeyboardAndMouse"
+            ],
+            "x86_64-pc-windows-msvc": [
+              "Win32_Storage",
+              "Win32_Storage_FileSystem",
+              "Win32_System_Console",
+              "Win32_System_SystemInformation",
+              "Win32_UI",
+              "Win32_UI_Input",
+              "Win32_UI_Input_KeyboardAndMouse"
+            ]
+          }
+        },
         "deps": [
           {
             "id": "windows-link 0.2.1",
@@ -13775,6 +13802,7 @@
     "tracing-subscriber 0.3.23",
     "url 2.5.8",
     "walkdir 2.5.0",
+    "windows-sys 0.61.2",
     "yaml_serde 0.10.7",
     "yarn-lock-parser 0.14.0"
   ],

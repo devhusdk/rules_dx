@@ -173,7 +173,7 @@ SCOPED_PACKAGES = {
     "cli/lcov": "VIS_CLI_TOOLS",
     "cli/output": "VIS_CLI_ENV_GENERATION_QUALITY",
     "cli/path": "VIS_CLI_WIDE",
-    "cli/process": "VIS_CLI_DEPLOY",
+    "cli/process": "VIS_CLI_DEPLOY_QUALITY",
     "cli/proto_validate": "VIS_CLI_WIDE",
     "cli/roots": "VIS_CLI",
     "cli/schema": "VIS_CLI_DOCS_GENERATION_QUALITY",

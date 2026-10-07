@@ -8,10 +8,12 @@
     )
 )]
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+pub mod lifecycle;
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
@@ -412,16 +414,38 @@ pub fn spawn_output(
     env: &[(&str, &str)],
     clear_env: bool,
 ) -> io::Result<std::process::Output> {
-    let (binary, args) = argv
-        .split_first()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
-    let mut command = Command::new(OsStr::new(binary));
-    command.args(args).current_dir(cwd);
-    if clear_env {
-        command.env_clear();
+    let vars: Vec<(OsString, OsString)> = env
+        .iter()
+        .map(|(key, value)| (OsString::from(*key), OsString::from(*value)))
+        .collect();
+    let policy = if clear_env {
+        lifecycle::EnvPolicy::Controlled { vars }
+    } else {
+        lifecycle::EnvPolicy::Inherited { extra: vars }
+    };
+    let spec = lifecycle::SpawnSpec {
+        argv: argv.iter().map(|arg| OsStr::new(arg).to_os_string()).collect(),
+        cwd: cwd.to_path_buf(),
+        stdin: lifecycle::StdinPolicy::Closed,
+        tree: lifecycle::TreePolicy::Inherited,
+        timeout: None,
+    };
+    let capture = lifecycle::CapturePolicy {
+        max_output_bytes: usize::MAX,
+    };
+    match lifecycle::run(&spec, &policy, &capture) {
+        lifecycle::ChildOutcome::Completed {
+            exit,
+            stdout,
+            stderr,
+        } => Ok(std::process::Output {
+            status: lifecycle::status_from(&exit),
+            stdout,
+            stderr,
+        }),
+        lifecycle::ChildOutcome::TimedOut => Err(io::Error::other("child run did not finish")),
+        lifecycle::ChildOutcome::Failed { error, .. } => Err(error),
     }
-    command.envs(env.iter().copied());
-    command.output()
 }
 
 pub fn spawn_success(argv: &[String]) -> bool {

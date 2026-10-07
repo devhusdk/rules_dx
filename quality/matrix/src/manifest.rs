@@ -133,10 +133,7 @@ impl Manifest {
 
     /// Splits every declared stage into its tool, classes and sources.
     pub fn stages(&self) -> Result<Vec<StageSpec>, Error> {
-        self.stages
-            .iter()
-            .map(|spec| parse_stage(spec))
-            .collect()
+        self.stages.iter().map(|spec| parse_stage(spec)).collect()
     }
 
     /// Builds the runner argv for one case, in the order the runner reads.
@@ -183,10 +180,7 @@ impl Manifest {
         }
         for config in &self.tool_configs {
             argv.push(flag("--tool-config"));
-            argv.push(OsString::from(format!(
-                "{}={}",
-                config.tool, config.config
-            )));
+            argv.push(OsString::from(format!("{}={}", config.tool, config.config)));
         }
         for edition in &self.tool_editions {
             argv.push(flag("--tool-edition"));
@@ -270,7 +264,9 @@ impl EnvValue {
     /// The text one tool environment entry carries.
     pub fn text(&self, runfiles_root: &Path) -> Result<String, Error> {
         match self {
-            EnvValue::RunfilesRoot { runfiles_root: wanted } => {
+            EnvValue::RunfilesRoot {
+                runfiles_root: wanted,
+            } => {
                 if *wanted {
                     Ok(display(runfiles_root))
                 } else {
@@ -283,6 +279,10 @@ impl EnvValue {
         }
     }
 }
+
+#[path = "manifest_tests.rs"]
+#[cfg(test)]
+mod tests;
 
 /// The root the runfiles tree and manifest are read from.
 pub fn runfiles_root() -> PathBuf {

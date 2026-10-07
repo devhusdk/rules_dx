@@ -12,20 +12,16 @@ use crate::verify;
 use crate::Error;
 
 const RUNFILES_DIR: &str = "RUNFILES_DIR";
+const UPDATE_EXPECT: &str = "UPDATE_EXPECT";
 
-struct Files {
-    resolver: Resolver,
-    root: PathBuf,
-}
-
-impl Rlocation for Files {
+impl Rlocation for Resolver {
     fn path(&self, rlocation: &str) -> Result<PathBuf, Error> {
-        let path = self.resolver.lookup(rlocation).map_err(|error| {
-            Error::MissingRunfile {
+        let path = self
+            .lookup(rlocation)
+            .map_err(|error| Error::MissingRunfile {
                 key: rlocation.to_owned(),
                 detail: error.to_string(),
-            }
-        })?;
+            })?;
         if !path.is_file() {
             return Err(Error::MissingRunfile {
                 key: rlocation.to_owned(),
@@ -36,23 +32,51 @@ impl Rlocation for Files {
     }
 }
 
-/// Runs the case the manifest names.
+/// Runs the case the manifest names in this process' own runfiles.
 pub fn run(manifest_rlocation: &str) -> Result<(), Error> {
-    let files = Files {
-        resolver: Resolver::from_env().map_err(|error| Error::Runfiles(error.to_string()))?,
-        root: runfiles_root(),
-    };
+    let files = Resolver::from_env().map_err(|error| Error::Runfiles(error.to_string()))?;
     let manifest = read_manifest(&files, manifest_rlocation)?;
-    let work = work_dir()?;
+    let update = update_requested(std::env::var(UPDATE_EXPECT).ok().as_deref());
+    let staged = if update {
+        Some(verify::update_dir())
+    } else {
+        None
+    };
+    execute(
+        &manifest,
+        &files,
+        &runfiles_root(),
+        &work_dir()?,
+        staged.as_deref(),
+    )
+}
+
+/// Runs one case from an already-read manifest.
+///
+/// `root` is the tree the child sees as `RUNFILES_DIR` and `work` is this case's
+/// scratch parent. A `staged` directory writes the fresh result there instead of
+/// comparing it against the pinned snapshot; the pinned snapshot is never
+/// written either way.
+pub fn execute<L: Rlocation>(
+    manifest: &Manifest,
+    files: &L,
+    root: &Path,
+    work: &Path,
+    staged: Option<&Path>,
+) -> Result<(), Error> {
     let scratch = work.join("scratch");
     std::fs::create_dir_all(&scratch).map_err(|error| Error::Scratch {
         path: scratch.display().to_string(),
         detail: error.to_string(),
     })?;
     let out = work.join("out.pb");
-    let env = hermetic_env(&scratch, &[(OsString::from(RUNFILES_DIR), files.root.clone().into())], &ambient());
+    let env = hermetic_env(
+        &scratch,
+        &[(OsString::from(RUNFILES_DIR), root.to_path_buf().into())],
+        &ambient(),
+    );
     let run = spawn(
-        &manifest.runner_argv(&out, &scratch, &files.root, &files)?,
+        &manifest.runner_argv(&out, &scratch, root, files)?,
         &scratch,
         &env,
     )
@@ -66,16 +90,21 @@ pub fn run(manifest_rlocation: &str) -> Result<(), Error> {
     }
     let bytes = std::fs::read(&out).map_err(|error| Error::Result(error.to_string()))?;
     let result = decode_validated(&bytes).map_err(|error| Error::Result(error.to_string()))?;
-    verify::verify_result(&manifest, &result)?;
-    let printed = print_result(&manifest, &out, &scratch, &env, &files)?;
+    verify::verify_result(manifest, &result)?;
+    let printed = print_result(manifest, &out, &scratch, &env, files)?;
     verify::verify_print(&printed, &result)?;
-    if std::env::var("UPDATE_EXPECT").as_deref() == Ok("1") {
-        return stage(&manifest, printed.as_bytes());
+    match staged {
+        Some(dir) => stage(dir, manifest, printed.as_bytes()),
+        None => compare(files, manifest, printed.as_bytes()),
     }
-    compare(&files, &manifest, printed.as_bytes())
 }
 
-fn read_manifest(files: &Files, manifest_rlocation: &str) -> Result<Manifest, Error> {
+/// Whether one value asks for a fresh snapshot to be staged.
+pub fn update_requested(value: Option<&str>) -> bool {
+    value == Some("1")
+}
+
+fn read_manifest<L: Rlocation>(files: &L, manifest_rlocation: &str) -> Result<Manifest, Error> {
     let path = files.path(manifest_rlocation)?;
     let bytes = std::fs::read(&path).map_err(|error| Error::Manifest {
         path: path.display().to_string(),
@@ -84,12 +113,12 @@ fn read_manifest(files: &Files, manifest_rlocation: &str) -> Result<Manifest, Er
     Manifest::parse(&bytes)
 }
 
-fn print_result(
+fn print_result<L: Rlocation>(
     manifest: &Manifest,
     out: &Path,
     scratch: &Path,
     env: &[(OsString, OsString)],
-    files: &Files,
+    files: &L,
 ) -> Result<String, Error> {
     let argv = manifest.printer_argv(out, files)?;
     let printed = spawn(&argv, scratch, env).map_err(|error| Error::Printer(error.to_string()))?;
@@ -103,8 +132,8 @@ fn print_result(
     String::from_utf8(printed.stdout).map_err(|error| Error::Printer(error.to_string()))
 }
 
-fn stage(manifest: &Manifest, actual: &[u8]) -> Result<(), Error> {
-    let staged = verify::stage_update(&verify::update_dir(), &manifest.update_name(), actual)?;
+fn stage(dir: &Path, manifest: &Manifest, actual: &[u8]) -> Result<(), Error> {
+    let staged = verify::stage_update(dir, &manifest.update_name(), actual)?;
     println!(
         "snapshot UPDATE_EXPECT: staged fresh actual at {}",
         staged.display()
@@ -117,7 +146,7 @@ fn stage(manifest: &Manifest, actual: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-fn compare(files: &Files, manifest: &Manifest, actual: &[u8]) -> Result<(), Error> {
+fn compare<L: Rlocation>(files: &L, manifest: &Manifest, actual: &[u8]) -> Result<(), Error> {
     let path = files.path(&manifest.expected)?;
     let expected = std::fs::read(&path).map_err(|error| Error::Snapshot {
         path: path.display().to_string(),
@@ -137,6 +166,9 @@ fn compare(files: &Files, manifest: &Manifest, actual: &[u8]) -> Result<(), Erro
     })?;
     println!("{}", verify::snapshot_diff(&snapshot, &printed)?);
     println!("--- actual print_result:\n{printed}");
+    println!(
+        "re-run with {UPDATE_EXPECT}=1 (bazel test --test_env={UPDATE_EXPECT}) to stage the fresh snapshot, then review it before pinning."
+    );
     Err(Error::Mismatch(manifest.snapshot_path()))
 }
 
@@ -150,3 +182,7 @@ fn work_dir() -> Result<PathBuf, Error> {
         .unwrap_or_else(std::env::temp_dir);
     Ok(base.join("matrix_work"))
 }
+
+#[path = "run_tests.rs"]
+#[cfg(test)]
+mod tests;

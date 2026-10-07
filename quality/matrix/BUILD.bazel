@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 
 package(default_visibility = VIS_QUALITY)
@@ -12,8 +12,11 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/manifest.rs",
+        "src/manifest_tests.rs",
         "src/run.rs",
+        "src/run_tests.rs",
         "src/verify.rs",
+        "src/verify_tests.rs",
     ],
     aliases = aliases(
         package_name = "quality/dx_matrix_harness",
@@ -73,4 +76,35 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+rust_test(
+    name = "dx_matrix_harness_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "quality/dx_matrix_harness",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_matrix_harness",
+    data = [
+        "//quality/result:print_result",
+        "//quality/runner:quality_runner",
+        "@dx_tools//:taplo",
+    ],
+    env = {
+        "DX_HARNESS_PRINTER": "$(rootpath //quality/result:print_result)",
+        "DX_HARNESS_RUNNER": "$(rootpath //quality/runner:quality_runner)",
+        "DX_HARNESS_TOOL": "$(rootpath @dx_tools//:taplo)",
+    },
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "tempfile",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "quality/dx_matrix_harness",
+    ) + ["//quality/result:quality_result"],
 )

@@ -15,7 +15,7 @@ pub mod run;
 pub mod verify;
 
 pub use manifest::{Manifest, MANIFEST_SCHEMA_VERSION};
-pub use run::run;
+pub use run::{execute, run, update_requested};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {

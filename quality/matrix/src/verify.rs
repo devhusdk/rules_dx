@@ -60,9 +60,7 @@ pub fn verify_result(manifest: &Manifest, result: &QualityResult) -> Result<(), 
         }
     }
     if result.completed_rounds == 0 {
-        return Err(Error::ResultMismatch(
-            "completed_rounds is zero".to_owned(),
-        ));
+        return Err(Error::ResultMismatch("completed_rounds is zero".to_owned()));
     }
     if Convergence::try_from(result.convergence) != Ok(Convergence::Stable) {
         return Err(Error::ResultMismatch(format!(
@@ -82,9 +80,7 @@ fn header_count(lines: &[&str], prefix: &str) -> Result<u64, Error> {
                 .map_err(|error| Error::PrintedMismatch(format!("{prefix} {error}")));
         }
     }
-    Err(Error::PrintedMismatch(format!(
-        "no {prefix} header line"
-    )))
+    Err(Error::PrintedMismatch(format!("no {prefix} header line")))
 }
 
 fn row_count(lines: &[&str], prefix: &str) -> usize {
@@ -107,23 +103,34 @@ pub fn verify_print(printed: &str, result: &QualityResult) -> Result<(), Error> 
         ));
     }
     let lines: Vec<&str> = printed.lines().collect();
-    let replacements: usize = result
+    let edits: usize = result
         .replacements
         .iter()
         .map(|file| file.edits.len())
         .sum();
-    for (header, row_prefix, declared) in [
-        ("initial", "initial ", result.initial_diagnostics.len()),
+    for (header, row_prefix, declared, declared_rows) in [
+        (
+            "initial",
+            "initial ",
+            result.initial_diagnostics.len(),
+            result.initial_diagnostics.len(),
+        ),
         (
             "terminal",
             "terminal ",
             result.terminal_diagnostics.len(),
+            result.terminal_diagnostics.len(),
         ),
-        ("replacements", "replacement ", replacements),
+        (
+            "replacements",
+            "replacement ",
+            result.replacements.len(),
+            edits,
+        ),
     ] {
         let header = header_count(&lines, header)?;
-        let rows = row_count(&lines, row_prefix) as u64;
-        if header != declared as u64 || rows != header {
+        let rows = row_count(&lines, row_prefix);
+        if header != declared as u64 || rows != declared_rows {
             return Err(Error::PrintedMismatch(format!(
                 "{header} header says {header} but {rows} rows and {declared} decoded entries exist"
             )));
@@ -164,6 +171,9 @@ pub fn update_dir() -> PathBuf {
 }
 
 /// Writes the fresh result where a reviewer can compare it before pinning.
+///
+/// The pinned snapshot is never written here; the staged copy is the only
+/// file this touches.
 pub fn stage_update(dir: &Path, name: &str, actual: &[u8]) -> Result<PathBuf, Error> {
     std::fs::create_dir_all(dir).map_err(|error| Error::Stage {
         path: dir.display().to_string(),
@@ -176,3 +186,7 @@ pub fn stage_update(dir: &Path, name: &str, actual: &[u8]) -> Result<PathBuf, Er
     })?;
     Ok(path)
 }
+
+#[path = "verify_tests.rs"]
+#[cfg(test)]
+mod tests;

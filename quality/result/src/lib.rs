@@ -308,6 +308,7 @@ pub fn assert_all_equal<T: PartialEq + std::fmt::Debug>(items: &[T]) {
     }
 }
 
+/// Renders one result as the deterministic text `print_result` writes.
 pub fn print_text(result: &QualityResult) -> String {
     let mut lines = Vec::new();
     lines.push(format!("producer {}", result.producer));
@@ -906,5 +907,16 @@ mod tests {
     fn error_display_reports_variant() {
         let rendered = format!("{}", Error::ReplacementsWithoutStability);
         assert!(rendered.contains("without a stable terminal snapshot"));
+    }
+
+    #[test]
+    fn printed_text_counts_replacement_files_and_their_edits_separately() {
+        let result = sample();
+        let text = print_text(&result);
+        assert!(text.starts_with("producer //quality:test\n"));
+        assert!(text.ends_with('\n'));
+        assert!(text.contains("replacements 1\n"));
+        assert_eq!(text.matches("\nreplacement ").count(), 1);
+        assert_eq!(text, print_text(&result), "printing is deterministic");
     }
 }

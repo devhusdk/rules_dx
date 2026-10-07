@@ -8,7 +8,7 @@
     )
 )]
 
-use std::fs::{self, File, OpenOptions};
+use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -17,16 +17,15 @@ use marker_proto::dx::env::v1::{EnvIdentity, EnvMarker, ToolEntry};
 use prost::Message;
 use serde::Deserialize;
 
-pub const DX_DIR_NAME: &str = ".dx";
+pub use dx_atomic_fs::{acquire_lock, LockError, DX_DIR_NAME, LOCK_FILE_NAME, LOCK_TIMEOUT};
+
 pub const MARKER_FILE_NAME: &str = ".rules_dx_managed";
 pub const MARKER_SCHEMA_VERSION: u32 = 1;
 pub const STAGED_METADATA_SCHEMA_VERSION: u32 = 1;
 pub const BIN_DIR_NAME: &str = "bin";
-pub const LOCK_FILE_NAME: &str = ".commit.lock";
 pub const STAGE_DIR_NAME: &str = "bin.next";
 pub const PREV_DIR_NAME: &str = "bin.prev";
 pub const IDENTITY_LEN: usize = 32;
-pub const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolPlan {
@@ -79,17 +78,6 @@ pub enum Error {
     SymlinkUnsupported { detail: String },
     #[error("installation failed: {reason}")]
     Install { reason: String },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum LockError {
-    #[error(
-        "another refresh holds {path}; giving up after the commit-lock deadline",
-        path = path.display()
-    )]
-    Busy { path: PathBuf },
-    #[error("cannot lock {path}: {reason}", path = path.display())]
-    LockFailed { path: PathBuf, reason: String },
 }
 
 impl From<LockError> for Error {
@@ -247,28 +235,6 @@ fn validate_host_name(bin_name: &str, name: &str) -> Result<(), Error> {
         return Err(bad(&format!("stem '{stem}' is reserved on Windows")));
     }
     Ok(())
-}
-
-pub fn acquire_lock(dx_dir: &Path, timeout: Duration) -> Result<File, LockError> {
-    let path = dx_dir.join(LOCK_FILE_NAME);
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&path)
-        .map_err(|e| LockError::LockFailed {
-            path: path.clone(),
-            reason: format!("cannot open commit lock: {e}"),
-        })?;
-    match dx_atomic_fs::lock_exclusive(&file, timeout) {
-        Ok(()) => Ok(file),
-        Err(std::fs::TryLockError::WouldBlock) => Err(LockError::Busy { path: path.clone() }),
-        Err(e) => Err(LockError::LockFailed {
-            path: path.clone(),
-            reason: format!("cannot lock commit lock: {e}"),
-        }),
-    }
 }
 
 pub fn probe_symlink(dir: &Path) -> io::Result<()> {

@@ -8,6 +8,7 @@
     )
 )]
 
+pub mod commit;
 pub mod managed;
 
 use std::fs::File;
@@ -15,6 +16,10 @@ use std::io;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+pub use commit::{
+    acquire_lock, clear_staged_pointer, managed_root, publish_staged, stage_pointer, LockError,
+    RootError, StageError, DX_DIR_NAME, LOCK_FILE_NAME, LOCK_TIMEOUT,
+};
 pub use managed::{
     classify, materialize_file, materialize_file_with, remove_managed, replace_pointer, EntryKind,
     LinkPolicy, Mechanism, PointerKind,

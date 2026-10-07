@@ -13,8 +13,11 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use dx_atomic_fs::{
+    acquire_lock, managed_root, publish_staged, stage_pointer, LockError, PointerKind, RootError,
+    StageError, DX_DIR_NAME,
+};
 use dx_digest::blake3 as digest;
-use dx_env::{acquire_lock, LockError, DX_DIR_NAME};
 use dx_roots::{
     build_argv_union, invocation_targets_union, repository_plan, resolve_exact_target,
     ExactScopeError, RepositoryRootPlan,
@@ -280,6 +283,21 @@ fn map_lock_error(error: LockError) -> CommitError {
     }
 }
 
+fn map_root_error(error: RootError) -> CommitError {
+    match &error {
+        RootError::WorkspaceRoot { path } => CommitError::WorkspaceRoot { path: path.clone() },
+        RootError::Create { .. } => CommitError::Install {
+            reason: error.to_string(),
+        },
+    }
+}
+
+fn map_stage_error(error: StageError) -> CommitError {
+    CommitError::Install {
+        reason: error.to_string(),
+    }
+}
+
 fn acquire_commit_lock(dx_dir: &Path, timeout: Duration) -> Result<std::fs::File, CommitError> {
     acquire_lock(dx_dir, timeout).map_err(map_lock_error)
 }
@@ -401,44 +419,7 @@ fn ensure_setup_record(setups_dir: &Path, pair: &SetupPair) -> Result<PathBuf, C
 }
 
 fn clear_staged_pointer(stage: &Path) -> Result<(), CommitError> {
-    match fs::symlink_metadata(stage) {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(CommitError::Install {
-            reason: format!("cannot inspect stale {}: {e}", stage.display()),
-        }),
-        Ok(meta) => {
-            if meta.file_type().is_dir() && !meta.file_type().is_symlink() {
-                Err(CommitError::Install {
-                    reason: format!(
-                        "stale {} is a directory; refusing to adopt foreign state",
-                        stage.display()
-                    ),
-                })
-            } else {
-                remove_staged_entry(stage).map_err(|e| CommitError::Install {
-                    reason: format!("cannot clear stale {}: {e}", stage.display()),
-                })
-            }
-        }
-    }
-}
-
-/// Removes the staged entry itself and never its target.
-#[cfg(windows)]
-fn remove_staged_entry(stage: &Path) -> io::Result<()> {
-    use std::os::windows::fs::MetadataExt;
-
-    const DIRECTORY_ATTRIBUTE: u32 = 0x10;
-    if fs::symlink_metadata(stage)?.file_attributes() & DIRECTORY_ATTRIBUTE != 0 {
-        return fs::remove_dir(stage);
-    }
-    fs::remove_file(stage)
-}
-
-/// Removes the staged entry itself and never its target.
-#[cfg(not(windows))]
-fn remove_staged_entry(stage: &Path) -> io::Result<()> {
-    fs::remove_file(stage)
+    dx_atomic_fs::clear_staged_pointer(stage).map_err(map_stage_error)
 }
 
 fn install_and_swap(
@@ -458,15 +439,9 @@ fn install_and_swap(
         return Ok(CommitOutcome::AlreadyCurrent);
     }
     let fresh = prior.is_none();
-    symlink_dir(Path::new(&record_name), &stage).map_err(|e| CommitError::Install {
-        reason: format!("cannot stage {}: {e}", stage.display()),
-    })?;
-    fs::rename(&stage, &current).map_err(|e| CommitError::Install {
-        reason: format!(
-            "cannot publish {}: {e}; the prior pointer is preserved",
-            current.display()
-        ),
-    })?;
+    stage_pointer(Path::new(&record_name), &stage, PointerKind::Directory)
+        .map_err(map_stage_error)?;
+    publish_staged(&stage, &current).map_err(map_stage_error)?;
     if fresh {
         Ok(CommitOutcome::InstalledFresh)
     } else {

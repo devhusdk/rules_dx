@@ -1,8 +1,8 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//tools/visibility:visibility.bzl", "VIS_CLI")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_ENV_QUALITY")
 
-package(default_visibility = VIS_CLI)
+package(default_visibility = VIS_CLI_ENV_QUALITY)
 
 exports_files([
     "src/lib.rs",

@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use clap::Parser;
+use quality_adapter::request::{ActionRequest, PathMapping, parse_request};
 use quality_result::encode_validated;
 use quality_runner::{
     real::{RealBackend, RealTool},
@@ -76,6 +77,12 @@ pub enum RunnerError {
     UnknownToolFile { tool: String },
     #[error("--tool-env for unknown tool {tool:?}: pass --tool-binary first")]
     UnknownToolEnv { tool: String },
+    #[error("cannot read request {path:?}: {detail}")]
+    UnreadableRequest { path: String, detail: String },
+    #[error("invalid request: {detail}")]
+    BadRequest { detail: String },
+    #[error("--request cannot be combined with --{flag}")]
+    ConflictingRequest { flag: &'static str },
 }
 
 fn parse_args(args: &[String]) -> Result<Cli, RunnerError> {
@@ -402,6 +409,131 @@ struct Cli {
     tool_env: Vec<String>,
     #[arg(long, allow_hyphen_values = true)]
     upstream_diagnostics: Vec<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    request: Option<String>,
+}
+
+fn conflicting_request_flag(cli: &Cli) -> Option<&'static str> {
+    if cli.producer.is_some() {
+        return Some("producer");
+    }
+    if cli.capability.is_some() {
+        return Some("capability");
+    }
+    if cli.real {
+        return Some("real");
+    }
+    if cli.scratch_parent.is_some() {
+        return Some("scratch_parent");
+    }
+    if !cli.stage.is_empty() {
+        return Some("stage");
+    }
+    if !cli.source.is_empty() {
+        return Some("source");
+    }
+    if !cli.sibling.is_empty() {
+        return Some("sibling");
+    }
+    if !cli.resolve.is_empty() {
+        return Some("resolve");
+    }
+    if !cli.tool_binary.is_empty() {
+        return Some("tool-binary");
+    }
+    if !cli.tool_config.is_empty() {
+        return Some("tool-config");
+    }
+    if !cli.tool_file.is_empty() {
+        return Some("tool-file");
+    }
+    if !cli.tool_edition.is_empty() {
+        return Some("tool-edition");
+    }
+    if !cli.tool_env.is_empty() {
+        return Some("tool-env");
+    }
+    if !cli.upstream_diagnostics.is_empty() {
+        return Some("upstream-diagnostics");
+    }
+    None
+}
+
+fn request_pairs(mappings: &[PathMapping]) -> Vec<(String, String)> {
+    mappings
+        .iter()
+        .map(|mapping| (mapping.path.clone(), mapping.exec.clone()))
+        .collect()
+}
+
+fn split_request(request: &ActionRequest) -> (
+    Vec<StageSpec>,
+    Vec<(String, String)>,
+    Vec<(String, String)>,
+    Vec<(String, String)>,
+    Vec<(String, PathBuf)>,
+    Vec<(String, String)>,
+    Vec<(String, String)>,
+    Vec<(String, String, String)>,
+    Vec<(String, String, String)>,
+    Vec<(String, PathBuf)>,
+) {
+    let stages = request
+        .stages
+        .iter()
+        .map(|stage| StageSpec {
+            tool_id: stage.tool.clone(),
+            class_ids: stage.classes.clone(),
+            source_paths: stage.sources.clone(),
+        })
+        .collect();
+    let mut binaries = Vec::with_capacity(request.tools.len());
+    let mut configs = Vec::new();
+    let mut editions = Vec::new();
+    let mut tool_files = Vec::new();
+    let mut tool_env = Vec::new();
+    for (tool_id, spec) in &request.tools {
+        binaries.push((tool_id.clone(), PathBuf::from(&spec.binary)));
+        if let Some(config) = &spec.config {
+            configs.push((tool_id.clone(), config.clone()));
+        }
+        if let Some(edition) = &spec.edition {
+            editions.push((tool_id.clone(), edition.clone()));
+        }
+        for file in &spec.files {
+            tool_files.push((tool_id.clone(), file.mirror.clone(), file.exec.clone()));
+        }
+        for (key, value) in &spec.env {
+            tool_env.push((tool_id.clone(), key.clone(), value.clone()));
+        }
+    }
+    let upstream = request
+        .upstream
+        .iter()
+        .map(|item| (item.tool.clone(), PathBuf::from(&item.exec)))
+        .collect();
+    (
+        stages,
+        request_pairs(&request.sources),
+        request_pairs(&request.siblings),
+        request_pairs(&request.resolves),
+        binaries,
+        configs,
+        editions,
+        tool_files,
+        tool_env,
+        upstream,
+    )
+}
+
+fn read_request(path: &str) -> Result<ActionRequest, RunnerError> {
+    let bytes = std::fs::read(path).map_err(|error| RunnerError::UnreadableRequest {
+        path: path.to_owned(),
+        detail: error.to_string(),
+    })?;
+    parse_request(&bytes).map_err(|error| RunnerError::BadRequest {
+        detail: error.to_string(),
+    })
 }
 
 fn main() {
@@ -417,48 +549,93 @@ fn main() {
 fn run() -> Result<(), RunnerError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cli = parse_args(&args)?;
-    let producer = cli
-        .producer
-        .ok_or(RunnerError::MissingRequired { flag: "producer" })?;
-    let capability = cli
-        .capability
-        .ok_or(RunnerError::MissingRequired { flag: "capability" })?;
     let output = cli
         .output
+        .clone()
         .ok_or(RunnerError::MissingRequired { flag: "output" })?;
-    let mut stages: Vec<StageSpec> = Vec::with_capacity(cli.stage.len());
-    for spec in &cli.stage {
-        stages.push(parse_stage(spec)?);
-    }
-    let sources = parse_pairs(&cli.source, bad_source)?;
-    let siblings = parse_pairs(&cli.sibling, bad_sibling)?;
-    let resolves = parse_pairs(&cli.resolve, bad_resolve)?;
-    let real = cli.real;
-    let scratch_parent = cli.scratch_parent;
-    let mut binaries: Vec<(String, PathBuf)> = Vec::with_capacity(cli.tool_binary.len());
-    for spec in &cli.tool_binary {
-        binaries.push(parse_tool_binary(spec)?);
-    }
-    let mut configs: Vec<(String, String)> = Vec::with_capacity(cli.tool_config.len());
-    for spec in &cli.tool_config {
-        configs.push(parse_tool_config(spec)?);
-    }
-    let mut editions: Vec<(String, String)> = Vec::with_capacity(cli.tool_edition.len());
-    for spec in &cli.tool_edition {
-        editions.push(parse_tool_edition(spec)?);
-    }
-    let mut tool_files: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_file.len());
-    for spec in &cli.tool_file {
-        tool_files.push(parse_tool_file(spec)?);
-    }
-    let mut tool_env: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_env.len());
-    for spec in &cli.tool_env {
-        tool_env.push(parse_tool_env(spec)?);
-    }
-    let mut upstream: Vec<(String, PathBuf)> = Vec::with_capacity(cli.upstream_diagnostics.len());
-    for spec in &cli.upstream_diagnostics {
-        upstream.push(parse_upstream_diagnostics(spec)?);
-    }
+    let (producer, capability, real, scratch_parent, stages, sources, siblings, resolves, binaries, configs, editions, tool_files, tool_env, upstream) =
+        if let Some(path) = cli.request.clone() {
+            if let Some(flag) = conflicting_request_flag(&cli) {
+                return Err(RunnerError::ConflictingRequest { flag });
+            }
+            let request = read_request(&path)?;
+            let (stages, sources, siblings, resolves, binaries, configs, editions, tool_files, tool_env, upstream) =
+                split_request(&request);
+            (
+                request.producer,
+                request.capability,
+                request.real,
+                None,
+                stages,
+                sources,
+                siblings,
+                resolves,
+                binaries,
+                configs,
+                editions,
+                tool_files,
+                tool_env,
+                upstream,
+            )
+        } else {
+            let producer = cli
+                .producer
+                .clone()
+                .ok_or(RunnerError::MissingRequired { flag: "producer" })?;
+            let capability = cli
+                .capability
+                .clone()
+                .ok_or(RunnerError::MissingRequired { flag: "capability" })?;
+            let mut stages: Vec<StageSpec> = Vec::with_capacity(cli.stage.len());
+            for spec in &cli.stage {
+                stages.push(parse_stage(spec)?);
+            }
+            let sources = parse_pairs(&cli.source, bad_source)?;
+            let siblings = parse_pairs(&cli.sibling, bad_sibling)?;
+            let resolves = parse_pairs(&cli.resolve, bad_resolve)?;
+            let real = cli.real;
+            let scratch_parent = cli.scratch_parent.clone();
+            let mut binaries: Vec<(String, PathBuf)> = Vec::with_capacity(cli.tool_binary.len());
+            for spec in &cli.tool_binary {
+                binaries.push(parse_tool_binary(spec)?);
+            }
+            let mut configs: Vec<(String, String)> = Vec::with_capacity(cli.tool_config.len());
+            for spec in &cli.tool_config {
+                configs.push(parse_tool_config(spec)?);
+            }
+            let mut editions: Vec<(String, String)> = Vec::with_capacity(cli.tool_edition.len());
+            for spec in &cli.tool_edition {
+                editions.push(parse_tool_edition(spec)?);
+            }
+            let mut tool_files: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_file.len());
+            for spec in &cli.tool_file {
+                tool_files.push(parse_tool_file(spec)?);
+            }
+            let mut tool_env: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_env.len());
+            for spec in &cli.tool_env {
+                tool_env.push(parse_tool_env(spec)?);
+            }
+            let mut upstream: Vec<(String, PathBuf)> = Vec::with_capacity(cli.upstream_diagnostics.len());
+            for spec in &cli.upstream_diagnostics {
+                upstream.push(parse_upstream_diagnostics(spec)?);
+            }
+            (
+                producer,
+                capability,
+                real,
+                scratch_parent,
+                stages,
+                sources,
+                siblings,
+                resolves,
+                binaries,
+                configs,
+                editions,
+                tool_files,
+                tool_env,
+                upstream,
+            )
+        };
     let cwd = std::env::current_dir().ok();
     let files = read_inputs(&sources, unreadable_source)?;
     let sibling_files = read_inputs(&siblings, unreadable_sibling)?;
@@ -536,6 +713,9 @@ fn run() -> Result<(), RunnerError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quality_adapter::request::{
+        ActionRequest, PathMapping, RequestStage, RequestTool, RequestToolFile, RequestUpstream,
+    };
 
     fn tools_with(binary: &str) -> BTreeMap<String, RealTool> {
         let mut tools = BTreeMap::new();

@@ -14,6 +14,7 @@ use quality_result::proto::{Diagnostic, Severity};
 pub mod commands;
 pub mod exec;
 pub mod parsers;
+pub mod request;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolSeverity {

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use quality_adapter::commands::Invocation;
 use quality_adapter::exec::{self, ChildOutput, MirrorFile, Scratch};
+use quality_adapter::launch;
 use quality_adapter::parsers::ParseError;
 
 use crate::RunnerError;
@@ -148,12 +149,19 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(OsString, OsString)> {
 /// Launchers that read the manifest beside their own binary on every platform.
 const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint"];
 
-/// Launchers that need the manifest only where there is no runfiles tree.
-const WINDOWS_OWN_MANIFEST: &[&str] = &["eslint", "prettier"];
-
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.
-fn reads_own_manifest(tool_id: &str, windows: bool) -> bool {
-    ALWAYS_OWN_MANIFEST.contains(&tool_id) || (windows && WINDOWS_OWN_MANIFEST.contains(&tool_id))
+fn reads_own_manifest(tool_id: &str) -> bool {
+    ALWAYS_OWN_MANIFEST.contains(&tool_id)
+}
+
+/// Names the manifest beside one resolved JavaScript launcher when it exists.
+fn javascript_manifest(binary: &Path) -> Option<(OsString, OsString)> {
+    dx_path::manifest_beside(binary).map(|manifest| {
+        (
+            OsString::from("RUNFILES_MANIFEST_FILE"),
+            manifest.into_os_string(),
+        )
+    })
 }
 
 fn execution(tool_id: &str, detail: String) -> RunnerError {
@@ -251,8 +259,12 @@ impl RealBackend {
             .collect();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let mut env = exec::hermetic_env(scratch.root(), &extra, &ambient);
-        if reads_own_manifest(tool_id, cfg!(windows)) {
+        if reads_own_manifest(tool_id) {
             env.extend(own_runfiles_manifest(&tool.binary));
+        } else if launch::policy_for(tool_id) == launch::RunfilesPolicy::OwnManifest {
+            if let Some(pair) = javascript_manifest(&tool.binary) {
+                env.push(pair);
+            }
         }
         (self.spawn)(&absolute_argv(&invocation.argv), &cwd, &env)
             .map_err(|err| execution(tool_id, format!("spawn: {err}")))
@@ -287,9 +299,10 @@ mod real_tools;
 #[cfg(test)]
 mod tests {
     use super::{
-        absolute_argv, own_runfiles_manifest, reads_own_manifest, ALWAYS_OWN_MANIFEST,
-        WINDOWS_OWN_MANIFEST,
+        absolute_argv, javascript_manifest, own_runfiles_manifest, reads_own_manifest,
+        ALWAYS_OWN_MANIFEST,
     };
+    use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
     use std::path::Path;
 
@@ -355,39 +368,57 @@ mod tests {
     /// The Python launchers read wheels from the manifest on every platform.
     #[test]
     fn python_tools_read_their_own_manifest_everywhere() {
-        for windows in [false, true] {
-            for tool_id in ["pydoclint", "flake8", "pylint"] {
-                assert!(reads_own_manifest(tool_id, windows), "{tool_id}");
-            }
+        for tool_id in ["pydoclint", "flake8", "pylint"] {
+            assert!(reads_own_manifest(tool_id), "{tool_id}");
         }
     }
 
-    /// The batch launcher reads its own manifest only on Windows.
+    /// The resolved JavaScript launch names its own runfiles on every platform.
     #[test]
-    fn the_batch_launcher_reads_its_own_manifest_on_windows() {
+    fn javascript_tools_resolve_to_their_own_manifest() {
         for tool_id in ["eslint", "prettier"] {
-            assert!(reads_own_manifest(tool_id, true), "{tool_id}");
-            assert!(!reads_own_manifest(tool_id, false), "{tool_id}");
+            assert_eq!(
+                policy_for(tool_id),
+                RunfilesPolicy::OwnManifest,
+                "{tool_id}"
+            );
         }
+    }
+
+    /// A manifest beside the launcher is named, and an absent one is inherited.
+    #[test]
+    fn a_javascript_manifest_is_taken_only_when_it_exists() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let binary = dir.path().join("prettier");
+        assert_eq!(javascript_manifest(&binary), None);
+        let named = dir.path().join("prettier.runfiles_manifest");
+        std::fs::write(&named, "").expect("wrote manifest");
+        assert_eq!(
+            javascript_manifest(&binary),
+            Some((
+                OsString::from("RUNFILES_MANIFEST_FILE"),
+                named.into_os_string()
+            ))
+        );
     }
 
     /// A tool sits in one list, because the two reasons do not overlap.
     #[test]
     fn one_tool_has_one_reason_to_read_its_manifest() {
         for tool_id in ALWAYS_OWN_MANIFEST {
-            assert!(!WINDOWS_OWN_MANIFEST.contains(tool_id), "{tool_id}");
+            assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit, "{tool_id}");
         }
-        for tool_id in WINDOWS_OWN_MANIFEST {
-            assert!(!ALWAYS_OWN_MANIFEST.contains(tool_id), "{tool_id}");
+        for tool_id in ["eslint", "prettier"] {
+            assert!(!reads_own_manifest(tool_id), "{tool_id}");
         }
     }
 
     /// A tool whose launcher finds its own tree is left alone.
     #[test]
     fn a_tool_that_finds_its_own_tree_is_left_alone() {
-        for windows in [false, true] {
-            assert!(!reads_own_manifest("buildifier", windows));
-            assert!(!reads_own_manifest("biome", windows));
+        for tool_id in ["buildifier", "biome"] {
+            assert!(!reads_own_manifest(tool_id));
+            assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit);
         }
     }
 }

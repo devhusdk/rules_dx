@@ -31,6 +31,7 @@ def _generated_script(executable):
 
 def _js_tool_binary_impl(ctx):
     target = ctx.attr.js_binary[DefaultInfo]
+    node_key = _node_key(ctx, target)
     generated = target.files_to_run
     if not _windows_os(ctx):
         # A link keeps the generated script's own runfiles resolution unchanged.
@@ -48,7 +49,6 @@ def _js_tool_binary_impl(ctx):
 
     script = _generated_script(generated.executable)
     key = (ctx.workspace_name + "/" + script).replace("\\", "/")
-    node_key = _node_key(target)
     if node_key == "":
         fail("js_tool_binary " + ctx.label.name + ": no node runtime in the runfiles")
     descriptor = ctx.actions.declare_file(ctx.label.name + ".launcher.txt")
@@ -61,13 +61,17 @@ def _js_tool_binary_impl(ctx):
         runfiles = target.default_runfiles.merge(ctx.runfiles(files = [descriptor])),
     )]
 
-def _node_key(target):
+def _node_key(ctx, target):
     """Returns the runfiles key naming the node runtime, or "" when there is none."""
-    found = ""
+    found = []
     for f in target.default_runfiles.files.to_list():
         if f.basename == "node.exe":
-            found = f.short_path.removeprefix("../")
-    return found
+            key = f.short_path.removeprefix("../")
+            if key not in found:
+                found.append(key)
+    if len(found) > 1:
+        fail("js_tool_binary " + ctx.label.name + ": two node runtimes in the runfiles: " + ", ".join(found))
+    return found[0] if found else ""
 
 js_tool_binary = rule(
     doc = "Runs a generated JavaScript tool binary on every host.",

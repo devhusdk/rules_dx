@@ -13,6 +13,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use quality_result::encode_validated;
+use quality_runner::request::{load, Invocation};
 use quality_runner::{
     real::{RealBackend, RealTool},
     run_pipeline, FileInput, StageSpec,
@@ -22,6 +23,10 @@ use quality_runner::{
 pub enum RunnerError {
     #[error("{message}")]
     Args { message: String },
+    #[error(transparent)]
+    Request(#[from] quality_runner::request::RequestError),
+    #[error("--request cannot be combined with other quality_runner flags")]
+    MixedRequest,
     #[error("malformed --stage {spec:?}, want TOOL;classes;paths")]
     BadStage { spec: String },
     #[error("malformed --tool-binary {spec:?}, want TOOL=ABS_PATH")]
@@ -402,6 +407,8 @@ struct Cli {
     tool_env: Vec<String>,
     #[arg(long, allow_hyphen_values = true)]
     upstream_diagnostics: Vec<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    request: Option<String>,
 }
 
 fn main() {

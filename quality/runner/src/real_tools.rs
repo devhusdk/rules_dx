@@ -478,6 +478,62 @@ fn eslint_tool() -> RealTool {
     }
 }
 
+fn js_launch_tool() -> RealTool {
+    RealTool {
+        extra_env: vec![("JS_BINARY__NO_CD_BINDIR".to_owned(), "1".to_owned())],
+        ..eslint_tool()
+    }
+}
+
+fn eslint_launch_contract(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(
+        Path::new(&argv[0]).is_absolute(),
+        "the program is absolutized against the runner cwd"
+    );
+    assert!(
+        env.iter()
+            .any(|(key, value)| key == "JS_BINARY__NO_CD_BINDIR" && value == "1"),
+        "the declared tool environment survives the launch"
+    );
+    let manifest: Vec<OsString> = env
+        .iter()
+        .filter(|(key, _)| key == "RUNFILES_MANIFEST_FILE")
+        .map(|(_, value)| value.clone())
+        .collect();
+    assert_eq!(manifest.len(), 1, "the launch pins exactly one manifest");
+    assert!(
+        Path::new(&manifest[0]).is_file(),
+        "the pinned manifest is on disk beside the program"
+    );
+    assert!(
+        manifest[0].to_string_lossy().ends_with("eslint.sh.runfiles_manifest"),
+        "the pinned manifest sits beside the declared program"
+    );
+    assert!(
+        cwd.join("src/a.js").is_file(),
+        "the tool starts in the scratch tree holding the staged source"
+    );
+    roundtrip_eslint(argv, cwd, env)
+}
+
+fn buildifier_legacy_env(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(
+        env.iter().all(|(key, _)| key != "RUNFILES_MANIFEST_FILE"),
+        "unmigrated tools keep the legacy environment"
+    );
+    buildifier_plain(argv, cwd, env)
+}
+
 #[test]
 fn eslint_reports_and_fix_rereads_on_exit_1() {
     let backend = backend_for("eslint", eslint_tool(), roundtrip_eslint);
@@ -502,6 +558,71 @@ fn eslint_reports_and_fix_rereads_on_exit_1() {
             .expect("fixed"),
         "const usedVar = 1;\n"
     );
+}
+
+#[test]
+fn eslint_launch_carries_program_env_cwd_and_diagnostics() {
+    let dir = tempfile::Builder::new()
+        .prefix("dx-eslint-launch-")
+        .tempdir_in(std::env::temp_dir())
+        .expect("launch scratch");
+    let program = dir.path().join("eslint.sh");
+    std::fs::write(
+        dir.path().join("eslint.sh.runfiles_manifest"),
+        "_main/pkg/tool.txt out/tool\n",
+    )
+    .expect("staged manifest");
+    let tool = RealTool {
+        binary: program,
+        ..js_launch_tool()
+    };
+    let backend = backend_for("eslint", tool, eslint_launch_contract);
+    let findings = backend
+        .diagnose(
+            "eslint",
+            "lint",
+            &single("src/a.js", "const unusedVar = 1;\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "eslint");
+    assert_eq!(findings[0].rule_id, "no-unused-vars");
+    assert_eq!(findings[0].path, "src/a.js");
+}
+
+#[test]
+fn eslint_launch_fix_keeps_status_and_rewrite() {
+    let backend = backend_for("eslint", js_launch_tool(), eslint_launch_contract);
+    assert_eq!(
+        backend
+            .apply_fix("eslint", "src/a.js", "const unusedVar = 1;\n", "lint")
+            .expect("fixed"),
+        "const usedVar = 1;\n"
+    );
+}
+
+#[test]
+fn eslint_without_program_fails_actionably_before_spawn() {
+    let tool = RealTool {
+        binary: PathBuf::new(),
+        ..eslint_tool()
+    };
+    let backend = backend_for("eslint", tool, roundtrip_eslint);
+    let err = backend
+        .diagnose("eslint", "lint", &single("src/a.js", "const x = 1;\n"))
+        .expect_err("missing program fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("missing program"));
+}
+
+#[test]
+fn unmigrated_tools_keep_the_legacy_spawn_env() {
+    let backend = backend_for("buildifier", plain_tool(), buildifier_legacy_env);
+    let findings = backend
+        .diagnose("buildifier", "lint", &single("a.bzl", "x = 1\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "buildifier");
 }
 
 #[test]

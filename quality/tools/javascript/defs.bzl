@@ -48,7 +48,7 @@ def _js_tool_binary_impl(ctx):
 
     script = _generated_script(generated.executable)
     key = (ctx.workspace_name + "/" + script).replace("\\", "/")
-    node_key = _node_key(target)
+    node_key = _node_key(ctx.label, target)
     if node_key == "":
         fail("js_tool_binary " + ctx.label.name + ": no node runtime in the runfiles")
     descriptor = ctx.actions.declare_file(ctx.label.name + ".launcher.txt")
@@ -61,12 +61,15 @@ def _js_tool_binary_impl(ctx):
         runfiles = target.default_runfiles.merge(ctx.runfiles(files = [descriptor])),
     )]
 
-def _node_key(target):
+def _node_key(label, target):
     """Returns the runfiles key naming the node runtime, or "" when there is none."""
     found = ""
     for f in target.default_runfiles.files.to_list():
         if f.basename == "node.exe":
-            found = f.short_path.removeprefix("../")
+            key = f.short_path.removeprefix("../")
+            if found != "" and found != key:
+                fail("js_tool_binary " + label.name + ": multiple node runtimes in the runfiles: " + found + ", " + key)
+            found = key
     return found
 
 js_tool_binary = rule(

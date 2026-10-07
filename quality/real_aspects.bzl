@@ -41,6 +41,8 @@ _REAL_TOOL_TABLE = {
     "vale": {"capabilities": ["lint"], "shard": "core"},
 }
 
+_JS_LAUNCH_TOOLS = ["eslint", "prettier"]
+
 def _shard_tools(shard, capability):
     """Lists wired tools for one shard/capability from the per-tool table."""
     return sorted([tool for tool in _REAL_TOOL_TABLE if _REAL_TOOL_TABLE[tool]["shard"] == shard and capability in _REAL_TOOL_TABLE[tool]["capabilities"]])
@@ -187,16 +189,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["biome"] = ctx.file._biome
     if "buildifier" in stage_tools:
         tool_binaries["buildifier"] = ctx.file._buildifier
-    if "eslint" in stage_tools:
-        tool_binaries["eslint"] = ctx.executable._eslint
-        tool_extra["eslint"] = ctx.attr._eslint[DefaultInfo].files.to_list()
+    for js_tool in _JS_LAUNCH_TOOLS:
+        if js_tool in stage_tools:
+            tool_binaries[js_tool] = getattr(ctx.executable, "_" + js_tool)
+            tool_extra[js_tool] = getattr(ctx.attr, "_" + js_tool)[DefaultInfo].files.to_list()
     if "flake8" in stage_tools:
         tool_binaries["flake8"] = ctx.executable._flake8
     if "markdown_check" in stage_tools:
         tool_binaries["markdown_check"] = ctx.file._markdown_check
-    if "prettier" in stage_tools:
-        tool_binaries["prettier"] = ctx.executable._prettier
-        tool_extra["prettier"] = ctx.attr._prettier[DefaultInfo].files.to_list()
     if "pydoclint" in stage_tools:
         tool_binaries["pydoclint"] = ctx.executable._pydoclint
     if "pylint" in stage_tools:
@@ -285,12 +285,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
 
     tool_env_entries = {}
     run_tools = []
-    if "eslint" in stage_tools:
-        run_tools.append(ctx.attr._eslint[DefaultInfo].files_to_run)
-        tool_env_entries["eslint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
-    if "prettier" in stage_tools:
-        run_tools.append(ctx.attr._prettier[DefaultInfo].files_to_run)
-        tool_env_entries["prettier"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    for js_tool in _JS_LAUNCH_TOOLS:
+        if js_tool in stage_tools:
+            run_tools.append(getattr(ctx.attr, "_" + js_tool)[DefaultInfo].files_to_run)
+            tool_env_entries[js_tool] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
         tool_env_entries["pydoclint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]

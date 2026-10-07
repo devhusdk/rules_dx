@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use quality_adapter::commands::Invocation;
 use quality_adapter::exec::{self, ChildOutput, MirrorFile, Scratch};
+use quality_adapter::launch::ResolvedToolLaunch;
 use quality_adapter::parsers::ParseError;
 
 use crate::RunnerError;
@@ -148,12 +149,12 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(OsString, OsString)> {
 /// Launchers that read the manifest beside their own binary on every platform.
 const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint"];
 
-/// Launchers that need the manifest only where there is no runfiles tree.
-const WINDOWS_OWN_MANIFEST: &[&str] = &["eslint", "prettier"];
-
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.
-fn reads_own_manifest(tool_id: &str, windows: bool) -> bool {
-    ALWAYS_OWN_MANIFEST.contains(&tool_id) || (windows && WINDOWS_OWN_MANIFEST.contains(&tool_id))
+///
+/// The JavaScript family resolves its manifest through its launch
+/// description instead of this list.
+fn reads_own_manifest(tool_id: &str) -> bool {
+    ALWAYS_OWN_MANIFEST.contains(&tool_id)
 }
 
 fn execution(tool_id: &str, detail: String) -> RunnerError {
@@ -250,11 +251,22 @@ impl RealBackend {
             .map(|(key, value)| (OsString::from(key), OsString::from(value)))
             .collect();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        let launch = ResolvedToolLaunch::resolve(tool_id, &tool.binary)
+            .map_err(|err| execution(tool_id, err.to_string()))?;
         let mut env = exec::hermetic_env(scratch.root(), &extra, &ambient);
-        if reads_own_manifest(tool_id, cfg!(windows)) {
-            env.extend(own_runfiles_manifest(&tool.binary));
-        }
-        (self.spawn)(&absolute_argv(&invocation.argv), &cwd, &env)
+        let argv = match (&launch, invocation.argv.split_first()) {
+            (Some(launch), Some((_, rest))) => {
+                env.extend(launch.env.iter().cloned());
+                launch.argv(rest)
+            }
+            _ => {
+                if reads_own_manifest(tool_id) {
+                    env.extend(own_runfiles_manifest(&tool.binary));
+                }
+                invocation.argv.clone()
+            }
+        };
+        (self.spawn)(&absolute_argv(&argv), &cwd, &env)
             .map_err(|err| execution(tool_id, format!("spawn: {err}")))
     }
 }
@@ -287,8 +299,8 @@ mod real_tools;
 #[cfg(test)]
 mod tests {
     use super::{
-        absolute_argv, own_runfiles_manifest, reads_own_manifest, ALWAYS_OWN_MANIFEST,
-        WINDOWS_OWN_MANIFEST,
+        absolute_argv, own_runfiles_manifest, reads_own_manifest, ResolvedToolLaunch,
+        ALWAYS_OWN_MANIFEST,
     };
     use std::ffi::OsString;
     use std::path::Path;
@@ -355,19 +367,23 @@ mod tests {
     /// The Python launchers read wheels from the manifest on every platform.
     #[test]
     fn python_tools_read_their_own_manifest_everywhere() {
-        for windows in [false, true] {
-            for tool_id in ["pydoclint", "flake8", "pylint"] {
-                assert!(reads_own_manifest(tool_id, windows), "{tool_id}");
-            }
+        for tool_id in ["pydoclint", "flake8", "pylint"] {
+            assert!(reads_own_manifest(tool_id), "{tool_id}");
         }
     }
 
-    /// The batch launcher reads its own manifest only on Windows.
+    /// The JavaScript launchers resolve their manifest through the launch
+    /// description instead of the manifest list.
     #[test]
-    fn the_batch_launcher_reads_its_own_manifest_on_windows() {
+    fn js_tools_skip_the_manifest_list() {
         for tool_id in ["eslint", "prettier"] {
-            assert!(reads_own_manifest(tool_id, true), "{tool_id}");
-            assert!(!reads_own_manifest(tool_id, false), "{tool_id}");
+            assert!(!reads_own_manifest(tool_id), "{tool_id}");
+            assert!(
+                ResolvedToolLaunch::resolve(tool_id, Path::new("/out/bin/tool"))
+                    .expect("resolves")
+                    .is_some(),
+                "{tool_id} carries a launch description"
+            );
         }
     }
 
@@ -375,19 +391,24 @@ mod tests {
     #[test]
     fn one_tool_has_one_reason_to_read_its_manifest() {
         for tool_id in ALWAYS_OWN_MANIFEST {
-            assert!(!WINDOWS_OWN_MANIFEST.contains(tool_id), "{tool_id}");
-        }
-        for tool_id in WINDOWS_OWN_MANIFEST {
-            assert!(!ALWAYS_OWN_MANIFEST.contains(tool_id), "{tool_id}");
+            assert!(
+                ResolvedToolLaunch::resolve(tool_id, Path::new("/out/bin/tool"))
+                    .expect("resolves")
+                    .is_none(),
+                "{tool_id} stays on the list until its own migration"
+            );
         }
     }
 
     /// A tool whose launcher finds its own tree is left alone.
     #[test]
     fn a_tool_that_finds_its_own_tree_is_left_alone() {
-        for windows in [false, true] {
-            assert!(!reads_own_manifest("buildifier", windows));
-            assert!(!reads_own_manifest("biome", windows));
-        }
+        assert!(!reads_own_manifest("buildifier"));
+        assert!(!reads_own_manifest("biome"));
+        assert!(
+            ResolvedToolLaunch::resolve("buildifier", Path::new("/out/bin/tool"))
+                .expect("resolves")
+                .is_none()
+        );
     }
 }

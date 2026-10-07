@@ -160,7 +160,7 @@ fn link_file(target: &Path, link: &Path) -> io::Result<()> {
     }
 }
 
-fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::Result<()> {
+pub(crate) fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::Result<()> {
     #[cfg(windows)]
     {
         match kind {

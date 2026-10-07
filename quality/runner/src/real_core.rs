@@ -814,6 +814,26 @@ pub(super) fn rustc_delegated_fix_is_check_only() {
 }
 
 #[test]
+pub(super) fn clang_tidy_without_upstream_context_fails_closed() {
+    let backend = backend_for("clang_tidy", plain_tool(), no_spawn);
+    let error = backend
+        .diagnose(
+            "clang_tidy",
+            "lint",
+            &single("a.c", "int check(int value) {\n  return value;\n}\n"),
+        )
+        .expect_err("direct clang-tidy without compilation context");
+    assert_eq!(
+        error,
+        RunnerError::ToolExecution {
+            tool_id: "clang_tidy".to_owned(),
+            detail: "clang_tidy requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected"
+                .to_owned(),
+        }
+    );
+}
+
+#[test]
 pub(super) fn rustc_delegated_missing_file_fails_the_action() {
     let scratch = tempfile::Builder::new()
         .prefix("dx-delegated-rustc-")

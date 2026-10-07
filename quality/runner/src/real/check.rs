@@ -396,13 +396,10 @@ impl RealBackend {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_clang_tidy_delegated(tool_id, tool, pairs)
                 } else {
-                    let invocation =
-                        commands::clang_tidy_check(&tool.binary, &refs, config.as_deref(), None);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    parsed(
+                    Err(execution(
                         tool_id,
-                        parsers::parse_clang_tidy(&out.stderr, out.code, &strs),
-                    )
+                        "clang_tidy requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected".to_owned(),
+                    ))
                 }
             }
             "cppcheck" => {

@@ -2711,20 +2711,6 @@ mod tests {
 
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    const ENV_CHILD: &str = "DX_DEPLOY_RULES_ENV_CHILD";
-
-    /// Moves the calling test into a child process that owns its environment mutations.
-    fn env_test_in_child(test: &str) -> bool {
-        if std::env::var_os(ENV_CHILD).is_some() {
-            return false;
-        }
-        let run =
-            dx_testing::child_test(test, &[(ENV_CHILD, Some(std::ffi::OsStr::new("1")))], None)
-                .expect("spawn child");
-        assert!(run.status.success(), "{}", run.combined());
-        true
-    }
-
     fn scratch_dir() -> tempfile::TempDir {
         tempfile::TempDir::new().expect("scratch")
     }
@@ -3506,9 +3492,6 @@ mod tests {
 
     #[test]
     fn which_on_path_finds_present_and_missing_tools() {
-        if env_test_in_child("which_on_path_finds_present_and_missing_tools") {
-            return;
-        }
         with_env(&[("PATH", Some(""))], || {
             assert!(which_on_path("definitely-not-a-real-tool-xyz").is_none());
         });
@@ -3533,9 +3516,6 @@ mod tests {
 
     #[test]
     fn minimal_env_keeps_allowlist_and_applies_extras() {
-        if env_test_in_child("minimal_env_keeps_allowlist_and_applies_extras") {
-            return;
-        }
         with_env(
             &[
                 ("DX_TEST_KEEP", Some("kept")),
@@ -3556,9 +3536,6 @@ mod tests {
 
     #[test]
     fn deploy_outdir_prefers_arg_then_env_then_cwd() {
-        if env_test_in_child("deploy_outdir_prefers_arg_then_env_then_cwd") {
-            return;
-        }
         let scratch = scratch_dir();
         let explicit = scratch.path().join("explicit");
         let argv = vec!["prog".to_owned(), explicit.to_string_lossy().into_owned()];
@@ -3581,9 +3558,6 @@ mod tests {
 
     #[test]
     fn resolve_runfile_reads_dir_and_manifest() {
-        if env_test_in_child("resolve_runfile_reads_dir_and_manifest") {
-            return;
-        }
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
@@ -3640,9 +3614,6 @@ mod tests {
 
     #[test]
     fn npm_find_pack_inputs_reads_manifest_entries() {
-        if env_test_in_child("npm_find_pack_inputs_reads_manifest_entries") {
-            return;
-        }
         let scratch = scratch_dir();
         let tgz = scratch.path().join("npm_demo.tgz");
         std::fs::write(&tgz, b"tarball-bytes").expect("write tgz");
@@ -3708,9 +3679,6 @@ mod tests {
 
     #[test]
     fn promotion_secret_refs_cover_every_ref_kind() {
-        if env_test_in_child("promotion_secret_refs_cover_every_ref_kind") {
-            return;
-        }
         let scratch = scratch_dir();
         let secret = scratch.path().join("secret.txt");
         std::fs::write(&secret, b"token").expect("write secret");
@@ -3748,9 +3716,6 @@ mod tests {
 
     #[test]
     fn promotion_health_cmd_rejects_empty_and_missing_tools() {
-        if env_test_in_child("promotion_health_cmd_rejects_empty_and_missing_tools") {
-            return;
-        }
         let empty = promotion_run_health_cmd("   ").expect_err("empty health cmd");
         assert_eq!(empty.kind(), io::ErrorKind::InvalidInput);
         with_env(&[("PATH", Some(""))], || {
@@ -3846,9 +3811,6 @@ mod tests {
 
     #[test]
     fn launchers_report_missing_pinned_inputs() {
-        if env_test_in_child("launchers_report_missing_pinned_inputs") {
-            return;
-        }
         let outdir = tempfile_stage_dir("dx-deploy-missing-").expect("outdir");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         with_env(
@@ -3907,9 +3869,6 @@ mod tests {
 
     #[test]
     fn launchers_refuse_live_publish_without_owner_approval() {
-        if env_test_in_child("launchers_refuse_live_publish_without_owner_approval") {
-            return;
-        }
         let outdir = tempfile_stage_dir("dx-deploy-live-").expect("outdir");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         let runfiles = outdir.join("runfiles");
@@ -4014,9 +3973,6 @@ mod tests {
 
     #[test]
     fn archive_and_promotion_launchers_stage_locally() {
-        if env_test_in_child("archive_and_promotion_launchers_stage_locally") {
-            return;
-        }
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
@@ -4098,9 +4054,6 @@ mod tests {
 
     #[test]
     fn launchers_stage_locally_without_publishing() {
-        if env_test_in_child("launchers_stage_locally_without_publishing") {
-            return;
-        }
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
         stage_runfiles_inputs(&runfiles);
@@ -4484,9 +4437,6 @@ mod tests {
 
     #[test]
     fn npm_deploy_main_releases_a_staged_pack() {
-        if env_test_in_child("npm_deploy_main_releases_a_staged_pack") {
-            return;
-        }
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");

@@ -271,6 +271,19 @@ rust_test(
 
 # keep
 rust_test(
+    name = "docs_deploy_test",
+    size = "small",
+    srcs = ["docs_deploy_test.rs"],
+    data = ["//.github:workflows/reusable-docs.yml"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "signing_pins_test",
     size = "small",
     srcs = ["signing_pins_test.rs"],

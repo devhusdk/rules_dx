@@ -1,5 +1,6 @@
 use quality_adapter::commands;
 use quality_adapter::exec::MirrorContents;
+use quality_adapter::launch::ResolvedTool;
 
 use super::*;
 
@@ -268,7 +269,11 @@ impl super::RealBackend {
                     return Err(execution(tool_id, format!("{tool_id} requires a config")));
                 };
                 match tool_id {
-                    "eslint" => Ok(commands::eslint_fix(&tool.binary, refs, cfg)),
+                    "eslint" => {
+                        let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                        Ok(commands::eslint_fix(&launch, refs, cfg)
+                            .map_err(|err| execution(tool_id, err.to_string()))?)
+                    }
                     _ => Err(execution(
                         tool_id,
                         format!("unsupported real tool: {tool_id}"),
@@ -313,7 +318,11 @@ impl super::RealBackend {
             FixConfig::None => match tool_id {
                 "google_java_format" => Ok(commands::google_java_format_fix(&tool.binary, refs)),
                 "ktfmt" => Ok(commands::ktfmt_fix(&tool.binary, refs)),
-                "prettier" => Ok(commands::prettier_fix(&tool.binary, refs)),
+                "prettier" => {
+                    let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                    Ok(commands::prettier_fix(&launch, refs)
+                        .map_err(|err| execution(tool_id, err.to_string()))?)
+                }
                 "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
                 "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs)),
                 "buf" => Ok(commands::buf_format_fix(&tool.binary, refs)),

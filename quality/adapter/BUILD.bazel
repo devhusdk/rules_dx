@@ -11,6 +11,8 @@ rust_library(
         "src/commands.rs",
         "src/commands_tests.rs",
         "src/exec.rs",
+        "src/launch.rs",
+        "src/launch_tests.rs",
         "src/lib.rs",
         "src/parsers/biome.rs",
         "src/parsers/buf.rs",

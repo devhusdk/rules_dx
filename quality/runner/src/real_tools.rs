@@ -518,6 +518,85 @@ fn eslint_without_config_fails_the_action() {
     assert!(err.to_string().contains("eslint requires a config"));
 }
 
+fn recording_eslint(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let program = argv
+        .first()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    assert!(
+        Path::new(&program).is_absolute(),
+        "the runner spells the binary absolutely"
+    );
+    let manifest = env
+        .iter()
+        .find(|(key, _)| key == "RUNFILES_MANIFEST_FILE")
+        .map(|(_, value)| value.to_string_lossy().into_owned());
+    assert_eq!(
+        manifest.as_deref(),
+        Some(format!("{program}.runfiles_manifest").as_str()),
+        "the launch names the manifest beside its own binary"
+    );
+    assert!(
+        env.iter()
+            .any(|(key, value)| key == "JS_BINARY__NO_CD_BINDIR" && value == "1"),
+        "declared tool env reaches the launch"
+    );
+    let file = last_file(argv);
+    assert!(
+        Path::new(&file).starts_with(cwd),
+        "checked files live under the launch cwd"
+    );
+    roundtrip_eslint(argv, cwd, env)
+}
+
+#[test]
+fn eslint_launch_keeps_argv_cwd_env_runfiles_and_diagnostics() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let binary = dir.path().join("eslint");
+    std::fs::write(&binary, "launcher\n").expect("stage launcher");
+    std::fs::write(
+        dir.path().join("eslint.runfiles_manifest"),
+        "_main/node/node /node\n",
+    )
+    .expect("stage manifest");
+    let tool = RealTool {
+        binary,
+        extra_env: vec![("JS_BINARY__NO_CD_BINDIR".to_owned(), "1".to_owned())],
+        ..eslint_tool()
+    };
+    let backend = backend_for("eslint", tool, recording_eslint);
+    let findings = backend
+        .diagnose(
+            "eslint",
+            "lint",
+            &single("src/a.js", "const unusedVar = 1;\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "eslint");
+    assert_eq!(findings[0].rule_id, "no-unused-vars");
+    assert_eq!(findings[0].path, "src/a.js");
+}
+
+#[test]
+fn eslint_without_a_program_fails_before_any_spawn() {
+    let tool = RealTool {
+        binary: PathBuf::new(),
+        ..eslint_tool()
+    };
+    let backend = backend_for("eslint", tool, missing_spawn);
+    let err = backend
+        .diagnose("eslint", "lint", &single("src/a.js", "const x = 1;\n"))
+        .expect_err("no program fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("names no executable"));
+}
+
 #[test]
 fn prettier_reports_relative_and_fix_rewrites() {
     let backend = backend_for("prettier", plain_tool(), roundtrip_prettier);

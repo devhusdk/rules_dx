@@ -120,15 +120,15 @@ pub fn colors_allowed_for(mode: ColorMode, no_color_present: bool, tty: bool) ->
 
 pub fn color_enabled_for(mode: ColorMode) -> bool {
     match mode {
-        ColorMode::Always => true,
-        ColorMode::Never => false,
         ColorMode::Auto => {
-            if std::env::var_os("NO_COLOR").is_some() {
-                return false;
-            }
-            console::colors_enabled_stderr()
+            colors_allowed_for(mode, no_color_present(), console::colors_enabled_stderr())
         }
+        other => colors_allowed_for(other, false, false),
     }
+}
+
+fn no_color_present() -> bool {
+    std::env::var_os("NO_COLOR").is_some()
 }
 
 pub fn color_enabled() -> bool {
@@ -292,27 +292,96 @@ mod tests {
     }
 
     #[test]
-    fn diagnostics_no_color_env_disables_color() {
+    fn diagnostics_color_gate_honors_no_color_and_tty() {
         let prior_override = color_override();
-        set_color_override(ColorMode::Auto);
-        let prior = std::env::var_os("NO_COLOR");
-        unsafe {
-            std::env::set_var("NO_COLOR", "");
-        }
         assert!(
-            !color_enabled(),
+            !colors_allowed_for(ColorMode::Auto, true, true),
             "NO_COLOR presence (even empty) must disable color"
         );
-        if let Some(value) = prior {
-            unsafe {
-                std::env::set_var("NO_COLOR", value);
+        assert!(
+            colors_allowed_for(ColorMode::Auto, false, true),
+            "an absent NO_COLOR on a tty allows color"
+        );
+        assert!(
+            !colors_allowed_for(ColorMode::Auto, false, false),
+            "no tty means no color"
+        );
+        set_color_override(ColorMode::Never);
+        assert!(!color_enabled(), "never mode ignores env and tty");
+        set_color_override(ColorMode::Always);
+        assert!(color_enabled(), "always mode ignores env and tty");
+        set_color_override(prior_override);
+        assert_eq!(color_override(), prior_override);
+    }
+
+    #[test]
+    fn no_color_env_lookup_sees_empty_values() {
+        if let Some(raw) = std::env::var_os("DX_OUTPUT_NO_COLOR_CHILD") {
+            let raw = raw.to_string_lossy().into_owned();
+            let (mode, sentinel) = raw.split_once(':').expect("mode:path");
+            if mode == "panic" {
+                unsafe {
+                    std::env::set_var("NO_COLOR", "");
+                }
+                panic!("intentional child failure");
             }
-        } else {
+            unsafe {
+                std::env::set_var("NO_COLOR", "");
+            }
+            assert!(no_color_present(), "an empty NO_COLOR still counts");
             unsafe {
                 std::env::remove_var("NO_COLOR");
             }
+            assert!(!no_color_present(), "removing NO_COLOR restores absence");
+            std::fs::write(sentinel, b"ok").expect("sentinel");
+            return;
         }
-        set_color_override(prior_override);
+        let sentinel =
+            std::env::temp_dir().join(format!("dx-output-no-color-{}", std::process::id()));
+        let _ = std::fs::remove_file(&sentinel);
+        let before = std::env::var_os("NO_COLOR");
+        let spawn = |mode: &str| {
+            std::process::Command::new(std::env::current_exe().expect("test binary"))
+                .args([
+                    "diagnostics::tests::no_color_env_lookup_sees_empty_values",
+                    "--exact",
+                ])
+                .env(
+                    "DX_OUTPUT_NO_COLOR_CHILD",
+                    format!("{mode}:{}", sentinel.display()),
+                )
+                .output()
+                .expect("spawn env child")
+        };
+        let poisoned = spawn("panic");
+        assert!(
+            !poisoned.status.success(),
+            "panicking child must fail: {}",
+            String::from_utf8_lossy(&poisoned.stdout)
+        );
+        assert_eq!(
+            std::env::var_os("NO_COLOR"),
+            before,
+            "child NO_COLOR mutation dies with the child"
+        );
+        let ok = spawn("empty");
+        assert!(
+            ok.status.success(),
+            "child failed: {}{}",
+            String::from_utf8_lossy(&ok.stdout),
+            String::from_utf8_lossy(&ok.stderr)
+        );
+        assert!(
+            sentinel.exists(),
+            "child ran the assertions: {}",
+            String::from_utf8_lossy(&ok.stdout)
+        );
+        assert_eq!(
+            std::env::var_os("NO_COLOR"),
+            before,
+            "child NO_COLOR mutation dies with the child"
+        );
+        let _ = std::fs::remove_file(&sentinel);
     }
 
     #[test]

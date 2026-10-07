@@ -120,14 +120,53 @@ mod tests {
 
     #[test]
     fn bare_name_stages_in_current_directory() {
+        if std::env::var_os("DX_ATOMIC_FS_BARE_CHILD").is_some() {
+            let bare = PathBuf::from("dx-atomic-fs-bare-tmp.txt");
+            write_atomic(&bare, b"bare\n").expect("bare write");
+            assert_eq!(std::fs::read(&bare).expect("bare read"), b"bare\n");
+            std::fs::remove_file(&bare).expect("bare cleanup");
+            if std::env::var_os("DX_ATOMIC_FS_BARE_CHILD").as_deref()
+                == Some(std::ffi::OsStr::new("panic"))
+            {
+                write_atomic(&bare, b"poisoned\n").expect("poison write");
+                panic!("intentional child failure");
+            }
+            std::fs::write("dx-atomic-fs-bare-child-ok", b"ok").expect("sentinel");
+            return;
+        }
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-bare-");
         let original = std::env::current_dir().expect("cwd");
-        std::env::set_current_dir(scratch.path()).expect("enter scratch");
-        let bare = PathBuf::from("dx-atomic-fs-bare-tmp.txt");
-        write_atomic(&bare, b"bare\n").expect("bare write");
-        assert_eq!(std::fs::read(&bare).expect("bare read"), b"bare\n");
-        std::fs::remove_file(&bare).expect("bare cleanup");
-        std::env::set_current_dir(original).expect("leave scratch");
+        let spawn = |mode: &str| {
+            std::process::Command::new(std::env::current_exe().expect("test binary"))
+                .args(["tests::bare_name_stages_in_current_directory", "--exact"])
+                .current_dir(scratch.path())
+                .env("DX_ATOMIC_FS_BARE_CHILD", mode)
+                .output()
+                .expect("spawn bare-path child")
+        };
+        let poisoned = spawn("panic");
+        assert!(
+            !poisoned.status.success(),
+            "panicking child must fail: {}",
+            String::from_utf8_lossy(&poisoned.stdout)
+        );
+        assert_eq!(
+            std::env::current_dir().expect("cwd"),
+            original,
+            "child cwd dies with the child"
+        );
+        let ok = spawn("run");
+        assert!(
+            ok.status.success(),
+            "child failed: {}{}",
+            String::from_utf8_lossy(&ok.stdout),
+            String::from_utf8_lossy(&ok.stderr)
+        );
+        assert!(
+            scratch.path().join("dx-atomic-fs-bare-child-ok").exists(),
+            "child ran the assertions"
+        );
+        assert_eq!(std::env::current_dir().expect("cwd"), original);
         scratch.close().expect("cleanup");
     }
 

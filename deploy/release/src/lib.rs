@@ -1274,8 +1274,7 @@ mod tests {
     }
 
     #[cfg(unix)]
-    #[test]
-    fn signing_live_enforces_pinned_cosign() {
+    fn run_signing_scenarios(scratch: &Path) {
         let ok = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 0;;\n  verify-blob) exit 0;;\nesac\nexit 0\n";
         let version_drift = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.0 (go1.24)\"; exit 0;;\nesac\nexit 0\n";
         let sign_fails = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 1;;\nesac\nexit 0\n";
@@ -1283,12 +1282,11 @@ mod tests {
         let gone_at_sign =
             "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; /bin/rm -f \"$PATH/cosign\"; exit 0;;\nesac\nexit 0\n";
         let gone_at_verify = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) /bin/rm -f \"$PATH/cosign\"; exit 0;;\nesac\nexit 0\n";
-        let scratch = scratch_dir();
-        let asset = write_artifact(scratch.path(), "artifact.bin", b"artifact bytes\n");
+        let asset = write_artifact(scratch, "artifact.bin", b"artifact bytes\n");
         let assets = [asset.to_string_lossy().into_owned()];
         let original_path = std::env::var_os("PATH");
         let scenario = |name: &str, script: Option<&str>| -> Result<String, String> {
-            let dir = scratch.path().join(name);
+            let dir = scratch.join(name);
             std::fs::create_dir_all(&dir).expect("scenario dir");
             if let Some(body) = script {
                 write_fake_cosign(&dir, body);
@@ -1321,5 +1319,61 @@ mod tests {
         if let Some(path) = original_path {
             std::env::set_var("PATH", path);
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn signing_live_enforces_pinned_cosign() {
+        if let Some(raw) = std::env::var_os("DX_RELEASE_SIGNING_CHILD") {
+            let raw = raw.to_string_lossy().into_owned();
+            let (mode, base) = raw.split_once(':').expect("mode:path");
+            if mode == "panic" {
+                std::env::set_var("PATH", base);
+                panic!("intentional child failure");
+            }
+            run_signing_scenarios(Path::new(base));
+            std::fs::write(Path::new(base).join("ran"), b"ok").expect("sentinel");
+            return;
+        }
+        let scratch = scratch_dir();
+        let before = std::env::var_os("PATH");
+        let spawn = |mode: &str| {
+            std::process::Command::new(std::env::current_exe().expect("test binary"))
+                .args(["tests::signing_live_enforces_pinned_cosign", "--exact"])
+                .env(
+                    "DX_RELEASE_SIGNING_CHILD",
+                    format!("{mode}:{}", scratch.path().display()),
+                )
+                .output()
+                .expect("spawn signing child")
+        };
+        let poisoned = spawn("panic");
+        assert!(
+            !poisoned.status.success(),
+            "panicking child must fail: {}",
+            String::from_utf8_lossy(&poisoned.stdout)
+        );
+        assert_eq!(
+            std::env::var_os("PATH"),
+            before,
+            "child PATH mutation dies with the child"
+        );
+        let ok = spawn("run");
+        assert!(
+            ok.status.success(),
+            "child failed: {}{}",
+            String::from_utf8_lossy(&ok.stdout),
+            String::from_utf8_lossy(&ok.stderr)
+        );
+        assert!(
+            scratch.path().join("ran").exists(),
+            "child ran the scenarios"
+        );
+        assert_eq!(
+            std::env::var_os("PATH"),
+            before,
+            "child PATH mutation dies with the child"
+        );
+        scratch.close().expect("cleanup");
     }
 }

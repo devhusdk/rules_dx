@@ -424,21 +424,70 @@ mod tests {
 
     #[test]
     fn runfiles_resolution_reads_the_manifest() {
+        if let Some(raw) = std::env::var_os("DX_TESTING_MANIFEST_CHILD") {
+            let raw = raw.to_string_lossy().into_owned();
+            let (mode, base) = raw.split_once(':').expect("mode:path");
+            let base = PathBuf::from(base);
+            if mode == "panic" {
+                unsafe {
+                    std::env::set_var("TEST_SRCDIR", &base);
+                }
+                panic!("intentional child failure");
+            }
+            let real = write(&base, "real/tool", "#!/bin/sh\n");
+            write(
+                &base,
+                "MANIFEST",
+                &format!("_main/pkg/tool {}\n", real.display()),
+            );
+            unsafe {
+                std::env::set_var("TEST_SRCDIR", &base);
+            }
+            let resolved = resolve_runfiles("pkg/tool");
+            unsafe {
+                std::env::remove_var("TEST_SRCDIR");
+            }
+            assert_eq!(resolved, real);
+            std::fs::write(base.join("ran"), b"ok").expect("sentinel");
+            return;
+        }
         let dir = scratch("dx-testing-manifest-");
-        let real = write(dir.path(), "real/tool", "#!/bin/sh\n");
-        write(
-            dir.path(),
-            "MANIFEST",
-            &format!("_main/pkg/tool {}\n", real.display()),
+        let before = std::env::var_os("TEST_SRCDIR");
+        let spawn = |mode: &str| {
+            std::process::Command::new(std::env::current_exe().expect("test binary"))
+                .args(["tests::runfiles_resolution_reads_the_manifest", "--exact"])
+                .env(
+                    "DX_TESTING_MANIFEST_CHILD",
+                    format!("{mode}:{}", dir.path().display()),
+                )
+                .output()
+                .expect("spawn manifest child")
+        };
+        let poisoned = spawn("panic");
+        assert!(
+            !poisoned.status.success(),
+            "panicking child must fail: {}",
+            String::from_utf8_lossy(&poisoned.stdout)
         );
-        unsafe {
-            std::env::set_var("TEST_SRCDIR", dir.path());
-        }
-        let resolved = resolve_runfiles("pkg/tool");
-        unsafe {
-            std::env::remove_var("TEST_SRCDIR");
-        }
-        assert_eq!(resolved, real);
+        assert_eq!(
+            std::env::var_os("TEST_SRCDIR"),
+            before,
+            "child env mutation dies with the child"
+        );
+        let ok = spawn("run");
+        assert!(
+            ok.status.success(),
+            "child failed: {}{}",
+            String::from_utf8_lossy(&ok.stdout),
+            String::from_utf8_lossy(&ok.stderr)
+        );
+        assert!(dir.path().join("ran").exists(), "child ran the assertions");
+        assert_eq!(
+            std::env::var_os("TEST_SRCDIR"),
+            before,
+            "child env mutation dies with the child"
+        );
+        dir.close().expect("cleanup");
     }
 
     #[test]

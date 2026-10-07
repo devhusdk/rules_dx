@@ -147,6 +147,49 @@ def stage_flag(stage):
     """Renders one resolved stage as a --stage flag value."""
     return stage["tool"] + ";" + ",".join(stage["classes"]) + ";" + ",".join(stage["sources"])
 
+def real_request_stage(tool, classes, sources):
+    """Builds one stage entry of the versioned runner request document."""
+    return {"classes": classes, "sources": sources, "tool": tool}
+
+def real_request_mapping(workspace, exec_path):
+    """Builds one workspace-to-exec mapping of the request document."""
+    return {"exec": exec_path, "workspace": workspace}
+
+def real_request_tool_file(mirror_rel, exec_path):
+    """Builds one tool file entry of the request document."""
+    return {"exec": exec_path, "mirror_rel": mirror_rel}
+
+def real_request_tool_env(key, value):
+    """Builds one tool env entry of the request document."""
+    return {"key": key, "value": value}
+
+def real_request_tool(binary_path = None, config_rel = None, edition = None, files = [], env = [], upstream = []):
+    """Builds one tool entry of the versioned runner request document."""
+    entry = {"env": env, "files": files, "upstream": upstream}
+    if binary_path != None:
+        entry["binary"] = binary_path
+    if config_rel != None:
+        entry["config"] = config_rel
+    if edition != None:
+        entry["edition"] = edition
+    return entry
+
+def real_request_doc(producer, capability, stages, sources, siblings, resolves, tools, scratch_parent = None):
+    """Builds the versioned quality-runner request document."""
+    doc = {
+        "capability": capability,
+        "producer": producer,
+        "resolves": resolves,
+        "schema_version": 1,
+        "siblings": siblings,
+        "sources": sources,
+        "stages": stages,
+        "tools": tools,
+    }
+    if scratch_parent != None:
+        doc["scratch_parent"] = scratch_parent
+    return doc
+
 def prune_tool_generated_sources(resolved, generated_paths, tool):
     """Drops generated paths from one tool's stages, omitting emptied stages."""
     kept = []

@@ -76,6 +76,12 @@ pub enum RunnerError {
     UnknownToolFile { tool: String },
     #[error("--tool-env for unknown tool {tool:?}: pass --tool-binary first")]
     UnknownToolEnv { tool: String },
+    #[error("--request cannot be combined with --{flag}")]
+    RequestConflict { flag: String },
+    #[error("cannot read request {path:?}: {detail}")]
+    UnreadableRequest { path: String, detail: String },
+    #[error("invalid request: {detail}")]
+    BadRequest { detail: String },
 }
 
 fn parse_args(args: &[String]) -> Result<Cli, RunnerError> {
@@ -220,6 +226,151 @@ fn bad_resolve(mapping: String) -> RunnerError {
 
 fn unreadable_source(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableSource { workspace, detail }
+}
+
+fn reject_request_conflicts(cli: &Cli) -> Result<(), RunnerError> {
+    if cli.producer.is_some() {
+        return Err(RunnerError::RequestConflict {
+            flag: "producer".to_owned(),
+        });
+    }
+    if cli.capability.is_some() {
+        return Err(RunnerError::RequestConflict {
+            flag: "capability".to_owned(),
+        });
+    }
+    if !cli.stage.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "stage".to_owned(),
+        });
+    }
+    if !cli.source.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "source".to_owned(),
+        });
+    }
+    if !cli.sibling.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "sibling".to_owned(),
+        });
+    }
+    if !cli.resolve.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "resolve".to_owned(),
+        });
+    }
+    if cli.real {
+        return Err(RunnerError::RequestConflict {
+            flag: "real".to_owned(),
+        });
+    }
+    if cli.scratch_parent.is_some() {
+        return Err(RunnerError::RequestConflict {
+            flag: "scratch-parent".to_owned(),
+        });
+    }
+    if !cli.tool_binary.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "tool-binary".to_owned(),
+        });
+    }
+    if !cli.tool_config.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "tool-config".to_owned(),
+        });
+    }
+    if !cli.tool_file.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "tool-file".to_owned(),
+        });
+    }
+    if !cli.tool_edition.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "tool-edition".to_owned(),
+        });
+    }
+    if !cli.tool_env.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "tool-env".to_owned(),
+        });
+    }
+    if !cli.upstream_diagnostics.is_empty() {
+        return Err(RunnerError::RequestConflict {
+            flag: "upstream-diagnostics".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn run_request(request_path: &str, output: &str) -> Result<(), RunnerError> {
+    let bytes = std::fs::read(request_path).map_err(|error| RunnerError::UnreadableRequest {
+        path: request_path.to_owned(),
+        detail: error.to_string(),
+    })?;
+    let request = quality_runner::request::parse_real_request(&bytes).map_err(|error| {
+        RunnerError::BadRequest {
+            detail: error.to_string(),
+        }
+    })?;
+    let cwd = std::env::current_dir().ok();
+    let files = read_inputs(&request.sources, unreadable_source)?;
+    let sibling_files = read_inputs(&request.siblings, unreadable_sibling)?;
+    let resolve_files = read_inputs(&request.resolves, unreadable_resolve)?;
+    let mut tools: BTreeMap<String, RealTool> = BTreeMap::new();
+    for (tool_id, entry) in &request.tools {
+        if let Some(binary) = &entry.binary {
+            insert_binary(&mut tools, tool_id.clone(), binary.clone(), cwd.clone())?;
+        }
+        for exec in &entry.upstream {
+            add_upstream(&mut tools, tool_id.clone(), exec.clone(), cwd.clone());
+        }
+    }
+    for (tool_id, entry) in &request.tools {
+        if let Some(rel) = &entry.config_rel {
+            set_config(&mut tools, tool_id.clone(), rel.clone())?;
+        }
+        if let Some(edition) = &entry.edition {
+            set_edition(&mut tools, tool_id.clone(), edition.clone())?;
+        }
+        for (rel, exec) in &entry.files {
+            let bytes = std::fs::read(exec).map_err(|error| RunnerError::UnreadableToolFile {
+                rel: rel.clone(),
+                tool: tool_id.clone(),
+                detail: error.to_string(),
+            })?;
+            add_tool_file(&mut tools, tool_id.clone(), rel.clone(), bytes)?;
+        }
+        for (key, value) in &entry.env {
+            add_env(&mut tools, tool_id.clone(), key.clone(), value.clone())?;
+        }
+    }
+    let scratch_parent = request
+        .scratch_parent
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let backend = RealBackend::new(tools, scratch_parent);
+    let result = quality_runner::real::run_real_pipeline_with_resolve(
+        &request.producer,
+        &request.capability,
+        &request.stages,
+        &files,
+        &sibling_files,
+        &resolve_files,
+        &backend,
+    )
+    .map_err(|error| RunnerError::PipelineFailed {
+        detail: error.to_string(),
+    })?;
+    let bytes = encode_validated(&result).map_err(|error| RunnerError::InvalidResult {
+        detail: error.to_string(),
+    })?;
+    dx_atomic_fs::write_atomic(std::path::Path::new(output), &bytes).map_err(|error| {
+        RunnerError::UnwritableOutput {
+            output: output.to_owned(),
+            detail: error.to_string(),
+        }
+    })?;
+    Ok(())
 }
 
 fn unreadable_sibling(workspace: String, detail: String) -> RunnerError {
@@ -402,6 +553,8 @@ struct Cli {
     tool_env: Vec<String>,
     #[arg(long, allow_hyphen_values = true)]
     upstream_diagnostics: Vec<String>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "request")]
+    request: Option<String>,
 }
 
 fn main() {
@@ -417,6 +570,14 @@ fn main() {
 fn run() -> Result<(), RunnerError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cli = parse_args(&args)?;
+    if let Some(request_path) = cli.request.clone() {
+        reject_request_conflicts(&cli)?;
+        let output = cli
+            .output
+            .clone()
+            .ok_or(RunnerError::MissingRequired { flag: "output" })?;
+        return run_request(&request_path, &output);
+    }
     let producer = cli
         .producer
         .ok_or(RunnerError::MissingRequired { flag: "producer" })?;
@@ -757,6 +918,96 @@ mod tests {
             RunnerError::Args { message } => assert!(!message.is_empty(), "{message}"),
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[test]
+    fn request_mode_rejects_combined_flags() {
+        for extra in [
+            vec!["--producer", "//pkg:one"],
+            vec!["--capability", "lint"],
+            vec!["--stage", "ruff;fmt;a.py"],
+            vec!["--source", "a.py=exec/a.py"],
+            vec!["--sibling", "a.py=exec/a.py"],
+            vec!["--resolve", "a.py=exec/a.py"],
+            vec!["--real"],
+            vec!["--scratch-parent", "/tmp"],
+            vec!["--tool-binary", "ruff=bin/ruff"],
+            vec!["--tool-config", "ruff=ruff.toml"],
+            vec!["--tool-file", "ruff=ruff.toml=bin/ruff.toml"],
+            vec!["--tool-edition", "rustfmt=2021"],
+            vec!["--tool-env", "ruff=KEY=1"],
+            vec!["--upstream-diagnostics", "clippy=out/clippy.diag"],
+        ] {
+            let mut argv = vec!["--request", "req.json"];
+            argv.extend(extra.clone());
+            let cli = parse_args(&owned(&argv)).expect("flags parse");
+            match reject_request_conflicts(&cli) {
+                Err(RunnerError::RequestConflict { .. }) => {}
+                other => panic!("unexpected result for {extra:?}: {other:?}"),
+            }
+        }
+        let cli = parse_args(&owned(&["--request", "req.json", "--output", "out.pb"]))
+            .expect("request only");
+        reject_request_conflicts(&cli).expect("request plus output is clean");
+        assert_eq!(cli.request.as_deref(), Some("req.json"));
+    }
+
+    #[test]
+    fn request_failures_name_the_request() {
+        let missing = std::env::temp_dir().join("quality_runner_absent_request.json");
+        match run_request(
+            &missing.display().to_string(),
+            &missing.display().to_string(),
+        )
+        .expect_err("missing request")
+        {
+            RunnerError::UnreadableRequest { path, detail } => {
+                assert!(
+                    path.ends_with("quality_runner_absent_request.json"),
+                    "{path}"
+                );
+                assert!(!detail.is_empty(), "{path}");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+        let dir = tempfile::tempdir().expect("scratch");
+        let malformed = dir.path().join("malformed.json");
+        std::fs::write(&malformed, b"{not json").expect("request file");
+        match run_request(
+            &malformed.display().to_string(),
+            &dir.path().join("out.pb").display().to_string(),
+        )
+        .expect_err("malformed request")
+        {
+            RunnerError::BadRequest { detail } => assert!(!detail.is_empty(), "{detail}"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn request_and_flags_describe_the_same_run() {
+        let stage = parse_stage("ruff;format;a.py,b.py").expect("stage");
+        let sources = parse_pairs(&owned(&["a.py=exec/a.py", "b.py=exec/b.py"]), bad_source)
+            .expect("sources");
+        let binary = parse_tool_binary("ruff=bin/ruff").expect("binary");
+        let config = parse_tool_config("ruff=ruff.toml").expect("config");
+        let edition = parse_tool_edition("ruff=3.9").expect("edition");
+        let file = parse_tool_file("ruff=ruff.toml=exec/ruff.toml").expect("tool file");
+        let env = parse_tool_env("ruff=KEY=1").expect("tool env");
+        let request = quality_runner::request::parse_real_request(
+            br#"{"schema_version":1,"producer":"//pkg:one","capability":"format","stages":[{"tool":"ruff","classes":["format"],"sources":["a.py","b.py"]}],"sources":[{"workspace":"a.py","exec":"exec/a.py"},{"workspace":"b.py","exec":"exec/b.py"}],"siblings":[],"resolves":[],"tools":{"ruff":{"binary":"bin/ruff","config":"ruff.toml","edition":"3.9","files":[{"mirror_rel":"ruff.toml","exec":"exec/ruff.toml"}],"env":[{"key":"KEY","value":"1"}],"upstream":[]}}}"#,
+        )
+        .expect("request parses");
+        assert_eq!(request.producer, "//pkg:one");
+        assert_eq!(request.capability, "format");
+        assert_eq!(request.stages, [stage]);
+        assert_eq!(request.sources, sources);
+        let tool = request.tools.get("ruff").expect("ruff entry");
+        assert_eq!(tool.binary.as_ref().expect("binary"), &binary.1);
+        assert_eq!(tool.config_rel.as_deref(), Some(config.1.as_str()));
+        assert_eq!(tool.edition.as_deref(), Some(edition.1.as_str()));
+        assert_eq!(tool.files, [(file.1.clone(), file.2.clone())]);
+        assert_eq!(tool.env, [(env.1.clone(), env.2.clone())]);
     }
 
     #[test]

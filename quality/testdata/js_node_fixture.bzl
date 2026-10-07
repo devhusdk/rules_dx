@@ -7,9 +7,11 @@ def _ambiguous_nodes_impl(ctx):
         runtime = ctx.actions.declare_file("ambiguous_node/" + name)
         ctx.actions.write(runtime, "runtime\n")
         runtimes.append(runtime)
+    entry = ctx.actions.declare_file("ambiguous_node/entry.mjs")
+    ctx.actions.write(entry, "export {};\n")
     return [DefaultInfo(
-        files = depset(runtimes),
-        runfiles = ctx.runfiles(files = runtimes),
+        files = depset([entry]),
+        runfiles = ctx.runfiles(files = runtimes + [entry]),
         executable = runtimes[0],
     )]
 

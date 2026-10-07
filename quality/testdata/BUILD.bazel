@@ -346,6 +346,7 @@ ambiguous_nodes(
 
 js_tool_binary(
     name = "ambiguous_node_subject",
+    entry_point = ":ambiguous_nodes",
     js_binary = ":ambiguous_nodes",
     tags = ["manual"],
 )
@@ -556,6 +557,30 @@ real_typecheck_fixture_tests(
         ":fixture_real_rust_typecheck_no_typecheck_subject",
         ":fixture_real_starlark_typecheck_subject",
     ],
+)
+
+# keep
+rust_binary(
+    name = "matrix_harness",
+    srcs = ["matrix_harness.rs"],
+    crate_name = "matrix_harness",
+    deps = [
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//quality/result:quality_result",
+    ],
+)
+
+rustfmt_test(
+    name = "matrix_harness_fmt_test",
+    size = "small",
+    targets = [":matrix_harness"],
+)
+
+rust_clippy_test(
+    name = "matrix_harness_clippy_test",
+    size = "small",
+    targets = [":matrix_harness"],
 )
 
 runner_matrix_cases(name = "runner_matrix")

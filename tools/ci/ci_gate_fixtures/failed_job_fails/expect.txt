@@ -1,0 +1,3 @@
+input {"NEEDS": {"dogfood": {"result": "success"}, "docs": {"result": "failure"}, "devcontainer-check": {"result": "success"}, "workflow-check": {"result": "success"}}}
+exit 1
+says "failing checks": ["docs"]

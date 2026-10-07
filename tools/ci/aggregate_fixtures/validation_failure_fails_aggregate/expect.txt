@@ -1,4 +1,4 @@
-input {"NEEDS": {"validate": {"result": "failure"}, "lint": {"result": "skipped"}, "typecheck": {"result": "skipped"}, "format": {"result": "skipped"}, "generate": {"result": "skipped"}, "security-audit": {"result": "skipped"}, "license-audit": {"result": "skipped"}, "test": {"result": "skipped"}, "build": {"result": "skipped"}, "coverage": {"result": "skipped"}}, "DISABLED": ""}
+input {"NEEDS": {"validate": {"result": "failure"}, "lint": {"result": "skipped"}, "typecheck": {"result": "skipped"}, "format": {"result": "skipped"}, "generate": {"result": "skipped"}, "security-audit": {"result": "skipped"}, "advisory-snapshots": {"result": "skipped"}, "license-audit": {"result": "skipped"}, "test": {"result": "skipped"}, "build": {"result": "skipped"}, "coverage": {"result": "skipped"}}, "DISABLED": ""}
 exit 1
 says "validate": "failure"
 says dx-ci: input validation failed; see the validate job

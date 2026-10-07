@@ -418,11 +418,12 @@ mod tests {
             !entry.accepts_report(&invocation.reports[0].format),
             "junit is not a lint report: {invocation:?}"
         );
-        let invocation = parse(&strings(&["format", "--report=sarif=out.sarif"])).expect("parse");
-        let entry = spec(invocation.command);
-        assert!(
-            !entry.accepts_report(&invocation.reports[0].format),
-            "format has no standard report: {invocation:?}"
+        assert_eq!(
+            parse(&strings(&["format", "--report=sarif=out.sarif"])),
+            Err(crate::args::ArgsError::UnsupportedOption {
+                command: "format",
+                option: "--report=sarif=out.sarif".to_owned(),
+            })
         );
         let words = ["lint", "--report=sarif"];
         let error = parse(&strings(&words)).unwrap_err();

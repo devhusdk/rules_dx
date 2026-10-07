@@ -27,6 +27,14 @@ fn non_empty(raw: &str) -> Result<String, String> {
     }
 }
 
+/// A coverage percent between 0 and 100.
+fn percent(raw: &str) -> Result<u32, String> {
+    match raw.parse::<u32>() {
+        Ok(value) if value <= 100 => Ok(value),
+        _ => Err(format!("want 0-100, got {raw:?}")),
+    }
+}
+
 /// The usage line clap renders for one command.
 fn usage_of(index: usize) -> String {
     let usage = COMMANDS[index].usage;
@@ -38,155 +46,456 @@ fn after_help_of(index: usize) -> String {
     super::help::after_long_help(COMMANDS[index].command)
 }
 
-/// Flags every command accepts.
-#[derive(Args, Default)]
-pub(crate) struct GlobalArgs {
-    /// Use this workspace dir.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "workspace")]
+/// Every flag the normalized invocation carries, whether or not one command takes it.
+#[derive(Debug, Default)]
+pub(crate) struct Flags {
     pub(crate) workspace: Option<OsString>,
-    /// Show the plan without running it. =false turns off an inherited default.
-    #[arg(
-        long,
-        action = clap::ArgAction::Set,
-        num_args = 0..=1,
-        require_equals = true,
-        default_missing_value = "true",
-        value_parser = clap::value_parser!(bool),
-        overrides_with = "dry_run"
-    )]
     pub(crate) dry_run: Option<bool>,
-    /// Hide summaries. =false turns off an inherited default.
-    #[arg(
-        long,
-        action = clap::ArgAction::Set,
-        num_args = 0..=1,
-        require_equals = true,
-        default_missing_value = "true",
-        value_parser = clap::value_parser!(bool),
-        overrides_with = "quiet"
-    )]
     pub(crate) quiet: Option<bool>,
-    /// Show more logs. =false turns off an inherited default.
-    #[arg(
-        long,
-        short = 'v',
-        action = clap::ArgAction::Set,
-        num_args = 0..=1,
-        require_equals = true,
-        default_missing_value = "true",
-        value_parser = clap::value_parser!(bool),
-        overrides_with = "verbose",
-        conflicts_with = "log_level"
-    )]
     pub(crate) verbose: Option<bool>,
-    /// Set color output.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "color")]
     pub(crate) color: Option<String>,
-    /// Set log level.
-    #[arg(
-        long = "log-level",
-        value_name = "LEVEL",
-        allow_negative_numbers = true,
-        overrides_with = "log_level",
-        conflicts_with = "verbose"
-    )]
     pub(crate) log_level: Option<String>,
-    /// Set output format.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "output")]
     pub(crate) output: Option<String>,
-    /// Write a report file.
-    #[arg(long, allow_negative_numbers = true, value_parser = report_request)]
     pub(crate) report: Vec<ReportRequest>,
-    /// Fail on this severity.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "fail_on")]
     pub(crate) fail_on: Option<String>,
-    /// Require this coverage percent.
-    #[arg(
-        long,
-        allow_negative_numbers = true,
-        overrides_with = "min_coverage",
-        value_parser = clap::value_parser!(u32).range(0..=100)
-    )]
     pub(crate) min_coverage: Option<u32>,
-    /// Check without changing files.
-    #[arg(long, overrides_with = "check")]
     pub(crate) check: bool,
-    /// Use debug build.
-    #[arg(long, overrides_with = "debug", conflicts_with = "release")]
     pub(crate) debug: bool,
-    /// Use release build.
-    #[arg(long, overrides_with = "release", conflicts_with = "debug")]
     pub(crate) release: bool,
-    /// Also run bazel clean.
-    #[arg(long = "bazel", overrides_with = "bazel_clean")]
     pub(crate) bazel_clean: bool,
-    /// Re-pin to this version.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "pin", value_parser = non_empty)]
     pub(crate) pin: Option<String>,
-    /// Re-pin the last release.
-    #[arg(long, overrides_with = "rollback")]
     pub(crate) rollback: bool,
-    /// Use cquery instead of query.
-    #[arg(long, overrides_with = "configured")]
     pub(crate) configured: bool,
-    /// Migrate from this version.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "from", value_parser = non_empty)]
     pub(crate) from: Option<String>,
-    /// Migrate to this version.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
     pub(crate) to: Option<String>,
-    /// Use the current dir tree.
-    #[arg(long, visible_alias = "cwd", overrides_with = "here")]
     pub(crate) here: bool,
-    /// Serve docs locally.
-    #[arg(long, overrides_with = "serve")]
     pub(crate) serve: bool,
-    /// Docs serve port.
-    #[arg(
-        long,
-        allow_negative_numbers = true,
-        overrides_with = "port",
-        value_parser = clap::value_parser!(u16).range(1..)
-    )]
     pub(crate) port: Option<u16>,
-    /// Docs serve host.
-    #[arg(long, allow_negative_numbers = true, overrides_with = "host", value_parser = non_empty)]
     pub(crate) host: Option<String>,
-    /// Open docs in a browser.
-    #[arg(long, overrides_with = "open")]
     pub(crate) open: bool,
-    /// Run without network.
-    #[arg(long, visible_alias = "frozen", overrides_with = "offline")]
     pub(crate) offline: bool,
+}
+
+/// One flag group: a clap argument group that writes into the normalized invocation flags.
+macro_rules! flag_group {
+    ($(#[$group_attr:meta])* $name:ident, { $(#[$attr:meta])* $field:ident : $ty:ty $(,)? }) => {
+        $(#[$group_attr])*
+        #[derive(Args)]
+        pub(crate) struct $name {
+            $(#[$group_attr])*
+            $(#[$attr])*
+            pub(crate) $field: $ty,
+        }
+
+        impl $name {
+            /// Writes this flag into the invocation.
+            pub(crate) fn put(self, flags: &mut Flags) {
+                flags.$field = self.$field;
+            }
+        }
+    };
+}
+
+/// One group of other groups, whose flags are all written through `put`.
+macro_rules! composite_group {
+    ($(#[$group_attr:meta])* $name:ident, { $( $(#[$attr:meta])* $field:ident : $ty:ty ),* $(,)? }) => {
+        $(#[$group_attr])*
+        #[derive(Args)]
+        pub(crate) struct $name {
+            $( $(#[$attr])* #[command(flatten)] pub(crate) $field: $ty, )*
+        }
+
+        impl $name {
+            /// Writes every flag this group carries into the invocation.
+            pub(crate) fn put(self, flags: &mut Flags) {
+                $( self.$field.put(flags); )*
+            }
+        }
+    };
+}
+
+flag_group! {
+    /// Use this workspace dir.
+    WorkspaceFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "workspace")]
+        workspace: Option<OsString>,
+    }
+}
+
+flag_group! {
+    /// Show the plan without running it. =false turns off an inherited default.
+    DryRunFlag, {
+        #[arg(
+            long,
+            action = clap::ArgAction::Set,
+            num_args = 0..=1,
+            require_equals = true,
+            default_missing_value = "true",
+            value_parser = clap::value_parser!(bool),
+            overrides_with = "dry_run"
+        )]
+        dry_run: Option<bool>,
+    }
+}
+
+flag_group! {
+    /// Hide summaries. =false turns off an inherited default.
+    QuietFlag, {
+        #[arg(
+            long,
+            action = clap::ArgAction::Set,
+            num_args = 0..=1,
+            require_equals = true,
+            default_missing_value = "true",
+            value_parser = clap::value_parser!(bool),
+            overrides_with = "quiet"
+        )]
+        quiet: Option<bool>,
+    }
+}
+
+flag_group! {
+    /// Show more logs. =false turns off an inherited default.
+    VerboseFlag, {
+        #[arg(
+            long,
+            short = 'v',
+            action = clap::ArgAction::Set,
+            num_args = 0..=1,
+            require_equals = true,
+            default_missing_value = "true",
+            value_parser = clap::value_parser!(bool),
+            overrides_with = "verbose",
+            conflicts_with = "log_level"
+        )]
+        verbose: Option<bool>,
+    }
+}
+
+flag_group! {
+    /// Set color output.
+    ColorFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "color")]
+        color: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Set log level.
+    LogLevelFlag, {
+        #[arg(
+            long = "log-level",
+            value_name = "LEVEL",
+            allow_negative_numbers = true,
+            overrides_with = "log_level",
+            conflicts_with = "verbose"
+        )]
+        log_level: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Set output format.
+    OutputFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "output")]
+        output: Option<String>,
+    }
+}
+
+composite_group! {
+    /// The flags every command accepts.
+    CommonArgs, {
+        workspace: WorkspaceFlag,
+        dry_run: DryRunFlag,
+        quiet: QuietFlag,
+        verbose: VerboseFlag,
+        color: ColorFlag,
+        log_level: LogLevelFlag,
+        output: OutputFlag,
+    }
+}
+
+flag_group! {
+    /// Write a report file.
+    ReportFlag, {
+        #[arg(long, allow_negative_numbers = true, value_parser = report_request)]
+        report: Vec<ReportRequest>,
+    }
+}
+
+flag_group! {
+    /// Fail on this severity.
+    FailOnFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "fail_on")]
+        fail_on: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Require at least this coverage percent (0-100).
+    MinCoverageFlag, {
+        #[arg(
+            long,
+            value_name = "PERCENT",
+            allow_negative_numbers = true,
+            overrides_with = "min_coverage",
+            value_parser = percent
+        )]
+        min_coverage: Option<u32>,
+    }
+}
+
+flag_group! {
+    /// Check without changing files.
+    CheckFlag, {
+        #[arg(long, overrides_with = "check")]
+        check: bool,
+    }
+}
+
+flag_group! {
+    /// Use debug build.
+    DebugFlag, {
+        #[arg(long, overrides_with = "debug", conflicts_with = "release")]
+        debug: bool,
+    }
+}
+
+flag_group! {
+    /// Use release build.
+    ReleaseFlag, {
+        #[arg(long, overrides_with = "release", conflicts_with = "debug")]
+        release: bool,
+    }
+}
+
+flag_group! {
+    /// Also run bazel clean.
+    BazelCleanFlag, {
+        #[arg(long = "bazel", overrides_with = "bazel_clean")]
+        bazel_clean: bool,
+    }
+}
+
+flag_group! {
+    /// Re-pin to this version.
+    PinFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "pin", value_parser = non_empty)]
+        pin: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Re-pin the last release.
+    RollbackFlag, {
+        #[arg(long, overrides_with = "rollback")]
+        rollback: bool,
+    }
+}
+
+flag_group! {
+    /// Use cquery instead of query.
+    ConfiguredFlag, {
+        #[arg(long, overrides_with = "configured")]
+        configured: bool,
+    }
+}
+
+flag_group! {
+    /// Migrate from this version.
+    FromFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "from", value_parser = non_empty)]
+        from: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Migrate to this version.
+    ToFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
+        to: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Use the current dir tree.
+    HereFlag, {
+        #[arg(long, visible_alias = "cwd", overrides_with = "here")]
+        here: bool,
+    }
+}
+
+flag_group! {
+    /// Serve docs locally.
+    ServeFlag, {
+        #[arg(long, overrides_with = "serve")]
+        serve: bool,
+    }
+}
+
+flag_group! {
+    /// Docs serve port.
+    PortFlag, {
+        #[arg(
+            long,
+            allow_negative_numbers = true,
+            overrides_with = "port",
+            value_parser = clap::value_parser!(u16).range(1..)
+        )]
+        port: Option<u16>,
+    }
+}
+
+flag_group! {
+    /// Docs serve host.
+    HostFlag, {
+        #[arg(long, allow_negative_numbers = true, overrides_with = "host", value_parser = non_empty)]
+        host: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Open docs in a browser.
+    OpenFlag, {
+        #[arg(long, overrides_with = "open")]
+        open: bool,
+    }
+}
+
+flag_group! {
+    /// Run without network.
+    OfflineFlag, {
+        #[arg(long, visible_alias = "frozen", overrides_with = "offline")]
+        offline: bool,
+    }
+}
+
+composite_group! {
+    /// The profile flags the workflow commands share.
+    ProfileArgs, {
+        debug: DebugFlag,
+        release: ReleaseFlag,
+    }
+}
+
+composite_group! {
+    /// The docs serve flags.
+    ServeArgs, {
+        serve: ServeFlag,
+        port: PortFlag,
+        host: HostFlag,
+        open: OpenFlag,
+    }
+}
+
+composite_group! {
+    /// The migration gate flags.
+    MigrationArgs, {
+        from: FromFlag,
+        to: ToFlag,
+    }
 }
 
 /// Scopes and the Bazel passthrough.
 #[derive(Args)]
-pub(crate) struct CommandArgs {
-    #[command(flatten)]
-    pub(crate) global: GlobalArgs,
+pub(crate) struct BazelTail {
     /// Scopes to run on.
     pub(crate) targets: Vec<OsString>,
     /// Args after --.
     #[arg(last = true, value_name = "BAZEL_OPTIONS")]
-    pub(crate) bazel_options: Vec<String>,
+    pub(crate) passthrough: Vec<String>,
+}
+
+impl BazelTail {
+    /// The scopes and the `--` payload.
+    pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
+        (self.targets, self.passthrough)
+    }
 }
 
 /// Scopes and the app passthrough.
 #[derive(Args)]
-pub(crate) struct AppArgs {
-    #[command(flatten)]
-    pub(crate) global: GlobalArgs,
+pub(crate) struct AppTail {
     /// Targets to run.
     #[arg(value_name = "TARGET")]
     pub(crate) targets: Vec<OsString>,
     /// Args after --.
     #[arg(last = true, value_name = "APP_ARGS")]
-    pub(crate) bazel_options: Vec<String>,
+    pub(crate) passthrough: Vec<String>,
 }
 
-macro_rules! verbs {
-    ($($variant:ident => $index:expr, $args:ty);* $(;)?) => {
+impl AppTail {
+    /// The scopes and the app arguments.
+    pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
+        (self.targets, self.passthrough)
+    }
+}
+
+/// Scopes and the `--` payload this command refuses.
+#[derive(Args)]
+pub(crate) struct NoPassthroughTail {
+    /// Scopes to run on.
+    pub(crate) targets: Vec<OsString>,
+    /// Args after --.
+    #[arg(hide = true, last = true)]
+    pub(crate) passthrough: Vec<String>,
+}
+
+impl NoPassthroughTail {
+    /// The scopes and the `--` payload.
+    pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
+        (self.targets, self.passthrough)
+    }
+}
+
+/// The raw Bazel payload this command forwards.
+#[derive(Args)]
+pub(crate) struct NoScopeTail {
+    /// Args after --.
+    #[arg(last = true, value_name = "BAZEL_OPTIONS")]
+    pub(crate) passthrough: Vec<String>,
+}
+
+impl NoScopeTail {
+    /// No scopes, and the raw Bazel payload.
+    pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
+        (Vec::new(), self.passthrough)
+    }
+}
+
+macro_rules! command_args {
+    ($(
+        $(#[$group_attr:meta])*
+        $variant:ident => $index:expr, $tail:ident, { $( $(#[$attr:meta])* $field:ident : $ty:ty ),* $(,)? };
+    )*) => {
+        $(
+            $(#[$group_attr])*
+            #[derive(Args)]
+            pub(crate) struct $variant {
+                #[command(flatten)]
+                pub(crate) common: CommonArgs,
+                $(
+                    $(#[$attr])*
+                    #[command(flatten)]
+                    pub(crate) $field: $ty,
+                )*
+                #[command(flatten)]
+                pub(crate) tail: $tail,
+            }
+
+            impl $variant {
+                /// The flags, scopes and `--` payload one command carries.
+                pub(crate) fn split(self) -> (Flags, Vec<OsString>, Vec<String>) {
+                    let Self { common, tail, $($field,)* } = self;
+                    let (targets, passthrough) = tail.split();
+                    let mut flags = Flags::default();
+                    common.put(&mut flags);
+                    $( $field.put(&mut flags); )*
+                    (flags, targets, passthrough)
+                }
+            }
+        )*
+
         #[derive(clap::Subcommand)]
         pub(crate) enum Verb {
             $(
@@ -196,62 +505,163 @@ macro_rules! verbs {
                     override_usage = usage_of($index),
                     after_help = after_help_of($index),
                 )]
-                $variant($args),
+                $variant($variant),
             )*
         }
 
         impl Verb {
             /// The registry command and the arguments one verb carries.
-            pub(crate) fn into_parts(self) -> (super::command::Command, GlobalArgs, Vec<OsString>, Vec<String>) {
+            pub(crate) fn into_parts(self) -> (super::command::Command, Flags, Vec<OsString>, Vec<String>) {
                 match self {
                     $(
-                        Verb::$variant(args) => (
-                            super::command::Command::$variant,
-                            args.global,
-                            args.targets,
-                            args.bazel_options,
-                        ),
+                        Verb::$variant(args) => {
+                            let (flags, targets, passthrough) = args.split();
+                            (super::command::Command::$variant, flags, targets, passthrough)
+                        }
                     )*
                 }
             }
         }
-    };
+
+        /// The arguments one command's subcommand carries, without help prose.
+        pub(crate) fn subcommand_args(command: super::command::Command) -> clap::Command {
+            match command {
+                $(
+                    super::command::Command::$variant => <$variant>::augment_args(
+                        clap::Command::new(COMMANDS[$index].name),
+                    ),
+                )*
+            }
+        }
+    }
 }
 
-verbs! {
-    Security => 0, CommandArgs;
-    License => 1, CommandArgs;
-    Lint => 2, CommandArgs;
-    Typecheck => 3, CommandArgs;
-    Format => 4, CommandArgs;
-    Generate => 5, CommandArgs;
-    Build => 6, CommandArgs;
-    Test => 7, CommandArgs;
-    Coverage => 8, CommandArgs;
-    Run => 9, AppArgs;
-    Deploy => 10, AppArgs;
-    Check => 11, CommandArgs;
-    Fix => 12, CommandArgs;
-    Clean => 13, CommandArgs;
-    Update => 14, CommandArgs;
-    Bump => 15, CommandArgs;
-    Migrate => 16, CommandArgs;
-    Codegen => 17, CommandArgs;
-    Env => 18, CommandArgs;
-    Setup => 19, CommandArgs;
-    Init => 20, CommandArgs;
-    New => 21, CommandArgs;
-    Upgrade => 22, CommandArgs;
-    Hooks => 23, CommandArgs;
-    Status => 24, CommandArgs;
-    Version => 25, CommandArgs;
-    Watch => 26, CommandArgs;
-    Owners => 27, CommandArgs;
-    Deps => 28, CommandArgs;
-    Why => 29, CommandArgs;
-    Completion => 30, CommandArgs;
-    Docs => 31, CommandArgs;
-    Bazel => 32, CommandArgs;
+command_args! {
+    /// The flags `dx security` accepts.
+    Security => 0, NoPassthroughTail, {
+        offline: OfflineFlag,
+        fail_on: FailOnFlag,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx license` accepts.
+    License => 1, NoPassthroughTail, {
+        offline: OfflineFlag,
+        fail_on: FailOnFlag,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx lint` accepts.
+    Lint => 2, BazelTail, {
+        check: CheckFlag,
+        fail_on: FailOnFlag,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx typecheck` accepts.
+    Typecheck => 3, BazelTail, {
+        check: CheckFlag,
+        fail_on: FailOnFlag,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx format` accepts.
+    Format => 4, BazelTail, {
+        check: CheckFlag,
+        fail_on: FailOnFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx generate` accepts.
+    Generate => 5, BazelTail, {
+        check: CheckFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx build` accepts.
+    Build => 6, BazelTail, {
+        own: ProfileArgs,
+        here: HereFlag,
+    };
+    /// The flags `dx test` accepts.
+    Test => 7, BazelTail, {
+        own: ProfileArgs,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx coverage` accepts.
+    Coverage => 8, BazelTail, {
+        min_coverage: MinCoverageFlag,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx run` accepts.
+    Run => 9, AppTail, { own: ProfileArgs, };
+    /// The flags `dx deploy` accepts.
+    Deploy => 10, AppTail, { own: ProfileArgs, };
+    /// The flags `dx check` accepts.
+    Check => 11, BazelTail, {
+        check: CheckFlag,
+        fail_on: FailOnFlag,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx fix` accepts.
+    Fix => 12, BazelTail, {
+        check: CheckFlag,
+        fail_on: FailOnFlag,
+        report: ReportFlag,
+        here: HereFlag,
+    };
+    /// The flags `dx clean` accepts.
+    Clean => 13, NoPassthroughTail, { own: BazelCleanFlag, };
+    /// The flags `dx update` accepts.
+    Update => 14, NoPassthroughTail, {
+        offline: OfflineFlag,
+        check: CheckFlag,
+    };
+    /// The flags `dx bump` accepts.
+    Bump => 15, NoPassthroughTail, { own: OfflineFlag, };
+    /// The flags `dx migrate` accepts.
+    Migrate => 16, NoPassthroughTail, { own: MigrationArgs, };
+    /// The flags `dx codegen` accepts.
+    Codegen => 17, BazelTail, {};
+    /// The flags `dx env` accepts.
+    Env => 18, BazelTail, {};
+    /// The flags `dx setup` accepts.
+    Setup => 19, BazelTail, {};
+    /// The flags `dx init` accepts.
+    Init => 20, NoPassthroughTail, {};
+    /// The flags `dx new` accepts.
+    New => 21, NoPassthroughTail, {};
+    /// The flags `dx upgrade` accepts.
+    Upgrade => 22, NoPassthroughTail, { own: MigrationArgs, };
+    /// The flags `dx hooks` accepts.
+    Hooks => 23, NoPassthroughTail, {};
+    /// The flags `dx status` accepts.
+    Status => 24, NoPassthroughTail, {};
+    /// The flags `dx version` accepts.
+    Version => 25, NoPassthroughTail, {
+        check: CheckFlag,
+        pin: PinFlag,
+        rollback: RollbackFlag,
+    };
+    /// The flags `dx watch` accepts.
+    Watch => 26, NoPassthroughTail, {};
+    /// The flags `dx owners` accepts.
+    Owners => 27, NoPassthroughTail, { own: ConfiguredFlag, };
+    /// The flags `dx deps` accepts.
+    Deps => 28, NoPassthroughTail, { own: ConfiguredFlag, };
+    /// The flags `dx why` accepts.
+    Why => 29, NoPassthroughTail, { own: ConfiguredFlag, };
+    /// The flags `dx completion` accepts.
+    Completion => 30, NoPassthroughTail, { own: CheckFlag, };
+    /// The flags `dx docs` accepts.
+    Docs => 31, BazelTail, {
+        check: CheckFlag,
+        here: HereFlag,
+        own: ServeArgs,
+    };
+    /// The flags `dx bazel` accepts.
+    Bazel => 32, NoScopeTail, {};
 }
 
 #[derive(Parser)]
@@ -288,6 +698,30 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--color",
     "--log-level",
 ];
+
+/// The long names the grammar gives the flags that belong to some commands only.
+pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> {
+    let sub = subcommand_args(command);
+    let mut flags = Vec::new();
+    for arg in sub.get_arguments() {
+        if arg.is_hide_set() {
+            continue;
+        }
+        for name in arg.get_long_and_visible_aliases().into_iter().flatten() {
+            flags.push(name.to_owned());
+        }
+    }
+    flags.sort();
+    flags.dedup();
+    flags
+}
+
+/// Whether the grammar lets `dx <command> -- <bazel-options>` through.
+pub(crate) fn advertises_passthrough(command: super::command::Command) -> bool {
+    subcommand_args(command)
+        .get_arguments()
+        .any(|arg| arg.is_last_set() && !arg.is_hide_set())
+}
 
 #[cfg(test)]
 mod tests {

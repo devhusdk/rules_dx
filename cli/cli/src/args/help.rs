@@ -219,53 +219,57 @@ pub(crate) fn output_line(command: Command) -> String {
     )
 }
 
-/// Shared options the grammar lists for every command but this one refuses.
+/// The flags that belong to some commands only, in the order help lists them.
+const COMMAND_FLAGS: &[&str] = &[
+    "--report",
+    "--fail-on",
+    "--min-coverage",
+    "--check",
+    "--debug",
+    "--release",
+    "--bazel",
+    "--pin",
+    "--rollback",
+    "--configured",
+    "--from",
+    "--to",
+    "--here",
+    "--serve",
+    "--port",
+    "--host",
+    "--open",
+    "--offline",
+];
+
+const PASSTHROUGH: &str = "-- <bazel-options>";
+
+/// The flags the grammar gives this command's help, read off its clap subcommand.
+pub(crate) fn advertised_flags(command: Command) -> Vec<&'static str> {
+    let names = super::grammar::advertised_flags(command);
+    COMMAND_FLAGS
+        .iter()
+        .copied()
+        .filter(|flag| {
+            let long = flag.trim_start_matches('-');
+            names.iter().any(|name| name == long)
+        })
+        .collect()
+}
+
+/// Whether `dx <command> -- <bazel-options>` passes them through.
+pub(crate) fn advertises_passthrough(command: Command) -> bool {
+    accepts_bazel_options(command) && super::grammar::advertises_passthrough(command)
+}
+
+/// The flags the grammar names for some command but not this one.
 pub(crate) fn rejected_flags(command: Command) -> Vec<&'static str> {
-    let mut flags = Vec::new();
-    if crate::plan::spec(command).reports.is_empty() {
-        flags.push("--report");
-    }
-    if !command.supports_fail_on() {
-        flags.push("--fail-on");
-    }
-    if !command.supports_min_coverage() {
-        flags.push("--min-coverage");
-    }
-    if !command.supports_check() {
-        flags.push("--check");
-    }
-    if !command.supports_profile() {
-        flags.push("--debug");
-        flags.push("--release");
-    }
-    if command != Command::Clean {
-        flags.push("--bazel");
-    }
-    if command != Command::Version {
-        flags.push("--pin");
-        flags.push("--rollback");
-    }
-    if !matches!(command, Command::Owners | Command::Deps | Command::Why) {
-        flags.push("--configured");
-    }
-    if !matches!(command, Command::Migrate | Command::Upgrade) {
-        flags.push("--from");
-        flags.push("--to");
-    }
-    if !command.supports_here() {
-        flags.push("--here");
-    }
-    if command != Command::Docs {
-        flags.push("--serve");
-        flags.push("--port");
-        flags.push("--host");
-        flags.push("--open");
-    }
-    if !command.supports_offline() {
-        flags.push("--offline");
-    }
-    if !accepts_bazel_options(command) {
-        flags.push("-- <bazel-options>");
+    let mut flags: Vec<&'static str> = COMMAND_FLAGS
+        .iter()
+        .copied()
+        .filter(|flag| !advertised_flags(command).contains(flag))
+        .collect();
+    if !advertises_passthrough(command) {
+        flags.push(PASSTHROUGH);
     }
     flags
 }
@@ -302,8 +306,13 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out.push_str(&output_line(command));
     out.push('\n');
     out.push_str(&rejected_line(command));
+    out.push('\n');
+    out.push_str(ENV_LINE);
     out
 }
+
+const ENV_LINE: &str = "Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; \
+BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.";
 
 pub(crate) fn render_command_help(command: Command) -> String {
     let root = super::grammar::cli_command();
@@ -324,7 +333,6 @@ pub(crate) fn render_command_help(command: Command) -> String {
         ));
     }
     out.push('\n');
-    out.push_str(&render_top_help());
     out
 }
 

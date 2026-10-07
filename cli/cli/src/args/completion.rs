@@ -36,6 +36,9 @@ pub fn with_scope_completers(
 ) -> clap::Command {
     let words: Vec<OsString> = words.into_iter().collect();
     for entry in COMMANDS.iter() {
+        if entry.command.scope_policy() == "passthrough" {
+            continue;
+        }
         let completer = ArgValueCompleter::new(ScopeCompleter {
             command: entry.command,
             prior: prior_scopes(&words),
@@ -534,29 +537,36 @@ mod tests {
             "--color",
             "--log-level",
             "--output",
+            "--debug",
+            "--release",
+            "--here",
+            "-h",
+        ] {
+            assert!(
+                flags.iter().any(|value| value == flag),
+                "clap must offer {flag} for dx build: {flags:?}"
+            );
+        }
+        for flag in [
             "--report",
             "--fail-on",
             "--min-coverage",
             "--check",
-            "--debug",
-            "--release",
             "--bazel",
             "--pin",
             "--rollback",
             "--configured",
             "--from",
             "--to",
-            "--here",
             "--serve",
             "--port",
             "--host",
             "--open",
             "--offline",
-            "-h",
         ] {
             assert!(
-                flags.iter().any(|value| value == flag),
-                "clap must offer {flag} for dx build: {flags:?}"
+                !flags.iter().any(|value| value == flag),
+                "clap must not offer {flag} for dx build: {flags:?}"
             );
         }
     }

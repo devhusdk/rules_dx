@@ -278,7 +278,16 @@ impl Harness {
     }
 
     pub(crate) fn run_with_ci(&self, words: &[&str], ci: bool) -> (i32, String, String) {
-        let inv = invocation(words);
+        let inv = match crate::args::parse(&crate::test_support::strings(words)) {
+            Ok(inv) => inv,
+            Err(error) => {
+                return (
+                    2,
+                    String::new(),
+                    format!("dx: {error}\n{}\n", crate::args::help::usage_banner()),
+                );
+            }
+        };
         let inv = match crate::args::apply_here(&inv, &self.workspace, &self.cwd) {
             Ok(resolved) => resolved,
             Err(detail) => return (2, String::new(), format!("dx: {detail}\n")),

@@ -61,12 +61,10 @@ def dx_effective_visibility(visibility):
 def dx_forwarded_test_kwargs(kwargs):
     """Extracts the standard test attributes a test forwarder preserves."""
     out = {}
-    if "tags" in kwargs and kwargs["tags"] != None:
-        kept = [t for t in kwargs["tags"] if t != "manual"]
-        if len(kept) > 0:
-            out["tags"] = kept
-    for key in ("timeout", "shard_count", "size"):
-        if key in kwargs and kwargs[key] != None:
+    if kwargs.get("tags", None) != None:
+        out["tags"] = list(kwargs["tags"])
+    for key in ("timeout", "shard_count", "size", "flaky", "env", "env_inherit"):
+        if kwargs.get(key, None) != None:
             out[key] = kwargs[key]
     return out
 
@@ -165,11 +163,31 @@ def _dx_quality_files(ctx, extra_quality_attrs):
         files.extend(getattr(ctx.files, name, []))
     return files
 
-def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = None):
+_DX_STANDARD_TEST_ATTRS = {
+    "env": attr.string_dict(),
+    "env_inherit": attr.string_list(),
+}
+
+def _dx_merged_test_environment(ctx, upstream):
+    merged = {}
+    inherited = []
+    if RunEnvironmentInfo in upstream:
+        upstream_environment = upstream[RunEnvironmentInfo]
+        merged.update(upstream_environment.environment)
+        inherited.extend(upstream_environment.inherited_environment)
+    for key in ctx.attr.env_inherit:
+        if key not in inherited:
+            inherited.append(key)
+    merged.update(ctx.attr.env)
+    return RunEnvironmentInfo(environment = merged, inherited_environment = inherited)
+
+def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = None, run_environment = None):
+    out = []
     if runtime == "mandatory":
-        return dx_forwarded_runtime_providers(upstream, what)
+        if InstrumentedFilesInfo not in upstream:
+            fail(what + ": upstream target has no InstrumentedFilesInfo: " + str(upstream.label))
+        out.append(upstream[InstrumentedFilesInfo])
     elif runtime == "besteffort":
-        out = []
         if InstrumentedFilesInfo in upstream:
             out.append(upstream[InstrumentedFilesInfo])
         else:
@@ -179,13 +197,15 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
                 source_attributes = src_attrs,
                 dependency_attributes = ["upstream"],
             ))
-        if OutputGroupInfo in upstream:
-            out.append(upstream[OutputGroupInfo])
-        if RunEnvironmentInfo in upstream:
-            out.append(upstream[RunEnvironmentInfo])
-        return out
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
+    if OutputGroupInfo in upstream:
+        out.append(upstream[OutputGroupInfo])
+    if run_environment != None:
+        out.append(run_environment)
+    elif RunEnvironmentInfo in upstream:
+        out.append(upstream[RunEnvironmentInfo])
+    return out
 
 def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None):
     """Creates the public forwarding rule for one library wrapper."""
@@ -215,11 +235,14 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
     def _impl(ctx):
         upstream = ctx.attr.upstream
         extra_runfiles = coverage_runfiles(ctx) if coverage_runfiles != None else None
+        run_environment = None
+        if kind == "test":
+            run_environment = _dx_merged_test_environment(ctx, upstream)
         return (
             [dx_symlink_default_info(ctx, what, extra_runfiles)] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
-            _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs) +
+            _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, run_environment) +
             [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))]
         )
 
@@ -228,6 +251,10 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
         upstream_providers = upstream_providers,
         extra_attrs = extra_attrs,
     )
+    if kind == "test":
+        for key in _DX_STANDARD_TEST_ATTRS:
+            if key not in attrs:
+                attrs[key] = _DX_STANDARD_TEST_ATTRS[key]
     if kind == "executable":
         return rule(
             implementation = _impl,
@@ -256,17 +283,13 @@ def dx_binary_forward_kwargs(kwargs):
         out["aspect_hints"] = kwargs["aspect_hints"]
     if kwargs.get("target_compatible_with", None) != None:
         out["target_compatible_with"] = kwargs["target_compatible_with"]
+    if kwargs.get("hdrs", None) != None:
+        out["hdrs"] = kwargs["hdrs"]
     return out
 
 def dx_test_upstream_kwargs(kwargs, srcs = None):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)
-    if "tags" in out:
-        kept = [t for t in out["tags"] if t != "manual"]
-        if len(kept) > 0:
-            out["tags"] = kept
-        else:
-            out.pop("tags")
     out["visibility"] = ["//visibility:private"]
     if srcs != None:
         out["srcs"] = srcs
@@ -342,16 +365,17 @@ def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = N
     kwargs["tags"] = tags
     dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = visibility, **kwargs)
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, **kwargs):
+def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, **kwargs):
     """Instantiates one private upstream target plus its public forwarder."""
     hints = kwargs.get("aspect_hints", None)
-    hdrs = kwargs.get("hdrs", None)
+    hdrs = kwargs.pop("hdrs", None)
     tags = kwargs.pop("tags", None)
+    effective = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     upstream_rule(
         name = name + "_upstream",
         srcs = srcs,
         visibility = ["//visibility:private"],
-        **kwargs
+        **effective
     )
     forward_kwargs = {}
     if hints != None:
@@ -362,6 +386,8 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, **kwargs
         forward_kwargs["tags"] = tags
     if kwargs.get("testonly", None) != None:
         forward_kwargs["testonly"] = kwargs["testonly"]
+    if kwargs.get("target_compatible_with", None) != None:
+        forward_kwargs["target_compatible_with"] = kwargs["target_compatible_with"]
     forward_rule(
         name = name,
         upstream = name + "_upstream",

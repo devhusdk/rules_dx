@@ -90,6 +90,11 @@ def wrapper_shape_kwargs_tests(name):
                 {"target_compatible_with": ["@platforms//os:linux"]},
             ),
             expect_equal(
+                "binary hdrs ride forwarder",
+                dx_binary_forward_kwargs({"hdrs": ["shapes.h"]}),
+                {"hdrs": ["shapes.h"]},
+            ),
+            expect_equal(
                 "binary none tags stay empty",
                 dx_binary_forward_kwargs({"tags": None}),
                 {},
@@ -100,14 +105,14 @@ def wrapper_shape_kwargs_tests(name):
                 {"visibility": ["//visibility:private"]},
             ),
             expect_equal(
-                "test upstream strips manual-only tags",
+                "test upstream keeps manual tags",
                 dx_test_upstream_kwargs({"tags": ["manual"]}),
-                {"visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
-                "test upstream keeps non-manual tags",
+                "test upstream keeps tags verbatim",
                 dx_test_upstream_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["cpu:4"], "visibility": ["//visibility:private"]},
+                {"tags": ["manual", "cpu:4"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream forces private visibility",
@@ -130,19 +135,24 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
-                "test forward strips manual",
+                "test forward keeps manual",
                 dx_test_forward_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["cpu:4"]},
+                {"tags": ["manual", "cpu:4"]},
             ),
             expect_equal(
-                "test forward keeps timeout, drops flaky",
+                "test forward keeps timeout and flaky",
                 dx_test_forward_kwargs({"timeout": "short", "flaky": True}),
-                {"timeout": "short"},
+                {"timeout": "short", "flaky": True},
             ),
             expect_equal(
-                "test forward flaky-only stays empty",
-                dx_test_forward_kwargs({"flaky": True}),
-                {},
+                "test forward forwards env and env_inherit",
+                dx_test_forward_kwargs({"env": {"DX_ENV": "1"}, "env_inherit": ["PATH"]}),
+                {"env": {"DX_ENV": "1"}, "env_inherit": ["PATH"]},
+            ),
+            expect_equal(
+                "test forward keeps explicit non-flaky",
+                dx_test_forward_kwargs({"flaky": False}),
+                {"flaky": False},
             ),
             expect_equal(
                 "test forward rides hints",

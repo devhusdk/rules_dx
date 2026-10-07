@@ -150,6 +150,8 @@ def javascript_test(name, srcs, node_modules, data = None, visibility = None, ta
         **upstream_kwargs
     )
     forward_kwargs = dx_test_forward_kwargs(kwargs)
+    forward_kwargs.pop("env", None)
+    forward_kwargs.pop("flaky", None)
     _javascript_test(
         name = name,
         upstream = name + "_upstream",

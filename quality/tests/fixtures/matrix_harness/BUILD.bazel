@@ -1,0 +1,32 @@
+load("//quality/testdata:runner_matrix_tests.bzl", "runner_matrix_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//quality:__pkg__"],
+)
+
+runner_matrix_suite(
+    "matrix_harness_e2e",
+    [
+        {
+            "name": "harness_toml_lint_pass",
+            "generated": {"matrix/harness.toml": "a = 1\n"},
+            "capability": "lint",
+            "stages": ["taplo;toml;matrix/harness.toml"],
+            "tool_names": ["taplo"],
+            "tool_binaries": ["@dx_tools//:taplo"],
+            "expected_file": ":harness_toml_lint_pass.expected.txt",
+            "snapshot_dir": "quality/tests/fixtures/matrix_harness",
+        },
+        {
+            "name": "harness_toml_format_pass",
+            "generated": {"matrix/harness.toml": "a = 1\n"},
+            "capability": "format",
+            "stages": ["taplo;toml;matrix/harness.toml"],
+            "tool_names": ["taplo"],
+            "tool_binaries": ["@dx_tools//:taplo"],
+            "expected_file": ":harness_toml_format_pass.expected.txt",
+            "snapshot_dir": "quality/tests/fixtures/matrix_harness",
+        },
+    ],
+)

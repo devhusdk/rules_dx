@@ -1,0 +1,9 @@
+producer //quality/tests/fixtures/matrix_harness:harness_toml_lint_pass
+capability LINT
+stages 1
+stage taplo classes=toml sources=matrix/harness.toml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

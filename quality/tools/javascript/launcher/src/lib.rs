@@ -10,6 +10,7 @@
     )
 )]
 
+use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -17,8 +18,25 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub struct Plan {
     pub program: PathBuf,
+    pub node_args: Vec<String>,
     pub entry: PathBuf,
     pub args: Vec<String>,
+    pub path_prefix: PathBuf,
+    pub env_set: Vec<(String, String)>,
+    pub env_default: Vec<(String, String)>,
+}
+
+impl Plan {
+    /// Returns the full child command line this plan runs.
+    pub fn argv(&self) -> Vec<OsString> {
+        let mut argv = Vec::new();
+        argv.push(self.program.as_os_str().to_owned());
+        argv.extend(self.node_args.iter().map(OsString::from));
+        argv.push(OsString::from("--"));
+        argv.push(self.entry.as_os_str().to_owned());
+        argv.extend(self.args.iter().map(OsString::from));
+        argv
+    }
 }
 
 /// Names the descriptor beside one launcher.
@@ -28,69 +46,163 @@ pub fn descriptor_path(exe: &Path) -> PathBuf {
     exe.with_file_name(name)
 }
 
-/// Returns the entry point a generated launcher script names.
-pub fn entry_point(script: &Path) -> io::Result<String> {
-    let text = read(script)?;
+/// The launch the Bazel rule wrote for one wrapper.
+#[derive(Debug, PartialEq, Eq)]
+struct Descriptor {
+    entry: String,
+    node: String,
+    require: String,
+    wrapper: String,
+    node_options: Vec<String>,
+}
+
+/// Returns the launch one descriptor names.
+fn descriptor(path: &Path) -> io::Result<Descriptor> {
+    let text = read(path)?;
+    let mut entry = None;
+    let mut node = None;
+    let mut require = None;
+    let mut wrapper = None;
+    let mut node_options = Vec::new();
     for line in text.lines() {
-        let trimmed = line.trim_start();
-        if !trimmed.starts_with("entry_point=$") {
+        let Some((name, value)) = line.split_once('=') else {
+            continue;
+        };
+        let value = value.trim().to_owned();
+        if value.is_empty() {
             continue;
         }
-        if let Some((_, quoted)) = trimmed.split_once('"') {
-            let (path, _) = quoted.split_once('"').unwrap_or((quoted, ""));
-            if !path.is_empty() {
-                return Ok(path.to_owned());
-            }
+        match name.trim() {
+            "entry" => entry = Some(single(path, entry, value, "entry")?),
+            "node" => node = Some(single(path, node, value, "node")?),
+            "require" => require = Some(single(path, require, value, "require")?),
+            "wrapper" => wrapper = Some(single(path, wrapper, value, "wrapper")?),
+            "node_option" => node_options.push(value),
+            _ => {}
         }
     }
-    Err(bad(format!("no entry point in {}", script.display())))
-}
-
-/// Returns the directory a generated launcher's entry point is named from.
-///
-/// The entry point is written the way the execroot spells it, and the generated
-/// script sits three directories below that.
-pub fn bin_dir(script: &Path) -> Option<PathBuf> {
-    script.ancestors().nth(3).map(Path::to_path_buf)
-}
-
-/// Returns the script and node runfiles keys one descriptor names.
-pub fn descriptor(path: &Path) -> io::Result<(String, String)> {
-    let text = read(path)?;
-    let mut script = None;
-    let mut node = None;
-    for line in text.lines() {
-        if let Some((name, value)) = line.split_once('=') {
-            match name.trim() {
-                "script" => script = Some(value.trim().to_owned()),
-                "node" => node = Some(value.trim().to_owned()),
-                _ => {}
-            }
-        }
-    }
-    match (script, node) {
-        (Some(script), Some(node)) => Ok((script, node)),
-        _ => Err(bad(format!("incomplete descriptor in {}", path.display()))),
-    }
+    Ok(Descriptor {
+        entry: need(path, entry, "entry")?,
+        node: need(path, node, "node")?,
+        require: need(path, require, "require")?,
+        wrapper: need(path, wrapper, "wrapper")?,
+        node_options,
+    })
 }
 
 /// Resolves what one launcher invocation runs from its own runfiles.
 pub fn plan(exe: &Path, args: &[String]) -> io::Result<Plan> {
-    let (script_key, node_key) = descriptor(&descriptor_path(exe))?;
-    let runfiles = dx_path::Resolver::for_binary(exe)?;
-    let script = runfiles.lookup(&script_key)?;
-    let node = runfiles.lookup(&node_key)?;
-    let base = bin_dir(&script).ok_or_else(|| {
+    let cwd = std::env::current_dir().map_err(|error| {
         bad(format!(
-            "cannot place the entry point of {}",
-            script.display()
+            "cannot read the working directory for {}: {error}",
+            exe.display()
         ))
     })?;
+    plan_in(exe, args, &cwd)
+}
+
+/// Resolves one launch as if the launcher ran in `cwd`.
+fn plan_in(exe: &Path, args: &[String], cwd: &Path) -> io::Result<Plan> {
+    let owned = descriptor(&descriptor_path(exe))?;
+    let runfiles = dx_path::Resolver::for_binary(exe)?;
+    let entry = resolve(&runfiles, &owned.entry)?;
+    let program = resolve(&runfiles, &owned.node)?;
+    let patches = resolve(&runfiles, &owned.require)?;
+    let wrapper = resolve(&runfiles, &owned.wrapper)?;
+    let mut node_args = vec!["--require".to_owned(), lossy(&patches)];
+    node_args.extend(owned.node_options.iter().cloned());
+    let mut script_args = Vec::new();
+    for arg in args {
+        if let Some(option) = arg.strip_prefix("--node_options=") {
+            node_args.push(option.to_owned());
+        } else {
+            script_args.push(arg.clone());
+        }
+    }
+    let root = runfiles_root(&runfiles);
+    let execroot = lossy(cwd);
+    let tree = lossy(&root);
+    let binary = lossy(&program);
     Ok(Plan {
-        program: node,
-        entry: base.join(entry_point(&script)?),
-        args: args.to_vec(),
+        program,
+        node_args,
+        entry,
+        args: script_args,
+        path_prefix: wrapper
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("")),
+        env_set: vec![
+            ("JS_BINARY__EXECROOT".to_owned(), execroot.clone()),
+            ("JS_BINARY__RUNFILES".to_owned(), tree.clone()),
+            ("JS_BINARY__NODE_BINARY".to_owned(), binary),
+            ("JS_BINARY__NODE_PATCHES".to_owned(), lossy(&patches)),
+            ("JS_BINARY__NODE_WRAPPER".to_owned(), lossy(&wrapper)),
+            (
+                "JS_BINARY__FS_PATCH_ROOTS".to_owned(),
+                format!("{execroot}:{tree}"),
+            ),
+        ],
+        env_default: vec![
+            ("JS_BINARY__PATCH_NODE_FS".to_owned(), "1".to_owned()),
+            ("NODE_DISABLE_COMPILE_CACHE".to_owned(), "1".to_owned()),
+        ],
     })
+}
+
+/// Returns the file one runfiles key names.
+///
+/// Manifests map npm package directories rather than every file inside them,
+/// so a key the manifest does not name is retried below each mapped ancestor
+/// directory. A resolved file that does not exist fails the same way a key
+/// the runfiles never named does.
+fn resolve(runfiles: &dx_path::Resolver, key: &str) -> io::Result<PathBuf> {
+    if let Ok(path) = runfiles.lookup(key) {
+        return Ok(path);
+    }
+    let mut ancestor = Path::new(key).parent();
+    while let Some(dir) = ancestor {
+        let prefix = dir.to_string_lossy();
+        if let Ok(base) = runfiles.lookup(prefix.as_ref()) {
+            let rest = Path::new(key)
+                .strip_prefix(dir)
+                .map_err(|error| bad(format!("cannot split {key}: {error}")))?;
+            let path = base.join(rest);
+            if path.is_file() {
+                return Ok(path);
+            }
+            break;
+        }
+        ancestor = dir.parent();
+    }
+    runfiles.lookup(key)
+}
+
+/// Returns the runfiles tree one resolver read, or the manifest's directory.
+fn runfiles_root(runfiles: &dx_path::Resolver) -> PathBuf {
+    let source = runfiles.source();
+    if source.is_dir() {
+        return source.to_path_buf();
+    }
+    source
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from(""))
+}
+
+fn lossy(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
+}
+
+fn single(path: &Path, slot: Option<String>, value: String, name: &str) -> io::Result<String> {
+    if slot.is_some() {
+        return Err(bad(format!("two {name} lines in {}", path.display())));
+    }
+    Ok(value)
+}
+
+fn need(path: &Path, slot: Option<String>, name: &str) -> io::Result<String> {
+    slot.ok_or_else(|| bad(format!("no {name} in {}", path.display())))
 }
 
 fn read(path: &Path) -> io::Result<String> {

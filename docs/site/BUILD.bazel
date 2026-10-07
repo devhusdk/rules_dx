@@ -93,6 +93,28 @@ rust_test(
 
 # keep
 rust_test(
+    name = "deploy_smoke_test",
+    size = "large",
+    srcs = ["deploy_smoke_test.rs"],
+    data = [
+        ":user_site",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_USER_SITE": "$(rootpath :user_site)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+rust_test(
     name = "serve_test",
     size = "small",
     srcs = ["serve_test.rs"],

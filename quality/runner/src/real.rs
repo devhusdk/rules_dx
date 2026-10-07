@@ -78,7 +78,7 @@ pub struct RealTool {
     pub upstream_diagnostics: Vec<PathBuf>,
 }
 
-pub type SpawnFn = fn(&[OsString], &Path, &[(String, String)]) -> io::Result<ChildOutput>;
+pub type SpawnFn = fn(&[OsString], &Path, &[(OsString, OsString)]) -> io::Result<ChildOutput>;
 
 type StagedPair = (String, PathBuf);
 
@@ -98,7 +98,7 @@ pub struct RealBackend {
 pub fn real_spawn(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     exec::spawn(argv, cwd, env)
 }
@@ -130,15 +130,18 @@ fn absolute_argv(argv: &[OsString]) -> Vec<OsString> {
 ///
 /// `RUNFILES_DIR` is never rewritten: pointing it at the runner's own tree would break
 /// every tool whose runfiles the runner does not carry.
-fn own_runfiles_manifest(binary: &Path) -> Vec<(String, String)> {
+fn own_runfiles_manifest(binary: &Path) -> Vec<(OsString, OsString)> {
     let path = if binary.is_absolute() {
         binary.to_owned()
     } else {
         std::env::current_dir().unwrap_or_default().join(binary)
     };
     vec![(
-        "RUNFILES_MANIFEST_FILE".to_owned(),
-        dx_path::manifest_for(&path).to_string_lossy().into_owned(),
+        OsString::from("RUNFILES_MANIFEST_FILE"),
+        dx_path::manifest_for(&path)
+            .to_string_lossy()
+            .into_owned()
+            .into(),
     )]
 }
 
@@ -241,12 +244,13 @@ impl RealBackend {
         scratch: &Scratch,
     ) -> Result<ChildOutput, RunnerError> {
         let cwd = scratch.root().join(&invocation.cwd_rel);
-        let extra: Vec<(&str, &str)> = tool
+        let extra: Vec<(OsString, OsString)> = tool
             .extra_env
             .iter()
-            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .map(|(key, value)| (OsString::from(key), OsString::from(value)))
             .collect();
-        let mut env = exec::hermetic_env(scratch.root(), &extra);
+        let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        let mut env = exec::hermetic_env(scratch.root(), &extra, &ambient);
         if reads_own_manifest(tool_id, cfg!(windows)) {
             env.extend(own_runfiles_manifest(&tool.binary));
         }
@@ -311,8 +315,8 @@ mod tests {
         assert_eq!(
             env,
             vec![(
-                "RUNFILES_MANIFEST_FILE".to_owned(),
-                "/out/bin/quality/tools/python/pydoclint.runfiles_manifest".to_owned()
+                OsString::from("RUNFILES_MANIFEST_FILE"),
+                OsString::from("/out/bin/quality/tools/python/pydoclint.runfiles_manifest")
             )]
         );
     }
@@ -325,8 +329,8 @@ mod tests {
             assert_eq!(
                 env,
                 vec![(
-                    "RUNFILES_MANIFEST_FILE".to_owned(),
-                    format!("{name}.runfiles_manifest")
+                    OsString::from("RUNFILES_MANIFEST_FILE"),
+                    OsString::from(format!("{name}.runfiles_manifest"))
                 )]
             );
         }
@@ -341,7 +345,10 @@ mod tests {
         std::fs::write(&named, "").expect("wrote manifest");
         assert_eq!(
             own_runfiles_manifest(&dir.path().join("prettier.bat")),
-            vec![("RUNFILES_MANIFEST_FILE".to_owned(), named)]
+            vec![(
+                OsString::from("RUNFILES_MANIFEST_FILE"),
+                OsString::from(named)
+            )]
         );
     }
 

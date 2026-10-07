@@ -7,7 +7,7 @@ use quality_result::proto::Convergence;
 pub(super) fn markdown_links(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let mut out = String::new();
@@ -37,7 +37,7 @@ pub(super) fn markdown_links(
 pub(super) fn markdown_broken(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let _ = last_file(argv);
@@ -51,7 +51,7 @@ pub(super) fn markdown_broken(
 pub(super) fn rustfmt_hinted(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let config = argv
@@ -77,7 +77,7 @@ pub(super) fn rustfmt_hinted(
 pub(super) fn rustfmt_defaults(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let config = argv
@@ -103,7 +103,7 @@ pub(super) fn rustfmt_defaults(
 pub(super) fn failing_fix(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let _ = last_file(argv);
@@ -117,7 +117,7 @@ pub(super) fn failing_fix(
 pub(super) fn deleting_fix(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     std::fs::remove_file(last_file(argv)).expect("fix removes the file");
@@ -131,7 +131,7 @@ pub(super) fn deleting_fix(
 pub(super) fn binary_fix(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     std::fs::write(last_file(argv), b"\xff").expect("fix writes bytes");
@@ -314,7 +314,7 @@ pub(super) fn markdown_check_pipeline_is_stable_without_rewriting() {
 pub(super) fn markdown_sibling_links(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let mut out = String::new();
@@ -645,7 +645,7 @@ pub(super) fn rustfmt_without_hint_gets_materialized_defaults() {
 pub(super) fn rustfmt_edition_passthrough(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let edition = argv
@@ -704,7 +704,7 @@ pub(super) fn rustfmt_without_edition_fails_the_action() {
 pub(super) fn no_spawn(
     _: &[OsString],
     _: &Path,
-    _: &[(String, String)],
+    _: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     panic!("delegated check must not spawn")
 }

@@ -1,6 +1,7 @@
 use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
 use normpath::BasePathBuf;
-use std::ffi::OsStr;
+use std::collections::HashSet;
+use std::ffi::{OsStr, OsString};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -205,17 +206,69 @@ pub struct ChildOutput {
     pub stderr: Vec<u8>,
 }
 
-pub fn hermetic_env(tmpdir: &Path, extra: &[(&str, &str)]) -> Vec<(String, String)> {
-    let mut env = Vec::with_capacity(3 + extra.len());
-    env.push(("TMPDIR".to_owned(), tmpdir.to_string_lossy().into_owned()));
-    env.push(("LANG".to_owned(), "C.UTF-8".to_owned()));
-    env.push(("TZ".to_owned(), "UTC".to_owned()));
+const WINDOWS_AMBIENT_KEYS: &[&str] = &["SystemRoot"];
+
+pub fn hermetic_env(
+    scratch: &Path,
+    extra: &[(OsString, OsString)],
+    ambient: &[(OsString, OsString)],
+) -> Vec<(OsString, OsString)> {
+    build_env(scratch, extra, ambient, cfg!(windows))
+}
+
+fn fold_env_key(key: &OsStr, windows: bool) -> OsString {
+    if windows {
+        OsString::from(key.to_string_lossy().to_ascii_uppercase())
+    } else {
+        key.to_owned()
+    }
+}
+
+fn push_env_once(
+    out: &mut Vec<(OsString, OsString)>,
+    seen: &mut HashSet<OsString>,
+    key: OsString,
+    value: OsString,
+    windows: bool,
+) {
+    if seen.insert(fold_env_key(&key, windows)) {
+        out.push((key, value));
+    }
+}
+
+fn build_env(
+    scratch: &Path,
+    extra: &[(OsString, OsString)],
+    ambient: &[(OsString, OsString)],
+    windows: bool,
+) -> Vec<(OsString, OsString)> {
+    let scratch = scratch.as_os_str().to_owned();
+    let mut out = Vec::with_capacity(5 + extra.len() + 1);
+    let mut seen = HashSet::new();
+    for (key, value) in [
+        (OsString::from("TMPDIR"), scratch.clone()),
+        (OsString::from("TEMP"), scratch.clone()),
+        (OsString::from("TMP"), scratch.clone()),
+        (OsString::from("LANG"), OsString::from("C.UTF-8")),
+        (OsString::from("TZ"), OsString::from("UTC")),
+    ] {
+        push_env_once(&mut out, &mut seen, key, value, windows);
+    }
     for (key, value) in extra {
-        if *key != "TMPDIR" && *key != "LANG" && *key != "TZ" {
-            env.push((key.to_string(), value.to_string()));
+        push_env_once(&mut out, &mut seen, key.clone(), value.clone(), windows);
+    }
+    if windows {
+        let kept: Vec<OsString> = WINDOWS_AMBIENT_KEYS
+            .iter()
+            .map(|key| fold_env_key(OsStr::new(key), true))
+            .collect();
+        for (key, value) in ambient {
+            if kept.contains(&fold_env_key(key, true)) {
+                push_env_once(&mut out, &mut seen, key.clone(), value.clone(), windows);
+            }
         }
     }
-    env
+    out
 }
 
 pub const SPAWN_TIMEOUT: Duration = Duration::from_secs(120);
@@ -264,7 +317,7 @@ fn join_drain(handle: Option<std::thread::JoinHandle<Vec<u8>>>) -> io::Result<Ve
 pub fn spawn(
     argv: &[impl AsRef<OsStr>],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     spawn_with_timeout(argv, cwd, env, SPAWN_TIMEOUT)
 }
@@ -272,7 +325,7 @@ pub fn spawn(
 pub fn spawn_with_timeout(
     argv: &[impl AsRef<OsStr>],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
     timeout: Duration,
 ) -> io::Result<ChildOutput> {
     let (binary, args) = argv
@@ -628,44 +681,85 @@ mod tests {
         assert!(scratch.close().is_err(), "missing tree is an error");
     }
 
+    fn pair(key: &str, value: &str) -> (OsString, OsString) {
+        (OsString::from(key), OsString::from(value))
+    }
+
+    fn value_of(env: &[(OsString, OsString)], key: &str) -> Option<OsString> {
+        env.iter()
+            .find(|(known, _)| known == key)
+            .map(|(_, value)| value.clone())
+    }
+
+    fn hostile_ambient() -> Vec<(OsString, OsString)> {
+        vec![
+            pair("TMPDIR", "/evil-tmpdir"),
+            pair("TEMP", "/evil-temp"),
+            pair("TMP", "/evil-tmp"),
+            pair("PATH", "/evil-bin"),
+            pair("HOME", "/evil-home"),
+            pair("USERPROFILE", "C:\\evil"),
+            pair("APPDATA", "C:\\evil-appdata"),
+            pair("LOCALAPPDATA", "C:\\evil-local"),
+            pair("PYTHONPATH", "/evil-py"),
+            pair("PYTHONHOME", "/evil-home-py"),
+            pair("NODE_OPTIONS", "--evil"),
+            pair("NODE_PATH", "/evil-node"),
+            pair("SystemRoot", "C:\\Windows"),
+        ]
+    }
+
     #[test]
-    fn hermetic_env_has_no_path() {
-        let env = hermetic_env(Path::new("/tmp/dx"), &[("LD_LIBRARY_PATH", "/lib")]);
+    fn hermetic_env_is_deterministic_for_an_empty_ambient() {
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(
+            Path::new("/tmp/dx"),
+            &[pair("LD_LIBRARY_PATH", "/lib")],
+            &ambient,
+        );
         assert_eq!(
             env,
             vec![
-                ("TMPDIR".to_owned(), "/tmp/dx".to_owned()),
-                ("LANG".to_owned(), "C.UTF-8".to_owned()),
-                ("TZ".to_owned(), "UTC".to_owned()),
-                ("LD_LIBRARY_PATH".to_owned(), "/lib".to_owned()),
+                pair("TMPDIR", "/tmp/dx"),
+                pair("TEMP", "/tmp/dx"),
+                pair("TMP", "/tmp/dx"),
+                pair("LANG", "C.UTF-8"),
+                pair("TZ", "UTC"),
+                pair("LD_LIBRARY_PATH", "/lib"),
             ]
         );
     }
 
     #[test]
-    fn hermetic_env_tmpdir_is_never_shadowed() {
-        let env = hermetic_env(
-            Path::new("/tmp/dx"),
-            &[("TMPDIR", "/evil"), ("LD_LIBRARY_PATH", "/lib")],
-        );
-        assert_eq!(
-            env.iter().filter(|(key, _)| key == "TMPDIR").count(),
-            1,
-            "exactly one TMPDIR"
-        );
-        assert_eq!(env[0], ("TMPDIR".to_owned(), "/tmp/dx".to_owned()));
-        assert!(env.contains(&("LD_LIBRARY_PATH".to_owned(), "/lib".to_owned())));
+    fn hermetic_env_pins_temp_over_ambient_and_extra() {
+        for windows in [false, true] {
+            let env = build_env(
+                Path::new("/tmp/dx"),
+                &[pair("TMPDIR", "/evil"), pair("Temp", "/evil")],
+                &hostile_ambient(),
+                windows,
+            );
+            for key in ["TMPDIR", "TEMP", "TMP"] {
+                assert_eq!(
+                    value_of(&env, key),
+                    Some(OsString::from("/tmp/dx")),
+                    "{key} stays pinned (windows={windows})"
+                );
+            }
+        }
     }
 
     #[test]
     fn hermetic_env_pins_locale_and_time() {
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
         let env = hermetic_env(
             Path::new("/tmp/dx"),
             &[
-                ("LANG", "de_DE.UTF-8"),
-                ("TZ", "Europe/Berlin"),
-                ("LC_ALL", "de_DE.UTF-8"),
+                pair("LANG", "de_DE.UTF-8"),
+                pair("TZ", "Europe/Berlin"),
+                pair("LC_ALL", "de_DE.UTF-8"),
             ],
+            &ambient,
         );
         assert_eq!(
             env.iter().filter(|(key, _)| key == "LANG").count(),
@@ -677,16 +771,216 @@ mod tests {
             1,
             "exactly one TZ"
         );
-        assert!(env.contains(&("LANG".to_owned(), "C.UTF-8".to_owned())));
-        assert!(env.contains(&("TZ".to_owned(), "UTC".to_owned())));
-        assert!(env.contains(&("LC_ALL".to_owned(), "de_DE.UTF-8".to_owned())));
+        assert!(env.contains(&pair("LANG", "C.UTF-8")));
+        assert!(env.contains(&pair("TZ", "UTC")));
+        assert!(env.contains(&pair("LC_ALL", "de_DE.UTF-8")));
+    }
+
+    #[test]
+    fn hermetic_env_never_leaks_user_profile_or_config_discovery() {
+        for windows in [false, true] {
+            let env = build_env(Path::new("/tmp/dx"), &[], &hostile_ambient(), windows);
+            for key in [
+                "PATH",
+                "HOME",
+                "USERPROFILE",
+                "APPDATA",
+                "LOCALAPPDATA",
+                "PYTHONPATH",
+                "PYTHONHOME",
+                "NODE_OPTIONS",
+                "NODE_PATH",
+            ] {
+                assert!(
+                    env.iter().all(|(known, _)| fold_env_key(known, windows)
+                        != fold_env_key(OsStr::new(key), windows)),
+                    "{key} never leaks (windows={windows})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn hermetic_env_inherits_only_system_root_on_windows() {
+        let unix = build_env(Path::new("/tmp/dx"), &[], &hostile_ambient(), false);
+        assert!(
+            unix.iter().all(|(key, _)| key != "SystemRoot"),
+            "unix inherits nothing"
+        );
+        let windows = build_env(Path::new("/tmp/dx"), &[], &hostile_ambient(), true);
+        assert_eq!(
+            value_of(&windows, "SystemRoot"),
+            Some(OsString::from("C:\\Windows"))
+        );
+        assert_eq!(
+            windows
+                .iter()
+                .filter(|(key, _)| fold_env_key(key, true) == OsString::from("SYSTEMROOT"))
+                .count(),
+            1,
+            "exactly one system root"
+        );
+    }
+
+    #[test]
+    fn hermetic_env_prefers_explicit_extra_over_inherited_system_root() {
+        let env = build_env(
+            Path::new("/tmp/dx"),
+            &[pair("SystemRoot", "D:\\alternate")],
+            &hostile_ambient(),
+            true,
+        );
+        assert_eq!(
+            value_of(&env, "SystemRoot"),
+            Some(OsString::from("D:\\alternate"))
+        );
+    }
+
+    #[test]
+    fn hermetic_env_collapses_conflicting_casing_deterministically() {
+        let env = build_env(
+            Path::new("/tmp/dx"),
+            &[pair("Path", "/first"), pair("PATH", "/second")],
+            &[pair("SystemRoot", "C:\\one"), pair("SYSTEMROOT", "C:\\two")],
+            true,
+        );
+        assert_eq!(value_of(&env, "Path"), Some(OsString::from("/first")));
+        assert_eq!(
+            env.iter()
+                .filter(|(key, _)| fold_env_key(key, true) == OsString::from("PATH"))
+                .count(),
+            1,
+            "one PATH folding"
+        );
+        assert_eq!(
+            value_of(&env, "SystemRoot"),
+            Some(OsString::from("C:\\one"))
+        );
+    }
+
+    #[test]
+    fn delivered_env_matches_the_policy() {
+        let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
+        let root = scratch.root().to_owned();
+        let env = hermetic_env(&root, &[], &hostile_ambient());
+        let probe = dx_testing::process_probe();
+        let root_text = root.to_string_lossy().into_owned();
+        let require = |name: &str, value: &str| format!("--require-env={name}={value}");
+        let forbid = |name: &str| format!("--forbid-env={name}");
+        let argv = vec![
+            probe.into_os_string(),
+            OsString::from(require("TMPDIR", &root_text)),
+            OsString::from(require("TEMP", &root_text)),
+            OsString::from(require("TMP", &root_text)),
+            OsString::from(require("LANG", "C.UTF-8")),
+            OsString::from(require("TZ", "UTC")),
+            OsString::from(forbid("PATH")),
+            OsString::from(forbid("HOME")),
+            OsString::from(forbid("USERPROFILE")),
+            OsString::from(forbid("PYTHONPATH")),
+            OsString::from(forbid("NODE_OPTIONS")),
+        ];
+        let checked = spawn(&argv, &root, &env).expect("probe runs");
+        assert_eq!(
+            checked.code,
+            Some(0),
+            "probe stderr: {}",
+            String::from_utf8_lossy(&checked.stderr)
+        );
+        let listed = spawn(
+            &[argv[0].clone(), OsString::from("--print-env-all")],
+            &root,
+            &env,
+        )
+        .expect("probe lists");
+        assert_eq!(listed.code, Some(0));
+        let text = String::from_utf8(listed.stdout).expect("listing is text");
+        let mut allowed = vec!["TMPDIR", "TEMP", "TMP", "LANG", "TZ"];
+        if cfg!(windows) {
+            allowed.push("SystemRoot");
+        }
+        for line in text.lines() {
+            let (key, _) = line.split_once('=').expect("KEY=VALUE line");
+            assert!(
+                allowed.contains(&key),
+                "delivered {key} is pinned or allowed"
+            );
+        }
+        scratch.close().expect("close");
+    }
+
+    fn host_tool(name: &str) -> PathBuf {
+        let exe = if cfg!(windows) {
+            format!("{name}.exe")
+        } else {
+            name.to_owned()
+        };
+        let path = std::env::var_os("PATH").expect("the suite keeps its own PATH");
+        std::env::split_paths(&path)
+            .map(|dir| dir.join(&exe))
+            .find(|candidate| candidate.is_file())
+            .unwrap_or_else(|| panic!("{exe} is on PATH where the suite runs"))
+    }
+
+    #[test]
+    fn pinned_node_starts_and_sees_pinned_temp() {
+        let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
+        let root = scratch.root().to_owned();
+        let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        let env = hermetic_env(&root, &[], &ambient);
+        let node = host_tool("node");
+        let version = vec![node.clone().into_os_string(), OsString::from("--version")];
+        let started = spawn(&version, &root, &env).expect("node starts");
+        assert_eq!(started.code, Some(0));
+        assert!(
+            String::from_utf8_lossy(&started.stdout).starts_with('v'),
+            "node reports a version"
+        );
+        let want = root.to_string_lossy().into_owned();
+        let script = format!("console.log(process.env.TMPDIR === {want:?} ? 'pinned' : 'leaked')");
+        let argv = vec![
+            node.into_os_string(),
+            OsString::from("--input-type=module"),
+            OsString::from("--eval"),
+            OsString::from(script),
+        ];
+        let temp = spawn(&argv, &root, &env).expect("node reads TMPDIR");
+        assert_eq!(temp.code, Some(0));
+        assert_eq!(String::from_utf8_lossy(&temp.stdout).trim(), "pinned");
+        scratch.close().expect("close");
+    }
+
+    #[test]
+    fn pinned_python_starts_and_sees_pinned_temp() {
+        let scratch = Scratch::create(&std::env::temp_dir()).expect("scratch");
+        let root = scratch.root().to_owned();
+        let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        let env = hermetic_env(&root, &[], &ambient);
+        let python = host_tool("python3");
+        let version = vec![python.clone().into_os_string(), OsString::from("--version")];
+        let started = spawn(&version, &root, &env).expect("python starts");
+        assert_eq!(started.code, Some(0));
+        let want = root.to_string_lossy().into_owned();
+        let script = format!(
+            "import os;print('pinned' if os.environ.get('TMPDIR') == {want:?} else 'leaked')"
+        );
+        let argv = vec![
+            python.into_os_string(),
+            OsString::from("-c"),
+            OsString::from(script),
+        ];
+        let temp = spawn(&argv, &root, &env).expect("python reads TMPDIR");
+        assert_eq!(temp.code, Some(0));
+        assert_eq!(String::from_utf8_lossy(&temp.stdout).trim(), "pinned");
+        scratch.close().expect("close");
     }
 
     #[test]
     fn spawn_runs_absolute_binaries_without_path() {
         let probe = dx_testing::process_probe();
         let cwd = std::env::temp_dir();
-        let env = hermetic_env(&cwd, &[]);
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(&cwd, &[], &ambient);
         let ok = spawn(
             &[probe.as_os_str(), OsStr::new("--exit-code=0")],
             &cwd,
@@ -710,7 +1004,8 @@ mod tests {
     fn spawn_enforces_timeout_and_kills_the_child() {
         let probe = dx_testing::process_probe();
         let cwd = std::env::temp_dir();
-        let env = hermetic_env(&cwd, &[]);
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(&cwd, &[], &ambient);
         let err = spawn_with_timeout(
             &[probe.as_os_str(), OsStr::new("--sleep-ms=30000")],
             &cwd,
@@ -726,7 +1021,8 @@ mod tests {
     fn spawn_drains_large_output_without_faking_a_timeout() {
         let probe = dx_testing::process_probe();
         let cwd = std::env::temp_dir();
-        let env = hermetic_env(&cwd, &[]);
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(&cwd, &[], &ambient);
         let out = spawn_with_timeout(
             &[probe.as_os_str(), OsStr::new("--stdout-bytes=1048576")],
             &cwd,
@@ -743,7 +1039,8 @@ mod tests {
     fn spawn_captures_exact_stdout_and_stderr_bytes() {
         let probe = dx_testing::process_probe();
         let cwd = std::env::temp_dir();
-        let env = hermetic_env(&cwd, &[]);
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(&cwd, &[], &ambient);
         let out = spawn_with_timeout(
             &[
                 probe.as_os_str(),
@@ -767,7 +1064,8 @@ mod tests {
     fn spawn_rejects_oversized_output() {
         let probe = dx_testing::process_probe();
         let cwd = std::env::temp_dir();
-        let env = hermetic_env(&cwd, &[]);
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(&cwd, &[], &ambient);
         let limit = crate::parsers::MAX_OUTPUT_BYTES;
         let flag = format!("--stdout-bytes={}", limit + 1);
         let err = spawn_with_timeout(

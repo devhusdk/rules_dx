@@ -1030,41 +1030,14 @@ mod tests {
 
     #[test]
     fn system_verifier_bin_names_follow_env_overrides() {
-        const CHILD: &str = "DX_INSTALL_VERIFIER_CHILD";
-        if std::env::var_os(CHILD).is_some() {
-            let verifier = SystemVerifier;
-            assert_eq!(verifier.cosign_bin(), "pinned-cosign");
-            assert_eq!(verifier.gh_bin(), "pinned-gh");
-            return;
-        }
         let verifier = SystemVerifier;
         assert_eq!(verifier.cosign_bin(), "cosign");
         assert_eq!(verifier.gh_bin(), "gh");
-        let before = (
-            std::env::var_os("DX_VERIFY_COSIGN"),
-            std::env::var_os("DX_VERIFY_GH"),
-        );
-        let run = dx_testing::child_test(
-            "system_verifier_bin_names_follow_env_overrides",
-            &[
-                (CHILD, Some(std::ffi::OsStr::new("1"))),
-                (
-                    "DX_VERIFY_COSIGN",
-                    Some(std::ffi::OsStr::new("pinned-cosign")),
-                ),
-                ("DX_VERIFY_GH", Some(std::ffi::OsStr::new("pinned-gh"))),
-            ],
-            None,
-        )
-        .expect("spawn child");
-        assert!(run.status.success(), "{}", run.combined());
-        assert_eq!(
-            (
-                std::env::var_os("DX_VERIFY_COSIGN"),
-                std::env::var_os("DX_VERIFY_GH")
-            ),
-            before,
-            "parent verifier overrides changed"
-        );
+        std::env::set_var("DX_VERIFY_COSIGN", "pinned-cosign");
+        std::env::set_var("DX_VERIFY_GH", "pinned-gh");
+        assert_eq!(verifier.cosign_bin(), "pinned-cosign");
+        assert_eq!(verifier.gh_bin(), "pinned-gh");
+        std::env::remove_var("DX_VERIFY_COSIGN");
+        std::env::remove_var("DX_VERIFY_GH");
     }
 }

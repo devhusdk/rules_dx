@@ -1,15 +1,17 @@
 """Stages conflicting node runtimes for the launcher ambiguity test."""
 
 def _ambiguous_nodes_impl(ctx):
-    """Writes two node runtimes into one runfiles closure."""
+    """Writes two node runtimes and one entry stub into one runfiles closure."""
     runtimes = []
     for name in ["node_a/node.exe", "node_b/node.exe"]:
         runtime = ctx.actions.declare_file("ambiguous_node/" + name)
         ctx.actions.write(runtime, "runtime\n")
         runtimes.append(runtime)
+    entry = ctx.actions.declare_file("ambiguous_node/entry.js")
+    ctx.actions.write(entry, "entry\n")
     return [DefaultInfo(
-        files = depset(runtimes),
-        runfiles = ctx.runfiles(files = runtimes),
+        files = depset([entry]),
+        runfiles = ctx.runfiles(files = [entry] + runtimes),
         executable = runtimes[0],
     )]
 

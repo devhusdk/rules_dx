@@ -78,8 +78,20 @@ def _wrapper_key(ctx, target):
     files = target[DefaultInfo].default_runfiles.files.to_list()
     return _one_key(ctx, files, lambda f: f.short_path.replace("\\", "/").endswith("node_bin/node"), "node wrapper")
 
+def _fail_on_ambiguous_runtime(ctx, target):
+    """Fails when the runfiles stage more than one node runtime."""
+    found = []
+    for f in target.default_runfiles.files.to_list():
+        if f.basename == "node.exe":
+            key = _key(ctx, f.short_path)
+            if key not in found:
+                found.append(key)
+    if len(found) > 1:
+        fail("js_tool_binary " + ctx.label.name + ": two node runtimes in the runfiles: " + ", ".join(found))
+
 def _js_tool_binary_impl(ctx):
     target = ctx.attr.js_binary[DefaultInfo]
+    _fail_on_ambiguous_runtime(ctx, target)
     generated = target.files_to_run
     if not _windows_os(ctx):
         script = _generated_script(generated.executable)

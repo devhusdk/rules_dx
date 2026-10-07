@@ -1698,6 +1698,8 @@ name = "quality_runner"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tracing",

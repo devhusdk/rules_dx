@@ -11,8 +11,9 @@ load(
 load("//quality:execution_requirements.bzl", "dx_execution_requirements")
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
-load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "resolve_pipeline", "stage_flag")
+load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
+load("//quality:request.bzl", "quality_request_json")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
@@ -251,19 +252,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                     fail(what + ": duplicate sibling '" + f.short_path + "'; siblings must be unique")
                 sibling_pairs[f.short_path] = f
 
-    args = ctx.actions.args()
-    args.add("--producer", str(target.label))
-    args.add("--capability", capability)
-    args.add("--output", out.path)
-    for stage in resolved:
-        args.add("--stage", stage_flag(stage))
+    source_inputs = []
     for ws_path in ordered_paths:
         f = path_to_file.get(ws_path)
         if f != None:
-            args.add("--source", ws_path + "=" + f.path)
+            source_inputs.append((ws_path, f.path))
+    sibling_inputs = []
     for ws_path in sorted(sibling_pairs.keys()):
         f = sibling_pairs[ws_path]
-        args.add("--sibling", ws_path + "=" + f.path)
+        sibling_inputs.append((ws_path, f.path))
         inputs.append(f)
 
     resolve_pairs = {}
@@ -280,73 +277,71 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 if not ws_path.endswith(".py") and not ws_path.endswith(".pyi"):
                     continue
                 resolve_pairs[ws_path] = f
+    resolve_inputs = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]
-        args.add("--resolve", ws_path + "=" + f.path)
+        resolve_inputs.append((ws_path, f.path))
         inputs.append(f)
-    args.add("--real")
+
+    tool_binary_inputs = []
+    tool_config_inputs = []
+    tool_edition_inputs = []
+    tool_file_inputs = []
     for tool in stage_tools:
         if tool == "clippy" and clippy_delegated:
             continue
         if tool == "rustc" and rustc_delegated:
             continue
         binary = tool_binaries[tool]
-        args.add("--tool-binary", tool + "=" + binary.path)
+        tool_binary_inputs.append((tool, binary.path))
         inputs.append(binary)
         inputs.extend(tool_extra.get(tool, []))
         if tool == "spotbugs":
             for jar in spotbugs_jars:
-                args.add("--tool-file", "spotbugs=" + jar.short_path + "=" + jar.path)
+                tool_file_inputs.append(("spotbugs", jar.short_path, jar.path))
                 inputs.append(jar)
         if tool == "rustfmt":
-            args.add("--tool-edition", "rustfmt=" + rustfmt_edition)
+            tool_edition_inputs.append(("rustfmt", rustfmt_edition))
         if tool in configs_by_tool:
             hint = configs_by_tool[tool]
             config_rel = hint.config.short_path
-            args.add("--tool-config", tool + "=" + config_rel)
+            tool_config_inputs.append((tool, config_rel))
 
             for f in sorted(hint.closure.to_list(), key = lambda f: f.short_path):
-                args.add("--tool-file", tool + "=" + f.short_path + "=" + f.path)
+                tool_file_inputs.append((tool, f.short_path, f.path))
                 inputs.append(f)
+    upstream_inputs = []
     if clippy_delegated:
         for diagnostics in clippy_diagnostics:
-            args.add("--upstream-diagnostics", "clippy=" + diagnostics.path)
+            upstream_inputs.append(("clippy", diagnostics.path))
             inputs.append(diagnostics)
     if rustc_delegated:
         for diagnostics in rustc_diagnostics:
-            args.add("--upstream-diagnostics", "rustc=" + diagnostics.path)
+            upstream_inputs.append(("rustc", diagnostics.path))
             inputs.append(diagnostics)
 
     run_tools = []
+    tool_env_inputs = []
     if "eslint" in stage_tools:
         run_tools.append(ctx.attr._eslint[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "eslint=JS_BINARY__NO_CD_BINDIR=1",
-        )
+        tool_env_inputs.append(("eslint", "JS_BINARY__NO_CD_BINDIR", "1"))
     if "prettier" in stage_tools:
         run_tools.append(ctx.attr._prettier[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "prettier=JS_BINARY__NO_CD_BINDIR=1",
-        )
+        tool_env_inputs.append(("prettier", "JS_BINARY__NO_CD_BINDIR", "1"))
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "pydoclint=RUNFILES_DIR=" + ctx.executable._runner.path + ".runfiles",
+        tool_env_inputs.append(
+            ("pydoclint", "RUNFILES_DIR", ctx.executable._runner.path + ".runfiles"),
         )
     if "flake8" in stage_tools:
         run_tools.append(ctx.attr._flake8[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "flake8=RUNFILES_DIR=" + ctx.executable._runner.path + ".runfiles",
+        tool_env_inputs.append(
+            ("flake8", "RUNFILES_DIR", ctx.executable._runner.path + ".runfiles"),
         )
     if "pylint" in stage_tools:
         run_tools.append(ctx.attr._pylint[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "pylint=RUNFILES_DIR=" + ctx.executable._runner.path + ".runfiles",
+        tool_env_inputs.append(
+            ("pylint", "RUNFILES_DIR", ctx.executable._runner.path + ".runfiles"),
         )
 
     if "google_java_format" in stage_tools:
@@ -361,6 +356,31 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._spotbugs[DefaultInfo].files_to_run)
     if "ktlint" in stage_tools:
         run_tools.append(ctx.attr._ktlint[DefaultInfo].files_to_run)
+
+    request_out = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + ".request.json")
+    ctx.actions.write(
+        request_out,
+        quality_request_json(
+            producer = str(target.label),
+            capability = capability,
+            output = out.path,
+            stages = resolved,
+            sources = source_inputs,
+            siblings = sibling_inputs,
+            resolves = resolve_inputs,
+            tool_binaries = tool_binary_inputs,
+            tool_configs = tool_config_inputs,
+            tool_editions = tool_edition_inputs,
+            tool_files = tool_file_inputs,
+            tool_env = tool_env_inputs,
+            upstream_diagnostics = upstream_inputs,
+            real = True,
+        ),
+    )
+    inputs.append(request_out)
+
+    args = ctx.actions.args()
+    args.add("--request", request_out.path)
 
     ctx.actions.run(
         executable = ctx.executable._runner,

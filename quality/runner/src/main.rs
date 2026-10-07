@@ -9,7 +9,7 @@
 )]
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use quality_result::encode_validated;
@@ -17,6 +17,7 @@ use quality_runner::{
     real::{RealBackend, RealTool},
     run_pipeline, FileInput, StageSpec,
 };
+use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum RunnerError {
@@ -76,6 +77,18 @@ pub enum RunnerError {
     UnknownToolFile { tool: String },
     #[error("--tool-env for unknown tool {tool:?}: pass --tool-binary first")]
     UnknownToolEnv { tool: String },
+    #[error("cannot read request {path:?}: {detail}")]
+    UnreadableRequest { path: String, detail: String },
+    #[error("malformed request: {detail}")]
+    MalformedRequest { detail: String },
+    #[error("request version {found}: want {expected}")]
+    UnsupportedRequestVersion { found: u64, expected: u64 },
+    #[error("duplicate {kind} {path:?} in request")]
+    DuplicateRequestMapping { kind: &'static str, path: String },
+    #[error("{kind} {path:?} escapes the workspace")]
+    EscapingRequestPath { kind: &'static str, path: String },
+    #[error("--request cannot be combined with packed flags: {detail}")]
+    RequestFlagConflict { detail: String },
 }
 
 fn parse_args(args: &[String]) -> Result<Cli, RunnerError> {
@@ -368,6 +381,410 @@ fn add_env(
     Ok(())
 }
 
+const REQUEST_VERSION: u64 = 1;
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestFile {
+    version: u64,
+    producer: String,
+    capability: String,
+    output: String,
+    real: bool,
+    scratch_parent: Option<String>,
+    stages: Vec<RequestStage>,
+    sources: Vec<RequestMapping>,
+    siblings: Vec<RequestMapping>,
+    resolves: Vec<RequestMapping>,
+    tool_binaries: Vec<RequestToolBinary>,
+    tool_configs: Vec<RequestToolConfig>,
+    tool_editions: Vec<RequestToolEdition>,
+    tool_files: Vec<RequestToolFile>,
+    tool_env: Vec<RequestToolEnv>,
+    upstream_diagnostics: Vec<RequestUpstream>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestStage {
+    tool: String,
+    classes: Vec<String>,
+    sources: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestMapping {
+    workspace: String,
+    exec: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestToolBinary {
+    tool: String,
+    path: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestToolConfig {
+    tool: String,
+    rel: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestToolEdition {
+    tool: String,
+    edition: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestToolFile {
+    tool: String,
+    rel: String,
+    exec: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestToolEnv {
+    tool: String,
+    key: String,
+    value: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct RequestUpstream {
+    tool: String,
+    exec: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct Plan {
+    producer: String,
+    capability: String,
+    output: String,
+    stages: Vec<StageSpec>,
+    sources: Vec<(String, String)>,
+    siblings: Vec<(String, String)>,
+    resolves: Vec<(String, String)>,
+    real: bool,
+    scratch_parent: Option<String>,
+    binaries: Vec<(String, PathBuf)>,
+    configs: Vec<(String, String)>,
+    editions: Vec<(String, String)>,
+    tool_files: Vec<(String, String, String)>,
+    tool_env: Vec<(String, String, String)>,
+    upstream: Vec<(String, PathBuf)>,
+}
+
+fn workspace_path(kind: &'static str, path: &str) -> Result<(), RunnerError> {
+    if path.is_empty() {
+        return Err(RunnerError::MalformedRequest {
+            detail: format!("empty {kind} path"),
+        });
+    }
+    let escapes = Path::new(path)
+        .components()
+        .any(|component| !matches!(component, std::path::Component::Normal(_)));
+    if escapes {
+        return Err(RunnerError::EscapingRequestPath {
+            kind,
+            path: path.to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn validate_mappings(kind: &'static str, mappings: &[RequestMapping]) -> Result<(), RunnerError> {
+    let mut seen: Vec<&str> = Vec::new();
+    for mapping in mappings {
+        workspace_path(kind, &mapping.workspace)?;
+        if mapping.exec.is_empty() {
+            return Err(RunnerError::MalformedRequest {
+                detail: format!("empty exec path for {kind} {:?}", mapping.workspace),
+            });
+        }
+        if seen.contains(&mapping.workspace.as_str()) {
+            return Err(RunnerError::DuplicateRequestMapping {
+                kind,
+                path: mapping.workspace.clone(),
+            });
+        }
+        seen.push(&mapping.workspace);
+    }
+    Ok(())
+}
+
+fn validate_request_body(request: &RequestFile) -> Result<(), RunnerError> {
+    if request.version != REQUEST_VERSION {
+        return Err(RunnerError::UnsupportedRequestVersion {
+            found: request.version,
+            expected: REQUEST_VERSION,
+        });
+    }
+    for (kind, value) in [
+        ("producer", request.producer.as_str()),
+        ("capability", request.capability.as_str()),
+        ("output", request.output.as_str()),
+    ] {
+        if value.is_empty() {
+            return Err(RunnerError::MalformedRequest {
+                detail: format!("empty {kind}"),
+            });
+        }
+    }
+    validate_mappings("source", &request.sources)?;
+    validate_mappings("sibling", &request.siblings)?;
+    validate_mappings("resolve", &request.resolves)?;
+    let mut seen_tools: Vec<&str> = Vec::new();
+    for stage in &request.stages {
+        if stage.tool.is_empty() {
+            return Err(RunnerError::MalformedRequest {
+                detail: "empty stage tool".to_owned(),
+            });
+        }
+        if stage.classes.is_empty() {
+            return Err(RunnerError::MalformedRequest {
+                detail: format!("empty stage classes for tool {:?}", stage.tool),
+            });
+        }
+        if stage.sources.is_empty() {
+            return Err(RunnerError::MalformedRequest {
+                detail: format!("empty stage sources for tool {:?}", stage.tool),
+            });
+        }
+        if seen_tools.contains(&stage.tool.as_str()) {
+            return Err(RunnerError::DuplicateRequestMapping {
+                kind: "stage tool",
+                path: stage.tool.clone(),
+            });
+        }
+        seen_tools.push(&stage.tool);
+        for path in &stage.sources {
+            workspace_path("stage source", path)?;
+        }
+    }
+    for binary in &request.tool_binaries {
+        if binary.tool.is_empty() {
+            return Err(RunnerError::MalformedRequest {
+                detail: "empty tool binary tool".to_owned(),
+            });
+        }
+        if binary.path.is_empty() {
+            return Err(RunnerError::MalformedRequest {
+                detail: format!("empty tool binary path for tool {:?}", binary.tool),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn request_to_plan(request: RequestFile) -> Plan {
+    Plan {
+        producer: request.producer,
+        capability: request.capability,
+        output: request.output,
+        stages: request
+            .stages
+            .into_iter()
+            .map(|stage| StageSpec {
+                tool_id: stage.tool,
+                class_ids: stage.classes,
+                source_paths: stage.sources,
+            })
+            .collect(),
+        sources: request
+            .sources
+            .into_iter()
+            .map(|mapping| (mapping.workspace, mapping.exec))
+            .collect(),
+        siblings: request
+            .siblings
+            .into_iter()
+            .map(|mapping| (mapping.workspace, mapping.exec))
+            .collect(),
+        resolves: request
+            .resolves
+            .into_iter()
+            .map(|mapping| (mapping.workspace, mapping.exec))
+            .collect(),
+        real: request.real,
+        scratch_parent: request.scratch_parent,
+        binaries: request
+            .tool_binaries
+            .into_iter()
+            .map(|binary| (binary.tool, PathBuf::from(binary.path)))
+            .collect(),
+        configs: request
+            .tool_configs
+            .into_iter()
+            .map(|config| (config.tool, config.rel))
+            .collect(),
+        editions: request
+            .tool_editions
+            .into_iter()
+            .map(|edition| (edition.tool, edition.edition))
+            .collect(),
+        tool_files: request
+            .tool_files
+            .into_iter()
+            .map(|file| (file.tool, file.rel, file.exec))
+            .collect(),
+        tool_env: request
+            .tool_env
+            .into_iter()
+            .map(|entry| (entry.tool, entry.key, entry.value))
+            .collect(),
+        upstream: request
+            .upstream_diagnostics
+            .into_iter()
+            .map(|entry| (entry.tool, PathBuf::from(entry.exec)))
+            .collect(),
+    }
+}
+
+fn plan_from_request(path: &str) -> Result<Plan, RunnerError> {
+    let bytes = std::fs::read(path).map_err(|error| RunnerError::UnreadableRequest {
+        path: path.to_owned(),
+        detail: error.to_string(),
+    })?;
+    let request: RequestFile =
+        serde_json::from_slice(&bytes).map_err(|error| RunnerError::MalformedRequest {
+            detail: error.to_string(),
+        })?;
+    validate_request_body(&request)?;
+    Ok(request_to_plan(request))
+}
+
+fn plan_from_flags(cli: &Cli) -> Result<Plan, RunnerError> {
+    let producer = cli
+        .producer
+        .clone()
+        .ok_or(RunnerError::MissingRequired { flag: "producer" })?;
+    let capability = cli
+        .capability
+        .clone()
+        .ok_or(RunnerError::MissingRequired {
+            flag: "capability",
+        })?;
+    let output = cli
+        .output
+        .clone()
+        .ok_or(RunnerError::MissingRequired { flag: "output" })?;
+    let mut stages: Vec<StageSpec> = Vec::with_capacity(cli.stage.len());
+    for spec in &cli.stage {
+        stages.push(parse_stage(spec)?);
+    }
+    Ok(Plan {
+        producer,
+        capability,
+        output,
+        stages,
+        sources: parse_pairs(&cli.source, bad_source)?,
+        siblings: parse_pairs(&cli.sibling, bad_sibling)?,
+        resolves: parse_pairs(&cli.resolve, bad_resolve)?,
+        real: cli.real,
+        scratch_parent: cli.scratch_parent.clone(),
+        binaries: cli
+            .tool_binary
+            .iter()
+            .map(|spec| parse_tool_binary(spec))
+            .collect::<Result<Vec<_>, _>>()?,
+        configs: cli
+            .tool_config
+            .iter()
+            .map(|spec| parse_tool_config(spec))
+            .collect::<Result<Vec<_>, _>>()?,
+        editions: cli
+            .tool_edition
+            .iter()
+            .map(|spec| parse_tool_edition(spec))
+            .collect::<Result<Vec<_>, _>>()?,
+        tool_files: cli
+            .tool_file
+            .iter()
+            .map(|spec| parse_tool_file(spec))
+            .collect::<Result<Vec<_>, _>>()?,
+        tool_env: cli
+            .tool_env
+            .iter()
+            .map(|spec| parse_tool_env(spec))
+            .collect::<Result<Vec<_>, _>>()?,
+        upstream: cli
+            .upstream_diagnostics
+            .iter()
+            .map(|spec| parse_upstream_diagnostics(spec))
+            .collect::<Result<Vec<_>, _>>()?,
+    })
+}
+
+fn packed_flag_conflict(cli: &Cli) -> Option<&'static str> {
+    if cli.producer.is_some() {
+        return Some("producer");
+    }
+    if cli.capability.is_some() {
+        return Some("capability");
+    }
+    if cli.output.is_some() {
+        return Some("output");
+    }
+    if !cli.stage.is_empty() {
+        return Some("stage");
+    }
+    if !cli.source.is_empty() {
+        return Some("source");
+    }
+    if !cli.sibling.is_empty() {
+        return Some("sibling");
+    }
+    if !cli.resolve.is_empty() {
+        return Some("resolve");
+    }
+    if cli.real {
+        return Some("real");
+    }
+    if cli.scratch_parent.is_some() {
+        return Some("scratch_parent");
+    }
+    if !cli.tool_binary.is_empty() {
+        return Some("tool-binary");
+    }
+    if !cli.tool_config.is_empty() {
+        return Some("tool-config");
+    }
+    if !cli.tool_file.is_empty() {
+        return Some("tool-file");
+    }
+    if !cli.tool_edition.is_empty() {
+        return Some("tool-edition");
+    }
+    if !cli.tool_env.is_empty() {
+        return Some("tool-env");
+    }
+    if !cli.upstream_diagnostics.is_empty() {
+        return Some("upstream-diagnostics");
+    }
+    None
+}
+
+fn plan_from_cli(cli: &Cli) -> Result<Plan, RunnerError> {
+    if let Some(path) = cli.request.as_deref() {
+        if let Some(flag) = packed_flag_conflict(cli) {
+            return Err(RunnerError::RequestFlagConflict {
+                detail: flag.to_owned(),
+            });
+        }
+        plan_from_request(path)
+    } else {
+        plan_from_flags(cli)
+    }
+}
+
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[derive(Parser)]
 #[command(disable_help_flag = true)]
@@ -378,6 +795,8 @@ struct Cli {
     capability: Option<String>,
     #[arg(long, allow_hyphen_values = true, overrides_with = "output")]
     output: Option<String>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "request")]
+    request: Option<String>,
     #[arg(long, allow_hyphen_values = true)]
     stage: Vec<String>,
     #[arg(long, allow_hyphen_values = true)]
@@ -417,48 +836,27 @@ fn main() {
 fn run() -> Result<(), RunnerError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cli = parse_args(&args)?;
-    let producer = cli
-        .producer
-        .ok_or(RunnerError::MissingRequired { flag: "producer" })?;
-    let capability = cli
-        .capability
-        .ok_or(RunnerError::MissingRequired { flag: "capability" })?;
-    let output = cli
-        .output
-        .ok_or(RunnerError::MissingRequired { flag: "output" })?;
-    let mut stages: Vec<StageSpec> = Vec::with_capacity(cli.stage.len());
-    for spec in &cli.stage {
-        stages.push(parse_stage(spec)?);
-    }
-    let sources = parse_pairs(&cli.source, bad_source)?;
-    let siblings = parse_pairs(&cli.sibling, bad_sibling)?;
-    let resolves = parse_pairs(&cli.resolve, bad_resolve)?;
-    let real = cli.real;
-    let scratch_parent = cli.scratch_parent;
-    let mut binaries: Vec<(String, PathBuf)> = Vec::with_capacity(cli.tool_binary.len());
-    for spec in &cli.tool_binary {
-        binaries.push(parse_tool_binary(spec)?);
-    }
-    let mut configs: Vec<(String, String)> = Vec::with_capacity(cli.tool_config.len());
-    for spec in &cli.tool_config {
-        configs.push(parse_tool_config(spec)?);
-    }
-    let mut editions: Vec<(String, String)> = Vec::with_capacity(cli.tool_edition.len());
-    for spec in &cli.tool_edition {
-        editions.push(parse_tool_edition(spec)?);
-    }
-    let mut tool_files: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_file.len());
-    for spec in &cli.tool_file {
-        tool_files.push(parse_tool_file(spec)?);
-    }
-    let mut tool_env: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_env.len());
-    for spec in &cli.tool_env {
-        tool_env.push(parse_tool_env(spec)?);
-    }
-    let mut upstream: Vec<(String, PathBuf)> = Vec::with_capacity(cli.upstream_diagnostics.len());
-    for spec in &cli.upstream_diagnostics {
-        upstream.push(parse_upstream_diagnostics(spec)?);
-    }
+    execute(plan_from_cli(&cli)?)
+}
+
+fn execute(plan: Plan) -> Result<(), RunnerError> {
+    let Plan {
+        producer,
+        capability,
+        output,
+        stages,
+        sources,
+        siblings,
+        resolves,
+        real,
+        scratch_parent,
+        binaries,
+        configs,
+        editions,
+        tool_files,
+        tool_env,
+        upstream,
+    } = plan;
     let cwd = std::env::current_dir().ok();
     let files = read_inputs(&sources, unreadable_source)?;
     let sibling_files = read_inputs(&siblings, unreadable_sibling)?;

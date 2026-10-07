@@ -46,6 +46,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude tools/depcheck/testdata
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude cc/tests/fixtures/hello
+# gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude cc/ide
 # gazelle/cc/testdata holds the cc generation-test corpus with
 # gazelle:exclude gazelle/cc/testdata

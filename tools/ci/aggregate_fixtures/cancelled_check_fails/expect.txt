@@ -1,0 +1,3 @@
+input {"NEEDS": {"validate": {"result": "success"}, "lint": {"result": "success"}, "typecheck": {"result": "success"}, "format": {"result": "success"}, "generate": {"result": "success"}, "security-audit": {"result": "success"}, "advisory-snapshots": {"result": "success"}, "license-audit": {"result": "success"}, "test": {"result": "success"}, "build": {"result": "success"}, "coverage": {"result": "cancelled"}}, "DISABLED": ""}
+exit 1
+says dx-ci: failing checks: coverage

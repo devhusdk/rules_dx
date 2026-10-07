@@ -83,9 +83,10 @@ A rejected input fails in the `validate` job before any check starts. The nine
 checks need it, so none of them run. `dx-ci (aggregate)` names the validation
 failure and fails with them.
 
-`dx-ci (aggregate)` fails when a check fails, and also when a check is skipped
-without being listed in `disabled_checks`. A check you disabled stays
-distinguishable from a check that never ran.
+`dx-ci (aggregate)` passes only when every check succeeds. It fails when a check
+fails or is cancelled, when a declared check never reports a result, and when a
+check is skipped without being listed in `disabled_checks`. A check you disabled
+stays distinguishable from a check that never ran.
 
 The workflow needs `contents: read` plus `checks: write` for check runs.
 `coverage` also needs `pull-requests: write` for its pull-request comment.

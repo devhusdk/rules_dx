@@ -1,4 +1,4 @@
-input {"NEEDS": {"validate": {"result": "success"}, "lint": {"result": "success"}, "typecheck": {"result": "success"}, "format": {"result": "success"}, "generate": {"result": "success"}, "security-audit": {"result": "success"}, "license-audit": {"result": "success"}, "test": {"result": "failure"}, "build": {"result": "success"}, "coverage": {"result": "skipped"}}, "DISABLED": ""}
+input {"NEEDS": {"validate": {"result": "success"}, "lint": {"result": "success"}, "typecheck": {"result": "success"}, "format": {"result": "success"}, "generate": {"result": "success"}, "security-audit": {"result": "success"}, "advisory-snapshots": {"result": "success"}, "license-audit": {"result": "success"}, "test": {"result": "failure"}, "build": {"result": "success"}, "coverage": {"result": "skipped"}}, "DISABLED": ""}
 exit 1
 says dx-ci: skipped without disabled_checks: coverage
 says dx-ci: failing checks: test

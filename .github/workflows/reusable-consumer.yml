@@ -2236,6 +2236,7 @@ jobs:
           python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
           python3 - <<'EOF'
           import json, os, sys
+          required = ["lint", "typecheck", "format", "generate", "security-audit", "advisory-snapshots", "license-audit", "test", "build", "coverage"]
           needs = json.loads(os.environ["NEEDS"])
           disabled = {name for name in os.environ["DISABLED"].split(",") if name}
           if "security-audit" in disabled:
@@ -2246,6 +2247,7 @@ jobs:
               print("dx-ci: input validation failed; see the validate job")
               sys.exit(1)
           checks = {name: result for name, result in results.items() if name != "validate"}
+          missing = sorted(name for name in required if name not in results)
           bad = sorted(
               name for name, result in checks.items()
               if result not in ("success", "skipped")
@@ -2258,7 +2260,9 @@ jobs:
               print(f"dx-ci: skipped without disabled_checks: {', '.join(lost)}")
           if bad:
               print(f"dx-ci: failing checks: {', '.join(bad)}")
-          if bad or lost:
+          if missing:
+              print(f"dx-ci: missing checks: {', '.join(missing)}")
+          if bad or lost or missing:
               sys.exit(1)
           EOF
         env:

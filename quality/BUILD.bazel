@@ -14,6 +14,7 @@ load(":policy_subject.bzl", "policy_subject")
 load(":policy_tests.bzl", "policy_analysis_tests", "policy_unit_tests")
 load(":real_pipeline_tests.bzl", "real_pipeline_unit_tests")
 load(":registry_tests.bzl", "registry_unit_tests")
+load(":request_tests.bzl", "request_unit_tests")
 load(":sources_tests.bzl", "sources_registry_tests")
 load(":wrapper_owners.bzl", "wrapper_unit_tests")
 
@@ -203,6 +204,8 @@ wrapper_unit_tests(name = "wrapper_owners_unit")
 
 real_pipeline_unit_tests(name = "real_pipeline_unit")
 
+request_unit_tests(name = "request_unit")
+
 native_config_unit_tests(name = "native_config_unit")
 
 policy_analysis_tests(name = "policy_analysis")
@@ -269,6 +272,7 @@ test_suite(
         ":policy_unit",
         ":real_pipeline_unit",
         ":registry_unit",
+        ":request_unit",
         ":sources_registry",
         ":wrapper_owners_unit",
     ],

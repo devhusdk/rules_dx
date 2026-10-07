@@ -52,7 +52,7 @@ rust_test(
     deps = crate_deps(
         ["tempfile"],
         package_name = "deploy/dx_install_tools",
-    ),
+    ) + ["//tools/testing:dx_testing"],
 )
 
 rustfmt_test(

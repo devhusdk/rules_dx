@@ -53,6 +53,42 @@ pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<
     })
 }
 
+/// Runs one test of the calling test binary in a child process that owns its cwd and env.
+pub fn child_test(
+    test: &str,
+    env: &[(&str, Option<&std::ffi::OsStr>)],
+    cwd: Option<&Path>,
+) -> std::io::Result<Run> {
+    let mut command = std::process::Command::new(std::env::current_exe()?);
+    command.args(["--test-threads=1"]).arg(test);
+    for (key, value) in env {
+        match value {
+            Some(value) => {
+                command.env(*key, *value);
+            }
+            None => {
+                command.env_remove(*key);
+            }
+        }
+    }
+    if let Some(dir) = cwd {
+        command.current_dir(dir);
+    }
+    let output = command.output()?;
+    let run = Run {
+        status: output.status,
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    };
+    if !run.combined().contains("running 1 test") {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("child did not run exactly one test: {}", run.combined()),
+        ));
+    }
+    Ok(run)
+}
+
 static SCRATCH_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 pub fn mkscratch(prefix: &str) -> std::io::Result<PathBuf> {
@@ -424,6 +460,14 @@ mod tests {
 
     #[test]
     fn runfiles_resolution_reads_the_manifest() {
+        const CHILD: &str = "DX_TESTING_RUNFILES_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            assert_eq!(
+                resolve_runfiles("pkg/tool"),
+                PathBuf::from(root).join("real/tool")
+            );
+            return;
+        }
         let dir = scratch("dx-testing-manifest-");
         let real = write(dir.path(), "real/tool", "#!/bin/sh\n");
         write(
@@ -431,14 +475,23 @@ mod tests {
             "MANIFEST",
             &format!("_main/pkg/tool {}\n", real.display()),
         );
-        unsafe {
-            std::env::set_var("TEST_SRCDIR", dir.path());
-        }
-        let resolved = resolve_runfiles("pkg/tool");
-        unsafe {
-            std::env::remove_var("TEST_SRCDIR");
-        }
-        assert_eq!(resolved, real);
+        let before = std::env::var_os("TEST_SRCDIR");
+        let run = child_test(
+            "runfiles_resolution_reads_the_manifest",
+            &[
+                (CHILD, Some(dir.path().as_os_str())),
+                ("TEST_SRCDIR", Some(dir.path().as_os_str())),
+            ],
+            None,
+        )
+        .expect("spawn child");
+        assert!(run.status.success(), "{}", run.combined());
+        assert_eq!(
+            std::env::var_os("TEST_SRCDIR"),
+            before,
+            "parent TEST_SRCDIR changed"
+        );
+        dir.close().expect("cleanup");
     }
 
     #[test]

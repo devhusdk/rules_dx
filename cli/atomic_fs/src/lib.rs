@@ -120,14 +120,71 @@ mod tests {
 
     #[test]
     fn bare_name_stages_in_current_directory() {
+        const CHILD: &str = "DX_ATOMIC_FS_BARE_CHILD";
+        const CHILD_PANIC: &str = "DX_ATOMIC_FS_BARE_CHILD_PANIC";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let expected = std::path::PathBuf::from(&root)
+                .canonicalize()
+                .expect("scratch exists");
+            let bare = PathBuf::from("dx-atomic-fs-bare-tmp.txt");
+            write_atomic(&bare, b"bare\n").expect("bare write");
+            assert_eq!(std::fs::read(&bare).expect("bare read"), b"bare\n");
+            assert_eq!(std::env::current_dir().expect("cwd"), expected);
+            if std::env::var_os(CHILD_PANIC).is_some() {
+                panic!("child panics after changing the working directory");
+            }
+            std::fs::remove_file(&bare).expect("bare cleanup");
+            return;
+        }
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-bare-");
         let original = std::env::current_dir().expect("cwd");
-        std::env::set_current_dir(scratch.path()).expect("enter scratch");
-        let bare = PathBuf::from("dx-atomic-fs-bare-tmp.txt");
-        write_atomic(&bare, b"bare\n").expect("bare write");
-        assert_eq!(std::fs::read(&bare).expect("bare read"), b"bare\n");
-        std::fs::remove_file(&bare).expect("bare cleanup");
-        std::env::set_current_dir(original).expect("leave scratch");
+        let written = dx_testing::child_test(
+            "bare_name_stages_in_current_directory",
+            &[(CHILD, Some(scratch.path().as_os_str()))],
+            Some(scratch.path()),
+        )
+        .expect("spawn child");
+        assert!(written.status.success(), "{}", written.combined());
+        assert_eq!(
+            std::env::current_dir().expect("cwd"),
+            original,
+            "parent working directory changed"
+        );
+        let entries: Vec<_> = std::fs::read_dir(scratch.path())
+            .expect("list scratch")
+            .map(|entry| entry.expect("dir entry").file_name())
+            .collect();
+        assert!(entries.is_empty(), "stray files: {entries:?}");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn bare_name_child_panic_leaves_parent_untouched() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-bare-panic-");
+        let original = std::env::current_dir().expect("cwd");
+        let panicked = dx_testing::child_test(
+            "bare_name_stages_in_current_directory",
+            &[
+                ("DX_ATOMIC_FS_BARE_CHILD", Some(scratch.path().as_os_str())),
+                (
+                    "DX_ATOMIC_FS_BARE_CHILD_PANIC",
+                    Some(std::ffi::OsStr::new("1")),
+                ),
+            ],
+            Some(scratch.path()),
+        )
+        .expect("spawn child");
+        assert!(
+            panicked.combined().contains("child panics after changing"),
+            "child must panic in the scratch directory: {}",
+            panicked.combined()
+        );
+        assert!(!panicked.status.success(), "child must fail");
+        assert_eq!(
+            std::env::current_dir().expect("cwd"),
+            original,
+            "parent working directory changed"
+        );
         scratch.close().expect("cleanup");
     }
 

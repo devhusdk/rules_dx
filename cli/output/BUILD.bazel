@@ -28,6 +28,7 @@ dx_rust_crate(
         "//cli/path:dx_path",
         "//cli/schema:dx_schema",
     ],
+    extra_test_deps = ["//tools/testing:dx_testing"],
     deps = [
         "clap",
         "console",

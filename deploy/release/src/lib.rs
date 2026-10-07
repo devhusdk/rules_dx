@@ -1274,8 +1274,54 @@ mod tests {
     }
 
     #[cfg(unix)]
+    const SIGNING_CHILD: &str = "DX_RELEASE_SIGNING_CHILD";
+
+    #[cfg(unix)]
+    const SIGNING_CHILD_PANIC: &str = "DX_RELEASE_SIGNING_CHILD_PANIC";
+
+    #[cfg(unix)]
     #[test]
     fn signing_live_enforces_pinned_cosign() {
+        if std::env::var_os(SIGNING_CHILD_PANIC).is_some() {
+            std::env::set_var("PATH", "poisoned");
+            panic!("child panics with a changed PATH");
+        }
+        if std::env::var_os(SIGNING_CHILD).is_some() {
+            signing_live_enforces_pinned_cosign_scenarios();
+            return;
+        }
+        let before = std::env::var_os("PATH");
+        let run = dx_testing::child_test(
+            "signing_live_enforces_pinned_cosign",
+            &[(SIGNING_CHILD, Some(std::ffi::OsStr::new("1")))],
+            None,
+        )
+        .expect("spawn child");
+        assert!(run.status.success(), "{}", run.combined());
+        assert_eq!(std::env::var_os("PATH"), before, "parent PATH changed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn signing_child_panic_leaves_parent_path() {
+        let before = std::env::var_os("PATH");
+        let run = dx_testing::child_test(
+            "signing_live_enforces_pinned_cosign",
+            &[(SIGNING_CHILD_PANIC, Some(std::ffi::OsStr::new("1")))],
+            None,
+        )
+        .expect("spawn child");
+        assert!(
+            run.combined().contains("child panics with a changed PATH"),
+            "child must panic with a changed PATH: {}",
+            run.combined()
+        );
+        assert!(!run.status.success(), "child must fail");
+        assert_eq!(std::env::var_os("PATH"), before, "parent PATH changed");
+    }
+
+    #[cfg(unix)]
+    fn signing_live_enforces_pinned_cosign_scenarios() {
         let ok = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 0;;\n  verify-blob) exit 0;;\nesac\nexit 0\n";
         let version_drift = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.0 (go1.24)\"; exit 0;;\nesac\nexit 0\n";
         let sign_fails = "#!/bin/sh\ncase \"$1\" in\n  version) echo \"cosign version v2.4.1 (go1.24)\"; exit 0;;\n  sign-blob) exit 1;;\nesac\nexit 0\n";

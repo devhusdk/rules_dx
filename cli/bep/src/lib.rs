@@ -317,6 +317,30 @@ mod tests {
         }
     }
 
+    /// A hand-written file URI naming the fixture root with a localhost authority.
+    fn localhost_uri(rel: &str) -> String {
+        if cfg!(windows) {
+            format!("file://localhost/C:/out/{rel}")
+        } else {
+            format!("file://localhost/out/{rel}")
+        }
+    }
+
+    /// The host path one fixture root plus its path parts name.
+    fn want_path(root: &str, parts: &[&str]) -> PathBuf {
+        let mut path = PathBuf::from(root);
+        for part in parts {
+            path.push(part);
+        }
+        path
+    }
+
+    /// The host path one slash-separated relative name under the fixture root names.
+    fn out_path(rel: &str) -> PathBuf {
+        let root = if cfg!(windows) { r"C:\out" } else { "/out" };
+        want_path(root, &rel.split('/').collect::<Vec<_>>())
+    }
+
     /// One run, one shard, one attempt: the layout Bazel uses without sharding or retries.
     const IDENTITY: TestOutputIdentity = TestOutputIdentity {
         run: 1,
@@ -346,24 +370,32 @@ mod tests {
     fn file_uri_forms() {
         assert_eq!(
             file_uri_to_path(&out_uri("a.pb")).expect("abs"),
-            PathBuf::from("/out/a.pb")
+            out_path("a.pb")
         );
         assert_eq!(
-            file_uri_to_path("file://localhost/out/a.pb").expect("localhost"),
-            PathBuf::from("/out/a.pb")
+            file_uri_to_path(&localhost_uri("a.pb")).expect("localhost"),
+            out_path("a.pb")
         );
         assert_eq!(
             file_uri_to_path(&out_uri("a%20b.pb")).expect("space"),
-            PathBuf::from("/out/a b.pb")
+            out_path("a b.pb")
         );
         assert_eq!(
-            file_uri_to_path("file://localhost/out/a%20b.pb").expect("localhost space"),
-            PathBuf::from("/out/a b.pb")
+            file_uri_to_path(&localhost_uri("a%20b.pb")).expect("localhost space"),
+            out_path("a b.pb")
+        );
+        assert_eq!(
+            file_uri_to_path(&out_uri("a%2520b.pb")).expect("literal percent"),
+            out_path("a%20b.pb")
+        );
+        assert_eq!(
+            file_uri_to_path("file:///C:/").expect("drive root"),
+            PathBuf::from(if cfg!(windows) { r"C:\" } else { "/C:/" })
         );
         assert_eq!(
             file_uri_to_path("file:///C:/out/a.pb").expect("drive"),
             PathBuf::from(if cfg!(windows) {
-                "C:\\out\\a.pb"
+                r"C:\out\a.pb"
             } else {
                 "/C:/out/a.pb"
             })
@@ -383,7 +415,14 @@ mod tests {
             );
         }
         if cfg!(windows) {
-            assert!(file_uri_to_path("file://otherhost/out/a.pb").is_ok());
+            assert_eq!(
+                file_uri_to_path("file://otherhost/out/a.pb").expect("unc host"),
+                PathBuf::from(r"\\otherhost\out\a.pb")
+            );
+            assert_eq!(
+                file_uri_to_path("file://srv/share/a%23b.pb").expect("unc share"),
+                PathBuf::from(r"\\srv\share\a#b")
+            );
         } else {
             for uri in ["file://relative/path", "file://otherhost/out/a.pb"] {
                 assert!(
@@ -402,8 +441,7 @@ mod tests {
         assert_eq!(
             testlog_path(&locations, "//csharp/x:hello", "test.lcov", IDENTITY).expect("path"),
             base.join("bazel-testlogs")
-                .join("csharp")
-                .join("x")
+                .join("csharp/x")
                 .join("hello")
                 .join("coverage.dat")
         );
@@ -418,7 +456,7 @@ mod tests {
         let locations = OutputLocations::new(Path::new("/ws"));
         assert_eq!(
             testlog_path(&locations, "//a:t", "test.xml", IDENTITY).expect("plain"),
-            PathBuf::from("/ws/bazel-testlogs/a/t/test.xml")
+            want_path("/ws", &["bazel-testlogs", "a", "t", "test.xml"])
         );
         let sharded = TestOutputIdentity {
             shard: 2,
@@ -427,7 +465,10 @@ mod tests {
         };
         assert_eq!(
             testlog_path(&locations, "//a:t", "test.xml", sharded).expect("shard"),
-            PathBuf::from("/ws/bazel-testlogs/a/t/shard_2_of_3/test.xml")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "a", "t", "shard_2_of_3", "test.xml"]
+            )
         );
         let repeated = TestOutputIdentity {
             run: 2,
@@ -436,7 +477,10 @@ mod tests {
         };
         assert_eq!(
             testlog_path(&locations, "//a:t", "test.xml", repeated).expect("run"),
-            PathBuf::from("/ws/bazel-testlogs/a/t/run_2_of_4/test.xml")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "a", "t", "run_2_of_4", "test.xml"]
+            )
         );
         let both = TestOutputIdentity {
             run: 2,
@@ -447,7 +491,16 @@ mod tests {
         };
         assert_eq!(
             testlog_path(&locations, "//a:t", "test.xml", both).expect("both"),
-            PathBuf::from("/ws/bazel-testlogs/a/t/shard_3_of_3_run_2_of_4/test.xml")
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "a",
+                    "t",
+                    "shard_3_of_3_run_2_of_4",
+                    "test.xml"
+                ]
+            )
         );
         let retried = TestOutputIdentity {
             attempt: 1,
@@ -456,15 +509,30 @@ mod tests {
         };
         assert_eq!(
             testlog_path(&locations, "//a:t", "test.xml", retried).expect("attempt"),
-            PathBuf::from("/ws/bazel-testlogs/a/t/test_attempts/attempt_1.xml")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "a", "t", "test_attempts", "attempt_1.xml"]
+            )
         );
         assert_eq!(
             testlog_path(&locations, "//a:t", "test.lcov", retried).expect("attempt lcov"),
-            PathBuf::from("/ws/bazel-testlogs/a/t/test_attempts/coverage.dat")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "a", "t", "test_attempts", "coverage.dat"]
+            )
         );
         assert_eq!(
             testlog_path(&locations, "//a:t", "test.xml", both).expect("final attempt"),
-            PathBuf::from("/ws/bazel-testlogs/a/t/shard_3_of_3_run_2_of_4/test.xml")
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "a",
+                    "t",
+                    "shard_3_of_3_run_2_of_4",
+                    "test.xml"
+                ]
+            )
         );
     }
 
@@ -473,23 +541,29 @@ mod tests {
         let locations = OutputLocations::new(Path::new("/ws"));
         assert_eq!(
             testlog_path(&locations, "//:preset_parity_test", "test.xml", IDENTITY).expect("root"),
-            PathBuf::from("/ws/bazel-testlogs/preset_parity_test/test.xml")
+            want_path("/ws", &["bazel-testlogs", "preset_parity_test", "test.xml"])
         );
         assert_eq!(
             testlog_path(&locations, "//cli/bep", "test.xml", IDENTITY).expect("implicit"),
-            PathBuf::from("/ws/bazel-testlogs/cli/bep/bep/test.xml")
+            want_path("/ws", &["bazel-testlogs", "cli/bep", "bep", "test.xml"])
         );
         assert_eq!(
             testlog_path(&locations, "@@dep+//pkg:t", "test.xml", IDENTITY).expect("external"),
-            PathBuf::from("/ws/bazel-testlogs/external/dep+/pkg/t/test.xml")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "external", "dep+", "pkg", "t", "test.xml"]
+            )
         );
         assert_eq!(
             testlog_path(&locations, "@dep//pkg:t", "test.xml", IDENTITY).expect("apparent"),
-            PathBuf::from("/ws/bazel-testlogs/external/dep/pkg/t/test.xml")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "external", "dep", "pkg", "t", "test.xml"]
+            )
         );
         assert_eq!(
             testlog_path(&locations, "@@//pkg:t", "test.xml", IDENTITY).expect("canonical main"),
-            PathBuf::from("/ws/bazel-testlogs/pkg/t/test.xml")
+            want_path("/ws", &["bazel-testlogs", "pkg", "t", "test.xml"])
         );
         for label in ["//pkg:", "pkg/t", "not-a-label"] {
             let err = testlog_path(&locations, label, "test.xml", IDENTITY).expect_err("must fail");
@@ -512,7 +586,7 @@ mod tests {
         );
         assert_eq!(
             testlog_path(&info, "//a:t", "test.xml", IDENTITY).expect("reported root"),
-            PathBuf::from("/out/k8-fastbuild/testlogs/a/t/test.xml")
+            want_path("/out/k8-fastbuild/testlogs", &["a", "t", "test.xml"])
         );
     }
 
@@ -541,7 +615,7 @@ mod tests {
         let plain = OutputLocations::new(Path::new("/ws"));
         assert_eq!(
             plain.testlogs_root(),
-            PathBuf::from("/ws/bazel-testlogs"),
+            want_path("/ws", &["bazel-testlogs"]),
             "without info the workspace symlink is the fallback"
         );
         assert_eq!(plain.execution_root(), None);
@@ -564,16 +638,25 @@ mod tests {
                 ],
                 "docs/site/a.md"
             ),
-            PathBuf::from("/ws/bazel-out/k8-fastbuild/bin/docs/site/a.md")
+            want_path(
+                "/ws",
+                &["bazel-out", "k8-fastbuild", "bin", "docs/site/a.md"]
+            )
         );
         let locations = OutputLocations::new(ws);
         assert_eq!(
             testlog_path(&locations, "//cli/bep:dx_bep_test", "test.xml", IDENTITY).expect("path"),
-            PathBuf::from("/ws/bazel-testlogs/cli/bep/dx_bep_test/test.xml")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "cli/bep", "dx_bep_test", "test.xml"]
+            )
         );
         assert_eq!(
             testlog_path(&locations, "//cli/bep:dx_bep_test", "test.lcov", IDENTITY).expect("lcov"),
-            PathBuf::from("/ws/bazel-testlogs/cli/bep/dx_bep_test/coverage.dat")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "cli/bep", "dx_bep_test", "coverage.dat"]
+            )
         );
     }
 }

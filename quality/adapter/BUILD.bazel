@@ -11,6 +11,8 @@ rust_library(
         "src/commands.rs",
         "src/commands_tests.rs",
         "src/exec.rs",
+        "src/launch.rs",
+        "src/launch_tests.rs",
         "src/lib.rs",
         "src/parsers/biome.rs",
         "src/parsers/buf.rs",
@@ -90,6 +92,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//quality/result:quality_result",
     ],
 )
@@ -119,7 +122,10 @@ rust_test(
             "thiserror",
         ],
         package_name = "quality/quality_adapter",
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        "//cli/process:dx_process",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(

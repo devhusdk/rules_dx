@@ -11,7 +11,7 @@ load(
 load("//quality:execution_requirements.bzl", "dx_execution_requirements")
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
-load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "resolve_pipeline", "stage_flag")
+load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
@@ -251,19 +251,16 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                     fail(what + ": duplicate sibling '" + f.short_path + "'; siblings must be unique")
                 sibling_pairs[f.short_path] = f
 
-    args = ctx.actions.args()
-    args.add("--producer", str(target.label))
-    args.add("--capability", capability)
-    args.add("--output", out.path)
-    for stage in resolved:
-        args.add("--stage", stage_flag(stage))
+    request_stages = [real_request_stage(stage["tool"], stage["classes"], stage["sources"]) for stage in resolved]
+    request_sources = []
     for ws_path in ordered_paths:
         f = path_to_file.get(ws_path)
         if f != None:
-            args.add("--source", ws_path + "=" + f.path)
+            request_sources.append(real_request_mapping(ws_path, f.path))
+    request_siblings = []
     for ws_path in sorted(sibling_pairs.keys()):
         f = sibling_pairs[ws_path]
-        args.add("--sibling", ws_path + "=" + f.path)
+        request_siblings.append(real_request_mapping(ws_path, f.path))
         inputs.append(f)
 
     resolve_pairs = {}
@@ -280,74 +277,29 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 if not ws_path.endswith(".py") and not ws_path.endswith(".pyi"):
                     continue
                 resolve_pairs[ws_path] = f
+    request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]
-        args.add("--resolve", ws_path + "=" + f.path)
+        request_resolves.append(real_request_mapping(ws_path, f.path))
         inputs.append(f)
-    args.add("--real")
-    for tool in stage_tools:
-        if tool == "clippy" and clippy_delegated:
-            continue
-        if tool == "rustc" and rustc_delegated:
-            continue
-        binary = tool_binaries[tool]
-        args.add("--tool-binary", tool + "=" + binary.path)
-        inputs.append(binary)
-        inputs.extend(tool_extra.get(tool, []))
-        if tool == "spotbugs":
-            for jar in spotbugs_jars:
-                args.add("--tool-file", "spotbugs=" + jar.short_path + "=" + jar.path)
-                inputs.append(jar)
-        if tool == "rustfmt":
-            args.add("--tool-edition", "rustfmt=" + rustfmt_edition)
-        if tool in configs_by_tool:
-            hint = configs_by_tool[tool]
-            config_rel = hint.config.short_path
-            args.add("--tool-config", tool + "=" + config_rel)
 
-            for f in sorted(hint.closure.to_list(), key = lambda f: f.short_path):
-                args.add("--tool-file", tool + "=" + f.short_path + "=" + f.path)
-                inputs.append(f)
-    if clippy_delegated:
-        for diagnostics in clippy_diagnostics:
-            args.add("--upstream-diagnostics", "clippy=" + diagnostics.path)
-            inputs.append(diagnostics)
-    if rustc_delegated:
-        for diagnostics in rustc_diagnostics:
-            args.add("--upstream-diagnostics", "rustc=" + diagnostics.path)
-            inputs.append(diagnostics)
-
+    tool_env_entries = {}
     run_tools = []
     if "eslint" in stage_tools:
         run_tools.append(ctx.attr._eslint[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "eslint=JS_BINARY__NO_CD_BINDIR=1",
-        )
+        tool_env_entries["eslint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "prettier" in stage_tools:
         run_tools.append(ctx.attr._prettier[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "prettier=JS_BINARY__NO_CD_BINDIR=1",
-        )
+        tool_env_entries["prettier"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "pydoclint=RUNFILES_DIR=" + ctx.executable._runner.path + ".runfiles",
-        )
+        tool_env_entries["pydoclint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
     if "flake8" in stage_tools:
         run_tools.append(ctx.attr._flake8[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "flake8=RUNFILES_DIR=" + ctx.executable._runner.path + ".runfiles",
-        )
+        tool_env_entries["flake8"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
     if "pylint" in stage_tools:
         run_tools.append(ctx.attr._pylint[DefaultInfo].files_to_run)
-        args.add(
-            "--tool-env",
-            "pylint=RUNFILES_DIR=" + ctx.executable._runner.path + ".runfiles",
-        )
+        tool_env_entries["pylint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
 
     if "google_java_format" in stage_tools:
         run_tools.append(ctx.attr._google_java_format[DefaultInfo].files_to_run)
@@ -361,6 +313,64 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(ctx.attr._spotbugs[DefaultInfo].files_to_run)
     if "ktlint" in stage_tools:
         run_tools.append(ctx.attr._ktlint[DefaultInfo].files_to_run)
+
+    request_tools = {}
+    for tool in stage_tools:
+        binary_path = None
+        if not (tool == "clippy" and clippy_delegated) and not (tool == "rustc" and rustc_delegated):
+            binary = tool_binaries[tool]
+            binary_path = binary.path
+            inputs.append(binary)
+            inputs.extend(tool_extra.get(tool, []))
+        tool_files = []
+        if tool == "spotbugs":
+            for jar in spotbugs_jars:
+                tool_files.append(real_request_tool_file(jar.short_path, jar.path))
+                inputs.append(jar)
+        edition = None
+        if tool == "rustfmt":
+            edition = rustfmt_edition
+        config_rel = None
+        if tool in configs_by_tool:
+            hint = configs_by_tool[tool]
+            config_rel = hint.config.short_path
+            for f in sorted(hint.closure.to_list(), key = lambda f: f.short_path):
+                tool_files.append(real_request_tool_file(f.short_path, f.path))
+                inputs.append(f)
+        upstream = []
+        if tool == "clippy" and clippy_delegated:
+            for diagnostics in clippy_diagnostics:
+                upstream.append(diagnostics.path)
+                inputs.append(diagnostics)
+        if tool == "rustc" and rustc_delegated:
+            for diagnostics in rustc_diagnostics:
+                upstream.append(diagnostics.path)
+                inputs.append(diagnostics)
+        request_tools[tool] = real_request_tool(
+            binary_path = binary_path,
+            config_rel = config_rel,
+            edition = edition,
+            files = tool_files,
+            env = tool_env_entries.get(tool, []),
+            upstream = upstream,
+        )
+
+    doc = real_request_doc(
+        str(target.label),
+        capability,
+        request_stages,
+        request_sources,
+        request_siblings,
+        request_resolves,
+        request_tools,
+    )
+    request_file = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + "-request.json")
+    ctx.actions.write(output = request_file, content = json.encode(doc))
+    inputs.append(request_file)
+
+    args = ctx.actions.args()
+    args.add("--request", request_file.path)
+    args.add("--output", out.path)
 
     ctx.actions.run(
         executable = ctx.executable._runner,

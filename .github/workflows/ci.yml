@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/reusable-consumer.yml
     with:
       rules_dx_version: "0.0.0"
-      platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"]'
+      platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'
       min_coverage: "96"
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -125,22 +125,23 @@ jobs:
         run: |
           python3 --version
           python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
-          python3 - <<'EOF'
+          python3 - <<'DX_AGGREGATE'
           import json
           import os
           import sys
 
+          required = ["dogfood", "docs", "devcontainer-check", "workflow-check"]
           needs = json.loads(os.environ.get("NEEDS") or "{}")
           failing = sorted(
-              key
-              for key, value in needs.items()
-              if value.get("result") not in ("success", "skipped", "cancelled")
+              name
+              for name in required
+              if needs.get(name, {}).get("result") != "success"
           )
           print(json.dumps({"aggregate": "ci", "failing checks": failing}))
           sys.exit(1 if failing else 0)
-          EOF
+          DX_AGGREGATE
       - name: Write job summary
         if: always()
         run: |
           echo "### ci — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Aggregate required check over every ci.yml job (branch-protection single gate; skipped and cancelled needs are non-failing)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Aggregate required check over every ci.yml job (branch-protection single gate; every needed job must succeed)." >> "$GITHUB_STEP_SUMMARY"

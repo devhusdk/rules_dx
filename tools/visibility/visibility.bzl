@@ -188,6 +188,7 @@ SCOPED_PACKAGES = {
     "quality/artifacts": "VIS_QUALITY",
     "quality/evaluator": "VIS_QUALITY",
     "quality/markdown": "VIS_QUALITY_ENV",
+    "quality/matrix": "VIS_QUALITY",
     "quality/result": "VIS_QUALITY_CLI",
     "quality/runner": "VIS_QUALITY",
     "quality/testdata": "VIS_QUALITY",

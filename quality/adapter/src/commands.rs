@@ -1,6 +1,8 @@
 use std::ffi::OsString;
 use std::path::Path;
 
+use super::launch::{LaunchError, ResolvedTool};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invocation {
     pub argv: Vec<OsString>,
@@ -389,46 +391,39 @@ pub fn biome_format_fix(binary: &Path, files: &[&Path], config_dir: &Path) -> In
     assemble(binary, head, files, "")
 }
 
-pub fn eslint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
-    required_flag(
-        binary,
-        SCALAFMT_EMPTY,
-        "-c",
-        config,
-        ESLINT_MIDDLE,
-        files,
-        "",
-    )
+pub fn eslint_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: &Path,
+) -> Result<Invocation, LaunchError> {
+    let mut args = vec![OsString::from("-c"), config.as_os_str().to_owned()];
+    args.extend(ESLINT_MIDDLE.iter().map(OsString::from));
+    launch.resolve(&args, files)
 }
 
-pub fn eslint_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
-    required_flag(
-        binary,
-        SCALAFMT_EMPTY,
-        "-c",
-        config,
-        ESLINT_FIX_SUFFIX,
-        files,
-        "",
-    )
+pub fn eslint_fix(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: &Path,
+) -> Result<Invocation, LaunchError> {
+    let mut args = vec![OsString::from("-c"), config.as_os_str().to_owned()];
+    args.extend(ESLINT_FIX_SUFFIX.iter().map(OsString::from));
+    launch.resolve(&args, files)
 }
 
-fn prettier_base(binary: &Path) -> Vec<OsString> {
-    let mut head = vec![binary.as_os_str().to_owned()];
-    head.extend(PRETTIER_BASE.iter().map(OsString::from));
-    head
+fn prettier_args(tail: &[&str]) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(PRETTIER_BASE.len() + tail.len());
+    args.extend(PRETTIER_BASE.iter().map(OsString::from));
+    args.extend(tail.iter().map(OsString::from));
+    args
 }
 
-pub fn prettier_check(binary: &Path, files: &[&Path]) -> Invocation {
-    let mut head = prettier_base(binary);
-    head.extend(PRETTIER_CHECK_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+pub fn prettier_check(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
+    launch.resolve(&prettier_args(PRETTIER_CHECK_TAIL), files)
 }
 
-pub fn prettier_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    let mut head = prettier_base(binary);
-    head.extend(PRETTIER_FIX_TAIL.iter().map(OsString::from));
-    assemble(binary, head, files, "")
+pub fn prettier_fix(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
+    launch.resolve(&prettier_args(PRETTIER_FIX_TAIL), files)
 }
 
 pub fn markdown_check(

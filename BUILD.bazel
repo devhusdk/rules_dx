@@ -36,6 +36,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:resolve rust proto //quality:result_proto_rs
 # gazelle:resolve rust result_proto //quality:result_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
+# gazelle:resolve rust dx_matrix_harness //quality/matrix:dx_matrix_harness
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:exclude gazelle/rust/testdata
@@ -46,6 +47,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude tools/depcheck/testdata
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude cc/tests/fixtures/hello
+# gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude cc/ide
 # gazelle/cc/testdata holds the cc generation-test corpus with
 # gazelle:exclude gazelle/cc/testdata

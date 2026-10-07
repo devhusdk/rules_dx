@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use dx_output::{OutputMode, Threshold};
 
 use super::command::Command;
-use super::grammar::GlobalArgs;
+use super::grammar::Flags;
 use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation, ReportRequest};
@@ -66,6 +66,13 @@ fn reject_passthrough(command: Command, bazel_options: &[String]) -> Result<(), 
     Ok(())
 }
 
+/// Names an environment default dx will not read.
+fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
+    ArgsError::BadDefault {
+        detail: error.to_string(),
+    }
+}
+
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
 }
@@ -87,7 +94,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     }
     let tokenized = tokenize(args)?;
     let command = tokenized.command;
-    let GlobalArgs {
+    let Flags {
         workspace: workspace_os,
         dry_run,
         quiet,
@@ -113,7 +120,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
-    } = tokenized.global;
+    } = tokenized.flags;
     let targets_os = tokenized.targets;
     let bazel_options = tokenized.bazel_options;
     let flag_workspace = match workspace_os {
@@ -137,17 +144,20 @@ pub fn parse_with<S: AsRef<OsStr>>(
     );
     let dry_run = invocation_defaults::resolve_bool(
         dry_run,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_DRY_RUN_ENV),
+        invocation_defaults::env_bool(env_get, invocation_defaults::DX_DRY_RUN_ENV)
+            .map_err(bad_default)?,
         file.dry_run,
     );
     let quiet = invocation_defaults::resolve_bool(
         quiet,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV),
+        invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
+            .map_err(bad_default)?,
         file.quiet,
     );
     let verbose = invocation_defaults::resolve_bool(
         verbose,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV),
+        invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV)
+            .map_err(bad_default)?,
         file.verbose,
     );
     let output_name = invocation_defaults::resolve_string(
@@ -186,14 +196,8 @@ pub fn parse_with<S: AsRef<OsStr>>(
         value: color_name.clone(),
     })?;
     let reports = report;
-    if here && !command.supports_here() {
-        return Err(unsupported(command, "--here"));
-    }
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
-    }
-    if offline && !command.supports_offline() {
-        return Err(unsupported(command, "--offline"));
     }
     if command != Command::Bazel {
         for scope in &targets {
@@ -207,9 +211,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             }
         }
     }
-    if check && !command.supports_check() {
-        return Err(unsupported(command, "--check"));
-    }
     if (fail_on_given || fail_on_name != "warning") && !command.supports_fail_on() {
         return Err(unsupported(command, "--fail-on"));
     }
@@ -220,8 +221,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(unsupported(command, scope.clone()));
         }
         reject_passthrough(command, &bazel_options)?;
-    } else if bazel_clean {
-        return Err(unsupported(command, "--bazel"));
     }
     if command.is_managed() {
         reject_diff_output(command, &output_name)?;
@@ -264,19 +263,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             option: "--from <version> --to <version>".to_owned(),
         });
     }
-    if command != Command::Migrate
-        && command != Command::Upgrade
-        && (from.is_some() || to.is_some())
-    {
-        return Err(unsupported(
-            command,
-            if from.is_some() {
-                "--from".to_owned()
-            } else {
-                "--to".to_owned()
-            },
-        ));
-    }
     if command == Command::Upgrade {
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));
@@ -295,21 +281,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
-    if command != Command::Docs && serve {
-        return Err(unsupported(command, "--serve"));
-    }
-    if command != Command::Docs && port.is_some() {
-        return Err(unsupported(command, "--port"));
-    }
-    if command != Command::Docs && host.is_some() {
-        return Err(unsupported(command, "--host"));
-    }
-    if command != Command::Docs && open {
-        return Err(unsupported(command, "--open"));
-    }
-    if min_coverage.is_some() && !command.supports_min_coverage() {
-        return Err(unsupported(command, "--min-coverage"));
-    }
     let output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
         value: output_name.clone(),
     })?;
@@ -318,9 +289,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
     })?;
     if command.is_adoption() {
         reject_report(command, &reports)?;
-        if bazel_clean {
-            return Err(unsupported(command, "--bazel"));
-        }
         reject_passthrough(command, &bazel_options)?;
         match command {
             Command::Status | Command::Version => {
@@ -397,29 +365,6 @@ pub fn parse_with<S: AsRef<OsStr>>(
     }
     if output_name == "diff" && !command.supports_diff() {
         return Err(unsupported(command, "--output=diff"));
-    }
-    if (debug || release) && !command.supports_profile() {
-        return Err(unsupported(
-            command,
-            if debug {
-                "--debug".to_owned()
-            } else {
-                "--release".to_owned()
-            },
-        ));
-    }
-    if rollback && command != Command::Version {
-        return Err(unsupported(command, "--rollback"));
-    }
-    if pin.is_some() && command != Command::Version {
-        return Err(unsupported(command, "--pin"));
-    }
-    if configured
-        && command != Command::Owners
-        && command != Command::Deps
-        && command != Command::Why
-    {
-        return Err(unsupported(command, "--configured"));
     }
     Ok(Invocation {
         command,

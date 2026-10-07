@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use quality_adapter::launch::ResolvedTool;
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
@@ -223,8 +224,10 @@ impl RealBackend {
                 Ok(findings)
             }
             "eslint" => {
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                 let invocation = match config.as_ref() {
-                    Some(cfg) => commands::eslint_check(&tool.binary, &refs, cfg),
+                    Some(cfg) => commands::eslint_check(&launch, &refs, cfg)
+                        .map_err(|err| execution(tool_id, err.to_string()))?,
                     None => {
                         return Err(execution(tool_id, "eslint requires a config".to_owned()));
                     }
@@ -233,7 +236,9 @@ impl RealBackend {
                 parsed(tool_id, parsers::parse_eslint(&out.stdout, out.code, &strs))
             }
             "prettier" => {
-                let invocation = commands::prettier_check(&tool.binary, &refs);
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                let invocation = commands::prettier_check(&launch, &refs)
+                    .map_err(|err| execution(tool_id, err.to_string()))?;
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 let workspaces: Vec<&str> = pairs
                     .iter()

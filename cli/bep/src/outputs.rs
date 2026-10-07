@@ -360,6 +360,16 @@ mod tests {
         }
     }
 
+    /// The host path one slash-separated relative name under the fixture root names.
+    fn out_path(rel: &str) -> PathBuf {
+        let root = if cfg!(windows) { r"C:\out" } else { "/out" };
+        let mut path = PathBuf::from(root);
+        for part in rel.split('/').filter(|part| !part.is_empty()) {
+            path.push(part);
+        }
+        path
+    }
+
     #[test]
     fn empty_group_rejected() {
         assert_eq!(
@@ -476,7 +486,7 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([(PathBuf::from("/out/a.pb"), vec![9])]),
+            files: HashMap::from([(out_path("a.pb"), vec![9])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got.len(), 1);
@@ -501,16 +511,13 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([
-                (PathBuf::from("/out/a.pb"), vec![1]),
-                (PathBuf::from("/out/b.pb"), vec![2]),
-            ]),
+            files: HashMap::from([(out_path("a.pb"), vec![1]), (out_path("b.pb"), vec![2])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].artifacts.len(), 2);
-        assert_eq!(got[0].artifacts[0].exec_path, PathBuf::from("/out/a.pb"));
-        assert_eq!(got[0].artifacts[1].exec_path, PathBuf::from("/out/b.pb"));
+        assert_eq!(got[0].artifacts[0].exec_path, out_path("a.pb"));
+        assert_eq!(got[0].artifacts[1].exec_path, out_path("b.pb"));
     }
 
     #[test]
@@ -574,7 +581,7 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([(PathBuf::from("/out/a.pb"), vec![1])]),
+            files: HashMap::from([(out_path("a.pb"), vec![1])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got.len(), 1);
@@ -590,7 +597,7 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([(PathBuf::from("/out/a.pb"), vec![9])]),
+            files: HashMap::from([(out_path("a.pb"), vec![9])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got.len(), 1);
@@ -720,15 +727,12 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([
-                (PathBuf::from("/out/a.pb"), vec![1]),
-                (PathBuf::from("/out/b.pb"), vec![2]),
-            ]),
+            files: HashMap::from([(out_path("a.pb"), vec![1]), (out_path("b.pb"), vec![2])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got[0].artifacts.len(), 2);
-        assert_eq!(got[0].artifacts[0].exec_path, PathBuf::from("/out/a.pb"));
-        assert_eq!(got[0].artifacts[1].exec_path, PathBuf::from("/out/b.pb"));
+        assert_eq!(got[0].artifacts[0].exec_path, out_path("a.pb"));
+        assert_eq!(got[0].artifacts[1].exec_path, out_path("b.pb"));
     }
 
     #[test]
@@ -741,14 +745,14 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([(PathBuf::from("/out/a.pb"), vec![1, 2, 3])]),
+            files: HashMap::from([(out_path("a.pb"), vec![1, 2, 3])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].label, "//q:a");
         assert!(got[0].success);
         assert_eq!(got[0].artifacts.len(), 1);
-        assert_eq!(got[0].artifacts[0].exec_path, PathBuf::from("/out/a.pb"));
+        assert_eq!(got[0].artifacts[0].exec_path, out_path("a.pb"));
         assert_eq!(got[0].artifacts[0].bytes, vec![1, 2, 3]);
     }
 
@@ -762,10 +766,7 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([
-                (PathBuf::from("/out/a.pb"), vec![1]),
-                (PathBuf::from("/out/b.pb"), vec![2]),
-            ]),
+            files: HashMap::from([(out_path("a.pb"), vec![1]), (out_path("b.pb"), vec![2])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got.len(), 2);
@@ -868,7 +869,7 @@ mod tests {
     #[test]
     fn reports_read_the_filenames_their_uris_name() {
         let dir = tempfile::TempDir::new().expect("scratch");
-        let root = dx_path::posix(dir.path());
+        let root = dx_path::manifest(dir.path());
         let names: &[(&str, &str)] = if cfg!(windows) {
             &[("a b.pb", "a%20b.pb"), ("a%20b.pb", "a%2520b.pb")]
         } else {
@@ -883,7 +884,10 @@ mod tests {
         for (name, escaped) in names {
             let path = dir.path().join(name);
             std::fs::write(&path, name.as_bytes()).expect("write");
-            uris.push(format!("file://{root}/{escaped}"));
+            uris.push(format!(
+                "file:///{}/{escaped}",
+                root.trim_start_matches('/')
+            ));
         }
         let stream = [
             named_set("1", &uris),
@@ -915,7 +919,11 @@ mod tests {
     fn bytestream_falls_back_to_workspace_local_copy() {
         let dir = tempfile::TempDir::new().expect("scratch");
         let ws = dir.path();
-        let local = ws.join("bazel-out/k8-fastbuild/bin/q/a.pb");
+        let mut local = ws.to_path_buf();
+        local.push("bazel-out");
+        local.push("k8-fastbuild");
+        local.push("bin");
+        local.push("q/a.pb");
         std::fs::create_dir_all(local.parent().expect("parent")).expect("dirs");
         std::fs::write(&local, b"cached-bytes").expect("write");
         let file = r#"{"name": "q/a.pb", "uri": "bytestream://remote.buildbuddy.io/blobs/abc/12", "pathPrefix": ["bazel-out", "k8-fastbuild", "bin"]}"#;
@@ -1012,7 +1020,7 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([(PathBuf::from("/out/a.pb"), vec![9])]),
+            files: HashMap::from([(out_path("a.pb"), vec![9])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got.len(), 1);
@@ -1026,7 +1034,7 @@ mod tests {
         ]
         .join("\n");
         let artifacts = FakeArtifacts {
-            files: HashMap::from([(PathBuf::from("/out/a.pb"), vec![5])]),
+            files: HashMap::from([(out_path("a.pb"), vec![5])]),
         };
         let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
         assert_eq!(got[0].artifacts[0].bytes, vec![5]);

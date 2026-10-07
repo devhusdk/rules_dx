@@ -385,9 +385,10 @@ fn biome_format_check_and_fix_share_config() {
 
 #[test]
 fn eslint_check_and_fix_share_config() {
+    let launch = ResolvedTool::javascript("eslint", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
     let config = Path::new("/scratch/cfg/eslint.config.js");
-    let check = eslint_check(Path::new(BIN), &[file], config);
+    let check = eslint_check(&launch, &[file], config).expect("resolves");
     assert_eq!(
         argv_strings(&check),
         vec![
@@ -400,7 +401,7 @@ fn eslint_check_and_fix_share_config() {
         ]
     );
     assert_eq!(check.cwd_rel, "");
-    let fix = eslint_fix(Path::new(BIN), &[file], config);
+    let fix = eslint_fix(&launch, &[file], config).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
         vec![
@@ -417,9 +418,23 @@ fn eslint_check_and_fix_share_config() {
 }
 
 #[test]
+fn eslint_without_a_program_fails_before_any_spawn() {
+    let launch = ResolvedTool::javascript("eslint", Path::new(""));
+    let error = eslint_check(&launch, &[], Path::new("/scratch/cfg/eslint.config.js"))
+        .expect_err("no program");
+    assert_eq!(
+        error,
+        LaunchError::MissingProgram {
+            tool: "eslint".to_owned()
+        }
+    );
+}
+
+#[test]
 fn prettier_check_and_fix_are_hermetic() {
+    let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
-    let check = prettier_check(Path::new(BIN), &[file]);
+    let check = prettier_check(&launch, &[file]).expect("resolves");
     assert_eq!(
         argv_strings(&check),
         vec![
@@ -431,7 +446,7 @@ fn prettier_check_and_fix_are_hermetic() {
         ]
     );
     assert_eq!(check.cwd_rel, "");
-    let fix = prettier_fix(Path::new(BIN), &[file]);
+    let fix = prettier_fix(&launch, &[file]).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
         vec![

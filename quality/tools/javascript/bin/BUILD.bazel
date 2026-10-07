@@ -11,11 +11,13 @@ prettier_bin.prettier_binary(name = "prettier_generated")
 
 js_tool(
     name = "eslint",
+    entry_point = ":eslint_generated__entry_point",
     js_binary = ":eslint_generated",
 )
 
 js_tool(
     name = "prettier",
+    entry_point = ":prettier_generated__entry_point",
     js_binary = ":prettier_generated",
 )
 

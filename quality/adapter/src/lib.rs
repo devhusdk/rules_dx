@@ -13,6 +13,7 @@ use quality_result::proto::{Diagnostic, Severity};
 
 pub mod commands;
 pub mod exec;
+pub mod launch;
 pub mod parsers;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -13,6 +13,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+pub mod lifecycle;
+
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {

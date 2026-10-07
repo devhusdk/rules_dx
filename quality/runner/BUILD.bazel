@@ -22,6 +22,7 @@ rust_library(
         "src/real_fix.rs",
         "src/real_fixtures.rs",
         "src/real_tools.rs",
+        "src/request.rs",
     ],
     aliases = aliases(
         package_name = "quality/quality_runner",
@@ -33,6 +34,8 @@ rust_library(
     deps = crate_deps(
         [
             "clap",
+            "serde",
+            "serde_json",
             "tempfile",
             "thiserror",
             "tracing",
@@ -59,6 +62,8 @@ rust_binary(
     deps = crate_deps(
         [
             "clap",
+            "serde",
+            "serde_json",
             "tempfile",
             "thiserror",
             "tracing",
@@ -109,6 +114,8 @@ rust_test(
     deps = crate_deps(
         [
             "clap",
+            "serde",
+            "serde_json",
             "tempfile",
             "thiserror",
             "tracing",

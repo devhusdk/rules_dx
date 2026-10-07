@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
-load(":pipeline.bzl", "authorize_classes", "drop_pipeline_tool", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "resolve_pipeline", "stage_flag")
+load(":pipeline.bzl", "authorize_classes", "drop_pipeline_tool", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
 load(":policy.bzl", "family_section_error")
 load(":real_aspects.bzl", "real_allowed_tools_error")
 
@@ -595,6 +595,177 @@ def real_pipeline_unit_tests(name):
                     {"classes": ["rust"], "sources": ["src/lib.rs"], "tool": "rustfmt"},
                     {"classes": ["rust"], "sources": ["src/gen.rs"], "tool": "clippy"},
                 ],
+            ),
+            expect_equal(
+                "real_request_stage keeps tool classes and sources as fields",
+                real_request_stage("ruff", ["python"], ["a.py", "b.py"]),
+                {"classes": ["python"], "sources": ["a.py", "b.py"], "tool": "ruff"},
+            ),
+            expect_equal(
+                "real_request_mapping keeps workspace and exec as fields",
+                real_request_mapping("a.py", "exec/a.py"),
+                {"exec": "exec/a.py", "workspace": "a.py"},
+            ),
+            expect_equal(
+                "real_request_tool_file keeps mirror rel and exec as fields",
+                real_request_tool_file("ruff.toml", "exec/ruff.toml"),
+                {"exec": "exec/ruff.toml", "mirror_rel": "ruff.toml"},
+            ),
+            expect_equal(
+                "real_request_tool_env keeps keys and values with delimiters intact",
+                real_request_tool_env("RUNFILES_DIR", "a=b;c,d"),
+                {"key": "RUNFILES_DIR", "value": "a=b;c,d"},
+            ),
+            expect_equal(
+                "real_request_tool omits unset binary config and edition",
+                real_request_tool(upstream = ["out/clippy.diag"]),
+                {"env": [], "files": [], "upstream": ["out/clippy.diag"]},
+            ),
+            expect_equal(
+                "real_request_tool keeps a declared binary",
+                real_request_tool(
+                    binary_path = "bin/ruff",
+                    config_rel = "ruff.toml",
+                    edition = None,
+                    files = [real_request_tool_file("ruff.toml", "exec/ruff.toml")],
+                    env = [real_request_tool_env("KEY", "1")],
+                    upstream = [],
+                ),
+                {
+                    "binary": "bin/ruff",
+                    "config": "ruff.toml",
+                    "env": [{"key": "KEY", "value": "1"}],
+                    "files": [{"exec": "exec/ruff.toml", "mirror_rel": "ruff.toml"}],
+                    "upstream": [],
+                },
+            ),
+            expect_equal(
+                "real_request_doc pins schema version one without a scratch parent",
+                real_request_doc(
+                    "//pkg:target",
+                    "lint",
+                    [real_request_stage("ruff", ["python"], ["a.py"])],
+                    [real_request_mapping("a.py", "exec/a.py")],
+                    [],
+                    [],
+                    {"ruff": real_request_tool(binary_path = "bin/ruff")},
+                ),
+                {
+                    "capability": "lint",
+                    "producer": "//pkg:target",
+                    "resolves": [],
+                    "schema_version": 1,
+                    "siblings": [],
+                    "sources": [{"exec": "exec/a.py", "workspace": "a.py"}],
+                    "stages": [{"classes": ["python"], "sources": ["a.py"], "tool": "ruff"}],
+                    "tools": {"ruff": {"binary": "bin/ruff", "env": [], "files": [], "upstream": []}},
+                },
+            ),
+            expect_equal(
+                "real_request_doc carries an explicit scratch parent",
+                real_request_doc(
+                    "//pkg:target",
+                    "lint",
+                    [real_request_stage("ruff", ["python"], ["a.py"])],
+                    [real_request_mapping("a.py", "exec/a.py")],
+                    [],
+                    [],
+                    {"ruff": real_request_tool(binary_path = "bin/ruff")},
+                    scratch_parent = "/tmp/scratch",
+                )["scratch_parent"],
+                "/tmp/scratch",
+            ),
+            expect_equal(
+                "real_request_doc round-trips unusual filenames through json",
+                json.decode(json.encode(real_request_doc(
+                    "//pkg:target",
+                    "lint",
+                    [real_request_stage(
+                        "ruff",
+                        ["python"],
+                        ["a,b.py", "a;b.py", "a=b.py", "a b.py", "dir=x/a;b,c.py"],
+                    )],
+                    [
+                        real_request_mapping("a,b.py", "exec/0.py"),
+                        real_request_mapping("a;b.py", "exec/1.py"),
+                        real_request_mapping("a=b.py", "exec/2.py"),
+                        real_request_mapping("a b.py", "exec/3.py"),
+                        real_request_mapping("dir=x/a;b,c.py", "exec/4.py"),
+                    ],
+                    [],
+                    [],
+                    {"ruff": real_request_tool(
+                        binary_path = "bin/ruff",
+                        config_rel = "ruff,;=.toml",
+                        files = [real_request_tool_file("conf,ig/x=y.toml", "exec/conf.toml")],
+                        env = [real_request_tool_env("EXTRA", "a=b;c,d")],
+                    )},
+                ))),
+                real_request_doc(
+                    "//pkg:target",
+                    "lint",
+                    [real_request_stage(
+                        "ruff",
+                        ["python"],
+                        ["a,b.py", "a;b.py", "a=b.py", "a b.py", "dir=x/a;b,c.py"],
+                    )],
+                    [
+                        real_request_mapping("a,b.py", "exec/0.py"),
+                        real_request_mapping("a;b.py", "exec/1.py"),
+                        real_request_mapping("a=b.py", "exec/2.py"),
+                        real_request_mapping("a b.py", "exec/3.py"),
+                        real_request_mapping("dir=x/a;b,c.py", "exec/4.py"),
+                    ],
+                    [],
+                    [],
+                    {"ruff": real_request_tool(
+                        binary_path = "bin/ruff",
+                        config_rel = "ruff,;=.toml",
+                        files = [real_request_tool_file("conf,ig/x=y.toml", "exec/conf.toml")],
+                        env = [real_request_tool_env("EXTRA", "a=b;c,d")],
+                    )},
+                ),
+            ),
+            expect_equal(
+                "real_request_doc serializes deterministically",
+                json.encode(real_request_doc(
+                    "//pkg:target",
+                    "lint",
+                    [real_request_stage("ruff", ["python"], ["a.py"])],
+                    [real_request_mapping("a.py", "exec/a.py")],
+                    [],
+                    [],
+                    {"ruff": real_request_tool(binary_path = "bin/ruff")},
+                )),
+                json.encode(real_request_doc(
+                    "//pkg:target",
+                    "lint",
+                    [real_request_stage("ruff", ["python"], ["a.py"])],
+                    [real_request_mapping("a.py", "exec/a.py")],
+                    [],
+                    [],
+                    {"ruff": real_request_tool(binary_path = "bin/ruff")},
+                )),
+            ),
+            expect_equal(
+                "real_request_doc carries a large source set in order",
+                len(json.decode(json.encode(real_request_doc(
+                    "//pkg:target",
+                    "lint",
+                    [real_request_stage(
+                        "ruff",
+                        ["python"],
+                        ["src/file" + str(index) + ".py" for index in range(500)],
+                    )],
+                    [
+                        real_request_mapping("src/file" + str(index) + ".py", "exec/src/file" + str(index) + ".py")
+                        for index in range(500)
+                    ],
+                    [],
+                    [],
+                    {"ruff": real_request_tool(binary_path = "bin/ruff")},
+                )))["sources"]),
+                500,
             ),
         ],
     )

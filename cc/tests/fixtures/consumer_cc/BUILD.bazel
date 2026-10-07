@@ -1,0 +1,36 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_binary(
+    name = "consumer_cc",
+    srcs = ["main.cc"],
+    deps = ["@consumer_cc//:greeting"],
+)
+
+cc_test(
+    name = "consumer_cc_test",
+    srcs = ["greeting_test.cc"],
+    deps = ["@consumer_cc//:greeting"],
+)
+
+dx_hello_output_test(
+    name = "consumer_cc_output_test",
+    binary = ":consumer_cc",
+    expected = "Hello from the consumer cc",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

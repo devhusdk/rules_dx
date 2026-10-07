@@ -62,6 +62,13 @@ pub enum AdoptError {
     RenderTimings { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
+    /// A boolean environment default is neither a documented on nor a documented off.
+    #[error("invalid invocation default {name}={value:?}: want one of {spellings}")]
+    InvalidEnvBool {
+        name: &'static str,
+        value: String,
+        spellings: &'static str,
+    },
 }
 
 #[cfg(test)]

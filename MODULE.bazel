@@ -274,6 +274,7 @@ crate.from_cargo(
         "//quality/tools/javascript/launcher:Cargo.toml",
         "//quality/evaluator:Cargo.toml",
         "//quality/markdown:Cargo.toml",
+        "//quality/matrix:Cargo.toml",
         "//quality/result:Cargo.toml",
         "//quality/runner:Cargo.toml",
         "//docs/ir/ir:Cargo.toml",
@@ -308,6 +309,12 @@ _consumer_hub_repo(
 _consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
 
 _consumer_dx_repo(name = "dx_consumer_entry")
+
+_consumer_cc_repo = use_repo_rule("//cc/tests/fixtures/consumer_cc:repos.bzl", "consumer_cc_repo")
+
+_consumer_cc_repo(
+    name = "consumer_cc",
+)
 
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(

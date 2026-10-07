@@ -22,6 +22,12 @@ pub const ENV_DEFAULTS: [(&str, &str, &str); 7] = [
 /// Spellings that turn a boolean environment default on.
 pub const TRUTHY: [&str; 5] = ["1", "true", "yes", "y", "on"];
 
+/// Spellings that turn a boolean environment default off.
+pub const FALSEY: [&str; 5] = ["0", "false", "no", "n", "off"];
+
+/// Every documented boolean spelling, on spellings first.
+pub const BOOL_SPELLINGS: &str = "1|true|yes|y|on|0|false|no|n|off";
+
 /// The `.dx/config.toml` key that carries the same default as an env var.
 pub fn config_key(env: &str) -> Option<&'static str> {
     ENV_DEFAULTS
@@ -45,16 +51,40 @@ pub struct FileDefaults {
 }
 
 pub fn is_truthy(value: &str) -> bool {
+    parse_bool(value) == Some(true)
+}
+
+/// Read one boolean default, or `None` when the text is not a documented spelling.
+pub fn parse_bool(value: &str) -> Option<bool> {
     let value = value.trim().to_ascii_lowercase();
-    TRUTHY.contains(&value.as_str())
+    if TRUTHY.contains(&value.as_str()) {
+        Some(true)
+    } else if FALSEY.contains(&value.as_str()) {
+        Some(false)
+    } else {
+        None
+    }
 }
 
 pub fn env_string(get: &dyn Fn(&str) -> Option<String>, name: &str) -> Option<String> {
     get(name).filter(|value| !value.is_empty())
 }
 
-pub fn env_bool(get: &dyn Fn(&str) -> Option<String>, name: &str) -> Option<bool> {
-    get(name).map(|value| is_truthy(&value))
+/// Read one boolean environment default, refusing a value that is neither spelling.
+pub fn env_bool(
+    get: &dyn Fn(&str) -> Option<String>,
+    name: &'static str,
+) -> Result<Option<bool>, super::AdoptError> {
+    let Some(value) = env_string(get, name) else {
+        return Ok(None);
+    };
+    parse_bool(&value)
+        .map(Some)
+        .ok_or(super::AdoptError::InvalidEnvBool {
+            name,
+            value,
+            spellings: BOOL_SPELLINGS,
+        })
 }
 
 pub fn resolve_string(
@@ -74,14 +104,13 @@ pub fn resolve_workspace(
     flag.or(env).or(file)
 }
 
-pub fn resolve_bool(flag: bool, env: Option<bool>, file: Option<bool>) -> bool {
-    if flag {
-        return true;
-    }
-    env.or(file).unwrap_or(false)
+/// Resolve a boolean default across flag, environment, file, then off.
+pub fn resolve_bool(flag: Option<bool>, env: Option<bool>, file: Option<bool>) -> bool {
+    flag.or(env).or(file).unwrap_or(false)
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DxTable {
     #[serde(default)]
     workspace: Option<String>,
@@ -100,6 +129,7 @@ struct DxTable {
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ConfigFile {
     #[serde(default)]
     dx: Option<DxTable>,
@@ -140,6 +170,10 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
     })
 }
 
+/// The nearest config file at or above `start`, `.dx/config.toml` before `.dx/config`.
+///
+/// The search reads `start` and then every ancestor directory up to the filesystem
+/// root. It never reads a descendant, a sibling, or an unrelated workspace tree.
 pub fn find_config(start: &Path) -> Option<PathBuf> {
     for dir in start.ancestors() {
         let toml = dir.join(CONFIG_TOML_REL);
@@ -196,6 +230,59 @@ mod tests {
     }
 
     #[test]
+    fn falsy_spellings_disable_and_anything_else_is_unreadable() {
+        for falsy in [
+            "0", "false", "FALSE", " False ", "no", "NO", "n", "N", "off", "OFF",
+        ] {
+            assert_eq!(parse_bool(falsy), Some(false), "{falsy:?} must disable");
+            assert!(!is_truthy(falsy), "{falsy:?} must not enable");
+        }
+        for on in TRUTHY {
+            assert_eq!(parse_bool(on), Some(true), "{on:?} must enable");
+        }
+        for unreadable in [
+            "", " ", "tru", "ture", "fals", "2", "-1", "maybe", "enabled",
+        ] {
+            assert_eq!(parse_bool(unreadable), None, "{unreadable:?}");
+        }
+        assert_eq!(BOOL_SPELLINGS, "1|true|yes|y|on|0|false|no|n|off");
+    }
+
+    #[test]
+    fn env_bool_refuses_a_value_outside_the_documented_spellings() {
+        let get = env_of(&[(DX_DRY_RUN_ENV, "tru")]);
+        let error = env_bool(&get, DX_DRY_RUN_ENV).expect_err("typo is not a boolean");
+        assert_eq!(
+            error,
+            super::super::AdoptError::InvalidEnvBool {
+                name: DX_DRY_RUN_ENV,
+                value: "tru".to_owned(),
+                spellings: BOOL_SPELLINGS,
+            }
+        );
+        assert_eq!(
+            error.to_string(),
+            "invalid invocation default DX_DRY_RUN=\"tru\": want one of 1|true|yes|y|on|0|false|no|n|off"
+        );
+        for (name, value, wanted) in [
+            (DX_QUIET_ENV, "off", false),
+            (DX_VERBOSE_ENV, "NO", false),
+            (DX_DRY_RUN_ENV, "0", false),
+        ] {
+            let pairs = [(name, value)];
+            let get = env_of(&pairs);
+            assert_eq!(
+                env_bool(&get, name).expect("documented spelling"),
+                Some(wanted)
+            );
+        }
+        let get = env_of(&[(DX_DRY_RUN_ENV, ""), (DX_QUIET_ENV, "1")]);
+        assert_eq!(env_bool(&get, DX_DRY_RUN_ENV), Ok(None));
+        assert_eq!(env_bool(&get, DX_QUIET_ENV), Ok(Some(true)));
+        assert_eq!(env_bool(&env_of(&[]), DX_DRY_RUN_ENV), Ok(None));
+    }
+
+    #[test]
     fn env_defaults_cover_every_documented_variable() {
         assert_eq!(
             ENV_DEFAULTS.map(|(env, _, _)| env),
@@ -210,6 +297,7 @@ mod tests {
             ]
         );
         assert_eq!(TRUTHY, ["1", "true", "yes", "y", "on"]);
+        assert_eq!(FALSEY, ["0", "false", "no", "n", "off"]);
         for (env, flag, _) in ENV_DEFAULTS {
             assert_eq!(
                 config_key(env),
@@ -226,12 +314,12 @@ mod tests {
         assert_eq!(env_string(&get, DX_WORKSPACE_ENV), Some("/repo".to_owned()));
         assert_eq!(env_string(&get, DX_OUTPUT_ENV), None);
         assert_eq!(env_string(&get, DX_VERBOSE_ENV), None);
-        assert_eq!(env_bool(&get, DX_WORKSPACE_ENV), Some(false));
+        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(None));
         let get = env_of(&[(DX_VERBOSE_ENV, "yes")]);
-        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Some(true));
+        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(Some(true)));
         let get = env_of(&[(DX_VERBOSE_ENV, "0")]);
-        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Some(false));
-        assert_eq!(env_bool(&get, DX_QUIET_ENV), None);
+        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(Some(false)));
+        assert_eq!(env_bool(&env_of(&[]), DX_QUIET_ENV), Ok(None));
     }
 
     #[test]
@@ -268,11 +356,14 @@ mod tests {
             Some("flag".to_owned())
         );
         assert_eq!(resolve_workspace(None, None, None), None);
-        assert!(resolve_bool(true, Some(false), Some(false)));
-        assert!(resolve_bool(false, Some(true), Some(false)));
-        assert!(resolve_bool(false, Some(false), Some(true)) == false);
-        assert!(resolve_bool(false, None, Some(true)));
-        assert!(!resolve_bool(false, None, None));
+        assert!(resolve_bool(Some(true), Some(false), Some(false)));
+        assert!(resolve_bool(None, Some(true), Some(false)));
+        assert!(!resolve_bool(None, Some(false), Some(true)));
+        assert!(resolve_bool(None, None, Some(true)));
+        assert!(!resolve_bool(None, None, None));
+        assert!(!resolve_bool(Some(false), Some(true), Some(true)));
+        assert!(!resolve_bool(None, Some(false), Some(true)));
+        assert!(!resolve_bool(None, None, Some(false)));
     }
 
     #[test]
@@ -317,6 +408,75 @@ mod tests {
     }
 
     #[test]
+    fn file_rejects_a_misspelled_key_and_keeps_the_documented_spellings() {
+        for text in [
+            "[dx]\nqiet = true\n",
+            "[dx]\n\"dry-ruun\" = true\n",
+            "[dx]\nverbse = false\n",
+            "[dx]\noutpt = \"json\"\n",
+            "workspce = \"/repo\"\n",
+            "[dx]\n[extra]\nquiet = true\n",
+            "[extra]\nquiet = true\n",
+        ] {
+            let error = parse_file_text(text).expect_err(text);
+            let rendered = error.to_string();
+            assert!(
+                rendered.contains("unknown field"),
+                "{text:?} must name the unknown field: {rendered}"
+            );
+        }
+        let error = parse_file_text("[dx]\nqiet = true\n").expect_err("typo");
+        assert!(
+            error.to_string().contains("qiet"),
+            "the diagnostic names the misspelled key: {error}"
+        );
+        for (env, flag, _) in ENV_DEFAULTS {
+            let key = config_key(env).expect("every default has a key");
+            let literal = match flag {
+                "--dry-run" | "--quiet" | "--verbose" => "true",
+                "--fail-on" => "\"error\"",
+                "--color" => "\"never\"",
+                "--output" => "\"json\"",
+                _ => "\"/repo\"",
+            };
+            let parsed = parse_file_text(&format!("[dx]\n{key} = {literal}\n"))
+                .unwrap_or_else(|error| panic!("{key} must stay a real key: {error}"));
+            let underscored = key.replace('-', "_");
+            if underscored != key {
+                parse_file_text(&format!("[dx]\n{underscored} = {literal}\n"))
+                    .unwrap_or_else(|error| panic!("{underscored} must stay an alias: {error}"));
+            }
+            let top = parse_file_text(&format!("{key} = {literal}\n"))
+                .unwrap_or_else(|error| panic!("{key} at the top level: {error}"));
+            let both = parse_file_text(&format!("{key} = {literal}\n[dx]\n{key} = {literal}\n"))
+                .expect("both layers parse");
+            assert_eq!(parsed, both, "{key} in both layers");
+            assert_eq!(parsed, top, "{key} at the top level");
+        }
+    }
+
+    #[test]
+    fn file_boolean_keys_keep_the_documented_precedence_order() {
+        let both = parse_file_text("quiet = false\n[dx]\nquiet = false\n").expect("false parses");
+        assert_eq!(
+            both.quiet,
+            Some(false),
+            "an explicit false is not an absent value"
+        );
+        let top_only = parse_file_text("dry_run = false\n").expect("top false");
+        assert_eq!(top_only.dry_run, Some(false));
+        let top_true = parse_file_text("verbose = true\n").expect("top true");
+        assert_eq!(top_true.verbose, Some(true));
+        assert!(
+            parse_file_text("quiet = false\n[dx]\nquiet = true\n")
+                .expect("both")
+                .quiet
+                == Some(true),
+            "[dx] wins over the top level"
+        );
+    }
+
+    #[test]
     fn find_and_load_prefers_toml_and_walks_up() {
         let scratch = dx_test_scratch::scratch("dx-defaults-");
         let root = scratch.path().to_path_buf();
@@ -342,6 +502,48 @@ mod tests {
     }
 
     #[test]
+    fn discovery_reads_parents_and_never_another_workspace_tree() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-boundary-");
+        let root = scratch.path().to_path_buf();
+        let neighbor = root.join("neighbor");
+        let mine = root.join("mine/deep");
+        let below = root.join("mine/deep/deeper");
+        std::fs::create_dir_all(root.join(".dx")).expect("root dx");
+        std::fs::create_dir_all(neighbor.join(".dx")).expect("neighbor dx");
+        std::fs::create_dir_all(&mine).expect("mine");
+        std::fs::create_dir_all(below.join(".dx")).expect("deeper dx");
+        std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n")
+            .expect("root config");
+        std::fs::write(
+            neighbor.join(".dx/config.toml"),
+            "[dx]\noutput = \"diff\"\n",
+        )
+        .expect("neighbor config");
+        std::fs::write(below.join(".dx/config.toml"), "[dx]\noutput = \"text\"\n")
+            .expect("deeper config");
+        assert_eq!(
+            find_config(&below),
+            Some(below.join(".dx/config.toml")),
+            "the nearest ancestor supplies the defaults"
+        );
+        assert_eq!(
+            find_config(&mine),
+            Some(root.join(".dx/config.toml")),
+            "a descendant never supplies the defaults"
+        );
+        let found = find_config(&root.join("mine")).expect("parent discovery is intentional");
+        assert_eq!(found, root.join(".dx/config.toml"));
+        assert!(
+            !found.starts_with(&neighbor),
+            "a neighboring workspace never supplies the defaults: {found:?}"
+        );
+        let (defaults, path) = load_defaults(&root.join("mine")).expect("loads the ancestor");
+        assert_eq!(defaults.output, Some("json".to_owned()));
+        assert_eq!(path, Some(root.join(".dx/config.toml")));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn load_missing_is_empty_and_invalid_fails_closed() {
         let scratch = dx_test_scratch::scratch("dx-defaults-missing-");
         let root = scratch.path().to_path_buf();
@@ -351,6 +553,17 @@ mod tests {
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/config.toml"), "not toml = [").expect("bad config");
         assert!(load_defaults(&root).is_err());
+        std::fs::write(root.join(".dx/config.toml"), "[dx]\nqiet = true\n").expect("typo");
+        let error = load_defaults(&root).expect_err("a misspelled key is not ignored");
+        let rendered = error.to_string();
+        assert!(
+            rendered.contains("unknown field") && rendered.contains("qiet"),
+            "the diagnostic names the file and the key: {rendered}"
+        );
+        assert!(
+            rendered.contains(&root.join(".dx/config.toml").display().to_string()),
+            "the diagnostic names the file: {rendered}"
+        );
         scratch.close().expect("cleanup");
     }
 }

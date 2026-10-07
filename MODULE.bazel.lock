@@ -419,7 +419,7 @@
   "moduleExtensions": {
     "//docs/site/browser:repos.bzl%firefox": {
       "general": {
-        "bzlTransitiveDigest": "DfzfF9sgnAZZeTn7NMKpoIsYn31drQiRRZrSYRnRa8Q=",
+        "bzlTransitiveDigest": "GjsWQtdl+oxXE9JciMbHq0614ya59aY9H9EjNniMf/s=",
         "usagesDigest": "uQFv4oZKHTBF1moFOlnTx1/Y02RUXVqWXJhfG+aAJdo=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

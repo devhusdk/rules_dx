@@ -1,5 +1,6 @@
 use super::common::*;
 use super::managed_staging::{ensure_generation_dir, symlink_leaf};
+use dx_path::{PathProblem, WorkspaceRelativePath};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -23,27 +24,71 @@ pub(crate) fn empty_generated_id() -> dx_setup::GenerationId {
     dx_setup::GenerationId::from_digest(dx_codegen::plan_digest("[]"))
 }
 
-fn validate_logical_path(logical_path: &str) -> Result<(), ExecError> {
-    if logical_path.is_empty() {
-        return Err(ExecError::EmptyLogicalPath);
-    }
-    let path = Path::new(logical_path);
-    if path.is_absolute() {
-        return Err(ExecError::AbsoluteLogicalPath {
-            path: logical_path.to_owned(),
+fn logical_path(path: &str) -> Result<WorkspaceRelativePath, ExecError> {
+    WorkspaceRelativePath::new(path).map_err(|problem| match problem {
+        PathProblem::Empty => ExecError::EmptyLogicalPath,
+        PathProblem::Absolute => ExecError::AbsoluteLogicalPath {
+            path: path.to_owned(),
+        },
+        PathProblem::Backslash
+        | PathProblem::Dot
+        | PathProblem::DotDot
+        | PathProblem::ControlCharacter
+        | PathProblem::EmptyComponent => ExecError::EscapingLogicalPath {
+            path: path.to_owned(),
+        },
+    })
+}
+
+fn invalid_plan(reason: impl std::fmt::Display) -> (String, String) {
+    (
+        CODE_INVALID_RESULT.to_owned(),
+        format!("invalid codegen plan: {reason}"),
+    )
+}
+
+struct LogicalEntry<'a> {
+    entry: &'a dx_codegen::ProjectionEntry,
+    path: WorkspaceRelativePath,
+    replaces: Option<WorkspaceRelativePath>,
+}
+
+fn resolve_logical_entries(
+    projection: &[dx_codegen::ProjectionEntry],
+) -> Result<Vec<LogicalEntry<'_>>, (String, String)> {
+    let mut entries = Vec::with_capacity(projection.len());
+    for entry in projection {
+        let path = logical_path(&entry.logical_path).map_err(invalid_plan)?;
+        let replaces = match entry.replaces.is_empty() {
+            true => None,
+            false => Some(logical_path(&entry.replaces).map_err(invalid_plan)?),
+        };
+        if replaces.as_ref().is_some_and(|declared| *declared != path) {
+            return Err(invalid_plan(format!(
+                "entry {:?} carries a replacement contract for {:?}, want the logical path itself",
+                entry.logical_path, entry.replaces,
+            )));
+        }
+        entries.push(LogicalEntry {
+            entry,
+            path,
+            replaces,
         });
     }
-    if path.components().any(|c| {
-        matches!(
-            c,
-            std::path::Component::ParentDir | std::path::Component::Prefix(_)
-        )
-    }) {
-        return Err(ExecError::EscapingLogicalPath {
-            path: logical_path.to_owned(),
-        });
+    let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
+    for resolved in &entries {
+        if let Some(previous) =
+            seen.insert(resolved.path.as_str(), resolved.entry.artifact.as_str())
+        {
+            if previous != resolved.entry.artifact.as_str() {
+                return Err(invalid_plan(format!(
+                    "generated logical path {:?} maps to multiple artifacts",
+                    resolved.entry.logical_path
+                )));
+            }
+        }
     }
-    Ok(())
+    Ok(entries)
 }
 
 pub(crate) fn stage_codegen_generation(
@@ -51,62 +96,30 @@ pub(crate) fn stage_codegen_generation(
     id: &dx_setup::GenerationId,
     projection: &[dx_codegen::ProjectionEntry],
 ) -> Result<(), (String, String)> {
+    let entries = resolve_logical_entries(projection)?;
     let dir = ensure_generation_dir(workspace, dx_setup::GENERATED_DIR_NAME, id.as_str())?;
-    let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
-    for entry in projection {
-        if let Some(previous) = seen.insert(entry.logical_path.as_str(), entry.artifact.as_str()) {
-            if previous != entry.artifact.as_str() {
-                return Err((
-                    CODE_INVALID_RESULT.to_owned(),
-                    format!(
-                        "generated logical path {:?} maps to multiple artifacts",
-                        entry.logical_path
-                    ),
-                ));
-            }
-        }
-    }
-    for entry in projection {
-        validate_logical_path(&entry.logical_path).map_err(|reason| {
-            (
-                CODE_INVALID_RESULT.to_owned(),
-                format!("invalid codegen plan: {reason}"),
-            )
-        })?;
-        if !entry.replaces.is_empty() && entry.replaces != entry.logical_path {
-            return Err((
-                CODE_INVALID_RESULT.to_owned(),
-                format!(
-                    "invalid codegen plan: entry {:?} carries a replacement contract for {:?}, want the logical path itself",
-                    entry.logical_path, entry.replaces,
-                ),
-            ));
-        }
-        if workspace
-            .join(&entry.logical_path)
+    for resolved in &entries {
+        let entry = resolved.entry;
+        if resolved
+            .path
+            .join_to_root(workspace)
             .symlink_metadata()
             .is_ok()
-            && entry.replaces != entry.logical_path
+            && resolved.replaces.is_none()
         {
-            return Err((
-                CODE_INVALID_RESULT.to_owned(),
-                format!(
-                    "invalid codegen plan: generated logical path {:?} collides with a workspace source",
-                    entry.logical_path
-                ),
-            ));
+            return Err(invalid_plan(format!(
+                "generated logical path {:?} collides with a workspace source",
+                entry.logical_path
+            )));
         }
         let artifact = Path::new(&entry.artifact);
         if artifact.symlink_metadata().is_err() {
-            return Err((
-                CODE_INVALID_RESULT.to_owned(),
-                format!(
-                    "invalid codegen plan: referenced artifact {:?} is missing; Bazel owns materialization",
-                    entry.artifact
-                ),
-            ));
+            return Err(invalid_plan(format!(
+                "referenced artifact {:?} is missing; Bazel owns materialization",
+                entry.artifact
+            )));
         }
-        let leaf = dir.join(&entry.logical_path);
+        let leaf = resolved.path.join_to_root(&dir);
         if let Some(parent) = leaf.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
                 (
@@ -118,13 +131,10 @@ pub(crate) fn stage_codegen_generation(
         let needs_link = match std::fs::symlink_metadata(&leaf) {
             Ok(meta) => {
                 if meta.file_type().is_dir() && !meta.file_type().is_symlink() {
-                    return Err((
-                        CODE_INVALID_RESULT.to_owned(),
-                        format!(
-                            "invalid codegen plan: generated logical path {:?} collides within its generation",
-                            entry.logical_path
-                        ),
-                    ));
+                    return Err(invalid_plan(format!(
+                        "generated logical path {:?} collides within its generation",
+                        entry.logical_path
+                    )));
                 }
                 match std::fs::read_link(&leaf) {
                     Ok(current) if current == *artifact => false,
@@ -189,12 +199,82 @@ mod tests {
 
     #[test]
     fn managed_logical_paths_validate() {
-        assert!(validate_logical_path("gen/out.rs").is_ok());
-        assert!(validate_logical_path("a/./b").is_ok());
-        for bad in ["", "/absolute", "../escape", "a/../../escape"] {
+        assert!(logical_path("gen/out.rs").is_ok());
+        assert_eq!(
+            logical_path("a//b").expect("canonical").as_str(),
+            "a/b",
+            "empty components are canonicalized"
+        );
+        for bad in [
+            "",
+            "/absolute",
+            "../escape",
+            "a/../../escape",
+            "a/./b",
+            "gen\\out.rs",
+            "C:/gen/out.rs",
+            "C:gen/out.rs",
+            "\\\\?\\C:\\gen\\out.rs",
+            "gen\\..\\out.rs",
+            "gen/\u{0}/out.rs",
+        ] {
             assert!(
-                validate_logical_path(bad).is_err(),
-                "logical path {bad:?} must fail"
+                logical_path(bad).is_err(),
+                "logical path {bad:?} must fail on every host"
+            );
+        }
+        assert_eq!(
+            logical_path("/absolute"),
+            Err(ExecError::AbsoluteLogicalPath {
+                path: "/absolute".to_owned()
+            })
+        );
+        assert_eq!(
+            logical_path("C:/gen/out.rs"),
+            Err(ExecError::AbsoluteLogicalPath {
+                path: "C:/gen/out.rs".to_owned()
+            })
+        );
+        assert_eq!(logical_path(""), Err(ExecError::EmptyLogicalPath));
+        for bad in ["../escape", "a/./b", "gen\\out.rs", "gen/\u{0}/out.rs"] {
+            assert_eq!(
+                logical_path(bad),
+                Err(ExecError::EscapingLogicalPath {
+                    path: bad.to_owned()
+                }),
+                "logical path {bad:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn managed_invalid_logical_paths_stage_nothing() {
+        let fixture = managed_stage_fixture("managed-codegen-invalid");
+        let workspace = fixture.workspace().to_path_buf();
+        let first = fixture.first.clone();
+        for (index, bad) in [
+            "../escape",
+            "a/./b",
+            "gen\\out.rs",
+            "C:/gen/out.rs",
+            "gen/\u{0}/out.rs",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let id = dx_setup::GenerationId::new(&format!("{index:064x}")).expect("fixture id");
+            let (code, message) =
+                stage_codegen_generation(&workspace, &id, &[codegen_entry(bad, &first)])
+                    .expect_err("bad logical path");
+            assert_eq!(code, CODE_INVALID_RESULT);
+            assert!(message.contains("invalid codegen plan"), "{message}");
+            assert!(
+                !workspace
+                    .join(".dx")
+                    .join(GENERATED_DIR_NAME)
+                    .join(id.as_str())
+                    .exists(),
+                "logical path {bad:?} created a generation directory"
             );
         }
     }

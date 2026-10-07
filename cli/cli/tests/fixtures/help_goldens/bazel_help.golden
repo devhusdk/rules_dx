@@ -5,9 +5,6 @@ forward raw arguments to the Bazel launcher
 Usage: dx bazel [-- bazel-args ...]
 
 Arguments:
-  [TARGETS]...
-          Scopes to run on
-
   [BAZEL_OPTIONS]...
           Args after --
 
@@ -15,14 +12,20 @@ Options:
       --workspace <WORKSPACE>
           Use this workspace dir
 
-      --dry-run
-          Show the plan without running it
+      --dry-run[=<DRY_RUN>]
+          Show the plan without running it. =false turns off an inherited default
+          
+          [possible values: true, false]
 
-      --quiet
-          Hide summaries
+      --quiet[=<QUIET>]
+          Hide summaries. =false turns off an inherited default
+          
+          [possible values: true, false]
 
-  -v, --verbose
-          Show more logs
+  -v, --verbose[=<VERBOSE>]
+          Show more logs. =false turns off an inherited default
+          
+          [possible values: true, false]
 
       --color <COLOR>
           Set color output
@@ -33,64 +36,6 @@ Options:
       --output <OUTPUT>
           Set output format
 
-      --report <REPORT>
-          Write a report file
-
-      --fail-on <FAIL_ON>
-          Fail on this severity
-
-      --min-coverage <MIN_COVERAGE>
-          Require this coverage percent
-
-      --check
-          Check without changing files
-
-      --debug
-          Use debug build
-
-      --release
-          Use release build
-
-      --bazel
-          Also run bazel clean
-
-      --pin <PIN>
-          Re-pin to this version
-
-      --rollback
-          Re-pin the last release
-
-      --configured
-          Use cquery instead of query
-
-      --from <FROM>
-          Migrate from this version
-
-      --to <TO>
-          Migrate to this version
-
-      --here
-          Use the current dir tree
-          
-          [alias: --cwd]
-
-      --serve
-          Serve docs locally
-
-      --port <PORT>
-          Docs serve port
-
-      --host <HOST>
-          Docs serve host
-
-      --open
-          Open docs in a browser
-
-      --offline
-          Run without network
-          
-          [alias: --frozen]
-
   -h, --help
           Print help
 
@@ -100,79 +45,5 @@ Scopes: none (raw Bazel forwarding; no dx scope resolution).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text; --report has no standard format for this command.
 Rejected: --report, --fail-on, --min-coverage, --check, --debug, --release, --bazel, --pin, --rollback, --configured, --from, --to, --here, --serve, --port, --host, --open, --offline.
+Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 
-dx - Run Bazel workflows
-
-dx <command> [flags] [scope ...] [-- bazel-options ...]
-
-Scopes: labels, patterns, files, or dirs. No scope means //... for most commands.
-
-Exit codes: 0 success, 2 usage error, 1 failed check.
-
-Usage: dx [COMMAND]
-
-Commands:
-  security    run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
-  license     run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
-  lint        run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
-  typecheck   run typecheck analysis over resolved scopes (mutating by default; --check is non-mutating)
-  format      check or rewrite formatting over resolved scopes (mutating by default; --check is non-mutating)
-  generate    emit/sync BUILD files (Gazelle pipeline; mutating by default; --check validates without writes)
-  build       run Bazel build over resolved targets
-  test        run Bazel test over resolved targets
-  coverage    collect LCOV coverage with optional threshold
-  run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
-  deploy      build and run a single deployable target
-  check       run format+lint+typecheck+generate checks in order (non-mutating)
-  fix         apply format+lint+typecheck+generate fixes in order (mutating by default; no rerun, run `dx check` to validate)
-  clean       prune unselected managed state, never Bazel outputs unless --bazel (no scopes)
-  update      update dependencies per set through qualified resolvers (mutating without confirmation; --check is the preset stale gate)
-  bump        widen one declared requirement to a new version (explicit; mutating without confirmation)
-  migrate     rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)
-  codegen     collect codegen outputs with atomic commit (mutating managed state)
-  env         collect the managed development environment (mutating managed state)
-  setup       collect setup outputs with atomic commit (mutating managed state)
-  init        scaffold dx into a foreign tree (absent-only; mutating by default)
-  new         scaffold a minimal qualified project for one language (absent-only; mutating by default)
-  upgrade     one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)
-  hooks       manage Git hooks via hermetic Git (mutating by default)
-  status      report workspace and target status
-  version     report version and pin drift
-  watch       watch for changes and rebuild (local only)
-  owners      query owners of files via Bazel query
-  deps        query dependencies of targets
-  why         explain why a target depends on another
-  completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)
-  docs        build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
-  bazel       forward raw arguments to the Bazel launcher
-
-Options:
-  -h, --help
-          Print help (see a summary with '-h')
-
-  -V, --version
-          Print version
-
-Environment:
-  DX_WORKSPACE=<dir>
-      Default for --workspace.
-  DX_DRY_RUN=<bool>
-      Default for --dry-run.
-  DX_QUIET=<bool>
-      Default for --quiet.
-  DX_VERBOSE=<bool>
-      Default for --verbose.
-  DX_COLOR=<mode>
-      Default for --color.
-  DX_OUTPUT=<mode>
-      Default for --output.
-  DX_FAIL_ON=<level>
-      Default for --fail-on.
-  RUST_LOG=<filter>
-      Override --verbose and --log-level.
-  NO_COLOR=<any>
-      Disable color output.
-  BUILD_WORKSPACE_DIRECTORY=<dir>
-      Workspace start under `bazel run`.
-  .dx/config.toml
-      Same defaults as the DX_ variables, below the environment.

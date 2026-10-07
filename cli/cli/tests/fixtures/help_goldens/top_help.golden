@@ -65,6 +65,8 @@ Environment:
       Default for --output.
   DX_FAIL_ON=<level>
       Default for --fail-on.
+  <bool> is on for 1|true|yes|y|on and off for 0|false|no|n|off.
+      Anything else is a usage error. An empty value is unset.
   RUST_LOG=<filter>
       Override --verbose and --log-level.
   NO_COLOR=<any>
@@ -72,4 +74,6 @@ Environment:
   BUILD_WORKSPACE_DIRECTORY=<dir>
       Workspace start under `bazel run`.
   .dx/config.toml
+  .dx/config
       Same defaults as the DX_ variables, below the environment.
+      An unknown key is a usage error.

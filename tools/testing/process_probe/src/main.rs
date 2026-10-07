@@ -35,9 +35,13 @@ Usage: process_probe [options]
   --print-argv                  write each argument to stdout, one per line
   --print-cwd                   write the working directory to stdout
   --spawn-descendant            run a descendant probe and exit with its status
+  --detached-descendant         start the descendant and exit without waiting
   --descendant-exit=N           exit code the descendant reports
   --descendant-sleep-ms=N       milliseconds the descendant sleeps
   --descendant-stdout-bytes=N   zero bytes the descendant writes to stdout
+  --descendant-marker=PATH      file the descendant creates when it finishes
+  --marker=PATH                 file this probe creates when it finishes
+  --raise-signal=N              die by signal N (unix only)
   --help                        write this text and exit 0
 ";
 
@@ -65,9 +69,13 @@ struct Plan {
     print_argv: bool,
     print_cwd: bool,
     spawn_descendant: bool,
+    detached_descendant: bool,
     descendant_exit: i32,
     descendant_sleep_ms: u64,
     descendant_stdout_bytes: usize,
+    descendant_marker: Option<String>,
+    marker: Option<String>,
+    raise_signal: Option<i32>,
 }
 
 fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String> {
@@ -90,6 +98,9 @@ const VALUE_FLAGS: &[&str] = &[
     "--descendant-exit",
     "--descendant-sleep-ms",
     "--descendant-stdout-bytes",
+    "--descendant-marker",
+    "--marker",
+    "--raise-signal",
 ];
 
 /// The flags that stand alone.
@@ -98,6 +109,7 @@ const SWITCH_FLAGS: &[&str] = &[
     "--print-argv",
     "--print-cwd",
     "--spawn-descendant",
+    "--detached-descendant",
 ];
 
 fn parse(args: &[String]) -> Result<Plan, String> {
@@ -112,6 +124,10 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 "--print-env-all" => plan.print_env_all = true,
                 "--print-argv" => plan.print_argv = true,
                 "--print-cwd" => plan.print_cwd = true,
+                "--detached-descendant" => {
+                    plan.detached_descendant = true;
+                    plan.spawn_descendant = true;
+                }
                 _ => plan.spawn_descendant = true,
             }
             continue;
@@ -165,6 +181,19 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 plan.descendant_exit = code;
             }
             "--descendant-sleep-ms" => plan.descendant_sleep_ms = count(value, flag)?,
+            "--marker" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.marker = Some(value.to_owned());
+            }
+            "--descendant-marker" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.descendant_marker = Some(value.to_owned());
+            }
+            "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
             _ => plan.descendant_stdout_bytes = count(value, flag)?,
         }
     }
@@ -219,14 +248,23 @@ fn write_report(plan: &Plan, out: &mut impl Write) -> io::Result<()> {
 
 fn run_descendant(plan: &Plan) -> Result<i32, String> {
     let exe = env::current_exe().map_err(|err| format!("cannot name the probe: {err}"))?;
-    let args = [
+    let mut args = vec![
         format!("--exit-code={}", plan.descendant_exit),
         format!("--sleep-ms={}", plan.descendant_sleep_ms),
         format!("--stdout-bytes={}", plan.descendant_stdout_bytes),
     ];
-    let status = Command::new(exe)
-        .args(args)
-        .stdin(Stdio::null())
+    if let Some(marker) = &plan.descendant_marker {
+        args.push(format!("--marker={marker}"));
+    }
+    let mut command = Command::new(exe);
+    command.args(&args).stdin(Stdio::null());
+    if plan.detached_descendant {
+        return command
+            .spawn()
+            .map(|_| plan.exit_code)
+            .map_err(|err| format!("cannot spawn a descendant: {err}"));
+    }
+    let status = command
         .status()
         .map_err(|err| format!("cannot spawn a descendant: {err}"))?;
     Ok(status.code().unwrap_or(EXIT_USAGE))
@@ -276,6 +314,19 @@ fn main() {
             );
         }
     }
+    #[cfg(unix)]
+    if let Some(signo) = plan.raise_signal {
+        unsafe extern "C" {
+            fn raise(sig: i32) -> i32;
+        }
+        unsafe {
+            raise(signo);
+        }
+    }
+    #[cfg(not(unix))]
+    if plan.raise_signal.is_some() {
+        fail(EXIT_USAGE, "--raise-signal needs unix");
+    }
     let stdout = io::stdout();
     let stderr = io::stderr();
     let mut out = stdout.lock();
@@ -300,11 +351,17 @@ fn main() {
     if !plan.sleep.is_zero() {
         std::thread::sleep(plan.sleep);
     }
+    let mut exit_code = plan.exit_code;
     if plan.spawn_descendant {
-        match run_descendant(&plan) {
-            Ok(code) => std::process::exit(code),
+        exit_code = match run_descendant(&plan) {
+            Ok(code) => code,
             Err(message) => fail(EXIT_OUTPUT, &message),
+        };
+    }
+    if let Some(marker) = &plan.marker {
+        if let Err(error) = std::fs::write(marker, b"finished\n") {
+            fail(EXIT_OUTPUT, &format!("cannot write the marker: {error}"));
         }
     }
-    std::process::exit(plan.exit_code);
+    std::process::exit(exit_code);
 }

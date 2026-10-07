@@ -1,3 +1,3 @@
-input {"NEEDS": {"validate": {"result": "success"}, "lint": {"result": "skipped"}, "typecheck": {"result": "success"}, "format": {"result": "success"}, "generate": {"result": "success"}, "security-audit": {"result": "success"}, "license-audit": {"result": "success"}, "test": {"result": "success"}, "build": {"result": "success"}, "coverage": {"result": "skipped"}}, "DISABLED": "lint,coverage"}
+input {"NEEDS": {"validate": {"result": "success"}, "lint": {"result": "skipped"}, "typecheck": {"result": "success"}, "format": {"result": "success"}, "generate": {"result": "success"}, "security-audit": {"result": "success"}, "advisory-snapshots": {"result": "success"}, "license-audit": {"result": "success"}, "test": {"result": "success"}, "build": {"result": "success"}, "coverage": {"result": "skipped"}}, "DISABLED": "lint,coverage"}
 exit 0
 says "disabled": ["coverage", "lint"]

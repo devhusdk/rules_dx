@@ -7,10 +7,6 @@ edition = "2021"
 name = "js_launcher"
 path = "src/main.rs"
 
-[[bin]]
-name = "js_entry_point"
-path = "src/entry.rs"
-
 [lib]
 name = "dx_js_launcher"
 path = "src/lib.rs"

@@ -13,8 +13,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use dx_atomic_fs::commit::{acquire_commit_lock, CommitLock, LockError, ManagedRoot, DX_DIR_NAME};
 use dx_digest::blake3 as digest;
-use dx_env::{acquire_lock, LockError, DX_DIR_NAME};
 use dx_roots::{
     build_argv_union, invocation_targets_union, repository_plan, resolve_exact_target,
     ExactScopeError, RepositoryRootPlan,
@@ -280,8 +280,8 @@ fn map_lock_error(error: LockError) -> CommitError {
     }
 }
 
-fn acquire_commit_lock(dx_dir: &Path, timeout: Duration) -> Result<std::fs::File, CommitError> {
-    acquire_lock(dx_dir, timeout).map_err(map_lock_error)
+fn acquire_setup_commit_lock(dx_dir: &Path, timeout: Duration) -> Result<CommitLock, CommitError> {
+    acquire_commit_lock(&ManagedRoot::new(dx_dir.to_path_buf()), timeout).map_err(map_lock_error)
 }
 
 fn generation_from_link_target(target: &Path) -> Option<GenerationId> {
@@ -492,7 +492,7 @@ pub fn commit_pair_with_timeout(
     fs::create_dir_all(&dx_dir).map_err(|e| CommitError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
-    let _lock = acquire_commit_lock(&dx_dir, timeout)?;
+    let _lock = acquire_setup_commit_lock(&dx_dir, timeout)?;
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let prior = read_current_pair(workspace_root)?;
     install_and_swap(&setups_dir, prior, pair)
@@ -519,7 +519,7 @@ pub fn commit_prepared_with_timeout(
     fs::create_dir_all(&dx_dir).map_err(|e| CommitError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
-    let _lock = acquire_commit_lock(&dx_dir, timeout)?;
+    let _lock = acquire_setup_commit_lock(&dx_dir, timeout)?;
     let current = read_current_pair(workspace_root)?;
     let PreparedSides {
         prepared_environment,

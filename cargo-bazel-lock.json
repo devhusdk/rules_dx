@@ -1,5 +1,5 @@
 {
-  "checksum": "26011568be3406ab39545fa133f3d2dd2b4802c1155fbc320d59d01d206501e1",
+  "checksum": "873fd21e366e247204c53039d49bc19d3a25cd9403ac5d98776770abf2f28cc9",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2457,6 +2457,10 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
           }
         ],
         "edition": "2021"

@@ -8,6 +8,7 @@
     )
 )]
 
+pub mod commit;
 pub mod managed;
 
 use std::fs::File;

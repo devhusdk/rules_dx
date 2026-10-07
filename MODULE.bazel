@@ -274,6 +274,7 @@ crate.from_cargo(
         "//quality/tools/javascript/launcher:Cargo.toml",
         "//quality/evaluator:Cargo.toml",
         "//quality/markdown:Cargo.toml",
+        "//quality/matrix:Cargo.toml",
         "//quality/result:Cargo.toml",
         "//quality/runner:Cargo.toml",
         "//docs/ir/ir:Cargo.toml",

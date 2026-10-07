@@ -1,0 +1,113 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+
+package(default_visibility = VIS_QUALITY)
+
+rust_library(
+    name = "dx_matrix_harness",
+    srcs = [
+        "src/lib.rs",
+        "src/manifest.rs",
+        "src/run.rs",
+        "src/verify.rs",
+    ],
+    aliases = aliases(
+        package_name = "quality/dx_matrix_harness",
+        normal = True,
+    ),
+    crate_name = "dx_matrix_harness",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "quality/dx_matrix_harness",
+    ) + [
+        "//cli/diff:dx_diff",
+        "//cli/path:dx_path",
+        "//quality/adapter:quality_adapter",
+        "//quality/result:quality_result",
+    ],
+)
+
+rust_test(
+    name = "dx_matrix_harness_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "quality/dx_matrix_harness",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_matrix_harness",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "tempfile",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "quality/dx_matrix_harness",
+        normal_dev = True,
+    ),
+)
+
+rustfmt_test(
+    name = "dx_matrix_harness_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_matrix_harness",
+        ":matrix_harness",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_matrix_harness_clippy_test",
+    size = "small",
+    targets = [
+        ":dx_matrix_harness",
+        ":matrix_harness",
+    ],
+)
+
+exports_files(["Cargo.toml"])
+
+rust_binary(
+    name = "matrix_harness",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "quality/dx_matrix_harness",
+        normal = True,
+    ),
+    crate_name = "matrix_harness",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "tracing",
+        ],
+        package_name = "quality/dx_matrix_harness",
+    ) + [
+        ":dx_matrix_harness",
+        "//cli/output:dx_output",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

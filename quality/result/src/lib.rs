@@ -298,6 +298,101 @@ pub fn decode_validated(bytes: &[u8]) -> Result<QualityResult, Error> {
     dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
+fn severity_name(value: i32) -> &'static str {
+    match Severity::try_from(value) {
+        Ok(Severity::Info) => "INFO",
+        Ok(Severity::Warning) => "WARNING",
+        Ok(Severity::Error) => "ERROR",
+        _ => "UNKNOWN",
+    }
+}
+
+fn capability_name(value: i32) -> &'static str {
+    match Capability::try_from(value) {
+        Ok(Capability::Lint) => "LINT",
+        Ok(Capability::Typecheck) => "TYPECHECK",
+        Ok(Capability::Format) => "FORMAT",
+        Ok(Capability::Audit) => "AUDIT",
+        _ => "UNKNOWN",
+    }
+}
+
+fn convergence_name(value: i32) -> &'static str {
+    match Convergence::try_from(value) {
+        Ok(Convergence::Stable) => "STABLE",
+        Ok(Convergence::Oscillation) => "OSCILLATION",
+        Ok(Convergence::IterationLimit) => "ITERATION_LIMIT",
+        _ => "UNKNOWN",
+    }
+}
+
+fn rule_name(rule: &str) -> &str {
+    if rule.is_empty() {
+        "-"
+    } else {
+        rule
+    }
+}
+
+fn opt_number(value: Option<u64>) -> String {
+    value
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "-".to_owned())
+}
+
+fn push_diagnostics(out: &mut String, prefix: &str, diagnostics: &[Diagnostic]) {
+    out.push_str(&format!("{prefix} {}\n", diagnostics.len()));
+    for diagnostic in diagnostics {
+        out.push_str(&format!(
+            "{prefix} {} {} {} {} {} {} fixable={} {:?}\n",
+            severity_name(diagnostic.severity),
+            diagnostic.tool_id,
+            rule_name(&diagnostic.rule_id),
+            diagnostic.path,
+            opt_number(diagnostic.start_byte),
+            opt_number(diagnostic.end_byte),
+            diagnostic.fixable,
+            diagnostic.message,
+        ));
+    }
+}
+
+/// Renders one validated result as the deterministic snapshot text.
+pub fn print_text(result: &QualityResult) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("producer {}\n", result.producer));
+    out.push_str(&format!("capability {}\n", capability_name(result.capability)));
+    out.push_str(&format!("stages {}\n", result.stages.len()));
+    for stage in &result.stages {
+        out.push_str(&format!(
+            "stage {} classes={} sources={}\n",
+            stage.tool_id,
+            stage.class_ids.join(","),
+            stage.source_paths.join(","),
+        ));
+    }
+    out.push_str(&format!("completed_rounds {}\n", result.completed_rounds));
+    out.push_str(&format!(
+        "convergence {}\n",
+        convergence_name(result.convergence)
+    ));
+    push_diagnostics(&mut out, "initial", &result.initial_diagnostics);
+    push_diagnostics(&mut out, "terminal", &result.terminal_diagnostics);
+    out.push_str(&format!("replacements {}\n", result.replacements.len()));
+    for file in &result.replacements {
+        for edit in &file.edits {
+            out.push_str(&format!(
+                "replacement {} {} {} {:?}\n",
+                file.path,
+                edit.start_byte,
+                edit.end_byte,
+                String::from_utf8_lossy(&edit.replacement),
+            ));
+        }
+    }
+    out
+}
+
 pub fn assert_all_equal<T: PartialEq + std::fmt::Debug>(items: &[T]) {
     assert!(
         !items.is_empty(),
@@ -358,6 +453,22 @@ mod tests {
                 }],
             }],
         }
+    }
+
+    #[test]
+    fn printed_sample_matches_snapshot_text() {
+        let expected = "producer //quality:test\n\
+            capability LINT\n\
+            stages 1\n\
+            stage lint-a classes=rust sources=src/lib.rs\n\
+            completed_rounds 1\n\
+            convergence STABLE\n\
+            initial 1\n\
+            initial WARNING lint-a - src/lib.rs 0 1 fixable=false \"trailing whitespace\"\n\
+            terminal 0\n\
+            replacements 1\n\
+            replacement src/lib.rs 0 1 \"x\"\n";
+        assert_eq!(print_text(&sample()), expected);
     }
 
     #[test]

@@ -110,7 +110,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
 fn empty_report(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let _ = last_file(argv);
@@ -124,7 +124,7 @@ fn empty_report(
 fn must_not_spawn(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     panic!("delegated tool spawned: {:?}", argv);

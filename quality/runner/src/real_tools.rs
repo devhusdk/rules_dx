@@ -119,7 +119,7 @@ fn error_display_reports_variants() {
 fn buildifier_fix_ok(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     std::fs::write(last_file(argv), "fixed\n").expect("fix writes back");
@@ -133,7 +133,7 @@ fn buildifier_fix_ok(
 fn taplo_fix_ok(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     std::fs::write(last_file(argv), "a = 1\n").expect("fix writes back");
@@ -147,7 +147,7 @@ fn taplo_fix_ok(
 fn check_ok_fix_missing(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     if argv.iter().any(|arg| arg == "--check") {
@@ -163,7 +163,7 @@ fn check_ok_fix_missing(
 fn check_ok_fix_poisons(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let file = last_file(argv);
@@ -735,7 +735,7 @@ fn terminal_check_failure_aborts_the_pipeline() {
 fn ruff_fix_crashes(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     if argv.iter().any(|arg| arg == "--fix") {
         assert_ruff_hermetic(argv, env);
@@ -748,7 +748,11 @@ fn ruff_fix_crashes(
     roundtrip_ruff(argv, cwd, env)
 }
 
-fn ty_garbage(argv: &[OsString], _cwd: &Path, env: &[(String, String)]) -> io::Result<ChildOutput> {
+fn ty_garbage(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
         argv.iter().any(|arg| arg == "--no-respect-ignore-files"),
@@ -820,7 +824,8 @@ fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
     std::fs::write(&file, "import os\nlet unusedVar = 1;\n").expect("write backslash fixture");
     let absolute = file.to_string_lossy().into_owned();
     let relative = "a\\b.py";
-    let env = quality_adapter::exec::hermetic_env(dir.path(), &[]);
+    let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+    let env = quality_adapter::exec::hermetic_env(dir.path(), &[], &ambient);
     let path = file.as_os_str().to_owned();
     let buildifier_argv = [OsString::from("buildifier"), path.clone()];
     let pylint_argv = [

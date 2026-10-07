@@ -102,24 +102,48 @@ pub(super) fn file(path: &str, body: &str) -> FileInput {
     }
 }
 
-pub(super) fn assert_hermetic(env: &[(String, String)]) {
+pub(super) fn assert_hermetic(env: &[(OsString, OsString)]) {
+    let folded = |key: &OsString| key.to_string_lossy().to_ascii_uppercase();
+    let pinned = |key: &str| {
+        let hits: Vec<&OsString> = env
+            .iter()
+            .filter(|(known, _)| known == key)
+            .map(|(_, value)| value)
+            .collect();
+        assert_eq!(hits.len(), 1, "exactly one {key}");
+        hits[0].clone()
+    };
+    let tmpdir = pinned("TMPDIR");
+    assert!(!tmpdir.is_empty(), "TMPDIR names a scratch tree");
+    assert_eq!(pinned("TEMP"), tmpdir, "TEMP matches TMPDIR");
+    assert_eq!(pinned("TMP"), tmpdir, "TMP matches TMPDIR");
     assert!(
-        env.iter().any(|(key, _)| key == "TMPDIR"),
-        "TMPDIR is always set"
-    );
-    assert!(
-        !env.iter().any(|(key, _)| key == "PATH"),
+        !env.iter().any(|(key, _)| folded(key) == "PATH"),
         "PATH is never set"
     );
-    assert!(
-        env.iter()
-            .any(|(key, value)| key == "LANG" && value == "C.UTF-8"),
-        "LANG is pinned to C.UTF-8"
-    );
-    assert!(
-        env.iter().any(|(key, value)| key == "TZ" && value == "UTC"),
-        "TZ is pinned to UTC"
-    );
+    for denied in [
+        "HOME",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "PUBLIC",
+        "ALLUSERSPROFILE",
+        "PROGRAMDATA",
+        "USERNAME",
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "NODE_OPTIONS",
+        "NODE_PATH",
+    ] {
+        assert!(
+            env.iter().all(|(key, _)| folded(key) != denied),
+            "{denied} never leaks"
+        );
+    }
+    assert_eq!(pinned("LANG"), OsString::from("C.UTF-8"));
+    assert_eq!(pinned("TZ"), OsString::from("UTC"));
 }
 
 pub(super) fn last_file(argv: &[OsString]) -> String {
@@ -139,7 +163,7 @@ pub(super) fn trim_end(line: &[u8]) -> &[u8] {
 pub(super) fn roundtrip_rustfmt(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let file = last_file(argv);
@@ -186,7 +210,7 @@ pub(super) fn roundtrip_rustfmt(
 pub(super) fn buildifier_plain(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let stdout = BUILDIFIER_MIXED.replace("FILE", &json_escape(&last_file(argv)));
@@ -200,7 +224,7 @@ pub(super) fn buildifier_plain(
 pub(super) fn buildifier_hinted(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -213,7 +237,7 @@ pub(super) fn buildifier_hinted(
 pub(super) fn buildifier_far(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let stdout = BUILDIFIER_FAR.replace("FILE", &json_escape(&last_file(argv)));
@@ -227,7 +251,7 @@ pub(super) fn buildifier_far(
 pub(super) fn garbage_stdout(
     _argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     Ok(ChildOutput {
@@ -254,7 +278,7 @@ pub(super) fn biome_config_dir_arg(argv: &[OsString]) -> String {
 pub(super) fn roundtrip_biome(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -340,7 +364,7 @@ pub(super) fn roundtrip_biome(
 pub(super) fn biome_defaults(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     let config_dir = biome_config_dir_arg(argv);
     assert!(
@@ -356,7 +380,7 @@ pub(super) fn biome_defaults(
 pub(super) fn biome_hinted(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     let config_dir = biome_config_dir_arg(argv);
     assert!(
@@ -375,7 +399,7 @@ pub(super) fn biome_hinted(
 pub(super) fn roundtrip_eslint(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -427,7 +451,7 @@ pub(super) fn roundtrip_eslint(
 pub(super) fn roundtrip_prettier(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -480,7 +504,7 @@ pub(super) fn roundtrip_prettier(
 pub(super) fn missing_spawn(
     _argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     Err(io::Error::new(io::ErrorKind::NotFound, "no such binary"))
@@ -489,7 +513,7 @@ pub(super) fn missing_spawn(
 pub(super) fn fatal_fix(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let _ = last_file(argv);
@@ -503,7 +527,7 @@ pub(super) fn fatal_fix(
 pub(super) fn taplo_either(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let file = last_file(argv);
@@ -528,7 +552,7 @@ pub(super) fn taplo_either(
 pub(super) fn taplo_garbage(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let _ = last_file(argv);
@@ -539,7 +563,7 @@ pub(super) fn taplo_garbage(
     })
 }
 
-pub(super) fn assert_ruff_hermetic(argv: &[OsString], env: &[(String, String)]) {
+pub(super) fn assert_ruff_hermetic(argv: &[OsString], env: &[(OsString, OsString)]) {
     assert_hermetic(env);
     assert!(
         argv.iter().any(|arg| arg == "--no-cache"),
@@ -554,7 +578,7 @@ pub(super) fn assert_ruff_hermetic(argv: &[OsString], env: &[(String, String)]) 
 pub(super) fn roundtrip_ruff(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_ruff_hermetic(argv, env);
     assert!(
@@ -567,7 +591,7 @@ pub(super) fn roundtrip_ruff(
 pub(super) fn roundtrip_ruff_hinted(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_ruff_hermetic(argv, env);
     assert!(
@@ -658,7 +682,7 @@ pub(super) fn ruff_behavior(argv: &[OsString]) -> io::Result<ChildOutput> {
 pub(super) fn roundtrip_ty(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -692,7 +716,7 @@ pub(super) fn roundtrip_ty(
 pub(super) fn roundtrip_pydoclint(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -722,7 +746,7 @@ pub(super) fn roundtrip_pydoclint(
 pub(super) fn roundtrip_flake8(
     argv: &[OsString],
     _cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -758,7 +782,7 @@ pub(super) fn roundtrip_flake8(
 pub(super) fn roundtrip_pylint(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(
@@ -805,7 +829,7 @@ pub(super) fn roundtrip_pylint(
 pub(super) fn vale_hinted(
     argv: &[OsString],
     cwd: &Path,
-    env: &[(String, String)],
+    env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     assert!(

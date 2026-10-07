@@ -38,6 +38,7 @@ Usage: process_probe [options]
   --descendant-exit=N           exit code the descendant reports
   --descendant-sleep-ms=N       milliseconds the descendant sleeps
   --descendant-stdout-bytes=N   zero bytes the descendant writes to stdout
+  --raise-signal=N              die by signal N (unix only)
   --help                        write this text and exit 0
 ";
 
@@ -68,6 +69,7 @@ struct Plan {
     descendant_exit: i32,
     descendant_sleep_ms: u64,
     descendant_stdout_bytes: usize,
+    raise_signal: Option<i32>,
 }
 
 fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String> {
@@ -90,6 +92,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--descendant-exit",
     "--descendant-sleep-ms",
     "--descendant-stdout-bytes",
+    "--raise-signal",
 ];
 
 /// The flags that stand alone.
@@ -165,6 +168,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 plan.descendant_exit = code;
             }
             "--descendant-sleep-ms" => plan.descendant_sleep_ms = count(value, flag)?,
+            "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
             _ => plan.descendant_stdout_bytes = count(value, flag)?,
         }
     }
@@ -275,6 +279,19 @@ fn main() {
                 &format!("{name} must hold {wanted}, holds {}", env_value(name)),
             );
         }
+    }
+    #[cfg(unix)]
+    if let Some(signo) = plan.raise_signal {
+        unsafe extern "C" {
+            fn raise(sig: i32) -> i32;
+        }
+        unsafe {
+            raise(signo);
+        }
+    }
+    #[cfg(not(unix))]
+    if plan.raise_signal.is_some() {
+        fail(EXIT_USAGE, "--raise-signal needs unix");
     }
     let stdout = io::stdout();
     let stderr = io::stderr();

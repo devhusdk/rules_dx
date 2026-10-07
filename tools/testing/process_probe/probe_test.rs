@@ -36,6 +36,7 @@ fn help_names_every_flag_and_exits_zero() {
         "--descendant-exit",
         "--descendant-sleep-ms",
         "--descendant-stdout-bytes",
+        "--raise-signal",
         "--help",
     ] {
         assert!(
@@ -253,4 +254,13 @@ fn a_usage_error_documents_the_grammar() {
         "{}",
         run.stderr
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_raised_signal_kills_the_probe() {
+    use std::os::unix::process::ExitStatusExt;
+    let run = run(&["--raise-signal=15"]);
+    assert_eq!(run.status.code(), None);
+    assert_eq!(run.status.signal(), Some(15));
 }

@@ -1,11 +1,11 @@
 use dx_atomic_fs::{classify, materialize_file, write_atomic, EntryKind, LinkPolicy, Mechanism};
+use dx_process::lifecycle::{CapturePolicy, ChildOutcome, EnvPolicy, SpawnSpec};
 use normpath::BasePathBuf;
 use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
-use std::io::{self, Read};
+use std::io;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MirrorContents {
@@ -273,47 +273,6 @@ fn build_env(
 
 pub const SPAWN_TIMEOUT: Duration = Duration::from_secs(120);
 
-fn check_child_output_size(stdout: &[u8], stderr: &[u8]) -> io::Result<()> {
-    let limit = crate::parsers::MAX_OUTPUT_BYTES;
-    if stdout.len() > limit || stderr.len() > limit {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("tool output exceeds max size {limit} bytes"),
-        ));
-    }
-    Ok(())
-}
-
-fn drain_pipe<R: Read + Send + 'static>(mut pipe: R) -> std::thread::JoinHandle<Vec<u8>> {
-    std::thread::spawn(move || {
-        let limit = crate::parsers::MAX_OUTPUT_BYTES;
-        let mut buf = Vec::new();
-        let mut chunk = [0u8; 16 * 1024];
-        loop {
-            match pipe.read(&mut chunk) {
-                Ok(0) => break,
-                Ok(n) => {
-                    let room = limit.saturating_add(1).saturating_sub(buf.len());
-                    let take = n.min(room);
-                    buf.extend_from_slice(&chunk[..take]);
-                }
-                Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
-                Err(_) => break,
-            }
-        }
-        buf
-    })
-}
-
-fn join_drain(handle: Option<std::thread::JoinHandle<Vec<u8>>>) -> io::Result<Vec<u8>> {
-    match handle {
-        None => Ok(Vec::new()),
-        Some(handle) => handle
-            .join()
-            .map_err(|_| io::Error::other("tool output reader thread panicked")),
-    }
-}
-
 pub fn spawn(
     argv: &[impl AsRef<OsStr>],
     cwd: &Path,
@@ -328,46 +287,34 @@ pub fn spawn_with_timeout(
     env: &[(OsString, OsString)],
     timeout: Duration,
 ) -> io::Result<ChildOutput> {
-    let (binary, args) = argv
-        .split_first()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
-    let mut child = Command::new(binary)
-        .args(args)
-        .current_dir(cwd)
-        .env_clear()
-        .envs(env.iter().map(|(key, value)| (key, value)))
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-    let mut stdout_reader = child.stdout.take().map(drain_pipe);
-    let mut stderr_reader = child.stderr.take().map(drain_pipe);
-    let deadline = Instant::now() + timeout;
-    let status = loop {
-        match child.try_wait()? {
-            Some(status) => break status,
-            None => {
-                if Instant::now() >= deadline {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    let _ = join_drain(stdout_reader.take());
-                    let _ = join_drain(stderr_reader.take());
-                    return Err(io::Error::new(
-                        io::ErrorKind::TimedOut,
-                        format!("tool timed out after {}s", timeout.as_secs()),
-                    ));
-                }
-                std::thread::sleep(Duration::from_millis(10));
-            }
-        }
+    let spec = SpawnSpec {
+        argv: argv.iter().map(|arg| arg.as_ref().to_owned()).collect(),
+        cwd: cwd.to_path_buf(),
+        env: EnvPolicy::Controlled { vars: env.to_vec() },
+        capture: CapturePolicy {
+            max_bytes: crate::parsers::MAX_OUTPUT_BYTES,
+        },
+        timeout,
     };
-    let stdout = join_drain(stdout_reader)?;
-    let stderr = join_drain(stderr_reader)?;
-    check_child_output_size(&stdout, &stderr)?;
-    Ok(ChildOutput {
-        code: status.code(),
-        stdout,
-        stderr,
-    })
+    match dx_process::lifecycle::run(&spec)? {
+        ChildOutcome::Finished {
+            exit,
+            stdout,
+            stderr,
+        } => Ok(ChildOutput {
+            code: exit.code(),
+            stdout,
+            stderr,
+        }),
+        ChildOutcome::TimedOut => Err(io::Error::new(
+            io::ErrorKind::TimedOut,
+            format!("tool timed out after {}s", timeout.as_secs()),
+        )),
+        ChildOutcome::OutputTooLarge { limit } => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("tool output exceeds max size {limit} bytes"),
+        )),
+    }
 }
 
 #[cfg(test)]

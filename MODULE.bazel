@@ -222,6 +222,8 @@ use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
 
+register_toolchains("@llvm//toolchain:all")
+
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.annotation(
     build_script_env = {

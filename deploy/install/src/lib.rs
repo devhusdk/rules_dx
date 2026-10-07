@@ -1030,14 +1030,74 @@ mod tests {
 
     #[test]
     fn system_verifier_bin_names_follow_env_overrides() {
+        if let Some(raw) = std::env::var_os("DX_INSTALL_VERIFY_CHILD") {
+            let raw = raw.to_string_lossy().into_owned();
+            let (mode, sentinel) = raw.split_once(':').expect("mode:path");
+            std::env::set_var("DX_VERIFY_COSIGN", "pinned-cosign");
+            std::env::set_var("DX_VERIFY_GH", "pinned-gh");
+            let verifier = SystemVerifier;
+            assert_eq!(verifier.cosign_bin(), "pinned-cosign");
+            assert_eq!(verifier.gh_bin(), "pinned-gh");
+            if mode == "panic" {
+                panic!("intentional child failure");
+            }
+            std::fs::write(sentinel, b"ok").expect("sentinel");
+            std::env::remove_var("DX_VERIFY_COSIGN");
+            std::env::remove_var("DX_VERIFY_GH");
+            return;
+        }
         let verifier = SystemVerifier;
         assert_eq!(verifier.cosign_bin(), "cosign");
         assert_eq!(verifier.gh_bin(), "gh");
-        std::env::set_var("DX_VERIFY_COSIGN", "pinned-cosign");
-        std::env::set_var("DX_VERIFY_GH", "pinned-gh");
-        assert_eq!(verifier.cosign_bin(), "pinned-cosign");
-        assert_eq!(verifier.gh_bin(), "pinned-gh");
-        std::env::remove_var("DX_VERIFY_COSIGN");
-        std::env::remove_var("DX_VERIFY_GH");
+        let before = (
+            std::env::var_os("DX_VERIFY_COSIGN"),
+            std::env::var_os("DX_VERIFY_GH"),
+        );
+        let scratch = tempfile::tempdir().expect("scratch");
+        let sentinel = scratch.path().join("ran");
+        let spawn = |mode: &str| {
+            std::process::Command::new(std::env::current_exe().expect("test binary"))
+                .args([
+                    "tests::system_verifier_bin_names_follow_env_overrides",
+                    "--exact",
+                ])
+                .env(
+                    "DX_INSTALL_VERIFY_CHILD",
+                    format!("{mode}:{}", sentinel.display()),
+                )
+                .output()
+                .expect("spawn env child")
+        };
+        let poisoned = spawn("panic");
+        assert!(
+            !poisoned.status.success(),
+            "panicking child must fail: {}",
+            String::from_utf8_lossy(&poisoned.stdout)
+        );
+        assert_eq!(
+            (
+                std::env::var_os("DX_VERIFY_COSIGN"),
+                std::env::var_os("DX_VERIFY_GH")
+            ),
+            before,
+            "child env mutation dies with the child"
+        );
+        let ok = spawn("run");
+        assert!(
+            ok.status.success(),
+            "child failed: {}{}",
+            String::from_utf8_lossy(&ok.stdout),
+            String::from_utf8_lossy(&ok.stderr)
+        );
+        assert!(sentinel.exists(), "child ran the assertions");
+        assert_eq!(
+            (
+                std::env::var_os("DX_VERIFY_COSIGN"),
+                std::env::var_os("DX_VERIFY_GH")
+            ),
+            before,
+            "child env mutation dies with the child"
+        );
+        scratch.close().expect("cleanup");
     }
 }

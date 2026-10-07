@@ -33,9 +33,12 @@ fn help_names_every_flag_and_exits_zero() {
         "--print-argv",
         "--print-cwd",
         "--spawn-descendant",
+        "--detached-descendant",
         "--descendant-exit",
         "--descendant-sleep-ms",
         "--descendant-stdout-bytes",
+        "--descendant-marker",
+        "--marker",
         "--raise-signal",
         "--help",
     ] {
@@ -208,6 +211,46 @@ fn a_descendant_sleeps_before_the_parent_exits() {
 }
 
 #[test]
+fn a_waited_descendant_marker_records_a_normal_end() {
+    let scratch = dx_testing::mkscratch("dx-probe-waited-marker").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let run = run(&[
+        "--spawn-descendant",
+        "--descendant-sleep-ms=10",
+        &format!("--descendant-marker={}", marker.display()),
+    ]);
+    assert_eq!(run.status.code(), Some(0));
+    assert!(
+        marker.exists(),
+        "a surviving descendant creates its marker: {}",
+        marker.display()
+    );
+}
+
+#[test]
+fn a_detached_descendant_runs_without_supplying_the_exit_status() {
+    let scratch = dx_testing::mkscratch("dx-probe-detached-marker").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let run = run(&[
+        "--detached-descendant",
+        "--exit-code=3",
+        "--descendant-exit=9",
+        "--descendant-sleep-ms=50",
+        &format!("--descendant-marker={}", marker.display()),
+    ]);
+    assert_eq!(
+        run.status.code(),
+        Some(3),
+        "the parent exits with its own code while the descendant runs"
+    );
+    assert!(
+        marker.exists(),
+        "the detached descendant runs to its normal end: {}",
+        marker.display()
+    );
+}
+
+#[test]
 fn a_missing_value_is_a_usage_error() {
     for arg in [
         "--exit-code",
@@ -215,6 +258,8 @@ fn a_missing_value_is_a_usage_error() {
         "--require-env",
         "--forbid-env",
         "--print-env",
+        "--marker",
+        "--descendant-marker",
     ] {
         let run = run(&[arg]);
         assert_eq!(run.status.code(), Some(64), "{arg} must be rejected");
@@ -238,7 +283,12 @@ fn a_malformed_value_is_a_usage_error() {
 
 #[test]
 fn a_switch_with_a_value_is_a_usage_error() {
-    for arg in ["--print-cwd=1", "--print-argv=", "--spawn-descendant=yes"] {
+    for arg in [
+        "--print-cwd=1",
+        "--print-argv=",
+        "--spawn-descendant=yes",
+        "--detached-descendant=1",
+    ] {
         let run = run(&[arg]);
         assert_eq!(run.status.code(), Some(64), "{arg} must be rejected");
         assert!(run.stderr.contains("takes no value"), "{}", run.stderr);

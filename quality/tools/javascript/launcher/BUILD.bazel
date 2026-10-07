@@ -7,7 +7,6 @@ package(default_visibility = VIS_PUBLIC)
 
 exports_files([
     "Cargo.toml",
-    "src/entry.rs",
     "src/lib.rs",
     "src/lib_tests.rs",
     "src/main.rs",
@@ -48,22 +47,6 @@ rust_binary(
     ) + [":dx_js_launcher"],
 )
 
-rust_binary(
-    name = "js_entry_point",
-    srcs = ["src/entry.rs"],
-    aliases = aliases(
-        package_name = "quality/tools/javascript/dx_js_launcher",
-        normal = True,
-    ),
-    crate_name = "js_entry_point",
-    crate_root = "src/entry.rs",
-    edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "quality/tools/javascript/dx_js_launcher",
-    ) + [":dx_js_launcher"],
-)
-
 rust_test(
     name = "dx_js_launcher_test",
     aliases = aliases(
@@ -73,11 +56,9 @@ rust_test(
     ),
     crate = ":dx_js_launcher",
     data = [
-        ":js_entry_point",
         ":js_launcher",
     ],
     env = {
-        "DX_JS_ENTRY_POINT": "$(rootpath :js_entry_point)",
         "DX_JS_LAUNCHER": "$(rootpath :js_launcher)",
     },
     deps = crate_deps(
@@ -92,7 +73,6 @@ rustfmt_test(
     targets = [
         ":dx_js_launcher",
         ":dx_js_launcher_test",
-        ":js_entry_point",
         ":js_launcher",
     ],
 )
@@ -102,7 +82,6 @@ rust_clippy_test(
     size = "small",
     targets = [
         ":dx_js_launcher",
-        ":js_entry_point",
         ":js_launcher",
     ],
 )

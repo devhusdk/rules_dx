@@ -90,6 +90,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//quality/result:quality_result",
     ],
 )
@@ -119,7 +120,10 @@ rust_test(
             "thiserror",
         ],
         package_name = "quality/quality_adapter",
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        "//cli/process:dx_process",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(

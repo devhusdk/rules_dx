@@ -46,9 +46,35 @@ fn unusable_detail(count: usize, first: &str) -> String {
     }
 }
 
-/// True when Bazel passed and at most a quarter of the reported results are unusable.
+/// True when Bazel passed and at most a quarter of the reported test results are unusable.
 fn partial_results_tolerated(bazel_code: i32, usable: usize, unusable: usize) -> bool {
     bazel_code == 0 && unusable * 3 <= usable
+}
+
+/// True for the names Bazel reports a test's coverage result under.
+fn is_coverage_output(name: &str) -> bool {
+    name == "coverage.dat" || name == "test.lcov"
+}
+
+/// The latest attempt Bazel reported for each result's named coverage output.
+fn final_coverage_attempts(
+    outputs: &[dx_bep::TestOutputFile],
+) -> BTreeMap<(&str, u32, u32, &str), u32> {
+    let mut finals = BTreeMap::new();
+    for output in outputs {
+        if !is_coverage_output(&output.name) {
+            continue;
+        }
+        let key = (
+            output.label.as_str(),
+            output.run,
+            output.shard,
+            output.name.as_str(),
+        );
+        let seen = finals.entry(key).or_insert(0);
+        *seen = (*seen).max(output.attempt);
+    }
+    finals
 }
 
 pub(crate) struct TestReportsRequest<'a> {
@@ -218,8 +244,21 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         let mut first_error = String::new();
         let mut error_count = 0usize;
+        let finals = final_coverage_attempts(&outputs);
         for output in &outputs {
-            if output.name != "coverage.dat" && output.name != "test.lcov" {
+            if !is_coverage_output(&output.name) {
+                continue;
+            }
+            let key = (
+                output.label.as_str(),
+                output.run,
+                output.shard,
+                output.name.as_str(),
+            );
+            let Some(final_attempt) = finals.get(&key) else {
+                continue;
+            };
+            if output.attempt < *final_attempt {
                 continue;
             }
             let bytes = match reader.read_artifact(&output.exec_path) {
@@ -263,17 +302,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 };
             }
         } else if !first_error.is_empty() {
-            if partial_results_tolerated(bazel_code, lcov_documents.len(), error_count) {
-                let _ = writeln!(
-                    err,
-                    "dx: incomplete_results (tolerated): {}",
-                    unusable_detail(error_count, &first_error)
-                );
-            } else {
-                complete = false;
-                if detail.is_empty() {
-                    detail = unusable_detail(error_count, &first_error);
-                }
+            complete = false;
+            if detail.is_empty() {
+                detail = unusable_detail(error_count, &first_error);
             }
         }
     }
@@ -351,7 +382,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             );
         }
     }
-    if !complete && !detail.is_empty() && planned_reports.is_empty() {
+    if !complete
+        && !detail.is_empty()
+        && (verb == WorkflowVerb::Coverage || planned_reports.is_empty())
+    {
         if invocation.output == OutputMode::Json {
             if let Ok(event) =
                 dx_output::error_event("incomplete_results", &detail, None, None, None)
@@ -365,46 +399,51 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut threshold_ok = true;
     if verb == WorkflowVerb::Coverage {
         if let Some(minimum) = invocation.min_coverage {
-            let summary = match coverage_line_rate(&lcov_documents, &|path| {
-                std::fs::read_to_string(workspace.join(path)).ok()
-            }) {
-                Ok((covered, eligible)) if eligible > 0 => {
-                    let percent = 100.0 * covered as f64 / eligible as f64;
-                    let passed = covered * 100 >= u64::from(minimum) * eligible;
-                    threshold_ok = passed;
-                    if passed {
-                        format!(
-                            "coverage {percent:.2}% ({covered}/{eligible} lines) meets minimum {minimum}%"
-                        )
-                    } else {
-                        format!(
-                            "coverage_below_minimum: coverage {percent:.2}% ({covered}/{eligible} lines) below minimum {minimum}%"
-                        )
-                    }
-                }
-                Ok(_) => {
-                    threshold_ok = false;
-                    "coverage_below_minimum: no executable lines in the collected LCOV".to_owned()
-                }
-                Err(error) => {
-                    threshold_ok = false;
-                    format!("coverage_below_minimum: {error}")
-                }
-            };
-            if invocation.output == OutputMode::Json {
-                if !threshold_ok {
-                    if let Ok(event) = dx_output::error_event(
-                        CODE_COVERAGE_BELOW_MINIMUM,
-                        &summary,
-                        None,
-                        None,
-                        None,
-                    ) {
-                        let _ = write_event(out, &event);
-                    }
-                }
+            if !detail.is_empty() {
+                threshold_ok = false;
             } else {
-                let _ = writeln!(err, "dx: {summary}");
+                let summary = match coverage_line_rate(&lcov_documents, &|path| {
+                    std::fs::read_to_string(workspace.join(path)).ok()
+                }) {
+                    Ok((covered, eligible)) if eligible > 0 => {
+                        let percent = 100.0 * covered as f64 / eligible as f64;
+                        let passed = covered * 100 >= u64::from(minimum) * eligible;
+                        threshold_ok = passed;
+                        if passed {
+                            format!(
+                                "coverage {percent:.2}% ({covered}/{eligible} lines) meets minimum {minimum}%"
+                            )
+                        } else {
+                            format!(
+                                "coverage_below_minimum: coverage {percent:.2}% ({covered}/{eligible} lines) below minimum {minimum}%"
+                            )
+                        }
+                    }
+                    Ok(_) => {
+                        threshold_ok = false;
+                        "coverage_below_minimum: no executable lines in the collected LCOV"
+                            .to_owned()
+                    }
+                    Err(error) => {
+                        threshold_ok = false;
+                        format!("coverage_below_minimum: {error}")
+                    }
+                };
+                if invocation.output == OutputMode::Json {
+                    if !threshold_ok {
+                        if let Ok(event) = dx_output::error_event(
+                            CODE_COVERAGE_BELOW_MINIMUM,
+                            &summary,
+                            None,
+                            None,
+                            None,
+                        ) {
+                            let _ = write_event(out, &event);
+                        }
+                    }
+                } else {
+                    let _ = writeln!(err, "dx: {summary}");
+                }
             }
         }
     }
@@ -970,8 +1009,8 @@ mod tests {
     }
 
     #[test]
-    fn coverage_single_missing_dat_tolerated_when_bazel_passed() {
-        let harness = Harness::new("cov-partial-tolerated");
+    fn coverage_single_missing_dat_fails_when_bazel_passed() {
+        let harness = Harness::new("cov-partial-missing");
         let raw = (0..4)
             .map(|index| {
                 test_result_line(
@@ -997,12 +1036,198 @@ mod tests {
             ..harness
         };
         let (code, _, err) = harness.run(&["coverage", "--output=text"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(err.contains("tolerated"), "{err}");
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(
+            err.contains("coverage.dat for //a:missing (run 1, shard 1, attempt 1)"),
+            "{err}"
+        );
     }
 
     #[test]
-    fn coverage_two_missing_dats_tolerated_when_bazel_passed() {
+    fn coverage_missing_artifact_blocks_min_coverage() {
+        let harness = Harness::new("cov-missing-threshold");
+        let raw = (0..4)
+            .map(|index| {
+                test_result_line(
+                    &format!("//a:ok{index}"),
+                    &[(
+                        String::from("coverage.dat"),
+                        write_bep_artifact(
+                            &harness,
+                            &format!("ok8-{index}.dat"),
+                            MINIMAL_LCOV.as_bytes(),
+                        ),
+                    )],
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut lines = raw;
+        lines.push(test_result_line(
+            "//a:missing",
+            &[(String::from("coverage.dat"), missing_uri("missing.dat"))],
+        ));
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(!err.contains("meets minimum"), "{err}");
+    }
+
+    #[test]
+    fn coverage_invalid_artifact_blocks_min_coverage() {
+        let harness = Harness::new("cov-invalid-threshold");
+        let ok_uri = write_bep_artifact(&harness, "ok.dat", MINIMAL_LCOV.as_bytes());
+        let bad_uri = write_bep_artifact(&harness, "bad.dat", b"not lcov");
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("coverage.dat"), ok_uri)]),
+                test_result_line("//a:bad", &[(String::from("coverage.dat"), bad_uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(
+            err.contains("invalid coverage.dat for //a:bad (run 1, shard 1, attempt 1)"),
+            "{err}"
+        );
+        assert!(!err.contains("meets minimum"), "{err}");
+    }
+
+    #[test]
+    fn coverage_superseded_attempt_is_not_required() {
+        let harness = Harness::new("cov-retry-ok");
+        let final_uri = write_bep_artifact(&harness, "final.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_identity_line(
+                    "//a:t",
+                    1,
+                    1,
+                    1,
+                    &[(String::from("test.lcov"), missing_uri("attempt1.dat"))],
+                ),
+                test_result_identity_line(
+                    "//a:t",
+                    1,
+                    1,
+                    2,
+                    &[(String::from("test.lcov"), final_uri)],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("incomplete_results"), "{err}");
+        assert!(err.contains("meets minimum 100%"), "{err}");
+    }
+
+    #[test]
+    fn coverage_final_attempt_missing_is_required() {
+        let harness = Harness::new("cov-retry-missing");
+        let stale_uri = write_bep_artifact(&harness, "stale.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_identity_line(
+                    "//a:t",
+                    1,
+                    1,
+                    1,
+                    &[(String::from("test.lcov"), stale_uri)],
+                ),
+                test_result_identity_line(
+                    "//a:t",
+                    1,
+                    1,
+                    2,
+                    &[(String::from("test.lcov"), missing_uri("final.dat"))],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(
+            err.contains("test.lcov for //a:t (run 1, shard 1, attempt 2)"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_uninstrumented_test_does_not_demand_coverage() {
+        let harness = Harness::new("cov-uninstrumented");
+        let lcov_uri = write_bep_artifact(&harness, "inst.dat", MINIMAL_LCOV.as_bytes());
+        let xml_uri = write_bep_artifact(&harness, "plain.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:instrumented", &[(String::from("test.lcov"), lcov_uri)]),
+                test_result_line("//a:plain", &[(String::from("test.xml"), xml_uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("incomplete_results"), "{err}");
+        assert!(err.contains("meets minimum 100%"), "{err}");
+    }
+
+    #[test]
+    fn coverage_partial_report_is_written_and_marked_incomplete() {
+        let harness = Harness::new("cov-partial-report");
+        let ok_uri = write_bep_artifact(&harness, "ok.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("coverage.dat"), ok_uri)]),
+                test_result_line(
+                    "//a:missing",
+                    &[(String::from("coverage.dat"), missing_uri("missing.dat"))],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, err) =
+            harness.run(&["coverage", "--output=text", "--report=lcov=out.lcov"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("Wrote lcov report to out.lcov."), "{out}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(
+            err.contains("coverage.dat for //a:missing"),
+            "the partial report names the missing target artifact: {err}"
+        );
+        let document = std::fs::read(harness.workspace.join("out.lcov")).expect("lcov");
+        assert_eq!(document, MINIMAL_LCOV.as_bytes());
+    }
+
+    #[test]
+    fn coverage_incomplete_json_agrees_with_exit_status() {
+        let harness = Harness::new("cov-incomplete-json");
+        let ok_uri = write_bep_artifact(&harness, "ok.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("coverage.dat"), ok_uri)]),
+                test_result_line(
+                    "//a:missing",
+                    &[(String::from("coverage.dat"), missing_uri("missing.dat"))],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["coverage", "--output=json", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{out}");
+        assert!(out.contains("incomplete_results"), "{out}");
+        assert!(out.contains("\"results_complete\":false"), "{out}");
+        assert!(!out.contains("coverage_below_minimum"), "{out}");
+    }
+
+    #[test]
+    fn coverage_two_missing_dats_fail_when_bazel_passed() {
         let harness = Harness::new("cov-partial-two");
         let raw = (0..6)
             .map(|index| {
@@ -1034,15 +1259,13 @@ mod tests {
             ..harness
         };
         let (code, _, err) = harness.run(&["coverage", "--output=text"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(
-            err.contains("incomplete_results (tolerated): 2 missing or invalid results"),
-            "{err}"
-        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(err.contains("2 missing or invalid results"), "{err}");
     }
 
     #[test]
-    fn coverage_one_invalid_and_one_missing_dat_tolerated_when_bazel_passed() {
+    fn coverage_one_invalid_and_one_missing_dat_fail_when_bazel_passed() {
         let harness = Harness::new("cov-mixed-two");
         let raw = (0..6)
             .map(|index| {
@@ -1076,11 +1299,9 @@ mod tests {
             ..harness
         };
         let (code, _, err) = harness.run(&["coverage", "--output=text"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(
-            err.contains("incomplete_results (tolerated): 2 missing or invalid results"),
-            "{err}"
-        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results"), "{err}");
+        assert!(err.contains("2 missing or invalid results"), "{err}");
     }
 
     #[test]
@@ -1121,7 +1342,7 @@ mod tests {
     }
 
     #[test]
-    fn coverage_empty_dat_does_not_count_against_tolerance() {
+    fn coverage_empty_dat_does_not_count_as_missing() {
         let harness = Harness::new("cov-empty-ok");
         let empty = write_bep_artifact(&harness, "empty2.dat", b"");
         let ok = write_bep_artifact(&harness, "ok5.dat", MINIMAL_LCOV.as_bytes());

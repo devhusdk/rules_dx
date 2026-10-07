@@ -82,10 +82,14 @@ Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
-failures or coverage below minimum. Bazel failures keep Bazel's code.
-Missing or invalid `coverage.dat` artifacts warn and pass when Bazel passes,
-other results exist, and at most a quarter of the reported results are
-unusable. More than that fails as incomplete.
+failures, coverage below minimum, or incomplete coverage. Bazel failures
+keep Bazel's code. Coverage is incomplete when Bazel reports a
+`coverage.dat` artifact that is missing or invalid, or when no coverage
+artifacts are reported. Incomplete coverage fails the run, blocks
+`--min-coverage`, and marks a written LCOV report incomplete. A retried
+test counts only its final attempt. Tests without coverage outputs are
+not expected to produce coverage. Empty but valid `coverage.dat` files
+are accepted and contribute no lines.
 
 ```sh
 bazel run @rules_dx//:dx -- coverage //...

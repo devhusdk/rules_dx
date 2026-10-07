@@ -11,63 +11,10 @@
 use clap::Parser;
 use quality_result::{decode_validated, proto};
 
-fn severity_name(value: i32) -> &'static str {
-    match value {
-        1 => "INFO",
-        2 => "WARNING",
-        3 => "ERROR",
-        _ => "UNKNOWN",
-    }
-}
-
-fn capability_name(value: i32) -> &'static str {
-    match value {
-        1 => "LINT",
-        2 => "TYPECHECK",
-        3 => "FORMAT",
-        4 => "AUDIT",
-        _ => "UNKNOWN",
-    }
-}
-
-fn convergence_name(value: i32) -> &'static str {
-    match value {
-        1 => "STABLE",
-        2 => "OSCILLATION",
-        3 => "ITERATION_LIMIT",
-        _ => "UNKNOWN",
-    }
-}
-
 fn opt_number(value: Option<u64>) -> String {
     value
         .map(|v| v.to_string())
         .unwrap_or_else(|| "-".to_owned())
-}
-
-fn rule_name(rule: &str) -> &str {
-    if rule.is_empty() {
-        "-"
-    } else {
-        rule
-    }
-}
-
-fn print_diagnostics(prefix: &str, diagnostics: &[proto::Diagnostic]) {
-    println!("{prefix} {}", diagnostics.len());
-    for diagnostic in diagnostics {
-        println!(
-            "{prefix} {} {} {} {} {} {} fixable={} {:?}",
-            severity_name(diagnostic.severity),
-            diagnostic.tool_id,
-            rule_name(&diagnostic.rule_id),
-            diagnostic.path,
-            opt_number(diagnostic.start_byte),
-            opt_number(diagnostic.end_byte),
-            diagnostic.fixable,
-            diagnostic.message,
-        );
-    }
 }
 
 #[derive(Parser, Debug)]

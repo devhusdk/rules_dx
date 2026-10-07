@@ -688,6 +688,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_matrix_harness"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "dx_output"
 version = "0.0.0"
 dependencies = [

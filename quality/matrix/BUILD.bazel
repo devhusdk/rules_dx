@@ -1,0 +1,61 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "dx_matrix_harness",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "quality/dx_matrix_harness",
+        normal = True,
+    ),
+    crate_name = "dx_matrix_harness",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "quality/dx_matrix_harness",
+    ),
+)
+
+rust_binary(
+    name = "matrix_harness",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "quality/dx_matrix_harness",
+        normal = True,
+    ),
+    crate_name = "matrix_harness",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+            "tracing",
+        ],
+        package_name = "quality/dx_matrix_harness",
+    ) + [":dx_matrix_harness"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -1,5 +1,5 @@
 {
-  "checksum": "b3edcd3653a9a048fd42e4d3676c105f6efc3d21013e715820c912a8427948aa",
+  "checksum": "544bc712384e5bf38a8236fe0d37930d0554f514a66178b7a5ca0223c9549ba6",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3211,6 +3211,47 @@
         {
           "Library": {
             "crate_name": "dx_lcov",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_matrix_harness 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_matrix_harness",
+      "name": "dx_matrix_harness",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_matrix_harness",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13811,6 +13852,7 @@
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",
     "dx_js_launcher 0.0.0": "quality/tools/javascript/dx_js_launcher",
     "dx_lcov 0.0.0": "cli/dx_lcov",
+    "dx_matrix_harness 0.0.0": "quality/dx_matrix_harness",
     "dx_output 0.0.0": "cli/dx_output",
     "dx_path 0.0.0": "cli/dx_path",
     "dx_preset 0.0.0": "tools/dx_preset",

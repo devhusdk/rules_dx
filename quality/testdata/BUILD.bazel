@@ -346,6 +346,7 @@ ambiguous_nodes(
 
 js_tool_binary(
     name = "ambiguous_node_subject",
+    entry_point = ":ambiguous_nodes",
     js_binary = ":ambiguous_nodes",
     tags = ["manual"],
 )

@@ -18,3 +18,7 @@ tracing = "0.1"
 [[bin]]
 name = "quality_runner"
 path = "src/main.rs"
+
+[[bin]]
+name = "matrix_harness"
+path = "src/matrix_harness.rs"

@@ -78,17 +78,19 @@ pub(crate) struct Flags {
 
 /// One flag group: a clap argument group that writes into the normalized invocation flags.
 macro_rules! flag_group {
-    ($(#[$group_attr:meta])* $name:ident, { $( $(#[$attr:meta])* $field:ident : $ty:ty ),* $(,)? }) => {
+    ($(#[$group_attr:meta])* $name:ident, { $(#[$attr:meta])* $field:ident : $ty:ty $(,)? }) => {
         $(#[$group_attr])*
         #[derive(Args)]
         pub(crate) struct $name {
-            $( $(#[$attr])* pub(crate) $field: $ty, )*
+            $(#[$group_attr])*
+            $(#[$attr])*
+            pub(crate) $field: $ty,
         }
 
         impl $name {
-            /// Writes every flag this group carries into the invocation.
+            /// Writes this flag into the invocation.
             pub(crate) fn put(self, flags: &mut Flags) {
-                $( flags.$field = self.$field; )*
+                flags.$field = self.$field;
             }
         }
     };
@@ -450,7 +452,7 @@ impl NoPassthroughTail {
 #[derive(Args)]
 pub(crate) struct NoScopeTail {
     /// Args after --.
-    #[arg(hide = true, last = true)]
+    #[arg(last = true, value_name = "BAZEL_OPTIONS")]
     pub(crate) passthrough: Vec<String>,
 }
 
@@ -520,6 +522,17 @@ macro_rules! command_args {
                 }
             }
         }
+
+        /// The arguments one command's subcommand carries, without help prose.
+        pub(crate) fn subcommand_args(command: super::command::Command) -> clap::Command {
+            match command {
+                $(
+                    super::command::Command::$variant => <$variant>::augment_args(
+                        clap::Command::new(COMMANDS[$index].name),
+                    ),
+                )*
+            }
+        }
     }
 }
 
@@ -564,7 +577,10 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx build` accepts.
-    Build => 6, BazelTail, { own: ProfileArgs, };
+    Build => 6, BazelTail, {
+        own: ProfileArgs,
+        here: HereFlag,
+    };
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
         own: ProfileArgs,
@@ -685,11 +701,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
 
 /// The long names the grammar gives the flags that belong to some commands only.
 pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> {
-    use clap::CommandFactory;
-    let root = Cli::command();
-    let Some(sub) = root.find_subcommand(command.name()) else {
-        return Vec::new();
-    };
+    let sub = subcommand_args(command);
     let mut flags = Vec::new();
     for arg in sub.get_arguments() {
         if arg.is_hide_set() {
@@ -706,10 +718,9 @@ pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> 
 
 /// Whether the grammar lets `dx <command> -- <bazel-options>` through.
 pub(crate) fn advertises_passthrough(command: super::command::Command) -> bool {
-    use clap::CommandFactory;
-    let root = Cli::command();
-    root.find_subcommand(command.name())
-        .is_some_and(|sub| sub.get_arguments().any(|arg| arg.is_last_set() && !arg.is_hide_set()))
+    subcommand_args(command)
+        .get_arguments()
+        .any(|arg| arg.is_last_set() && !arg.is_hide_set())
 }
 
 #[cfg(test)]

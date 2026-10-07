@@ -239,6 +239,9 @@ pub fn parse_with<S: AsRef<OsStr>>(
             });
         }
     }
+    if (command == Command::Security || command == Command::License) && !bazel_options.is_empty() {
+        return Err(unsupported(command, "--"));
+    }
     if matches!(
         command,
         Command::Update | Command::Bump | Command::Migrate | Command::Upgrade

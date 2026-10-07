@@ -332,15 +332,13 @@ fn strict_help_is_generated_from_the_same_grammar() {
         );
     }
     let grammar = super::super::grammar::cli_command();
-    const GLOBAL_LONGS: [&str; 9] = [
+    const GLOBAL_LONGS: [&str; 7] = [
         "workspace",
         "output",
-        "fail-on",
         "dry-run",
         "quiet",
         "verbose",
         "color",
-        "host",
         "log-level",
     ];
     for command in Command::value_variants() {

@@ -527,7 +527,7 @@ mod tests {
         let harness = Harness::new("generate-report");
         let (code, _, err) = harness.run(&["generate", "--report=sarif=out.sarif"]);
         assert_eq!(code, 2, "{err}");
-        assert!(err.contains("no standard report exists"), "{err}");
+        assert!(err.contains("is not supported by dx generate"), "{err}");
 
         let harness = Harness::new("generate-conflict");
         let (code, _, err) = harness.run(&["generate", "--", "--home_rc"]);

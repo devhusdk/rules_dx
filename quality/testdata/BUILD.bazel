@@ -2,9 +2,11 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
 load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "vale_config")
+load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":aspect_tests.bzl", "aspect_fixture_tests")
+load(":js_node_fixture.bzl", "ambiguous_nodes")
 load(":real_aspect_subject.bzl", "real_aspect_subject")
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
@@ -336,6 +338,22 @@ failure_test(
     name = "fixture_real_javascript_no_config_test",
     expected_failure_substring = "applicable Biome requires declared config",
     target = ":fixture_real_javascript_no_config_subject",
+)
+
+ambiguous_nodes(
+    name = "ambiguous_nodes",
+)
+
+js_tool_binary(
+    name = "ambiguous_node_subject",
+    js_binary = ":ambiguous_nodes",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "ambiguous_node_test",
+    expected_failure_substring = "two node runtimes in the runfiles",
+    target = ":ambiguous_node_subject",
 )
 
 real_source_target(

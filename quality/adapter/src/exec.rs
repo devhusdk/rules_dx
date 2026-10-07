@@ -964,6 +964,89 @@ mod tests {
         assert!(err.to_string().contains("timed out"));
     }
 
+    fn descendant_scratch() -> tempfile::TempDir {
+        tempfile::Builder::new()
+            .prefix("dx-descendant-")
+            .tempdir_in(std::env::temp_dir())
+            .expect("descendant marker scratch")
+    }
+
+    #[test]
+    fn spawn_kills_a_descendant_holding_the_pipes_on_timeout() {
+        let probe = dx_testing::process_probe();
+        let cwd = std::env::temp_dir();
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(&cwd, &[], &ambient);
+        let scratch = descendant_scratch();
+        let marker = scratch.path().join("descendant.finished");
+        let argv = vec![
+            probe.into_os_string(),
+            OsString::from("--spawn-descendant"),
+            OsString::from("--descendant-sleep-ms=1500"),
+            OsString::from(format!("--descendant-marker={}", marker.display())),
+        ];
+        let started = std::time::Instant::now();
+        let err = spawn_with_timeout(&argv, &cwd, &env, Duration::from_millis(500))
+            .expect_err("a descendant past the deadline is a timeout");
+        assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+        assert!(
+            started.elapsed() < Duration::from_secs(20),
+            "the pipes must not outlive the deadline: {:?}",
+            started.elapsed()
+        );
+        let deadline = started + Duration::from_millis(1900);
+        loop {
+            assert!(
+                !marker.exists(),
+                "the descendant survived the tool run: {}",
+                marker.display()
+            );
+            if std::time::Instant::now() >= deadline {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    #[test]
+    fn spawn_stays_bounded_when_a_parent_exit_leaves_a_descendant_holding_the_pipes() {
+        let probe = dx_testing::process_probe();
+        let cwd = std::env::temp_dir();
+        let ambient: Vec<(OsString, OsString)> = Vec::new();
+        let env = hermetic_env(&cwd, &[], &ambient);
+        let scratch = descendant_scratch();
+        let marker = scratch.path().join("descendant.finished");
+        let argv = vec![
+            probe.into_os_string(),
+            OsString::from("--exit-code=0"),
+            OsString::from("--spawn-descendant"),
+            OsString::from("--detached-descendant"),
+            OsString::from("--descendant-sleep-ms=11000"),
+            OsString::from(format!("--descendant-marker={}", marker.display())),
+        ];
+        let started = std::time::Instant::now();
+        let err = spawn_with_timeout(&argv, &cwd, &env, Duration::from_millis(500))
+            .expect_err("a tree that escapes its owner is never success");
+        assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(25),
+            "the runner returns on its own bound: {elapsed:?}"
+        );
+        let deadline = started + Duration::from_millis(11600);
+        loop {
+            assert!(
+                !marker.exists(),
+                "the descendant survived the tool run: {}",
+                marker.display()
+            );
+            if std::time::Instant::now() >= deadline {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+
     #[test]
     fn spawn_drains_large_output_without_faking_a_timeout() {
         let probe = dx_testing::process_probe();

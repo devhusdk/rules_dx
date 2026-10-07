@@ -141,11 +141,14 @@ fn timeout_kills_a_sleeping_child_within_a_bound() {
 
 #[test]
 fn timeout_reaps_a_descendant_holding_the_pipes() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-descendant").expect("scratch");
+    let marker = scratch.join("descendant.finished");
     let spec = controlled_spec(
         probe_argv(&[
             "--spawn-descendant",
-            "--descendant-sleep-ms=30000",
+            "--descendant-sleep-ms=1500",
             "--descendant-stdout-bytes=1048576",
+            &format!("--descendant-marker={}", marker.display()),
         ]),
         Duration::from_millis(500),
     );
@@ -157,6 +160,18 @@ fn timeout_reaps_a_descendant_holding_the_pipes() {
         "descendant must not hold the run past {:?}",
         started.elapsed()
     );
+    let deadline = started + Duration::from_millis(1900);
+    loop {
+        assert!(
+            !marker.exists(),
+            "the descendant survived the run: {}",
+            marker.display()
+        );
+        if Instant::now() >= deadline {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }
 
 #[test]

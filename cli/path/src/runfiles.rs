@@ -58,6 +58,15 @@ impl Resolver {
         &self.source
     }
 
+    /// Reads the runfiles that the environment names for this process.
+    ///
+    /// A test runs a borrowed executable, so the runfiles beside it describe
+    /// another target; `RUNFILES_MANIFEST_FILE` and `RUNFILES_DIR` describe
+    /// the runfiles this process was started with.
+    pub fn from_env() -> io::Result<Self> {
+        Resolver::open(path_env("RUNFILES_MANIFEST_FILE"), path_env("RUNFILES_DIR"))
+    }
+
     /// Returns the file one key names, read as this runfiles' own repository.
     pub fn lookup(&self, key: &str) -> io::Result<PathBuf> {
         self.lookup_from(key, "")
@@ -79,6 +88,26 @@ impl Resolver {
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
         Ok(Resolver { inner, source })
     }
+
+    fn open(manifest: Option<PathBuf>, dir: Option<PathBuf>) -> io::Result<Self> {
+        if let Some(manifest) = manifest.filter(|candidate| candidate.is_file()) {
+            let text = std::fs::read_to_string(&manifest)?;
+            return Resolver::new(Runfiles::builder().manifest(text), manifest);
+        }
+        if let Some(dir) = dir.filter(|candidate| candidate.is_dir()) {
+            return Resolver::new(Runfiles::builder().directory(&dir), dir);
+        }
+        Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "no runfiles for this process: read RUNFILES_MANIFEST_FILE or RUNFILES_DIR",
+        ))
+    }
+}
+
+fn path_env(name: &str) -> Option<PathBuf> {
+    std::env::var_os(name)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
 }
 
 fn tree_beside(binary: &Path) -> Option<PathBuf> {
@@ -306,6 +335,59 @@ mod tests {
         assert!(
             error.to_string().contains("RepoMappingInvalidFormat"),
             "error text: {error}"
+        );
+    }
+
+    #[test]
+    fn an_environment_manifest_wins_over_its_tree() {
+        let dir = scratch("env-both");
+        write(
+            &dir,
+            "runfiles/_main/pkg/tool.txt",
+            "from the tree\n",
+        );
+        let manifest = write(
+            &dir,
+            "MANIFEST",
+            "_main/pkg/tool.txt out/from-the-manifest.txt\n",
+        );
+        let resolver =
+            Resolver::open(Some(manifest.clone()), Some(dir.join("runfiles"))).expect("resolver");
+        assert_eq!(resolver.source(), manifest);
+        assert_eq!(
+            found(&resolver, "_main/pkg/tool.txt"),
+            PathBuf::from("out/from-the-manifest.txt")
+        );
+    }
+
+    #[test]
+    fn an_environment_tree_resolves_when_the_manifest_is_absent() {
+        let dir = scratch("env-tree");
+        let target = write(&dir, "runfiles/_main/pkg/tool.txt", "from the tree\n");
+        let resolver = Resolver::open(None, Some(dir.join("runfiles"))).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), target);
+    }
+
+    #[test]
+    fn a_missing_environment_manifest_falls_back_to_the_tree() {
+        let dir = scratch("env-missing-manifest");
+        let target = write(&dir, "runfiles/_main/pkg/tool.txt", "from the tree\n");
+        let resolver = Resolver::open(
+            Some(dir.join("absent/MANIFEST")),
+            Some(dir.join("runfiles")),
+        )
+        .expect("resolver");
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), target);
+    }
+
+    #[test]
+    fn no_environment_runfiles_names_the_variables_it_read() {
+        let error = Resolver::open(None, None).expect_err("nothing was set");
+        let message = error.to_string();
+        assert!(
+            message.contains("RUNFILES_MANIFEST_FILE") && message.contains("RUNFILES_DIR"),
+            "variables missing from: {message}"
         );
     }
 

@@ -373,6 +373,21 @@ mod tests {
         }
     }
 
+    /// The host path one fixture root plus its path parts name.
+    fn want_path(root: &str, parts: &[&str]) -> PathBuf {
+        let mut path = PathBuf::from(root);
+        for part in parts {
+            path.push(part);
+        }
+        path
+    }
+
+    /// The host path one slash-separated relative name under the fixture root names.
+    fn out_path(rel: &str) -> PathBuf {
+        let root = if cfg!(windows) { r"C:\out" } else { "/out" };
+        want_path(root, &rel.split('/').collect::<Vec<_>>())
+    }
+
     #[test]
     fn test_outputs_collect_sorted_records() {
         let stream = [
@@ -395,7 +410,7 @@ mod tests {
                 TestOutputFile {
                     label: "//a:t".to_owned(),
                     name: "test.xml".to_owned(),
-                    exec_path: PathBuf::from("/out/a/test.xml"),
+                    exec_path: out_path("a/test.xml"),
                     run: 1,
                     shard: 1,
                     attempt: 1,
@@ -403,7 +418,7 @@ mod tests {
                 TestOutputFile {
                     label: "//z:t".to_owned(),
                     name: "test.log".to_owned(),
-                    exec_path: PathBuf::from("/out/z/test.log"),
+                    exec_path: out_path("z/test.log"),
                     run: 1,
                     shard: 1,
                     attempt: 1,
@@ -411,7 +426,7 @@ mod tests {
                 TestOutputFile {
                     label: "//z:t".to_owned(),
                     name: "test.xml".to_owned(),
-                    exec_path: PathBuf::from("/out/z/test.xml"),
+                    exec_path: out_path("z/test.xml"),
                     run: 1,
                     shard: 1,
                     attempt: 1,
@@ -453,8 +468,8 @@ mod tests {
             vec![(1, 1, 1), (1, 1, 2), (2, 3, 4)],
             "records sort by run, shard, then attempt"
         );
-        assert_eq!(got[0].exec_path, PathBuf::from("/out/c.xml"));
-        assert_eq!(got[2].exec_path, PathBuf::from("/out/a.xml"));
+        assert_eq!(got[0].exec_path, out_path("c.xml"));
+        assert_eq!(got[2].exec_path, out_path("a.xml"));
     }
 
     #[test]
@@ -634,12 +649,18 @@ mod tests {
         assert_eq!(got.len(), 2);
         assert_eq!(
             got[0].exec_path,
-            Path::new("/ws/bazel-testlogs/cli/bep/dx_bep_test/coverage.dat")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "cli/bep", "dx_bep_test", "coverage.dat"]
+            )
         );
         assert_eq!(got[0].name, "test.lcov");
         assert_eq!(
             got[1].exec_path,
-            Path::new("/ws/bazel-testlogs/cli/bep/dx_bep_test/test.xml")
+            want_path(
+                "/ws",
+                &["bazel-testlogs", "cli/bep", "dx_bep_test", "test.xml"]
+            )
         );
     }
 
@@ -680,19 +701,32 @@ mod tests {
         assert_eq!(got.len(), 3);
         assert_eq!(
             got[0].exec_path,
-            Path::new(
-                "/out/k8-fastbuild/testlogs/a/t/shard_3_of_3_run_2_of_2/test_attempts/attempt_1.xml"
+            want_path(
+                "/out/k8-fastbuild/testlogs",
+                &[
+                    "a",
+                    "t",
+                    "shard_3_of_3_run_2_of_2",
+                    "test_attempts",
+                    "attempt_1.xml"
+                ]
             ),
             "a superseded attempt reads its own file"
         );
         assert_eq!(
             got[1].exec_path,
-            Path::new("/out/k8-fastbuild/testlogs/a/t/shard_3_of_3_run_2_of_2/test.xml"),
+            want_path(
+                "/out/k8-fastbuild/testlogs",
+                &["a", "t", "shard_3_of_3_run_2_of_2", "test.xml"]
+            ),
             "the final attempt reads the canonical file"
         );
         assert_eq!(
             got[2].exec_path,
-            Path::new("/out/k8-fastbuild/testlogs/external/dep+/pkg/t/test.xml")
+            want_path(
+                "/out/k8-fastbuild/testlogs",
+                &["external", "dep+", "pkg", "t", "test.xml"]
+            )
         );
         assert_ne!(got[0].exec_path, got[1].exec_path);
     }
@@ -711,7 +745,17 @@ mod tests {
         let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("path prefix");
         assert_eq!(
             got[0].exec_path,
-            Path::new("/out/execroot/bazel-out/k8-fastbuild/testlogs/a/t/test.xml"),
+            want_path(
+                "/out/execroot",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild",
+                    "testlogs",
+                    "a",
+                    "t",
+                    "test.xml"
+                ]
+            ),
             "path prefixes are execution-root relative"
         );
         let mut workspace_only = OutputLocations::new(Path::new("/ws"));
@@ -724,7 +768,7 @@ mod tests {
             collect_test_outputs(Cursor::new(stream), Some(&workspace_only)).expect("no execroot");
         assert_eq!(
             got[0].exec_path,
-            Path::new("/out/k8-fastbuild/testlogs/a/t/test.xml"),
+            want_path("/out/k8-fastbuild/testlogs", &["a", "t", "test.xml"]),
             "without an execution root the testlogs root still resolves"
         );
     }
@@ -767,7 +811,7 @@ mod tests {
         let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("summary");
         assert_eq!(
             got[0].exec_path,
-            Path::new("/out/testlogs/a/t/shard_2_of_3/test.xml"),
+            want_path("/out/testlogs", &["a", "t", "shard_2_of_3", "test.xml"]),
             "testSummary.shardCount supplies the shard total"
         );
         let stream = [
@@ -790,7 +834,7 @@ mod tests {
         let got = collect_test_outputs(Cursor::new(stream), Some(&locations)).expect("runs");
         assert_eq!(
             got[1].exec_path,
-            Path::new("/out/testlogs/a/t/run_3_of_3/test.xml"),
+            want_path("/out/testlogs", &["a", "t", "run_3_of_3", "test.xml"]),
             "the highest reported run is the run total"
         );
     }

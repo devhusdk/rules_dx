@@ -597,6 +597,39 @@ fn eslint_without_a_program_fails_before_any_spawn() {
     assert!(err.to_string().contains("names no executable"));
 }
 
+fn spaced_path_eslint(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let file = last_file(argv);
+    assert!(
+        Path::new(&file).starts_with(cwd),
+        "the spaced file stays under the launch cwd: {file}"
+    );
+    assert!(
+        file.ends_with("src dir/my file.js"),
+        "the launch keeps the spaced path as one argv entry: {file}"
+    );
+    roundtrip_eslint(argv, cwd, env)
+}
+
+#[test]
+fn eslint_launch_carries_paths_with_spaces_end_to_end() {
+    let backend = backend_for("eslint", eslint_tool(), spaced_path_eslint);
+    let findings = backend
+        .diagnose(
+            "eslint",
+            "lint",
+            &single("src dir/my file.js", "const unusedVar = 1;\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "eslint");
+    assert_eq!(findings[0].rule_id, "no-unused-vars");
+    assert_eq!(findings[0].path, "src dir/my file.js");
+}
+
 #[test]
 fn prettier_reports_relative_and_fix_rewrites() {
     let backend = backend_for("prettier", plain_tool(), roundtrip_prettier);

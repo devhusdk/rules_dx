@@ -127,7 +127,7 @@ rust_test(
             "tempfile",
         ],
         package_name = "deploy/dx_deploy_tools",
-    ),
+    ) + ["//tools/testing:dx_testing"],
 )
 
 rustfmt_test(

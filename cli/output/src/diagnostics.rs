@@ -293,26 +293,50 @@ mod tests {
 
     #[test]
     fn diagnostics_no_color_env_disables_color() {
-        let prior_override = color_override();
-        set_color_override(ColorMode::Auto);
+        const CHILD: &str = "DX_OUTPUT_COLOR_CHILD";
+        if let Some(want) = std::env::var_os(CHILD) {
+            let prior_override = color_override();
+            set_color_override(ColorMode::Auto);
+            let enabled = color_enabled();
+            set_color_override(prior_override);
+            if want == "on" {
+                assert!(enabled, "CLICOLOR_FORCE without NO_COLOR must allow color");
+            } else {
+                assert!(
+                    !enabled,
+                    "NO_COLOR presence (even empty) must disable color"
+                );
+            }
+            return;
+        }
         let prior = std::env::var_os("NO_COLOR");
-        unsafe {
-            std::env::set_var("NO_COLOR", "");
-        }
-        assert!(
-            !color_enabled(),
-            "NO_COLOR presence (even empty) must disable color"
+        let allowed = dx_testing::child_test(
+            "diagnostics_no_color_env_disables_color",
+            &[
+                (CHILD, Some(std::ffi::OsStr::new("on"))),
+                ("CLICOLOR_FORCE", Some(std::ffi::OsStr::new("1"))),
+                ("NO_COLOR", None),
+            ],
+            None,
+        )
+        .expect("spawn child");
+        assert!(allowed.status.success(), "{}", allowed.combined());
+        let denied = dx_testing::child_test(
+            "diagnostics_no_color_env_disables_color",
+            &[
+                (CHILD, Some(std::ffi::OsStr::new("off"))),
+                ("CLICOLOR_FORCE", Some(std::ffi::OsStr::new("1"))),
+                ("NO_COLOR", Some(std::ffi::OsStr::new(""))),
+            ],
+            None,
+        )
+        .expect("spawn child");
+        assert!(denied.status.success(), "{}", denied.combined());
+        assert_eq!(
+            std::env::var_os("NO_COLOR"),
+            prior,
+            "parent NO_COLOR changed"
         );
-        if let Some(value) = prior {
-            unsafe {
-                std::env::set_var("NO_COLOR", value);
-            }
-        } else {
-            unsafe {
-                std::env::remove_var("NO_COLOR");
-            }
-        }
-        set_color_override(prior_override);
     }
 
     #[test]

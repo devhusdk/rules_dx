@@ -158,7 +158,7 @@ rust_test(
             "tempfile",
         ],
         package_name = "deploy/dx_release_tools",
-    ),
+    ) + ["//tools/testing:dx_testing"],
 )
 
 # keep

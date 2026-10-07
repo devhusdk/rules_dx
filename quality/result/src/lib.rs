@@ -298,6 +298,107 @@ pub fn decode_validated(bytes: &[u8]) -> Result<QualityResult, Error> {
     dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
+fn severity_name(value: i32) -> &'static str {
+    match value {
+        1 => "INFO",
+        2 => "WARNING",
+        3 => "ERROR",
+        _ => "UNKNOWN",
+    }
+}
+
+fn capability_name(value: i32) -> &'static str {
+    match value {
+        1 => "LINT",
+        2 => "TYPECHECK",
+        3 => "FORMAT",
+        4 => "AUDIT",
+        _ => "UNKNOWN",
+    }
+}
+
+fn convergence_name(value: i32) -> &'static str {
+    match value {
+        1 => "STABLE",
+        2 => "OSCILLATION",
+        3 => "ITERATION_LIMIT",
+        _ => "UNKNOWN",
+    }
+}
+
+fn opt_number(value: Option<u64>) -> String {
+    value
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "-".to_owned())
+}
+
+fn rule_name(rule: &str) -> &str {
+    if rule.is_empty() {
+        "-"
+    } else {
+        rule
+    }
+}
+
+fn push_diagnostics(text: &mut String, prefix: &str, diagnostics: &[Diagnostic]) {
+    text.push_str(&format!("{prefix} {}\n", diagnostics.len()));
+    for diagnostic in diagnostics {
+        text.push_str(&format!(
+            "{prefix} {} {} {} {} {} {} fixable={} {:?}\n",
+            severity_name(diagnostic.severity),
+            diagnostic.tool_id,
+            rule_name(&diagnostic.rule_id),
+            diagnostic.path,
+            opt_number(diagnostic.start_byte),
+            opt_number(diagnostic.end_byte),
+            diagnostic.fixable,
+            diagnostic.message
+        ));
+    }
+}
+
+/// The deterministic text rendering of one validated result.
+pub fn print_text(result: &QualityResult) -> String {
+    let mut text = String::new();
+    text.push_str(&format!("producer {}\n", result.producer));
+    text.push_str(&format!(
+        "capability {}\n",
+        capability_name(result.capability)
+    ));
+    text.push_str(&format!("stages {}\n", result.stages.len()));
+    for stage in &result.stages {
+        text.push_str(&format!(
+            "stage {} classes={} sources={}\n",
+            stage.tool_id,
+            stage.class_ids.join(","),
+            stage.source_paths.join(",")
+        ));
+    }
+    text.push_str(&format!(
+        "completed_rounds {}\n",
+        result.completed_rounds
+    ));
+    text.push_str(&format!(
+        "convergence {}\n",
+        convergence_name(result.convergence)
+    ));
+    push_diagnostics(&mut text, "initial", &result.initial_diagnostics);
+    push_diagnostics(&mut text, "terminal", &result.terminal_diagnostics);
+    text.push_str(&format!("replacements {}\n", result.replacements.len()));
+    for file in &result.replacements {
+        for edit in &file.edits {
+            text.push_str(&format!(
+                "replacement {} {} {} {:?}\n",
+                file.path,
+                edit.start_byte,
+                edit.end_byte,
+                String::from_utf8_lossy(&edit.replacement)
+            ));
+        }
+    }
+    text
+}
+
 pub fn assert_all_equal<T: PartialEq + std::fmt::Debug>(items: &[T]) {
     assert!(
         !items.is_empty(),

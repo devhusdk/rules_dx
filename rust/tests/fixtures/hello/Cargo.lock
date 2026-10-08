@@ -769,6 +769,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_tool_resolve"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "dx_update"
 version = "0.0.0"
 dependencies = [

@@ -1406,8 +1406,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          rel="$(bazel cquery --output=files @dx_tools//:gitleaks "$@" 2>/dev/null | tail -1)"
-          echo "DX_GITLEAKS_BIN=$(bazel info output_base)/$rel" >> "$GITHUB_ENV"
+          bazel run "$@" @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN -- "$@"
       - name: Restore the advisory snapshots this run prepared
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

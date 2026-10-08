@@ -1,5 +1,5 @@
 {
-  "checksum": "873fd21e366e247204c53039d49bc19d3a25cd9403ac5d98776770abf2f28cc9",
+  "checksum": "8e8cc1ab26da43b54eebfe03394b17326a6a7b7bd81fafec33b2c8b23cfc3146",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3506,6 +3506,39 @@
         {
           "Library": {
             "crate_name": "dx_testing",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_tool_resolve 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_tool_resolve",
+      "name": "dx_tool_resolve",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_tool_resolve",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13826,6 +13859,7 @@
     "dx_setup 0.0.0": "cli/dx_setup",
     "dx_test_scratch 0.0.0": "cli/dx_test_scratch",
     "dx_testing 0.0.0": "tools/dx_testing",
+    "dx_tool_resolve 0.0.0": "cli/dx_tool_resolve",
     "dx_update 0.0.0": "cli/dx_update",
     "env_shard 0.0.0": "env/env_shard",
     "env_stubs 0.0.0": "env/env_stubs",

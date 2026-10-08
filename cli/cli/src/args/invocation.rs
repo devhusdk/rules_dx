@@ -82,6 +82,11 @@ impl Invocation {
         }
     }
 
+    /// Whether the flags authorize writing sources: explicit `--apply` only.
+    pub fn applies(&self) -> bool {
+        self.operation() == OperationMode::Apply
+    }
+
     pub fn profile_flag(&self) -> Option<Profile> {
         if self.debug {
             Some(Profile::Debug)
@@ -221,15 +226,19 @@ mod tests {
         assert!(!bare.check);
         assert!(!bare.dry_run);
         assert_eq!(bare.operation(), OperationMode::Check);
+        assert!(!bare.applies());
         let mut check = invocation_for(Command::Fix, &[]);
         check.check = true;
         assert_eq!(check.operation(), OperationMode::Check);
+        assert!(!check.applies());
         let mut plan = invocation_for(Command::Fix, &[]);
         plan.dry_run = true;
         assert_eq!(plan.operation(), OperationMode::Plan);
+        assert!(!plan.applies());
         let mut apply = invocation_for(Command::Fix, &[]);
         apply.apply = true;
         assert_eq!(apply.operation(), OperationMode::Apply);
+        assert!(apply.applies());
         assert_eq!(OperationMode::Check.name(), "check");
         assert_eq!(OperationMode::Apply.name(), "apply");
         assert_eq!(OperationMode::Plan.name(), "plan");

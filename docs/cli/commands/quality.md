@@ -7,8 +7,8 @@ bazel run @rules_dx//:dx -- format //...
 ```
 
 No scope means `//...`. Use `--here` for the current dir tree. All three
-rewrite files by default and report with `--check`. Args after `--` go to
-Bazel unchanged.
+check files by default and report drift without writing. Pass `--apply` to
+write validated fixes. Args after `--` go to Bazel unchanged.
 
 ```text
 dx lint [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
@@ -16,7 +16,8 @@ dx typecheck [--here] [--check] [--apply] [--fail-on info|warning|error] [--repo
 dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 ```
 
-- `--check`: report findings without writing files.
+- `--check`: report findings without writing files. Same as the default.
+- `--apply`: write validated fixes. Without it files stay untouched.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
   Repeatable. `dx format` has no report format.
@@ -30,6 +31,7 @@ failures report `1`, not Bazel's code.
 bazel run @rules_dx//:dx -- lint --check //...
 bazel run @rules_dx//:dx -- format --here
 bazel run @rules_dx//:dx -- typecheck --fail-on error //cli/...
+bazel run @rules_dx//:dx -- format --apply //cli/...
 ```
 
 ## Policy

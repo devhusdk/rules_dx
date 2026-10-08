@@ -224,13 +224,28 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
         ),
     );
     let (default_code, default_out, _) = default.run(&["lint", "--output=json"]);
-    assert_eq!(default_code, 0);
+    assert_eq!(default_code, 1);
     assert_eq!(
         std::fs::read(default.workspace.join("src/a.py")).expect("source"),
-        b"y = 1\n"
+        b"x = 1\n"
     );
     let default_changes = changes(&default_out);
     assert_eq!(default_changes, check_changes);
+    let mut applied = Harness::new("json-change-apply");
+    applied.write_source("src/a.py", "x = 1\n");
+    applied.results.insert(
+        "//test:corpus".to_owned(),
+        applied.valid_result(
+            vec![Harness::diagnostic("unused", true)],
+            vec![applied.replacement(b"y")],
+        ),
+    );
+    let (apply_code, apply_out, _) = applied.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(apply_code, 0);
+    assert_eq!(
+        std::fs::read(applied.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n"
+    );
     let change = &check_changes[0];
     assert_eq!(change["path"], serde_json::json!("src/a.py"));
     assert_eq!(change["kind"], serde_json::json!("modify"));
@@ -248,10 +263,10 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
     planned.extend_from_slice(&original[1..]);
     assert_eq!(planned, b"y = 1\n");
     assert_eq!(
-        std::fs::read(default.workspace.join("src/a.py")).expect("source"),
+        std::fs::read(applied.workspace.join("src/a.py")).expect("source"),
         planned
     );
-    let events = json_events(&default_out);
+    let events = json_events(&apply_out);
     let change_idx = events
         .iter()
         .position(|event| event["event"] == serde_json::json!("change"))
@@ -262,7 +277,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
         .expect("mutation index");
     assert!(
         change_idx < mutation_idx,
-        "default mode must emit the change before its terminal mutation"
+        "apply mode must emit the change before its terminal mutation"
     );
 }
 
@@ -298,15 +313,15 @@ fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
         ),
     );
     let (default_code, default_out, _) = default.run(&["lint", "--output=diff"]);
-    assert_eq!(default_code, 0);
+    assert_eq!(default_code, 1);
     assert_eq!(
         std::fs::read(default.workspace.join("src/a.py")).expect("source"),
-        b"y = 1\n"
+        b"x = 1\n"
     );
     assert_eq!(
         default.seen_env.borrow().len(),
         1,
-        "diff default must launch Bazel exactly once, no post-apply rerun"
+        "diff default must launch Bazel exactly once, no rerun"
     );
     assert_eq!(
         default_out, check_out,
@@ -329,7 +344,7 @@ fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
 }
 
 #[test]
-fn default_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
+fn apply_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
     let mut harness = Harness::new("sorted-apply-order");
     harness.write_source("src/a.py", "x = 1\n");
     harness.write_source("src/b.py", "a = 1\n");
@@ -400,7 +415,7 @@ fn default_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
         ],
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 0);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -457,12 +472,12 @@ fn default_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
     assert_eq!(
         harness.seen_env.borrow().len(),
         1,
-        "sorted default apply must launch Bazel exactly once, no rerun"
+        "sorted apply must launch Bazel exactly once, no rerun"
     );
 }
 
 #[test]
-fn default_apply_depends_on_bytes_not_git_status() {
+fn apply_depends_on_bytes_not_git_status() {
     let statuses = ["tracked", "modified", "staged", "untracked"];
     let mut digests = Vec::with_capacity(statuses.len());
     for status in statuses {
@@ -477,7 +492,7 @@ fn default_apply_depends_on_bytes_not_git_status() {
                 vec![harness.replacement(b"y")],
             ),
         );
-        let (code, out, _) = harness.run(&["lint", "--output=json"]);
+        let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
         assert_eq!(code, 0, "{status}");
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -487,7 +502,7 @@ fn default_apply_depends_on_bytes_not_git_status() {
         assert_eq!(
             harness.seen_env.borrow().len(),
             1,
-            "{status}: default apply must launch Bazel exactly once, no rerun"
+            "{status}: apply must launch Bazel exactly once, no rerun"
         );
         assert_eq!(
             std::fs::read(harness.workspace.join(".git/HEAD")).expect("git head"),
@@ -516,7 +531,7 @@ fn default_apply_depends_on_bytes_not_git_status() {
     );
     stale.results.insert("//test:corpus".to_owned(), bytes);
     stale.write_source("src/a.py", "z = 2\n");
-    let (code, _, err) = stale.run(&["lint", "--output=text"]);
+    let (code, _, err) = stale.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert!(err.contains("Not applied: src/a.py (stale_source)"));
     assert_eq!(
@@ -575,7 +590,7 @@ fn invalid_edits_in_one_file_do_not_block_valid_sibling() {
         ],
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
-    let (code, out, err) = harness.run(&["lint", "--output=text"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),

@@ -17,6 +17,10 @@ pub struct TestOutputFile {
     pub run: u32,
     pub shard: u32,
     pub attempt: u32,
+    pub status: Option<String>,
+    pub configuration: Option<String>,
+    pub cached: Option<bool>,
+    pub duration_millis: Option<u64>,
 }
 
 struct TestResultId<'a> {
@@ -24,6 +28,28 @@ struct TestResultId<'a> {
     run: u32,
     shard: u32,
     attempt: u32,
+    configuration: Option<String>,
+}
+
+fn nonempty_text(value: Option<&str>) -> Option<String> {
+    value.filter(|text| !text.is_empty()).map(str::to_owned)
+}
+
+fn cached_flag(result: &serde_json::Map<String, Value>) -> Option<bool> {
+    let local = result.get("cachedLocally").and_then(Value::as_bool);
+    let remote = result.get("cachedRemotely").and_then(Value::as_bool);
+    match (local, remote) {
+        (None, None) => None,
+        _ => Some(local.unwrap_or(false) || remote.unwrap_or(false)),
+    }
+}
+
+fn duration_millis(result: &serde_json::Map<String, Value>) -> Option<u64> {
+    match result.get("testAttemptDurationMillis") {
+        Some(Value::String(text)) => text.parse::<u64>().ok(),
+        Some(Value::Number(number)) => number.as_u64(),
+        _ => None,
+    }
 }
 
 impl<'a> TestResultId<'a> {
@@ -37,6 +63,12 @@ impl<'a> TestResultId<'a> {
             run: test_index(id, "run", "id.testResult.run", line)?,
             shard: test_index(id, "shard", "id.testResult.shard", line)?,
             attempt: test_index(id, "attempt", "id.testResult.attempt", line)?,
+            configuration: nonempty_text(
+                id.get("configuration")
+                    .and_then(Value::as_object)
+                    .and_then(|configuration| configuration.get("id"))
+                    .and_then(Value::as_str),
+            ),
         })
     }
 }
@@ -111,6 +143,10 @@ struct PendingResult {
     run: u32,
     shard: u32,
     attempt: u32,
+    status: Option<String>,
+    configuration: Option<String>,
+    cached: Option<bool>,
+    duration_millis: Option<u64>,
     files: Vec<PendingFile>,
 }
 
@@ -150,6 +186,13 @@ pub fn collect_test_outputs(
         };
         let label = TestResultId::parse(result_id, line_no)?;
         let result = object.get("testResult").and_then(Value::as_object);
+        let status = nonempty_text(
+            result
+                .and_then(|result| result.get("status"))
+                .and_then(Value::as_str),
+        );
+        let cached = result.and_then(cached_flag);
+        let duration = result.and_then(duration_millis);
         let Some(files) = result.and_then(|result| result.get("testActionOutput")) else {
             continue;
         };
@@ -174,6 +217,10 @@ pub fn collect_test_outputs(
             run: label.run,
             shard: label.shard,
             attempt: label.attempt,
+            status,
+            configuration: label.configuration.clone(),
+            cached,
+            duration_millis: duration,
             files: pending_files,
         });
     }
@@ -213,6 +260,10 @@ pub fn collect_test_outputs(
                 run: result.run,
                 shard: result.shard,
                 attempt: result.attempt,
+                status: result.status.clone(),
+                configuration: result.configuration.clone(),
+                cached: result.cached,
+                duration_millis: result.duration_millis,
             });
         }
     }
@@ -414,6 +465,10 @@ mod tests {
                     run: 1,
                     shard: 1,
                     attempt: 1,
+                    status: Some("PASSED".to_owned()),
+                    configuration: None,
+                    cached: None,
+                    duration_millis: None,
                 },
                 TestOutputFile {
                     label: "//z:t".to_owned(),
@@ -422,6 +477,10 @@ mod tests {
                     run: 1,
                     shard: 1,
                     attempt: 1,
+                    status: Some("PASSED".to_owned()),
+                    configuration: None,
+                    cached: None,
+                    duration_millis: None,
                 },
                 TestOutputFile {
                     label: "//z:t".to_owned(),
@@ -430,6 +489,10 @@ mod tests {
                     run: 1,
                     shard: 1,
                     attempt: 1,
+                    status: Some("PASSED".to_owned()),
+                    configuration: None,
+                    cached: None,
+                    duration_millis: None,
                 },
             ]
         );
@@ -503,6 +566,94 @@ mod tests {
                 "{field} string must fail"
             );
         }
+    }
+
+    #[test]
+    fn test_outputs_carry_status_configuration_cache_and_duration() {
+        let first = serde_json::json!({
+            "id": {"testResult": {"label": "//a:t", "run": 1, "shard": 1, "attempt": 1,
+                "configuration": {"id": "28ba9c9e3809af42"}}},
+            "testResult": {"status": "FLAKY",
+                "cachedLocally": true,
+                "testAttemptDurationMillis": "31",
+                "testActionOutput": [{"name": "test.xml", "uri": out_uri("a.xml")}]},
+        })
+        .to_string();
+        let second = serde_json::json!({
+            "id": {"testResult": {"label": "//a:t", "run": 1, "shard": 1, "attempt": 2}},
+            "testResult": {"status": "TIMEOUT",
+                "cachedRemotely": false,
+                "testAttemptDurationMillis": 42000,
+                "testActionOutput": [{"name": "test.xml", "uri": out_uri("b.xml")}]},
+        })
+        .to_string();
+        let got = collect_test_outputs(Cursor::new([first, second].join("\n")), None)
+            .expect("collect");
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].status, Some("FLAKY".to_owned()));
+        assert_eq!(got[0].configuration, Some("28ba9c9e3809af42".to_owned()));
+        assert_eq!(got[0].cached, Some(true));
+        assert_eq!(got[0].duration_millis, Some(31));
+        assert_eq!(got[1].status, Some("TIMEOUT".to_owned()));
+        assert_eq!(got[1].configuration, None);
+        assert_eq!(got[1].cached, Some(false));
+        assert_eq!(got[1].duration_millis, Some(42000));
+    }
+
+    #[test]
+    fn test_outputs_leave_absent_or_unparsable_metadata_unknown() {
+        let bare = serde_json::json!({
+            "id": {"testResult": {"label": "//a:t"}},
+            "testResult": {"testActionOutput": [{"name": "test.xml", "uri": out_uri("a.xml")}]},
+        })
+        .to_string();
+        let odd = serde_json::json!({
+            "id": {"testResult": {"label": "//b:t", "configuration": {"id": ""}}},
+            "testResult": {"status": "", "cachedLocally": "yes",
+                "testAttemptDurationMillis": "not-a-number",
+                "testActionOutput": [{"name": "test.xml", "uri": out_uri("b.xml")}]},
+        })
+        .to_string();
+        let got = collect_test_outputs(Cursor::new([bare, odd].join("\n")), None)
+            .expect("collect");
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].status, None);
+        assert_eq!(got[0].configuration, None);
+        assert_eq!(got[0].cached, None);
+        assert_eq!(got[0].duration_millis, None);
+        assert_eq!(got[1].status, None);
+        assert_eq!(got[1].configuration, None);
+        assert_eq!(got[1].cached, None);
+        assert_eq!(got[1].duration_millis, None);
+    }
+
+    #[test]
+    fn test_outputs_tolerate_real_result_shapes() {
+        let stream = serde_json::json!({
+            "id": {"testResult": {"label": "//cli/bep:dx_bep_test", "run": 1, "shard": 1,
+                "attempt": 1,
+                "configuration": {"id": "28ba9c9e3809af421b14f5140d4c269d067ac29744f33516cb70c516593b1f20"}}},
+            "testResult": {
+                "testActionOutput": [
+                    {"name": "test.log", "uri": out_uri("test.log")},
+                    {"name": "test.xml", "uri": out_uri("test.xml")}],
+                "testAttemptDurationMillis": "31",
+                "status": "PASSED",
+                "testAttemptStartMillisEpoch": "1791499015875",
+                "executionInfo": {"strategy": "linux-sandbox"},
+                "testAttemptStart": "2026-10-08T22:36:55.875Z",
+                "testAttemptDuration": "0.031s"},
+        })
+        .to_string();
+        let got = collect_test_outputs(Cursor::new(stream), None).expect("collect");
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].status, Some("PASSED".to_owned()));
+        assert_eq!(
+            got[0].configuration,
+            Some("28ba9c9e3809af421b14f5140d4c269d067ac29744f33516cb70c516593b1f20".to_owned())
+        );
+        assert_eq!(got[0].cached, None);
+        assert_eq!(got[0].duration_millis, Some(31));
     }
 
     #[test]

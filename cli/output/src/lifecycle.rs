@@ -16,6 +16,7 @@ pub const EVENTS: &[&str] = &[
     "report",
     "selection",
     "status",
+    "test_result",
 ];
 
 pub fn schema() -> Value {

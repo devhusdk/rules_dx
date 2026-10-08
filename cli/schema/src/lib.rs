@@ -9,7 +9,7 @@
 )]
 
 pub const SCHEMA_MAJOR: u32 = 1;
-pub const SCHEMA_MINOR: u32 = 1;
+pub const SCHEMA_MINOR: u32 = 2;
 
 pub fn check_major(found: u32) -> Result<(), u32> {
     if found != SCHEMA_MAJOR {

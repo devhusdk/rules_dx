@@ -1,5 +1,6 @@
 use super::common::*;
 use super::managed_staging::{ensure_generation_dir, symlink_leaf};
+use dx_atomic_fs::lease::SharedLease;
 use dx_path::{PathProblem, WorkspaceRelativePath};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -95,9 +96,10 @@ pub(crate) fn stage_codegen_generation(
     workspace: &Path,
     id: &dx_setup::GenerationId,
     projection: &[dx_codegen::ProjectionEntry],
-) -> Result<(), (String, String)> {
+) -> Result<SharedLease, (String, String)> {
     let entries = resolve_logical_entries(projection)?;
-    let dir = ensure_generation_dir(workspace, dx_setup::GENERATED_DIR_NAME, id.as_str())?;
+    let (dir, lease) =
+        ensure_generation_dir(workspace, dx_setup::GENERATED_DIR_NAME, id.as_str())?;
     for resolved in &entries {
         let entry = resolved.entry;
         if resolved
@@ -160,16 +162,16 @@ pub(crate) fn stage_codegen_generation(
             })?;
         }
     }
-    Ok(())
+    Ok(lease)
 }
 
 pub(crate) fn stage_codegen_side(
     workspace: &Path,
     plan: &dx_codegen::CollectedPlan,
-) -> Result<dx_setup::GenerationId, (String, String)> {
+) -> Result<(dx_setup::GenerationId, SharedLease), (String, String)> {
     let id = dx_setup::GenerationId::from_digest(plan.digest);
-    stage_codegen_generation(workspace, &id, &plan.projection)?;
-    Ok(id)
+    let lease = stage_codegen_generation(workspace, &id, &plan.projection)?;
+    Ok((id, lease))
 }
 
 #[cfg(test)]
@@ -377,8 +379,9 @@ mod tests {
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(message.contains("Bazel owns materialization"), "{message}");
         let dir_id = dx_setup::GenerationId::new(&"2".repeat(64)).expect("fixture id");
-        let dir = ensure_generation_dir(&workspace, GENERATED_DIR_NAME, dir_id.as_str())
-            .expect("gen dir");
+        let (dir, _lease) =
+            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, dir_id.as_str())
+                .expect("gen dir");
         std::fs::create_dir_all(dir.join("gen/blocked")).expect("blocking dir");
         let (code, message) =
             stage_codegen_generation(&workspace, &dir_id, &[codegen_entry("gen/blocked", &first)])
@@ -389,8 +392,9 @@ mod tests {
             "{message}"
         );
         let parent_id = dx_setup::GenerationId::new(&"3".repeat(64)).expect("fixture id");
-        let parent_dir = ensure_generation_dir(&workspace, GENERATED_DIR_NAME, parent_id.as_str())
-            .expect("gen dir");
+        let (parent_dir, _held) =
+            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, parent_id.as_str())
+                .expect("gen dir");
         std::fs::write(parent_dir.join("sub"), "file").expect("blocking file");
         let (code, message) = stage_codegen_generation(
             &workspace,

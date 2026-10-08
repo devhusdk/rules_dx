@@ -9,6 +9,7 @@
 )]
 
 pub mod commit;
+pub mod lease;
 pub mod managed;
 
 use std::fs::File;

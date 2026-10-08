@@ -180,8 +180,8 @@ pub fn usage_banner() -> String {
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
-per-command flags: clean --bazel (also run `bazel clean`; default never touches Bazel outputs; \
-distinct from `dx bazel` passthrough); owners|deps|why --configured (cquery); \
+per-command flags: clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
+distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why --configured (cquery); \
 coverage --min-coverage; build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
@@ -228,6 +228,7 @@ const COMMAND_FLAGS: &[&str] = &[
     "--debug",
     "--release",
     "--bazel",
+    "--prune-unobserved",
     "--pin",
     "--rollback",
     "--configured",
@@ -490,10 +491,11 @@ mod tests {
             other => panic!("clean --help: want Help, got {other:?}"),
         };
         assert!(
-            clean.contains("clean [--dry-run] [--bazel]"),
+            clean.contains("clean [--dry-run] [--bazel] [--prune-unobserved]"),
             "clean usage:\n{clean}"
         );
         assert!(clean.contains("--bazel"), "clean flags:\n{clean}");
+        assert!(clean.contains("--prune-unobserved"), "clean flags:\n{clean}");
         assert!(
             clean.contains("distinct from `dx bazel`"),
             "clean disambiguation:\n{clean}"

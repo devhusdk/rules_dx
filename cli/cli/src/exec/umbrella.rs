@@ -426,6 +426,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             targets: invocation.targets.clone(),
             bazel_options: invocation.bazel_options.clone(),
             bazel_clean: false,
+            prune_unobserved: false,
             pin: None,
             rollback: false,
             configured: false,

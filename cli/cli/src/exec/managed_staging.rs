@@ -1,19 +1,46 @@
 use super::common::*;
+use dx_atomic_fs::lease::{GenerationUse, SharedLease};
 use dx_env::DX_DIR_NAME;
+use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME};
 use std::io;
 use std::path::{Path, PathBuf};
+
+fn generation_use(dir_name: &str) -> Result<GenerationUse, (String, String)> {
+    if dir_name == ENVIRONMENTS_DIR_NAME {
+        Ok(GenerationUse::Environment)
+    } else if dir_name == GENERATED_DIR_NAME {
+        Ok(GenerationUse::Generated)
+    } else {
+        Err((
+            CODE_MANAGED_COMMIT_FAILED.to_owned(),
+            format!("{dir_name} is not a managed generation family"),
+        ))
+    }
+}
 
 pub(crate) fn ensure_generation_dir(
     workspace: &Path,
     dir_name: &str,
     hex: &str,
-) -> Result<PathBuf, (String, String)> {
+) -> Result<(PathBuf, SharedLease), (String, String)> {
     if !workspace.is_dir() {
         return Err((
             CODE_MANAGED_COMMIT_FAILED.to_owned(),
             format!("workspace root {} is not a directory", workspace.display()),
         ));
     }
+    let lease = dx_atomic_fs::lease::acquire_shared(
+        &workspace.join(DX_DIR_NAME),
+        generation_use(dir_name)?,
+        hex,
+        std::time::Duration::from_secs(10),
+    )
+    .map_err(|error| {
+        (
+            CODE_MANAGED_COMMIT_FAILED.to_owned(),
+            format!("cannot lease generation {hex}: {error}"),
+        )
+    })?;
     let dir = workspace.join(DX_DIR_NAME).join(dir_name).join(hex);
     match std::fs::symlink_metadata(&dir) {
         Ok(meta) => {
@@ -36,7 +63,7 @@ pub(crate) fn ensure_generation_dir(
             })?;
         }
     }
-    Ok(dir)
+    Ok((dir, lease))
 }
 
 pub(crate) fn symlink_leaf(target: &Path, link: &Path) -> io::Result<()> {
@@ -61,9 +88,11 @@ mod tests {
         let workspace = temp_dir("managed-gendir-ws");
         let workspace = workspace.path();
         let hex = "ab".repeat(32);
-        let first = ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &hex).expect("create");
+        let (first, _lease) =
+            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &hex).expect("create");
         assert!(first.is_dir());
-        let second = ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &hex).expect("reuse");
+        let (second, _held) =
+            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, &hex).expect("reuse");
         assert_eq!(first, second);
         let other = "0".repeat(64);
         std::fs::write(

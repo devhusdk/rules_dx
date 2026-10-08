@@ -384,11 +384,16 @@ fn clean_parses_dry_run_and_bazel() {
     let got = parse(&strings(&["clean"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
     assert!(!got.bazel_clean);
+    assert!(!got.prune_unobserved);
     assert!(!got.dry_run);
     let got = parse(&strings(&["clean", "--dry-run", "--bazel"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
     assert!(got.dry_run);
     assert!(got.bazel_clean);
+    assert!(!got.prune_unobserved);
+    let got = parse(&strings(&["clean", "--prune-unobserved"])).expect("parse");
+    assert_eq!(got.command, Command::Clean);
+    assert!(got.prune_unobserved);
     assert_eq!(Command::Clean.name(), "clean");
 }
 

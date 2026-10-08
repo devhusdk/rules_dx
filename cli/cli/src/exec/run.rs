@@ -449,6 +449,7 @@ mod tests {
             targets: vec!["//app:bin".to_owned()],
             bazel_options: Vec::new(),
             bazel_clean: false,
+            prune_unobserved: false,
             pin: None,
             rollback: false,
             configured: false,

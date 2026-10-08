@@ -6,6 +6,7 @@ package(default_visibility = VIS_CLI_ENV_GENERATION_QUALITY)
 
 exports_files([
     "src/commit.rs",
+    "src/lease.rs",
     "src/lib.rs",
     "src/managed.rs",
 ])
@@ -15,6 +16,7 @@ dx_rust_crate(
     package_name = "cli/dx_atomic_fs",
     srcs = [
         "src/commit.rs",
+        "src/lease.rs",
         "src/lib.rs",
         "src/managed.rs",
     ],

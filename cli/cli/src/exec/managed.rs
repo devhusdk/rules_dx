@@ -137,8 +137,13 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         return bazel_code;
     }
     let repository = matches!(scope, dx_setup::SetupScope::Repository);
-    let sides = match prepare_managed_sides(invocation.command, repository, workspace, &bep) {
-        Ok(sides) => sides,
+    let (sides, staged_leases) = match prepare_managed_sides(
+        invocation.command,
+        repository,
+        workspace,
+        &bep,
+    ) {
+        Ok(prepared) => prepared,
         Err((code, message)) => {
             let _ = std::fs::remove_file(&bep);
             return operational(invocation, out, err, &code, &message);
@@ -152,6 +157,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, &code, &message);
         }
     };
+    drop(staged_leases);
     let _ = std::fs::remove_file(&bep);
     if json {
         let setup_id = dx_setup::setup_hex(&pair);
@@ -436,10 +442,10 @@ mod tests {
         let workspace = temp_dir("managed-empty-sides-ws");
         let workspace = workspace.path();
         let codegen_plan = dx_codegen::collect_plan(&[]).expect("empty codegen plan");
-        let staged = stage_codegen_side(&workspace, &codegen_plan).expect("stage");
+        let (staged, _lease) = stage_codegen_side(&workspace, &codegen_plan).expect("stage");
         assert_eq!(staged, empty_generated_id());
         let env_plan = dx_env_plan::collect_plan(&[]).expect("empty env plan");
-        let staged = stage_env_side(&workspace, &env_plan).expect("stage");
+        let (staged, _held) = stage_env_side(&workspace, &env_plan).expect("stage");
         assert_eq!(staged, empty_env_id());
         let values = std::fs::read_to_string(
             workspace

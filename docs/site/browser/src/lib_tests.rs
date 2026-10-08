@@ -29,6 +29,25 @@ fn a_frame_reports_an_empty_body_and_resets_for_the_next_one() {
 }
 
 #[test]
+fn a_frame_counts_body_bytes_so_multibyte_text_finishes_at_its_declared_length() {
+    let mut frame = Frame::default();
+    assert_eq!(frame.push(b'5').expect("the length digit"), None);
+    assert_eq!(frame.push(b':').expect("a colon"), None);
+    let mut last = None;
+    for byte in "h\u{2192}i".bytes() {
+        last = frame.push(byte).expect("a body byte");
+    }
+    assert_eq!(last, Some("h\u{2192}i".to_string()));
+    assert_eq!(frame.push(b'2').expect("the next length digit"), None);
+    assert_eq!(frame.push(b':').expect("the next colon"), None);
+    assert_eq!(frame.push(b'o').expect("a body byte"), None);
+    assert_eq!(
+        frame.push(b'k').expect("the last body byte"),
+        Some("ok".to_string())
+    );
+}
+
+#[test]
 fn a_frame_refuses_a_length_that_is_not_a_number() {
     let mut frame = Frame::default();
     let error = frame.push(b'x').expect_err("a non-digit length");

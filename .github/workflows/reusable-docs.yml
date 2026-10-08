@@ -217,6 +217,23 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- docs --check -- "$@"
+      - name: Render and validate the rendered site
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//:dx -- docs -- "$@"
+          stage="$RUNNER_TEMP/pages"
+          site="$(bazel cquery "$@" --output=files //docs/site:user_site)"
+          test -f "$site/index.html"
+          test -f "$site/searchindex.js"
+          rm -rf "$stage"
+          mkdir -p "$stage"
+          cp -R "$site/." "$stage/"
+          bazel run "$@" //docs/site/check:site_check -- --rendered "$stage" --landing \
+            --forbid "Treat warnings as errors" \
+            --forbid "AccountService" \
+            --forbid "Python demo package"
   docs-publish:
     name: docs-publish (GitHub Pages)
     needs: [docs-check]
@@ -402,8 +419,10 @@ jobs:
         # Stage under RUNNER_TEMP so the checkout is never left dirty.
         run: |
           set -euo pipefail
-          site="bazel-bin/docs/site/user_site"
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
           stage="$RUNNER_TEMP/pages"
+          site="$(bazel cquery "$@" --output=files //docs/site:user_site)"
           test -f "$site/index.html"
           test -f "$site/searchindex.js"
           test -f "$site/css/general.css"
@@ -412,6 +431,15 @@ jobs:
           mkdir -p "$stage"
           cp -R "$site/." "$stage/"
           echo "PAGES_STAGE=$stage" >> "$GITHUB_ENV"
+      - name: Validate staged site
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //docs/site/check:site_check -- --rendered "$PAGES_STAGE" --landing \
+            --forbid "Treat warnings as errors" \
+            --forbid "AccountService" \
+            --forbid "Python demo package"
       - name: Upload rendered site as Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
@@ -419,6 +447,15 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Smoke-test the deployed site
+        env:
+          PAGES_URL: ${{ steps.deploy.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          test -n "$PAGES_URL"
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel test "$@" --test_env=DX_PAGES_URL="$PAGES_URL" //docs/site:deploy_smoke_test
       - name: Prove checkout left clean
         # Bazel rewrites the lockfile on BCR drift; renderer dirt fails here.
         run: |

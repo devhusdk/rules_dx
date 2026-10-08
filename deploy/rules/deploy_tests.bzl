@@ -43,9 +43,10 @@ def deploy_unit_tests(name):
 EXPECTED_DEPLOY_DEFAULT_OBSERVATIONS = """subject //deploy/rules:deploy_default
 file deploy_default
 field app=
+field artifacts=
 field profile=release
 aspect_field aspect_seen=True
-aspect_field field_count=2
+aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//deploy/rules:deploy_default
 aspect_field transitive_count=0"""
@@ -53,9 +54,10 @@ aspect_field transitive_count=0"""
 EXPECTED_DEPLOY_DEBUG_OBSERVATIONS = """subject //deploy/rules:deploy_debug
 file deploy_debug
 field app=
+field artifacts=
 field profile=debug
 aspect_field aspect_seen=True
-aspect_field field_count=2
+aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//deploy/rules:deploy_debug
 aspect_field transitive_count=0"""
@@ -63,11 +65,23 @@ aspect_field transitive_count=0"""
 EXPECTED_DEPLOY_WITH_APP_OBSERVATIONS = """subject //deploy/rules:deploy_with_app
 file deploy_with_app
 field app=//deploy/rules:deploy_program
+field artifacts=
 field profile=release
 aspect_field aspect_seen=True
-aspect_field field_count=2
+aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//deploy/rules:deploy_with_app
+aspect_field transitive_count=0"""
+
+EXPECTED_DEPLOY_WEB_OBSERVATIONS = """subject //deploy/rules:deploy_web
+file deploy_web
+field app=
+field artifacts=//deploy/rules:web_dir,//deploy/release:notice_demo_a.txt
+field profile=release
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//deploy/rules:deploy_web
 aspect_field transitive_count=0"""
 
 def deploy_analysis_tests(name):
@@ -92,4 +106,12 @@ def deploy_app_analysis_tests(name):
         mode = "analysis",
         subjects = [":deploy_with_app"],
         expected_observations = EXPECTED_DEPLOY_WITH_APP_OBSERVATIONS,
+    )
+
+def deploy_web_analysis_tests(name):
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = [":deploy_web"],
+        expected_observations = EXPECTED_DEPLOY_WEB_OBSERVATIONS,
     )

@@ -1,4 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
@@ -6,7 +7,7 @@ load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tes
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
-load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests")
+load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests", "deploy_web_analysis_tests")
 load(":github.bzl", "github_deploy")
 load(":github_tests.bzl", "github_analysis_tests", "github_debug_analysis_tests", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
@@ -223,6 +224,53 @@ deploy_debug_analysis_tests(name = "deploy_debug_analysis")
 
 deploy_app_analysis_tests(name = "deploy_app_analysis")
 
+filegroup(
+    name = "web_dir",
+    srcs = ["web_demo/index.html"],
+)
+
+dx_deployment(
+    name = "deploy_web",
+    artifacts = [
+        ":web_dir",
+        "//deploy/release:notice_demo_a.txt",
+    ],
+    deploy = ":deploy_program",
+)
+
+deploy_web_analysis_tests(name = "deploy_web_analysis")
+
+filegroup(
+    name = "empty_artifact",
+    srcs = [],
+    tags = ["manual"],
+)
+
+dx_deployment(
+    name = "deploy_empty_artifact",
+    artifacts = [":empty_artifact"],
+    deploy = ":deploy_program",
+    tags = ["manual"],
+)
+
+dx_deployment(
+    name = "deploy_non_executable_tool",
+    deploy = ":pypi_demo_wheel",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "deploy_empty_artifact_fails",
+    expected_failure_substring = "provides no files",
+    target = ":deploy_empty_artifact",
+)
+
+failure_test(
+    name = "deploy_non_executable_tool_fails",
+    expected_failure_substring = "has no executable",
+    target = ":deploy_non_executable_tool",
+)
+
 archive_deploy(
     name = "release_demo",
     app = ":deploy_program",
@@ -290,7 +338,10 @@ test_suite(
         ":deploy_analysis",
         ":deploy_app_analysis",
         ":deploy_debug_analysis",
+        ":deploy_empty_artifact_fails",
+        ":deploy_non_executable_tool_fails",
         ":deploy_unit",
+        ":deploy_web_analysis",
         ":dx_deploy_tools_test",
         ":github_analysis",
         ":github_debug_analysis",

@@ -24,9 +24,10 @@ def archive_unit_tests(name):
 EXPECTED_ARCHIVE_DEFAULT_OBSERVATIONS = """subject //deploy/rules:release_demo
 file release_demo
 field app=//deploy/rules:deploy_program
+field artifacts=
 field profile=release
 aspect_field aspect_seen=True
-aspect_field field_count=2
+aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//deploy/rules:release_demo
 aspect_field transitive_count=0"""
@@ -34,9 +35,10 @@ aspect_field transitive_count=0"""
 EXPECTED_ARCHIVE_DEBUG_OBSERVATIONS = """subject //deploy/rules:release_demo_debug
 file release_demo_debug
 field app=//deploy/rules:deploy_program
+field artifacts=
 field profile=debug
 aspect_field aspect_seen=True
-aspect_field field_count=2
+aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//deploy/rules:release_demo_debug
 aspect_field transitive_count=0"""

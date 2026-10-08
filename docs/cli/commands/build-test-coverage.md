@@ -42,17 +42,21 @@ bazel run @rules_dx//:dx -- test //... -- --jobs=4
 dx run [--apply] [--debug|--release] <label...> [-- args...]
 ```
 
-Builds and runs runnable targets in scope order. Explicit labels and patterns
-run sequentially. File and directory scopes must resolve to exactly one
-runnable target. Args after `--` go to the app.
+Builds the runnable targets in scope without launching them. Pass
+`--apply` to launch the built targets in scope order. Explicit labels
+and patterns run sequentially. File and directory scopes must resolve
+to exactly one runnable target. Args after `--` go to the app, and only
+reach it on an `--apply` launch.
 
 Output: `--output text|json`. `dx run` has no report format.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
-a launch failure. The app's own code is the exit code.
+a launch failure. The app's own code is the exit code. A passing check
+names the `--apply` command that launches.
 
 ```sh
 bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
+bazel run @rules_dx//:dx -- run --apply @rules_dx//:dx -- --help
 ```
 
 ## `dx deploy`
@@ -61,13 +65,15 @@ bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
 dx deploy [--apply] [--debug|--release] <label> [-- args...]
 ```
 
-Builds and runs one deployable target. Takes exactly one label. No flag uses
-`dx_release` here. Args after `--` go to the app.
+Builds one deployable target without publishing it. Pass `--apply` to run
+the deployment. Takes exactly one label. No flag uses `dx_release` here.
+Args after `--` go to the app, and only reach it on an `--apply` launch.
 
 Output: `--output text`.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a build or launch
-failure. The target's own code is the exit code.
+failure. The target's own code is the exit code. A passing check names
+the `--apply` command that publishes.
 
 ## `dx coverage`
 

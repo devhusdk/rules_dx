@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::time::Instant;
 
-use crate::args::Invocation;
+use crate::args::{Command, Invocation};
 use crate::exec::common::check_stdout_write;
 
 use crate::resolve::{QueryResult, QueryRunner};
@@ -376,8 +376,10 @@ fn execute_run(
             }
         }
     }
-    if let Err(detail) = record_timings(workspace, &measured) {
-        return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+    if hook_applies(invocation, &checks) {
+        if let Err(detail) = record_timings(workspace, &measured) {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+        }
     }
     if !summaries_suppressed(invocation) {
         for (check, elapsed) in &measured {
@@ -507,10 +509,30 @@ fn change_targets(
 }
 
 fn check_argv(dx_exe: &str, check: &str, targets: &[String]) -> Vec<String> {
+    let mut words: Vec<String> = check.split_whitespace().map(ToOwned::to_owned).collect();
+    let explicit_mode = words
+        .iter()
+        .any(|word| matches!(word.as_str(), "--check" | "--apply" | "--dry-run"));
+    if !explicit_mode {
+        let forces_check = words
+            .first()
+            .and_then(|first| Command::parse(first))
+            .is_some_and(|command| command.is_mutating_by_default() && command.supports_check());
+        if forces_check {
+            words.insert(1, "--check".to_owned());
+        }
+    }
     let mut argv = vec![dx_exe.to_owned()];
-    argv.extend(check.split_whitespace().map(ToOwned::to_owned));
+    argv.extend(words);
     argv.extend(targets.iter().cloned());
     argv
+}
+
+fn hook_applies(invocation: &Invocation, checks: &[String]) -> bool {
+    invocation.apply
+        || checks
+            .iter()
+            .any(|check| check.split_whitespace().any(|word| word == "--apply"))
 }
 
 fn record_timings(workspace: &std::path::Path, measured: &[(String, f64)]) -> Result<(), String> {
@@ -895,7 +917,11 @@ mod tests {
             }
             let mut out = Vec::new();
             let mut err = Vec::new();
-            let inv = invocation(&["hooks", "run", "pre-commit"]);
+            let words: &[&str] = match scenario {
+                "bad-timings" | "timings-collision" => &["hooks", "--apply", "run", "pre-commit"],
+                _ => &["hooks", "run", "pre-commit"],
+            };
+            let inv = invocation(words);
             assert_eq!(
                 execute_hooks(&inv, root, &query, &runner, None, &mut out, &mut err),
                 want_code,
@@ -941,7 +967,7 @@ mod tests {
     }
 
     #[test]
-    fn hooks_run_executes_checks_and_records_measured_timings() {
+    fn hooks_run_checks_without_writing_timings_by_default() {
         let inv = invocation(&["hooks", "run", "pre-commit"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-run-");
         let root = scratch.path().to_path_buf();
@@ -956,15 +982,97 @@ mod tests {
         assert!(text.contains("format --check ok"));
         assert!(!text.contains("budget 120s)") || text.contains("/ budget 120s)"));
         assert!(!text.contains("ran pre-commit: ok (budget 120s)"));
-        let timings =
-            std::fs::read_to_string(root.join(".dx/hooks-timings.toml")).expect("timings");
-        assert!(timings.contains("format --check"));
-        assert!(!timings.contains("p95"));
+        assert!(
+            !root.join(".dx/hooks-timings.toml").exists(),
+            "check-mode hooks must not write timings"
+        );
         assert_eq!(query.seen.borrow().len(), 2);
         assert!(
             query.seen.borrow()[0][0].ends_with("git")
                 || query.seen.borrow()[0][0] == "/hermetic/git"
         );
+    }
+
+    #[test]
+    fn hooks_run_apply_records_measured_timings() {
+        let inv = invocation(&["hooks", "--apply", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-run-apply-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
+        let (code, _, _err) = run_with(&inv, &root, &query, &runner);
+        assert_eq!(code, 0);
+        let timings =
+            std::fs::read_to_string(root.join(".dx/hooks-timings.toml")).expect("timings");
+        assert!(timings.contains("format --check"));
+        assert!(!timings.contains("p95"));
+    }
+
+    #[test]
+    fn hooks_run_config_explicit_apply_survives_and_records_timings() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-run-config-apply-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        std::fs::write(
+            root.join("dx.hooks.toml"),
+            "[hooks]\npre_commit = [\"format --apply\"]\n",
+        )
+        .expect("config");
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0)]);
+        let inv = invocation(&["hooks", "run", "pre-commit"]);
+        let (code, _, _err) = run_with(&inv, &root, &query, &runner);
+        assert_eq!(code, 0);
+        assert_eq!(runner.seen.borrow().len(), 1);
+        assert!(
+            runner.seen.borrow()[0].contains(&"--apply".to_owned()),
+            "config-explicit --apply must reach the child: {:?}",
+            runner.seen.borrow()[0]
+        );
+        assert!(
+            root.join(".dx/hooks-timings.toml").exists(),
+            "config-explicit apply records timings"
+        );
+    }
+
+    #[test]
+    fn hook_children_stay_read_only_without_explicit_apply() {
+        let targets = vec!["//pkg:lib".to_owned()];
+        for (check, want) in [
+            ("format", vec!["/dx", "format", "//pkg:lib"]),
+            ("update", vec!["/dx", "update", "--check", "//pkg:lib"]),
+            ("generate", vec!["/dx", "generate", "--check", "//pkg:lib"]),
+            (
+                "format --check",
+                vec!["/dx", "format", "--check", "//pkg:lib"],
+            ),
+            ("fix --apply", vec!["/dx", "fix", "--apply", "//pkg:lib"]),
+            (
+                "run //app:bin",
+                vec!["/dx", "run", "//app:bin", "//pkg:lib"],
+            ),
+            ("docs --serve", vec!["/dx", "docs", "--serve", "//pkg:lib"]),
+            (
+                "bogus --check",
+                vec!["/dx", "bogus", "--check", "//pkg:lib"],
+            ),
+        ] {
+            let want: Vec<String> = want.into_iter().map(ToString::to_string).collect();
+            assert_eq!(check_argv("/dx", check, &targets), want, "{check}");
+        }
+        assert!(!hook_applies(
+            &invocation(&["hooks", "run", "pre-commit"]),
+            &["format --check".to_owned()]
+        ));
+        assert!(hook_applies(
+            &invocation(&["hooks", "--apply", "run", "pre-commit"]),
+            &["format --check".to_owned()]
+        ));
+        assert!(hook_applies(
+            &invocation(&["hooks", "run", "pre-commit"]),
+            &["format --apply".to_owned()]
+        ));
     }
 
     #[test]

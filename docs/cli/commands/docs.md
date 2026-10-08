@@ -13,7 +13,9 @@ current directory tree. Args after `--` go to Bazel unchanged.
 - `--check`: validate the book without rendering it. Builds the generated
   summary and landing page only.
 - `--serve`: preview the last build locally after building. Serves the
-  rendered site tree, so every page has its own URL.
+  rendered site tree, so every page has its own URL. Needs `--apply`:
+  without it `dx` builds and names the serve command instead of launching
+  the preview or the browser.
 - `--port <n>`, `--host <addr>`, `--open`: need `--serve`. `--open` opens
   the preview in a browser.
 - `--output text|json`: result shape. `diff` has no patch.
@@ -25,7 +27,7 @@ preview server's code is the exit code.
 ```sh
 bazel run @rules_dx//:dx -- docs --check
 bazel run @rules_dx//:dx -- docs
-bazel run @rules_dx//:dx -- docs --serve --port 8080
+bazel run @rules_dx//:dx -- docs --serve --apply --port 8080
 ```
 
 The build never changes sources. Serve runs a local preview only. The site

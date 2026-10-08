@@ -288,6 +288,24 @@ mod tests {
     }
 
     #[test]
+    fn watch_preserves_the_wrapped_apply_mode() {
+        for (words, verb) in [
+            (vec!["watch", "run", "//app:bin"], "build"),
+            (vec!["watch", "--apply", "run", "//app:bin"], "run"),
+        ] {
+            let mut harness = Harness::new("dx-watch-apply-");
+            let code = harness.run(&words, Some(1), &mut |_| Ok(Vec::new()));
+            assert_eq!(code, 0, "{words:?}: {}", harness.stderr());
+            assert_eq!(harness.seen.borrow().len(), 1, "{words:?}");
+            assert!(
+                harness.seen.borrow()[0].contains(&format!(" {verb} ")),
+                "{words:?} must reach bazel {verb}: {}",
+                harness.seen.borrow()[0]
+            );
+        }
+    }
+
+    #[test]
     fn watch_runs_the_wrapped_command_once_without_changes() {
         let mut harness = Harness::new("dx-watch-once-");
         let code = harness.run(

@@ -1,6 +1,6 @@
 use super::common::*;
 use crate::args::Invocation;
-use crate::plan::plan_run;
+use crate::plan::{plan_run, plan_run_build, shell_join};
 use crate::reports::plan_reports;
 use crate::resolve::{resolve_run, ResolveError};
 use dx_output::{
@@ -68,6 +68,90 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
     execute_run_multi(invocation, workspace, runner, out, err, &targets)
 }
 
+fn apply_hint(invocation: &Invocation, targets: &[String]) -> String {
+    let mut words = vec!["dx".to_owned(), "run".to_owned(), "--apply".to_owned()];
+    if invocation.debug {
+        words.push("--debug".to_owned());
+    }
+    if invocation.release {
+        words.push("--release".to_owned());
+    }
+    words.extend(targets.iter().cloned());
+    if !invocation.bazel_options.is_empty() {
+        words.push("--".to_owned());
+        words.extend(invocation.bazel_options.iter().cloned());
+    }
+    shell_join(&words)
+}
+
+fn emit_build_operations(out: &mut dyn Write, command: &str, targets: &[String]) {
+    use dx_output::with_correlation;
+    for target in targets {
+        let scope = [target.clone()];
+        if let Ok(event) = operation_event(command, "build", Some(&scope)) {
+            let correlation = format!("run:{target}");
+            let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
+            let _ = write_event(out, &event);
+        }
+    }
+}
+
+fn execute_run_check(
+    invocation: &Invocation,
+    workspace: &Path,
+    runner: &dyn dx_process::Runner,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    targets: &[String],
+) -> i32 {
+    let plan = plan_run_build(targets, invocation.profile());
+    if invocation.output == OutputMode::Json {
+        if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+            let _ = write_event(out, &event);
+        }
+        emit_build_operations(out, invocation.command.name(), targets);
+        let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+            Ok(code) => code,
+            Err(exit) => return exit,
+        };
+        if code != 0 {
+            if let Ok(event) = error_event(
+                "bazel_failed",
+                &format!(
+                    "run check build for {} failed with exit {code} (see stderr diagnostics)",
+                    targets.join(" ")
+                ),
+                None,
+                None,
+                Some("build"),
+            ) {
+                let _ = write_event(out, &event);
+            }
+        }
+        let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
+        return code;
+    }
+    if !invocation.quiet {
+        let _ = writeln!(err, "{}", plan.summary);
+    }
+    let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
+        Ok(code) => code,
+        Err(exit) => return exit,
+    };
+    if code != 0 {
+        return code;
+    }
+    if !invocation.quiet {
+        let _ = writeln!(
+            err,
+            "Validated {} (built, not launched; launch with: {})",
+            targets.join(" "),
+            apply_hint(invocation, targets)
+        );
+    }
+    0
+}
+
 fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) {
     use dx_output::with_correlation;
     for target in targets {
@@ -100,6 +184,16 @@ fn execute_run_single(
             let _ = writeln!(err, "{}", plan.summary);
         }
         return 0;
+    }
+    if !invocation.applies() {
+        return execute_run_check(
+            invocation,
+            workspace,
+            runner,
+            out,
+            err,
+            &[target.to_owned()],
+        );
     }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
@@ -155,6 +249,9 @@ fn execute_run_multi(
             }
         }
         return 0;
+    }
+    if !invocation.applies() {
+        return execute_run_check(invocation, workspace, runner, out, err, targets);
     }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
@@ -212,7 +309,7 @@ mod tests {
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {
         let harness = Harness::new("run-ok");
-        let (code, out, err) = harness.run(&["run", "//app:bin", "--", "--port=8080"]);
+        let (code, out, err) = harness.run(&["run", "--apply", "//app:bin", "--", "--port=8080"]);
         assert_eq!(code, 0);
         assert_eq!(out, "");
         assert!(err.contains("Running run for //app:bin"), "{err}");
@@ -220,8 +317,81 @@ mod tests {
             bazel_code: 7,
             ..Harness::new("run-fails")
         };
-        let (code, _, _) = harness.run(&["run", "//app:bin"]);
+        let (code, _, _) = harness.run(&["run", "--apply", "//app:bin"]);
         assert_eq!(code, 7);
+    }
+
+    #[test]
+    fn run_check_builds_without_launching() {
+        let harness = Harness::new("run-check-build");
+        let inv = invocation(&["run", "//app:bin", "--", "--port=8080"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(!run.argv[0].contains(&"run".to_owned()), "{run:?}");
+        assert!(
+            !run.argv[0].contains(&"--port=8080".to_owned()),
+            "mode flags and app args stay out of the validation build: {run:?}"
+        );
+        let harness = Harness::new("run-check-text");
+        let (code, _, err) = harness.run(&["run", "//app:bin", "--", "--port=8080"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("Running run build for //app:bin"), "{err}");
+        assert!(
+            err.contains("dx run --apply //app:bin -- --port=8080"),
+            "{err}"
+        );
+        assert!(!err.contains("Running run for //app:bin"), "{err}");
+    }
+
+    #[test]
+    fn run_check_reports_build_failures() {
+        let harness = Harness {
+            bazel_code: 3,
+            ..Harness::new("run-check-fail")
+        };
+        let (code, _, _) = harness.run(&["run", "//app:bin"]);
+        assert_eq!(code, 3);
+        let harness = Harness::new("run-check-json-fail");
+        let inv = invocation(&["run", "//app:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(3)]);
+        assert_eq!(run.code, 3, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(run.out.contains("bazel_failed"), "{run:?}");
+        assert!(run.out.contains("\"mode\":\"check\""), "{run:?}");
+    }
+
+    #[test]
+    fn run_check_json_reports_build_phase() {
+        let harness = Harness::new("run-check-json");
+        let (code, out, err) = harness.run(&["run", "//app:bin", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started");
+        assert!(kinds.contains(&"operation"), "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        assert_eq!(events[0]["mode"], serde_json::json!("check"));
+        let op = event(&events, "operation");
+        assert_eq!(op["phase"], serde_json::json!("build"));
+        assert_eq!(op["scope"], serde_json::json!(["//app:bin"]));
+        assert_eq!(
+            events.last().expect("finished")["exit_code"],
+            serde_json::json!(0)
+        );
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn run_apply_keeps_app_args_out_of_dx_parsing() {
+        let harness = Harness::new("run-apply-args");
+        let inv = invocation(&["run", "--apply", "//app:bin", "--", "--apply"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(run.argv[0].contains(&"run".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"--apply".to_owned()), "{run:?}");
     }
 
     #[test]
@@ -306,7 +476,7 @@ mod tests {
     #[test]
     fn run_live_json_streams_operations_and_finished() {
         let harness = Harness::new("run-live-json");
-        let (code, out, err) = harness.run(&["run", "//app:bin", "--output=json"]);
+        let (code, out, err) = harness.run(&["run", "--apply", "//app:bin", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);
@@ -330,7 +500,7 @@ mod tests {
             bazel_code: 7,
             ..Harness::new("run-live-json-fail")
         };
-        let (code, out, _) = harness.run(&["run", "//app:bin", "--output=json"]);
+        let (code, out, _) = harness.run(&["run", "--apply", "//app:bin", "--output=json"]);
         assert_eq!(code, 7, "{out}");
         assert!(out.contains("bazel_failed"), "{out}");
         assert!(out.contains("command_finished"), "{out}");
@@ -341,12 +511,12 @@ mod tests {
     fn run_launch_and_signal_failures() {
         let mut harness = Harness::new("run-launch");
         harness.io_error = true;
-        let (code, _, err) = harness.run(&["run", "//app:bin"]);
+        let (code, _, err) = harness.run(&["run", "--apply", "//app:bin"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("launch_failed"), "{err}");
         let mut harness = Harness::new("run-signal");
         harness.signalled = true;
-        let (code, _, err) = harness.run(&["run", "//app:bin"]);
+        let (code, _, err) = harness.run(&["run", "--apply", "//app:bin"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_signalled"), "{err}");
     }
@@ -354,17 +524,18 @@ mod tests {
     #[test]
     fn run_multi_target_runs_sequential_single_plans() {
         let harness = Harness::new("run-multi");
-        let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin"]);
+        let (code, _, err) = harness.run(&["run", "--apply", "//a:bin", "//b:bin"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("Running run for //a:bin"), "{err}");
         assert!(err.contains("Running run for //b:bin"), "{err}");
         let harness = Harness::new("run-multi-args");
-        let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
+        let (code, _, err) =
+            harness.run(&["run", "--apply", "//a:bin", "//b:bin", "--", "--port=8080"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("Running run for //a:bin"), "{err}");
         assert!(err.contains("Running run for //b:bin"), "{err}");
         let harness = Harness::new("run-multi-argv");
-        let inv = invocation(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
+        let inv = invocation(&["run", "--apply", "//a:bin", "//b:bin", "--", "--port=8080"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert_eq!(run.argv.len(), 2, "{run:?}");
@@ -376,12 +547,35 @@ mod tests {
     }
 
     #[test]
+    fn run_multi_target_check_builds_once_without_launching() {
+        let harness = Harness::new("run-multi-check");
+        let inv = invocation(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"//a:bin".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"//b:bin".to_owned()), "{run:?}");
+        let harness = Harness::new("run-multi-check-text");
+        let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin", "--", "--port=8080"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("Running run build for //a:bin //b:bin"),
+            "{err}"
+        );
+        assert!(
+            err.contains("dx run --apply //a:bin //b:bin -- --port=8080"),
+            "{err}"
+        );
+    }
+
+    #[test]
     fn run_multi_stops_on_first_failure() {
         let harness = Harness {
             bazel_code: 7,
             ..Harness::new("run-multi-fail")
         };
-        let inv = invocation(&["run", "//a:bin", "//b:bin"]);
+        let inv = invocation(&["run", "--apply", "//a:bin", "//b:bin"]);
         let run = harness.probe_with(&inv, &[Some(7)]);
         assert_eq!(run.code, 7);
         assert_eq!(run.argv.len(), 1, "{run:?}");
@@ -393,7 +587,7 @@ mod tests {
         harness
             .query
             .script_owners("//demo:backend\n//demo:frontend\n");
-        let inv = invocation(&["run", "//demo/..."]);
+        let inv = invocation(&["run", "--apply", "//demo/..."]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
         assert_eq!(run.argv.len(), 2, "{run:?}");
@@ -491,9 +685,15 @@ mod tests {
     #[test]
     fn run_profile_flags_reach_bazel_argv() {
         for (words, flag) in [
-            (vec!["run", "//app:bin"], "--config=dx_dev"),
-            (vec!["run", "--debug", "//app:bin"], "--config=dx_debug"),
-            (vec!["run", "//app:bin", "--release"], "--config=dx_release"),
+            (vec!["run", "--apply", "//app:bin"], "--config=dx_dev"),
+            (
+                vec!["run", "--apply", "--debug", "//app:bin"],
+                "--config=dx_debug",
+            ),
+            (
+                vec!["run", "--apply", "//app:bin", "--release"],
+                "--config=dx_release",
+            ),
         ] {
             let harness = Harness::new("run-profile");
             let inv = invocation(&words);
@@ -534,6 +734,8 @@ mod tests {
                 }
                 if scenario == "dry" {
                     words.push("--dry-run");
+                } else {
+                    words.push("--apply");
                 }
                 let (code, out, err) = harness.run(&words);
                 let expected = match scenario {

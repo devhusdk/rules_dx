@@ -38,6 +38,11 @@ Manages Git hooks through hermetic Git.
 Git binary. A relative path is rejected and `PATH` is never searched. Without
 it the run exits `1` with `hook git must be hermetic`.
 
+Checks run read-only: a check without an explicit mode runs its command in
+check mode, and only a check that names `--apply` applies. Measured timings
+are written only when the run applies, either through `dx hooks --apply run`
+or through a check that names `--apply`.
+
 `run pre-commit` checks staged changes. `run pre-push` reads the pushed refs
 from stdin and checks the outgoing commits, even with an empty index.
 A deleted ref is skipped. A new remote ref diffs against the empty tree.

@@ -1,6 +1,6 @@
 use super::common::*;
 use crate::args::{resolve_profile, Command, Invocation, Profile, DX_PROFILE_ENV};
-use crate::plan::{plan_deploy_build, plan_deploy_run};
+use crate::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use crate::reports::plan_reports;
 use crate::resolve::{check_deployable, resolve_deploy};
 use dx_output::{command_finished, command_started, write_event, FinishedCounts, OutputMode};
@@ -66,6 +66,46 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
             );
             let _ = writeln!(err, "build: {}", build_plan.argv.join(" "));
             let _ = writeln!(err, "run: {}", run_plan.argv.join(" "));
+        }
+        return 0;
+    }
+    if !invocation.applies() {
+        if !invocation.quiet {
+            let _ = writeln!(err, "{}", build_plan.summary);
+        }
+        let build_code = match run_bazel(
+            invocation,
+            out,
+            err,
+            workspace,
+            runner,
+            &build_plan.argv,
+            &[],
+        ) {
+            Ok(code) => code,
+            Err(exit) => return exit,
+        };
+        if build_code != 0 {
+            return build_code;
+        }
+        if !invocation.quiet {
+            let mut words = vec!["dx".to_owned(), "deploy".to_owned(), "--apply".to_owned()];
+            if invocation.debug {
+                words.push("--debug".to_owned());
+            }
+            if invocation.release {
+                words.push("--release".to_owned());
+            }
+            words.push(label.clone());
+            if !invocation.bazel_options.is_empty() {
+                words.push("--".to_owned());
+                words.extend(invocation.bazel_options.iter().cloned());
+            }
+            let _ = writeln!(
+                err,
+                "Validated {label} (built, not published; publish with: {})",
+                shell_join(&words)
+            );
         }
         return 0;
     }
@@ -166,10 +206,49 @@ mod tests {
     #[test]
     fn deploy_executable_without_provider_runs() {
         let harness = harness_with_deploy("deploy-exe", "False|NONE|NONE|True");
-        let (code, _, err) = harness.run(&["deploy", "//app:bin"]);
+        let (code, _, err) = harness.run(&["deploy", "--apply", "//app:bin"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("Running deploy for //app:bin"), "{err}");
         assert!(err.contains("profile release"), "{err}");
+    }
+
+    #[test]
+    fn deploy_check_builds_without_publishing() {
+        let harness = harness_with_deploy("deploy-check", "True|release|None|True");
+        let (code, _, err) = harness.run(&["deploy", "//deploy:prod", "--", "--port=8080"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("Running deploy build for //deploy:prod"),
+            "{err}"
+        );
+        assert!(
+            err.contains("dx deploy --apply //deploy:prod -- --port=8080"),
+            "{err}"
+        );
+        assert!(!err.contains("Running deploy for //deploy:prod"), "{err}");
+        let harness = harness_with_deploy("deploy-check-probe", "True|release|None|True");
+        let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(
+            run.argv.len(),
+            1,
+            "build only, the deploy step never launches: {run:?}"
+        );
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(
+            !run.argv[0].contains(&"--port=8080".to_owned()),
+            "app args stay out of the validation build: {run:?}"
+        );
+    }
+
+    #[test]
+    fn deploy_check_reports_build_failures() {
+        let harness = harness_with_deploy("deploy-check-fail", "True|release|None|True");
+        let inv = invocation(&["deploy", "//deploy:prod"]);
+        let run = harness.probe_with(&inv, &[Some(4)]);
+        assert_eq!(run.code, 4, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
     }
 
     #[test]
@@ -188,7 +267,7 @@ mod tests {
     #[test]
     fn deploy_flag_over_attr_precedence() {
         let harness = harness_with_deploy("deploy-prec", "True|debug|None|True");
-        let inv = invocation(&["deploy", "--release", "//deploy:prod"]);
+        let inv = invocation(&["deploy", "--apply", "--release", "//deploy:prod"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert_eq!(run.argv.len(), 2, "build then run");
@@ -207,7 +286,7 @@ mod tests {
             "{seen_env:?}"
         );
         let harness = harness_with_deploy("deploy-attr", "True|debug|None|True");
-        let inv = invocation(&["deploy", "//deploy:prod"]);
+        let inv = invocation(&["deploy", "--apply", "//deploy:prod"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert!(
@@ -219,12 +298,12 @@ mod tests {
     #[test]
     fn deploy_preserves_exit_codes_and_forwards_args() {
         let harness = harness_with_deploy("deploy-buildfail", "True|release|None|True");
-        let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
+        let inv = invocation(&["deploy", "--apply", "//deploy:prod", "--", "--port=8080"]);
         let run = harness.probe_with(&inv, &[Some(3)]);
         assert_eq!(run.code, 3);
         assert_eq!(run.argv.len(), 1, "run never launches after build failure");
         let harness = harness_with_deploy("deploy-runfail", "True|release|None|True");
-        let inv = invocation(&["deploy", "//deploy:prod", "--", "--port=8080"]);
+        let inv = invocation(&["deploy", "--apply", "//deploy:prod", "--", "--port=8080"]);
         let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
         assert_eq!(run.code, 7);
         assert_eq!(run.argv.len(), 2, "{run:?}");

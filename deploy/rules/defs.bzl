@@ -11,6 +11,13 @@ DxDeployInfo = provider(
     },
 )
 
+DxDeployArtifactInfo = provider(
+    doc = "Declared deploy artifact labels staged for the deployment launcher.",
+    fields = {
+        "labels": "List of artifact label strings consumed without an executable app.",
+    },
+)
+
 VALID_DEPLOY_PROFILES = ["debug", "dev", "release"]
 
 def deploy_profile_error(profile):
@@ -31,13 +38,28 @@ def _dx_deployment_impl(ctx):
     if exe == None:
         fail("dx_deployment " + str(ctx.label) + ": deploy target " +
              str(ctx.attr.deploy.label) + " has no executable")
+    artifact_labels = []
+    artifact_files = []
+    for target in ctx.attr.artifacts:
+        files = target[DefaultInfo].files.to_list()
+        if len(files) == 0:
+            fail("dx_deployment " + str(ctx.label) + ": artifact " +
+                 str(target.label) + " provides no files")
+        artifact_labels.append(display_label(target.label))
+        artifact_files.extend(files)
     link = dx_symlink_executable(ctx, exe)
-    runfiles = ctx.runfiles(files = [link]).merge(deploy_default.default_runfiles)
+    runfiles = ctx.runfiles(files = [link] + artifact_files).merge(deploy_default.default_runfiles)
     app_label = None
     app_text = ""
     if ctx.attr.app:
         app_label = ctx.attr.app.label
         app_text = display_label(app_label)
+    subject_fields = {
+        "app": app_text,
+        "profile": ctx.attr.profile,
+    }
+    if len(artifact_labels) > 0:
+        subject_fields["artifacts"] = ",".join(artifact_labels)
     return [
         DefaultInfo(
             executable = link,
@@ -45,10 +67,8 @@ def _dx_deployment_impl(ctx):
             runfiles = runfiles,
         ),
         DxDeployInfo(app = app_label, profile = ctx.attr.profile),
-        DxSubjectInfo(fields = {
-            "app": app_text,
-            "profile": ctx.attr.profile,
-        }),
+        DxDeployArtifactInfo(labels = artifact_labels),
+        DxSubjectInfo(fields = subject_fields),
     ]
 
 dx_deployment = rule(
@@ -57,12 +77,15 @@ dx_deployment = rule(
     attrs = {
         "app": attr.label(
             cfg = "target",
-            executable = True,
             mandatory = False,
             providers = [DefaultInfo],
         ),
-        "deploy": attr.label(
+        "artifacts": attr.label_list(
+            allow_files = True,
             cfg = "target",
+        ),
+        "deploy": attr.label(
+            cfg = "exec",
             executable = True,
             mandatory = True,
         ),

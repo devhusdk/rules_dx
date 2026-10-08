@@ -6,7 +6,7 @@ load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tes
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
-load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests")
+load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_artifact_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests")
 load(":github.bzl", "github_deploy")
 load(":github_tests.bzl", "github_analysis_tests", "github_debug_analysis_tests", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
@@ -215,9 +215,49 @@ dx_deployment(
     deploy = ":deploy_app",
 )
 
+genrule(
+    name = "web_index",
+    outs = ["web/index.html"],
+    cmd = "printf '<!doctype html><title>dx deploy web fixture</title>' > $@",
+)
+
+genrule(
+    name = "web_script",
+    outs = ["web/app.js"],
+    cmd = "printf 'console.log(\"dx deploy web fixture\");' > $@",
+)
+
+filegroup(
+    name = "web_site",
+    srcs = [
+        ":web_index",
+        ":web_script",
+    ],
+)
+
+dx_deployment(
+    name = "deploy_with_artifacts",
+    artifacts = [":web_site"],
+    deploy = ":deploy_program",
+)
+
+filegroup(
+    name = "empty_artifact",
+    srcs = [],
+)
+
+dx_deployment(
+    name = "deploy_empty_artifact",
+    artifacts = [":empty_artifact"],
+    deploy = ":deploy_program",
+    tags = ["manual"],
+)
+
 deploy_unit_tests(name = "deploy_unit")
 
 deploy_analysis_tests(name = "deploy_analysis")
+
+deploy_artifact_analysis_tests(name = "deploy_artifact_analysis")
 
 deploy_debug_analysis_tests(name = "deploy_debug_analysis")
 
@@ -289,6 +329,7 @@ test_suite(
         ":crates_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
+        ":deploy_artifact_analysis",
         ":deploy_debug_analysis",
         ":deploy_unit",
         ":dx_deploy_tools_test",

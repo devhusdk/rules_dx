@@ -1,7 +1,7 @@
 # `dx docs`
 
 ```text
-dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
+dx docs [--check] [--apply] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
 ```
 
 Builds the documentation site with Bazel and the pinned upstream mdBook:

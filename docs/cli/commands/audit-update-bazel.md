@@ -187,7 +187,7 @@ codes: 0 success, 2 usage or scope errors, 1 operational failures.
 ## `dx update`
 
 ```text
-dx update [--check] [--offline|--frozen] [set...]
+dx update [--check] [--apply] [--offline|--frozen] [set...]
 ```
 
 Updates dependencies per set through the qualified resolvers. No selector
@@ -227,7 +227,7 @@ bazel run @rules_dx//:dx -- update --dry-run
 ## `dx bump`
 
 ```text
-dx bump [--offline|--frozen] <set:package> <version>
+dx bump [--apply] [--offline|--frozen] <set:package> <version>
 ```
 
 Widens one declared requirement to a new version. Takes exactly one

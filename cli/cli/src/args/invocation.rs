@@ -9,10 +9,29 @@ pub struct ReportRequest {
     pub destination: String,
 }
 
+/// How the invocation may touch the world.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationMode {
+    Check,
+    Apply,
+    Plan,
+}
+
+impl OperationMode {
+    pub fn name(self) -> &'static str {
+        match self {
+            OperationMode::Check => "check",
+            OperationMode::Apply => "apply",
+            OperationMode::Plan => "plan",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invocation {
     pub command: Command,
     pub check: bool,
+    pub apply: bool,
     pub debug: bool,
     pub release: bool,
     pub workspace: Option<String>,
@@ -48,6 +67,18 @@ impl Invocation {
             "check"
         } else {
             "default"
+        }
+    }
+
+    /// The operation the flags authorize: explicit `--apply` opts into
+    /// mutation, `--dry-run` plans without running, everything else checks.
+    pub fn operation(&self) -> OperationMode {
+        if self.apply {
+            OperationMode::Apply
+        } else if self.dry_run {
+            OperationMode::Plan
+        } else {
+            OperationMode::Check
         }
     }
 
@@ -152,6 +183,7 @@ mod tests {
         Invocation {
             command,
             check: false,
+            apply: false,
             debug: false,
             release: false,
             workspace: None,
@@ -180,6 +212,27 @@ mod tests {
             open: false,
             offline: false,
         }
+    }
+
+    #[test]
+    fn operation_authorizes_only_explicit_apply() {
+        let bare = invocation_for(Command::Fix, &[]);
+        assert!(!bare.apply);
+        assert!(!bare.check);
+        assert!(!bare.dry_run);
+        assert_eq!(bare.operation(), OperationMode::Check);
+        let mut check = invocation_for(Command::Fix, &[]);
+        check.check = true;
+        assert_eq!(check.operation(), OperationMode::Check);
+        let mut plan = invocation_for(Command::Fix, &[]);
+        plan.dry_run = true;
+        assert_eq!(plan.operation(), OperationMode::Plan);
+        let mut apply = invocation_for(Command::Fix, &[]);
+        apply.apply = true;
+        assert_eq!(apply.operation(), OperationMode::Apply);
+        assert_eq!(OperationMode::Check.name(), "check");
+        assert_eq!(OperationMode::Apply.name(), "apply");
+        assert_eq!(OperationMode::Plan.name(), "plan");
     }
 
     #[test]

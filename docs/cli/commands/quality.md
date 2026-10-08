@@ -11,9 +11,9 @@ rewrite files by default and report with `--check`. Args after `--` go to
 Bazel unchanged.
 
 ```text
-dx lint [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx typecheck [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx format [--here] [--check] [--fail-on info|warning|error] [scope...]
+dx lint [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx typecheck [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 ```
 
 - `--check`: report findings without writing files.

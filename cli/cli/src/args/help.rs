@@ -186,7 +186,11 @@ coverage --min-coverage; build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/version/update/docs/completion/check|fix; status rejects --check; \
-see `dx <command> --help`). fix applies without rerun (run `dx check` to validate). \
+see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
+where the command takes it (run/deploy launch, clean pruning, update/bump/migrate/upgrade writes, \
+init/new scaffolding, hooks install/uninstall/run, version --pin/--rollback, docs rendering/serving); \
+every other command rejects it, and --apply never combines with --check or --dry-run. \
+fix applies without rerun (run `dx check` to validate). \
 no dx doctor; use `dx status` for diagnostics. \
 see `dx help <command>` or `dx <command> --help`."
     )
@@ -225,6 +229,7 @@ const COMMAND_FLAGS: &[&str] = &[
     "--fail-on",
     "--min-coverage",
     "--check",
+    "--apply",
     "--debug",
     "--release",
     "--bazel",
@@ -491,11 +496,15 @@ mod tests {
             other => panic!("clean --help: want Help, got {other:?}"),
         };
         assert!(
-            clean.contains("clean [--dry-run] [--bazel] [--prune-unobserved]"),
+            clean.contains("clean [--apply] [--dry-run] [--bazel] [--prune-unobserved]"),
             "clean usage:\n{clean}"
         );
+        assert!(clean.contains("--apply"), "clean flags:\n{clean}");
         assert!(clean.contains("--bazel"), "clean flags:\n{clean}");
-        assert!(clean.contains("--prune-unobserved"), "clean flags:\n{clean}");
+        assert!(
+            clean.contains("--prune-unobserved"),
+            "clean flags:\n{clean}"
+        );
         assert!(
             clean.contains("distinct from `dx bazel`"),
             "clean disambiguation:\n{clean}"

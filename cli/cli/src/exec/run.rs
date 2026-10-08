@@ -434,6 +434,7 @@ mod tests {
         Invocation {
             command,
             check: false,
+            apply: false,
             debug: false,
             release: false,
             workspace: None,

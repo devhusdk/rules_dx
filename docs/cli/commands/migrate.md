@@ -1,7 +1,7 @@
 # `dx migrate`
 
 ```text
-dx migrate --from <version> --to <version> [scope...] [--dry-run]
+dx migrate [--apply] --from <version> --to <version> [scope...] [--dry-run]
 ```
 
 Rewrites breaking changes between releases. Both versions are Cargo semver.

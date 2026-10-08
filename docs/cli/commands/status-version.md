@@ -38,7 +38,7 @@ or empty `.dx/version` fails the same way.
 ## `dx version`
 
 ```text
-dx version [--check] [--pin <version>|--rollback]
+dx version [--check] [--apply] [--pin <version>|--rollback]
 ```
 
 Prints the version.

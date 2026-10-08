@@ -23,7 +23,7 @@ pub mod skew;
 #[cfg(test)]
 mod test_support;
 
-pub use args::{ArgsError, Command, Invocation, ReportRequest};
+pub use args::{ArgsError, Command, Invocation, OperationMode, ReportRequest};
 pub use exec::{execute, Env};
 pub use finalize::{
     finalize, FinalizeError, FinalizeInput, FAILURE_MISSING_FILE, FAILURE_UNREADABLE_FILE,

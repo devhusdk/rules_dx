@@ -9,7 +9,7 @@ Refreshes Gazelle `BUILD` files over the scope. No scope means the whole
 repo. Use `--here` for the current dir tree.
 
 ```text
-dx generate [--here] [--check] [scope...] [-- bazel-options...]
+dx generate [--here] [--check] [--apply] [scope...] [-- bazel-options...]
 ```
 
 - `--check`: fail if files are stale instead of writing them. Run

@@ -223,6 +223,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         fail_on,
         min_coverage,
         check,
+        apply,
         debug,
         release,
         bazel_clean,
@@ -266,6 +267,12 @@ pub fn parse_with<S: AsRef<OsStr>>(
             .map_err(bad_default)?,
         file.dry_run,
     );
+    if dry_run && apply {
+        return Err(ArgsError::ConflictingModes {
+            first: "--dry-run",
+            second: "--apply",
+        });
+    }
     let quiet = invocation_defaults::resolve_bool(
         quiet,
         invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
@@ -303,6 +310,12 @@ pub fn parse_with<S: AsRef<OsStr>>(
     };
     if verbose && log_level.is_some() {
         return Err(ArgsError::ConflictingVerboseLogLevel);
+    }
+    if check && apply {
+        return Err(ArgsError::ConflictingModes {
+            first: "--check",
+            second: "--apply",
+        });
     }
     let color_name = invocation_defaults::resolve_string(
         color_name,
@@ -487,6 +500,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     Ok(Invocation {
         command,
         check,
+        apply,
         debug,
         release,
         workspace,

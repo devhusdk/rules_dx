@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_javascript_eslint_mjs_fail
+capability LINT
+stages 1
+stage eslint classes=javascript sources=quality/testdata/real_dirty.js
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR eslint no-unused-vars quality/testdata/real_dirty.js 43 49 fixable=false "'unused' is assigned a value but never used."
+terminal 1
+terminal ERROR eslint no-unused-vars quality/testdata/real_dirty.js 43 49 fixable=false "'unused' is assigned a value but never used."
+replacements 0

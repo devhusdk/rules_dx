@@ -129,6 +129,28 @@ eslint_config(
     src = "eslint_cfg/eslint.config.js",
 )
 
+eslint_config(
+    name = "eslint_cfg_mjs",
+    src = "eslint_cfg/eslint.config.mjs",
+)
+
+eslint_config(
+    name = "eslint_cfg_cjs",
+    src = "eslint_cfg/eslint.config.cjs",
+)
+
+eslint_config(
+    name = "eslint_cfg_import",
+    src = "eslint_cfg/eslint.import.mjs",
+    data = ["eslint_cfg/eslint_helper.js"],
+)
+
+eslint_config(
+    name = "eslint_cfg_bad",
+    src = "ruff.toml",
+    tags = ["manual"],
+)
+
 real_source_target(
     name = "fixture_real_delim_python",
     aspect_hints = [":ruff_cfg"],
@@ -400,6 +422,25 @@ real_source_target(
     name = "fixture_real_javascript",
     aspect_hints = [":biome_cfg"],
     javascript_srcs = ["real_clean.js"],
+)
+
+real_source_target(
+    name = "fixture_real_javascript_bad_config",
+    aspect_hints = [":eslint_cfg_bad"],
+    javascript_srcs = ["real_clean.js"],
+    tags = ["manual"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_javascript_bad_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_javascript_bad_config",
+)
+
+failure_test(
+    name = "fixture_real_javascript_bad_config_test",
+    expected_failure_substring = "must end in one of '.js', '.mjs', '.cjs'",
+    target = ":fixture_real_javascript_bad_config_subject",
 )
 
 real_source_target(

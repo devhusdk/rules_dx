@@ -304,10 +304,7 @@ mod tests {
             .iter()
             .position(|arg| arg == "build")
             .expect("build verb");
-        for token in [
-            "--output_base=/tmp/dx-a",
-            "--output_user_root=/tmp/dx-b",
-        ] {
+        for token in ["--output_base=/tmp/dx-a", "--output_user_root=/tmp/dx-b"] {
             assert!(
                 argv[..verb_at].contains(&token.to_owned()),
                 "{token} must precede the verb, one token: {argv:?}"
@@ -319,10 +316,7 @@ mod tests {
             .iter()
             .position(|arg| arg == "query")
             .expect("query verb");
-        for token in [
-            "--output_base=/tmp/dx-a",
-            "--output_user_root=/tmp/dx-b",
-        ] {
+        for token in ["--output_base=/tmp/dx-a", "--output_user_root=/tmp/dx-b"] {
             assert!(
                 queries[0][..query_at].contains(&token.to_owned()),
                 "{token} must precede the query verb: {:?}",

@@ -214,9 +214,13 @@ pub const SELECTABLE_STARTUP_OPTIONS: &[&str] = &["output_base", "output_user_ro
 pub enum StartupOptionError {
     #[error("invalid --bazel-startup-option {token:?}: want --output_base=<path> or --output_user_root=<path>")]
     NotAnOption { token: String },
-    #[error("missing value for --{flag} in --bazel-startup-option {token:?}: want --{flag}=<path>")]
+    #[error(
+        "missing value for --{flag} in --bazel-startup-option {token:?}: want --{flag}=<path>"
+    )]
     MissingValue { flag: String, token: String },
-    #[error("missing value for --{flag} in --bazel-startup-option {token:?}: want --{flag}=<path>")]
+    #[error(
+        "missing value for --{flag} in --bazel-startup-option {token:?}: want --{flag}=<path>"
+    )]
     EmptyValue { flag: String, token: String },
     #[error("startup option --{flag} conflicts with the managed Bazel startup policy: --bazel-startup-option takes --output_base=<path> or --output_user_root=<path>")]
     ConflictingOption { flag: String },

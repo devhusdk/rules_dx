@@ -1498,8 +1498,10 @@ fn startup_options_parse_repeatably_on_every_command() {
         words.push("--bazel-startup-option=--output_base=/tmp/dx-a".to_owned());
         words.push("--bazel-startup-option".to_owned());
         words.push("--output_user_root=/tmp/dx-b".to_owned());
-        let got = parse(&strings(&words.iter().map(String::as_str).collect::<Vec<_>>()))
-            .unwrap_or_else(|error| panic!("dx {} takes startup options: {error}", command.name()));
+        let got = parse(&strings(
+            &words.iter().map(String::as_str).collect::<Vec<_>>(),
+        ))
+        .unwrap_or_else(|error| panic!("dx {} takes startup options: {error}", command.name()));
         assert_eq!(
             got.startup_options,
             vec![
@@ -1564,7 +1566,8 @@ fn startup_options_reject_missing_malformed_and_managed_tokens() {
             other => panic!("{words:?}: want Usage, got {other:?}"),
         }
     }
-    let error = parse(&strings(&["build", "--bazel-startup-option=--home_rc"])).expect_err("managed");
+    let error =
+        parse(&strings(&["build", "--bazel-startup-option=--home_rc"])).expect_err("managed");
     match error {
         ArgsError::Usage { text } => assert!(text.contains("managed"), "{text}"),
         other => panic!("want Usage, got {other:?}"),
@@ -1574,7 +1577,10 @@ fn startup_options_reject_missing_malformed_and_managed_tokens() {
 #[test]
 fn workflow_planning_still_rejects_raw_startup_options_after_separator() {
     let invocation = parse(&strings(&["build", "--", "--output_base=/tmp/x"])).expect("parse");
-    assert_eq!(invocation.bazel_options, vec!["--output_base=/tmp/x".to_owned()]);
+    assert_eq!(
+        invocation.bazel_options,
+        vec!["--output_base=/tmp/x".to_owned()]
+    );
     let resolved = crate::resolve::ResolvedScope {
         scope: dx_process::Scope::Repository,
         targets: vec!["//...".to_owned()],

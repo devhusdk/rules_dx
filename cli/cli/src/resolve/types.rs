@@ -198,7 +198,11 @@ mod startup_tests {
             .expect("query");
         runner
             .run_info(
-                &["bazel".to_owned(), "info".to_owned(), "bazel-testlogs".to_owned()],
+                &[
+                    "bazel".to_owned(),
+                    "info".to_owned(),
+                    "bazel-testlogs".to_owned(),
+                ],
                 workspace,
             )
             .expect("info");

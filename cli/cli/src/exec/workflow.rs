@@ -192,6 +192,37 @@ mod tests {
     }
 
     #[test]
+    fn test_and_coverage_forward_test_binary_args_to_bazel() {
+        for command in ["test", "coverage"] {
+            let harness = Harness::new("wf-test-args");
+            let inv = invocation(&[command, "--", "--test_arg=--exact", "--test_filter=unit"]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            assert_eq!(run.argv.len(), 1, "{command}: {run:?}");
+            let argv = &run.argv[0];
+            let position = argv
+                .iter()
+                .position(|arg| arg == "--test_arg=--exact")
+                .expect("test_arg reaches bazel");
+            assert_eq!(
+                &argv[position..position + 2],
+                &[
+                    "--test_arg=--exact".to_owned(),
+                    "--test_filter=unit".to_owned()
+                ],
+                "{command}: {argv:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn build_still_rejects_test_binary_args() {
+        let harness = Harness::new("wf-build-test-args");
+        let (code, _, err) = harness.run(&["build", "--", "--test_arg=--exact"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("test_arg"), "{err}");
+    }
+
+    #[test]
     fn workflow_bad_report_is_pre_exec() {
         let harness = Harness::new("wf-bad-report");
         let (code, _, err) = harness.run(&["build", "--report=junit=a.xml"]);

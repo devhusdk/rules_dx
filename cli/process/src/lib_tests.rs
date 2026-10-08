@@ -372,22 +372,114 @@ fn workflow_argv_rejects_startup_options() {
 }
 
 #[test]
-fn workflow_argv_rejects_test_binary_args() {
-    let err = build_workflow_argv(
+fn workflow_argv_rejects_test_binary_args_outside_test_commands() {
+    for command in ["build", "run", "lint"] {
+        let err = build_workflow_argv(
+            command,
+            &["--test_arg=fast".to_owned()],
+            &[],
+            &[],
+            &["//...".to_owned()],
+        )
+        .expect_err("binary args");
+        assert_eq!(
+            err,
+            ForwardError::TestBinaryArgs {
+                flag: "test_arg".to_owned(),
+            },
+            "{command}"
+        );
+        assert!(err.to_string().contains("dx bazel"), "{command}: {err}");
+    }
+}
+
+#[test]
+fn workflow_argv_forwards_test_binary_args_on_test_commands() {
+    for command in ["test", "coverage"] {
+        let argv = build_workflow_argv(
+            command,
+            &[
+                "--test_arg=--exact".to_owned(),
+                "--test_arg".to_owned(),
+                "case with spaces héllo".to_owned(),
+                "--jobs=4".to_owned(),
+            ],
+            &["--keep_going".to_owned()],
+            &[],
+            &["//...".to_owned()],
+        )
+        .expect("argv");
+        assert_eq!(
+            argv,
+            vec![
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                command,
+                "--keep_going",
+                "--test_arg=--exact",
+                "--test_arg",
+                "case with spaces héllo",
+                "--jobs=4",
+                "//...",
+            ],
+            "{command}"
+        );
+    }
+}
+
+#[test]
+fn workflow_argv_keeps_test_filter_unchanged_on_test_commands() {
+    let argv = build_workflow_argv(
         "test",
-        &["--test_arg=fast".to_owned()],
+        &["--test_filter=unit".to_owned()],
         &[],
         &[],
         &["//...".to_owned()],
     )
-    .expect_err("binary args");
+    .expect("argv");
+    assert_eq!(argv.last().map(String::as_str), Some("//..."));
+    assert_eq!(
+        argv.iter()
+            .filter(|arg| *arg == "--test_filter=unit")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn workflow_argv_still_protects_capture_options_on_test_commands() {
+    let protected = vec![ProtectedFlag {
+        name: "build_event_json_file".to_owned(),
+        required: None,
+        allowed: Vec::new(),
+    }];
+    let err = build_workflow_argv(
+        "test",
+        &[
+            "--test_arg=fast".to_owned(),
+            "--build_event_json_file=x".to_owned(),
+        ],
+        &[],
+        &protected,
+        &["//...".to_owned()],
+    )
+    .expect_err("protected capture option");
     assert_eq!(
         err,
-        ForwardError::TestBinaryArgs {
-            flag: "test_arg".to_owned(),
+        ForwardError::ConflictingOption {
+            flag: "build_event_json_file".to_owned(),
         }
     );
-    assert!(err.to_string().contains("dx bazel"));
+    let err = build_workflow_argv(
+        "test",
+        &["--output_base=/tmp/x".to_owned()],
+        &[],
+        &[],
+        &["//...".to_owned()],
+    )
+    .expect_err("startup option");
+    assert!(matches!(err, ForwardError::StartupOption { .. }));
 }
 
 #[test]
@@ -427,13 +519,13 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             "{binary} must count as test-binary"
         );
         let err = build_workflow_argv(
-            "test",
+            "build",
             &[binary.to_owned()],
             &[],
             &[],
             &["//...".to_owned()],
         )
-        .expect_err("test-binary must fail");
+        .expect_err("test-binary must fail outside test commands");
         assert!(
             matches!(err, ForwardError::TestBinaryArgs { .. }),
             "{binary} produced {err:?}"
@@ -834,4 +926,33 @@ fn real_fs_override_keeps_display_path() {
         other => panic!("expected InvalidOverride, got {other:?}"),
     }
     scratch.close().expect("cleanup");
+}
+
+const SELECTION_PROBE_FILTER: &str = "selection_argv_probe_marker";
+const UNICODE_PROBE_ARG: &str = "dx_argv_probe with spaces héllo";
+
+fn selection_probe_args() -> Vec<String> {
+    std::env::args().skip(1).collect()
+}
+
+#[test]
+fn selected_test_observes_its_selection_argv_probe_marker() {
+    let args = selection_probe_args();
+    if !args.iter().any(|arg| arg.contains(SELECTION_PROBE_FILTER)) {
+        return;
+    }
+    assert!(
+        args.iter().any(|arg| arg == UNICODE_PROBE_ARG),
+        "verbatim argument must reach the test binary alongside the filter: {args:?}"
+    );
+}
+
+#[test]
+#[ignore]
+fn ignored_selection_probe_runs_only_when_explicitly_selected() {
+    let args = selection_probe_args();
+    assert!(
+        args.iter().any(|arg| arg == "--ignored"),
+        "explicit ignored selection must reach the test binary: {args:?}"
+    );
 }

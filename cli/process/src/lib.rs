@@ -295,6 +295,10 @@ pub fn is_test_binary_arg(arg: &str) -> bool {
     }
 }
 
+fn accepts_test_binary_arg(bazel_command: &str) -> bool {
+    matches!(bazel_command, "test" | "coverage")
+}
+
 pub fn check_protected(
     user_args: &[String],
     protected: &[ProtectedFlag],
@@ -334,7 +338,7 @@ pub fn build_workflow_argv(
             let flag = flag_name(arg).unwrap_or_default();
             return Err(ForwardError::StartupOption { flag });
         }
-        if is_test_binary_arg(arg) {
+        if is_test_binary_arg(arg) && !accepts_test_binary_arg(bazel_command) {
             let flag = flag_name(arg).unwrap_or_default();
             return Err(ForwardError::TestBinaryArgs { flag });
         }

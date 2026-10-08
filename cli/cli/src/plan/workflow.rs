@@ -149,6 +149,56 @@ mod tests {
     }
 
     #[test]
+    fn workflow_plan_forwards_test_binary_args_on_test_verbs() {
+        for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
+            let plan = plan_workflow(
+                verb,
+                &resolved(&[]),
+                &strings(&[
+                    "--test_arg=--exact",
+                    "--test_arg",
+                    "case with spaces héllo",
+                    "--test_filter=unit",
+                ]),
+                None,
+                if verb == WorkflowVerb::Coverage {
+                    None
+                } else {
+                    Some(Profile::Dev)
+                },
+            )
+            .expect("test args forward");
+            let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+            let position = argv
+                .iter()
+                .position(|arg| *arg == "--test_arg=--exact")
+                .expect("test_arg is planned");
+            assert_eq!(
+                &argv[position..position + 4],
+                &[
+                    "--test_arg=--exact",
+                    "--test_arg",
+                    "case with spaces héllo",
+                    "--test_filter=unit",
+                ],
+                "{verb:?}: {plan:?}"
+            );
+        }
+        let err = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &strings(&["--test_arg=--exact"]),
+            None,
+            Some(Profile::Dev),
+        )
+        .expect_err("build still rejects test args");
+        assert!(
+            matches!(err, ForwardError::TestBinaryArgs { .. }),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
     fn workflow_plan_accepts_blessed_ci_configs_beside_profile() {
         for verb in [WorkflowVerb::Build, WorkflowVerb::Test] {
             let plan = plan_workflow(

@@ -207,6 +207,73 @@ pub fn launcher_argv0() -> &'static str {
 
 pub const WORKFLOW_STARTUP_OPTS: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
+/// The Bazel startup options `--bazel-startup-option` takes today.
+pub const SELECTABLE_STARTUP_OPTIONS: &[&str] = &["output_base", "output_user_root"];
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StartupOptionError {
+    #[error("invalid --bazel-startup-option {token:?}: want --output_base=<path> or --output_user_root=<path>")]
+    NotAnOption { token: String },
+    #[error("missing value for --{flag} in --bazel-startup-option {token:?}: want --{flag}=<path>")]
+    MissingValue { flag: String, token: String },
+    #[error("missing value for --{flag} in --bazel-startup-option {token:?}: want --{flag}=<path>")]
+    EmptyValue { flag: String, token: String },
+    #[error("startup option --{flag} conflicts with the managed Bazel startup policy: --bazel-startup-option takes --output_base=<path> or --output_user_root=<path>")]
+    ConflictingOption { flag: String },
+}
+
+/// Checks one `--bazel-startup-option` token without splitting it further.
+/// The token stays exactly one Bazel argv entry, spaces and Unicode included.
+pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError> {
+    let Some(bare) = token.strip_prefix("--") else {
+        return Err(StartupOptionError::NotAnOption {
+            token: token.to_owned(),
+        });
+    };
+    let Some((flag, value)) = bare.split_once('=') else {
+        let name = bare.to_owned();
+        if SELECTABLE_STARTUP_OPTIONS.contains(&name.as_str()) {
+            return Err(StartupOptionError::MissingValue {
+                flag: name,
+                token: token.to_owned(),
+            });
+        }
+        if is_startup_option(token) {
+            return Err(StartupOptionError::ConflictingOption { flag: name });
+        }
+        return Err(StartupOptionError::NotAnOption {
+            token: token.to_owned(),
+        });
+    };
+    if flag.is_empty() {
+        return Err(StartupOptionError::NotAnOption {
+            token: token.to_owned(),
+        });
+    }
+    if !SELECTABLE_STARTUP_OPTIONS.contains(&flag) {
+        return Err(StartupOptionError::ConflictingOption {
+            flag: flag.to_owned(),
+        });
+    }
+    if value.is_empty() {
+        return Err(StartupOptionError::EmptyValue {
+            flag: flag.to_owned(),
+            token: token.to_owned(),
+        });
+    }
+    Ok(token.to_owned())
+}
+
+/// Inserts validated startup options after the launcher argv entry so every
+/// option stays before the Bazel verb. Empty input leaves argv untouched.
+pub fn splice_startup_options(argv: &mut Vec<String>, startup: &[String]) {
+    if startup.is_empty() {
+        return;
+    }
+    let at = if argv.is_empty() { 0 } else { 1 };
+    argv.splice(at..at, startup.iter().cloned());
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Repository,

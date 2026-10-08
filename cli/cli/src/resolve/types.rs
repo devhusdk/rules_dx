@@ -19,6 +19,33 @@ pub trait QueryRunner {
     }
 }
 
+/// A query runner that carries one invocation's Bazel startup settings into
+/// every query and info launch, before the Bazel verb.
+pub struct StartupQueryRunner<'a> {
+    inner: &'a dyn QueryRunner,
+    startup: &'a [String],
+}
+
+impl<'a> StartupQueryRunner<'a> {
+    pub fn new(inner: &'a dyn QueryRunner, startup: &'a [String]) -> Self {
+        StartupQueryRunner { inner, startup }
+    }
+}
+
+impl QueryRunner for StartupQueryRunner<'_> {
+    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        let mut owned = argv.to_vec();
+        dx_process::splice_startup_options(&mut owned, self.startup);
+        self.inner.run_query(&owned, cwd)
+    }
+
+    fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        let mut owned = argv.to_vec();
+        dx_process::splice_startup_options(&mut owned, self.startup);
+        self.inner.run_info(&owned, cwd)
+    }
+}
+
 // LCOV_EXCL_START - reason: prod spawn, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 pub struct ProcessQueryRunner;
 
@@ -117,4 +144,94 @@ pub enum ResolveError {
     NotDeployable { label: String },
     #[error("ownership query for {label} failed: {detail}")]
     QueryFailed { label: String, detail: String },
+}
+
+#[cfg(test)]
+mod startup_tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct Capturing {
+        queries: RefCell<Vec<Vec<String>>>,
+        infos: RefCell<Vec<Vec<String>>>,
+    }
+
+    impl QueryRunner for Capturing {
+        fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+            self.queries.borrow_mut().push(argv.to_vec());
+            Ok(QueryResult {
+                code: Some(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        }
+
+        fn run_info(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+            self.infos.borrow_mut().push(argv.to_vec());
+            Ok(QueryResult {
+                code: Some(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        }
+    }
+
+    #[test]
+    fn startup_settings_reach_query_and_info_before_the_verb() {
+        let inner = Capturing {
+            queries: RefCell::new(Vec::new()),
+            infos: RefCell::new(Vec::new()),
+        };
+        let startup = vec!["--output_base=/tmp/dx-base".to_owned()];
+        let runner = StartupQueryRunner::new(&inner, &startup);
+        let workspace = Path::new("/ws");
+        runner
+            .run_query(
+                &[
+                    "bazel".to_owned(),
+                    "--nohome_rc".to_owned(),
+                    "query".to_owned(),
+                    "--".to_owned(),
+                ],
+                workspace,
+            )
+            .expect("query");
+        runner
+            .run_info(
+                &["bazel".to_owned(), "info".to_owned(), "bazel-testlogs".to_owned()],
+                workspace,
+            )
+            .expect("info");
+        assert_eq!(
+            inner.queries.borrow().as_slice(),
+            &[vec![
+                "bazel".to_owned(),
+                "--output_base=/tmp/dx-base".to_owned(),
+                "--nohome_rc".to_owned(),
+                "query".to_owned(),
+                "--".to_owned(),
+            ]]
+        );
+        assert_eq!(
+            inner.infos.borrow().as_slice(),
+            &[vec![
+                "bazel".to_owned(),
+                "--output_base=/tmp/dx-base".to_owned(),
+                "info".to_owned(),
+                "bazel-testlogs".to_owned(),
+            ]]
+        );
+    }
+
+    #[test]
+    fn empty_startup_settings_forward_argv_untouched() {
+        let inner = Capturing {
+            queries: RefCell::new(Vec::new()),
+            infos: RefCell::new(Vec::new()),
+        };
+        let runner = StartupQueryRunner::new(&inner, &[]);
+        let argv = vec!["bazel".to_owned(), "cquery".to_owned()];
+        runner.run_query(&argv, Path::new("/ws")).expect("query");
+        assert_eq!(inner.queries.borrow().as_slice(), &[argv]);
+    }
 }

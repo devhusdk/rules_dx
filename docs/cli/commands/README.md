@@ -148,3 +148,10 @@ nearest file to the working directory wins, and its values sit below the
 environment. The search reads the working directory and each directory above
 it, so a neighboring or nested workspace tree never supplies defaults. Under
 `bazel run` the search starts at the workspace root.
+
+The command line wins over the environment, and the environment wins over
+the file. Defaults load from the selected workspace: `--workspace` or
+`DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
+file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
+`--version` print without reading a broken config. `dx new` and
+`dx completion` run outside a workspace.

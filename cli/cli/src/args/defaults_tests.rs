@@ -3,6 +3,7 @@ use super::parse_with;
 use crate::test_support::strings;
 use dx_adopt::defaults::{
     parse_bool, parse_file_text, BOOL_SPELLINGS, DX_DRY_RUN_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV,
+    DX_WORKSPACE_ENV,
 };
 use dx_output::{ColorMode, OutputMode, Threshold};
 
@@ -456,4 +457,174 @@ fn dx_binary() -> std::path::PathBuf {
     std::path::Path::new(&root)
         .join(workspace)
         .join("cli/cli/dx")
+}
+
+/// Runs the built binary in `dir` with extra environment, returning exit code,
+// stdout, and stderr.
+fn run_dx(
+    dir: &std::path::Path,
+    words: &[&str],
+    envs: &[(&str, &str)],
+) -> (Option<i32>, String, String) {
+    let mut command = assert_cmd::Command::new(dx_binary());
+    command.current_dir(dir);
+    for (name, value) in envs {
+        command.env(name, value);
+    }
+    let output = command.args(words).output().expect("dx runs");
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+fn workspace_with_output(name: &str, output: &str) -> dx_test_scratch::TempDir {
+    let scratch = dx_test_scratch::scratch(name);
+    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
+    std::fs::write(
+        scratch.path().join(".dx/config.toml"),
+        format!("[dx]\noutput = \"{output}\"\n"),
+    )
+    .expect("defaults");
+    scratch
+}
+
+#[test]
+fn help_works_with_a_malformed_config_but_operations_fail_closed() {
+    let scratch = dx_test_scratch::scratch("dx-startup-malformed-help-");
+    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
+    std::fs::write(scratch.path().join(".dx/config.toml"), "not toml = [").expect("bad config");
+    let root = scratch.path();
+    let (code, out, _) = run_dx(root, &["--help"], &[]);
+    assert_eq!(code, Some(0), "--help works with a malformed config");
+    assert!(out.contains("Run Bazel workflows"), "{out}");
+    let (code, out, _) = run_dx(root, &["lint", "--help"], &[]);
+    assert_eq!(code, Some(0), "command help works with a malformed config");
+    assert!(out.contains("dx lint"), "{out}");
+    let (code, out, _) = run_dx(root, &["help", "lint"], &[]);
+    assert_eq!(code, Some(0), "the help verb works with a malformed config");
+    assert!(out.contains("dx lint"), "{out}");
+    let (code, out, err) = run_dx(root, &["version", "--dry-run"], &[]);
+    assert_eq!(code, Some(2), "an operation still fails closed: {err}");
+    assert!(out.is_empty(), "no events for a usage error: {out}");
+    assert!(
+        err.contains("config.toml"),
+        "the diagnostic names the file: {err}"
+    );
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn explicit_workspace_uses_the_target_workspace_defaults() {
+    let a = workspace_with_output("dx-startup-ws-a-", "json");
+    let b = workspace_with_output("dx-startup-ws-b-", "text");
+    let b_dir = b.path().to_string_lossy().into_owned();
+    let (code, out, err) = run_dx(a.path(), &["version", "--dry-run"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("command_started"),
+        "the start directory is json: {out}"
+    );
+    let (code, out, err) = run_dx(
+        a.path(),
+        &["version", "--dry-run", "--workspace", &b_dir],
+        &[],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("would report version"),
+        "the flag workspace supplies text defaults: {out}"
+    );
+    let (code, out, err) = run_dx(
+        a.path(),
+        &["version", "--dry-run"],
+        &[(DX_WORKSPACE_ENV, &b_dir)],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("would report version"),
+        "the environment workspace supplies text defaults: {out}"
+    );
+    let nested = a.path().join("sub/dir");
+    std::fs::create_dir_all(&nested).expect("nested");
+    let (code, out, err) = run_dx(
+        &nested,
+        &["version", "--dry-run", "--workspace", &b_dir],
+        &[],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("would report version"),
+        "a nested start still reads the flag workspace: {out}"
+    );
+}
+
+#[test]
+fn bazel_run_start_selects_the_workspace_root() {
+    let a = workspace_with_output("dx-startup-bwd-a-", "json");
+    let b = workspace_with_output("dx-startup-bwd-b-", "text");
+    let b_dir = b.path().to_string_lossy().into_owned();
+    let (code, out, err) = run_dx(
+        a.path(),
+        &["version", "--dry-run"],
+        &[("BUILD_WORKSPACE_DIRECTORY", &b_dir)],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("would report version"),
+        "the Bazel start supplies text defaults: {out}"
+    );
+}
+
+#[test]
+fn new_and_completion_run_without_a_workspace() {
+    let scratch = dx_test_scratch::scratch("dx-startup-outside-");
+    let root = scratch.path();
+    let (code, out, err) = run_dx(root, &["new", "rust", "demo"], &[]);
+    assert_eq!(
+        code,
+        Some(0),
+        "standalone new works outside a workspace: {err}"
+    );
+    assert!(out.contains("demo/Cargo.toml"), "{out}");
+    assert!(root.join("demo/Cargo.toml").exists());
+    let (code, out, err) = run_dx(root, &["completion", "bash"], &[]);
+    assert_eq!(code, Some(0), "completion works outside a workspace: {err}");
+    assert!(out.contains("COMPLETE"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn config_directed_workspace_loads_the_target_defaults_once() {
+    let b = workspace_with_output("dx-startup-redir-b-", "json");
+    let b_dir = b.path().to_string_lossy().into_owned();
+    let a = dx_test_scratch::scratch("dx-startup-redir-a-");
+    std::fs::write(a.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(a.path().join(".dx")).expect("dx");
+    std::fs::write(
+        a.path().join(".dx/config.toml"),
+        format!("[dx]\nworkspace = \"{b_dir}\"\n"),
+    )
+    .expect("redirect");
+    let (code, out, err) = run_dx(a.path(), &["version", "--dry-run"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("command_started"),
+        "the redirect target supplies json defaults: {out}"
+    );
+    let a_dir = a.path().to_string_lossy().into_owned();
+    std::fs::write(
+        b.path().join(".dx/config.toml"),
+        format!("[dx]\noutput = \"text\"\nworkspace = \"{a_dir}\"\n"),
+    )
+    .expect("cycle");
+    let (code, out, err) = run_dx(a.path(), &["version", "--dry-run"], &[]);
+    assert_eq!(code, Some(0), "a redirect cycle still terminates: {err}");
+    assert!(
+        out.contains("would report version"),
+        "the frozen target supplies text defaults: {out}"
+    );
 }

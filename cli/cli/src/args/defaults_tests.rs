@@ -1,9 +1,9 @@
-use super::super::{Command, FileDefaults};
+use super::super::{ArgsError, Command, FileDefaults, OperationMode};
 use super::parse_with;
 use crate::test_support::strings;
 use dx_adopt::defaults::{
-    parse_bool, parse_file_text, BOOL_SPELLINGS, DX_DRY_RUN_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV,
-    DX_WORKSPACE_ENV,
+    config_key, parse_bool, parse_file_text, BOOL_SPELLINGS, DX_DRY_RUN_ENV, DX_QUIET_ENV,
+    DX_VERBOSE_ENV, DX_WORKSPACE_ENV, ENV_DEFAULTS,
 };
 use dx_output::{ColorMode, OutputMode, Threshold};
 
@@ -626,5 +626,40 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
     assert!(
         out.contains("would report version"),
         "the frozen target supplies text defaults: {out}"
+    );
+}
+
+#[test]
+fn no_default_source_selects_apply() {
+    for (env, _, _) in ENV_DEFAULTS {
+        assert_ne!(env, "DX_APPLY", "no environment default may select apply");
+    }
+    assert_eq!(config_key("DX_APPLY"), None);
+    let got = parse_with(
+        &strings(&["lint"]),
+        &env_of(&[("DX_APPLY", "1")]),
+        &FileDefaults::default(),
+    )
+    .expect("an unknown variable is unread");
+    assert!(!got.apply);
+    assert_eq!(got.operation(), OperationMode::Check);
+    assert_eq!(
+        parse_with(
+            &strings(&["fix", "--apply"]),
+            &env_of(&[(DX_DRY_RUN_ENV, "1")]),
+            &FileDefaults::default(),
+        ),
+        Err(ArgsError::ConflictingModes {
+            first: "--dry-run",
+            second: "--apply",
+        })
+    );
+    let file = file_with(None, None, None, None, Some(true), None);
+    assert_eq!(
+        parse_with(&strings(&["fix", "--apply"]), &env_of(&[]), &file),
+        Err(ArgsError::ConflictingModes {
+            first: "--dry-run",
+            second: "--apply",
+        })
     );
 }

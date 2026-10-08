@@ -54,6 +54,12 @@ pub enum ArgsError {
     /// Verbosity was requested twice over.
     #[error("options --verbose and --log-level are mutually exclusive")]
     ConflictingVerboseLogLevel,
+    /// Two operation modes were requested at once.
+    #[error("options {first} and {second} are mutually exclusive")]
+    ConflictingModes {
+        first: &'static str,
+        second: &'static str,
+    },
     /// The here tree was asked for alongside explicit scopes.
     #[error("option \"--here/--cwd\" cannot be combined with explicit scopes")]
     ConflictingHere,
@@ -94,7 +100,7 @@ pub use completion::{
     registers_callback, render_completion, try_complete, COMPLETE_VAR, COMPLETION_SHELLS,
 };
 pub use grammar::cli_command;
-pub use invocation::{apply_here, here_scope, Invocation, ReportRequest};
+pub use invocation::{apply_here, here_scope, Invocation, OperationMode, ReportRequest};
 pub use parser::{
     early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request,
     load_file_defaults, parse, parse_with, select_startup_defaults, StartupDefaults,

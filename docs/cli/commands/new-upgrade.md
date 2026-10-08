@@ -8,7 +8,7 @@ bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
 ## `dx new`
 
 ```text
-dx new <language> [name]
+dx new [--apply] <language> [name]
 ```
 
 Scaffolds a minimal project for one language: `rust`, `python`,
@@ -48,7 +48,7 @@ file is written.
 ## `dx upgrade`
 
 ```text
-dx upgrade --from <version> --to <version> [--dry-run]
+dx upgrade [--apply] --from <version> --to <version> [--dry-run]
 ```
 
 Runs pin, migrate, and setup in one go with a recovery pointer. Both

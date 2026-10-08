@@ -1,4 +1,4 @@
-use super::super::{assert_usage, ArgsError, Command, ReportRequest};
+use super::super::{assert_usage, ArgsError, Command, OperationMode, ReportRequest};
 use super::parse;
 use crate::test_support::strings;
 use dx_output::{OutputMode, Threshold};
@@ -74,7 +74,155 @@ fn check_selects_check_mode() {
     let got = parse(&strings(&["format", "--check"])).expect("parse");
     assert_eq!(got.command, Command::Format);
     assert!(got.check);
+    assert_eq!(got.operation(), OperationMode::Check);
     assert_eq!(got.mode(), "check");
+}
+
+/// The words one command needs before `--apply`, mirroring the required slots.
+fn plain_words(command: Command) -> Vec<String> {
+    let mut words = vec![command.name().to_owned()];
+    match command {
+        Command::Bump => words.extend(strings(&["cargo:demo", "1.0.0"])),
+        Command::Migrate | Command::Upgrade => {
+            words.extend(strings(&["--from=1.0.0", "--to=2.0.0"]));
+        }
+        Command::Run | Command::Deploy | Command::Owners | Command::Deps => {
+            words.push("//:demo".to_owned());
+        }
+        Command::Why => words.extend(strings(&["a.rs", "//:demo"])),
+        Command::Hooks => words.push("status".to_owned()),
+        Command::New => words.push("rust".to_owned()),
+        Command::Watch => words.push("build".to_owned()),
+        Command::Completion => words.push("bash".to_owned()),
+        _ => {}
+    }
+    words
+}
+
+#[test]
+fn bare_commands_check_by_default_and_check_spelling_agrees() {
+    use clap::ValueEnum;
+    for command in Command::value_variants() {
+        let command = *command;
+        if command == Command::Bazel {
+            continue;
+        }
+        let bare = parse(&plain_words(command)).unwrap_or_else(|error| panic!("parse: {error}"));
+        assert!(!bare.apply, "dx {} must not apply unasked", command.name());
+        assert_eq!(
+            bare.operation(),
+            OperationMode::Check,
+            "dx {} defaults to check",
+            command.name()
+        );
+    }
+    let explicit = parse(&strings(&["lint", "--check"])).expect("explicit check");
+    assert!(explicit.check);
+    assert_eq!(explicit.operation(), OperationMode::Check);
+}
+
+#[test]
+fn dry_run_selects_plan_and_stays_orthogonal_to_check() {
+    let plan = parse(&strings(&["lint", "--dry-run"])).expect("plan");
+    assert!(plan.dry_run);
+    assert_eq!(plan.operation(), OperationMode::Plan);
+    let both = parse(&strings(&["lint", "--check", "--dry-run"])).expect("orthogonal");
+    assert!(both.check);
+    assert!(both.dry_run);
+    assert_eq!(both.operation(), OperationMode::Plan);
+}
+
+#[test]
+fn check_and_apply_conflict() {
+    for words in [
+        vec!["lint", "--check", "--apply"],
+        vec!["lint", "--apply", "--check"],
+        vec!["fix", "--check", "--apply"],
+        vec!["update", "--check", "--apply"],
+        vec!["version", "--check", "--apply"],
+        vec!["docs", "--check", "--apply"],
+    ] {
+        assert_eq!(
+            parse(&strings(&words)),
+            Err(ArgsError::ConflictingModes {
+                first: "--check",
+                second: "--apply",
+            }),
+            "words: {words:?}"
+        );
+    }
+}
+
+#[test]
+fn dry_run_and_apply_conflict() {
+    for words in [
+        vec!["lint", "--dry-run", "--apply"],
+        vec!["lint", "--apply", "--dry-run"],
+        vec!["clean", "--dry-run", "--apply"],
+        vec!["fix", "--apply", "--dry-run"],
+    ] {
+        assert_eq!(
+            parse(&strings(&words)),
+            Err(ArgsError::ConflictingModes {
+                first: "--dry-run",
+                second: "--apply",
+            }),
+            "words: {words:?}"
+        );
+    }
+    let off = parse(&strings(&["fix", "--dry-run=false", "--apply"])).expect("explicit off");
+    assert!(off.apply);
+    assert!(!off.dry_run);
+    assert_eq!(off.operation(), OperationMode::Apply);
+    let repeated = parse(&strings(&["fix", "--apply", "--apply"])).expect("last wins");
+    assert!(repeated.apply);
+    assert_eq!(repeated.operation(), OperationMode::Apply);
+}
+
+#[test]
+fn apply_matrix_matches_supports_apply() {
+    use clap::ValueEnum;
+    for command in Command::value_variants() {
+        let command = *command;
+        let mut words = plain_words(command);
+        words.push("--apply".to_owned());
+        if command == Command::Bazel {
+            let got = parse(&words).expect("dx bazel forwards every later word");
+            assert_eq!(got.bazel_options, strings(&["--apply"]), "words: {words:?}");
+            assert_eq!(got.operation(), OperationMode::Check);
+            continue;
+        }
+        if command.supports_apply() {
+            let got = parse(&words).unwrap_or_else(|error| {
+                panic!("dx {} --apply must parse: {error}", command.name())
+            });
+            assert!(got.apply, "dx {} --apply sets the flag", command.name());
+            assert_eq!(
+                got.operation(),
+                OperationMode::Apply,
+                "dx {} --apply authorizes",
+                command.name()
+            );
+        } else {
+            assert_eq!(
+                parse(&words),
+                Err(ArgsError::UnsupportedOption {
+                    command: command.name(),
+                    option: "--apply".to_owned(),
+                }),
+                "dx {} must refuse --apply",
+                command.name()
+            );
+        }
+    }
+}
+
+#[test]
+fn passthrough_apply_does_not_authorize() {
+    let got = parse(&strings(&["lint", "--", "--apply"])).expect("passthrough");
+    assert!(!got.apply);
+    assert_eq!(got.operation(), OperationMode::Check);
+    assert_eq!(got.bazel_options, strings(&["--apply"]));
 }
 
 #[test]

@@ -39,7 +39,7 @@ bazel run @rules_dx//:dx -- test //... -- --jobs=4
 ## `dx run`
 
 ```text
-dx run [--debug|--release] <label...> [-- args...]
+dx run [--apply] [--debug|--release] <label...> [-- args...]
 ```
 
 Builds and runs runnable targets in scope order. Explicit labels and patterns
@@ -58,7 +58,7 @@ bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
 ## `dx deploy`
 
 ```text
-dx deploy [--debug|--release] <label> [-- args...]
+dx deploy [--apply] [--debug|--release] <label> [-- args...]
 ```
 
 Builds and runs one deployable target. Takes exactly one label. No flag uses

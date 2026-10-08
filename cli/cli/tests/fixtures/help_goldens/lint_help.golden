@@ -2,7 +2,7 @@ dx lint - run lint analysis over resolved scopes (mutating by default; --check i
 
 run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
 
-Usage: dx lint|typecheck|format|generate [--check] [--here] [scope ...] [-- bazel-options ...]
+Usage: dx lint|typecheck|format|generate [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -42,6 +42,9 @@ Options:
       --check
           Check without changing files
 
+      --apply
+          Authorize the managed mutation or effect
+
       --fail-on <FAIL_ON>
           Fail on this severity
 
@@ -56,11 +59,11 @@ Options:
   -h, --help
           Print help
 
-Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option "--flag" is not supported by dx <command>`).
+Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option "--flag" is not supported by dx <command>`). --apply authorizes writing fixes.
 
 Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|diff|json; --report sarif=<destination> (repeatable).
-Rejected: --min-coverage, --debug, --release, --bazel, --pin, --rollback, --configured, --from, --to, --serve, --port, --host, --open, --offline.
+Rejected: --min-coverage, --debug, --release, --bazel, --prune-unobserved, --pin, --rollback, --configured, --from, --to, --serve, --port, --host, --open, --offline.
 Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 

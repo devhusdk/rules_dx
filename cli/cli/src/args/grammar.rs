@@ -60,6 +60,7 @@ pub(crate) struct Flags {
     pub(crate) fail_on: Option<String>,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) check: bool,
+    pub(crate) apply: bool,
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) bazel_clean: bool,
@@ -251,6 +252,14 @@ flag_group! {
     CheckFlag, {
         #[arg(long, overrides_with = "check")]
         check: bool,
+    }
+}
+
+flag_group! {
+    /// Authorize the managed mutation or effect.
+    ApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
     }
 }
 
@@ -563,6 +572,7 @@ command_args! {
     /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -570,6 +580,7 @@ command_args! {
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -577,12 +588,14 @@ command_args! {
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         here: HereFlag,
     };
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         here: HereFlag,
     };
     /// The flags `dx build` accepts.
@@ -603,9 +616,9 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx run` accepts.
-    Run => 9, AppTail, { own: ProfileArgs, };
+    Run => 9, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
     /// The flags `dx deploy` accepts.
-    Deploy => 10, AppTail, { own: ProfileArgs, };
+    Deploy => 10, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
     /// The flags `dx check` accepts.
     Check => 11, BazelTail, {
         check: CheckFlag,
@@ -616,40 +629,43 @@ command_args! {
     /// The flags `dx fix` accepts.
     Fix => 12, BazelTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoPassthroughTail, { apply: ApplyFlag, own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         offline: OfflineFlag,
         check: CheckFlag,
+        apply: ApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 15, NoPassthroughTail, { own: OfflineFlag, };
+    Bump => 15, NoPassthroughTail, { apply: ApplyFlag, own: OfflineFlag, };
     /// The flags `dx migrate` accepts.
-    Migrate => 16, NoPassthroughTail, { own: MigrationArgs, };
+    Migrate => 16, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 17, BazelTail, {};
+    Codegen => 17, BazelTail, { apply: ApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 18, BazelTail, {};
+    Env => 18, BazelTail, { apply: ApplyFlag, };
     /// The flags `dx setup` accepts.
-    Setup => 19, BazelTail, {};
+    Setup => 19, BazelTail, { apply: ApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 20, NoPassthroughTail, {};
+    Init => 20, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx new` accepts.
-    New => 21, NoPassthroughTail, {};
+    New => 21, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 22, NoPassthroughTail, { own: MigrationArgs, };
+    Upgrade => 22, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx hooks` accepts.
-    Hooks => 23, NoPassthroughTail, {};
+    Hooks => 23, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx status` accepts.
     Status => 24, NoPassthroughTail, {};
     /// The flags `dx version` accepts.
     Version => 25, NoPassthroughTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         pin: PinFlag,
         rollback: RollbackFlag,
     };
@@ -666,6 +682,7 @@ command_args! {
     /// The flags `dx docs` accepts.
     Docs => 31, BazelTail, {
         check: CheckFlag,
+        apply: ApplyFlag,
         here: HereFlag,
         own: ServeArgs,
     };

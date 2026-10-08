@@ -1,6 +1,5 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
-load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
 def dx_forwarded_runtime_providers(upstream, what):
@@ -321,26 +320,6 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         visibility = visibility,
         **forward_kwargs
     )
-
-def dx_framework_forward_rule(language, ext):
-    """Creates the forwarding rule for one JS-framework wrapper."""
-    return dx_library_forward_rule(
-        provides = [JsInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
-        required_providers = [(JsInfo, "JsInfo")],
-        quality_specs = [(language, language)],
-        what = language + "_*",
-        allow_files = [ext],
-        upstream_providers = [[JsInfo]],
-    )
-
-def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = None, **kwargs):
-    """Instantiates one JS-framework library with standard skip tags."""
-    tags = list(kwargs.pop("tags", []))
-    for tag in ["no-format", "no-lint", "no-typecheck"]:
-        if tag not in tags:
-            tags.append(tag)
-    kwargs["tags"] = tags
-    dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = visibility, **kwargs)
 
 def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, **kwargs):
     """Instantiates one private upstream target plus its public forwarder."""

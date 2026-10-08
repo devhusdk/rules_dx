@@ -322,6 +322,168 @@ pub fn render_hooks_status(baseline: &str, overlay: &str, timings: &str) -> Stri
     format!("baseline:\n{baseline}\noverlay:\n{overlay}\ntimings:\n{timings}\n")
 }
 
+pub const EMPTY_TREE_OID: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitChangeKind {
+    Added,
+    Modified,
+    Deleted,
+    Renamed,
+    Copied,
+    TypeChanged,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitChange {
+    pub kind: GitChangeKind,
+    pub path: String,
+    pub old_path: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PushRef {
+    pub local_ref: String,
+    pub local_oid: String,
+    pub remote_ref: String,
+    pub remote_oid: String,
+}
+
+pub fn is_zero_oid(oid: &str) -> bool {
+    !oid.is_empty() && oid.bytes().all(|byte| byte == b'0')
+}
+
+fn change_kind(status: &str) -> Result<GitChangeKind, AdoptError> {
+    let mut letters = status.chars();
+    let Some(first) = letters.next() else {
+        return Err(AdoptError::GitDiffOutput {
+            detail: "empty change status".to_owned(),
+        });
+    };
+    if letters.any(|letter| !letter.is_ascii_digit()) {
+        return Err(AdoptError::GitDiffOutput {
+            detail: format!("unknown change status {status:?}"),
+        });
+    }
+    match first {
+        'A' => Ok(GitChangeKind::Added),
+        'M' => Ok(GitChangeKind::Modified),
+        'D' => Ok(GitChangeKind::Deleted),
+        'R' => Ok(GitChangeKind::Renamed),
+        'C' => Ok(GitChangeKind::Copied),
+        'T' => Ok(GitChangeKind::TypeChanged),
+        _ => Err(AdoptError::GitDiffOutput {
+            detail: format!("unknown change status {status:?}"),
+        }),
+    }
+}
+
+pub fn parse_name_status(text: &str) -> Result<Vec<GitChange>, AdoptError> {
+    let mut fields = text.split('\0');
+    let mut changes = Vec::new();
+    while let Some(status) = fields.next() {
+        if status.is_empty() {
+            continue;
+        }
+        let kind = change_kind(status)?;
+        let Some(first) = fields.next().filter(|field| !field.is_empty()) else {
+            return Err(AdoptError::GitDiffOutput {
+                detail: format!("record {status:?} ends without a path"),
+            });
+        };
+        if matches!(kind, GitChangeKind::Renamed | GitChangeKind::Copied) {
+            let Some(second) = fields.next().filter(|field| !field.is_empty()) else {
+                return Err(AdoptError::GitDiffOutput {
+                    detail: format!("record {status:?} ends without a second path"),
+                });
+            };
+            changes.push(GitChange {
+                kind,
+                path: second.to_owned(),
+                old_path: Some(first.to_owned()),
+            });
+        } else {
+            changes.push(GitChange {
+                kind,
+                path: first.to_owned(),
+                old_path: None,
+            });
+        }
+    }
+    Ok(changes)
+}
+
+fn bounded(text: &str) -> String {
+    let mut clipped = String::new();
+    let mut rest = text.chars();
+    for _ in 0..80 {
+        let Some(letter) = rest.next() else {
+            return clipped;
+        };
+        clipped.push(letter);
+    }
+    if rest.next().is_some() {
+        clipped.push_str("...");
+    }
+    clipped
+}
+
+fn is_oid(oid: &str) -> bool {
+    (oid.len() == 40 || oid.len() == 64)
+        && oid.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+pub fn parse_push_refs(text: &str) -> Result<Vec<PushRef>, AdoptError> {
+    let mut refs = Vec::new();
+    for line in text.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        let mut fields = line.split(' ');
+        let (Some(local_ref), Some(local_oid), Some(remote_ref), Some(remote_oid)) = (
+            fields.next(),
+            fields.next(),
+            fields.next(),
+            fields.next(),
+        ) else {
+            return Err(AdoptError::PushInput {
+                detail: format!("want four fields in {:?}", bounded(line)),
+            });
+        };
+        if fields.next().is_some() {
+            return Err(AdoptError::PushInput {
+                detail: format!("want four fields in {:?}", bounded(line)),
+            });
+        }
+        for oid in [local_oid, remote_oid] {
+            if !is_oid(oid) {
+                return Err(AdoptError::PushInput {
+                    detail: format!("not an object id: {:?}", bounded(oid)),
+                });
+            }
+        }
+        refs.push(PushRef {
+            local_ref: local_ref.to_owned(),
+            local_oid: local_oid.to_owned(),
+            remote_ref: remote_ref.to_owned(),
+            remote_oid: remote_oid.to_owned(),
+        });
+    }
+    Ok(refs)
+}
+
+pub fn push_outgoing_range(push: &PushRef) -> Option<(&str, &str)> {
+    if push.local_ref == "(delete)" || is_zero_oid(&push.local_oid) {
+        return None;
+    }
+    let old = if is_zero_oid(&push.remote_oid) {
+        EMPTY_TREE_OID
+    } else {
+        push.remote_oid.as_str()
+    };
+    Some((old, push.local_oid.as_str()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::{
@@ -331,7 +493,10 @@ mod tests {
         render_local_overlay, uninstall_hooks, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER,
         HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
     };
-    use super::{render_hook_shim, render_hooks_status};
+    use super::{
+        is_zero_oid, parse_name_status, parse_push_refs, push_outgoing_range, render_hook_shim,
+        render_hooks_status, AdoptError, GitChangeKind, EMPTY_TREE_OID,
+    };
 
     #[test]
     fn hooks_reexports_match_local_definitions() {
@@ -525,5 +690,123 @@ mod tests {
         let view = render_hooks_status_merged(&config, &timed, "dx.hooks.toml", "dx.local.toml");
         assert!(view.contains("1.23s (measured)"));
         assert!(!view.contains("p95 12s"));
+    }
+
+    #[test]
+    fn name_status_decodes_nul_records_renames_and_odd_paths() {
+        let text = "M\0pkg/my file.py\0D\0pkg/gone.py\0R100\0pkg/old name.py\0pkg/new\nname.py\0A\0pkg/quo\"te.py\0T\0pkg/mode.sh\0C50\0pkg/src.py\0pkg/copy.py\0";
+        let changes = parse_name_status(text).expect("decode");
+        assert_eq!(changes.len(), 6);
+        assert_eq!(changes[0].kind, GitChangeKind::Modified);
+        assert_eq!(changes[0].path, "pkg/my file.py");
+        assert_eq!(changes[0].old_path, None);
+        assert_eq!(changes[1].kind, GitChangeKind::Deleted);
+        assert_eq!(changes[1].path, "pkg/gone.py");
+        assert_eq!(changes[2].kind, GitChangeKind::Renamed);
+        assert_eq!(changes[2].path, "pkg/new\nname.py");
+        assert_eq!(changes[2].old_path.as_deref(), Some("pkg/old name.py"));
+        assert_eq!(changes[3].kind, GitChangeKind::Added);
+        assert_eq!(changes[3].path, "pkg/quo\"te.py");
+        assert_eq!(changes[4].kind, GitChangeKind::TypeChanged);
+        assert_eq!(changes[5].kind, GitChangeKind::Copied);
+        assert_eq!(changes[5].old_path.as_deref(), Some("pkg/src.py"));
+        assert_eq!(changes[5].path, "pkg/copy.py");
+        assert!(parse_name_status("").expect("empty diff").is_empty());
+        assert_eq!(
+            parse_name_status("D\0pkg/gone.py\0")
+                .expect("deletion")
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn name_status_rejects_truncated_and_unknown_records() {
+        for bad in ["M", "M\0path\0R100\0old\0", "Z\0path\0", "M\0"] {
+            let error = parse_name_status(bad).expect_err(bad);
+            assert!(
+                error.to_string().starts_with("unsupported Git diff output:"),
+                "{bad}: {error}"
+            );
+        }
+        let trailing = parse_name_status("M\0path\0").expect("complete record");
+        assert_eq!(trailing.len(), 1);
+    }
+
+    #[test]
+    fn push_refs_parse_real_git_lines() {
+        let text = "refs/heads/main c7b119f5c19f36813fa86db221727b52662254e0 refs/heads/main 5c48c1e21dc00479465fabba8d283ee89e5496b1\nrefs/heads/feat 6f297a4edd1b1e48089376eb1611e5a38d5a131a refs/heads/feat 0000000000000000000000000000000000000000\n(delete) 0000000000000000000000000000000000000000 refs/heads/feat 5c53574a3ba0cc7a3997d07757750b59c1881f5e";
+        let refs = parse_push_refs(text).expect("decode");
+        assert_eq!(refs.len(), 3);
+        assert_eq!(refs[0].local_ref, "refs/heads/main");
+        assert_eq!(refs[0].local_oid, "c7b119f5c19f36813fa86db221727b52662254e0");
+        assert_eq!(refs[0].remote_ref, "refs/heads/main");
+        assert_eq!(refs[0].remote_oid, "5c48c1e21dc00479465fabba8d283ee89e5496b1");
+        assert_eq!(refs[1].remote_oid, "0".repeat(40));
+        assert_eq!(refs[2].local_ref, "(delete)");
+        assert!(parse_push_refs("").expect("no refs").is_empty());
+        let sha256 = "0".repeat(64);
+        let long = parse_push_refs(&format!("refs/heads/main {sha256} refs/heads/main {sha256}\n"))
+            .expect("sha256");
+        assert_eq!(long.len(), 1);
+    }
+
+    #[test]
+    fn push_refs_reject_malformed_lines() {
+        for bad in [
+            "refs/heads/main c7b119f5c19f36813fa86db221727b52662254e0 refs/heads/main",
+            "refs/heads/main not-a-sha refs/heads/main c7b119f5c19f36813fa86db221727b52662254e0",
+            "refs/heads/main c7b119f5c19f36813fa86db221727b52662254e0 refs/heads/main c7b119f5c19f36813fa86db221727b52662254e0 extra",
+        ] {
+            let error = parse_push_refs(bad).expect_err(bad);
+            assert!(
+                error.to_string().starts_with("unsupported pre-push input:"),
+                "{bad}: {error}"
+            );
+        }
+        let short = AdoptError::PushInput {
+            detail: "want four fields".to_owned(),
+        };
+        assert_eq!(
+            short.to_string(),
+            "unsupported pre-push input: want four fields"
+        );
+    }
+
+    #[test]
+    fn push_outgoing_ranges_follow_empty_ref_semantics() {
+        let update = parse_push_refs("refs/heads/main c7b119f5c19f36813fa86db221727b52662254e0 refs/heads/main 5c48c1e21dc00479465fabba8d283ee89e5496b1")
+            .expect("update")
+            .remove(0);
+        assert_eq!(
+            push_outgoing_range(&update),
+            Some((
+                "5c48c1e21dc00479465fabba8d283ee89e5496b1",
+                "c7b119f5c19f36813fa86db221727b52662254e0"
+            ))
+        );
+        let zeros = "0".repeat(40);
+        let fresh = parse_push_refs(&format!(
+            "refs/heads/feat 6f297a4edd1b1e48089376eb1611e5a38d5a131a refs/heads/feat {zeros}"
+        ))
+        .expect("fresh")
+        .remove(0);
+        assert_eq!(
+            push_outgoing_range(&fresh),
+            Some((
+                EMPTY_TREE_OID,
+                "6f297a4edd1b1e48089376eb1611e5a38d5a131a"
+            ))
+        );
+        let deleted = parse_push_refs(&format!(
+            "(delete) {zeros} refs/heads/feat 5c53574a3ba0cc7a3997d07757750b59c1881f5e"
+        ))
+        .expect("delete")
+        .remove(0);
+        assert_eq!(push_outgoing_range(&deleted), None);
+        assert!(is_zero_oid(&"0".repeat(64)));
+        assert!(is_zero_oid(&"0".repeat(40)));
+        assert!(!is_zero_oid(&format!("{}1", "0".repeat(39))));
+        assert!(!is_zero_oid(""));
     }
 }

@@ -68,6 +68,10 @@ pub enum AdoptError {
     ScaffoldEscapesRoot { path: String },
     #[error("invalid hooks config: {detail}")]
     InvalidHooks { detail: String },
+    #[error("unsupported Git diff output: {detail}")]
+    GitDiffOutput { detail: String },
+    #[error("unsupported pre-push input: {detail}")]
+    PushInput { detail: String },
     #[error("invalid hooks timings: {detail}")]
     InvalidTimings { detail: String },
     #[error("render timings: {detail}")]

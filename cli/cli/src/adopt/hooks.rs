@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::time::Instant;
 
 use crate::args::Invocation;
@@ -91,7 +91,18 @@ pub(crate) fn execute_hooks(
             }
         }
         "status" => execute_status(invocation, workspace, out, err),
-        "run" => execute_run(invocation, workspace, query_runner, runner, out, err),
+        "run" => {
+            let mut stdin = std::io::stdin().lock();
+            execute_run(
+                invocation,
+                workspace,
+                query_runner,
+                runner,
+                &mut stdin,
+                out,
+                err,
+            )
+        }
         _ => pre_exec(
             err,
             &format!("usage: dx hooks <{}>", dx_adopt::hook_verb_pipe()),
@@ -183,6 +194,7 @@ fn execute_run(
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
     runner: &dyn dx_process::Runner,
+    stdin: &mut dyn std::io::Read,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -238,23 +250,30 @@ fn execute_run(
         }
         return 0;
     }
-    let staged = match staged_files(&git, workspace, query_runner) {
-        Ok(files) => files,
+    let selection = match trigger {
+        "pre-commit" => staged_selection(&git, workspace, query_runner),
+        _ => push_selection(&git, workspace, query_runner, stdin),
+    };
+    let selection = match selection {
+        Ok(selection) => selection,
         Err(detail) => {
             return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
         }
     };
-    if staged.is_empty() {
+    if selection.changes.is_empty() {
+        let reason = if trigger == "pre-commit" {
+            "no staged files"
+        } else {
+            "no outgoing changes"
+        };
         if !summaries_suppressed(invocation) {
-            if let Err(exit) =
-                check_stdout_write(writeln!(out, "ran {trigger}: ok (no staged files)"))
-            {
+            if let Err(exit) = check_stdout_write(writeln!(out, "ran {trigger}: ok ({reason})")) {
                 return exit;
             }
         }
         return 0;
     }
-    let targets = match affected_targets(&staged, workspace, query_runner) {
+    let targets = match affected_targets(&selection.changes, workspace, query_runner) {
         Ok(targets) => targets,
         Err(detail) => {
             return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
@@ -269,6 +288,16 @@ fn execute_run(
             }
         }
         return 0;
+    }
+    if !summaries_suppressed(invocation) {
+        if let Err(exit) = check_stdout_write(writeln!(
+            out,
+            "ran {trigger}: selected {} targets from {}",
+            targets.len(),
+            selection.source
+        )) {
+            return exit;
+        }
     }
     let dx_exe = match std::env::current_exe() {
         Ok(exe) => exe.to_string_lossy().into_owned(),
@@ -350,17 +379,19 @@ fn execute_run(
     0
 }
 
-fn staged_files(
+struct Selection {
+    changes: Vec<dx_adopt::GitChange>,
+    source: String,
+}
+
+fn git_diff_bytes(
     git: &std::path::Path,
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
-) -> Result<Vec<String>, String> {
-    let argv = vec![
-        git.to_string_lossy().into_owned(),
-        "diff".to_owned(),
-        "--cached".to_owned(),
-        "--name-only".to_owned(),
-    ];
+    tail: &[&str],
+) -> Result<Vec<u8>, String> {
+    let mut argv = vec![git.to_string_lossy().into_owned(), "diff".to_owned()];
+    argv.extend(tail.iter().map(|arg| (*arg).to_owned()));
     let result: QueryResult = query_runner
         .run_query(&argv, workspace)
         .map_err(|error| format!("hook git diff failed: {error}"))?;
@@ -368,32 +399,145 @@ fn staged_files(
         let detail = first_line(&result.stderr);
         return Err(format!("hook git diff failed: {detail}"));
     }
-    let text = String::from_utf8(result.stdout)
-        .map_err(|error| format!("hook git diff output is not UTF-8: {error}"))?;
-    Ok(text
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(ToOwned::to_owned)
-        .collect())
+    Ok(result.stdout)
+}
+
+fn decode_git_diff(bytes: Vec<u8>) -> Result<String, String> {
+    String::from_utf8(bytes).map_err(|error| format!("hook git diff output is not UTF-8: {error}"))
+}
+
+fn staged_selection(
+    git: &std::path::Path,
+    workspace: &std::path::Path,
+    query_runner: &dyn QueryRunner,
+) -> Result<Selection, String> {
+    let bytes = git_diff_bytes(
+        git,
+        workspace,
+        query_runner,
+        &["--cached", "--name-status", "-z", "-M", "--"],
+    )?;
+    let text = decode_git_diff(bytes)?;
+    let changes = dx_adopt::parse_name_status(&text).map_err(|error| error.to_string())?;
+    Ok(Selection {
+        changes,
+        source: "the staged index".to_owned(),
+    })
+}
+
+fn push_selection(
+    git: &std::path::Path,
+    workspace: &std::path::Path,
+    query_runner: &dyn QueryRunner,
+    stdin: &mut dyn std::io::Read,
+) -> Result<Selection, String> {
+    let mut bytes = Vec::new();
+    stdin
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("hook pre-push input read failed: {error}"))?;
+    let text = String::from_utf8(bytes)
+        .map_err(|error| format!("hook pre-push input is not UTF-8: {error}"))?;
+    let refs = dx_adopt::parse_push_refs(&text).map_err(|error| error.to_string())?;
+    let deletions = refs
+        .iter()
+        .filter(|push| dx_adopt::push_outgoing_range(push).is_none())
+        .count();
+    let mut changes = Vec::new();
+    for push in &refs {
+        let Some((old, new)) = dx_adopt::push_outgoing_range(push) else {
+            continue;
+        };
+        let bytes = git_diff_bytes(
+            git,
+            workspace,
+            query_runner,
+            &["--name-status", "-z", "-M", old, new, "--"],
+        )?;
+        let text = decode_git_diff(bytes)?;
+        changes.extend(dx_adopt::parse_name_status(&text).map_err(|error| error.to_string())?);
+    }
+    let mut source = format!("{} push ref(s)", refs.len());
+    if deletions > 0 {
+        source.push_str(&format!(" ({deletions} deletion(s))"));
+    }
+    Ok(Selection { changes, source })
+}
+
+const WORKSPACE_WIDE_INPUTS: &[&str] = &[
+    "MODULE.bazel",
+    "MODULE.bazel.lock",
+    "WORKSPACE",
+    "WORKSPACE.bazel",
+    ".bazelrc",
+    ".bazelversion",
+    ".bazelignore",
+];
+
+fn is_build_input(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    name == "BUILD" || name == "BUILD.bazel" || name.ends_with(".bzl")
+}
+
+fn has_build_file(workspace: &std::path::Path, dir: &std::path::Path) -> bool {
+    workspace.join(dir).join("BUILD").is_file() || workspace.join(dir).join("BUILD.bazel").is_file()
+}
+
+fn package_pattern(workspace: &std::path::Path, rel: &str) -> String {
+    let mut dir = std::path::Path::new(rel).parent();
+    while let Some(candidate) = dir {
+        if candidate.as_os_str().is_empty() {
+            return "//...".to_owned();
+        }
+        if has_build_file(workspace, candidate) {
+            let mut joined = String::new();
+            for component in candidate.components() {
+                if !joined.is_empty() {
+                    joined.push('/');
+                }
+                joined.push_str(&component.as_os_str().to_string_lossy());
+            }
+            return format!("//{joined}/...");
+        }
+        dir = candidate.parent();
+    }
+    "//...".to_owned()
 }
 
 fn affected_targets(
-    staged: &[String],
+    changes: &[dx_adopt::GitChange],
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
 ) -> Result<Vec<String>, String> {
-    let existing: Vec<String> = staged
-        .iter()
-        .filter(|path| workspace.join(path).is_file())
-        .cloned()
-        .collect();
-    if existing.is_empty() {
-        return Ok(Vec::new());
+    let mut patterns: Vec<String> = Vec::new();
+    let mut owned: Vec<String> = Vec::new();
+    for change in changes {
+        let old = change.old_path.as_deref();
+        for path in old.into_iter().chain(std::iter::once(change.path.as_str())) {
+            if WORKSPACE_WIDE_INPUTS.contains(&path) {
+                patterns.push("//...".to_owned());
+            } else if is_build_input(path) || !workspace.join(path).is_file() {
+                patterns.push(package_pattern(workspace, path));
+            } else {
+                owned.push(path.to_owned());
+            }
+        }
     }
-    crate::resolve::resolve(&existing, workspace, query_runner)
-        .map(|resolved| resolved.targets)
-        .map_err(|error| error.to_string())
+    if patterns.iter().any(|pattern| pattern == "//...") {
+        return Ok(vec!["//...".to_owned()]);
+    }
+    owned.sort();
+    owned.dedup();
+    let mut targets = if owned.is_empty() {
+        Vec::new()
+    } else {
+        crate::resolve::resolve(&owned, workspace, query_runner)
+            .map(|resolved| resolved.targets)
+            .map_err(|error| error.to_string())?
+    };
+    targets.extend(patterns);
+    targets.sort();
+    targets.dedup();
+    Ok(targets)
 }
 
 fn check_argv(dx_exe: &str, check: &str, targets: &[String]) -> Vec<String> {
@@ -659,12 +803,13 @@ mod tests {
     }
 
     impl ScriptQuery {
-        fn staged_then_owners(staged: &str, owners: &str) -> Self {
+        fn staged_then_owners(path: &str, owners: &str) -> Self {
+            let staged = format!("M\0{path}\0");
             Self {
                 outputs: RefCell::new(vec![
                     crate::resolve::QueryResult {
                         code: Some(0),
-                        stdout: staged.as_bytes().to_vec(),
+                        stdout: staged.into_bytes(),
                         stderr: Vec::new(),
                     },
                     crate::resolve::QueryResult {

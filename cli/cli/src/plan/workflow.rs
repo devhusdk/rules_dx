@@ -221,6 +221,65 @@ mod tests {
     }
 
     #[test]
+    fn test_and_coverage_forward_test_args_before_labels() {
+        for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
+            let plan = plan_workflow(
+                verb,
+                &resolved(&["//a:t"]),
+                &strings(&[
+                    "--test_arg=focused",
+                    "--test_arg",
+                    "--exact",
+                    "--test_filter=some_case",
+                ]),
+                None,
+                None,
+            )
+            .expect("test args pass");
+            let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+            let label_at = argv
+                .iter()
+                .position(|arg| *arg == "//a:t")
+                .expect("label rides along");
+            for wanted in [
+                "--test_arg=focused",
+                "--test_arg",
+                "--exact",
+                "--test_filter=some_case",
+            ] {
+                let at = argv
+                    .iter()
+                    .position(|arg| *arg == wanted)
+                    .unwrap_or_else(|| panic!("{wanted} missing from {argv:?}"));
+                assert!(at < label_at, "{wanted} must stay ahead of the label");
+            }
+            assert_eq!(
+                argv.iter()
+                    .filter(|arg| ***arg == "--test_arg" || arg.starts_with("--test_arg="))
+                    .count(),
+                2,
+                "both spellings ride along: {argv:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn build_still_rejects_test_args() {
+        let err = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &strings(&["--test_arg=focused"]),
+            None,
+            Some(Profile::Dev),
+        )
+        .expect_err("build has no test binary");
+        assert!(
+            matches!(err, ForwardError::TestBinaryArgs { .. }),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
     fn workflow_profile_pins_config_flag_in_order() {
         for (profile, flag) in [
             (Profile::Debug, "--config=dx_debug"),

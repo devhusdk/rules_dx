@@ -333,6 +333,7 @@ fn workflow_argv_orders_startup_command_required_user_labels() {
         &["--keep_going".to_owned(), "--config=dx".to_owned()],
         &protected,
         &["//...".to_owned()],
+        false,
     )
     .expect("argv");
     assert_eq!(
@@ -359,6 +360,7 @@ fn workflow_argv_rejects_startup_options() {
         &[],
         &[],
         &["//...".to_owned()],
+        false,
     )
     .expect_err("startup");
     assert_eq!(
@@ -372,26 +374,84 @@ fn workflow_argv_rejects_startup_options() {
 }
 
 #[test]
-fn workflow_argv_rejects_test_binary_args() {
-    let err = build_workflow_argv(
-        "test",
-        &["--test_arg=fast".to_owned()],
-        &[],
-        &[],
-        &["//...".to_owned()],
-    )
-    .expect_err("binary args");
-    assert_eq!(
-        err,
-        ForwardError::TestBinaryArgs {
-            flag: "test_arg".to_owned(),
-        }
-    );
-    assert!(err.to_string().contains("dx bazel"));
+fn workflow_argv_rejects_test_binary_args_without_opt_in() {
+    for command in ["build", "run"] {
+        let err = build_workflow_argv(
+            command,
+            &["--test_arg=fast".to_owned()],
+            &[],
+            &[],
+            &["//...".to_owned()],
+            false,
+        )
+        .expect_err("binary args");
+        assert_eq!(
+            err,
+            ForwardError::TestBinaryArgs {
+                flag: "test_arg".to_owned(),
+            }
+        );
+        assert!(err.to_string().contains("dx bazel"));
+    }
 }
 
 #[test]
-fn execution_gaps_forwarding_matrix_is_wont_fix() {
+fn workflow_argv_forwards_test_binary_args_with_opt_in() {
+    for command in ["test", "coverage"] {
+        let argv = build_workflow_argv(
+            command,
+            &[
+                "--jobs=4".to_owned(),
+                "--test_arg=fast".to_owned(),
+                "--test_arg".to_owned(),
+                "slow path/ünïcode".to_owned(),
+                "--test_arg=--exact".to_owned(),
+            ],
+            &["--config=dx".to_owned()],
+            &[],
+            &["//a:t".to_owned()],
+            true,
+        )
+        .expect("argv");
+        assert_eq!(
+            argv,
+            vec![
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                command,
+                "--config=dx",
+                "--jobs=4",
+                "--test_arg=fast",
+                "--test_arg",
+                "slow path/ünïcode",
+                "--test_arg=--exact",
+                "//a:t",
+            ]
+            .into_iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+            "test args keep order and stay ahead of the labels"
+        );
+    }
+}
+
+#[test]
+fn workflow_argv_forwards_test_filter_untouched() {
+    let argv = build_workflow_argv(
+        "test",
+        &["--test_filter=some_case".to_owned()],
+        &[],
+        &[],
+        &["//...".to_owned()],
+        true,
+    )
+    .expect("argv");
+    assert!(argv.contains(&"--test_filter=some_case".to_owned()));
+}
+
+#[test]
+fn execution_gaps_startup_matrix_is_wont_fix() {
     for startup in [
         "--bazelrc=/tmp/rc",
         "--home_rc",
@@ -413,6 +473,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             &[],
             &[],
             &["//...".to_owned()],
+            false,
         )
         .expect_err("startup must fail");
         assert!(
@@ -421,23 +482,45 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
         );
         assert!(err.to_string().contains("dx bazel"), "{startup}: {err}");
     }
+}
+
+#[test]
+fn test_binary_args_are_qualified_per_command() {
     for binary in ["--test_arg=fast", "--test_arg"] {
         assert!(
             is_test_binary_arg(binary),
             "{binary} must count as test-binary"
         );
-        let err = build_workflow_argv(
-            "test",
-            &[binary.to_owned()],
-            &[],
-            &[],
-            &["//...".to_owned()],
-        )
-        .expect_err("test-binary must fail");
-        assert!(
-            matches!(err, ForwardError::TestBinaryArgs { .. }),
-            "{binary} produced {err:?}"
-        );
+        for command in ["build", "run"] {
+            let err = build_workflow_argv(
+                command,
+                &[binary.to_owned()],
+                &[],
+                &[],
+                &["//...".to_owned()],
+                false,
+            )
+            .expect_err("test-binary must fail without opt-in");
+            assert!(
+                matches!(err, ForwardError::TestBinaryArgs { .. }),
+                "{command} {binary} produced {err:?}"
+            );
+        }
+        for command in ["test", "coverage"] {
+            let argv = build_workflow_argv(
+                command,
+                &[binary.to_owned()],
+                &[],
+                &[],
+                &["//...".to_owned()],
+                true,
+            )
+            .expect("test-binary must pass with opt-in");
+            assert!(
+                argv.contains(&binary.to_owned()),
+                "{command} {binary} missing from {argv:?}"
+            );
+        }
     }
 }
 
@@ -461,6 +544,7 @@ fn quality_workflows_reject_nokeep_going() {
         &["--keep_going".to_owned()],
         &protected,
         &["//...".to_owned()],
+        false,
     )
     .expect_err("nokeep_going");
     assert_eq!(
@@ -484,6 +568,7 @@ fn workflow_argv_rejects_protected_conflicts() {
         &["--build_event_json_file=/tmp/required.json".to_owned()],
         &protected,
         &["//...".to_owned()],
+        false,
     )
     .expect_err("conflict");
     assert!(matches!(err, ForwardError::ConflictingOption { .. }));

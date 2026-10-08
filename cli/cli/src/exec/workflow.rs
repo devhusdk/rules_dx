@@ -192,6 +192,35 @@ mod tests {
     }
 
     #[test]
+    fn build_forwards_consumer_configs_and_rejects_profile_conflicts() {
+        let harness = Harness::new("wf-consumer-config");
+        let inv = invocation(&["build", "--", "--config=ci", "--config=sanitizer"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        let argv = &run.argv[0];
+        let dx_dev = argv
+            .iter()
+            .position(|arg| arg == "--config=dx_dev")
+            .unwrap_or_else(|| panic!("profile missing: {run:?}"));
+        let ci = argv
+            .iter()
+            .position(|arg| arg == "--config=ci")
+            .unwrap_or_else(|| panic!("ci missing: {run:?}"));
+        let sanitizer = argv
+            .iter()
+            .position(|arg| arg == "--config=sanitizer")
+            .unwrap_or_else(|| panic!("sanitizer missing: {run:?}"));
+        assert!(dx_dev < ci && ci < sanitizer, "{run:?}");
+
+        let harness = Harness::new("wf-profile-conflict");
+        let inv = invocation(&["build", "--", "--config=dx_release"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 2, "{run:?}");
+        assert!(run.argv.is_empty(), "pre-exec conflict: {run:?}");
+    }
+
+    #[test]
     fn test_and_coverage_forward_test_binary_args_to_bazel() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-test-args");

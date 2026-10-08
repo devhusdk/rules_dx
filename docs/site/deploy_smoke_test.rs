@@ -201,10 +201,9 @@ fn fetch(browser: &mut Browser, url: &str) -> Fetched {
 
 fn waits_for(browser: &mut Browser, base: &str) -> bool {
     for attempt in 0..READINESS_ATTEMPTS {
-        if browser.navigate(base).is_ok() {
-            if fetch(browser, &format!("{base}index.html")).status == 200 {
-                return true;
-            }
+        let probe = format!("{base}index.html");
+        if browser.navigate(base).is_ok() && fetch(browser, &probe).status == 200 {
+            return true;
         }
         if attempt + 1 < READINESS_ATTEMPTS {
             thread::sleep(READINESS_PAUSE);
@@ -262,10 +261,7 @@ fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
         let url = format!("{base}{route}");
         let served = fetch(browser, &url);
         assert_eq!(served.status, 200, "{url} served status {}", served.status);
-        assert!(
-            !served.body.is_empty(),
-            "{url} served an empty document"
-        );
+        assert!(!served.body.is_empty(), "{url} served an empty document");
         assert!(
             served.content_type.starts_with("text/html"),
             "{url} served content type {:?}",

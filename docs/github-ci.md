@@ -172,8 +172,9 @@ exports nothing.
 ## Docs Workflow
 
 `examples/docs-ci/` calls `reusable-docs.yml`. It runs `dx lint --check` over
-`docs_scope` (default `//...`) plus `dx docs --check` site validation, so
-broken links fail before deploy.
+`docs_scope` (default `//...`) plus `dx docs --check` site validation, then
+renders the site with `dx docs` and checks the rendered tree for missing
+pages, styles, and search index, so broken links fail before deploy.
 
 Inputs:
 
@@ -183,8 +184,11 @@ Inputs:
 - `publish`: build the rendered site and deploy to Pages. Default false.
 - `environment`: Pages environment name. Default `github-pages`.
 
-Publishing needs `pages: write` plus `id-token: write`. Enable Pages with
-source GitHub Actions before the first publishing run.
+Publishing needs `pages: write` plus `id-token: write`. The publish job stages
+and validates the whole rendered tree, deploys it, then loads the reported
+page URL and checks routes, assets, and search before the clean-checkout
+proof. Enable Pages with source GitHub Actions before the first publishing
+run.
 
 ## Repository Settings
 

@@ -59,6 +59,7 @@ pub(crate) struct Flags {
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
     pub(crate) min_coverage: Option<u32>,
+    pub(crate) strict_evidence: bool,
     pub(crate) check: bool,
     pub(crate) apply: bool,
     pub(crate) debug: bool,
@@ -244,6 +245,14 @@ flag_group! {
             value_parser = percent
         )]
         min_coverage: Option<u32>,
+    }
+}
+
+flag_group! {
+    /// Fail when collected test evidence is incomplete.
+    StrictEvidenceFlag, {
+        #[arg(long = "strict-evidence", overrides_with = "strict_evidence")]
+        strict_evidence: bool,
     }
 }
 
@@ -607,11 +616,13 @@ command_args! {
     Test => 7, BazelTail, {
         own: ProfileArgs,
         report: ReportFlag,
+        strict_evidence: StrictEvidenceFlag,
         here: HereFlag,
     };
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
         min_coverage: MinCoverageFlag,
+        strict_evidence: StrictEvidenceFlag,
         report: ReportFlag,
         here: HereFlag,
     };

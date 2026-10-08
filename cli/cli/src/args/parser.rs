@@ -222,6 +222,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         report,
         fail_on,
         min_coverage,
+        strict_evidence,
         check,
         apply,
         debug,
@@ -500,6 +501,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     Ok(Invocation {
         command,
         check,
+        strict_evidence,
         apply,
         debug,
         release,

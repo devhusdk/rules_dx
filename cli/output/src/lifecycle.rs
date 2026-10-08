@@ -16,6 +16,7 @@ pub const EVENTS: &[&str] = &[
     "report",
     "selection",
     "status",
+    "test_outcome",
 ];
 
 pub fn schema() -> Value {
@@ -181,6 +182,73 @@ pub fn error_event(
     if let Some(phase) = phase {
         map.insert("phase".to_owned(), Value::String(phase.to_owned()));
     }
+    Ok(Value::Object(map))
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TestOutcome {
+    pub target: String,
+    pub configuration: Option<String>,
+    pub outcome: String,
+    pub status: Option<String>,
+    pub cached: Option<bool>,
+    pub run: Option<u32>,
+    pub shard: Option<u32>,
+    pub attempt: Option<u32>,
+    pub duration_millis: Option<u64>,
+    pub cases_total: Option<u64>,
+    pub cases_failed: Option<u64>,
+    pub cases_error: Option<u64>,
+    pub cases_skipped: Option<u64>,
+    pub artifacts_collected: u64,
+    pub artifacts_missing: u64,
+    pub artifacts_invalid: u64,
+    pub evidence_complete: bool,
+}
+
+fn opt_str(map: &mut serde_json::Map<String, Value>, field: &str, value: &Option<String>) {
+    if let Some(value) = value {
+        map.insert(field.to_owned(), Value::String(value.clone()));
+    }
+}
+
+fn opt_u64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<u64>) {
+    if let Some(value) = value {
+        map.insert(field.to_owned(), Value::from(value));
+    }
+}
+
+pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
+    nonempty("target", &outcome.target)?;
+    nonempty("outcome", &outcome.outcome)?;
+    let mut map = base("test_outcome");
+    map.insert("target".to_owned(), Value::String(outcome.target.clone()));
+    opt_str(&mut map, "configuration", &outcome.configuration);
+    map.insert("outcome".to_owned(), Value::String(outcome.outcome.clone()));
+    opt_str(&mut map, "status", &outcome.status);
+    if let Some(cached) = outcome.cached {
+        map.insert("cached".to_owned(), Value::Bool(cached));
+    }
+    opt_u64(&mut map, "run", outcome.run.map(u64::from));
+    opt_u64(&mut map, "shard", outcome.shard.map(u64::from));
+    opt_u64(&mut map, "attempt", outcome.attempt.map(u64::from));
+    opt_u64(&mut map, "duration_millis", outcome.duration_millis);
+    opt_u64(&mut map, "cases_total", outcome.cases_total);
+    opt_u64(&mut map, "cases_failed", outcome.cases_failed);
+    opt_u64(&mut map, "cases_error", outcome.cases_error);
+    opt_u64(&mut map, "cases_skipped", outcome.cases_skipped);
+    map.insert(
+        "artifacts".to_owned(),
+        serde_json::json!({
+            "collected": outcome.artifacts_collected,
+            "missing": outcome.artifacts_missing,
+            "invalid": outcome.artifacts_invalid,
+        }),
+    );
+    map.insert(
+        "evidence_complete".to_owned(),
+        Value::Bool(outcome.evidence_complete),
+    );
     Ok(Value::Object(map))
 }
 
@@ -450,6 +518,67 @@ mod tests {
         );
         let bare = operation_event("run", "execute", None).expect("bare");
         assert!(bare.get("correlation").is_none());
+    }
+
+    #[test]
+    fn test_outcome_shape_omits_unknowns() {
+        let event = test_outcome_event(&TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "passed".to_owned(),
+            status: Some("PASSED".to_owned()),
+            cached: Some(true),
+            run: Some(1),
+            shard: Some(1),
+            attempt: Some(2),
+            duration_millis: Some(29),
+            cases_total: Some(3),
+            cases_failed: Some(0),
+            cases_error: Some(0),
+            cases_skipped: Some(1),
+            artifacts_collected: 1,
+            artifacts_missing: 0,
+            artifacts_invalid: 0,
+            evidence_complete: true,
+            ..TestOutcome::default()
+        })
+        .expect("outcome");
+        assert_eq!(event["event"], Value::String("test_outcome".to_owned()));
+        assert_eq!(event["target"], Value::String("//a:t".to_owned()));
+        assert_eq!(event["outcome"], Value::String("passed".to_owned()));
+        assert_eq!(event["cached"], Value::Bool(true));
+        assert_eq!(event["attempt"], Value::from(2));
+        assert_eq!(event["duration_millis"], Value::from(29));
+        assert_eq!(event["cases_skipped"], Value::from(1));
+        assert_eq!(event["artifacts"]["collected"], Value::from(1));
+        assert_eq!(event["evidence_complete"], Value::Bool(true));
+        assert!(event.get("configuration").is_none());
+        let bare = test_outcome_event(&TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "unknown".to_owned(),
+            ..TestOutcome::default()
+        })
+        .expect("bare");
+        for field in [
+            "configuration",
+            "status",
+            "cached",
+            "run",
+            "cases_total",
+            "duration_millis",
+        ] {
+            assert!(bare.get(field).is_none(), "{field} stays unknown");
+        }
+        assert!(bare.get("artifacts").is_some());
+        assert!(test_outcome_event(&TestOutcome::default()).is_err());
+        assert!(test_outcome_event(&TestOutcome {
+            target: "//a:t".to_owned(),
+            ..TestOutcome::default()
+        })
+        .is_err());
+        let mut buf = Vec::new();
+        write_event(&mut buf, &event).expect("write");
+        let parsed: Value = serde_json::from_slice(&buf).expect("parse");
+        assert_eq!(parsed["outcome"], Value::String("passed".to_owned()));
     }
 
     #[test]

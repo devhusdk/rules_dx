@@ -35,7 +35,8 @@ pub use hooks::{
     hook_check_timed_out, hook_git_is_hermetic, hook_git_path_is_hermetic,
     hook_status_shows_merged, hook_trigger_pipe, hook_verb_pipe, install_hooks, is_hook_trigger,
     is_zero_sha, load_hook_timings, load_hooks_config, nearest_package_pattern,
-    parse_name_status_nul, parse_push_refs, push_diff_base, push_ref_is_deletion, render_hook_shim,
+    parse_name_status_nul, parse_push_refs, pending_hook_installs, pending_hook_removals,
+    push_diff_base, push_ref_is_deletion, render_hook_shim,
     render_hook_timings, render_hooks_status, render_hooks_status_merged, render_local_overlay,
     render_selection_line, uninstall_hooks, ChangeKind, ChangeSource, GitChange, HookTimings,
     HooksConfig, PushRef, EMPTY_TREE_SHA, HOOK_BASELINE_REL, HOOK_BUDGET_SECS, HOOK_GIT_ENV_VAR,
@@ -58,9 +59,9 @@ pub use preset_fragment::{
     PresetError, PRESET_BAZEL_VERSION,
 };
 pub use scaffold::{
-    apply_init, editor_disposition, editor_language_supported, plan_init_files,
-    scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
-    ENVRC_CONTENT,
+    apply_init, editor_disposition, editor_language_supported, missing_scaffold_files,
+    plan_init_files, scaffold_dest_within_root, validate_init_module, ScaffoldFile,
+    DEVCONTAINER_JSON, ENVRC_CONTENT,
 };
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{

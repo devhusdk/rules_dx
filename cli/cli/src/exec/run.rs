@@ -33,11 +33,8 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
         nonce: _,
         out,
         err,
-        ci,
+        ci: _,
     } = env;
-    if ci {
-        return pre_exec(err, "dx run refuses when CI=true: local-only command");
-    }
     let planned_reports = match plan_reports(
         invocation.command,
         &invocation.reports,
@@ -709,16 +706,83 @@ mod tests {
     }
 
     #[test]
-    fn run_ci_refusal_is_pre_exec() {
-        let harness = Harness::new("run-ci");
-        let (code, _, err) = harness.run_with_ci(&["run", "//app:bin"], true);
+    fn run_ci_check_builds_without_launching() {
+        let harness = Harness::new("run-ci-check");
+        let (code, _, err) = harness.run_with_ci(&["run", "//app:bin", "--", "--port=8080"], true);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("Running run build for //app:bin"), "{err}");
+        assert!(
+            err.contains("dx run --apply //app:bin -- --port=8080"),
+            "{err}"
+        );
+        assert!(!err.contains("Running run for //app:bin"), "{err}");
+        let harness = Harness::new("run-ci-check-json");
+        let (code, out, err) = harness.run_with_ci(&["run", "//app:bin", "--output=json"], true);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("\"mode\":\"check\""), "{out}");
+        assert!(out.contains("command_finished"), "{out}");
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn run_ci_dry_run_lists_without_launching() {
+        let harness = Harness::new("run-ci-dry");
+        let (code, _, err) = harness.run_with_ci(&["run", "//a:bin", "//b:bin", "--dry-run"], true);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("Running run for //a:bin"), "{err}");
+        assert!(err.contains("Running run for //b:bin"), "{err}");
+        let harness = Harness::new("run-ci-dry-json");
+        let (code, out, err) =
+            harness.run_with_ci(&["run", "//app:bin", "--dry-run", "--output=json"], true);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("command_started"), "{out}");
+        assert!(out.contains("\"phase\":\"execute\""), "{out}");
+        assert!(out.contains("command_finished"), "{out}");
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn run_ci_apply_executes_with_status() {
+        let harness = Harness::new("run-ci-apply");
+        let (code, _, err) =
+            harness.run_with_ci(&["run", "--apply", "//app:bin", "--", "--port=8080"], true);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("Running run for //app:bin"), "{err}");
+        let harness = Harness {
+            bazel_code: 7,
+            ..Harness::new("run-ci-apply-fail")
+        };
+        let (code, _, _) = harness.run_with_ci(&["run", "--apply", "//app:bin"], true);
+        assert_eq!(code, 7);
+        let harness = Harness::new("run-ci-apply-json");
+        let (code, out, err) =
+            harness.run_with_ci(&["run", "--apply", "//app:bin", "--output=json"], true);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started");
+        assert!(kinds.contains(&"operation"), "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        let op = event(&events, "operation");
+        assert_eq!(op["phase"], serde_json::json!("execute"));
+        assert_eq!(op["scope"], serde_json::json!(["//app:bin"]));
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn run_ci_keeps_resolution_errors() {
+        let harness = Harness::new("run-ci-empty");
+        let (code, _, err) = harness.run_with_ci(&["run"], true);
         assert_eq!(code, 2, "{err}");
-        assert!(err.contains("CI=true"), "{err}");
-        std::fs::create_dir_all(harness.workspace.join("app")).expect("dir");
-        harness.query.script_owners("//app:two\n//app:one\n");
-        let (code, _, err) = harness.run(&["run", "app"]);
+        assert!(err.contains("empty scope"), "{err}");
+        let harness = Harness::new("run-ci-norunnable");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("");
+        harness.query.script_owners("//pkg:lib\n");
+        let (code, _, err) = harness.run_with_ci(&["run", "pkg/a.py"], true);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains("ambiguous_runnable"), "{err}");
+        assert!(err.contains("no_runnable"), "{err}");
     }
     #[test]
     fn json_multirun_covers_success_dry_run_and_process_failures() {

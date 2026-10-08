@@ -178,6 +178,20 @@ pub fn scaffold_dest_within_root(
     Ok(dest)
 }
 
+pub fn missing_scaffold_files(
+    root: &Path,
+    files: &[ScaffoldFile],
+) -> Result<Vec<String>, AdoptError> {
+    let mut missing = Vec::new();
+    for file in files {
+        let dest = scaffold_dest_within_root(root, &file.path)?;
+        if !dest.exists() {
+            missing.push(file.path.clone());
+        }
+    }
+    Ok(missing)
+}
+
 pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
     let files = plan_init_files(module_name)?;
     let mut staged = Vec::with_capacity(files.len());

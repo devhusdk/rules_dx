@@ -63,6 +63,39 @@ pub(crate) fn execute_new(
         }
         return 0;
     }
+    if !invocation.applies() {
+        let files = match dx_adopt::plan_new_files(language, name) {
+            Ok(files) => files,
+            Err(error) => {
+                return invalid_name_code(invocation, out, err, &error);
+            }
+        };
+        let missing = match dx_adopt::missing_scaffold_files(workspace, &files) {
+            Ok(missing) => missing,
+            Err(error) => {
+                return invalid_name_code(invocation, out, err, &error);
+            }
+        };
+        if missing.is_empty() {
+            if !summaries_suppressed(invocation) {
+                if let Err(exit) = check_stdout_write(writeln!(out, "new ok")) {
+                    return exit;
+                }
+            }
+            return 0;
+        }
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_NEW_FAILED,
+            &format!(
+                "new drift: missing {}: {}; dx new {language} {name} --apply scaffolds absent-only files",
+                missing.len(),
+                missing.join(", ")
+            ),
+        );
+    }
     match dx_adopt::apply_new(workspace, language, name) {
         Ok(entries) => {
             for entry in entries {
@@ -103,13 +136,30 @@ mod tests {
 
     #[test]
     fn new_applies_absent_only() {
-        let inv = invocation(&["new", "go", "demo"]);
+        let inv = invocation(&["new", "go", "demo", "--apply"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-new-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(root.join("demo/go.mod").exists());
         assert!(root.join("demo/.dx/version").exists());
+    }
+
+    #[test]
+    fn new_default_checks_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-check-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "go", "demo"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("new drift"), "{err}");
+        assert!(err.contains("dx new go demo --apply"), "{err}");
+        assert!(!root.join("demo").exists());
+        let (code, _out, _err) = run(&invocation(&["new", "go", "demo", "--apply"]), &root);
+        assert_eq!(code, 0);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("new ok"), "{out}");
     }
 
     #[test]
@@ -171,7 +221,7 @@ mod tests {
     fn new_scaffolds_nested_destinations_with_folded_identities() {
         let scratch = dx_test_scratch::scratch("dx-adopt-new-nested-");
         let root = scratch.path().to_path_buf();
-        let inv = invocation(&["new", "rust", "teams/My App"]);
+        let inv = invocation(&["new", "rust", "teams/My App", "--apply"]);
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         let cargo = std::fs::read_to_string(root.join("teams/My App/Cargo.toml")).expect("cargo");

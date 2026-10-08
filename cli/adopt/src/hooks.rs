@@ -303,6 +303,51 @@ pub fn render_hook_shim(trigger: &str) -> String {
     )
 }
 
+pub fn pending_hook_installs(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let mut pending = Vec::new();
+    for trigger in ["pre-commit", "pre-push"] {
+        let dest = root.join(".git/hooks").join(trigger);
+        if !dest.exists() {
+            pending.push(format!(".git/hooks/{trigger}"));
+            continue;
+        }
+        let existing = std::fs::read_to_string(&dest).map_err(|e| AdoptError::ReadHook {
+            trigger: trigger.to_owned(),
+            detail: e.to_string(),
+        })?;
+        if !existing.contains(HOOK_MANAGED_MARKER) {
+            return Err(AdoptError::UnmanagedInstall {
+                trigger: trigger.to_owned(),
+            });
+        }
+    }
+    if !root.join("dx.local.toml").exists() {
+        pending.push("dx.local.toml".to_owned());
+    }
+    Ok(pending)
+}
+
+pub fn pending_hook_removals(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let mut pending = Vec::new();
+    for trigger in ["pre-commit", "pre-push"] {
+        let dest = root.join(".git/hooks").join(trigger);
+        if !dest.exists() {
+            continue;
+        }
+        let existing = std::fs::read_to_string(&dest).map_err(|e| AdoptError::ReadHook {
+            trigger: trigger.to_owned(),
+            detail: e.to_string(),
+        })?;
+        if !existing.contains(HOOK_MANAGED_MARKER) {
+            return Err(AdoptError::UnmanagedUninstall {
+                trigger: trigger.to_owned(),
+            });
+        }
+        pending.push(format!(".git/hooks/{trigger}"));
+    }
+    Ok(pending)
+}
+
 pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
     let hooks_dir = root.join(".git/hooks");
     std::fs::create_dir_all(&hooks_dir).map_err(|e| AdoptError::CreateHooksDir {

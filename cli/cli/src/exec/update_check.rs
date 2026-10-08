@@ -21,9 +21,20 @@ fn preset_check_dry_run_never_reads_or_writes() {
                 .collect();
             assert_eq!(events.len(), 2);
             assert_eq!(events[0]["dry_run"], true);
+            assert_eq!(events[0]["mode"], serde_json::json!("check"));
             assert_eq!(events[1]["exit_code"], 0);
         } else {
-            assert!(out.contains("Would check preset"));
+            assert!(
+                out.contains("Running update --check for all dependency sets"),
+                "{out}"
+            );
+            assert!(
+                out.contains(
+                    "Would check uv: uv lock --check --directory python/tests/fixtures/hello"
+                ),
+                "{out}"
+            );
+            assert!(out.contains("Would leave go pinned"), "{out}");
         }
     }
 }
@@ -47,7 +58,7 @@ fn updater_spawn_and_signal_failures_keep_other_sets_independent() {
         assert!(
             events
                 .iter()
-                .any(|event| event["code"] == "update_set_success"
+                .any(|event| event["code"] == "update_set_pinned"
                     && event["scope"] == serde_json::json!(["go"])),
             "{out}"
         );
@@ -55,114 +66,204 @@ fn updater_spawn_and_signal_failures_keep_other_sets_independent() {
     }
 }
 
+fn run_probe(harness: &Harness, argv: &[&str], codes: &[Option<i32>]) -> ProbeRun {
+    let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
+    let parsed = crate::args::parse(&words).expect("parse");
+    let invocation =
+        crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("scopes");
+    harness.probe_with(&invocation, codes)
+}
+
 #[test]
-fn check_clean_passes_without_launching() {
-    let harness = Harness::new("update-check-clean");
-    harness.write_source(
-        ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
-    );
-    harness.write_source(
-        "tools/bazelrc/preset.bazelrc",
-        &dx_adopt::render_preset_fragment(),
-    );
-    let (code, out, err) = harness.run(&["update", "--check"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("Running update --check for preset"), "{out}");
-    assert!(out.contains("preset clean"), "{out}");
-    assert_eq!(err, "", "{err}");
+fn check_selectors_resolve_to_sets_not_preset() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "--check", "cargo"], &runner);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(err.contains("update_set_unsupported"), "{err}");
+    assert!(err.contains("cannot check cargo"), "{err}");
+    assert!(!out.contains("preset"), "{out}");
+    assert!(!err.contains("preset"), "{err}");
     assert!(
-        harness.seen_env.borrow().is_empty(),
-        "check launches nothing"
+        runner.calls.borrow().is_empty(),
+        "unavailable launches nothing"
+    );
+
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "--check", "uv"], &runner);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(runner.calls.borrow().len(), 1);
+    assert_eq!(
+        runner.calls.borrow()[0],
+        vec![
+            "uv".to_owned(),
+            "lock".to_owned(),
+            "--check".to_owned(),
+            "--directory".to_owned(),
+            "python/tests/fixtures/hello".to_owned(),
+        ]
+    );
+    assert!(
+        out.contains("uv lockfile current (python/tests/fixtures/hello/uv.lock)"),
+        "{out}"
     );
 }
 
 #[test]
-fn check_stale_fails_with_diff_and_no_mutation() {
-    let harness = Harness::new("update-check-stale");
-    harness.write_source(
-        ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
-    );
+fn check_ignores_stale_preset() {
+    let harness = Harness::new("update-check-ignores-preset");
     harness.write_source("tools/bazelrc/preset.bazelrc", "# dirty\n");
-    let (code, out, err) = harness.run(&["update", "--check"]);
-    assert_eq!(code, 1, "{out}{err}");
-    assert!(out.contains("stale"), "{out}");
-    assert!(out.contains("checked-in"), "{out}");
-    assert_eq!(err, "", "{err}");
+    let run = run_probe(&harness, &["update", "--check", "uv"], &[Some(0)]);
+    assert_eq!(run.code, 0, "{}", run.out);
+    assert_eq!(run.argv.len(), 1);
+    assert_eq!(
+        run.argv[0],
+        vec![
+            "uv".to_owned(),
+            "lock".to_owned(),
+            "--check".to_owned(),
+            "--directory".to_owned(),
+            "python/tests/fixtures/hello".to_owned(),
+        ]
+    );
+    assert!(
+        run.out.contains("Running update --check for uv"),
+        "{}",
+        run.out
+    );
     assert_eq!(
         std::fs::read_to_string(harness.workspace.join("tools/bazelrc/preset.bazelrc"))
             .expect("read"),
         "# dirty\n"
     );
-    assert!(harness.seen_env.borrow().is_empty());
 }
 
 #[test]
-fn check_missing_fails_closed() {
-    let harness = Harness::new("update-check-missing");
-    harness.write_source(
-        ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\n",
+fn check_current_reports_lockfile_without_writing() {
+    let harness = Harness::new("update-check-current");
+    harness.write_source("python/tests/fixtures/hello/uv.lock", "lock-bytes\n");
+    let run = run_probe(&harness, &["update", "--check", "uv"], &[Some(0)]);
+    assert_eq!(run.code, 0, "{}", run.out);
+    assert_eq!(run.argv.len(), 1, "only the selected set runs");
+    assert!(
+        run.out
+            .contains("uv lockfile current (python/tests/fixtures/hello/uv.lock)"),
+        "{}",
+        run.out
     );
-    let (code, out, err) = harness.run(&["update", "--check"]);
+    assert_eq!(
+        std::fs::read_to_string(
+            harness
+                .workspace
+                .join("python/tests/fixtures/hello/uv.lock")
+        )
+        .expect("read"),
+        "lock-bytes\n"
+    );
+}
+
+#[test]
+fn check_stale_check_failure_reports_without_mutation() {
+    let mut harness = Harness::new("update-check-stale");
+    harness.bazel_code = 1;
+    harness.write_source("python/tests/fixtures/hello/uv.lock", "lock-bytes\n");
+    let (code, out, err) = harness.run(&["update", "--check", "uv"]);
     assert_eq!(code, 1, "{out}{err}");
-    assert!(out.contains("stale"), "{out}");
-    assert_eq!(err, "", "{err}");
+    assert!(err.contains("failed to check uv"), "{err}");
+    assert!(err.contains("updater exited 1"), "{err}");
+    assert_eq!(
+        std::fs::read_to_string(
+            harness
+                .workspace
+                .join("python/tests/fixtures/hello/uv.lock")
+        )
+        .expect("read"),
+        "lock-bytes\n"
+    );
 }
 
 #[test]
-fn check_collision_fails_operational() {
-    let harness = Harness::new("update-check-collision");
-    harness.write_source(
-        ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\ncommon --enable_bzlmod\n",
+fn check_unavailable_names_refresh_command() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "--check", "npm"], &runner);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(err.contains("update_set_unsupported"), "{err}");
+    assert!(err.contains("cannot check npm"), "{err}");
+    assert!(err.contains("refresh with `dx update npm`"), "{err}");
+    assert!(
+        runner.calls.borrow().is_empty(),
+        "unavailable launches nothing"
     );
-    harness.write_source(
-        "tools/bazelrc/preset.bazelrc",
-        &dx_adopt::render_preset_fragment(),
-    );
-    let (code, _, err) = harness.run(&["update", "--check"]);
-    assert_eq!(code, 1, "{err}");
-    assert!(err.contains("update_failed"), "{err}");
-    assert!(err.contains("duplicates preset"), "{err}");
 }
 
 #[test]
-fn check_json_reports_stale_and_clean() {
-    let clean = Harness::new("update-check-json-clean");
-    clean.write_source(
-        ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\n",
+fn check_pinned_sets_report_manual_without_launching() {
+    for set in ["go", "ruby", "powershell"] {
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check", set], &runner);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains(&format!("{set} pins are manual")), "{out}");
+        assert!(out.contains("nothing to resolve"), "{out}");
+        assert!(runner.calls.borrow().is_empty(), "pinned launches nothing");
+    }
+}
+
+#[test]
+fn check_json_reports_current_pinned_unsupported() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(
+        &["update", "--check", "uv", "go", "npm", "--output=json"],
+        &runner,
     );
-    clean.write_source(
-        "tools/bazelrc/preset.bazelrc",
-        &dx_adopt::render_preset_fragment(),
-    );
-    let (code, out, err) = clean.run(&["update", "--check", "--output=json"]);
-    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
-    assert_eq!(events[0]["event"], serde_json::json!("command_started"));
-    assert_eq!(events[0]["mode"], serde_json::json!("check"));
+    let kinds = event_kinds(&events);
+    assert_eq!(kinds[0], "command_started");
+    assert_eq!(kinds[kinds.len() - 1], "command_finished");
+    let by_code = |code: &str| {
+        events
+            .iter()
+            .find(|event| event.get("code").and_then(|c| c.as_str()) == Some(code))
+            .unwrap_or_else(|| panic!("{code}: {out}"))
+            .clone()
+    };
+    let current = by_code("update_set_current");
+    assert_eq!(current["scope"], serde_json::json!(["uv"]));
+    assert_eq!(current["correlation"], serde_json::json!("update:uv"));
+    let pinned = by_code("update_set_pinned");
+    assert_eq!(pinned["scope"], serde_json::json!(["go"]));
+    let unsupported = by_code("update_set_unsupported");
+    assert_eq!(unsupported["correlation"], serde_json::json!("update:npm"));
+    assert!(
+        unsupported["message"]
+            .as_str()
+            .expect("message")
+            .contains("refresh with `dx update npm`"),
+        "{out}"
+    );
+    let recovery = by_code("update_recovery");
+    assert!(
+        recovery["message"]
+            .as_str()
+            .expect("message")
+            .contains("dx update npm"),
+        "{out}"
+    );
     assert_eq!(
         events.last().expect("finished")["exit_code"],
-        serde_json::json!(0)
+        serde_json::json!(1)
     );
-
-    let dirty = Harness::new("update-check-json-stale");
-    dirty.write_source(
-        ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\n",
-    );
-    dirty.write_source("tools/bazelrc/preset.bazelrc", "# dirty\n");
-    let (code, out, err) = dirty.run(&["update", "--check", "--output=json"]);
-    assert_eq!(code, 1, "{out}{err}");
-    assert!(out.contains("\"event\":\"error\""), "{out}");
-    assert!(out.contains("update_failed"), "{out}");
+    assert_eq!(runner.calls.borrow().len(), 1, "only uv launches");
 }
 
 #[test]
-fn default_updates_preset_atomically() {
+fn check_rejects_unknown_selector() {
+    let harness = Harness::new("update-check-unknown");
+    let (code, _, err) = harness.run(&["update", "--check", "crates"]);
+    assert_eq!(code, 2, "{err}");
+}
+
+#[test]
+fn default_update_leaves_preset_alone() {
     let harness = Harness::new("update-default-preset");
     harness.write_source(
         ".bazelrc",
@@ -171,14 +272,12 @@ fn default_updates_preset_atomically() {
     harness.write_source("tools/bazelrc/preset.bazelrc", "# dirty\n");
     let (code, out, err) = harness.run(&["update", "go"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(
-        out.contains("updated preset (tools/bazelrc/preset.bazelrc)"),
-        "{out}"
-    );
+    assert!(!out.contains("preset"), "{out}");
+    assert!(out.contains("go pins are manual"), "{out}");
     assert_eq!(
         std::fs::read_to_string(harness.workspace.join("tools/bazelrc/preset.bazelrc"))
             .expect("read"),
-        dx_adopt::render_preset_fragment()
+        "# dirty\n"
     );
     assert_eq!(err, "", "{err}");
 }
@@ -253,9 +352,9 @@ fn update_json_completeness_is_per_set_plus_finished() {
                 "maven".to_owned()
             } else {
                 assert_eq!(kind, "notice", "{out}");
-                assert_eq!(
-                    event["code"].as_str().expect("code"),
-                    "update_set_success",
+                let code = event["code"].as_str().expect("code");
+                assert!(
+                    code == "update_set_success" || code == "update_set_pinned",
                     "{out}"
                 );
                 event["scope"][0].as_str().expect("scope").to_owned()
@@ -274,25 +373,33 @@ fn update_json_completeness_is_per_set_plus_finished() {
 }
 
 #[test]
-fn update_json_check_and_dryrun_emit_no_file_events_or_counts() {
+fn update_json_check_current_and_dryrun_emit_no_file_events_or_counts() {
     let harness = Harness::new("update-586-check-json");
-    harness.write_source(
-        ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\n",
-    );
-    harness.write_source(
-        "tools/bazelrc/preset.bazelrc",
-        &dx_adopt::render_preset_fragment(),
-    );
-    let (code, out, err) = harness.run(&["update", "--check", "--output=json"]);
+    harness.write_source("python/tests/fixtures/hello/uv.lock", "lock-bytes\n");
+    let (code, out, err) = harness.run(&["update", "--check", "uv", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("\"event\":\"change\""), "{out}");
     assert!(!out.contains("\"event\":\"mutation\""), "{out}");
     let events = json_events(&out);
+    assert!(
+        events
+            .iter()
+            .any(|event| event["code"] == serde_json::json!("update_set_current")),
+        "{out}"
+    );
     let finished = events.last().expect("finished");
     assert!(finished.get("changes").is_none(), "{out}");
     assert!(finished.get("mutations").is_none(), "{out}");
     assert!(finished.get("diagnostics").is_none(), "{out}");
+    assert_eq!(
+        std::fs::read_to_string(
+            harness
+                .workspace
+                .join("python/tests/fixtures/hello/uv.lock")
+        )
+        .expect("read"),
+        "lock-bytes\n"
+    );
 
     let dry = Harness::new("update-586-dryrun-json");
     let (code, out, err) = dry.run(&["update", "--dry-run", "--output=json"]);
@@ -335,15 +442,39 @@ fn update_success_emits_no_recovery() {
 
 #[test]
 fn offline_dry_run_plans_cache_only_without_launching() {
+    fn offline_line(set: &str) -> String {
+        format!(
+            "Cannot update {set}: offline_required: cannot update {set} without network (re-run without --offline once connected)"
+        )
+    }
+    fn pinned_line(set: &str) -> String {
+        format!("Would leave {set} pinned (manual pins; nothing to resolve)")
+    }
+    let expected = format!(
+        "{}\n{}\n",
+        "Running update for all dependency sets (offline, cache-only)",
+        [
+            offline_line("cargo"),
+            pinned_line("go"),
+            offline_line("maven"),
+            offline_line("npm"),
+            offline_line("npm-adopt"),
+            offline_line("npm-adopt-polyglot"),
+            offline_line("npm-tools"),
+            offline_line("nuget"),
+            pinned_line("powershell"),
+            pinned_line("ruby"),
+            offline_line("uv"),
+            offline_line("uv-adopt"),
+            offline_line("uv-adopt-polyglot"),
+            offline_line("uv-tools"),
+        ]
+        .join("\n")
+    );
     let harness = Harness::new("update-offline-dryrun");
     let (code, out, err) = harness.run(&["update", "--offline", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(
-        out,
-        "Running update for all dependency sets (offline, cache-only)\n\
-         Would update preset fragment\n",
-        "{out}"
-    );
+    assert_eq!(out, expected, "{out}");
     assert_eq!(err, "", "{err}");
     assert!(
         harness.seen_env.borrow().is_empty(),
@@ -352,19 +483,32 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let alias = Harness::new("update-frozen-dryrun");
     let (code, out, err) = alias.run(&["update", "--frozen", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(
-        out,
-        "Running update for all dependency sets (offline, cache-only)\n\
-         Would update preset fragment\n",
-        "{out}"
-    );
+    assert_eq!(out, expected, "{out}");
     let online = Harness::new("update-online-dryrun");
     let (code, out, err) = online.run(&["update", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(
-        out, "Running update for all dependency sets\nWould update preset fragment\n",
+    assert!(
+        out.starts_with("Running update for all dependency sets\n"),
         "{out}"
     );
+    assert!(
+        out.contains("Would update cargo: bazel build //rust/tests/fixtures/hello:hello"),
+        "{out}"
+    );
+    assert!(
+        out.contains("Would update maven: bazel run @maven//:pin"),
+        "{out}"
+    );
+    assert!(
+        out.contains("Would update npm: bazel run @pnpm//:pnpm -- --dir"),
+        "{out}"
+    );
+    assert!(
+        out.contains("Would update uv: uv lock --directory python/tests/fixtures/hello"),
+        "{out}"
+    );
+    assert!(out.contains("Would leave go pinned"), "{out}");
+    assert_eq!(out.lines().count(), 15, "{out}");
     assert_eq!(err, "", "{err}");
 }
 
@@ -383,13 +527,11 @@ fn offline_live_fails_with_offline_required_without_launching() {
     let go_runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "go", "--offline"], &go_runner);
     assert_eq!(code, 0, "{out}{err}");
-    assert!(
-        out.contains("updated go (pinned module lock; no-op success)"),
-        "{out}"
-    );
+    assert!(out.contains("go pins are manual"), "{out}");
+    assert!(out.contains("nothing to resolve"), "{out}");
     assert!(
         go_runner.calls.borrow().is_empty(),
-        "go noop launches nothing"
+        "go pinned launches nothing"
     );
 }
 

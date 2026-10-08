@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn clean_run_exits_zero() {
-        let clean = report(&[("cargo-lock", ReportedStatus::Success)], false);
+        let clean = report(&[("cargo-lock", ReportedStatus::Updated)], false);
         assert_eq!(exit_code(&clean), EXIT_SUCCESS);
         assert_eq!(exit_code(&clean), 0);
     }
@@ -46,7 +46,7 @@ mod tests {
     fn any_failure_exits_one() {
         let failed = report(
             &[
-                ("cargo-lock", ReportedStatus::Success),
+                ("cargo-lock", ReportedStatus::Updated),
                 ("npm-root", ReportedStatus::Failed),
             ],
             true,

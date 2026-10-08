@@ -208,6 +208,48 @@ pub fn plan(
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CheckPlan {
+    Run {
+        argv: Vec<String>,
+        env: Vec<(String, String)>,
+    },
+    Pinned,
+    Unavailable,
+}
+
+pub fn check(
+    workspace: &Path,
+    set: SetId,
+    request: &SetRequest,
+    offline: bool,
+) -> Result<CheckPlan, BackendError> {
+    if matches!((set, request), (SetId::Uv, SetRequest::Full)) {
+        let mut argv = strings(&["uv", "lock", "--check", "--directory"]);
+        argv.push("python/tests/fixtures/hello".to_owned());
+        if offline {
+            argv.push("--offline".to_owned());
+        }
+        return Ok(CheckPlan::Run {
+            argv,
+            env: Vec::new(),
+        });
+    }
+    if matches!(
+        (set, request),
+        (
+            SetId::Go | SetId::Ruby | SetId::PowerShell,
+            SetRequest::Full
+        )
+    ) {
+        return Ok(CheckPlan::Pinned);
+    }
+    match plan(workspace, set, request, offline) {
+        Ok(_) => Ok(CheckPlan::Unavailable),
+        Err(error) => Err(error),
+    }
+}
+
 fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
@@ -630,6 +672,117 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn uv_full_check_is_a_read_only_lock_check() {
+        assert_eq!(
+            check(ws(), SetId::Uv, &SetRequest::Full, false).expect("uv check"),
+            CheckPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--check".to_owned(),
+                    "--directory".to_owned(),
+                    "python/tests/fixtures/hello".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        assert_eq!(
+            check(ws(), SetId::Uv, &SetRequest::Full, true).expect("uv check offline"),
+            CheckPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--check".to_owned(),
+                    "--directory".to_owned(),
+                    "python/tests/fixtures/hello".to_owned(),
+                    "--offline".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn pinned_sets_check_without_launching() {
+        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+            assert_eq!(
+                check(ws(), set, &SetRequest::Full, false).expect("pinned check"),
+                CheckPlan::Pinned,
+                "{set:?}"
+            );
+            assert_eq!(
+                check(ws(), set, &SetRequest::Full, true).expect("pinned check offline"),
+                CheckPlan::Pinned,
+                "{set:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn check_propagates_unsupported_and_offline_errors() {
+        let error = check(
+            ws(),
+            SetId::Uv,
+            &SetRequest::Packages(vec!["pytest".to_owned()]),
+            false,
+        )
+        .expect_err("uv selective stays unsupported");
+        assert!(
+            matches!(error, BackendError::Unsupported { .. }),
+            "{error:?}"
+        );
+        let error = check(
+            ws(),
+            SetId::Go,
+            &SetRequest::Packages(vec!["example.com/mod".to_owned()]),
+            false,
+        )
+        .expect_err("go selective stays unsupported");
+        assert!(
+            matches!(error, BackendError::Unsupported { .. }),
+            "{error:?}"
+        );
+        let error = check(ws(), SetId::Cargo, &SetRequest::Full, true)
+            .expect_err("cargo check offline needs network");
+        assert!(
+            matches!(error, BackendError::OfflineRequired { .. }),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn check_is_unavailable_for_every_other_runnable_set() {
+        for set in [
+            SetId::Cargo,
+            SetId::Npm,
+            SetId::Maven,
+            SetId::NuGet,
+            SetId::NpmTools,
+            SetId::UvTools,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+            SetId::UvAdopt,
+            SetId::UvAdoptPolyglot,
+        ] {
+            assert_eq!(
+                check(ws(), set, &SetRequest::Full, false).expect("check plans"),
+                CheckPlan::Unavailable,
+                "{set:?}"
+            );
+        }
+        assert_eq!(
+            check(
+                ws(),
+                SetId::Npm,
+                &SetRequest::Packages(vec!["jest".to_owned()]),
+                false,
+            )
+            .expect("npm selective check plans"),
+            CheckPlan::Unavailable,
+        );
     }
 
     #[test]

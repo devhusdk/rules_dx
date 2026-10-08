@@ -147,21 +147,11 @@ pub(super) fn live_all_success_reports_per_set_and_exits_zero() {
     assert!(out.contains("updated uv-tools ("), "{out}");
     assert!(out.contains("updated npm-adopt ("), "{out}");
     assert!(out.contains("updated uv-adopt ("), "{out}");
-    assert!(
-        out.contains("updated go (pinned module lock; no-op success)"),
-        "{out}"
-    );
-    assert!(
-        out.contains("updated ruby (third_party/ruby/Gemfile.lock; no-op success)"),
-        "{out}"
-    );
-    assert!(
-        out.contains(
-            "updated powershell (third_party/powershell/PSGallery.lock.json; no-op success)"
-        ),
-        "{out}"
-    );
-    assert!(out.contains("14 succeeded, 0 failed, 0 blocked"), "{out}");
+    assert!(out.contains("go pins are manual"), "{out}");
+    assert!(out.contains("ruby pins are manual"), "{out}");
+    assert!(out.contains("powershell pins are manual"), "{out}");
+    assert!(out.contains("nothing to resolve"), "{out}");
+    assert!(out.contains("dx update: 11 updated, 3 pinned"), "{out}");
     assert_eq!(err, "", "{err}");
     assert_eq!(runner.calls.borrow().len(), 11);
 }
@@ -173,7 +163,10 @@ pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("updated cargo ("), "{out}");
     assert!(out.contains("updated npm ("), "{out}");
-    assert!(out.contains("13 succeeded, 1 failed, 0 blocked"), "{out}");
+    assert!(
+        out.contains("dx update: 10 updated, 3 pinned, 1 failed"),
+        "{out}"
+    );
     assert!(err.contains("update_failed"), "{err}");
     assert!(err.contains("failed to update maven"), "{err}");
     assert!(err.contains("update_recovery"), "{err}");
@@ -204,7 +197,7 @@ pub(super) fn live_unsupported_selective_fails_without_launch() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "cargo:anyhow"], &runner);
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("update_failed"), "{err}");
+    assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
     assert!(runner.calls.borrow().is_empty());
 }
@@ -214,7 +207,7 @@ pub(super) fn live_unsupported_nuget_selective_fails_without_launch() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "nuget:FSharp.Core"], &runner);
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("update_failed"), "{err}");
+    assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
     assert!(err.contains("dx update nuget"), "{err}");
     assert!(runner.calls.borrow().is_empty());
@@ -225,7 +218,7 @@ pub(super) fn live_unsupported_go_selective_fails_without_launch() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "go:github.com/google/go-cmp/cmp"], &runner);
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("update_failed"), "{err}");
+    assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
     assert!(err.contains("dx bump gomod"), "{err}");
     assert!(runner.calls.borrow().is_empty());
@@ -237,10 +230,7 @@ pub(super) fn live_target_resolves_to_owning_set_only() {
     let (code, out, err) = run_with(&["update", "//go/tests/fixtures/hello:hello"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running update for go"), "{out}");
-    assert!(
-        out.contains("updated go (pinned module lock; no-op success)"),
-        "{out}"
-    );
+    assert!(out.contains("go pins are manual"), "{out}");
     assert!(runner.calls.borrow().is_empty());
 }
 

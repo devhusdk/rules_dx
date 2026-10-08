@@ -185,13 +185,13 @@ distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no o
 coverage --min-coverage; build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
---check is per-command only (quality/version/update/docs/completion/check|fix; status rejects --check; \
+--check is per-command only (quality/codegen/env/setup/clean/version/update/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
-where the command takes it (lint/typecheck/format/fix writes, run/deploy launch, clean pruning, \
+where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env/setup selection, run/deploy launch, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \
 version --pin/--rollback, docs rendering/serving); \
 every other command rejects it, and --apply never combines with --check or --dry-run. \
-by default lint, typecheck, format, and fix only check, while --apply writes fixes \
+by default lint, typecheck, format, fix, generate, codegen, env, setup, and clean only check, while --apply writes \
 (fix then verifies with a read-only check). \
 no dx doctor; use `dx status` for diagnostics. \
 see `dx help <command>` or `dx <command> --help`."
@@ -498,7 +498,7 @@ mod tests {
             other => panic!("clean --help: want Help, got {other:?}"),
         };
         assert!(
-            clean.contains("clean [--apply] [--dry-run] [--bazel] [--prune-unobserved]"),
+            clean.contains("clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]"),
             "clean usage:\n{clean}"
         );
         assert!(clean.contains("--apply"), "clean flags:\n{clean}");

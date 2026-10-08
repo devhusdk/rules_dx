@@ -37,12 +37,12 @@ fn validate_env_key(key: &str) -> Result<(), ExecError> {
 }
 
 pub(crate) fn stage_env_generation(
-    workspace: &Path,
+    state_root: &Path,
     id: &dx_setup::GenerationId,
     projection: &[dx_env_plan::ProjectionEntry],
 ) -> Result<SharedLease, (String, String)> {
     let (dir, lease) =
-        ensure_generation_dir(workspace, dx_setup::ENVIRONMENTS_DIR_NAME, id.as_str())?;
+        ensure_generation_dir(state_root, dx_setup::ENVIRONMENTS_DIR_NAME, id.as_str())?;
     let mut seen: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
     for entry in projection {
         validate_env_key(&entry.key).map_err(|reason| {
@@ -138,11 +138,11 @@ pub(crate) fn stage_env_generation(
 }
 
 pub(crate) fn stage_env_side(
-    workspace: &Path,
+    state_root: &Path,
     plan: &dx_env_plan::CollectedPlan,
 ) -> Result<(dx_setup::GenerationId, SharedLease), (String, String)> {
     let id = dx_setup::GenerationId::from_digest(plan.digest);
-    let lease = stage_env_generation(workspace, &id, &plan.projection)?;
+    let lease = stage_env_generation(state_root, &id, &plan.projection)?;
     Ok((id, lease))
 }
 

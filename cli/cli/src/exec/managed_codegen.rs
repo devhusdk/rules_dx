@@ -93,13 +93,14 @@ fn resolve_logical_entries(
 }
 
 pub(crate) fn stage_codegen_generation(
+    state_root: &Path,
     workspace: &Path,
     id: &dx_setup::GenerationId,
     projection: &[dx_codegen::ProjectionEntry],
 ) -> Result<SharedLease, (String, String)> {
     let entries = resolve_logical_entries(projection)?;
     let (dir, lease) =
-        ensure_generation_dir(workspace, dx_setup::GENERATED_DIR_NAME, id.as_str())?;
+        ensure_generation_dir(state_root, dx_setup::GENERATED_DIR_NAME, id.as_str())?;
     for resolved in &entries {
         let entry = resolved.entry;
         if resolved
@@ -166,11 +167,12 @@ pub(crate) fn stage_codegen_generation(
 }
 
 pub(crate) fn stage_codegen_side(
+    state_root: &Path,
     workspace: &Path,
     plan: &dx_codegen::CollectedPlan,
 ) -> Result<(dx_setup::GenerationId, SharedLease), (String, String)> {
     let id = dx_setup::GenerationId::from_digest(plan.digest);
-    let lease = stage_codegen_generation(workspace, &id, &plan.projection)?;
+    let lease = stage_codegen_generation(state_root, workspace, &id, &plan.projection)?;
     Ok((id, lease))
 }
 
@@ -265,9 +267,13 @@ mod tests {
         .enumerate()
         {
             let id = dx_setup::GenerationId::new(&format!("{index:064x}")).expect("fixture id");
-            let (code, message) =
-                stage_codegen_generation(&workspace, &id, &[codegen_entry(bad, &first)])
-                    .expect_err("bad logical path");
+            let (code, message) = stage_codegen_generation(
+                &workspace,
+                &workspace,
+                &id,
+                &[codegen_entry(bad, &first)],
+            )
+            .expect_err("bad logical path");
             assert_eq!(code, CODE_INVALID_RESULT);
             assert!(message.contains("invalid codegen plan"), "{message}");
             assert!(
@@ -292,7 +298,7 @@ mod tests {
             codegen_entry("gen/a.txt", &first),
             codegen_entry("nested/b.txt", &second),
         ];
-        stage_codegen_generation(&workspace, &id, &projection).expect("stage");
+        stage_codegen_generation(&workspace, &workspace, &id, &projection).expect("stage");
         let dir = workspace
             .join(".dx")
             .join(GENERATED_DIR_NAME)
@@ -305,21 +311,21 @@ mod tests {
             std::fs::read_link(dir.join("nested/b.txt")).expect("leaf"),
             second
         );
-        stage_codegen_generation(&workspace, &id, &projection).expect("restage");
+        stage_codegen_generation(&workspace, &workspace, &id, &projection).expect("restage");
         assert_eq!(
             std::fs::read_link(dir.join("gen/a.txt")).expect("leaf"),
             first
         );
         std::fs::remove_file(dir.join("gen/a.txt")).expect("remove leaf");
         symlink_leaf(&second, &dir.join("gen/a.txt")).expect("stale leaf");
-        stage_codegen_generation(&workspace, &id, &projection).expect("repair stale");
+        stage_codegen_generation(&workspace, &workspace, &id, &projection).expect("repair stale");
         assert_eq!(
             std::fs::read_link(dir.join("gen/a.txt")).expect("leaf"),
             first
         );
         std::fs::remove_file(dir.join("gen/a.txt")).expect("remove leaf");
         std::fs::write(dir.join("gen/a.txt"), "foreign").expect("foreign leaf");
-        stage_codegen_generation(&workspace, &id, &projection).expect("repair foreign");
+        stage_codegen_generation(&workspace, &workspace, &id, &projection).expect("repair foreign");
         assert_eq!(
             std::fs::read_link(dir.join("gen/a.txt")).expect("leaf"),
             first
@@ -328,7 +334,8 @@ mod tests {
             codegen_entry("gen/a.txt", &first),
             codegen_entry("gen/a.txt", &first),
         ];
-        stage_codegen_generation(&workspace, &id, &doubled).expect("identical duplicates");
+        stage_codegen_generation(&workspace, &workspace, &id, &doubled)
+            .expect("identical duplicates");
     }
 
     #[test]
@@ -344,11 +351,13 @@ mod tests {
             vec![codegen_entry("../escape", &first)],
         ] {
             let (code, message) =
-                stage_codegen_generation(&workspace, &id, &projection).expect_err("bad path");
+                stage_codegen_generation(&workspace, &workspace, &id, &projection)
+                    .expect_err("bad path");
             assert_eq!(code, CODE_INVALID_RESULT);
             assert!(message.contains("invalid codegen plan"), "{message}");
         }
         let (code, message) = stage_codegen_generation(
+            &workspace,
             &workspace,
             &id,
             &[
@@ -361,9 +370,13 @@ mod tests {
         assert!(message.contains("multiple artifacts"), "{message}");
         std::fs::create_dir_all(workspace.join("gen")).expect("source dir");
         std::fs::write(workspace.join("gen/owned.txt"), "source").expect("source");
-        let (code, message) =
-            stage_codegen_generation(&workspace, &id, &[codegen_entry("gen/owned.txt", &first)])
-                .expect_err("workspace collision");
+        let (code, message) = stage_codegen_generation(
+            &workspace,
+            &workspace,
+            &id,
+            &[codegen_entry("gen/owned.txt", &first)],
+        )
+        .expect_err("workspace collision");
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(
             message.contains("collides with a workspace source"),
@@ -372,6 +385,7 @@ mod tests {
         let missing = workspace.join("no-such-artifact.txt");
         let (code, message) = stage_codegen_generation(
             &workspace,
+            &workspace,
             &id,
             &[codegen_entry("gen/missing.txt", &missing)],
         )
@@ -379,13 +393,16 @@ mod tests {
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(message.contains("Bazel owns materialization"), "{message}");
         let dir_id = dx_setup::GenerationId::new(&"2".repeat(64)).expect("fixture id");
-        let (dir, _lease) =
-            ensure_generation_dir(&workspace, GENERATED_DIR_NAME, dir_id.as_str())
-                .expect("gen dir");
+        let (dir, _lease) = ensure_generation_dir(&workspace, GENERATED_DIR_NAME, dir_id.as_str())
+            .expect("gen dir");
         std::fs::create_dir_all(dir.join("gen/blocked")).expect("blocking dir");
-        let (code, message) =
-            stage_codegen_generation(&workspace, &dir_id, &[codegen_entry("gen/blocked", &first)])
-                .expect_err("generation collision");
+        let (code, message) = stage_codegen_generation(
+            &workspace,
+            &workspace,
+            &dir_id,
+            &[codegen_entry("gen/blocked", &first)],
+        )
+        .expect_err("generation collision");
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(
             message.contains("collides within its generation"),
@@ -397,6 +414,7 @@ mod tests {
                 .expect("gen dir");
         std::fs::write(parent_dir.join("sub"), "file").expect("blocking file");
         let (code, message) = stage_codegen_generation(
+            &workspace,
             &workspace,
             &parent_id,
             &[codegen_entry("sub/leaf.txt", &first)],
@@ -414,15 +432,20 @@ mod tests {
         let id = empty_generated_id();
         std::fs::create_dir_all(workspace.join("gen")).expect("source dir");
         std::fs::write(workspace.join("gen/owned.txt"), "source").expect("source");
-        let (code, message) =
-            stage_codegen_generation(&workspace, &id, &[codegen_entry("gen/owned.txt", &first)])
-                .expect_err("workspace collision");
+        let (code, message) = stage_codegen_generation(
+            &workspace,
+            &workspace,
+            &id,
+            &[codegen_entry("gen/owned.txt", &first)],
+        )
+        .expect_err("workspace collision");
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(
             message.contains("collides with a workspace source"),
             "{message}"
         );
         stage_codegen_generation(
+            &workspace,
             &workspace,
             &id,
             &[codegen_replacement_entry("gen/owned.txt", &first)],
@@ -447,8 +470,8 @@ mod tests {
             namespace: String::new(),
             replaces: "gen/other.txt".to_owned(),
         };
-        let (code, message) =
-            stage_codegen_generation(&workspace, &id, &[bad]).expect_err("cross-path contract");
+        let (code, message) = stage_codegen_generation(&workspace, &workspace, &id, &[bad])
+            .expect_err("cross-path contract");
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(message.contains("replacement contract"), "{message}");
     }
@@ -461,19 +484,29 @@ mod tests {
         let first = fixture.first.clone();
         let second = fixture.second.clone();
         let id = empty_generated_id();
-        stage_codegen_generation(&workspace, &id, &[codegen_entry("a.txt", &first)])
-            .expect("stage");
+        stage_codegen_generation(
+            &workspace,
+            &workspace,
+            &id,
+            &[codegen_entry("a.txt", &first)],
+        )
+        .expect("stage");
         let dir = workspace
             .join(".dx")
             .join(GENERATED_DIR_NAME)
             .join(id.as_str());
         set_mode(&dir, 0o555);
-        let (code, message) =
-            stage_codegen_generation(&workspace, &id, &[codegen_entry("a.txt", &second)])
-                .expect_err("cannot replace");
+        let (code, message) = stage_codegen_generation(
+            &workspace,
+            &workspace,
+            &id,
+            &[codegen_entry("a.txt", &second)],
+        )
+        .expect_err("cannot replace");
         assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
         assert!(message.contains("cannot replace"), "{message}");
         let (code, message) = stage_codegen_generation(
+            &workspace,
             &workspace,
             &id,
             &[

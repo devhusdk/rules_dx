@@ -547,11 +547,17 @@ fn clean_parses_dry_run_and_bazel() {
 
 #[test]
 fn clean_rejects_scopes_and_quality_options() {
+    let got = parse(&strings(&["clean", "--check"])).expect("clean check parses");
+    assert!(got.check, "clean --check sets the flag");
+    assert_eq!(got.operation(), OperationMode::Check);
+    assert!(!got.applies());
+    let got = parse(&strings(&["clean", "--apply"])).expect("clean apply parses");
+    assert!(got.applies());
     assert_eq!(
-        parse(&strings(&["clean", "--check"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "clean",
-            option: "--check".to_owned(),
+        parse(&strings(&["clean", "--check", "--apply"])),
+        Err(ArgsError::ConflictingModes {
+            first: "--check",
+            second: "--apply",
         })
     );
     assert_eq!(

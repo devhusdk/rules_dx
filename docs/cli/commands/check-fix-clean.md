@@ -48,19 +48,21 @@ bazel run @rules_dx//:dx -- fix --apply //...
 ## `dx clean`
 
 ```text
-dx clean [--apply] [--dry-run] [--bazel] [--prune-unobserved]
+dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]
 ```
 
-Prunes unselected managed state under `.dx`. Never touches Bazel outputs
-unless `--bazel` also runs `bazel clean`. Takes no scopes.
-`--dry-run` only lists what would go.
+Reports unselected managed state under `.dx` by default and deletes
+nothing. Pass `--apply` to prune it. Never touches Bazel outputs unless
+`--bazel` is combined with `--apply` to also run `bazel clean`. Takes no
+scopes. `--dry-run` only lists what would go and always succeeds.
 
 Output: `--output text|json`.
 
-Exit codes: `0` success, `2` usage errors including any scope, `1` a prune
-or launch failure. With `--bazel`, a `bazel clean` failure keeps Bazel's
-code.
+Exit codes: `0` success, `2` usage errors including any scope, `1` drift, a
+prune or launch failure. With `--bazel`, a `bazel clean` failure keeps
+Bazel's code.
 
 ```sh
 bazel run @rules_dx//:dx -- clean --dry-run
+bazel run @rules_dx//:dx -- clean --apply
 ```

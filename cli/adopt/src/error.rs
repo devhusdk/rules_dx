@@ -54,6 +54,14 @@ pub enum AdoptError {
     MigrateNotUpgrade { from: String, to: String },
     #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp)")]
     NewUnknownLanguage { language: String },
+    #[error("invalid destination for dx new: {name:?}: {reason}")]
+    NewInvalidDestination { name: String, reason: String },
+    #[error("invalid module for dx init: {module:?}: {reason}")]
+    InitInvalidModule { module: String, reason: String },
+    #[error("scaffold blocked: {path}: {detail}")]
+    ScaffoldBlocked { path: String, detail: String },
+    #[error("render {what}: {detail}")]
+    RenderManifest { what: String, detail: String },
     #[error("invalid hooks config: {detail}")]
     InvalidHooks { detail: String },
     #[error("invalid hooks timings: {detail}")]

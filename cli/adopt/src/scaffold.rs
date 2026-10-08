@@ -79,13 +79,9 @@ pub fn editor_language_supported(language: &str) -> bool {
     )
 }
 
-pub fn plan_init_files(module_name: &str) -> Vec<ScaffoldFile> {
-    let module = if module_name.is_empty() {
-        "my_project"
-    } else {
-        module_name
-    };
-    vec![
+pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    let module = validate_init_module(module_name)?;
+    Ok(vec![
         ScaffoldFile {
             path: ".dx/version".to_owned(),
             content: format!("{DX_VERSION}\n"),
@@ -130,13 +126,80 @@ pub fn plan_init_files(module_name: &str) -> Vec<ScaffoldFile> {
                 "# Add to MODULE.bazel:\nbazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n# module: {module}\n"
             ),
         },
-    ]
+    ])
+}
+
+fn module_component_reason(component: &str) -> Option<String> {
+    if component.is_empty() || component == "." || component == ".." {
+        return Some(format!("empty or dot component in {component:?}"));
+    }
+    if let Some(ch) = component
+        .chars()
+        .find(|ch| !(ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.')))
+    {
+        return Some(format!(
+            "invalid character {ch:?} in {component:?}: want ASCII letters, digits, '_', '-', '.'"
+        ));
+    }
+    None
+}
+
+pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
+    if module_name.is_empty() {
+        return Ok("my_project".to_owned());
+    }
+    if module_name
+        .chars()
+        .any(|ch| ch.is_whitespace() || ch.is_control())
+    {
+        return Err(AdoptError::InitInvalidModule {
+            module: module_name.to_owned(),
+            reason: "must have no whitespace or control characters".to_owned(),
+        });
+    }
+    if module_name.contains('\\') {
+        return Err(AdoptError::InitInvalidModule {
+            module: module_name.to_owned(),
+            reason: "must use forward slashes".to_owned(),
+        });
+    }
+    for component in module_name.split('/') {
+        if let Some(reason) = module_component_reason(component) {
+            return Err(AdoptError::InitInvalidModule {
+                module: module_name.to_owned(),
+                reason,
+            });
+        }
+    }
+    Ok(module_name.to_owned())
+}
+
+pub fn preflight_scaffold_paths(root: &Path, files: &[ScaffoldFile]) -> Result<(), AdoptError> {
+    for file in files {
+        let dest = root.join(&file.path);
+        let mut ancestor = dest.as_path();
+        while let Some(parent) = ancestor.parent() {
+            if parent == root {
+                break;
+            }
+            if parent.exists() && !parent.is_dir() {
+                return Err(AdoptError::ScaffoldBlocked {
+                    path: parent.display().to_string(),
+                    detail: "exists and is not a directory".to_owned(),
+                });
+            }
+            ancestor = parent;
+        }
+    }
+    Ok(())
 }
 
 pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
+    let files = plan_init_files(module_name)?;
+    preflight_scaffold_paths(root, &files)?;
     let mut written = Vec::new();
     let mut refused = Vec::new();
-    for file in plan_init_files(module_name) {
+    for file in &files {
         let dest = root.join(&file.path);
         if dest.exists() {
             refused.push(format!("refused:{}", file.path));
@@ -154,7 +217,7 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
                 detail: e.to_string(),
             }
         })?;
-        written.push(file.path);
+        written.push(file.path.clone());
     }
     written.push("---".to_owned());
     written.extend(refused);
@@ -165,7 +228,7 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 mod tests {
     use super::super::{
         apply_init, editor_disposition, editor_language_supported, plan_init_files,
-        DEVCONTAINER_JSON,
+        validate_init_module, DEVCONTAINER_JSON,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
 
@@ -176,7 +239,7 @@ mod tests {
 
     #[test]
     fn init_plans_nine_absent_only_files() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("plans");
         assert_eq!(files.len(), 9);
         assert!(files.iter().any(|f| f.path == ".dx/version"));
         assert!(files
@@ -188,7 +251,7 @@ mod tests {
 
     #[test]
     fn envrc_scaffold_is_path_only_with_watch_and_regeneration_guard() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("plans");
         let envrc = files
             .iter()
             .find(|f| f.path == ".envrc")
@@ -203,7 +266,7 @@ mod tests {
 
     #[test]
     fn devcontainer_scaffold_runs_bootstrap_not_full_build() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("plans");
         let scaffold = files
             .iter()
             .find(|f| f.path == ".devcontainer/devcontainer.json")
@@ -255,7 +318,7 @@ mod tests {
 
     #[test]
     fn init_scaffold_covers_admitted_editors() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("plans");
         let settings = files
             .iter()
             .find(|f| f.path == ".vscode/settings.json")
@@ -351,7 +414,7 @@ mod tests {
 
     #[test]
     fn hooks_scaffold_budget_tracks_hook_budget_const() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("plans");
         let hooks = files
             .iter()
             .find(|f| f.path == "dx.hooks.toml")
@@ -362,6 +425,66 @@ mod tests {
                 .contains(&format!("budget_secs = {}", super::super::HOOK_BUDGET_SECS)),
             "{}",
             hooks.content
+        );
+    }
+
+    #[test]
+    fn init_module_names_reject_markup_and_escapes() {
+        for module in [
+            "demo",
+            "my_project",
+            "github.com/org/repo",
+            "org/repo",
+            "a.b-c_d",
+        ] {
+            assert_eq!(validate_init_module(module).expect("valid"), module);
+        }
+        assert_eq!(validate_init_module("").expect("default"), "my_project");
+        for module in [
+            "has space",
+            "quote\"d",
+            "back\\slash",
+            "a//b",
+            "/abs",
+            "../x",
+            ".",
+            "..",
+            "a:b",
+            "semi;colon",
+            "hash#tag",
+            "with\nnewline",
+            "star*wild",
+        ] {
+            assert!(
+                validate_init_module(module).is_err(),
+                "module {module:?} accepted"
+            );
+            assert!(
+                plan_init_files(module).is_err(),
+                "module {module:?} planned"
+            );
+        }
+        assert_eq!(
+            validate_init_module("../x").unwrap_err().to_string(),
+            "invalid module for dx init: \"../x\": empty or dot component in \"..\""
+        );
+    }
+
+    #[test]
+    fn preflight_blocks_before_any_write() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-preflight-");
+        std::fs::write(scratch.path().join(".dx"), "foreign").expect("collision");
+        assert!(matches!(
+            apply_init(scratch.path(), "demo"),
+            Err(super::super::AdoptError::ScaffoldBlocked { .. })
+        ));
+        assert!(
+            !scratch.path().join(".vscode").exists(),
+            "preflight writes nothing when a parent is blocked"
+        );
+        assert_eq!(
+            std::fs::read_to_string(scratch.path().join(".dx")).expect("read"),
+            "foreign"
         );
     }
 }

@@ -21,10 +21,18 @@ Two spellings scaffold the same projects:
 - `c#` scaffolds `csharp`.
 - `f#` scaffolds `fsharp`.
 
+The name is a workspace-relative destination directory. It defaults to
+`my_project`. Absolute paths, `..` escapes, and Windows-reserved names fail
+before anything is written.
+
+The manifest package name derives from the directory name: lowercased, with
+each run of other characters replaced by `_`. `my app` scaffolds into
+`my app/` with package `my_app`. A leading digit gains an `app_` prefix.
+
 Output: `--output text`.
 
-Exit codes: `0` success, `2` usage errors including an unknown language or
-extra positionals, `1` scaffolding failed.
+Exit codes: `0` success, `2` usage errors including an unknown language, an
+invalid name, or extra positionals, `1` scaffolding failed.
 
 ## `dx upgrade`
 

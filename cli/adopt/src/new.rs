@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use dx_path::WorkspaceRelativePath;
+
 use super::{AdoptError, ScaffoldFile};
 
 pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
@@ -50,24 +52,163 @@ pub fn default_new_name() -> &'static str {
     "my_project"
 }
 
+const WINDOWS_RESERVED_STEMS: &[&str] = &[
+    "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
+    "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+];
+
+fn destination_component_reason(component: &str) -> Option<String> {
+    let stem = component.split('.').next().unwrap_or("");
+    if WINDOWS_RESERVED_STEMS
+        .iter()
+        .any(|reserved| stem.eq_ignore_ascii_case(reserved))
+    {
+        return Some(format!("reserved Windows name {component:?}"));
+    }
+    if component.ends_with('.') || component.ends_with(' ') {
+        return Some(format!("trailing dot or space in {component:?}"));
+    }
+    None
+}
+
+pub fn validate_new_destination(name: &str) -> Result<String, AdoptError> {
+    if name.is_empty() {
+        return Ok(default_new_name().to_owned());
+    }
+    let canonical =
+        WorkspaceRelativePath::new(name).map_err(|problem| AdoptError::NewInvalidDestination {
+            name: name.to_owned(),
+            reason: problem.reason().to_owned(),
+        })?;
+    for component in canonical.as_str().split('/') {
+        if let Some(reason) = destination_component_reason(component) {
+            return Err(AdoptError::NewInvalidDestination {
+                name: name.to_owned(),
+                reason,
+            });
+        }
+    }
+    Ok(canonical.as_str().to_owned())
+}
+
+pub fn derive_new_package(destination: &str) -> String {
+    let stem = destination.rsplit('/').next().unwrap_or("");
+    let mut package = String::with_capacity(stem.len());
+    let mut underscore = false;
+    for ch in stem.to_lowercase().chars() {
+        if ch.is_ascii_lowercase() || ch.is_ascii_digit() {
+            package.push(ch);
+            underscore = false;
+        } else if !underscore {
+            package.push('_');
+            underscore = true;
+        }
+    }
+    let trimmed = package.trim_matches('_').to_owned();
+    if trimmed.is_empty() {
+        return default_new_name().to_owned();
+    }
+    if trimmed.starts_with(|ch: char| ch.is_ascii_digit()) {
+        return format!("app_{trimmed}");
+    }
+    trimmed
+}
+
+fn xml_escape(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for ch in text.chars() {
+        match ch {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&apos;"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
+fn sbt_escape(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for ch in text.chars() {
+        match ch {
+            '\\' => escaped.push_str("\\\\"),
+            '"' => escaped.push_str("\\\""),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
+fn render_cargo_manifest(package: &str) -> Result<String, AdoptError> {
+    let mut fields = toml::Table::new();
+    fields.insert("name".to_owned(), toml::Value::String(package.to_owned()));
+    fields.insert(
+        "version".to_owned(),
+        toml::Value::String("0.1.0".to_owned()),
+    );
+    fields.insert("edition".to_owned(), toml::Value::String("2021".to_owned()));
+    let mut root = toml::Table::new();
+    root.insert("package".to_owned(), toml::Value::Table(fields));
+    toml::to_string(&root).map_err(|error| AdoptError::RenderManifest {
+        what: "Cargo.toml".to_owned(),
+        detail: error.to_string(),
+    })
+}
+
+fn render_pyproject_manifest(package: &str) -> Result<String, AdoptError> {
+    let mut fields = toml::Table::new();
+    fields.insert("name".to_owned(), toml::Value::String(package.to_owned()));
+    fields.insert(
+        "version".to_owned(),
+        toml::Value::String("0.1.0".to_owned()),
+    );
+    fields.insert(
+        "requires-python".to_owned(),
+        toml::Value::String(">=3.12".to_owned()),
+    );
+    fields.insert("dependencies".to_owned(), toml::Value::Array(Vec::new()));
+    let mut root = toml::Table::new();
+    root.insert("project".to_owned(), toml::Value::Table(fields));
+    toml::to_string(&root).map_err(|error| AdoptError::RenderManifest {
+        what: "pyproject.toml".to_owned(),
+        detail: error.to_string(),
+    })
+}
+
+fn render_package_json(package: &str) -> Result<String, AdoptError> {
+    let document = serde_json::json!({
+        "name": package,
+        "private": true,
+        "type": "module",
+    });
+    serde_json::to_string_pretty(&document)
+        .map(|mut text| {
+            text.push('\n');
+            text
+        })
+        .map_err(|error| AdoptError::RenderManifest {
+            what: "package.json".to_owned(),
+            detail: error.to_string(),
+        })
+}
+
 pub fn plan_new_files(language: &str, name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let canonical =
         normalize_new_language(language).ok_or_else(|| AdoptError::NewUnknownLanguage {
             language: language.to_owned(),
         })?;
-    let project = if name.is_empty() {
-        default_new_name()
-    } else {
-        name
-    };
+    let project = validate_new_destination(name)?;
+    let package = derive_new_package(&project);
     let mut files = Vec::new();
-    for file in super::plan_init_files(project) {
+    for file in super::plan_init_files(&package)? {
         files.push(ScaffoldFile {
             path: format!("{project}/{}", file.path),
             content: file.content,
         });
     }
-    for (suffix, content) in new_language_files(canonical, project) {
+    for (suffix, content) in new_language_files(canonical, &package)? {
         files.push(ScaffoldFile {
             path: format!("{project}/{suffix}"),
             content,
@@ -76,51 +217,34 @@ pub fn plan_new_files(language: &str, name: &str) -> Result<Vec<ScaffoldFile>, A
     Ok(files)
 }
 
-fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
+fn new_language_files(canonical: &str, package: &str) -> Result<Vec<(String, String)>, AdoptError> {
     match canonical {
-        "rust" => vec![
-            (
-                "Cargo.toml".to_owned(),
-                format!(
-                    "[package]\nname = \"{project}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n"
-                ),
-            ),
+        "rust" => Ok(vec![
+            ("Cargo.toml".to_owned(), render_cargo_manifest(package)?),
             (
                 "src/main.rs".to_owned(),
                 "fn main() {\n    println!(\"hello world\");\n}\n".to_owned(),
             ),
-        ],
-        "python" => vec![
+        ]),
+        "python" => Ok(vec![
             (
                 "pyproject.toml".to_owned(),
-                format!(
-                    "[project]\nname = \"{project}\"\nversion = \"0.1.0\"\nrequires-python = \">=3.12\"\ndependencies = []\n"
-                ),
+                render_pyproject_manifest(package)?,
             ),
             (
                 "hello.py".to_owned(),
                 "\"\"\"Greeting helper with no dependencies.\"\"\"\n\n\ndef greet(name):\n    \"\"\"Return a greeting for name.\"\"\"\n    return f\"Hello, {{name}}!\"\n".to_owned(),
             ),
-        ],
-        "javascript" => vec![
-            (
-                "package.json".to_owned(),
-                format!(
-                    "{{\n  \"name\": \"{project}\",\n  \"private\": true,\n  \"type\": \"module\"\n}}\n"
-                ),
-            ),
+        ]),
+        "javascript" => Ok(vec![
+            ("package.json".to_owned(), render_package_json(package)?),
             (
                 "hello.js".to_owned(),
                 "export function hello(name) {\n\treturn `hello ${name}`;\n}\n".to_owned(),
             ),
-        ],
-        "typescript" => vec![
-            (
-                "package.json".to_owned(),
-                format!(
-                    "{{\n  \"name\": \"{project}\",\n  \"private\": true,\n  \"type\": \"module\"\n}}\n"
-                ),
-            ),
+        ]),
+        "typescript" => Ok(vec![
+            ("package.json".to_owned(), render_package_json(package)?),
             (
                 "tsconfig.json".to_owned(),
                 "{\n  \"compilerOptions\": {\n    \"module\": \"ESNext\",\n    \"target\": \"ES2022\",\n    \"strict\": true\n  }\n}\n"
@@ -131,23 +255,24 @@ fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
                 "export function hello(name: string): string {\n\treturn `hello ${name}`;\n}\n"
                     .to_owned(),
             ),
-        ],
-        "go" => vec![
+        ]),
+        "go" => Ok(vec![
             (
                 "go.mod".to_owned(),
-                format!("module {project}\n\ngo 1.26\n"),
+                format!("module {package}\n\ngo 1.26\n"),
             ),
             (
                 "hello.go".to_owned(),
                 "package hello\n\n// Hello returns a greeting for name.\nfunc Hello(name string) string {\n\treturn \"hello \" + name\n}\n"
                     .to_owned(),
             ),
-        ],
-        "java" => vec![
+        ]),
+        "java" => Ok(vec![
             (
                 "pom.xml".to_owned(),
                 format!(
-                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>example.com</groupId>\n  <artifactId>{project}</artifactId>\n  <version>0.1.0</version>\n  <packaging>jar</packaging>\n</project>\n"
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>example.com</groupId>\n  <artifactId>{}</artifactId>\n  <version>0.1.0</version>\n  <packaging>jar</packaging>\n</project>\n",
+                    xml_escape(package)
                 ),
             ),
             (
@@ -155,12 +280,13 @@ fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
                 "package hello;\n\npublic class Hello {\n  public static String hello(String name) {\n    return \"hello \" + name;\n  }\n}\n"
                     .to_owned(),
             ),
-        ],
-        "kotlin" => vec![
+        ]),
+        "kotlin" => Ok(vec![
             (
                 "pom.xml".to_owned(),
                 format!(
-                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>example.com</groupId>\n  <artifactId>{project}</artifactId>\n  <version>0.1.0</version>\n  <packaging>jar</packaging>\n</project>\n"
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>example.com</groupId>\n  <artifactId>{}</artifactId>\n  <version>0.1.0</version>\n  <packaging>jar</packaging>\n</project>\n",
+                    xml_escape(package)
                 ),
             ),
             (
@@ -168,12 +294,13 @@ fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
                 "package hello\n\nobject Hello {\n  fun hello(name: String): String {\n    return \"hello \" + name\n  }\n}\n"
                     .to_owned(),
             ),
-        ],
-        "scala" => vec![
+        ]),
+        "scala" => Ok(vec![
             (
                 "build.sbt".to_owned(),
                 format!(
-                    "ThisBuild / scalaVersion := \"2.13.18\"\nThisBuild / organization := \"example.com\"\nlazy val root = (project in file(\".\")).settings(name := \"{project}\")\n"
+                    "ThisBuild / scalaVersion := \"2.13.18\"\nThisBuild / organization := \"example.com\"\nlazy val root = (project in file(\".\")).settings(name := \"{}\")\n",
+                    sbt_escape(package)
                 ),
             ),
             (
@@ -181,10 +308,10 @@ fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
                 "package hello\n\nobject Hello {\n  def hello(name: String): String = \"hello \" + name\n}\n"
                     .to_owned(),
             ),
-        ],
-        "csharp" => vec![
+        ]),
+        "csharp" => Ok(vec![
             (
-                format!("{project}.csproj"),
+                format!("{package}.csproj"),
                 "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net10.0</TargetFramework>\n    <Nullable>enable</Nullable>\n  </PropertyGroup>\n</Project>\n"
                     .to_owned(),
             ),
@@ -193,10 +320,10 @@ fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
                 "namespace Hello;\n\npublic static class Greeter\n{\n    public static string Greet(string name)\n    {\n        return \"hello \" + name;\n    }\n}\n"
                     .to_owned(),
             ),
-        ],
-        "fsharp" => vec![
+        ]),
+        "fsharp" => Ok(vec![
             (
-                format!("{project}.fsproj"),
+                format!("{package}.fsproj"),
                 "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net10.0</TargetFramework>\n  </PropertyGroup>\n  <ItemGroup>\n    <Compile Include=\"Library.fs\" />\n  </ItemGroup>\n</Project>\n"
                     .to_owned(),
             ),
@@ -204,8 +331,8 @@ fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
                 "Library.fs".to_owned(),
                 "module Hello\n\nlet greet name = \"hello \" + name\n".to_owned(),
             ),
-        ],
-        _ => vec![
+        ]),
+        _ => Ok(vec![
             (
                 "hello.cc".to_owned(),
                 "#include \"hello.h\"\n\nstd::string Hello(const std::string& name) {\n  return \"hello \" + name;\n}\n"
@@ -216,14 +343,16 @@ fn new_language_files(canonical: &str, project: &str) -> Vec<(String, String)> {
                 "#pragma once\n\n#include <string>\n\nstd::string Hello(const std::string& name);\n"
                     .to_owned(),
             ),
-        ],
+        ])
     }
 }
 
 pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>, AdoptError> {
+    let files = plan_new_files(language, name)?;
+    super::preflight_scaffold_paths(root, &files)?;
     let mut written = Vec::new();
     let mut refused = Vec::new();
-    for file in plan_new_files(language, name)? {
+    for file in &files {
         let dest = root.join(&file.path);
         if dest.exists() {
             refused.push(format!("refused:{}", file.path));
@@ -241,7 +370,7 @@ pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>,
                 detail: e.to_string(),
             }
         })?;
-        written.push(file.path);
+        written.push(file.path.clone());
     }
     written.push("---".to_owned());
     written.extend(refused);
@@ -344,11 +473,15 @@ mod tests {
         std::fs::write(scratch.path().join("demo"), "foreign").expect("collision");
         assert!(matches!(
             apply_new(scratch.path(), "rust", "demo"),
-            Err(AdoptError::CreateParent { .. })
+            Err(AdoptError::ScaffoldBlocked { .. })
         ));
         assert_eq!(
             std::fs::read_to_string(scratch.path().join("demo")).expect("foreign"),
             "foreign"
+        );
+        assert!(
+            !scratch.path().join("demo/Cargo.toml").exists(),
+            "preflight writes nothing when a parent is blocked"
         );
     }
 
@@ -386,5 +519,262 @@ mod tests {
         let second = apply_new(&root, "go", "demo").expect("new again");
         assert!(second.iter().any(|p| p == "refused:demo/go.mod"));
         scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn nested_destination_stays_inside_the_root() {
+        let files = plan_new_files("rust", "a/b").expect("plans");
+        assert!(files.iter().all(|file| file.path.starts_with("a/b/")));
+        let scratch = dx_test_scratch::scratch("new-nested-");
+        apply_new(scratch.path(), "rust", "a/b").expect("applies");
+        assert!(scratch.path().join("a/b/Cargo.toml").exists());
+        let blocked = dx_test_scratch::scratch("new-nested-blocked-");
+        std::fs::write(blocked.path().join("a"), "foreign").expect("collision");
+        assert!(matches!(
+            apply_new(blocked.path(), "rust", "a/b"),
+            Err(AdoptError::ScaffoldBlocked { .. })
+        ));
+        assert!(!blocked.path().join("a/b").exists());
+    }
+
+    #[test]
+    fn derivation_maps_destinations_to_one_valid_package() {
+        for (destination, package) in [
+            ("demo", "demo"),
+            ("my_project", "my_project"),
+            ("my app", "my_app"),
+            ("MyApp", "myapp"),
+            ("my-app", "my_app"),
+            ("my.app", "my_app"),
+            ("2cool", "app_2cool"),
+            ("_lead", "lead"),
+            ("trail_", "trail"),
+            ("a//b", "b"),
+            ("nested/dir", "dir"),
+            ("café", "caf"),
+            ("日本語", "my_project"),
+            ("a\"b", "a_b"),
+            ("a'b", "a_b"),
+            ("UPPER Mixed-Case.Name", "upper_mixed_case_name"),
+        ] {
+            assert_eq!(
+                derive_new_package(destination),
+                package,
+                "destination: {destination:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejected_destinations_fail_before_any_write() {
+        for name in [
+            "../escape",
+            "a/../../b",
+            "..",
+            "a/../b",
+            "/absolute",
+            "C:/windows",
+            "C:relative",
+            "a/./b",
+            "a\\back",
+            "with\nnewline",
+            "with\0nul",
+            "con",
+            "CON",
+            "prn.txt",
+            "Aux",
+            "nul",
+            "com1",
+            "COM9",
+            "lpt1",
+            "LPT9",
+            "nested/con/here",
+            "trail ",
+            "trail.",
+            "nested/trail. ",
+        ] {
+            let error = plan_new_files("rust", name).expect_err("must reject");
+            assert!(
+                matches!(error, AdoptError::NewInvalidDestination { .. }),
+                "name {name:?}: {error}"
+            );
+            let scratch = dx_test_scratch::scratch("new-reject-");
+            assert!(
+                matches!(
+                    apply_new(scratch.path(), "rust", name),
+                    Err(AdoptError::NewInvalidDestination { .. })
+                ),
+                "name {name:?}"
+            );
+            let entries: Vec<_> = std::fs::read_dir(scratch.path())
+                .expect("list")
+                .collect::<Result<_, _>>()
+                .expect("entries");
+            assert!(entries.is_empty(), "name {name:?} wrote files");
+        }
+    }
+
+    #[test]
+    fn quoted_destination_keeps_a_valid_manifest() {
+        let files = plan_new_files("rust", "we\"ird").expect("plans");
+        assert!(
+            files.iter().all(|file| file.path.starts_with("we\"ird/")),
+            "{files:?}"
+        );
+        let cargo = files
+            .iter()
+            .find(|file| file.path == "we\"ird/Cargo.toml")
+            .expect("cargo");
+        let parsed: toml::Table = cargo.content.parse().expect("parses");
+        assert_eq!(
+            parsed["package"]["name"].as_str(),
+            Some("we_ird"),
+            "{}",
+            cargo.content
+        );
+    }
+
+    #[test]
+    fn spaces_and_unicode_destinations_derive_parseable_manifests() {
+        for (language, manifest, name_key) in [
+            ("rust", "Cargo.toml", "package.name"),
+            ("python", "pyproject.toml", "project.name"),
+            ("javascript", "package.json", "name"),
+            ("typescript", "package.json", "name"),
+            ("go", "go.mod", ""),
+            ("java", "pom.xml", "artifactId"),
+            ("kotlin", "pom.xml", "artifactId"),
+            ("scala", "build.sbt", "name"),
+            ("csharp", "my_app.csproj", ""),
+            ("fsharp", "my_app.fsproj", ""),
+            ("c", "hello.h", ""),
+            ("cpp", "hello.h", ""),
+        ] {
+            let files = plan_new_files(language, "my app").expect("plans");
+            assert!(
+                files.iter().all(|file| file.path.starts_with("my app/")),
+                "{language}: {files:?}"
+            );
+            if manifest == "go.mod" {
+                let go_mod = files
+                    .iter()
+                    .find(|file| file.path == "my app/go.mod")
+                    .expect("go.mod");
+                assert_eq!(go_mod.content, "module my_app\n\ngo 1.26\n");
+                continue;
+            }
+            if manifest.ends_with(".csproj") || manifest.ends_with(".fsproj") {
+                assert!(
+                    files
+                        .iter()
+                        .any(|file| file.path == format!("my app/{manifest}")),
+                    "{language}: {files:?}"
+                );
+                continue;
+            }
+            if manifest == "hello.h" {
+                assert!(
+                    files.iter().any(|file| file.path == "my app/hello.h"),
+                    "{language}: {files:?}"
+                );
+                continue;
+            }
+            let entry = files
+                .iter()
+                .find(|file| file.path == format!("my app/{manifest}"))
+                .unwrap_or_else(|| panic!("{language} {manifest}"));
+            if manifest.ends_with(".toml") {
+                let parsed: toml::Table = entry.content.parse().expect("parses");
+                let mut parts = name_key.split('.');
+                let section = parts.next().expect("section");
+                let key = parts.next().expect("key");
+                let table = parsed
+                    .get(section)
+                    .and_then(toml::Value::as_table)
+                    .unwrap_or_else(|| panic!("{language} section {section}"));
+                assert_eq!(
+                    table.get(key).and_then(toml::Value::as_str),
+                    Some("my_app"),
+                    "{language}: {}",
+                    entry.content
+                );
+            } else if manifest.ends_with(".json") {
+                let parsed: serde_json::Value =
+                    serde_json::from_str(&entry.content).expect("parses");
+                assert_eq!(parsed["name"], serde_json::Value::from("my_app"));
+            } else {
+                assert!(
+                    entry.content.contains("my_app"),
+                    "{language}: {}",
+                    entry.content
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn cargo_and_pyproject_render_through_the_toml_serializer() {
+        let rust = plan_new_files("rust", "demo").expect("rust");
+        let cargo = rust
+            .iter()
+            .find(|file| file.path == "demo/Cargo.toml")
+            .expect("cargo");
+        assert_eq!(
+            cargo.content,
+            "[package]\nedition = \"2021\"\nname = \"demo\"\nversion = \"0.1.0\"\n"
+        );
+        let parsed: toml::Table = cargo.content.parse().expect("parses");
+        assert_eq!(parsed["package"]["name"].as_str(), Some("demo"));
+        let python = plan_new_files("python", "demo").expect("python");
+        let pyproject = python
+            .iter()
+            .find(|file| file.path == "demo/pyproject.toml")
+            .expect("pyproject");
+        assert_eq!(
+            pyproject.content,
+            "[project]\ndependencies = []\nname = \"demo\"\nrequires-python = \">=3.12\"\nversion = \"0.1.0\"\n"
+        );
+        let parsed: toml::Table = pyproject.content.parse().expect("parses");
+        assert_eq!(parsed["project"]["name"].as_str(), Some("demo"));
+    }
+
+    #[test]
+    fn package_json_renders_through_the_json_serializer() {
+        let js = plan_new_files("javascript", "my app").expect("js");
+        let package = js
+            .iter()
+            .find(|file| file.path == "my app/package.json")
+            .expect("package");
+        assert_eq!(
+            package.content,
+            "{\n  \"name\": \"my_app\",\n  \"private\": true,\n  \"type\": \"module\"\n}\n"
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&package.content).expect("parses");
+        assert_eq!(parsed["name"], serde_json::Value::from("my_app"));
+    }
+
+    #[test]
+    fn xml_and_sbt_escapers_neutralize_markup() {
+        assert_eq!(xml_escape("a&b"), "a&amp;b");
+        assert_eq!(
+            xml_escape("<a>\"b\"</a>"),
+            "&lt;a&gt;&quot;b&quot;&lt;/a&gt;"
+        );
+        assert_eq!(xml_escape("o'clock"), "o&apos;clock");
+        assert_eq!(sbt_escape("a\"b\\c"), "a\\\"b\\\\c");
+    }
+
+    #[test]
+    fn error_strings_name_the_rejected_input() {
+        assert_eq!(
+            validate_new_destination("../escape")
+                .unwrap_err()
+                .to_string(),
+            "invalid destination for dx new: \"../escape\": path must have no '..' component"
+        );
+        assert_eq!(
+            validate_new_destination("con").unwrap_err().to_string(),
+            "invalid destination for dx new: \"con\": reserved Windows name \"con\""
+        );
     }
 }

@@ -28,6 +28,10 @@ pub(crate) fn execute_new(
         );
         return pre_exec_code();
     }
+    if let Err(error) = dx_adopt::validate_new_destination(name) {
+        let _ = writeln!(err, "dx: {error}");
+        return pre_exec_code();
+    }
     if invocation.dry_run {
         if !summaries_suppressed(invocation) {
             match dx_adopt::plan_new_files(language, name) {
@@ -104,5 +108,43 @@ mod tests {
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, pre_exec_code());
         assert!(err.contains("unknown language"));
+    }
+
+    #[test]
+    fn new_rejects_traversal_name_pre_exec_without_writing() {
+        let inv = invocation(&["new", "rust", "../escape"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-traversal-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, pre_exec_code());
+        assert!(err.contains("invalid destination"), "{err}");
+        let entries: Vec<_> = std::fs::read_dir(&root)
+            .expect("list")
+            .collect::<Result<_, _>>()
+            .expect("entries");
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn new_rejects_reserved_name_pre_exec() {
+        let inv = invocation(&["new", "go", "con"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-reserved-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, pre_exec_code());
+        assert!(err.contains("reserved Windows name"), "{err}");
+    }
+
+    #[test]
+    fn new_derives_package_for_space_destination() {
+        let inv = invocation(&["new", "go", "my app"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-space-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert_eq!(
+            std::fs::read_to_string(root.join("my app/go.mod")).expect("read"),
+            "module my_app\n\ngo 1.26\n"
+        );
     }
 }

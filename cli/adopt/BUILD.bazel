@@ -26,11 +26,11 @@ dx_rust_crate(
     ],
     dev_deps = [
         "insta",
-        "serde_json",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/fingerprint:dx_fingerprint",
+        "//cli/path:dx_path",
         "//tools/bazelrc:dx_preset",
     ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
@@ -39,6 +39,7 @@ dx_rust_crate(
         "notify-debouncer-mini",
         "semver",
         "serde",
+        "serde_json",
         "thiserror",
         "toml",
     ],

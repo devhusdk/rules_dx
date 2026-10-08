@@ -1,5 +1,5 @@
 {
-  "checksum": "8e8cc1ab26da43b54eebfe03394b17326a6a7b7bd81fafec33b2c8b23cfc3146",
+  "checksum": "d88aacf1c781abf23472aa9f62191349b747e333172680280e627a2dede078f5",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2342,6 +2342,10 @@
             "target": "serde"
           },
           {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
           },
@@ -2354,10 +2358,6 @@
           {
             "id": "insta 1.48.0",
             "target": "insta"
-          },
-          {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
           }
         ],
         "edition": "2021"

@@ -35,8 +35,9 @@ check pass. `dx fix --apply` succeeds only when that verification passes;
 remaining findings or a failed verification stay visible and fail the run.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed, a
-capture could not be collected, or a report could not be written. The failing
-phase's code wins, so a `generate` phase keeps Bazel's code.
+capture could not be collected, the post-apply verification failed, or a
+report could not be written. The failing phase's code wins, so a `generate`
+phase keeps Bazel's code.
 
 ```sh
 bazel run @rules_dx//:dx -- check //...

@@ -1,5 +1,5 @@
 use super::super::scope_error;
-use super::super::{assert_usage, ArgsError, Command};
+use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
 use crate::test_support::strings;
 use clap::ValueEnum;
@@ -992,6 +992,38 @@ fn version_rollback_check_and_configured_parse() {
             ),
             "words: {words:?}"
         );
+    }
+}
+
+#[test]
+fn check_rejects_apply_while_quality_defaults_to_check() {
+    assert!(
+        matches!(
+            parse(&strings(&["check", "--apply"])),
+            Err(ArgsError::UnsupportedOption { .. })
+        ),
+        "dx check stays read-only"
+    );
+    for words in [
+        vec!["lint", "--check", "--apply"],
+        vec!["fix", "--check", "--apply"],
+    ] {
+        assert_eq!(
+            parse(&strings(&words)),
+            Err(ArgsError::ConflictingModes {
+                first: "--check",
+                second: "--apply",
+            }),
+            "words: {words:?}"
+        );
+    }
+    for command in ["lint", "typecheck", "format", "fix"] {
+        let bare = parse(&strings(&[command])).expect("bare parses");
+        assert!(!bare.check, "{command}");
+        assert!(!bare.applies(), "{command} checks without --apply");
+        assert_eq!(bare.operation(), OperationMode::Check, "{command}");
+        let applied = parse(&strings(&[command, "--apply"])).expect("apply parses");
+        assert!(applied.applies(), "{command}");
     }
 }
 

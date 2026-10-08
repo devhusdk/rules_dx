@@ -312,16 +312,19 @@ struct Verification {
 /// Phases after the first failure never run and stay out of any success claim.
 /// The buffers stay silent when every phase passes; the caller forwards them
 /// when a phase reports drift so the remaining findings stay visible.
-fn verify_fix(
-    invocation: &Invocation,
-    workspace: &Path,
-    runner: &dyn Runner,
-    query_runner: &dyn QueryRunner,
-    temp_dir: &Path,
+/// Where a `fix --apply` verification pass runs: the launch surfaces minus
+/// the command streams, which stay buffered until drift must stay visible.
+struct VerifyContext<'a> {
+    workspace: &'a Path,
+    runner: &'a dyn Runner,
+    query_runner: &'a dyn QueryRunner,
+    temp_dir: &'a Path,
     pid: u32,
     nonce: u64,
     ci: bool,
-) -> Verification {
+}
+
+fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verification {
     let mut outcome = Verification {
         failed_phase: None,
         skipped: Vec::new(),
@@ -367,17 +370,18 @@ fn verify_fix(
         };
         let code = {
             let phase_env = Env {
-                workspace,
-                runner,
-                query_runner,
-                temp_dir,
-                pid,
-                nonce: nonce
+                workspace: context.workspace,
+                runner: context.runner,
+                query_runner: context.query_runner,
+                temp_dir: context.temp_dir,
+                pid: context.pid,
+                nonce: context
+                    .nonce
                     .wrapping_add(UMBRELLA_PHASES.len() as u64)
                     .wrapping_add(index as u64),
                 out: &mut outcome.out,
                 err: &mut outcome.err,
-                ci,
+                ci: context.ci,
             };
             if *phase == Command::Generate {
                 execute_generate(&verify_invocation, phase_env)
@@ -640,8 +644,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
     if fix_apply && !invocation.dry_run && stdout_exit.is_none() && stop_code.is_none() {
-        let verification = verify_fix(
-            invocation,
+        let context = VerifyContext {
             workspace,
             runner,
             query_runner,
@@ -649,7 +652,8 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             pid,
             nonce,
             ci,
-        );
+        };
+        let verification = verify_fix(invocation, &context);
         if let Some(failed) = verification.failed_phase {
             verification_failed = true;
             if let Err(exit) = check_stdout_write(out.write_all(&verification.out))
@@ -746,14 +750,14 @@ mod tests {
     }
 
     /// Rewrites one phase capture once the phase that wrote it has finished.
-    struct RewriteCapture {
-        inner: FakeRunner,
+    struct RewriteCapture<R> {
+        inner: R,
         capture: PathBuf,
         rewrite: Rewrite,
         done: Cell<bool>,
     }
 
-    impl Runner for RewriteCapture {
+    impl<R: Runner> Runner for RewriteCapture<R> {
         fn run(
             &self,
             argv: &[String],
@@ -842,15 +846,14 @@ mod tests {
         }
     }
 
-    /// Runs one `fix --apply` whose launches from `verify_from` observe
-    /// `verify_files` and `verify_intended` instead of the apply content.
-    fn fix_apply_with_staged_verify(
+    /// Builds one runner serving `harness` content for the apply pass and
+    /// `verify_files`/`verify_intended` from launch `verify_from` on.
+    fn staged_runner(
         harness: &Harness,
         verify_files: Vec<(PathBuf, Vec<u8>)>,
         verify_intended: Option<Vec<u8>>,
         verify_from: usize,
-        words: &[&str],
-    ) -> (i32, String, String) {
+    ) -> StagedRunner {
         let staged = harness.staged_artifacts();
         let files: Vec<serde_json::Value> = staged
             .iter()
@@ -858,7 +861,7 @@ mod tests {
                 serde_json::json!({"uri": format!("file://{}", artifact.to_string_lossy())})
             })
             .collect();
-        let runner = StagedRunner {
+        StagedRunner {
             code: Some(0),
             bep_lines: vec![
                 serde_json::json!({
@@ -882,7 +885,19 @@ mod tests {
             verify_from,
             launches: Cell::new(0),
             seen_env: Rc::clone(&harness.seen_env),
-        };
+        }
+    }
+
+    /// Runs one `fix --apply` whose launches from `verify_from` observe
+    /// `verify_files` and `verify_intended` instead of the apply content.
+    fn fix_apply_with_staged_verify(
+        harness: &Harness,
+        verify_files: Vec<(PathBuf, Vec<u8>)>,
+        verify_intended: Option<Vec<u8>>,
+        verify_from: usize,
+        words: &[&str],
+    ) -> (i32, String, String) {
+        let runner = staged_runner(harness, verify_files, verify_intended, verify_from);
         let inv = umbrella_invocation(harness, words);
         harness.execute_with(&inv, &runner)
     }
@@ -1074,10 +1089,7 @@ mod tests {
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
             "//test:corpus".to_owned(),
-            harness.valid_result(
-                vec![Harness::diagnostic("unused", true)],
-                vec![harness.replacement(b"y")],
-            ),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
         );
         harness.intended = Some(intended_witness("default", true, "", ""));
         let staged = harness.staged_artifacts();
@@ -1090,7 +1102,7 @@ mod tests {
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
-            1,
+            4,
             &["fix", "--apply", "--output=text"],
         );
         assert_eq!(code, 0, "{out}{err}");
@@ -1100,6 +1112,15 @@ mod tests {
             "the apply pass wrote the validated edit"
         );
         assert!(out.contains("Applied 1 file(s)."), "{out}");
+        assert!(
+            err.contains("Not applied: src/a.py (stale_source)"),
+            "later phases name the edit the first apply left stale: {err}"
+        );
+        assert_eq!(
+            out.matches("Running format analysis for //...").count(),
+            1,
+            "a clean verification stays silent: {out}"
+        );
         assert_eq!(
             harness.seen_env.borrow().len(),
             8,
@@ -1594,9 +1615,22 @@ mod tests {
     fn fix_apply_mode_shares_the_same_capture_collector() {
         let mut harness = umbrella_clean("umbrella-fix-missing-capture");
         harness.intended = Some(intended_witness("default", true, "", ""));
-        let (harness, code, out, err) = umbrella_with_broken_capture(
-            harness,
-            Rewrite::Remove,
+        let staged = harness.staged_artifacts();
+        let runner = staged_runner(
+            &harness,
+            staged,
+            Some(intended_witness("check", true, "", "")),
+            4,
+        );
+        let capture = capture_path(&harness, "lint", 1);
+        let breaking = RewriteCapture {
+            inner: runner,
+            capture,
+            rewrite: Rewrite::Remove,
+            done: Cell::new(false),
+        };
+        let inv = umbrella_invocation(
+            &harness,
             &[
                 "fix",
                 "--apply",
@@ -1604,6 +1638,7 @@ mod tests {
                 "--report=sarif=out.sarif",
             ],
         );
+        let (code, out, err) = harness.execute_with(&inv, &breaking);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
             err, "dx: collection_failed: lint wrote no sarif capture\n",

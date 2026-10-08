@@ -10,6 +10,7 @@ Prints the completion script for one shell: `bash`, `zsh`, `fish`, or
 - With one shell and no `--check`: print that shell script.
 - With `--check`: verify without writing. Zero shells checks all shells.
 - Unknown shells fail with `unknown-shell`.
+- Needs no workspace.
 
 The script asks `dx` for candidates as you type, so keep `dx` on your `PATH`.
 Candidates cover every command, every flag, the per-command slots, and the

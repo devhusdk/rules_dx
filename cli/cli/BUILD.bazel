@@ -34,6 +34,8 @@ rust_library(
         "src/args/parser_commands.rs",
         "src/args/parser_core.rs",
         "src/args/profile.rs",
+        "src/args/startup.rs",
+        "src/args/startup_tests.rs",
         "src/args/strict_tests.rs",
         "src/args/tokenizer.rs",
         "src/exec.rs",

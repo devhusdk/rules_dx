@@ -21,6 +21,34 @@ fn json_dry_run(invocation: &Invocation, out: &mut dyn Write) -> i32 {
     0
 }
 
+fn delivered_only(invocation: &Invocation, out: &mut dyn Write) -> i32 {
+    if invocation.output == OutputMode::Json {
+        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
+        }
+        if let Err(exit) = json_status(out, "binary", "ok", dx_adopt::DX_VERSION, "dx version") {
+            return exit;
+        }
+        if let Err(exit) = json_status(out, "module", "ok", dx_adopt::MODULE_VERSION, "dx version")
+        {
+            return exit;
+        }
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            return exit;
+        }
+        return 0;
+    }
+    if let Err(exit) = check_stdout_write(writeln!(out, "dx {}", dx_adopt::DX_VERSION)) {
+        return exit;
+    }
+    if let Err(exit) = check_stdout_write(writeln!(out, "rules_dx {}", dx_adopt::MODULE_VERSION)) {
+        return exit;
+    }
+    0
+}
+
 fn json_status(
     out: &mut dyn Write,
     name: &str,
@@ -217,6 +245,7 @@ pub(crate) fn execute_version(
     }
     let current = match dx_adopt::read_version_pin(workspace) {
         Ok(pin) => pin,
+        Err(_) if !invocation.check => return delivered_only(invocation, out),
         Err(error) => {
             let message = error.to_string();
             if is_json {
@@ -480,8 +509,36 @@ mod tests {
     }
 
     #[test]
-    fn version_missing_pin_fails_closed() {
-        for words in [vec!["version", "--check"], vec!["version"]] {
+    fn version_bare_without_a_pin_reports_delivered_versions() {
+        for json in [false, true] {
+            let scratch = dx_test_scratch::scratch("dx-adopt-version-nopin-");
+            let root = scratch.path().to_path_buf();
+            let mut inv = invocation(&["version"]);
+            if json {
+                inv.output = OutputMode::Json;
+            }
+            let (code, out, err) = run(&inv, &root);
+            assert_eq!(code, 0, "json: {json}");
+            assert!(err.is_empty(), "json: {json}");
+            if json {
+                let events = json_events(&out);
+                let kinds = event_kinds(&events);
+                assert_eq!(
+                    kinds,
+                    vec!["command_started", "status", "status", "command_finished"],
+                    "binary and module only, no pin event"
+                );
+            } else {
+                assert!(out.contains("dx "), "{out}");
+                assert!(!out.contains("pin "), "no pin line without a pin: {out}");
+            }
+            scratch.close().expect("cleanup");
+        }
+    }
+
+    #[test]
+    fn version_check_without_a_pin_fails_closed() {
+        for words in [vec!["version", "--check"]] {
             let scratch = dx_test_scratch::scratch("dx-adopt-version-missing-");
             let root = scratch.path().to_path_buf();
             let inv = invocation(&words);
@@ -601,23 +658,24 @@ mod tests {
     }
 
     #[test]
-    fn version_missing_pin_json_fails_closed() {
+    fn version_missing_pin_json_reports_delivered_versions() {
         let scratch = dx_test_scratch::scratch("dx-adopt-version-missing-json-");
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["version", "--output=json"]);
         let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 1);
+        assert_eq!(code, 0);
         let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(
             kinds,
-            vec!["command_started", "error", "command_finished"],
+            vec!["command_started", "status", "status", "command_finished"],
             "{kinds:?}"
         );
-        assert_eq!(
-            events[1]["code"],
-            serde_json::json!(CODE_STATUS_PIN_MISMATCH)
-        );
+        let names: Vec<&str> = events_of_kind(&events, "status")
+            .into_iter()
+            .map(|event| event["name"].as_str().expect("name"))
+            .collect();
+        assert_eq!(names, vec!["binary", "module"], "{names:?}");
     }
 }

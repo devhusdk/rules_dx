@@ -41,7 +41,9 @@ or empty `.dx/version` fails the same way.
 dx version [--check] [--pin <version>|--rollback]
 ```
 
-Prints the version.
+Prints the version. Bare `dx version` prints the delivered versions and works
+outside a workspace. It also prints the pin when the workspace has a readable
+one. `--check`, `--pin`, and `--rollback` need a workspace.
 
 - `--check`: verify the pin without changing it.
 - `--pin <version>`: re-pin to this version.

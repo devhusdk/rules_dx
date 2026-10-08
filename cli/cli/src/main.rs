@@ -13,14 +13,11 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use dx_cli::args::{load_file_defaults, parse_with};
 use dx_cli::exec::common::{emit_event, flush_out};
 use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
 use dx_output::{command_finished, error_event, FinishedCounts, OutputMode};
-use dx_process::{
-    discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
-};
+use dx_process::{operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner};
 
 static CHILD_PID: AtomicU32 = AtomicU32::new(0);
 
@@ -160,16 +157,17 @@ fn run() -> i32 {
         Ok(false) => {}
         Err(message) => return usage_error(&message),
     }
-    let defaults_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
-    let defaults_start = dx_process::workspace_start(&defaults_cwd);
-    let file_defaults = match load_file_defaults(&defaults_start) {
-        Ok(defaults) => defaults,
-        Err(detail) => return usage_error(&detail),
+    let cwd = match std::env::current_dir() {
+        Ok(cwd) => cwd,
+        Err(error) => {
+            let _ = writeln!(io::stderr(), "dx: cannot read working directory: {error}");
+            return pre_exec_code();
+        }
     };
     let env_get = |name: &str| std::env::var(name).ok();
-    let mut invocation = match parse_with(&args, &env_get, &file_defaults) {
-        Ok(invocation) => invocation,
-        Err(dx_cli::args::ArgsError::Help { text }) => {
+    let resolved = match dx_cli::args::startup::resolve(&args, &env_get, &cwd) {
+        Ok(resolved) => resolved,
+        Err(dx_cli::args::startup::StartupError::Help { text }) => {
             let stdout = io::stdout();
             let mut out = stdout.lock();
             if let Err(error) = write!(out, "{text}") {
@@ -180,8 +178,16 @@ fn run() -> i32 {
             }
             return 0;
         }
-        Err(error) => return usage_error(&error.to_string()),
+        Err(dx_cli::args::startup::StartupError::Usage { message }) => {
+            return usage_error(&message);
+        }
+        Err(dx_cli::args::startup::StartupError::Workspace { message }) => {
+            let _ = writeln!(io::stderr(), "dx: cannot resolve workspace: {message}");
+            return pre_exec_code();
+        }
     };
+    let mut invocation = resolved.invocation;
+    let workspace = resolved.workspace;
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     dx_output::init_diagnostics_with_color(
         invocation.verbose,
@@ -223,33 +229,6 @@ fn run() -> i32 {
         }
         return operational_code();
     }
-    let cwd = match std::env::current_dir() {
-        Ok(cwd) => cwd,
-        Err(error) => {
-            let _ = writeln!(io::stderr(), "dx: cannot read working directory: {error}");
-            return pre_exec_code();
-        }
-    };
-    let start = dx_process::workspace_start(&cwd);
-    let workspace = match discover_real(&start, invocation.workspace.as_deref().map(Path::new)) {
-        Ok(workspace) => workspace,
-        Err(error) => {
-            if invocation.command == dx_cli::args::Command::Init {
-                invocation
-                    .workspace
-                    .as_deref()
-                    .map(Path::new)
-                    .map(|raw| {
-                        let display = dx_process::resolve_override_display(raw, &start);
-                        dx_process::canonicalize_or_keep(&display)
-                    })
-                    .unwrap_or(start)
-            } else {
-                let _ = writeln!(io::stderr(), "dx: cannot resolve workspace: {error}");
-                return pre_exec_code();
-            }
-        }
-    };
     if invocation.here {
         match dx_cli::args::apply_here(&invocation, &workspace, &cwd) {
             Ok(resolved) => invocation = resolved,

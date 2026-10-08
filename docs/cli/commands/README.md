@@ -31,7 +31,8 @@ commands. See [Version Skew](status-version.md#version-skew).
 
 ## Global Flags
 
-- `--workspace <dir>`: run in another workspace.
+- `--workspace <dir>`: run in another workspace. Its config supplies the
+  defaults.
 - `--dry-run[=bool]`: print the plan without running it. Bare means `true`, and
   `=false` turns off a default inherited from the environment or a config file.
 - `--quiet[=bool]`, `--verbose[=bool]`: less or more output. Bare means `true`,
@@ -148,3 +149,10 @@ nearest file to the working directory wins, and its values sit below the
 environment. The search reads the working directory and each directory above
 it, so a neighboring or nested workspace tree never supplies defaults. Under
 `bazel run` the search starts at the workspace root.
+
+Precedence is flag, environment, config file, then workspace discovery.
+`--workspace`, `DX_WORKSPACE`, or the config `workspace` selects the
+workspace, and that workspace's config supplies the remaining defaults. A
+config `workspace` that loops back on itself is a usage error. `dx --help`,
+`dx --version`, `dx completion`, bare `dx version`, and `dx new` work outside
+a workspace.

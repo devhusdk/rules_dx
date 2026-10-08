@@ -28,6 +28,7 @@ invalid destination or package identity, or extra positionals, `1`
 scaffolding failed.
 
 The `[name]` is the destination directory and defaults to `my_project`.
+Outside a workspace the destination roots at the current directory.
 Destinations stay inside the workspace. Absolute paths, `..` segments, empty
 segments, backslashes, control characters, and the characters `< > : " | ? *`
 are rejected. Segments never end with a space or `.`, and reserved device

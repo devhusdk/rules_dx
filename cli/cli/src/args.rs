@@ -5,6 +5,7 @@ pub mod help;
 pub mod invocation;
 pub mod parser;
 pub mod profile;
+pub mod startup;
 pub mod tokenizer;
 
 /// A failure raised while reading the command line.

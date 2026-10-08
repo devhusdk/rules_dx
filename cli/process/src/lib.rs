@@ -207,6 +207,37 @@ pub fn launcher_argv0() -> &'static str {
 
 pub const WORKFLOW_STARTUP_OPTS: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
+pub const STARTUP_OPTION_NAMES: &[&str] = &["output_base", "output_user_root"];
+
+fn startup_want() -> String {
+    STARTUP_OPTION_NAMES
+        .iter()
+        .map(|name| format!("--{name}=<path>"))
+        .collect::<Vec<_>>()
+        .join(" or ")
+}
+
+/// Checks one `--bazel-startup-option` token and returns it unchanged.
+/// Only the equals form of the output-base and output-root settings qualifies.
+pub fn check_startup_option(token: &str) -> Result<String, String> {
+    let Some(bare) = token.strip_prefix("--") else {
+        return Err(format!("want {}, got {token:?}", startup_want()));
+    };
+    let Some((name, value)) = bare.split_once('=') else {
+        return Err(format!("missing value: want --<name>=<path>, got {token:?}"));
+    };
+    if !STARTUP_OPTION_NAMES.contains(&name) {
+        return Err(format!(
+            "unsupported startup option --{name}: want {}",
+            startup_want()
+        ));
+    }
+    if value.is_empty() {
+        return Err(format!("missing value for --{name}: want --{name}=<path>"));
+    }
+    Ok(token.to_owned())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Repository,
@@ -332,6 +363,7 @@ pub fn build_workflow_argv(
     required_options: &[String],
     protected: &[ProtectedFlag],
     labels: &[String],
+    startup: &[String],
 ) -> Result<Vec<String>, ForwardError> {
     for arg in user_options {
         if is_startup_option(arg) {
@@ -344,12 +376,14 @@ pub fn build_workflow_argv(
         }
     }
     let canonical = check_protected(user_options, protected)?;
-    let mut argv =
-        Vec::with_capacity(2 + WORKFLOW_STARTUP_OPTS.len() + canonical.len() + labels.len());
+    let mut argv = Vec::with_capacity(
+        2 + WORKFLOW_STARTUP_OPTS.len() + startup.len() + canonical.len() + labels.len(),
+    );
     argv.push(launcher_argv0().to_owned());
     for opt in WORKFLOW_STARTUP_OPTS {
         argv.push((*opt).to_owned());
     }
+    argv.extend(startup.iter().cloned());
     argv.push(bazel_command.to_owned());
     argv.extend(required_options.iter().cloned());
     argv.extend(canonical);

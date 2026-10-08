@@ -76,6 +76,7 @@ pub(crate) struct Flags {
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) bazel_startup_options: Vec<String>,
 }
 
 /// One flag group: a clap argument group that writes into the normalized invocation flags.
@@ -214,6 +215,7 @@ composite_group! {
         color: ColorFlag,
         log_level: LogLevelFlag,
         output: OutputFlag,
+        startup_option: BazelStartupOptionFlag,
     }
 }
 
@@ -385,6 +387,19 @@ flag_group! {
     OfflineFlag, {
         #[arg(long, visible_alias = "frozen", overrides_with = "offline")]
         offline: bool,
+    }
+}
+
+flag_group! {
+    /// Pass one Bazel startup option.
+    BazelStartupOptionFlag, {
+        #[arg(
+            long = "bazel-startup-option",
+            value_name = "OPTION",
+            require_equals = true,
+            value_parser = dx_process::check_startup_option
+        )]
+        bazel_startup_options: Vec<String>,
     }
 }
 

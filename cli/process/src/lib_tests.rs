@@ -333,6 +333,7 @@ fn workflow_argv_orders_startup_command_required_user_labels() {
         &["--keep_going".to_owned(), "--config=dx".to_owned()],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect("argv");
     assert_eq!(
@@ -359,6 +360,7 @@ fn workflow_argv_rejects_startup_options() {
         &[],
         &[],
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("startup");
     assert_eq!(
@@ -372,6 +374,74 @@ fn workflow_argv_rejects_startup_options() {
 }
 
 #[test]
+fn startup_option_check_qualifies_output_roots_verbatim() {
+    for token in [
+        "--output_base=/tmp/dx-base",
+        "--output_user_root=/tmp/dx-root",
+        "--output_base=C:\\dx base\\out",
+        "--output_user_root=/tmp/ünïcode dir",
+        "--output_base=relative/dir",
+    ] {
+        assert_eq!(check_startup_option(token), Ok(token.to_owned()), "{token}");
+    }
+}
+
+#[test]
+fn startup_option_check_rejects_missing_and_foreign_tokens() {
+    for token in [
+        "--output_base",
+        "--output_user_root",
+        "--output_base=",
+        "--output_user_root=",
+        "--bazelrc=/tmp/rc",
+        "--home_rc",
+        "--jobs=4",
+        "output_base=/tmp/x",
+        "",
+    ] {
+        check_startup_option(token).expect_err("invalid startup token");
+    }
+    assert!(
+        check_startup_option("--output_base")
+            .expect_err("missing value")
+            .contains("missing value")
+    );
+    assert!(
+        check_startup_option("--bazelrc=/tmp/rc")
+            .expect_err("foreign startup option")
+            .contains("--bazelrc")
+    );
+}
+
+#[test]
+fn workflow_argv_inserts_startup_options_before_the_verb() {
+    let argv = build_workflow_argv(
+        "build",
+        &[],
+        &[],
+        &[],
+        &["//...".to_owned()],
+        &[
+            "--output_base=/tmp/dx-base".to_owned(),
+            "--output_user_root=/tmp/dx-root".to_owned(),
+        ],
+    )
+    .expect("argv");
+    assert_eq!(
+        argv,
+        vec![
+            "bazel",
+            "--nohome_rc",
+            "--nosystem_rc",
+            "--output_base=/tmp/dx-base",
+            "--output_user_root=/tmp/dx-root",
+            "build",
+            "//...",
+        ]
+    );
+}
+
+#[test]
 fn workflow_argv_rejects_test_binary_args_outside_test_commands() {
     for command in ["build", "run", "lint"] {
         let err = build_workflow_argv(
@@ -380,6 +450,7 @@ fn workflow_argv_rejects_test_binary_args_outside_test_commands() {
             &[],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect_err("binary args");
         assert_eq!(
@@ -407,6 +478,7 @@ fn workflow_argv_forwards_test_binary_args_on_test_commands() {
             &["--keep_going".to_owned()],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect("argv");
         assert_eq!(
@@ -436,6 +508,7 @@ fn workflow_argv_keeps_test_filter_unchanged_on_test_commands() {
         &[],
         &[],
         &["//...".to_owned()],
+        &[],
     )
     .expect("argv");
     assert_eq!(argv.last().map(String::as_str), Some("//..."));
@@ -463,6 +536,7 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("protected capture option");
     assert_eq!(
@@ -477,6 +551,7 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
         &[],
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("startup option");
     assert!(matches!(err, ForwardError::StartupOption { .. }));
@@ -505,6 +580,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             &[],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect_err("startup must fail");
         assert!(
@@ -524,6 +600,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             &[],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect_err("test-binary must fail outside test commands");
         assert!(
@@ -553,6 +630,7 @@ fn quality_workflows_reject_nokeep_going() {
         &["--keep_going".to_owned()],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("nokeep_going");
     assert_eq!(
@@ -576,6 +654,7 @@ fn workflow_argv_rejects_protected_conflicts() {
         &["--build_event_json_file=/tmp/required.json".to_owned()],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("conflict");
     assert!(matches!(err, ForwardError::ConflictingOption { .. }));

@@ -4,13 +4,16 @@ pub fn plan_run_targets(
     targets: &[String],
     app_args: &[String],
     profile: crate::args::Profile,
+    startup: &[String],
 ) -> BuildPlan {
     use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
 
-    let mut argv =
-        Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 4 + targets.len() + app_args.len());
+    let mut argv = Vec::with_capacity(
+        WORKFLOW_STARTUP_OPTS.len() + startup.len() + 4 + targets.len() + app_args.len(),
+    );
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(startup.iter().cloned());
     argv.push("run".to_owned());
     argv.push(profile.config_flag());
     argv.extend(targets.iter().cloned());
@@ -22,16 +25,27 @@ pub fn plan_run_targets(
     BuildPlan { argv, summary }
 }
 
-pub fn plan_run(target: &str, app_args: &[String], profile: crate::args::Profile) -> BuildPlan {
-    plan_run_targets(&[target.to_owned()], app_args, profile)
+pub fn plan_run(
+    target: &str,
+    app_args: &[String],
+    profile: crate::args::Profile,
+    startup: &[String],
+) -> BuildPlan {
+    plan_run_targets(&[target.to_owned()], app_args, profile, startup)
 }
 
-pub fn plan_run_build(targets: &[String], profile: crate::args::Profile) -> BuildPlan {
+pub fn plan_run_build(
+    targets: &[String],
+    profile: crate::args::Profile,
+    startup: &[String],
+) -> BuildPlan {
     use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
 
-    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 3 + targets.len());
+    let mut argv =
+        Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + startup.len() + 3 + targets.len());
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(startup.iter().cloned());
     argv.push("build".to_owned());
     argv.push(profile.config_flag());
     argv.extend(targets.iter().cloned());
@@ -57,12 +71,17 @@ pub fn shell_join(words: &[String]) -> String {
         .join(" ")
 }
 
-pub fn plan_deploy_build(label: &str, profile: crate::args::Profile) -> BuildPlan {
+pub fn plan_deploy_build(
+    label: &str,
+    profile: crate::args::Profile,
+    startup: &[String],
+) -> BuildPlan {
     use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
 
-    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 4);
+    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + startup.len() + 4);
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(startup.iter().cloned());
     argv.push("build".to_owned());
     argv.push(profile.config_flag());
     argv.push(label.to_owned());
@@ -74,8 +93,9 @@ pub fn plan_deploy_run(
     label: &str,
     app_args: &[String],
     profile: crate::args::Profile,
+    startup: &[String],
 ) -> BuildPlan {
-    let plan = plan_run(label, app_args, profile);
+    let plan = plan_run(label, app_args, profile, startup);
     let summary = format!("Running deploy run for {label}");
     BuildPlan {
         argv: plan.argv,
@@ -90,15 +110,53 @@ mod tests {
     use crate::test_support::strings;
 
     #[test]
+    fn run_plan_carries_startup_options_before_the_verb() {
+        let plan = plan_run(
+            "//app:bin",
+            &[],
+            Profile::Dev,
+            &strings(&["--output_base=/tmp/dx-base"]),
+        );
+        assert_eq!(
+            plan.argv,
+            strings(&[
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "--output_base=/tmp/dx-base",
+                "run",
+                "--config=dx_dev",
+                "//app:bin",
+            ])
+        );
+        let built = plan_run_build(
+            &strings(&["//a:one"]),
+            Profile::Dev,
+            &strings(&["--output_user_root=/tmp/dx-root"]),
+        );
+        assert_eq!(
+            &built.argv[..6],
+            &strings(&[
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "--output_user_root=/tmp/dx-root",
+                "build",
+                "--config=dx_dev",
+            ])
+        );
+    }
+
+    #[test]
     fn run_targets_share_single_builder() {
-        let single = plan_run("//app:bin", &strings(&["--port=8080"]), Profile::Dev);
+        let single = plan_run("//app:bin", &strings(&["--port=8080"]), Profile::Dev, &[]);
         let multi = plan_run_targets(
             &strings(&["//app:bin"]),
             &strings(&["--port=8080"]),
             Profile::Dev,
-        );
+        &[], );
         assert_eq!(single, multi);
-        let joined = plan_run_targets(&strings(&["//a:one", "//b:two"]), &[], Profile::Dev);
+        let joined = plan_run_targets(&strings(&["//a:one", "//b:two"]), &[], Profile::Dev, &[]);
         assert_eq!(
             joined.argv.last(),
             Some(&"//b:two".to_owned()),
@@ -109,7 +167,7 @@ mod tests {
 
     #[test]
     fn run_plan_forwards_app_args_verbatim() {
-        let plan = plan_run("//app:bin", &strings(&["--port=8080"]), Profile::Dev);
+        let plan = plan_run("//app:bin", &strings(&["--port=8080"]), Profile::Dev, &[]);
         assert_eq!(
             plan.argv,
             strings(&[
@@ -124,7 +182,7 @@ mod tests {
             ])
         );
         assert!(plan.summary.contains("//app:bin"));
-        let bare = plan_run("//app:bin", &[], Profile::Dev);
+        let bare = plan_run("//app:bin", &[], Profile::Dev, &[]);
         assert!(!bare.argv.contains(&"--".to_owned()));
     }
 
@@ -135,7 +193,7 @@ mod tests {
             (Profile::Dev, "--config=dx_dev"),
             (Profile::Release, "--config=dx_release"),
         ] {
-            let plan = plan_run("//app:bin", &[], profile);
+            let plan = plan_run("//app:bin", &[], profile, &[]);
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
                 argv[..5],
@@ -147,7 +205,7 @@ mod tests {
 
     #[test]
     fn run_build_plan_builds_without_launching() {
-        let plan = plan_run_build(&strings(&["//a:one", "//b:two"]), Profile::Dev);
+        let plan = plan_run_build(&strings(&["//a:one", "//b:two"]), Profile::Dev, &[]);
         assert_eq!(
             plan.argv,
             strings(&[

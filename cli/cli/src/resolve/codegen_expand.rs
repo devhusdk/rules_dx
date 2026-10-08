@@ -6,9 +6,10 @@ pub fn expand_codegen_roots(
     label: &str,
     workspace: &Path,
     runner: &dyn QueryRunner,
+    startup: &[String],
 ) -> Result<Vec<String>, ResolveError> {
     let expression = dx_codegen::expansion_expression(label);
-    let projections = run_label_query(&expression, workspace, runner)?;
+    let projections = run_label_query(&expression, workspace, runner, startup)?;
     Ok(dx_codegen::expand_roots(label, &projections))
 }
 
@@ -71,7 +72,7 @@ mod tests {
             "//generation:codegen_prost_fixture\n//generation:codegen_prost_fixture\n",
         )]);
         let got =
-            expand_codegen_roots("//generation:result_proto", &workspace, &query).expect("expand");
+            expand_codegen_roots("//generation:result_proto", &workspace, &query, &[]).expect("expand");
         assert_eq!(
             got,
             vec![
@@ -94,7 +95,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let got =
-            expand_codegen_roots("//generation:result_proto", &workspace, &query).expect("expand");
+            expand_codegen_roots("//generation:result_proto", &workspace, &query, &[]).expect("expand");
         assert_eq!(got, vec!["//generation:result_proto".to_owned()]);
     }
 
@@ -103,7 +104,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fail-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
-        let err = expand_codegen_roots("//generation:result_proto", &workspace, &query)
+        let err = expand_codegen_roots("//generation:result_proto", &workspace, &query, &[])
             .expect_err("failed");
         assert_eq!(
             err,

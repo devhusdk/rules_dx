@@ -73,11 +73,19 @@ pub fn plan_workflow(
     bazel_options: &[String],
     bep_path: Option<&str>,
     profile: Option<crate::args::Profile>,
+    startup: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let required = workflow_options(verb, bep_path, profile);
     let protected = workflow_protected(verb, profile);
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv(verb.name(), bazel_options, &required, &protected, &labels)?;
+    let argv = build_workflow_argv(
+        verb.name(),
+        bazel_options,
+        &required,
+        &protected,
+        &labels,
+        startup,
+    )?;
     let summary = format!("Running {} for {}", verb.name(), describe_scope(&scope));
     Ok(BuildPlan { argv, summary })
 }
@@ -101,13 +109,38 @@ mod tests {
     }
 
     #[test]
+    fn workflow_plan_inserts_startup_options_before_the_verb() {
+        let plan = plan_workflow(
+            WorkflowVerb::Test,
+            &resolved(&[]),
+            &[],
+            None,
+            Some(Profile::Dev),
+            &strings(&["--output_base=/tmp/dx-base"]),
+        )
+        .expect("plan");
+        let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+        assert_eq!(
+            argv[..6],
+            [
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "--output_base=/tmp/dx-base",
+                "test",
+                "--config=dx_dev",
+            ]
+        );
+    }
+
+    #[test]
     fn workflow_plan_defaults_to_fail_fast_without_forced_keep_going() {
         for (verb, profile) in [
             (WorkflowVerb::Build, Some(Profile::Dev)),
             (WorkflowVerb::Test, Some(Profile::Dev)),
             (WorkflowVerb::Coverage, None),
         ] {
-            let plan = plan_workflow(verb, &resolved(&[]), &[], None, profile).expect("plan");
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, profile, &[]).expect("plan");
             assert!(
                 !plan.argv.iter().any(|arg| arg == "--keep_going"),
                 "{verb:?} must not force keep_going: {plan:?}"
@@ -119,7 +152,7 @@ mod tests {
             &[],
             None,
             Some(Profile::Dev),
-        )
+        &[], )
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(
@@ -143,7 +176,7 @@ mod tests {
             &strings(&["--keep_going"]),
             None,
             Some(Profile::Dev),
-        )
+        &[], )
         .expect("plan");
         assert!(plan.argv.iter().any(|arg| arg == "--keep_going"));
     }
@@ -166,7 +199,7 @@ mod tests {
                 } else {
                     Some(Profile::Dev)
                 },
-            )
+            &[], )
             .expect("test args forward");
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             let position = argv
@@ -190,7 +223,7 @@ mod tests {
             &strings(&["--test_arg=--exact"]),
             None,
             Some(Profile::Dev),
-        )
+        &[], )
         .expect_err("build still rejects test args");
         assert!(
             matches!(err, ForwardError::TestBinaryArgs { .. }),
@@ -207,7 +240,7 @@ mod tests {
                 &strings(&["--config=ci", "--config=ci-pr"]),
                 None,
                 Some(Profile::Dev),
-            )
+            &[], )
             .expect("blessed configs pass");
             assert!(plan.argv.iter().any(|arg| arg == "--config=dx_dev"));
             assert!(plan.argv.iter().any(|arg| arg == "--config=ci"));
@@ -219,7 +252,7 @@ mod tests {
             &strings(&["--config=dx_release"]),
             None,
             Some(Profile::Dev),
-        )
+        &[], )
         .expect_err("profile override still conflicts");
         assert!(matches!(err, ForwardError::ConflictingOption { .. }));
     }
@@ -227,7 +260,7 @@ mod tests {
     #[test]
     fn coverage_plan_requires_combined_lcov_report() {
         let plan =
-            plan_workflow(WorkflowVerb::Coverage, &resolved(&[]), &[], None, None).expect("plan");
+            plan_workflow(WorkflowVerb::Coverage, &resolved(&[]), &[], None, None, &[]).expect("plan");
         assert!(plan
             .argv
             .iter()
@@ -238,7 +271,7 @@ mod tests {
             &strings(&[COVERAGE_COMBINED_REPORT_FLAG]),
             None,
             None,
-        )
+        &[], )
         .expect("repeated required flag is accepted");
         assert!(repeated
             .argv
@@ -250,7 +283,7 @@ mod tests {
             &strings(&["--combined_report=json"]),
             None,
             None,
-        )
+        &[], )
         .expect_err("conflicting combined_report must fail");
         assert!(
             matches!(err, ForwardError::ConflictingOption { .. }),
@@ -262,7 +295,7 @@ mod tests {
             &strings(&["--build_event_json_file=/tmp/other.json"]),
             Some("/tmp/bep.json"),
             Some(Profile::Dev),
-        )
+        &[], )
         .expect_err("BEP override must fail");
         assert!(
             matches!(err, ForwardError::ConflictingOption { .. }),
@@ -283,7 +316,7 @@ mod tests {
                 &[],
                 None,
                 Some(profile),
-            )
+            &[], )
             .expect("plan");
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
@@ -293,7 +326,7 @@ mod tests {
             );
         }
         let plan =
-            plan_workflow(WorkflowVerb::Coverage, &resolved(&[]), &[], None, None).expect("plan");
+            plan_workflow(WorkflowVerb::Coverage, &resolved(&[]), &[], None, None, &[]).expect("plan");
         assert!(
             !plan.argv.iter().any(|arg| arg.starts_with("--config=")),
             "coverage argv is unchanged: {plan:?}"
@@ -304,7 +337,7 @@ mod tests {
             &strings(&["--config=dx_dev"]),
             None,
             Some(Profile::Dev),
-        )
+        &[], )
         .expect("repeated required config is accepted");
         assert!(repeated.argv.contains(&"--config=dx_dev".to_owned()));
         let err = plan_workflow(
@@ -313,7 +346,7 @@ mod tests {
             &strings(&["--config=dx_release"]),
             None,
             Some(Profile::Dev),
-        )
+        &[], )
         .expect_err("conflicting config must fail");
         assert!(
             matches!(err, ForwardError::ConflictingOption { .. }),

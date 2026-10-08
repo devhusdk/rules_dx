@@ -11,6 +11,7 @@ pub fn resolve(
     scopes: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,
+    startup: &[String],
 ) -> Result<ResolvedScope, ResolveError> {
     if scopes.is_empty() {
         return Ok(ResolvedScope {
@@ -28,7 +29,12 @@ pub fn resolve(
     }
     let mut targets = classified.labels;
     if !classified.files.is_empty() {
-        targets.extend(resolve_file_owners(&classified.files, workspace, runner)?);
+        targets.extend(resolve_file_owners(
+            &classified.files,
+            workspace,
+            runner,
+            startup,
+        )?);
     }
     targets.extend(classified.patterns);
     targets.sort();
@@ -43,6 +49,7 @@ pub fn resolve_for_test(
     scopes: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,
+    startup: &[String],
 ) -> Result<ResolvedScope, ResolveError> {
     if scopes.is_empty() {
         return Ok(ResolvedScope {
@@ -68,8 +75,8 @@ pub fn resolve_for_test(
             targets,
         });
     }
-    let file_owners = resolve_file_owners(&classified.files, workspace, runner)?;
-    let tests = map_owners_to_tests(&file_owners, workspace, runner)?;
+    let file_owners = resolve_file_owners(&classified.files, workspace, runner, startup)?;
+    let tests = map_owners_to_tests(&file_owners, workspace, runner, startup)?;
     let mut targets = classified.labels;
     targets.extend(classified.patterns);
     targets.extend(tests);
@@ -139,7 +146,7 @@ mod tests {
             FakeQuery::ok("//pkg:lib\n"),
             FakeQuery::ok("//pkg:unit\n"),
         ]);
-        let got = resolve_for_test(&strings(&["pkg/a.py", "//other/..."]), &workspace, &query)
+        let got = resolve_for_test(&strings(&["pkg/a.py", "//other/..."]), &workspace, &query, &[])
             .expect("resolve");
         assert_eq!(
             got.targets,
@@ -158,7 +165,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let got = resolve_for_test(&strings(&["//a:one", "//b/..."]), &workspace, &query)
+        let got = resolve_for_test(&strings(&["//a:one", "//b/..."]), &workspace, &query, &[])
             .expect("resolve");
         assert_eq!(got.targets, strings(&["//a:one", "//b/..."]));
         assert_eq!(got.scope, Scope::Labels(strings(&["//a:one", "//b/..."])));
@@ -170,7 +177,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = NeverQuery;
-        let got = resolve_for_test(&strings(&["app"]), &workspace, &query).expect("dir");
+        let got = resolve_for_test(&strings(&["app"]), &workspace, &query, &[]).expect("dir");
         assert_eq!(got.targets, strings(&["//app/..."]));
     }
 }

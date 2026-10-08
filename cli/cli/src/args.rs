@@ -54,6 +54,9 @@ pub enum ArgsError {
     /// Verbosity was requested twice over.
     #[error("options --verbose and --log-level are mutually exclusive")]
     ConflictingVerboseLogLevel,
+    /// Two startup options set the same Bazel setting.
+    #[error("options {first} and {second} are mutually exclusive")]
+    ConflictingStartupOptions { first: String, second: String },
     /// Two operation modes were requested at once.
     #[error("options {first} and {second} are mutually exclusive")]
     ConflictingModes {

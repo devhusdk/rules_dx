@@ -22,10 +22,11 @@ pub(crate) fn quote_label(label: &str) -> String {
     dx_codegen::quote_label(label)
 }
 
-fn query_argv(expression: &str) -> Vec<String> {
-    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 4);
+fn query_argv(expression: &str, startup: &[String]) -> Vec<String> {
+    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + startup.len() + 4);
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(startup.iter().cloned());
     argv.push("query".to_owned());
     argv.push("--".to_owned());
     argv.push(expression.to_owned());
@@ -36,8 +37,9 @@ pub(crate) fn run_label_query(
     expression: &str,
     workspace: &Path,
     runner: &dyn QueryRunner,
+    startup: &[String],
 ) -> Result<Vec<String>, ResolveError> {
-    let argv = query_argv(expression);
+    let argv = query_argv(expression, startup);
     let result = runner
         .run_query(&argv, workspace)
         .map_err(|error| ResolveError::QueryFailed {
@@ -148,7 +150,7 @@ mod tests {
                 },
                 seen: RefCell::new(Vec::new()),
             };
-            let owners = run_label_query("owners", &workspace, &runner).expect("query");
+            let owners = run_label_query("owners", &workspace, &runner, &[]).expect("query");
             assert_eq!(owners, vec!["//pkg:a", "//pkg:b", "//pkg:c"]);
             assert_eq!(runner.seen.borrow().len(), 1);
             argvs.push(runner.seen.borrow()[0].clone());
@@ -166,7 +168,7 @@ mod tests {
         let query = FakeQuery::new(vec![FakeQuery::failed(
             "\n  no such package 'pkg': BUILD file not found  \nmore context\n",
         )]);
-        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("failed");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("failed");
         assert_eq!(
             err,
             ResolveError::QueryFailed {
@@ -179,7 +181,7 @@ mod tests {
             stdout: vec![0xff, 0xfe],
             stderr: Vec::new(),
         }]);
-        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("non-utf8");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("non-utf8");
         assert_eq!(
             err,
             ResolveError::QueryFailed {

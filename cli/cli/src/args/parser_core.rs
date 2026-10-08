@@ -699,3 +699,83 @@ fn audit_update_parse_and_reject_unsupported_options() {
         })
     );
 }
+
+#[test]
+fn bazel_startup_option_parses_repeatable_equals_tokens() {
+    let got = parse(&strings(&[
+        "build",
+        "--bazel-startup-option=--output_base=/tmp/dx-base",
+        "--bazel-startup-option=--output_user_root=/tmp/dx-root",
+        "//...",
+    ]))
+    .expect("parse");
+    assert_eq!(
+        got.bazel_startup_options,
+        strings(&[
+            "--output_base=/tmp/dx-base",
+            "--output_user_root=/tmp/dx-root"
+        ])
+    );
+    let spaced = parse(&strings(&[
+        "lint",
+        "--bazel-startup-option=--output_base=/tmp/dx base/ünï",
+    ]))
+    .expect("spaces stay one token");
+    assert_eq!(
+        spaced.bazel_startup_options,
+        strings(&["--output_base=/tmp/dx base/ünï"])
+    );
+    let bare = parse(&strings(&["lint"])).expect("parse");
+    assert!(bare.bazel_startup_options.is_empty());
+}
+
+#[test]
+fn bazel_startup_option_rejects_malformed_and_foreign_tokens() {
+    for words in [
+        vec!["build", "--bazel-startup-option=--jobs=4"],
+        vec!["build", "--bazel-startup-option=--output_base"],
+        vec!["build", "--bazel-startup-option=--output_base="],
+        vec!["build", "--bazel-startup-option=--bazelrc=/tmp/rc"],
+        vec!["build", "--bazel-startup-option=--home_rc"],
+        vec!["build", "--bazel-startup-option"],
+        vec!["build", "--bazel-startup-option", "--output_base=/tmp/x"],
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["bazel-startup-option"],
+        );
+    }
+}
+
+#[test]
+fn bazel_startup_option_rejects_a_repeated_setting() {
+    let error = parse(&strings(&[
+        "test",
+        "--bazel-startup-option=--output_base=/tmp/a",
+        "--bazel-startup-option=--output_base=/tmp/b",
+    ]))
+    .unwrap_err();
+    assert_eq!(
+        error,
+        ArgsError::ConflictingStartupOptions {
+            first: "--output_base=/tmp/a".to_owned(),
+            second: "--output_base=/tmp/b".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn bazel_passthrough_still_forwards_startup_spellings_verbatim() {
+    let got = parse(&strings(&[
+        "bazel",
+        "--bazel-startup-option=--output_base=/tmp/x",
+        "build",
+    ]))
+    .expect("dx bazel forwards every later word");
+    assert_eq!(
+        got.bazel_options,
+        strings(&["--bazel-startup-option=--output_base=/tmp/x", "build"])
+    );
+    assert!(got.bazel_startup_options.is_empty());
+}

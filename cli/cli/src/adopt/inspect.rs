@@ -77,7 +77,16 @@ pub(crate) fn execute_inspect(
                 Err(error) => return pre_exec(err, &error.to_string()),
             };
             if let Err(exit) =
-                run_inspect_query_json(kind, scope, &plan, workspace, query_runner, out, err)
+                run_inspect_query_json(
+                    kind,
+                    scope,
+                    &plan,
+                    workspace,
+                    query_runner,
+                    &invocation.bazel_startup_options,
+                    out,
+                    err,
+                )
             {
                 if exit == operational_code() {
                     failed = true;
@@ -120,10 +129,14 @@ fn run_inspect_query_json(
     plan: &dx_adopt::InspectPlan,
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
+    startup: &[String],
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<(), i32> {
-    let argv = vec!["bazel".to_owned(), plan.verb.clone(), plan.expr.clone()];
+    let mut argv = vec!["bazel".to_owned()];
+    argv.extend(startup.iter().cloned());
+    argv.push(plan.verb.clone());
+    argv.push(plan.expr.clone());
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -177,7 +190,10 @@ fn run_inspect_query(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let argv = vec!["bazel".to_owned(), verb.to_owned(), expr.to_owned()];
+    let mut argv = vec!["bazel".to_owned()];
+    argv.extend(invocation.bazel_startup_options.iter().cloned());
+    argv.push(verb.to_owned());
+    argv.push(expr.to_owned());
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -258,11 +274,10 @@ fn execute_why(
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let owner_argv = vec![
-        "bazel".to_owned(),
-        owner_plan.verb.clone(),
-        owner_plan.expr.clone(),
-    ];
+    let mut owner_argv = vec!["bazel".to_owned()];
+    owner_argv.extend(invocation.bazel_startup_options.iter().cloned());
+    owner_argv.push(owner_plan.verb.clone());
+    owner_argv.push(owner_plan.expr.clone());
     let owner = match query_runner.run_query(&owner_argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -342,11 +357,10 @@ fn execute_why_json(
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let owner_argv = vec![
-        "bazel".to_owned(),
-        owner_plan.verb.clone(),
-        owner_plan.expr.clone(),
-    ];
+    let mut owner_argv = vec!["bazel".to_owned()];
+    owner_argv.extend(invocation.bazel_startup_options.iter().cloned());
+    owner_argv.push(owner_plan.verb.clone());
+    owner_argv.push(owner_plan.expr.clone());
     let owner = match query_runner.run_query(&owner_argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -435,7 +449,10 @@ fn execute_why_json(
             return operational_code();
         }
     };
-    let argv = vec!["bazel".to_owned(), leg.verb.clone(), leg.expr.clone()];
+    let mut argv = vec!["bazel".to_owned()];
+    argv.extend(invocation.bazel_startup_options.iter().cloned());
+    argv.push(leg.verb.clone());
+    argv.push(leg.expr.clone());
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {

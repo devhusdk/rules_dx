@@ -201,6 +201,24 @@ pub fn freeze_workspace(defaults: &super::FileDefaults, workspace: &str) -> supe
     frozen
 }
 
+/// Names the first repeated Bazel startup setting, if one is set twice.
+fn duplicate_startup_option(options: &[String]) -> Option<(String, String)> {
+    let mut seen: Vec<&str> = Vec::with_capacity(options.len());
+    for option in options {
+        let name = option.split('=').next().unwrap_or(option);
+        if seen.contains(&name) {
+            let first = options
+                .iter()
+                .find(|other| other.split('=').next().unwrap_or(other) == name)
+                .cloned()
+                .unwrap_or_default();
+            return Some((first, option.clone()));
+        }
+        seen.push(name);
+    }
+    None
+}
+
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -239,6 +257,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        bazel_startup_options,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
     let bazel_options = tokenized.bazel_options;
@@ -272,6 +291,9 @@ pub fn parse_with<S: AsRef<OsStr>>(
             first: "--dry-run",
             second: "--apply",
         });
+    }
+    if let Some((first, second)) = duplicate_startup_option(&bazel_startup_options) {
+        return Err(ArgsError::ConflictingStartupOptions { first, second });
     }
     let quiet = invocation_defaults::resolve_bool(
         quiet,
@@ -528,6 +550,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        bazel_startup_options,
     })
 }
 

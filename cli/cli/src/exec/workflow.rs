@@ -42,10 +42,18 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         .iter()
         .any(|report| report.destination == Destination::Stdout);
     let resolved = match invocation.command {
-        Command::Build => resolve(&invocation.targets, workspace, query_runner),
-        Command::Test | Command::Coverage => {
-            resolve_for_test(&invocation.targets, workspace, query_runner)
-        }
+        Command::Build => resolve(
+            &invocation.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ),
+        Command::Test | Command::Coverage => resolve_for_test(
+            &invocation.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ),
         _ => {
             return pre_exec(
                 err,
@@ -90,7 +98,14 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         Some(invocation.profile())
     };
-    let plan = match plan_workflow(verb, &resolved, &invocation.bazel_options, bep_arg, profile) {
+    let plan = match plan_workflow(
+        verb,
+        &resolved,
+        &invocation.bazel_options,
+        bep_arg,
+        profile,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
@@ -189,6 +204,32 @@ mod tests {
                 run.argv
             );
         }
+    }
+
+    #[test]
+    fn startup_options_ride_before_the_bazel_verb() {
+        let harness = Harness::new("build-startup");
+        let inv = invocation(&[
+            "build",
+            "//a:one",
+            "--bazel-startup-option=--output_base=/tmp/dx-base",
+            "--bazel-startup-option=--output_user_root=/tmp/dx-root",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert_eq!(
+            run.argv[0][..6],
+            [
+                "bazel".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
+                "--output_base=/tmp/dx-base".to_owned(),
+                "--output_user_root=/tmp/dx-root".to_owned(),
+                "build".to_owned(),
+            ]
+        );
+        assert_eq!(run.argv[0].last(), Some(&"//a:one".to_owned()));
     }
 
     #[test]

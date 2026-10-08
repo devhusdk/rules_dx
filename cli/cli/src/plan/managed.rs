@@ -20,6 +20,7 @@ pub fn plan_managed(
     scope: &dx_setup::SetupScope,
     bazel_options: &[String],
     bep_path: &str,
+    startup: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let unsupported = || ForwardError::UnsupportedCommand {
         command: command.name().to_owned(),
@@ -47,7 +48,7 @@ pub fn plan_managed(
         Command::Setup => dx_setup::plan_request(scope).roots,
         _ => return Err(unsupported()),
     };
-    let argv = managed_argv(command, &roots, bazel_options, bep_path)?;
+    let argv = managed_argv(command, &roots, bazel_options, bep_path, startup)?;
     let display = match scope {
         dx_setup::SetupScope::Repository => "//...",
         dx_setup::SetupScope::Exact(label) => label,
@@ -61,8 +62,9 @@ pub fn plan_managed_with_roots(
     roots: &[String],
     bazel_options: &[String],
     bep_path: &str,
+    startup: &[String],
 ) -> Result<BuildPlan, ForwardError> {
-    let argv = managed_argv(command, roots, bazel_options, bep_path)?;
+    let argv = managed_argv(command, roots, bazel_options, bep_path, startup)?;
     let summary = format!("Running {} for {}", command.name(), roots.join(" "));
     Ok(BuildPlan { argv, summary })
 }
@@ -72,6 +74,7 @@ fn managed_argv(
     roots: &[String],
     bazel_options: &[String],
     bep_path: &str,
+    startup: &[String],
 ) -> Result<Vec<String>, ForwardError> {
     let unsupported = || ForwardError::UnsupportedCommand {
         command: command.name().to_owned(),
@@ -125,7 +128,7 @@ fn managed_argv(
             allowed: Vec::new(),
         },
     ];
-    build_workflow_argv("build", bazel_options, &required, &protected, roots)
+    build_workflow_argv("build", bazel_options, &required, &protected, roots, startup)
 }
 
 #[cfg(test)]
@@ -142,7 +145,7 @@ mod tests {
             &SetupScope::Repository,
             &strings(&["--jobs=4"]),
             "/tmp/bep.json",
-        )
+        &[], )
         .expect("plan");
         assert_eq!(
             plan.argv,
@@ -159,7 +162,7 @@ mod tests {
             ])
         );
         assert_eq!(plan.summary, "Running codegen for //...");
-        let plan = plan_managed(Command::Env, &SetupScope::Repository, &[], "/tmp/bep.json")
+        let plan = plan_managed(Command::Env, &SetupScope::Repository, &[], "/tmp/bep.json", &[])
             .expect("plan");
         assert!(plan
             .argv
@@ -176,7 +179,7 @@ mod tests {
             &SetupScope::Repository,
             &[],
             "/tmp/bep.json",
-        )
+        &[], )
         .expect("plan");
         assert_eq!(
             plan.argv
@@ -205,7 +208,7 @@ mod tests {
 
         for command in [Command::Codegen, Command::Env, Command::Setup] {
             let scope = SetupScope::Exact("//a:one".to_owned());
-            let plan = plan_managed(command, &scope, &[], "/tmp/bep.json").expect("plan");
+            let plan = plan_managed(command, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
             assert_eq!(plan.argv.last(), Some(&"//a:one".to_owned()), "{command:?}");
             assert_eq!(
                 plan.summary,
@@ -221,7 +224,7 @@ mod tests {
             "//generation:result_proto",
         ]);
         let plan =
-            plan_managed_with_roots(Command::Codegen, &roots, &[], "/tmp/bep.json").expect("plan");
+            plan_managed_with_roots(Command::Codegen, &roots, &[], "/tmp/bep.json", &[]).expect("plan");
         assert_eq!(
             plan.argv.last(),
             Some(&"//generation:result_proto".to_owned())
@@ -234,7 +237,7 @@ mod tests {
             "Running codegen for //generation:codegen_prost_fixture //generation:result_proto"
         );
         let plan =
-            plan_managed_with_roots(Command::Setup, &roots, &[], "/tmp/bep.json").expect("plan");
+            plan_managed_with_roots(Command::Setup, &roots, &[], "/tmp/bep.json", &[]).expect("plan");
         assert_eq!(
             plan.argv
                 .iter()
@@ -248,7 +251,7 @@ mod tests {
             "Running setup for //generation:codegen_prost_fixture //generation:result_proto"
         );
         for command in [Command::Build, Command::Lint] {
-            let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json")
+            let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json", &[])
                 .expect_err("unmanaged must fail");
             assert!(
                 matches!(err, ForwardError::UnsupportedCommand { .. }),
@@ -271,7 +274,7 @@ mod tests {
                 &SetupScope::Repository,
                 &strings(&[conflicting]),
                 "/tmp/bep.json",
-            )
+            &[], )
             .expect_err("conflict must fail");
             assert!(
                 matches!(err, ForwardError::ConflictingOption { .. }),
@@ -283,7 +286,7 @@ mod tests {
             &SetupScope::Repository,
             &strings(&["--home_rc"]),
             "/tmp/bep.json",
-        )
+        &[], )
         .expect_err("startup option must fail");
         assert!(matches!(err, ForwardError::StartupOption { .. }));
     }
@@ -293,7 +296,7 @@ mod tests {
         use dx_setup::SetupScope;
 
         for command in [Command::Build, Command::Lint, Command::Run] {
-            let err = plan_managed(command, &SetupScope::Repository, &[], "/tmp/bep.json")
+            let err = plan_managed(command, &SetupScope::Repository, &[], "/tmp/bep.json", &[])
                 .expect_err("unmanaged command must fail");
             assert!(
                 matches!(err, ForwardError::UnsupportedCommand { .. }),

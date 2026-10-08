@@ -81,7 +81,7 @@ mod tests {
     }
 
     impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
+        fn run_raw_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
             let _ = (argv, cwd);
             Ok(self.outputs.borrow_mut().remove(0))
         }
@@ -125,7 +125,7 @@ mod tests {
             seen: RefCell<Vec<Vec<String>>>,
         }
         impl QueryRunner for Capturing {
-            fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
+            fn run_raw_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
                 self.seen.borrow_mut().push(argv.to_vec());
                 let _ = cwd;
                 Ok(QueryResult {

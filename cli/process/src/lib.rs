@@ -207,6 +207,18 @@ pub fn launcher_argv0() -> &'static str {
 
 pub const WORKFLOW_STARTUP_OPTS: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
+/// One Bazel argv with the selected startup options after the launcher token.
+pub fn insert_startup_options(argv: &[String], startup: &[String]) -> Vec<String> {
+    if startup.is_empty() || argv.is_empty() {
+        return argv.to_vec();
+    }
+    let mut out = Vec::with_capacity(argv.len() + startup.len());
+    out.push(argv[0].clone());
+    out.extend(startup.iter().cloned());
+    out.extend_from_slice(&argv[1..]);
+    out
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Repository,

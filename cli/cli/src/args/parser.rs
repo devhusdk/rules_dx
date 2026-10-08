@@ -239,6 +239,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        bazel_startup_options,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
     let bazel_options = tokenized.bazel_options;
@@ -515,6 +516,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         min_coverage,
         targets,
         bazel_options,
+        bazel_startup_options,
         bazel_clean,
         prune_unobserved,
         pin,

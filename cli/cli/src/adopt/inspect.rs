@@ -518,7 +518,7 @@ mod tests {
     }
 
     impl QueryRunner for FailingLeg {
-        fn run_query(&self, _: &[String], _: &std::path::Path) -> io::Result<QueryResult> {
+        fn run_raw_query(&self, _: &[String], _: &std::path::Path) -> io::Result<QueryResult> {
             let call = self.calls.get();
             self.calls.set(call + 1);
             if call == self.leg {
@@ -724,7 +724,7 @@ mod tests {
     }
 
     impl QueryRunner for ScriptedQuery {
-        fn run_query(&self, argv: &[String], _cwd: &std::path::Path) -> io::Result<QueryResult> {
+        fn run_raw_query(&self, argv: &[String], _cwd: &std::path::Path) -> io::Result<QueryResult> {
             let mut calls = self.calls.borrow_mut();
             let stdout = self.outputs.get(calls.len()).cloned().unwrap_or_default();
             calls.push(argv.to_vec());
@@ -887,7 +887,7 @@ mod tests {
     fn inspect_query_failure_json_emits_bazel_failed() {
         struct FailingQuery;
         impl QueryRunner for FailingQuery {
-            fn run_query(
+            fn run_raw_query(
                 &self,
                 _argv: &[String],
                 _cwd: &std::path::Path,

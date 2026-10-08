@@ -69,7 +69,7 @@ impl ScriptQuery {
 }
 
 impl QueryRunner for ScriptQuery {
-    fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+    fn run_raw_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
         self.calls.borrow_mut().push(argv.to_vec());
         Ok(self.outputs.borrow_mut().remove(0))
     }

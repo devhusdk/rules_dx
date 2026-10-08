@@ -116,7 +116,7 @@ mod tests {
     }
 
     impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
+        fn run_raw_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
             self.calls
                 .borrow_mut()
                 .push((argv.to_vec(), cwd.to_path_buf()));

@@ -299,7 +299,11 @@ pub(crate) fn run_bazel(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
-    let status = match runner.run(argv, workspace, env) {
+    let status = match runner.run(
+        &dx_process::insert_startup_options(argv, &invocation.bazel_startup_options),
+        workspace,
+        env,
+    ) {
         Ok(status) => status,
         Err(error) => {
             return Err(operational(

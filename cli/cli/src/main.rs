@@ -344,7 +344,7 @@ fn run() -> i32 {
             .iter()
             .any(|report| report.destination == "-");
     let runner = BinaryRunner { inherit_stdout };
-    let query_runner = ProcessQueryRunner;
+    let query_runner = ProcessQueryRunner::new(invocation.bazel_startup_options.clone());
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();

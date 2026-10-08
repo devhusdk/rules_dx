@@ -764,7 +764,7 @@ mod tests {
     fn hook_process_launch_failures_stop_before_recording_timings() {
         struct MissingProcess;
         impl QueryRunner for MissingProcess {
-            fn run_query(&self, _: &[String], _: &Path) -> io::Result<QueryResult> {
+            fn run_raw_query(&self, _: &[String], _: &Path) -> io::Result<QueryResult> {
                 Err(io::Error::other("missing executable"))
             }
         }
@@ -932,7 +932,7 @@ mod tests {
     }
 
     impl QueryRunner for ScriptQuery {
-        fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        fn run_raw_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
             self.seen.borrow_mut().push(argv.to_vec());
             Ok(self.outputs.borrow_mut().remove(0))
         }
@@ -1453,7 +1453,7 @@ mod tests {
     }
 
     impl QueryRunner for RealGit {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        fn run_raw_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
             if argv
                 .first()
                 .is_some_and(|bin| bin == &self.git.to_string_lossy())

@@ -100,7 +100,7 @@ mod tests {
     struct FailIo;
 
     impl QueryRunner for FailIo {
-        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        fn run_raw_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
             Err(io::Error::other("boom"))
         }
     }

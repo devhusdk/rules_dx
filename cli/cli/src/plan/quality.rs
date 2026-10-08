@@ -288,7 +288,7 @@ mod tests {
     }
 
     impl QueryRunner for FakeQuery {
-        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        fn run_raw_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
             Ok(self.outputs.borrow_mut().remove(0))
         }
     }

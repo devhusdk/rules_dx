@@ -35,6 +35,20 @@ fn percent(raw: &str) -> Result<u32, String> {
     }
 }
 
+/// One Bazel startup option token, given whole.
+fn bazel_startup_token(raw: &str) -> Result<String, String> {
+    let value = raw
+        .strip_prefix("--output_base=")
+        .or_else(|| raw.strip_prefix("--output_user_root="));
+    match value {
+        Some(value) if !value.is_empty() => Ok(raw.to_owned()),
+        Some(_) => Err("want a value".to_owned()),
+        None => Err(format!(
+            "want --output_base=<path> or --output_user_root=<path>, got {raw:?}"
+        )),
+    }
+}
+
 /// The usage line clap renders for one command.
 fn usage_of(index: usize) -> String {
     let usage = COMMANDS[index].usage;
@@ -76,6 +90,7 @@ pub(crate) struct Flags {
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) bazel_startup_options: Vec<String>,
 }
 
 /// One flag group: a clap argument group that writes into the normalized invocation flags.
@@ -214,6 +229,21 @@ composite_group! {
         color: ColorFlag,
         log_level: LogLevelFlag,
         output: OutputFlag,
+        bazel_startup_option: BazelStartupOptionFlag,
+    }
+}
+
+flag_group! {
+    /// Pass one Bazel startup option through, repeated per token.
+    BazelStartupOptionFlag, {
+        #[arg(
+            long = "bazel-startup-option",
+            value_name = "TOKEN",
+            require_equals = true,
+            allow_negative_numbers = true,
+            value_parser = bazel_startup_token
+        )]
+        bazel_startup_options: Vec<String>,
     }
 }
 

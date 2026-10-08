@@ -11,7 +11,19 @@ pub struct QueryResult {
 }
 
 pub trait QueryRunner {
-    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult>;
+    /// The Bazel startup options placed before the query verb.
+    fn startup_options(&self) -> &[String] {
+        &[]
+    }
+
+    /// Runs one query with the startup options in front of the verb.
+    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        let argv = dx_process::insert_startup_options(argv, self.startup_options());
+        self.run_raw_query(&argv, cwd)
+    }
+
+    /// Runs one query argv exactly as given.
+    fn run_raw_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult>;
 
     /// Runs one capturing `bazel info` for output roots.
     fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
@@ -20,10 +32,23 @@ pub trait QueryRunner {
 }
 
 // LCOV_EXCL_START - reason: prod spawn, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-pub struct ProcessQueryRunner;
+pub struct ProcessQueryRunner {
+    startup: Vec<String>,
+}
+
+impl ProcessQueryRunner {
+    /// Carries the startup options every query this runner spawns takes.
+    pub fn new(startup: Vec<String>) -> Self {
+        ProcessQueryRunner { startup }
+    }
+}
 
 impl QueryRunner for ProcessQueryRunner {
-    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+    fn startup_options(&self) -> &[String] {
+        &self.startup
+    }
+
+    fn run_raw_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         let output = dx_process::spawn_output(argv, cwd, &[], false).map_err(|error| {
             if error.kind() == io::ErrorKind::InvalidInput {
                 io::Error::new(io::ErrorKind::InvalidInput, "query needs a binary")
@@ -46,7 +71,7 @@ pub struct NeverQuery;
 
 #[cfg(test)]
 impl QueryRunner for NeverQuery {
-    fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+    fn run_raw_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
         panic!("resolve tests must not run queries");
     }
 }

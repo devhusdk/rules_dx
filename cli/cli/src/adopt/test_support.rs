@@ -11,7 +11,7 @@ pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, json_ev
 pub(crate) struct NullQuery;
 
 impl QueryRunner for NullQuery {
-    fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+    fn run_raw_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
         Ok(QueryResult {
             code: Some(0),
             stdout: b"//a:one\n".to_vec(),
@@ -180,7 +180,7 @@ mod tests {
     struct FixedQuery(&'static str);
 
     impl QueryRunner for FixedQuery {
-        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        fn run_raw_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
             Ok(QueryResult {
                 code: Some(0),
                 stdout: self.0.as_bytes().to_vec(),

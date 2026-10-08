@@ -19,7 +19,7 @@ pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
     for outcome in &report.outcomes {
         if matches!(
             outcome.status,
-            ReportedStatus::Failed | ReportedStatus::Blocked
+            ReportedStatus::Failed | ReportedStatus::Unsupported | ReportedStatus::Blocked
         ) {
             sets.insert(outcome.set.clone());
         }
@@ -30,7 +30,7 @@ pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
 pub fn restore_paths(report: &UpdateReport) -> Vec<String> {
     let mut paths = BTreeSet::new();
     for outcome in &report.outcomes {
-        if outcome.status != ReportedStatus::Success {
+        if outcome.status != ReportedStatus::Updated {
             continue;
         }
         if let Some(set) = SetId::parse(outcome.set.as_str()) {
@@ -94,12 +94,22 @@ pub fn plan(report: &UpdateReport) -> Option<RecoveryPlan> {
     let succeeded = report
         .outcomes
         .iter()
-        .filter(|outcome| outcome.status == ReportedStatus::Success)
+        .filter(|outcome| {
+            matches!(
+                outcome.status,
+                ReportedStatus::Updated | ReportedStatus::Current | ReportedStatus::Pinned
+            )
+        })
         .count();
     let failed = report
         .outcomes
         .iter()
-        .filter(|outcome| outcome.status == ReportedStatus::Failed)
+        .filter(|outcome| {
+            matches!(
+                outcome.status,
+                ReportedStatus::Unsupported | ReportedStatus::Failed
+            )
+        })
         .count();
     let retry_command = retry_command(&retry);
     let restore_command = restore_command(&restore);
@@ -133,7 +143,7 @@ mod tests {
             outcomes: vec![
                 ReportedOutcome {
                     set: "cargo".to_owned(),
-                    status: ReportedStatus::Success,
+                    status: ReportedStatus::Updated,
                 },
                 ReportedOutcome {
                     set: "maven".to_owned(),
@@ -141,7 +151,7 @@ mod tests {
                 },
                 ReportedOutcome {
                     set: "npm".to_owned(),
-                    status: ReportedStatus::Success,
+                    status: ReportedStatus::Updated,
                 },
             ],
             overall_failure: true,
@@ -153,7 +163,7 @@ mod tests {
         let clean = UpdateReport {
             outcomes: vec![ReportedOutcome {
                 set: "cargo".to_owned(),
-                status: ReportedStatus::Success,
+                status: ReportedStatus::Updated,
             }],
             overall_failure: false,
         };
@@ -190,7 +200,7 @@ mod tests {
                 },
                 ReportedOutcome {
                     set: "cargo".to_owned(),
-                    status: ReportedStatus::Success,
+                    status: ReportedStatus::Updated,
                 },
             ],
             overall_failure: true,
@@ -210,5 +220,33 @@ mod tests {
     fn retry_command_is_idempotent_shape() {
         assert_eq!(retry_command(&[]), "dx update");
         assert_eq!(retry_command(&["go".to_owned()]), "dx update go".to_owned());
+    }
+
+    #[test]
+    fn unsupported_sets_retry_but_pinned_and_current_never_restore() {
+        let report = UpdateReport {
+            outcomes: vec![
+                ReportedOutcome {
+                    set: "cargo".to_owned(),
+                    status: ReportedStatus::Unsupported,
+                },
+                ReportedOutcome {
+                    set: "go".to_owned(),
+                    status: ReportedStatus::Pinned,
+                },
+                ReportedOutcome {
+                    set: "uv".to_owned(),
+                    status: ReportedStatus::Current,
+                },
+            ],
+            overall_failure: true,
+        };
+        let plan = plan(&report).expect("unsupported plans recovery");
+        assert_eq!(plan.retry_sets, vec!["cargo".to_owned()]);
+        assert_eq!(plan.retry_command, "dx update cargo");
+        assert!(plan.restore_paths.is_empty());
+        assert!(plan.restore_command.is_none());
+        assert!(plan.message.contains("; nothing to roll back"));
+        assert!(plan.message.contains("2 succeeded, 1 failed"));
     }
 }

@@ -2,7 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SetStatus {
-    Success,
+    Updated,
+    Current,
+    Pinned,
+    Unsupported,
     Failed,
 }
 
@@ -14,7 +17,10 @@ pub struct SetOutcome {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReportedStatus {
-    Success,
+    Updated,
+    Current,
+    Pinned,
+    Unsupported,
     Failed,
     Blocked,
 }
@@ -35,7 +41,12 @@ impl UpdateReport {
     pub fn successes(&self) -> Vec<String> {
         self.outcomes
             .iter()
-            .filter(|outcome| outcome.status == ReportedStatus::Success)
+            .filter(|outcome| {
+                matches!(
+                    outcome.status,
+                    ReportedStatus::Updated | ReportedStatus::Current | ReportedStatus::Pinned
+                )
+            })
             .map(|outcome| outcome.set.clone())
             .collect()
     }
@@ -43,7 +54,12 @@ impl UpdateReport {
     pub fn failures(&self) -> Vec<String> {
         self.outcomes
             .iter()
-            .filter(|outcome| outcome.status == ReportedStatus::Failed)
+            .filter(|outcome| {
+                matches!(
+                    outcome.status,
+                    ReportedStatus::Unsupported | ReportedStatus::Failed
+                )
+            })
             .map(|outcome| outcome.set.clone())
             .collect()
     }
@@ -78,7 +94,10 @@ pub fn aggregate(
             continue;
         }
         let status = match result.status {
-            SetStatus::Success => ReportedStatus::Success,
+            SetStatus::Updated => ReportedStatus::Updated,
+            SetStatus::Current => ReportedStatus::Current,
+            SetStatus::Pinned => ReportedStatus::Pinned,
+            SetStatus::Unsupported => ReportedStatus::Unsupported,
             SetStatus::Failed => ReportedStatus::Failed,
         };
         reported.insert(result.set.clone(), status);
@@ -86,7 +105,10 @@ pub fn aggregate(
     let failed: BTreeSet<String> = reported
         .iter()
         .filter_map(|(set, status)| {
-            if *status == ReportedStatus::Failed {
+            if matches!(
+                *status,
+                ReportedStatus::Unsupported | ReportedStatus::Failed
+            ) {
                 Some(set.clone())
             } else {
                 None
@@ -106,7 +128,7 @@ pub fn aggregate(
     }
     let overall_failure = reported
         .values()
-        .any(|status| *status == ReportedStatus::Failed);
+        .any(|status| matches!(status, ReportedStatus::Unsupported | ReportedStatus::Failed));
     let mut outcomes: Vec<ReportedOutcome> = reported
         .into_iter()
         .map(|(set, status)| ReportedOutcome { set, status })
@@ -170,7 +192,7 @@ mod tests {
         let report = aggregate(
             &sets(&["cargo-lock", "npm-root"]),
             &outcomes(&[
-                ("cargo-lock", SetStatus::Success),
+                ("cargo-lock", SetStatus::Updated),
                 ("npm-root", SetStatus::Failed),
             ]),
             &empty_deps(),
@@ -187,8 +209,8 @@ mod tests {
         let report = aggregate(
             &sets(&["cargo-lock", "npm-root"]),
             &outcomes(&[
-                ("cargo-lock", SetStatus::Success),
-                ("npm-root", SetStatus::Success),
+                ("cargo-lock", SetStatus::Updated),
+                ("npm-root", SetStatus::Updated),
             ]),
             &empty_deps(),
         )
@@ -237,7 +259,7 @@ mod tests {
             &sets(&["base-set", "app-set", "other-set"]),
             &outcomes(&[
                 ("base-set", SetStatus::Failed),
-                ("other-set", SetStatus::Success),
+                ("other-set", SetStatus::Updated),
             ]),
             &deps,
         )
@@ -245,6 +267,36 @@ mod tests {
         assert!(report.overall_failure);
         assert_eq!(report.successes(), vec!["other-set".to_owned()]);
         assert_eq!(report.blocked(), vec!["app-set".to_owned()]);
+    }
+
+    #[test]
+    fn pinned_and_current_sets_pass_without_claiming_an_update() {
+        let report = aggregate(
+            &sets(&["go", "uv"]),
+            &outcomes(&[("go", SetStatus::Pinned), ("uv", SetStatus::Current)]),
+            &empty_deps(),
+        )
+        .expect("pinned and current aggregate");
+        assert!(!report.overall_failure);
+        assert_eq!(report.successes(), vec!["go".to_owned(), "uv".to_owned()]);
+        assert!(report.failures().is_empty());
+    }
+
+    #[test]
+    fn unsupported_sets_fail_overall_without_blocking() {
+        let report = aggregate(
+            &sets(&["cargo", "npm"]),
+            &outcomes(&[
+                ("cargo", SetStatus::Unsupported),
+                ("npm", SetStatus::Updated),
+            ]),
+            &empty_deps(),
+        )
+        .expect("unsupported aggregates");
+        assert!(report.overall_failure);
+        assert_eq!(report.failures(), vec!["cargo".to_owned()]);
+        assert_eq!(report.successes(), vec!["npm".to_owned()]);
+        assert!(report.blocked().is_empty());
     }
 
     #[test]
@@ -264,7 +316,7 @@ mod tests {
         let report = aggregate(
             &sets(&["cargo-lock"]),
             &outcomes(&[
-                ("cargo-lock", SetStatus::Success),
+                ("cargo-lock", SetStatus::Updated),
                 ("elsewhere", SetStatus::Failed),
             ]),
             &empty_deps(),
@@ -278,7 +330,7 @@ mod tests {
     fn report_order_is_sorted_and_deterministic() {
         let report = aggregate(
             &sets(&["b-set", "a-set"]),
-            &outcomes(&[("b-set", SetStatus::Success), ("a-set", SetStatus::Success)]),
+            &outcomes(&[("b-set", SetStatus::Updated), ("a-set", SetStatus::Updated)]),
             &empty_deps(),
         )
         .expect("complete results aggregate");
@@ -295,9 +347,9 @@ mod tests {
         let report = aggregate(
             &sets(&["c-set", "a-set", "b-set"]),
             &outcomes(&[
-                ("c-set", SetStatus::Success),
-                ("a-set", SetStatus::Success),
-                ("b-set", SetStatus::Success),
+                ("c-set", SetStatus::Updated),
+                ("a-set", SetStatus::Updated),
+                ("b-set", SetStatus::Updated),
             ]),
             &empty_deps(),
         )

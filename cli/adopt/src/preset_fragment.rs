@@ -45,14 +45,14 @@ pub fn check_preset(workspace: &Path) -> Result<(), PresetError> {
     }
     let checked_in = std::fs::read_to_string(&fragment_path).map_err(|error| {
         stale_error(format!(
-            "tools/bazelrc/preset.bazelrc is stale (missing); run `dx update` to regenerate ({error})"
+            "tools/bazelrc/preset.bazelrc is stale (missing); run `bazel run //tools/bazelrc:preset_update` to regenerate ({error})"
         ))
     })?;
     if checked_in == rendered {
         Ok(())
     } else {
         Err(stale_error(format!(
-            "tools/bazelrc/preset.bazelrc is stale; run `dx update` to regenerate\n{}",
+            "tools/bazelrc/preset.bazelrc is stale; run `bazel run //tools/bazelrc:preset_update` to regenerate\n{}",
             dx_preset::unified_diff(&checked_in, &rendered)
         )))
     }

@@ -25,12 +25,14 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
             "--report=junit=report.xml",
             "--bazel",
             "--check",
+            "--apply",
         ] {
             let supported = match option {
                 "--pin=1.0.0" => command == "version",
                 "--fail-on=error" => command == "security" || command == "license",
                 "--report=junit=report.xml" => command == "security" || command == "license",
                 "--check" => matches!(command, "generate" | "update" | "docs" | "version"),
+                "--apply" => command == "update",
                 _ => false,
             };
             if supported {

@@ -60,6 +60,7 @@ pub(crate) struct Flags {
     pub(crate) fail_on: Option<String>,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) check: bool,
+    pub(crate) apply: bool,
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) bazel_clean: bool,
@@ -251,6 +252,14 @@ flag_group! {
     CheckFlag, {
         #[arg(long, overrides_with = "check")]
         check: bool,
+    }
+}
+
+flag_group! {
+    /// Perform the update instead of only checking it.
+    ApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
     }
 }
 
@@ -626,6 +635,7 @@ command_args! {
     Update => 14, NoPassthroughTail, {
         offline: OfflineFlag,
         check: CheckFlag,
+        apply: ApplyFlag,
     };
     /// The flags `dx bump` accepts.
     Bump => 15, NoPassthroughTail, { own: OfflineFlag, };

@@ -212,6 +212,173 @@ fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CheckPlan {
+    Run {
+        argv: Vec<String>,
+        env: Vec<(String, String)>,
+    },
+    Unavailable { reason: String },
+}
+
+pub fn check(
+    workspace: &Path,
+    set: SetId,
+    request: &SetRequest,
+    offline: bool,
+) -> Result<CheckPlan, BackendError> {
+    let _ = workspace;
+    if offline {
+        match (set, request) {
+            (SetId::Go, SetRequest::Full) => {}
+            (SetId::Cargo, SetRequest::Packages(_))
+            | (SetId::Maven, SetRequest::Packages(_))
+            | (SetId::NuGet, SetRequest::Packages(_))
+            | (SetId::Go, SetRequest::Packages(_))
+            | (SetId::NpmTools, SetRequest::Packages(_))
+            | (SetId::Uv, SetRequest::Packages(_))
+            | (SetId::UvTools, SetRequest::Packages(_))
+            | (SetId::NpmAdopt, SetRequest::Packages(_))
+            | (SetId::NpmAdoptPolyglot, SetRequest::Packages(_))
+            | (SetId::UvAdopt, SetRequest::Packages(_))
+            | (SetId::UvAdoptPolyglot, SetRequest::Packages(_)) => {}
+            _ => {
+                let would_run = matches!(
+                    (set, request),
+                    (SetId::Cargo, SetRequest::Full)
+                        | (SetId::Npm, _)
+                        | (SetId::Maven, SetRequest::Full)
+                        | (SetId::NuGet, SetRequest::Full)
+                        | (SetId::NpmTools, SetRequest::Full)
+                        | (SetId::Uv, SetRequest::Full)
+                        | (SetId::UvTools, SetRequest::Full)
+                        | (SetId::NpmAdopt, SetRequest::Full)
+                        | (SetId::NpmAdoptPolyglot, SetRequest::Full)
+                        | (SetId::UvAdopt, SetRequest::Full)
+                        | (SetId::UvAdoptPolyglot, SetRequest::Full)
+                );
+                if would_run {
+                    return Err(BackendError::OfflineRequired { set: set.name() });
+                }
+            }
+        }
+    }
+    match (set, request) {
+        (SetId::Uv, SetRequest::Full) => Ok(CheckPlan::Run {
+            argv: strings(&[
+                "uv",
+                "lock",
+                "--check",
+                "--directory",
+                "python/tests/fixtures/hello",
+            ]),
+            env: vec![],
+        }),
+        (SetId::UvTools, SetRequest::Full) => Ok(CheckPlan::Run {
+            argv: strings(&[
+                "uv",
+                "lock",
+                "--check",
+                "--directory",
+                "quality/tools/python",
+            ]),
+            env: vec![],
+        }),
+        (SetId::UvAdopt, SetRequest::Full) => Ok(CheckPlan::Run {
+            argv: strings(&[
+                "uv",
+                "lock",
+                "--check",
+                "--directory",
+                "examples/adopt-python",
+            ]),
+            env: vec![],
+        }),
+        (SetId::UvAdoptPolyglot, SetRequest::Full) => Ok(CheckPlan::Run {
+            argv: strings(&[
+                "uv",
+                "lock",
+                "--check",
+                "--directory",
+                "examples/adopt-polyglot",
+            ]),
+            env: vec![],
+        }),
+        (SetId::Uv, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv` for the set",
+        }),
+        (SetId::UvTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv-tools` for the set",
+        }),
+        (SetId::UvAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv-adopt` for the set",
+        }),
+        (SetId::UvAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "uv repin refreshes the whole uv lock; use `dx update uv-adopt-polyglot` for the set",
+        }),
+        (SetId::Cargo, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason: "crate_universe repin refreshes the whole Cargo lock; use `dx update cargo` for the set",
+        }),
+        (SetId::NpmTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "npm-tools pins are exact in quality/tools/javascript; use `dx update npm-tools` for the set",
+        }),
+        (SetId::NpmAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "npm-adopt pins are exact in examples/adopt-js-ts; use `dx update npm-adopt` for the set",
+        }),
+        (SetId::NpmAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "npm-adopt-polyglot pins are exact in examples/adopt-polyglot; use `dx update npm-adopt-polyglot` for the set",
+        }),
+        (SetId::Maven, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "maven pins are exact in MODULE.bazel; use `dx update maven` for the set",
+        }),
+        (SetId::NuGet, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason:
+                "nuget pins are exact in paket.dependencies; use `dx update nuget` for the set",
+        }),
+        (SetId::Go, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump gomod:<module> <version>`",
+        }),
+        (SetId::Ruby, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason: "ruby pins are exact in third_party/ruby/Gemfile; widen the requirement there and regenerate the lock with `bundle lock`",
+        }),
+        (SetId::PowerShell, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name(),
+            reason: "powershell pins are exact in third_party/powershell/PSGallery.requirements.psd1; widen the requirement there and hand-regenerate PSGallery.lock.json, because consumer builds never run Install-Module",
+        }),
+        _ => Ok(CheckPlan::Unavailable {
+            reason: unavailable_reason(set),
+        }),
+    }
+}
+
+fn unavailable_reason(set: SetId) -> String {
+    let locks = set.locks().join(", ");
+    format!(
+        "no lock-freshness check is implemented for {name}; freshness of {locks} is unverified (run `dx update --apply {name}` to refresh)",
+        name = set.name(),
+    )
+}
+
 fn pnpm_argv(dir: &Path, command: &[&str]) -> Vec<String> {
     [
         strings(&["bazel", "run", "@pnpm//:pnpm", "--", "--dir"]),
@@ -628,6 +795,161 @@ mod tests {
                         "{set:?} argv must not name a dx lockfile: {arg}"
                     );
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn uv_full_checks_verify_the_lock_without_writing() {
+        for (set, dir) in [
+            (SetId::Uv, "python/tests/fixtures/hello"),
+            (SetId::UvTools, "quality/tools/python"),
+            (SetId::UvAdopt, "examples/adopt-python"),
+            (SetId::UvAdoptPolyglot, "examples/adopt-polyglot"),
+        ] {
+            let checked = check(ws(), set, &SetRequest::Full, false).expect(set.name());
+            assert_eq!(
+                checked,
+                CheckPlan::Run {
+                    argv: vec![
+                        "uv".to_owned(),
+                        "lock".to_owned(),
+                        "--check".to_owned(),
+                        "--directory".to_owned(),
+                        dir.to_owned(),
+                    ],
+                    env: vec![],
+                },
+                "{set:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn check_plans_match_update_plans_set_for_set() {
+        for set in [
+            SetId::Uv,
+            SetId::UvTools,
+            SetId::UvAdopt,
+            SetId::UvAdoptPolyglot,
+        ] {
+            let update_argv = match plan(ws(), set, &SetRequest::Full, false).expect(set.name()) {
+                BackendPlan::Run { argv, .. } => argv,
+                BackendPlan::Noop => panic!("{set:?} updates through a resolver"),
+            };
+            let check_argv = match check(ws(), set, &SetRequest::Full, false).expect(set.name()) {
+                CheckPlan::Run { argv, .. } => argv,
+                CheckPlan::Unavailable { .. } => panic!("{set:?} checks through a resolver"),
+            };
+            let at = update_argv
+                .iter()
+                .position(|arg| arg == "--directory")
+                .expect("update names --directory");
+            let check_at = check_argv
+                .iter()
+                .position(|arg| arg == "--directory")
+                .expect("check names --directory");
+            assert_eq!(update_argv[at + 1], check_argv[check_at + 1], "{set:?}");
+            assert!(
+                check_argv.contains(&"--check".to_owned()),
+                "{set:?} check must not write"
+            );
+        }
+    }
+
+    #[test]
+    fn unimplemented_checks_are_unavailable_never_current() {
+        for set in [
+            SetId::Cargo,
+            SetId::Go,
+            SetId::Maven,
+            SetId::Npm,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+            SetId::NpmTools,
+            SetId::NuGet,
+            SetId::PowerShell,
+            SetId::Ruby,
+        ] {
+            let planned = check(ws(), set, &SetRequest::Full, false).expect(set.name());
+            match planned {
+                CheckPlan::Unavailable { reason } => {
+                    assert!(reason.contains(set.name()), "{set:?}: {reason}");
+                    assert!(reason.contains("dx update --apply"), "{set:?}: {reason}");
+                    for lock in set.locks() {
+                        assert!(reason.contains(lock), "{set:?}: {reason}");
+                    }
+                }
+                CheckPlan::Run { .. } => panic!("{set:?} has no qualified check yet"),
+            }
+        }
+    }
+
+    #[test]
+    fn check_selective_stays_unsupported_never_full() {
+        for (set, packages) in [
+            (
+                SetId::Uv,
+                SetRequest::Packages(vec!["pytest".to_owned()]),
+            ),
+            (
+                SetId::Cargo,
+                SetRequest::Packages(vec!["anyhow".to_owned()]),
+            ),
+            (
+                SetId::Go,
+                SetRequest::Packages(vec!["example.com/mod".to_owned()]),
+            ),
+        ] {
+            let error = check(ws(), set, &packages, false).expect_err("unsupported");
+            assert!(
+                matches!(error, BackendError::Unsupported { .. }),
+                "{set:?}: {error:?}"
+            );
+            assert!(error.to_string().contains(set.name()), "{error}");
+        }
+    }
+
+    #[test]
+    fn check_offline_mirrors_update_offline() {
+        for set in [
+            SetId::Uv,
+            SetId::UvTools,
+            SetId::UvAdopt,
+            SetId::UvAdoptPolyglot,
+            SetId::Cargo,
+            SetId::Npm,
+            SetId::Maven,
+            SetId::NuGet,
+            SetId::NpmTools,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+        ] {
+            let error =
+                check(ws(), set, &SetRequest::Full, true).expect_err("offline needs network");
+            assert!(
+                matches!(error, BackendError::OfflineRequired { .. }),
+                "{set:?}: {error:?}"
+            );
+            assert!(error.to_string().contains("offline_required"), "{error}");
+        }
+        let selective = check(
+            ws(),
+            SetId::Npm,
+            &SetRequest::Packages(vec!["jest".to_owned()]),
+            true,
+        )
+        .expect_err("npm selective offline needs network");
+        assert!(
+            matches!(selective, BackendError::OfflineRequired { .. }),
+            "{selective:?}"
+        );
+        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+            match check(ws(), set, &SetRequest::Full, true).expect(set.name()) {
+                CheckPlan::Unavailable { reason } => {
+                    assert!(reason.contains(set.name()), "{set:?}: {reason}");
+                }
+                CheckPlan::Run { .. } => panic!("{set:?} has no qualified check yet"),
             }
         }
     }

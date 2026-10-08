@@ -2,8 +2,18 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SetStatus {
-    Success,
+    Updated,
+    Current,
+    ManualPinned,
+    Unsupported,
+    Unavailable,
     Failed,
+}
+
+impl SetStatus {
+    pub fn fails_run(&self) -> bool {
+        matches!(self, SetStatus::Unsupported | SetStatus::Failed)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -14,9 +24,22 @@ pub struct SetOutcome {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReportedStatus {
-    Success,
+    Updated,
+    Current,
+    ManualPinned,
+    Unsupported,
+    Unavailable,
     Failed,
     Blocked,
+}
+
+impl ReportedStatus {
+    pub fn fails_run(&self) -> bool {
+        matches!(
+            self,
+            ReportedStatus::Unsupported | ReportedStatus::Failed
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -35,7 +58,14 @@ impl UpdateReport {
     pub fn successes(&self) -> Vec<String> {
         self.outcomes
             .iter()
-            .filter(|outcome| outcome.status == ReportedStatus::Success)
+            .filter(|outcome| {
+                matches!(
+                    outcome.status,
+                    ReportedStatus::Updated
+                        | ReportedStatus::Current
+                        | ReportedStatus::ManualPinned
+                )
+            })
             .map(|outcome| outcome.set.clone())
             .collect()
     }
@@ -43,7 +73,7 @@ impl UpdateReport {
     pub fn failures(&self) -> Vec<String> {
         self.outcomes
             .iter()
-            .filter(|outcome| outcome.status == ReportedStatus::Failed)
+            .filter(|outcome| outcome.status.fails_run())
             .map(|outcome| outcome.set.clone())
             .collect()
     }
@@ -52,6 +82,14 @@ impl UpdateReport {
         self.outcomes
             .iter()
             .filter(|outcome| outcome.status == ReportedStatus::Blocked)
+            .map(|outcome| outcome.set.clone())
+            .collect()
+    }
+
+    pub fn unavailable(&self) -> Vec<String> {
+        self.outcomes
+            .iter()
+            .filter(|outcome| outcome.status == ReportedStatus::Unavailable)
             .map(|outcome| outcome.set.clone())
             .collect()
     }
@@ -78,7 +116,11 @@ pub fn aggregate(
             continue;
         }
         let status = match result.status {
-            SetStatus::Success => ReportedStatus::Success,
+            SetStatus::Updated => ReportedStatus::Updated,
+            SetStatus::Current => ReportedStatus::Current,
+            SetStatus::ManualPinned => ReportedStatus::ManualPinned,
+            SetStatus::Unsupported => ReportedStatus::Unsupported,
+            SetStatus::Unavailable => ReportedStatus::Unavailable,
             SetStatus::Failed => ReportedStatus::Failed,
         };
         reported.insert(result.set.clone(), status);
@@ -86,7 +128,7 @@ pub fn aggregate(
     let failed: BTreeSet<String> = reported
         .iter()
         .filter_map(|(set, status)| {
-            if *status == ReportedStatus::Failed {
+            if status.fails_run() {
                 Some(set.clone())
             } else {
                 None
@@ -104,9 +146,7 @@ pub fn aggregate(
             return Err(AggregateError::MissingResult { set: set.clone() });
         }
     }
-    let overall_failure = reported
-        .values()
-        .any(|status| *status == ReportedStatus::Failed);
+    let overall_failure = reported.values().any(|status| status.fails_run());
     let mut outcomes: Vec<ReportedOutcome> = reported
         .into_iter()
         .map(|(set, status)| ReportedOutcome { set, status })
@@ -170,7 +210,7 @@ mod tests {
         let report = aggregate(
             &sets(&["cargo-lock", "npm-root"]),
             &outcomes(&[
-                ("cargo-lock", SetStatus::Success),
+                ("cargo-lock", SetStatus::Updated),
                 ("npm-root", SetStatus::Failed),
             ]),
             &empty_deps(),
@@ -187,8 +227,8 @@ mod tests {
         let report = aggregate(
             &sets(&["cargo-lock", "npm-root"]),
             &outcomes(&[
-                ("cargo-lock", SetStatus::Success),
-                ("npm-root", SetStatus::Success),
+                ("cargo-lock", SetStatus::Updated),
+                ("npm-root", SetStatus::Current),
             ]),
             &empty_deps(),
         )
@@ -196,6 +236,58 @@ mod tests {
         assert!(!report.overall_failure);
         assert!(report.failures().is_empty());
         assert!(report.blocked().is_empty());
+    }
+
+    #[test]
+    fn current_and_pinned_count_as_success_without_resolver_freshness() {
+        let report = aggregate(
+            &sets(&["uv", "go"]),
+            &outcomes(&[
+                ("uv", SetStatus::Current),
+                ("go", SetStatus::ManualPinned),
+            ]),
+            &empty_deps(),
+        )
+        .expect("complete results aggregate");
+        assert!(!report.overall_failure);
+        assert_eq!(
+            report.successes(),
+            vec!["go".to_owned(), "uv".to_owned()]
+        );
+        assert!(report.failures().is_empty());
+    }
+
+    #[test]
+    fn unsupported_fails_the_run_like_a_failure() {
+        let report = aggregate(
+            &sets(&["cargo:anyhow", "npm"]),
+            &outcomes(&[
+                ("cargo:anyhow", SetStatus::Unsupported),
+                ("npm", SetStatus::Updated),
+            ]),
+            &empty_deps(),
+        )
+        .expect("complete results aggregate");
+        assert!(report.overall_failure);
+        assert_eq!(report.failures(), vec!["cargo:anyhow".to_owned()]);
+        assert_eq!(report.successes(), vec!["npm".to_owned()]);
+    }
+
+    #[test]
+    fn unavailable_does_not_fail_the_run() {
+        let report = aggregate(
+            &sets(&["cargo", "uv"]),
+            &outcomes(&[
+                ("cargo", SetStatus::Unavailable),
+                ("uv", SetStatus::Current),
+            ]),
+            &empty_deps(),
+        )
+        .expect("complete results aggregate");
+        assert!(!report.overall_failure);
+        assert!(report.failures().is_empty());
+        assert_eq!(report.unavailable(), vec!["cargo".to_owned()]);
+        assert_eq!(report.successes(), vec!["uv".to_owned()]);
     }
 
     #[test]
@@ -237,7 +329,7 @@ mod tests {
             &sets(&["base-set", "app-set", "other-set"]),
             &outcomes(&[
                 ("base-set", SetStatus::Failed),
-                ("other-set", SetStatus::Success),
+                ("other-set", SetStatus::Updated),
             ]),
             &deps,
         )
@@ -264,7 +356,7 @@ mod tests {
         let report = aggregate(
             &sets(&["cargo-lock"]),
             &outcomes(&[
-                ("cargo-lock", SetStatus::Success),
+                ("cargo-lock", SetStatus::Updated),
                 ("elsewhere", SetStatus::Failed),
             ]),
             &empty_deps(),
@@ -278,7 +370,7 @@ mod tests {
     fn report_order_is_sorted_and_deterministic() {
         let report = aggregate(
             &sets(&["b-set", "a-set"]),
-            &outcomes(&[("b-set", SetStatus::Success), ("a-set", SetStatus::Success)]),
+            &outcomes(&[("b-set", SetStatus::Updated), ("a-set", SetStatus::Updated)]),
             &empty_deps(),
         )
         .expect("complete results aggregate");
@@ -295,9 +387,9 @@ mod tests {
         let report = aggregate(
             &sets(&["c-set", "a-set", "b-set"]),
             &outcomes(&[
-                ("c-set", SetStatus::Success),
-                ("a-set", SetStatus::Success),
-                ("b-set", SetStatus::Success),
+                ("c-set", SetStatus::Updated),
+                ("a-set", SetStatus::Updated),
+                ("b-set", SetStatus::Updated),
             ]),
             &empty_deps(),
         )

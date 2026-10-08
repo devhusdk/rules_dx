@@ -112,6 +112,16 @@ aspect_field field_count=4
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:fixture_real_no_lint_subject
 aspect_field transitive_count=0
+subject //quality/testdata:fixture_real_python_foreign_hint_subject
+field dx_count=3
+field dx_results=fixture_real_python_foreign_hint-real-format.pb,fixture_real_python_foreign_hint-real-lint-py.pb,fixture_real_python_foreign_hint-real-lint.pb
+field has_quality_sources=True
+field label=//quality/testdata:fixture_real_python_foreign_hint
+aspect_field aspect_seen=True
+aspect_field field_count=4
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:fixture_real_python_foreign_hint_subject
+aspect_field transitive_count=0
 subject //quality/testdata:fixture_real_python_hinted_subject
 field dx_count=3
 field dx_results=fixture_real_python_hinted-real-format.pb,fixture_real_python_hinted-real-lint-py.pb,fixture_real_python_hinted-real-lint.pb

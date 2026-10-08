@@ -171,8 +171,6 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         for hint_target in ctx.rule.attr.aspect_hints:
             if DxNativeConfigInfo in hint_target:
                 hints.append(hint_target[DxNativeConfigInfo])
-            else:
-                fail(what + ": aspect_hints must provide DxNativeConfigInfo")
     stage_tools = [stage["tool"] for stage in resolved]
     configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label))
 

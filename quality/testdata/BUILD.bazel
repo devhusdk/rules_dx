@@ -6,6 +6,7 @@ load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":aspect_tests.bzl", "aspect_fixture_tests")
+load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes")
 load(":real_aspect_subject.bzl", "real_aspect_subject")
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
@@ -210,6 +211,90 @@ real_source_target(
     aspect_hints = [":ruff_cfg"],
     python_srcs = ["real_clean.py"],
     tags = ["no-typecheck"],
+)
+
+foreign_hint(
+    name = "foreign_hint",
+    marker = "upstream-integration",
+)
+
+real_source_target(
+    name = "fixture_real_python_foreign_hint",
+    aspect_hints = [
+        ":foreign_hint",
+        ":ruff_cfg",
+    ],
+    python_srcs = ["real_clean.py"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_foreign_hint_subject",
+    target = ":fixture_real_python_foreign_hint",
+)
+
+real_source_target(
+    name = "fixture_real_python_foreign_hint_dirty",
+    aspect_hints = [
+        ":foreign_hint",
+        ":ruff_cfg",
+    ],
+    python_srcs = ["real_dirty.py"],
+    tags = ["manual"],
+)
+
+ruff_config(
+    name = "ruff_cfg_alt",
+    src = "ruff.toml",
+)
+
+real_source_target(
+    name = "fixture_real_python_dup_config",
+    aspect_hints = [
+        ":ruff_cfg",
+        ":ruff_cfg_alt",
+    ],
+    python_srcs = ["real_clean.py"],
+    tags = ["manual"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_dup_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_python_dup_config",
+)
+
+failure_test(
+    name = "fixture_real_python_dup_config_test",
+    expected_failure_substring = "duplicate aspect_hints for tool 'ruff'",
+    target = ":fixture_real_python_dup_config_subject",
+)
+
+ruff_config(
+    name = "ruff_cfg_malformed",
+    src = "real_clean.py",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "fixture_real_python_malformed_config",
+    aspect_hints = [
+        ":foreign_hint",
+        ":ruff_cfg_malformed",
+    ],
+    python_srcs = ["real_clean.py"],
+    tags = ["manual"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_malformed_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_python_malformed_config",
+)
+
+failure_test(
+    name = "fixture_real_python_malformed_config_test",
+    expected_failure_substring = "must end in '.toml'",
+    target = ":fixture_real_python_malformed_config_subject",
 )
 
 real_aspect_subject(
@@ -502,6 +587,7 @@ real_aspect_fixture_tests(
         ":fixture_real_mixed_subject",
         ":fixture_real_no_format_subject",
         ":fixture_real_no_lint_subject",
+        ":fixture_real_python_foreign_hint_subject",
         ":fixture_real_python_hinted_subject",
         ":fixture_real_python_subject",
         ":fixture_real_rust_subject",

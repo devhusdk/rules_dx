@@ -380,7 +380,10 @@ mod tests {
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let stale_gen = digest('4');
         let stale_dir = workspace.join(".dx").join("generated").join(&stale_gen);
-        assert!(stale_dir.is_dir(), "the stale generation exists before pruning");
+        assert!(
+            stale_dir.is_dir(),
+            "the stale generation exists before pruning"
+        );
         let mut child = std::process::Command::new(std::env::current_exe().expect("test binary"))
             .arg("apply::tests::prune_cannot_remove_a_generation_leased_by_another_process")
             .arg("--exact")

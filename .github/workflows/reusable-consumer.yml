@@ -1970,6 +1970,12 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- build //... -- "$@"
+      - name: Prove dx run works noninteractively in CI
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- "$@"
+          bazel run "$@" @rules_dx//:dx -- run --apply @rules_dx//:dx -- --version
   coverage:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}

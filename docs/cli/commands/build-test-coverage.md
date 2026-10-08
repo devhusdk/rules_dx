@@ -46,7 +46,9 @@ Builds the runnable targets in scope without launching them. Pass
 `--apply` to launch the built targets in scope order. Explicit labels
 and patterns run sequentially. File and directory scopes must resolve
 to exactly one runnable target. Args after `--` go to the app, and only
-reach it on an `--apply` launch.
+reach it on an `--apply` launch. `dx run` works with `CI=true`. The
+default check validates without launching. Pass `--apply` to launch a
+noninteractive target in CI.
 
 Output: `--output text|json`. `dx run` has no report format.
 

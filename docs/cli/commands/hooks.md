@@ -11,13 +11,15 @@ bazel run @rules_dx//:dx -- hooks install
 dx init [module-name]
 ```
 
-Scaffolds `dx` into a foreign tree. Takes an optional module name. Never
-overwrites existing files.
+Scaffolds `dx` into a foreign tree. Takes an optional module name, which
+defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
+`[a-z0-9._-]` only. An invalid module name fails before any file is written.
+Never overwrites existing files.
 
 Output: `--output text`.
 
-Exit codes: `0` success, `2` usage errors including extra positionals, `1`
-scaffolding failed.
+Exit codes: `0` success, `2` usage errors including extra positionals or an
+invalid module name, `1` scaffolding failed.
 
 ## `dx hooks`
 

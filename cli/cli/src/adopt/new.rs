@@ -8,6 +8,22 @@ use dx_process::pre_exec_code;
 
 pub(crate) const CODE_NEW_FAILED: &str = "new_failed";
 
+fn invalid_name_code(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    error: &dx_adopt::AdoptError,
+) -> i32 {
+    match error {
+        dx_adopt::AdoptError::NewInvalidDestination { .. }
+        | dx_adopt::AdoptError::NewInvalidIdentity { .. } => {
+            let _ = writeln!(err, "dx: {error}");
+            pre_exec_code()
+        }
+        _ => operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string()),
+    }
+}
+
 pub(crate) fn execute_new(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -41,7 +57,7 @@ pub(crate) fn execute_new(
                     }
                 }
                 Err(error) => {
-                    return operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string());
+                    return invalid_name_code(invocation, out, err, &error);
                 }
             }
         }
@@ -63,7 +79,7 @@ pub(crate) fn execute_new(
             }
             0
         }
-        Err(error) => operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string()),
+        Err(error) => invalid_name_code(invocation, out, err, &error),
     }
 }
 
@@ -104,5 +120,61 @@ mod tests {
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, pre_exec_code());
         assert!(err.contains("unknown language"));
+    }
+
+    #[test]
+    fn new_rejects_escape_names_pre_exec_without_writing() {
+        for name in ["../evil", "/tmp/absolute", "with\nnewline", "a\\b"] {
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-escape-");
+            let root = scratch.path().to_path_buf();
+            std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
+            let inv = invocation(&["new", "rust", name]);
+            let (code, _out, err) = run(&inv, &root);
+            assert_eq!(code, pre_exec_code(), "{name:?}");
+            assert!(err.contains("invalid destination"), "{err}");
+            let mut entries: Vec<String> = Vec::new();
+            for entry in std::fs::read_dir(&root).expect("read") {
+                entries.push(
+                    entry
+                        .expect("entry")
+                        .file_name()
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+            }
+            assert_eq!(entries, vec!["sentinel".to_owned()], "{name:?}");
+        }
+    }
+
+    #[test]
+    fn new_rejects_unfoldable_identities_pre_exec_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-identity-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "rust", "+"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, pre_exec_code());
+        assert!(err.contains("invalid package identity"), "{err}");
+        assert!(!root.join("+").exists());
+    }
+
+    #[test]
+    fn new_dry_run_rejects_escape_names_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-dry-escape-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "rust", "../evil", "--dry-run"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, pre_exec_code());
+        assert!(err.contains("invalid destination"), "{err}");
+    }
+
+    #[test]
+    fn new_scaffolds_nested_destinations_with_folded_identities() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-nested-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "rust", "teams/My App"]);
+        let (code, _out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        let cargo = std::fs::read_to_string(root.join("teams/My App/Cargo.toml")).expect("cargo");
+        assert!(cargo.contains("name = \"my-app\""), "{cargo}");
     }
 }

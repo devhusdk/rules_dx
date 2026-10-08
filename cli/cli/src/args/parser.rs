@@ -78,8 +78,8 @@ pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
 }
 
 pub fn load_file_defaults(start: &std::path::Path) -> Result<super::FileDefaults, String> {
-    match dx_adopt::defaults::load_defaults(start) {
-        Ok((defaults, _)) => Ok(defaults),
+    match dx_adopt::defaults::load_defaults(start, false) {
+        Ok(loaded) => Ok(loaded.merged),
         Err(error) => Err(error.to_string()),
     }
 }
@@ -168,24 +168,29 @@ pub fn is_discovery_exempt(command: Command) -> bool {
 /// Loads defaults from the selected workspace: the flag, the environment, else
 /// the start directory. A config-directed workspace is reported for one more
 /// load instead of being followed here, so a redirect cycle cannot loop.
+///
+/// CI callers pass `ci = true` to read the committed `dx.toml` only: the
+/// local override, the legacy fallback, and preference environment defaults
+/// stay out of required runs.
 pub fn select_startup_defaults(
     start: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
+    ci: bool,
 ) -> Result<StartupDefaults, String> {
     let preliminary = flag_workspace.or(env_workspace);
     let dir = match &preliminary {
         Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
         None => start.to_path_buf(),
     };
-    match dx_adopt::defaults::load_defaults(&dir) {
-        Ok((defaults, _)) => {
+    match dx_adopt::defaults::load_defaults(&dir, ci) {
+        Ok(loaded) => {
             let file_workspace = match preliminary {
                 Some(_) => None,
-                None => defaults.workspace.clone(),
+                None => loaded.merged.workspace.clone(),
             };
             Ok(StartupDefaults {
-                defaults,
+                defaults: loaded.merged,
                 file_workspace,
             })
         }
@@ -660,11 +665,11 @@ mod startup_tests {
         let b = scratch_with_config("startup-select-b-", Some("[dx]\noutput = \"text\"\n"));
         let a_root = a.path().to_path_buf();
         let selected =
-            select_startup_defaults(&a_root, None, None).expect("loads the start directory");
+            select_startup_defaults(&a_root, None, None, false).expect("loads the start directory");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
         assert_eq!(selected.file_workspace, None);
         let selected =
-            select_startup_defaults(&a_root, Some(b.path().to_string_lossy().into_owned()), None)
+            select_startup_defaults(&a_root, Some(b.path().to_string_lossy().into_owned()), None, false)
                 .expect("loads the flag workspace");
         assert_eq!(
             selected.defaults.output,
@@ -673,11 +678,11 @@ mod startup_tests {
         );
         assert_eq!(selected.file_workspace, None);
         let selected =
-            select_startup_defaults(&a_root, None, Some(b.path().to_string_lossy().into_owned()))
+            select_startup_defaults(&a_root, None, Some(b.path().to_string_lossy().into_owned()), false)
                 .expect("loads the environment workspace");
         assert_eq!(selected.defaults.output, Some("text".to_owned()));
         let missing = a_root.join("no-such-dir");
-        let selected = select_startup_defaults(&missing, None, None).expect("walks up");
+        let selected = select_startup_defaults(&missing, None, None, false).expect("walks up");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
     }
 
@@ -693,14 +698,14 @@ mod startup_tests {
         );
         let a = scratch_with_config("startup-redirect-a-", Some(&config));
         let selected =
-            select_startup_defaults(a.path(), None, None).expect("loads the start directory");
+            select_startup_defaults(a.path(), None, None, false).expect("loads the start directory");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
         let target = selected
             .file_workspace
             .expect("the file directs a workspace");
         assert_eq!(target, b.path().to_string_lossy());
         let reloaded =
-            select_startup_defaults(b.path(), Some(target.clone()), None).expect("follows once");
+            select_startup_defaults(b.path(), Some(target.clone()), None, false).expect("follows once");
         assert_eq!(
             reloaded.file_workspace, None,
             "the second load follows nothing"
@@ -714,7 +719,39 @@ mod startup_tests {
     fn startup_malformed_config_fails_with_the_file_and_key() {
         let scratch = scratch_with_config("startup-malformed-", Some("not toml = ["));
         let error =
-            select_startup_defaults(scratch.path(), None, None).expect_err("malformed fails");
+            select_startup_defaults(scratch.path(), None, None, false).expect_err("malformed fails");
         assert!(error.contains("config.toml"), "{error}");
+    }
+
+    #[test]
+    fn startup_prefers_committed_over_legacy_and_reports_the_conflict() {
+        let scratch = dx_test_scratch::scratch("startup-new-wins-");
+        std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx dir");
+        std::fs::write(scratch.path().join(".dx/config.toml"), "[dx]\noutput = \"diff\"\n")
+            .expect("legacy");
+        std::fs::write(scratch.path().join("dx.toml"), "[dx]\noutput = \"json\"\n")
+            .expect("committed");
+        let error =
+            select_startup_defaults(scratch.path(), None, None, false).expect_err("conflict fails");
+        assert!(error.contains("dx.toml"), "{error}");
+        assert!(error.contains(".dx/config.toml"), "{error}");
+        assert!(error.contains("dx.local.toml"), "{error}");
+    }
+
+    #[test]
+    fn startup_ci_reads_committed_only() {
+        let scratch = dx_test_scratch::scratch("startup-ci-");
+        std::fs::write(scratch.path().join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+        std::fs::write(
+            scratch.path().join("dx.local.toml"),
+            "[dx]\noutput = \"diff\"\n",
+        )
+        .expect("local");
+        let selected =
+            select_startup_defaults(scratch.path(), None, None, false).expect("local wins");
+        assert_eq!(selected.defaults.output, Some("diff".to_owned()));
+        let selected =
+            select_startup_defaults(scratch.path(), None, None, true).expect("ci loads committed");
+        assert_eq!(selected.defaults.output, Some("json".to_owned()));
     }
 }

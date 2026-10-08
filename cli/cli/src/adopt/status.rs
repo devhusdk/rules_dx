@@ -45,7 +45,10 @@ pub(crate) fn execute_status(
             return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
     };
-    let checks = dx_adopt::default_status_checks(&pinned);
+    let mut checks = dx_adopt::default_status_checks(&pinned);
+    checks.push(dx_adopt::config_status_check(
+        &dx_adopt::defaults::discover(workspace),
+    ));
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -112,6 +115,29 @@ mod tests {
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(out.contains("pin: ok"));
+    }
+
+    #[test]
+    fn status_config_check_discloses_the_effective_origin() {
+        let inv = invocation(&["status"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-config-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("config: ok"), "{out}");
+        assert!(out.contains("built-in"), "{out}");
+        std::fs::write(root.join("dx.toml"), "[dx]\nquiet = true\n").expect("committed");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("config: ok"), "{out}");
+        assert!(out.contains("dx.toml"), "{out}");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\nquiet = false\n").expect("local");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("dx.local.toml"), "{out}");
+        assert!(out.contains("local wins"), "{out}");
     }
 
     #[test]

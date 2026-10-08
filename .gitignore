@@ -17,6 +17,10 @@ AGENTS.local.md
 # `dx codegen` and `dx upgrade` write it; whole-dir scope mirrors .bazelignore).
 .dx/
 
+# dx local preferences (per-person overlay for `dx.toml`; never commit).
+dx.local.toml
+**/dx.local.toml
+
 # Release outputs (never commit; rebuilt locally on demand)
 # No tags, GitHub releases, or registry submissions without explicit owner approval.
 /dist/

@@ -24,10 +24,12 @@ pub mod version;
 pub mod watch;
 
 pub use defaults::{
-    env_bool, env_string, find_config, is_truthy, load_defaults, parse_bool, parse_file_text,
-    resolve_bool, resolve_string, resolve_workspace, FileDefaults, BOOL_SPELLINGS, CONFIG_REL,
-    CONFIG_TOML_REL, DX_DRY_RUN_ENV, DX_FAIL_ON_ENV, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV,
-    DX_WORKSPACE_ENV, FALSEY,
+    discover, env_bool, env_string, find_config, find_named, is_preference_env, is_truthy,
+    load_defaults, merge_files, parse_bool, parse_file_text, resolve_bool, resolve_string,
+    resolve_workspace, ConfigLayer, Discovered, FileDefaults, FileOrigins, LoadedDefaults,
+    BOOL_SPELLINGS, COMMITTED_REL, CONFIG_REL, CONFIG_TOML_REL, DX_DRY_RUN_ENV, DX_FAIL_ON_ENV,
+    DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV, DX_WORKSPACE_ENV, FALSEY, LOCAL_REL,
+    PREFERENCE_ENVS,
 };
 pub use error::AdoptError;
 pub use hooks::{
@@ -62,7 +64,9 @@ pub use scaffold::{
     scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
     ENVRC_CONTENT,
 };
-pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
+pub use status::{
+    config_status_check, default_status_checks, render_status_json, render_status_text, StatusCheck,
+};
 pub use upgrade::{
     plan_upgrade, upgrade_recovery_message, upgrade_restore_command, upgrade_retry_command,
     UpgradePlan,

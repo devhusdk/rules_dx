@@ -11,8 +11,8 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, platform, tools, and pin drift. Takes no scopes and no
-per-command flags. There is no `dx doctor`. Use `dx status` instead.
+Reports toolchain, platform, tools, pin, and config drift. Takes no scopes
+and no per-command flags. There is no `dx doctor`. Use `dx status` instead.
 
 Output: `--output text|json`.
 
@@ -26,8 +26,10 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
 ```
 
-The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
-compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
+The five checks are `toolchain`, `platform`, `tools`, `pin`, and `config`.
+`pin` compares `.dx/version` with the `MODULE.bazel` pin. `config` names
+the effective defaults origin: `dx.toml`, `dx.local.toml`, a legacy file,
+or built-in defaults. `ok` passes. `error`
 fails, and the hint is the fix, for example `dx version --pin <version>`.
 
 `--output=json` streams `command_started`, one `status` event per check with

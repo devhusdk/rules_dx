@@ -65,10 +65,49 @@ pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
     ]
 }
 
+/// Where the invocation defaults came from: the committed file, the local
+/// override, a legacy fallback, or nothing but built-ins.
+pub fn config_status_check(found: &super::defaults::Discovered) -> StatusCheck {
+    let legacy_name = found.legacy.as_ref().and_then(|path| {
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .map(str::to_owned)
+    });
+    let (detail, hint) = match (&found.committed, &found.local, legacy_name) {
+        (Some(_), Some(_), _) => (
+            "dx.toml + dx.local.toml (local wins)".to_owned(),
+            "dx.toml sets defaults, dx.local.toml overrides locally".to_owned(),
+        ),
+        (Some(_), None, _) => (
+            "dx.toml".to_owned(),
+            "dx.local.toml overrides locally".to_owned(),
+        ),
+        (None, Some(_), _) => (
+            "dx.local.toml".to_owned(),
+            "commit shared defaults in dx.toml".to_owned(),
+        ),
+        (None, None, Some(name)) => (
+            format!("legacy {name} (move keys to dx.toml)"),
+            "move keys to dx.toml and delete the legacy file".to_owned(),
+        ),
+        (None, None, None) => (
+            "built-in defaults (no dx.toml)".to_owned(),
+            "commit shared defaults in dx.toml".to_owned(),
+        ),
+    };
+    StatusCheck {
+        name: "config".to_owned(),
+        status: "ok".to_owned(),
+        detail,
+        hint,
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::super::defaults::Discovered;
     use super::super::{default_status_checks, StatusCheck, MODULE_VERSION};
-    use super::{render_status_json, render_status_text};
+    use super::{config_status_check, render_status_json, render_status_text};
 
     #[test]
     fn status_renders_text_and_json() {
@@ -119,5 +158,38 @@ mod tests {
             serde_json::from_str(&serde_json::to_string(&parsed).expect("reserialize"))
                 .expect("reserialized JSON is valid");
         assert_eq!(parsed, reparsed);
+    }
+
+    #[test]
+    fn config_check_names_the_effective_origin() {
+        let empty = config_status_check(&Discovered::default());
+        assert_eq!(empty.name, "config");
+        assert_eq!(empty.status, "ok");
+        assert!(empty.detail.contains("built-in"), "{}", empty.detail);
+        let committed = config_status_check(&Discovered {
+            committed: Some(std::path::PathBuf::from("/repo/dx.toml")),
+            ..Discovered::default()
+        });
+        assert_eq!(committed.detail, "dx.toml");
+        let both = config_status_check(&Discovered {
+            committed: Some(std::path::PathBuf::from("/repo/dx.toml")),
+            local: Some(std::path::PathBuf::from("/repo/dx.local.toml")),
+            ..Discovered::default()
+        });
+        assert!(both.detail.contains("dx.toml"), "{}", both.detail);
+        assert!(both.detail.contains("dx.local.toml"), "{}", both.detail);
+        assert!(both.detail.contains("local wins"), "{}", both.detail);
+        let local_only = config_status_check(&Discovered {
+            local: Some(std::path::PathBuf::from("/repo/dx.local.toml")),
+            ..Discovered::default()
+        });
+        assert_eq!(local_only.detail, "dx.local.toml");
+        let legacy = config_status_check(&Discovered {
+            legacy: Some(std::path::PathBuf::from("/repo/.dx/config.toml")),
+            ..Discovered::default()
+        });
+        assert!(legacy.detail.contains("legacy"), "{}", legacy.detail);
+        assert!(legacy.detail.contains("dx.toml"), "{}", legacy.detail);
+        assert!(legacy.hint.contains("dx.toml"), "{}", legacy.hint);
     }
 }

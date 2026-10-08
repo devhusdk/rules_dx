@@ -129,8 +129,9 @@ is unset.
 
 ## Config File
 
-`.dx/config.toml` and `.dx/config` set the same defaults. A key is the flag
-name without `--`.
+`dx.toml` and `dx.local.toml` set the same defaults. A key is the flag
+name without `--`. Commit `dx.toml`; keep local-only values in
+`dx.local.toml`, which is gitignored. The local file wins per key.
 
 ```toml
 [dx]
@@ -147,16 +148,30 @@ fail-on = "error"
 `true` or `false`, not the `<bool>` spellings above. An empty value is unset.
 An unknown key is a usage error that names the key and the keys it accepts.
 
-Keys go under `[dx]` or at the top level, and `[dx]` wins. When a directory
-holds both `.dx/config.toml` and `.dx/config`, the `.toml` one wins. The
-nearest file to the working directory wins, and its values sit below the
-environment. The search reads the working directory and each directory above
-it, so a neighboring or nested workspace tree never supplies defaults. Under
-`bazel run` the search starts at the workspace root.
+Keys go under `[dx]` or at the top level, and `[dx]` wins. The nearest
+`dx.toml` to the working directory wins, and separately the nearest
+`dx.local.toml` wins. The search reads the working directory and each
+directory above it, so a neighboring or nested workspace tree never supplies
+defaults. Under `bazel run` the search starts at the workspace root.
 
-The command line wins over the environment, and the environment wins over
-the file. Defaults load from the selected workspace: `--workspace` or
-`DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
-`--version` print without reading a broken config. `dx new` and
-`dx completion` run outside a workspace.
+`.dx/config.toml` and `.dx/config` are the legacy fallback. They load only
+when neither `dx.toml` nor `dx.local.toml` exists. The nearest file to the
+working directory wins, and its values sit below the environment. When a
+directory holds both `.dx/config.toml` and `.dx/config`, the `.toml` one
+wins. A legacy file next to a new file is a usage error that names both
+files: move its keys into `dx.toml` (`dx.local.toml` for local-only values)
+and delete it. `dx` never migrates config on its own, and no default command
+writes a config file. Deleting `.dx` keeps committed and local defaults
+working.
+
+The command line wins over the environment, the environment wins over the
+local file, the local file wins over the committed file, and the committed
+file wins over built-in defaults. `dx status` reports the effective origin
+in its `config` check. Under CI (`CI=true`) the local file, the legacy
+fallback, and the preference environment variables are ignored, so required
+runs see committed defaults plus explicit flags. `DX_WORKSPACE` still
+selects the workspace under CI. Defaults load from the selected workspace:
+`--workspace` or `DX_WORKSPACE` selects it before the file is read. A
+`workspace` key in the file redirects once to that workspace. `-h`,
+`--help`, `help`, `-V`, and `--version` print without reading a broken
+config. `dx new` and `dx completion` run outside a workspace.

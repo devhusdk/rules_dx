@@ -169,8 +169,9 @@ fn run() -> i32 {
     let env_workspace = std::env::var(DX_WORKSPACE_ENV)
         .ok()
         .filter(|value| !value.is_empty());
+    let ci = dx_process::is_ci();
     let (mut file_defaults, file_redirect) =
-        match select_startup_defaults(&initial_start, flag_workspace, env_workspace) {
+        match select_startup_defaults(&initial_start, flag_workspace, env_workspace, ci) {
             Ok(selected) => (selected.defaults, selected.file_workspace),
             Err(detail) => {
                 if is_help_request(&args) {
@@ -182,7 +183,7 @@ fn run() -> i32 {
         };
     if let Some(target) = file_redirect {
         let dir = dx_process::resolve_override_display(Path::new(&target), &initial_start);
-        match select_startup_defaults(&dir, Some(target.clone()), None) {
+        match select_startup_defaults(&dir, Some(target.clone()), None, ci) {
             Ok(selected) => {
                 file_defaults = freeze_workspace(&selected.defaults, &target);
             }
@@ -193,7 +194,13 @@ fn run() -> i32 {
             }
         }
     };
-    let env_get = |name: &str| std::env::var(name).ok();
+    let env_get = |name: &str| {
+        if ci && dx_cli::args::is_preference_env(name) {
+            None
+        } else {
+            std::env::var(name).ok()
+        }
+    };
     let mut invocation = match parse_with(&args, &env_get, &file_defaults) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {

@@ -109,6 +109,7 @@ pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 
 pub use dx_adopt::defaults::FileDefaults;
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
+pub use dx_adopt::defaults::is_preference_env;
 
 /// Parse test words into one invocation, panicking on a failure.
 #[cfg(test)]

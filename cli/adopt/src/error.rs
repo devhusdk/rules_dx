@@ -74,6 +74,8 @@ pub enum AdoptError {
     RenderTimings { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
+    #[error("legacy defaults {legacy} conflict with {current}: move its keys into dx.toml (local-only values into dx.local.toml) and delete it; dx never migrates config automatically")]
+    LegacyShadowed { legacy: String, current: String },
     /// A boolean environment default is neither a documented on nor a documented off.
     #[error("invalid invocation default {name}={value:?}: want one of {spellings}")]
     InvalidEnvBool {
@@ -149,6 +151,19 @@ mod tests {
             .to_string(),
             "scaffold path escapes the workspace root: ../evil"
         );
+    }
+
+    #[test]
+    fn legacy_shadowed_names_both_files_and_the_migration() {
+        let error = AdoptError::LegacyShadowed {
+            legacy: "/repo/.dx/config.toml".to_owned(),
+            current: "/repo/dx.toml".to_owned(),
+        };
+        let rendered = error.to_string();
+        assert!(rendered.contains("/repo/.dx/config.toml"), "{rendered}");
+        assert!(rendered.contains("/repo/dx.toml"), "{rendered}");
+        assert!(rendered.contains("dx.local.toml"), "{rendered}");
+        assert!(rendered.contains("never migrates"), "{rendered}");
     }
 
     #[test]

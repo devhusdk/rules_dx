@@ -157,7 +157,9 @@ fn render_env_help() -> String {
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
     out.push_str(&format!(
-        "  {}\n  {}\n      Same defaults as the DX_ variables, below the environment.\n      An unknown key is a usage error.\n",
+        "  {}\n  {}\n      Same defaults as the DX_ variables: committed file below the\n      environment, local override below the committed file. An unknown\n      key is a usage error. Under CI the local file is ignored.\n  {}\n  {}\n      Legacy fallback, read only without dx.toml. A legacy file next to\n      a new file is a usage error; dx never migrates config on its own.\n",
+        dx_adopt::defaults::COMMITTED_REL,
+        dx_adopt::defaults::LOCAL_REL,
         dx_adopt::defaults::CONFIG_TOML_REL,
         dx_adopt::defaults::CONFIG_REL
     ));

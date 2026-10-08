@@ -13,6 +13,7 @@ dx_rust_crate(
     package_name = "cli/dx_update",
     srcs = [
         "src/backend.rs",
+        "src/config.rs",
         "src/lib.rs",
         "src/manifest.rs",
         "src/outcome.rs",
@@ -27,7 +28,9 @@ dx_rust_crate(
     ],
     deps = [
         "regex",
+        "serde",
         "thiserror",
+        "toml",
     ],
 )
 

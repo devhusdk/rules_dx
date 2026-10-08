@@ -9,6 +9,7 @@
 )]
 
 pub mod backend;
+pub mod config;
 pub mod manifest;
 pub mod outcome;
 pub mod recovery;

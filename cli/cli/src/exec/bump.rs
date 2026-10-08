@@ -505,7 +505,7 @@ fn bump_offline_failed(
             "failed to refresh {}: {} (widen kept in {manifest})",
             request.selector,
             dx_update::backend::BackendError::OfflineRequired {
-                set: request.set.name(),
+                set: request.set.name().to_owned(),
             }
         ),
     )

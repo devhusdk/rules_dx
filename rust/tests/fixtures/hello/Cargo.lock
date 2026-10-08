@@ -782,7 +782,9 @@ name = "dx_update"
 version = "0.0.0"
 dependencies = [
  "regex",
+ "serde",
  "thiserror",
+ "toml",
 ]
 
 [[package]]

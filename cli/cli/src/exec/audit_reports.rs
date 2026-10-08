@@ -378,6 +378,158 @@ fn lock_loading_requires_readable_inputs_and_deduplicates_npm_siblings() {
 }
 
 #[test]
+fn consumer_dependency_sets_select_update_and_audit_without_builtin_paths() {
+    use dx_update::selector::SetRequest;
+    let harness = Harness::new("audit-consumer-sets");
+    harness.write_source(
+        "dx.toml",
+        "schema_version = 1\n\
+         [[dependency_set]]\n\
+         name = \"web\"\n\
+         backend = \"npm\"\n\
+         manifests = [\"apps/web/package.json\"]\n\
+         locks = [\"apps/web/pnpm-lock.yaml\"]\n\
+         scopes = [\"apps/web\"]\n\
+         [[dependency_set]]\n\
+         name = \"api\"\n\
+         backend = \"npm\"\n\
+         manifests = [\"services/api/package.json\"]\n\
+         locks = [\"services/api/pnpm-lock.yaml\"]\n\
+         scopes = [\"services/api\"]\n",
+    );
+    harness.write_source("apps/web/package.json", "{}\n");
+    harness.write_source("apps/web/pnpm-lock.yaml", "packages:\n  demo@1.0.0: {}\n");
+    harness.write_source("services/api/package.json", "{}\n");
+    harness.write_source(
+        "services/api/pnpm-lock.yaml",
+        "packages:\n  demo@2.0.0: {}\n",
+    );
+    let before = workspace_snapshot(&harness.workspace);
+    let records =
+        dx_update::config::load_workspace_sets(&harness.workspace).expect("consumer sets load");
+    assert_eq!(records.len(), 2);
+    assert!(records
+        .iter()
+        .all(|record| record.backend == dx_update::config::BackendKind::Npm));
+    for record in &records {
+        for path in record.manifests.iter().chain(record.locks.iter()) {
+            assert!(
+                !path.starts_with("examples/"),
+                "{path} escapes the consumer"
+            );
+            assert!(
+                !path.starts_with("third_party/"),
+                "{path} escapes the consumer"
+            );
+        }
+    }
+    let select = |selectors: &[&str]| {
+        dx_update::config::resolve_named(
+            &records,
+            &selectors
+                .iter()
+                .map(|item| (*item).to_owned())
+                .collect::<Vec<_>>(),
+        )
+        .expect("consumer selection resolves")
+    };
+    assert_eq!(
+        select(&["web"]).get("web"),
+        Some(&SetRequest::Full),
+        "web selects alone"
+    );
+    assert!(!select(&["web"]).contains_key("api"));
+    assert_eq!(
+        select(&["//services/api:serve"]).get("api"),
+        Some(&SetRequest::Full),
+        "api scope selects alone"
+    );
+    assert!(!select(&["//services/api:serve"]).contains_key("web"));
+    assert_eq!(select(&["//..."]).len(), 2, "repo scope selects both");
+    for (name, dir, version) in [
+        ("web", "apps/web", "1.0.0"),
+        ("api", "services/api", "2.0.0"),
+    ] {
+        let record = records
+            .iter()
+            .find(|record| record.name == name)
+            .expect("record");
+        let plan =
+            dx_update::backend::plan_named(&harness.workspace, record, &SetRequest::Full, false)
+                .expect("consumer update plans");
+        match plan {
+            dx_update::backend::BackendPlan::Run { argv, .. } => {
+                assert!(argv.contains(&"--dir".to_owned()), "{name} names its dir");
+                assert!(argv.contains(&dir.to_owned()), "{name} plans {dir}");
+                assert!(
+                    argv.contains(&"--lockfile-only".to_owned()),
+                    "{name} stays lock-only"
+                );
+            }
+            dx_update::backend::BackendPlan::Noop => panic!("{name} runs pnpm"),
+        }
+        let check =
+            dx_update::backend::check_named(&harness.workspace, record, &SetRequest::Full, false)
+                .expect("consumer check plans");
+        assert_eq!(
+            check,
+            dx_update::backend::CheckPlan::Unavailable,
+            "{name} reports explicit check coverage"
+        );
+        let mut texts = Vec::new();
+        for rel in &record.locks {
+            let text = std::fs::read_to_string(harness.workspace.join(rel))
+                .unwrap_or_else(|_| panic!("{name} lock reads: {rel}"));
+            texts.push((rel.clone(), text));
+        }
+        assert_eq!(texts.len(), 1);
+        let packages = dx_audit::locks::parse_pnpm_lock(&texts[0].1).expect("parse lock");
+        assert_eq!(packages.len(), 1, "{name} audits one package");
+        assert_eq!(packages[0].name, "demo");
+        assert_eq!(packages[0].version, version);
+        assert_eq!(
+            dx_audit::advisory::advisory_family_for_backend(record.backend.name()),
+            Some("npm"),
+            "{name} shares the npm advisory family"
+        );
+    }
+    assert_eq!(
+        workspace_snapshot(&harness.workspace),
+        before,
+        "check plans mutate nothing"
+    );
+    std::fs::remove_file(harness.workspace.join("services/api/pnpm-lock.yaml"))
+        .expect("remove api lock");
+    assert!(
+        std::fs::read_to_string(harness.workspace.join("services/api/pnpm-lock.yaml")).is_err(),
+        "missing consumer lock fails explicitly instead of auditing empty"
+    );
+}
+
+fn workspace_snapshot(root: &std::path::Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+    let mut out = std::collections::BTreeMap::new();
+    let mut stack = vec![root.to_owned()];
+    while let Some(dir) = stack.pop() {
+        let entries = std::fs::read_dir(&dir).expect("read dir");
+        for entry in entries {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                let rel = path
+                    .strip_prefix(root)
+                    .expect("workspace-relative")
+                    .to_string_lossy()
+                    .into_owned();
+                out.insert(rel, std::fs::read(&path).expect("read file"));
+            }
+        }
+    }
+    out
+}
+
+#[test]
 fn audit_live_names_the_lockfile_each_finding_came_from() {
     use crate::args::parse;
     fn sarif_paths(

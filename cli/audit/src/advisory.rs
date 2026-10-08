@@ -42,6 +42,18 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
     }
 }
 
+pub fn advisory_family_for_backend(kind: &str) -> Option<&'static str> {
+    match kind {
+        "cargo" => Some("cargo"),
+        "npm" => Some("npm"),
+        "maven" => Some("maven"),
+        "nuget" | "powershell" => Some("nuget"),
+        "go" => Some("go"),
+        "ruby" => Some("rubygems"),
+        _ => None,
+    }
+}
+
 pub fn advisory_source(set: &str) -> Option<&'static str> {
     match family_of(set) {
         "cargo" => Some("https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"),
@@ -288,6 +300,29 @@ mod tests {
         assert_eq!(snapshot_rel("powershell"), ".dx/advisory/nuget.json");
         assert_eq!(advisory_family("uv"), None);
         assert_eq!(advisory_family("unknown-set"), None);
+    }
+
+    #[test]
+    fn backend_kinds_share_their_ecosystem_snapshot() {
+        for (kind, family) in [
+            ("cargo", "cargo"),
+            ("npm", "npm"),
+            ("maven", "maven"),
+            ("nuget", "nuget"),
+            ("powershell", "nuget"),
+            ("go", "go"),
+            ("ruby", "rubygems"),
+        ] {
+            assert_eq!(advisory_family_for_backend(kind), Some(family), "{kind}");
+            assert_eq!(
+                advisory_family_for_backend(kind),
+                advisory_family(kind),
+                "{kind} agrees with the set table"
+            );
+        }
+        assert_eq!(advisory_family_for_backend("uv"), None);
+        assert_eq!(advisory_family_for_backend("pip"), None);
+        assert_eq!(advisory_family_for_backend(""), None);
     }
 
     #[test]

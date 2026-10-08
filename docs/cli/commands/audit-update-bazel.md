@@ -254,3 +254,42 @@ Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 bazel run @rules_dx//:dx -- bump cargo:anyhow 1.0.100
 bazel run @rules_dx//:dx -- bump go:github.com/google/go-cmp 0.7.0
 ```
+
+## Dependency sets (`dx.toml`)
+
+A workspace declares its own dependency sets in `dx.toml` at the workspace
+root. Without the file, the built-in sets above apply. With it, only the
+declared sets exist: no built-in set appears.
+
+```toml
+schema_version = 1
+
+[[dependency_set]]
+name = "web"
+backend = "npm"
+manifests = ["apps/web/package.json"]
+locks = ["apps/web/pnpm-lock.yaml"]
+scopes = ["apps/web"]
+
+[[dependency_set]]
+name = "api"
+backend = "npm"
+manifests = ["services/api/package.json"]
+locks = ["services/api/pnpm-lock.yaml"]
+scopes = ["services/api"]
+```
+
+Each record carries a stable `name`, one `backend`
+(`cargo`, `go`, `maven`, `npm`, `nuget`, `powershell`, `ruby`, `uv`),
+workspace-relative `manifests` and `locks`, owning `scopes`, and backend
+`options`. Two records may share one backend: names stay independent.
+Overlapping `scopes` select every matching set. Selection is explicit names
+or scopes: `dx update web`, `dx update api:react`, `dx update //apps/web/...`.
+`dx audit` reads each record's `locks` and shares the record backend's
+advisory family.
+
+`npm` options are `mode` (`update` or `install`, default `update`) and
+`runner` (`bazel` or `host`, default `host`). Only `npm` records update
+today; every other backend resolves and reports unsupported. Unknown
+backends, unknown keys, duplicate names, absolute or escaping paths, and one
+manifest or lock owned by two sets fail before anything runs.

@@ -1,5 +1,5 @@
 {
-  "checksum": "8e8cc1ab26da43b54eebfe03394b17326a6a7b7bd81fafec33b2c8b23cfc3146",
+  "checksum": "af38e4defef5f7bb9ba9c3ebf82a7a58c8b0ffe6e0ae9afd11552e631769c838",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3553,8 +3553,16 @@
             "target": "regex"
           },
           {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          },
+          {
+            "id": "toml 1.1.6+spec-1.1.0",
+            "target": "toml"
           }
         ],
         "edition": "2021"

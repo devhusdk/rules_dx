@@ -82,31 +82,15 @@ fn is_target_shape(text: &str) -> bool {
         || text == "..."
 }
 
-const UV_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
-const RUBY_CHARSET: &str = "ruby gem names use [A-Za-z0-9_.-] only";
-const POWERSHELL_CHARSET: &str = "powershell module names use [A-Za-z0-9_.-] only";
-
 fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
     let invalid = |reason: &'static str| SelectorError::InvalidPackage {
         set: set.name(),
         package: package.to_owned(),
         reason,
     };
-    let reason = match set {
-        SetId::Cargo => dx_identity::validate_cargo(package),
-        SetId::Npm | SetId::NpmTools | SetId::NpmAdopt | SetId::NpmAdoptPolyglot => {
-            dx_identity::validate_npm(package)
-        }
-        SetId::Maven => dx_identity::validate_maven(package),
-        SetId::NuGet => dx_identity::validate_nuget(package),
-        SetId::Go => dx_identity::validate_go(package),
-        SetId::Uv | SetId::UvTools | SetId::UvAdopt | SetId::UvAdoptPolyglot => {
-            dx_identity::validate_dotted(package, UV_CHARSET)
-        }
-        SetId::Ruby => dx_identity::validate_dotted(package, RUBY_CHARSET),
-        SetId::PowerShell => dx_identity::validate_dotted(package, POWERSHELL_CHARSET),
-    };
-    reason.map_err(invalid)
+    super::config::backend_kind(set)
+        .validate_package(package)
+        .map_err(invalid)
 }
 
 const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
@@ -196,7 +180,7 @@ pub fn owning_sets(target: &str) -> Vec<SetId> {
         .collect()
 }
 
-fn is_recursive(target: &str) -> bool {
+pub(crate) fn is_recursive(target: &str) -> bool {
     if let Some(re) = recursive_suffix_re() {
         return re.is_match(target);
     }
@@ -229,7 +213,7 @@ fn strip_recursive_suffix(text: &str) -> Option<String> {
     text.strip_suffix("/...").map(str::to_owned)
 }
 
-fn package_path(target: &str) -> String {
+pub(crate) fn package_path(target: &str) -> String {
     if let Some(rest) = target.strip_prefix("//") {
         if let Some(colon) = rest.find(':') {
             return rest[..colon].to_owned();
@@ -315,7 +299,7 @@ fn root_owning_sets(target: &str) -> Vec<SetId> {
     vec![]
 }
 
-fn has_prefix(package: &str, prefix: &str) -> bool {
+pub(crate) fn has_prefix(package: &str, prefix: &str) -> bool {
     match package.strip_prefix(prefix) {
         Some("") => true,
         Some(rest) => rest.starts_with('/'),

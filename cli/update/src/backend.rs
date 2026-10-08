@@ -1,3 +1,4 @@
+use super::config::{record_dir, BackendKind, DependencySet};
 use super::selector::SetRequest;
 use super::sets::SetId;
 use std::path::Path;
@@ -14,12 +15,9 @@ pub enum BackendPlan {
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum BackendError {
     #[error("unsupported selective update for {set}: {reason}")]
-    Unsupported {
-        set: &'static str,
-        reason: &'static str,
-    },
+    Unsupported { set: String, reason: String },
     #[error("offline_required: cannot update {set} without network (re-run without --offline once connected)")]
-    OfflineRequired { set: &'static str },
+    OfflineRequired { set: String },
 }
 
 pub fn plan(
@@ -58,7 +56,9 @@ pub fn plan(
                         | (SetId::UvAdoptPolyglot, SetRequest::Full)
                 );
                 if would_run {
-                    return Err(BackendError::OfflineRequired { set: set.name() });
+                    return Err(BackendError::OfflineRequired {
+                        set: set.name().to_owned(),
+                    });
                 }
             }
         }
@@ -69,108 +69,66 @@ pub fn plan(
             env: vec![("CARGO_BAZEL_REPIN".to_owned(), "1".to_owned())],
         }),
         (SetId::Cargo, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
-            reason: "crate_universe repin refreshes the whole Cargo lock; use `dx update cargo` for the set",
+            set: set.name().to_owned(),
+            reason: "crate_universe repin refreshes the whole Cargo lock; use `dx update cargo` for the set".to_owned(),
         }),
-        (SetId::Npm, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: pnpm_argv(workspace, &["update", "--lockfile-only"]),
-            env: vec![],
-        }),
-        (SetId::Npm, SetRequest::Packages(packages)) => Ok(BackendPlan::Run {
-            argv: [
-                pnpm_argv(workspace, &["update"]),
-                packages.clone(),
-                strings(&["--lockfile-only"]),
-            ]
-            .concat(),
-            env: vec![],
-        }),
-        (SetId::NpmTools, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: pnpm_argv(
-                &workspace.join("quality/tools/javascript"),
-                &["install", "--lockfile-only"],
-            ),
-            env: vec![],
-        }),
-        (SetId::NpmTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
-            reason:
-                "npm-tools pins are exact in quality/tools/javascript; use `dx update npm-tools` for the set",
-        }),
+        (set @ (SetId::Npm | SetId::NpmTools | SetId::NpmAdopt | SetId::NpmAdoptPolyglot), request) => {
+            let name = set.name().to_owned();
+            match super::config::builtin_sets()
+                .into_iter()
+                .find(|record| record.name == name)
+            {
+                Some(record) => plan_named(workspace, &record, request, offline),
+                None => Err(BackendError::Unsupported {
+                    set: name,
+                    reason: "builtin npm record is missing".to_owned(),
+                }),
+            }
+        }
         (SetId::Uv, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "python/tests/fixtures/hello"]),
             env: vec![],
         }),
         (SetId::Uv, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
+            set: set.name().to_owned(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update uv` for the set".to_owned(),
         }),
         (SetId::UvTools, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "quality/tools/python"]),
             env: vec![],
         }),
         (SetId::UvTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
+            set: set.name().to_owned(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv-tools` for the set",
-        }),
-        (SetId::NpmAdopt, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: strings(&[
-                "pnpm",
-                "--dir",
-                "examples/adopt-js-ts",
-                "install",
-                "--lockfile-only",
-            ]),
-            env: vec![],
-        }),
-        (SetId::NpmAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
-            reason:
-                "npm-adopt pins are exact in examples/adopt-js-ts; use `dx update npm-adopt` for the set",
-        }),
-        (SetId::NpmAdoptPolyglot, SetRequest::Full) => Ok(BackendPlan::Run {
-            argv: strings(&[
-                "pnpm",
-                "--dir",
-                "examples/adopt-polyglot",
-                "install",
-                "--lockfile-only",
-            ]),
-            env: vec![],
-        }),
-        (SetId::NpmAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
-            reason:
-                "npm-adopt-polyglot pins are exact in examples/adopt-polyglot; use `dx update npm-adopt-polyglot` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update uv-tools` for the set".to_owned(),
         }),
         (SetId::UvAdopt, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "examples/adopt-python"]),
             env: vec![],
         }),
         (SetId::UvAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
+            set: set.name().to_owned(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv-adopt` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update uv-adopt` for the set".to_owned(),
         }),
         (SetId::UvAdoptPolyglot, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "examples/adopt-polyglot"]),
             env: vec![],
         }),
         (SetId::UvAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
+            set: set.name().to_owned(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv-adopt-polyglot` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update uv-adopt-polyglot` for the set".to_owned(),
         }),
         (SetId::Maven, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["bazel", "run", "@maven//:pin"]),
             env: vec![("REPIN".to_owned(), "1".to_owned())],
         }),
         (SetId::Maven, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
+            set: set.name().to_owned(),
             reason:
-                "maven pins are exact in MODULE.bazel; use `dx update maven` for the set",
+                "maven pins are exact in MODULE.bazel; use `dx update maven` for the set".to_owned(),
         }),
         (SetId::NuGet, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&[
@@ -186,25 +144,138 @@ pub fn plan(
             env: vec![],
         }),
         (SetId::NuGet, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
+            set: set.name().to_owned(),
             reason:
-                "nuget pins are exact in paket.dependencies; use `dx update nuget` for the set",
+                "nuget pins are exact in paket.dependencies; use `dx update nuget` for the set".to_owned(),
         }),
         (SetId::Go, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Go, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
-            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump gomod:<module> <version>`",
+            set: set.name().to_owned(),
+            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump gomod:<module> <version>`".to_owned(),
         }),
         (SetId::Ruby, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Ruby, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
-            reason: "ruby pins are exact in third_party/ruby/Gemfile; widen the requirement there and regenerate the lock with `bundle lock`",
+            set: set.name().to_owned(),
+            reason: "ruby pins are exact in third_party/ruby/Gemfile; widen the requirement there and regenerate the lock with `bundle lock`".to_owned(),
         }),
         (SetId::PowerShell, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::PowerShell, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name(),
-            reason: "powershell pins are exact in third_party/powershell/PSGallery.requirements.psd1; widen the requirement there and hand-regenerate PSGallery.lock.json, because consumer builds never run Install-Module",
+            set: set.name().to_owned(),
+            reason: "powershell pins are exact in third_party/powershell/PSGallery.requirements.psd1; widen the requirement there and hand-regenerate PSGallery.lock.json, because consumer builds never run Install-Module".to_owned(),
         }),
+    }
+}
+
+fn unmigrated(record: &DependencySet) -> BackendError {
+    BackendError::Unsupported {
+        set: record.name.clone(),
+        reason: format!(
+            "{} records resolve but only npm records plan in this migration; widen {} by hand",
+            record.backend.name(),
+            record.name,
+        ),
+    }
+}
+
+fn npm_option(record: &DependencySet, key: &str, fallback: &str) -> String {
+    record
+        .options
+        .get(key)
+        .cloned()
+        .unwrap_or_else(|| fallback.to_owned())
+}
+
+pub fn plan_named(
+    workspace: &Path,
+    record: &DependencySet,
+    request: &SetRequest,
+    offline: bool,
+) -> Result<BackendPlan, BackendError> {
+    if record.backend != BackendKind::Npm {
+        return Err(unmigrated(record));
+    }
+    let mode = npm_option(record, "mode", "update");
+    if mode != "update" && mode != "install" {
+        return Err(BackendError::Unsupported {
+            set: record.name.clone(),
+            reason: format!(
+                "unknown npm mode {mode:?} for {}: want update or install",
+                record.name,
+            ),
+        });
+    }
+    let runner = npm_option(record, "runner", "host");
+    if runner != "bazel" && runner != "host" {
+        return Err(BackendError::Unsupported {
+            set: record.name.clone(),
+            reason: format!(
+                "unknown npm runner {runner:?} for {}: want bazel or host",
+                record.name,
+            ),
+        });
+    }
+    if offline && (matches!(request, SetRequest::Full) || mode == "update") {
+        return Err(BackendError::OfflineRequired {
+            set: record.name.clone(),
+        });
+    }
+    let dir = record_dir(record);
+    let command: Vec<String> = match (mode.as_str(), request) {
+        ("update", SetRequest::Full) => strings(&["update", "--lockfile-only"]),
+        ("update", SetRequest::Packages(packages)) => [
+            vec!["update".to_owned()],
+            packages.clone(),
+            vec!["--lockfile-only".to_owned()],
+        ]
+        .concat(),
+        ("install", SetRequest::Full) => strings(&["install", "--lockfile-only"]),
+        _ => {
+            let where_exact = if dir.is_empty() {
+                ".".to_owned()
+            } else {
+                dir.clone()
+            };
+            return Err(BackendError::Unsupported {
+                set: record.name.clone(),
+                reason: format!(
+                    "{} pins are exact in {where_exact}; use `dx update {}` for the set",
+                    record.name, record.name,
+                ),
+            });
+        }
+    };
+    if runner == "bazel" {
+        let root = if dir.is_empty() {
+            workspace.to_owned()
+        } else {
+            workspace.join(&dir)
+        };
+        let words: Vec<&str> = command.iter().map(String::as_str).collect();
+        Ok(BackendPlan::Run {
+            argv: pnpm_argv(&root, &words),
+            env: vec![],
+        })
+    } else {
+        let here = if dir.is_empty() { ".".to_owned() } else { dir };
+        Ok(BackendPlan::Run {
+            argv: [vec!["pnpm".to_owned(), "--dir".to_owned(), here], command].concat(),
+            env: vec![],
+        })
+    }
+}
+
+pub fn check_named(
+    workspace: &Path,
+    record: &DependencySet,
+    request: &SetRequest,
+    offline: bool,
+) -> Result<CheckPlan, BackendError> {
+    if record.backend != BackendKind::Npm {
+        return Err(unmigrated(record));
+    }
+    match plan_named(workspace, record, request, offline) {
+        Ok(_) => Ok(CheckPlan::Unavailable),
+        Err(error) => Err(error),
     }
 }
 
@@ -783,6 +854,205 @@ mod tests {
             .expect("npm selective check plans"),
             CheckPlan::Unavailable,
         );
+    }
+
+    #[test]
+    fn named_npm_plans_match_legacy_builtin_plans() {
+        use super::super::config;
+        for set in [
+            SetId::Npm,
+            SetId::NpmTools,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+        ] {
+            let record = config::builtin_record(set.name()).expect("builtin npm record");
+            for request in [
+                SetRequest::Full,
+                SetRequest::Packages(vec!["jest".to_owned()]),
+            ] {
+                for offline in [false, true] {
+                    assert_eq!(
+                        plan(ws(), set, &request, offline),
+                        plan_named(ws(), &record, &request, offline),
+                        "{set:?} {request:?} offline={offline}",
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn consumer_npm_record_plans_host_update() {
+        use super::super::config::{record_dir, DependencySet};
+        use std::collections::BTreeMap;
+        let record = DependencySet {
+            name: "web".to_owned(),
+            backend: super::super::config::BackendKind::Npm,
+            manifests: vec!["apps/web/package.json".to_owned()],
+            locks: vec!["apps/web/pnpm-lock.yaml".to_owned()],
+            scopes: vec!["apps/web".to_owned()],
+            options: BTreeMap::new(),
+        };
+        assert_eq!(record_dir(&record), "apps/web");
+        assert_eq!(
+            plan_named(ws(), &record, &SetRequest::Full, false).expect("web full"),
+            BackendPlan::Run {
+                argv: vec![
+                    "pnpm".to_owned(),
+                    "--dir".to_owned(),
+                    "apps/web".to_owned(),
+                    "update".to_owned(),
+                    "--lockfile-only".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        assert_eq!(
+            plan_named(
+                ws(),
+                &record,
+                &SetRequest::Packages(vec!["react".to_owned()]),
+                false,
+            )
+            .expect("web selective"),
+            BackendPlan::Run {
+                argv: vec![
+                    "pnpm".to_owned(),
+                    "--dir".to_owned(),
+                    "apps/web".to_owned(),
+                    "update".to_owned(),
+                    "react".to_owned(),
+                    "--lockfile-only".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        let error = plan_named(ws(), &record, &SetRequest::Full, true)
+            .expect_err("web offline needs network");
+        assert_eq!(
+            error,
+            BackendError::OfflineRequired {
+                set: "web".to_owned(),
+            }
+        );
+        assert_eq!(
+            check_named(ws(), &record, &SetRequest::Full, false).expect("web check"),
+            CheckPlan::Unavailable,
+        );
+    }
+
+    #[test]
+    fn consumer_npm_install_record_rejects_selective_explicitly() {
+        use super::super::config::DependencySet;
+        use std::collections::BTreeMap;
+        let mut options = BTreeMap::new();
+        options.insert("mode".to_owned(), "install".to_owned());
+        let record = DependencySet {
+            name: "shop".to_owned(),
+            backend: super::super::config::BackendKind::Npm,
+            manifests: vec!["shop/package.json".to_owned()],
+            locks: vec!["shop/pnpm-lock.yaml".to_owned()],
+            scopes: vec!["shop".to_owned()],
+            options,
+        };
+        assert_eq!(
+            plan_named(ws(), &record, &SetRequest::Full, false).expect("shop full"),
+            BackendPlan::Run {
+                argv: vec![
+                    "pnpm".to_owned(),
+                    "--dir".to_owned(),
+                    "shop".to_owned(),
+                    "install".to_owned(),
+                    "--lockfile-only".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        let error = plan_named(
+            ws(),
+            &record,
+            &SetRequest::Packages(vec!["react".to_owned()]),
+            false,
+        )
+        .expect_err("install selective stays unsupported");
+        assert_eq!(
+            error,
+            BackendError::Unsupported {
+                set: "shop".to_owned(),
+                reason: "shop pins are exact in shop; use `dx update shop` for the set".to_owned(),
+            }
+        );
+        let offline = plan_named(
+            ws(),
+            &record,
+            &SetRequest::Packages(vec!["react".to_owned()]),
+            true,
+        )
+        .expect_err("install selective stays unsupported offline");
+        assert!(matches!(offline, BackendError::Unsupported { .. }));
+    }
+
+    #[test]
+    fn non_npm_records_plan_explicitly_unsupported() {
+        use super::super::config::{BackendKind, DependencySet};
+        use std::collections::BTreeMap;
+        for (backend, name) in [
+            (BackendKind::Cargo, "vendor"),
+            (BackendKind::Uv, "service"),
+            (BackendKind::Go, "tool"),
+            (BackendKind::Maven, "service"),
+            (BackendKind::NuGet, "service"),
+            (BackendKind::Ruby, "service"),
+            (BackendKind::PowerShell, "service"),
+        ] {
+            let record = DependencySet {
+                name: name.to_owned(),
+                backend,
+                manifests: vec!["service/manifest".to_owned()],
+                locks: vec!["service/lock".to_owned()],
+                scopes: vec!["service".to_owned()],
+                options: BTreeMap::new(),
+            };
+            let error = plan_named(ws(), &record, &SetRequest::Full, false)
+                .expect_err("unmigrated backend plans explicitly");
+            assert!(
+                matches!(error, BackendError::Unsupported { .. }),
+                "{backend:?}"
+            );
+            assert!(error.to_string().contains(name));
+            assert!(error.to_string().contains(backend.name()));
+            let error = check_named(ws(), &record, &SetRequest::Full, false)
+                .expect_err("unmigrated backend checks explicitly");
+            assert!(
+                matches!(error, BackendError::Unsupported { .. }),
+                "{backend:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn bad_npm_mode_and_runner_fail_closed() {
+        use super::super::config::DependencySet;
+        use std::collections::BTreeMap;
+        let mut options = BTreeMap::new();
+        options.insert("mode".to_owned(), "wipe".to_owned());
+        let record = DependencySet {
+            name: "web".to_owned(),
+            backend: super::super::config::BackendKind::Npm,
+            manifests: vec!["apps/web/package.json".to_owned()],
+            locks: vec!["apps/web/pnpm-lock.yaml".to_owned()],
+            scopes: vec!["apps/web".to_owned()],
+            options,
+        };
+        let error =
+            plan_named(ws(), &record, &SetRequest::Full, false).expect_err("bad mode fails closed");
+        assert!(error.to_string().contains("wipe"));
+        let mut options = BTreeMap::new();
+        options.insert("runner".to_owned(), "sudo".to_owned());
+        let record = DependencySet { options, ..record };
+        let error = plan_named(ws(), &record, &SetRequest::Full, false)
+            .expect_err("bad runner fails closed");
+        assert!(error.to_string().contains("sudo"));
     }
 
     #[test]

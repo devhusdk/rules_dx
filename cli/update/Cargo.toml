@@ -5,7 +5,13 @@ edition = "2021"
 
 [dependencies]
 regex = "1"
+serde = { version = "1", features = ["derive"] }
 thiserror = "2"
+toml = { version = "1", default-features = false, features = [
+  "parse",
+  "serde",
+  "display",
+] }
 
 [lib]
 name = "dx_update"

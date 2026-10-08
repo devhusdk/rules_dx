@@ -49,6 +49,245 @@ pub const HOOK_TRIGGERS: &[&str] = &["pre-commit", "pre-push"];
 
 pub const LOCAL_OVERLAY_COMMENT: &str = "# Local-only overrides (gitignored).";
 
+/// Empty tree object Git diffs against when a push creates a new remote ref.
+pub const EMPTY_TREE_SHA: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
+/// All-zero object id Git sends for a created or deleted side of a push ref update.
+pub const ZERO_SHA: &str = "0000000000000000000000000000000000000000";
+
+/// Filenames Git reports for one workspace change.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ChangeKind {
+    Added,
+    Copied,
+    Deleted,
+    Modified,
+    Renamed,
+    TypeChanged,
+    Unmerged,
+}
+
+/// One path Git names, with its rename source when Git reports one.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GitChange {
+    pub path: String,
+    pub from: Option<String>,
+    pub kind: ChangeKind,
+}
+
+/// Where a hook run selected its changed paths from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ChangeSource {
+    Staged,
+    Pushed,
+}
+
+/// One `local_ref local_sha remote_ref remote_sha` line from pre-push stdin.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PushRef {
+    pub local_ref: String,
+    pub local_sha: String,
+    pub remote_ref: String,
+    pub remote_sha: String,
+}
+
+/// Reports whether a push ref side names the all-zero object id.
+pub fn is_zero_sha(sha: &str) -> bool {
+    sha.len() == ZERO_SHA.len() && sha.bytes().all(|byte| byte == b'0')
+}
+
+/// Reports whether a pushed ref deletes the remote ref, so no new commits need checks.
+pub fn push_ref_is_deletion(push_ref: &PushRef) -> bool {
+    is_zero_sha(&push_ref.local_sha)
+}
+
+/// Selects the diff base for a pushed ref: none for deletions, the empty tree for new remotes.
+pub fn push_diff_base(push_ref: &PushRef) -> Option<String> {
+    if push_ref_is_deletion(push_ref) {
+        return None;
+    }
+    if is_zero_sha(&push_ref.remote_sha) {
+        return Some(EMPTY_TREE_SHA.to_owned());
+    }
+    Some(push_ref.remote_sha.clone())
+}
+
+/// Names a change source the way hook run summaries spell it.
+pub fn change_source_name(source: &ChangeSource) -> &'static str {
+    match source {
+        ChangeSource::Staged => "staged",
+        ChangeSource::Pushed => "pushed",
+    }
+}
+
+fn change_kind_from_status(status: &str) -> Result<(ChangeKind, bool), String> {
+    let kind = match status.as_bytes().first() {
+        Some(b'A') => ChangeKind::Added,
+        Some(b'C') => ChangeKind::Copied,
+        Some(b'D') => ChangeKind::Deleted,
+        Some(b'M') => ChangeKind::Modified,
+        Some(b'R') => ChangeKind::Renamed,
+        Some(b'T') => ChangeKind::TypeChanged,
+        Some(b'U') => ChangeKind::Unmerged,
+        _ => {
+            return Err(format!(
+                "hook git change status {status:?} is not supported"
+            ))
+        }
+    };
+    let renamed = matches!(kind, ChangeKind::Renamed | ChangeKind::Copied);
+    Ok((kind, renamed))
+}
+
+fn utf8_path(bytes: &[u8]) -> Result<String, String> {
+    std::str::from_utf8(bytes)
+        .map(ToOwned::to_owned)
+        .map_err(|_| "hook git path is not UTF-8: rename the file to a UTF-8 name".to_owned())
+}
+
+/// Parses `git diff --name-status -z` output into typed changes with rename identities kept.
+pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, String> {
+    let mut fields: Vec<&[u8]> = output.split(|byte| *byte == 0).collect();
+    if fields.last().is_some_and(|field| field.is_empty()) {
+        fields.pop();
+    }
+    let mut changes = Vec::new();
+    let mut index = 0;
+    while index < fields.len() {
+        let status = utf8_path(fields[index])?;
+        if status.is_empty() {
+            return Err("hook git change list has an empty status field".to_owned());
+        }
+        let (kind, renamed) = change_kind_from_status(&status)?;
+        index += 1;
+        let first = fields
+            .get(index)
+            .ok_or_else(|| "hook git change list ends before its path".to_owned())
+            .and_then(|field| utf8_path(field))?;
+        if first.is_empty() {
+            return Err("hook git change list has an empty path".to_owned());
+        }
+        index += 1;
+        let (path, from) = if renamed {
+            let second = fields
+                .get(index)
+                .ok_or_else(|| "hook git rename ends before its target path".to_owned())
+                .and_then(|field| utf8_path(field))?;
+            if second.is_empty() {
+                return Err("hook git rename has an empty target path".to_owned());
+            }
+            index += 1;
+            (second, Some(first))
+        } else {
+            (first, None)
+        };
+        changes.push(GitChange { path, from, kind });
+    }
+    Ok(changes)
+}
+
+fn valid_sha(sha: &str) -> bool {
+    sha.len() == 40 && sha.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+/// Parses pre-push stdin into one record per `local_ref local_sha remote_ref remote_sha` line.
+pub fn parse_push_refs(stdin: &[u8]) -> Result<Vec<PushRef>, String> {
+    let text =
+        std::str::from_utf8(stdin).map_err(|_| "hook pre-push stdin is not UTF-8".to_owned())?;
+    let mut refs = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        if fields.len() != 4 {
+            return Err(format!(
+                "hook pre-push stdin line needs four fields, got {}: {line:?}",
+                fields.len()
+            ));
+        }
+        for sha in [fields[1], fields[3]] {
+            if !valid_sha(sha) {
+                return Err(format!(
+                    "hook pre-push object id is not a 40-hex sha: {sha:?}"
+                ));
+            }
+        }
+        refs.push(PushRef {
+            local_ref: fields[0].to_owned(),
+            local_sha: fields[1].to_owned(),
+            remote_ref: fields[2].to_owned(),
+            remote_sha: fields[3].to_owned(),
+        });
+    }
+    Ok(refs)
+}
+
+/// Sorts changes by path and drops duplicate paths, keeping rename sources.
+pub fn dedupe_changes(changes: Vec<GitChange>) -> Vec<GitChange> {
+    let mut sorted = changes;
+    sorted.sort_by(|left, right| {
+        left.path
+            .cmp(&right.path)
+            .then_with(|| left.from.cmp(&right.from))
+    });
+    sorted.dedup_by(|next, current| next.path == current.path);
+    sorted
+}
+
+fn is_package_dir(workspace: &Path, dir: &str) -> bool {
+    let base = if dir.is_empty() {
+        workspace.to_path_buf()
+    } else {
+        workspace.join(dir)
+    };
+    if !base.is_dir() {
+        return false;
+    }
+    ["BUILD.bazel", "BUILD"]
+        .iter()
+        .any(|marker| std::fs::symlink_metadata(base.join(marker)).is_ok())
+}
+
+/// Maps a missing path to the nearest enclosing Bazel package pattern for hook fallback.
+pub fn nearest_package_pattern(workspace: &Path, rel: &str) -> String {
+    let mut dir = match rel.rfind('/') {
+        Some(index) => &rel[..index],
+        None => "",
+    };
+    loop {
+        if is_package_dir(workspace, dir) {
+            if dir.is_empty() {
+                return "//...".to_owned();
+            }
+            return format!("//{dir}/...");
+        }
+        if dir.is_empty() {
+            return "//...".to_owned();
+        }
+        dir = match dir.rfind('/') {
+            Some(index) => &dir[..index],
+            None => "",
+        };
+    }
+}
+
+/// Renders the one-line selection summary hook runs print before their checks.
+pub fn render_selection_line(
+    trigger: &str,
+    source: &ChangeSource,
+    files: usize,
+    targets: usize,
+) -> String {
+    format!(
+        "ran {trigger}: {} {} file(s) as {} target(s); checks read worktree files",
+        change_source_name(source),
+        files,
+        targets
+    )
+}
+
 pub fn render_local_overlay() -> Result<String, AdoptError> {
     let mut root = toml::Table::new();
     root.insert("hooks".to_owned(), toml::Value::Table(toml::Table::new()));
@@ -525,5 +764,102 @@ mod tests {
         let view = render_hooks_status_merged(&config, &timed, "dx.hooks.toml", "dx.local.toml");
         assert!(view.contains("1.23s (measured)"));
         assert!(!view.contains("p95 12s"));
+    }
+
+    #[test]
+    fn name_status_nul_keeps_verbatim_paths_and_rename_identities() {
+        let output = b"M\x00pkg/a.py\x00A\x00pkg/space name.py\x00D\x00pkg/old.py\x00R100\x00pkg/was.py\x00pkg/now.py\x00";
+        let changes = super::parse_name_status_nul(output).expect("parse");
+        assert_eq!(changes.len(), 4);
+        assert_eq!(changes[0].path, "pkg/a.py");
+        assert_eq!(changes[0].kind, super::ChangeKind::Modified);
+        assert_eq!(changes[0].from, None);
+        assert_eq!(changes[1].path, "pkg/space name.py");
+        assert_eq!(changes[1].kind, super::ChangeKind::Added);
+        assert_eq!(changes[2].kind, super::ChangeKind::Deleted);
+        assert_eq!(changes[3].path, "pkg/now.py");
+        assert_eq!(changes[3].from.as_deref(), Some("pkg/was.py"));
+        assert_eq!(changes[3].kind, super::ChangeKind::Renamed);
+        assert!(super::parse_name_status_nul(b"").expect("empty").is_empty());
+    }
+
+    #[test]
+    fn name_status_nul_rejects_truncation_and_non_utf8() {
+        assert!(super::parse_name_status_nul(b"M\x00").is_err());
+        assert!(super::parse_name_status_nul(b"R100\x00a\x00").is_err());
+        assert!(super::parse_name_status_nul(b"Z\x00a\x00").is_err());
+        assert!(super::parse_name_status_nul(b"M\x00\xff\x00").is_err());
+        assert!(super::parse_name_status_nul(b"\x00a\x00").is_err());
+    }
+
+    #[test]
+    fn push_refs_parse_four_fields_and_classify_empty_sides() {
+        let zeros = super::ZERO_SHA;
+        let local = "a".repeat(40);
+        let remote = "b".repeat(40);
+        let stdin = format!("refs/heads/main {local} refs/heads/main {remote}\nrefs/heads/new {local} refs/heads/new {zeros}\nrefs/heads/gone {zeros} refs/heads/gone {remote}\n");
+        let refs = super::parse_push_refs(stdin.as_bytes()).expect("parse");
+        assert_eq!(refs.len(), 3);
+        assert!(!super::push_ref_is_deletion(&refs[0]));
+        assert_eq!(
+            super::push_diff_base(&refs[0]).as_deref(),
+            Some(remote.as_str())
+        );
+        assert_eq!(
+            super::push_diff_base(&refs[1]).as_deref(),
+            Some(super::EMPTY_TREE_SHA)
+        );
+        assert!(super::push_ref_is_deletion(&refs[2]));
+        assert_eq!(super::push_diff_base(&refs[2]), None);
+        assert!(super::parse_push_refs(b"").expect("empty").is_empty());
+        assert!(super::parse_push_refs(b"only three fields here\n").is_err());
+        assert!(super::parse_push_refs(b"r s r s extra\n").is_err());
+        assert!(super::parse_push_refs(b"\xff").is_err());
+    }
+
+    #[test]
+    fn change_selection_dedupes_and_falls_back_to_packages() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-hook-selection-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join("pkg")).expect("pkg");
+        std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("build");
+        assert_eq!(
+            super::nearest_package_pattern(&root, "pkg/gone.py"),
+            "//pkg/..."
+        );
+        assert_eq!(super::nearest_package_pattern(&root, "top.py"), "//...");
+        assert_eq!(
+            super::nearest_package_pattern(&root, "deep/nested/gone.py"),
+            "//..."
+        );
+        let changes = vec![
+            super::GitChange {
+                path: "pkg/b.py".to_owned(),
+                from: None,
+                kind: super::ChangeKind::Added,
+            },
+            super::GitChange {
+                path: "pkg/a.py".to_owned(),
+                from: Some("pkg/was.py".to_owned()),
+                kind: super::ChangeKind::Renamed,
+            },
+            super::GitChange {
+                path: "pkg/a.py".to_owned(),
+                from: None,
+                kind: super::ChangeKind::Modified,
+            },
+        ];
+        let deduped = super::dedupe_changes(changes);
+        assert_eq!(deduped.len(), 2);
+        assert_eq!(deduped[0].path, "pkg/a.py");
+        assert_eq!(deduped[1].path, "pkg/b.py");
+        let line = super::render_selection_line("pre-commit", &super::ChangeSource::Staged, 2, 1);
+        assert!(line.contains("staged 2 file(s) as 1 target(s)"));
+        assert!(line.contains("worktree files"));
+        assert_eq!(
+            super::change_source_name(&super::ChangeSource::Pushed),
+            "pushed"
+        );
+        scratch.close().expect("cleanup");
     }
 }

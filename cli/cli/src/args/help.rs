@@ -185,7 +185,7 @@ distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no o
 coverage --min-coverage; build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
---check is per-command only (quality/codegen/env/setup/clean/version/update/docs/completion/check|fix; status rejects --check; \
+--check is per-command only (quality/codegen/env/setup/clean/version/update/bump/migrate/init/new/upgrade/hooks/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
 where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env/setup selection, run/deploy launch, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \

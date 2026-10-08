@@ -643,9 +643,9 @@ command_args! {
         apply: ApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 15, NoPassthroughTail, { apply: ApplyFlag, own: OfflineFlag, };
+    Bump => 15, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: OfflineFlag, };
     /// The flags `dx migrate` accepts.
-    Migrate => 16, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
+    Migrate => 16, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
     Codegen => 17, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx env` accepts.
@@ -653,13 +653,13 @@ command_args! {
     /// The flags `dx setup` accepts.
     Setup => 19, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 20, NoPassthroughTail, { apply: ApplyFlag, };
+    Init => 20, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx new` accepts.
-    New => 21, NoPassthroughTail, { apply: ApplyFlag, };
+    New => 21, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 22, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
+    Upgrade => 22, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx hooks` accepts.
-    Hooks => 23, NoPassthroughTail, { apply: ApplyFlag, };
+    Hooks => 23, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx status` accepts.
     Status => 24, NoPassthroughTail, {};
     /// The flags `dx version` accepts.

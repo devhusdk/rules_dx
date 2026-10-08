@@ -572,7 +572,7 @@ fn migrate_needs_from_and_to_versions() {
     assert!(!migrate.command.is_audit_update());
     assert!(!migrate.command.is_adoption());
     assert!(!migrate.command.is_managed());
-    assert!(migrate.command.is_mutating_by_default());
+    assert!(!migrate.command.is_mutating_by_default());
     assert_eq!(migrate.from, Some("1.2.3".to_owned()));
     assert_eq!(migrate.to, Some("2.0.0".to_owned()));
     let spaced =
@@ -679,7 +679,7 @@ fn new_takes_language_plus_optional_name() {
     let got = parse(&strings(&["new", "rust", "demo"])).expect("parse new");
     assert_eq!(got.command, Command::New);
     assert!(got.command.is_adoption());
-    assert!(got.command.is_mutating_by_default());
+    assert!(!got.command.is_mutating_by_default());
     assert!(!got.command.supports_json());
     assert_eq!(got.targets, vec!["rust".to_owned(), "demo".to_owned()]);
     let bare_lang = parse(&strings(&["new", "go"])).expect("language only");
@@ -711,7 +711,7 @@ fn upgrade_needs_from_and_to_with_no_scopes() {
     let got = parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("parse upgrade");
     assert_eq!(got.command, Command::Upgrade);
     assert!(got.command.is_adoption());
-    assert!(got.command.is_mutating_by_default());
+    assert!(!got.command.is_mutating_by_default());
     assert!(got.command.supports_json());
     assert_eq!(
         parse(&strings(&["upgrade", "--from=1.2.3"])),

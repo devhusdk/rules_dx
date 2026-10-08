@@ -1,0 +1,19 @@
+[package]
+name = "dx_tool_resolve"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_tool_resolve"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tool_resolve"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"

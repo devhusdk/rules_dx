@@ -138,6 +138,37 @@ missing, stale or corrupt snapshot fails the audit with `advisory_refresh_failed
 naming the set and the file. The job needs `contents: read` and no secret, so
 fork pull requests run it.
 
+## Hermetic Tool Resolution
+
+`security-audit` scans secrets with the pinned Gitleaks artifact, and `dx`
+refuses ambient `PATH` lookup. One `Resolve hermetic Gitleaks` step resolves
+the artifact path with a native command instead of shell parsing, so every
+platform cell exports the same variable without host utilities.
+
+```sh
+bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN
+```
+
+The command runs `bazel cquery --output=files` for the label, takes the last
+output line as the artifact path, joins it with `bazel info output_base`, and
+refuses a missing file. It appends `VAR=path` to the file `GITHUB_ENV` names.
+
+- `--label <label>`: pinned tool label to resolve. Required.
+- `--var <name>`: environment variable receiving the absolute path. Required.
+- `--bazel <path>`: Bazel binary the resolution runs through. Default `bazel`.
+- `--workspace <dir>`: directory the inner Bazel commands run in. Default
+  `BUILD_WORKSPACE_DIRECTORY`, the `bazel run` invocation root, else the
+  current directory.
+- `--env-file <path>`: environment file receiving `VAR=path`. Default
+  `GITHUB_ENV`.
+- `--print`: write `VAR=path` to standard output instead of a file.
+- Arguments after `--` reach the inner cquery unchanged.
+
+Exit codes: `0` success, `2` usage error, `1` resolution failure. A failure
+prints one line starting with `tool_resolve_failed:` naming the label and the
+cquery, output-base, missing-file or environment write it could not use, and
+exports nothing.
+
 ## Docs Workflow
 
 `examples/docs-ci/` calls `reusable-docs.yml`. It runs `dx lint --check` over

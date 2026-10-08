@@ -1,0 +1,121 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "dx_tool_resolve",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_tool_resolve",
+        normal = True,
+    ),
+    crate_name = "dx_tool_resolve",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "clap",
+            "thiserror",
+        ],
+        package_name = "cli/dx_tool_resolve",
+    ),
+)
+
+rust_test(
+    name = "dx_tool_resolve_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_tool_resolve",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_tool_resolve",
+    deps = crate_deps(
+        [
+            "clap",
+            "tempfile",
+            "thiserror",
+        ],
+        package_name = "cli/dx_tool_resolve",
+    ),
+)
+
+rust_binary(
+    name = "tool_resolve",
+    srcs = [
+        "src/main.rs",
+        "src/main_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_tool_resolve",
+        normal = True,
+    ),
+    crate_name = "tool_resolve",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "clap",
+            "thiserror",
+        ],
+        package_name = "cli/dx_tool_resolve",
+    ) + [":dx_tool_resolve"],
+)
+
+rust_test(
+    name = "tool_resolve_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_tool_resolve",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":tool_resolve",
+    deps = crate_deps(
+        [
+            "clap",
+            "tempfile",
+            "thiserror",
+        ],
+        package_name = "cli/dx_tool_resolve",
+    ),
+)
+
+rustfmt_test(
+    name = "tool_resolve_fmt_test",
+    size = "small",
+    targets = [
+        ":tool_resolve",
+        ":tool_resolve_bin_test",
+        ":dx_tool_resolve",
+    ],
+)
+
+rust_clippy_test(
+    name = "tool_resolve_clippy_test",
+    size = "small",
+    targets = [
+        ":tool_resolve",
+        ":dx_tool_resolve",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

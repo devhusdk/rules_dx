@@ -20,6 +20,7 @@ CRATE_CLI_MANIFESTS = [
     "//cli/clean:Cargo.toml",
     "//cli/audit:Cargo.toml",
     "//cli/advisory_prep:Cargo.toml",
+    "//cli/tool_resolve:Cargo.toml",
     "//cli/output:Cargo.toml",
     "//cli/path:Cargo.toml",
     "//cli/proto_validate:Cargo.toml",

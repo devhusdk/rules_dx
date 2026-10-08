@@ -1,7 +1,7 @@
 """Experimental minimal Svelte wrappers."""
 
 load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
-load("//libs/starlark:wrapper.bzl", "dx_framework_forward_rule", "dx_framework_library")
+load("//javascript/rules:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library")
 
 _svelte_library_forward = dx_framework_forward_rule("svelte", ".svelte")
 

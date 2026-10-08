@@ -7,6 +7,7 @@ load(
     "missing_required_config_error",
     "native_config_error",
     "native_config_extension",
+    "native_config_extensions",
 )
 
 _HINTS = [
@@ -61,6 +62,11 @@ def native_config_unit_tests(name):
                 ".js",
             ),
             expect_equal(
+                "native_config_extensions pins the eslint module transports",
+                native_config_extensions("eslint"),
+                [".js", ".mjs", ".cjs"],
+            ),
+            expect_equal(
                 "native_config_extension pins Scala/.NET transports",
                 [
                     native_config_extension("scalafmt"),
@@ -97,6 +103,35 @@ def native_config_unit_tests(name):
                     native_config_extension("yamllint"),
                 ],
                 [".json", ".toml", ".yaml"],
+            ),
+            expect_equal(
+                "native_config_error accepts eslint module configs",
+                [
+                    native_config_error(
+                        "eslint",
+                        "cfg/eslint.config.mjs",
+                        True,
+                        [],
+                    ),
+                    native_config_error(
+                        "eslint",
+                        "cfg/eslint.config.cjs",
+                        True,
+                        [],
+                    ),
+                ],
+                ["", ""],
+            ),
+            expect_equal(
+                "native_config_error rejects an unsupported eslint transport",
+                native_config_error(
+                    "eslint",
+                    "cfg/eslint.config.json",
+                    True,
+                    [],
+                ),
+                "native_config (eslint): src must end in one of " +
+                "'.js', '.mjs', '.cjs', got cfg/eslint.config.json",
             ),
             expect_equal(
                 "native_config_error rejects biome.jsonc",

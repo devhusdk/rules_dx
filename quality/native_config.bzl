@@ -18,52 +18,64 @@ CONFIG_REQUIRED_TOOLS = {
     "vale": "Vale",
 }
 
-_NATIVE_CONFIG_EXTENSIONS = {
-    "biome": ".json",
-    "buf": ".yaml",
-    "buildifier": ".json",
-    "checkstyle": ".xml",
-    "clang_format": ".clang-format",
-    "clang_tidy": ".clang-tidy",
-    "cppcheck": ".txt",
-    "csharpier": ".yaml",
-    "djlint": ".toml",
-    "eslint": ".js",
-    "fsharplint": ".json",
-    "qmlformat": ".ini",
-    "qmllint": ".ini",
-    "ruff": ".toml",
-    "rustfmt": ".toml",
-    "scalafix": ".conf",
-    "scalafmt": ".conf",
-    "staticcheck": ".conf",
-    "stylelint": ".json",
-    "taplo": ".toml",
-    "vale": ".ini",
-    "yamllint": ".yaml",
+_NATIVE_CONFIG_SUFFIXES = {
+    "biome": [".json"],
+    "buf": [".yaml"],
+    "buildifier": [".json"],
+    "checkstyle": [".xml"],
+    "clang_format": [".clang-format"],
+    "clang_tidy": [".clang-tidy"],
+    "cppcheck": [".txt"],
+    "csharpier": [".yaml"],
+    "djlint": [".toml"],
+    "eslint": [".js", ".mjs", ".cjs"],
+    "fsharplint": [".json"],
+    "qmlformat": [".ini"],
+    "qmllint": [".ini"],
+    "ruff": [".toml"],
+    "rustfmt": [".toml"],
+    "scalafix": [".conf"],
+    "scalafmt": [".conf"],
+    "staticcheck": [".conf"],
+    "stylelint": [".json"],
+    "taplo": [".toml"],
+    "vale": [".ini"],
+    "yamllint": [".yaml"],
 }
 
-def native_config_extension(tool_id):
-    """Returns the required config extension for a real tool ID."""
-    if tool_id not in _NATIVE_CONFIG_EXTENSIONS:
+def native_config_extensions(tool_id):
+    """Returns the accepted config suffixes for a real tool ID."""
+    if tool_id not in _NATIVE_CONFIG_SUFFIXES:
         fail("native_config: unknown tool '" + tool_id +
-             "': want one of " + ", ".join(sorted(_NATIVE_CONFIG_EXTENSIONS.keys())))
-    return _NATIVE_CONFIG_EXTENSIONS[tool_id]
+             "': want one of " + ", ".join(sorted(_NATIVE_CONFIG_SUFFIXES.keys())))
+    return _NATIVE_CONFIG_SUFFIXES[tool_id]
+
+def native_config_extension(tool_id):
+    """Returns the canonical config suffix for a real tool ID."""
+    return native_config_extensions(tool_id)[0]
+
+def _native_config_suffix_error(tool_id, config_path, wants):
+    if len(wants) == 1:
+        return ("native_config (" + tool_id + "): src must end in '" + wants[0] +
+                "', got " + config_path)
+    quoted = ["'" + want + "'" for want in wants]
+    return ("native_config (" + tool_id + "): src must end in one of " +
+            ", ".join(quoted) + ", got " + config_path)
 
 def native_config_error(tool_id, config_path, config_is_source, data):
     """Returns the validation error for a native config, or "" when valid."""
-    if tool_id not in _NATIVE_CONFIG_EXTENSIONS:
+    if tool_id not in _NATIVE_CONFIG_SUFFIXES:
         return ("native_config: unknown tool '" + tool_id + "': want one of " +
-                ", ".join(sorted(_NATIVE_CONFIG_EXTENSIONS.keys())))
+                ", ".join(sorted(_NATIVE_CONFIG_SUFFIXES.keys())))
     if config_path == "":
         return "native_config (" + tool_id + "): src is required"
     if not config_is_source:
         return ("native_config (" + tool_id + "): src must be a checked-in " +
                 "source file, got generated " + config_path)
-    want = _NATIVE_CONFIG_EXTENSIONS[tool_id]
-    if not config_path.endswith(want):
-        return ("native_config (" + tool_id + "): src must end in '" + want +
-                "', got " + config_path)
+    wants = _NATIVE_CONFIG_SUFFIXES[tool_id]
+    accepted = [want for want in wants if config_path.endswith(want)]
+    if len(accepted) == 0:
+        return _native_config_suffix_error(tool_id, config_path, wants)
     for entry in data:
         if not entry.is_source:
             return ("native_config (" + tool_id + "): data must be " +

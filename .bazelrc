@@ -37,4 +37,7 @@ common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
 common:ci-pr --noremote_upload_local_results
 
+# Fixture for consumer --config passthrough checks.
+build:dx_consumer_probe --copt=-DDX_CONSUMER_PROBE
+
 try-import %workspace%/user.bazelrc

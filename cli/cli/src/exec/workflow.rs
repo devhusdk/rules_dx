@@ -192,6 +192,33 @@ mod tests {
     }
 
     #[test]
+    fn build_forwards_consumer_configs_and_rejects_conflicting_dx_profile() {
+        let harness = Harness::new("build-consumer-config");
+        let inv = invocation(&["build", "--", "--config=ci", "--config=sanitizer"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        let argv = &run.argv[0];
+        let dev = argv
+            .iter()
+            .position(|arg| arg == "--config=dx_dev")
+            .expect("profile reaches bazel");
+        let ci = argv
+            .iter()
+            .position(|arg| arg == "--config=ci")
+            .expect("consumer config reaches bazel");
+        let sanitizer = argv
+            .iter()
+            .position(|arg| arg == "--config=sanitizer")
+            .expect("consumer config reaches bazel");
+        assert!(dev < ci && ci < sanitizer, "{argv:?}");
+        let harness = Harness::new("build-conflicting-config");
+        let (code, _, err) = harness.run(&["build", "--", "--config=dx_release"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("config"), "{err}");
+    }
+
+    #[test]
     fn test_and_coverage_forward_test_binary_args_to_bazel() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-test-args");

@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use dx_clean::{
     apply_plan, bazel_forward_argv, collect_inventory_with_scan, measure_prune_bytes,
-    render_dry_run, RECOVERY_GUIDANCE,
+    render_dry_run, ObservationStatus, RECOVERY_GUIDANCE,
 };
 use dx_output::{
     command_finished, command_started, error_event, notice_event, operation_event, write_event,
@@ -75,6 +75,14 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
                 bytes.reclaimed(&outcome)
             );
         }
+        if !outcome.skipped_leased.is_empty() || !outcome.skipped_active.is_empty() {
+            let _ = writeln!(
+                out,
+                "dx clean: skipped {} leased and {} live generations",
+                outcome.skipped_leased.len(),
+                outcome.skipped_active.len()
+            );
+        }
     }
     if !invocation.bazel_clean {
         if json {
@@ -125,6 +133,20 @@ fn emit_clean_notices(
     } else {
         "clean_pruned"
     };
+    if plan.observation == ObservationStatus::Unknown {
+        if let Ok(event) = notice_event(&NoticeEvent {
+            level: "info".to_owned(),
+            code: "clean_observation_unknown".to_owned(),
+            message: "process observation unavailable: live use is unknown, preserving everything not otherwise retained".to_owned(),
+            related_command: Some("clean".to_owned()),
+            scope: None,
+            path: None,
+            language: None,
+            import: None,
+        }) {
+            let _ = write_event(out, &event);
+        }
+    }
     for hex in &plan.prune_setup_records {
         let size = bytes
             .setup_record_bytes
@@ -226,11 +248,31 @@ fn emit_clean_pruned(
             let _ = write_event(out, &event);
         }
     }
+    for generation in outcome
+        .skipped_leased
+        .iter()
+        .chain(outcome.skipped_active.iter())
+    {
+        let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
+        if let Ok(event) = notice_event(&NoticeEvent {
+            level: "info".to_owned(),
+            code: "clean_skipped".to_owned(),
+            message: format!("skipped live generation {path}"),
+            related_command: Some("clean".to_owned()),
+            scope: None,
+            path: Some(path),
+            language: None,
+            import: None,
+        }) {
+            let _ = write_event(out, &event);
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+    use super::emit_clean_notices;
     use dx_setup::{read_current_pair, setup_hex};
 
     #[test]
@@ -473,5 +515,82 @@ mod tests {
             harness.workspace.join(".dx/setups").join(&stale).exists(),
             "failure prunes nothing"
         );
+    }
+
+    #[test]
+    fn clean_apply_reports_skipped_leased_generation() {
+        let harness = Harness::new("clean-leased");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let _current = commit_clean_pair(&harness, '1', '2');
+        let dx_dir = harness.workspace.join(".dx");
+        let leased_hex = '3'.to_string().repeat(64);
+        let _lease = dx_clean::acquire_shared_lease(
+            &dx_dir,
+            dx_clean::GenerationKind::Environment,
+            &leased_hex,
+            dx_clean::LEASE_TIMEOUT,
+        )
+        .expect("lease stale generation");
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("skipped 1 leased and 0 live generations"),
+            "{out}"
+        );
+        assert!(
+            dx_dir.join("environments").join(&leased_hex).is_dir(),
+            "leased generation survives dx clean"
+        );
+        assert!(
+            !dx_dir.join("setups").join(&stale).exists(),
+            "unleased stale record still prunes"
+        );
+        drop(_lease);
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            !dx_dir.join("environments").join(&leased_hex).exists(),
+            "released generation prunes on the next clean"
+        );
+    }
+
+    #[test]
+    fn clean_json_reports_skipped_live_generation() {
+        let harness = Harness::new("clean-skipped-json");
+        let _stale = commit_clean_pair(&harness, '3', '4');
+        let _current = commit_clean_pair(&harness, '1', '2');
+        let dx_dir = harness.workspace.join(".dx");
+        let leased_hex = '4'.to_string().repeat(64);
+        let _lease = dx_clean::acquire_shared_lease(
+            &dx_dir,
+            dx_clean::GenerationKind::Generated,
+            &leased_hex,
+            dx_clean::LEASE_TIMEOUT,
+        )
+        .expect("lease stale generation");
+        let (code, out, err) = harness.run(&["clean", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("clean_skipped"), "{out}");
+        assert!(out.contains(&leased_hex), "{out}");
+        assert!(
+            dx_dir.join("generated").join(&leased_hex).is_dir(),
+            "leased generation survives dx clean"
+        );
+    }
+
+    #[test]
+    fn clean_json_names_unavailable_observation() {
+        let plan = dx_clean::CleanPlan {
+            prune_setup_records: Vec::new(),
+            prune_generations: Vec::new(),
+            refused_unmanaged: Vec::new(),
+            preserved_current: None,
+            observation: dx_clean::ObservationStatus::Unknown,
+        };
+        let mut out = Vec::new();
+        emit_clean_notices(&mut out, &plan, &dx_clean::PruneBytes::default(), true);
+        let text = String::from_utf8(out).expect("notice output");
+        assert!(text.contains("clean_observation_unknown"), "{text}");
+        assert!(text.contains("preserving everything"), "{text}");
     }
 }

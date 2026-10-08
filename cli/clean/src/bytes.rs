@@ -98,6 +98,12 @@ pub fn measure_prune_bytes(
 
 pub fn render_dry_run(plan: &CleanPlan, bytes: &PruneBytes) -> String {
     let mut lines = vec!["dx clean --dry-run: reclaimable managed state".to_owned()];
+    if plan.observation == crate::live::ObservationStatus::Unknown {
+        lines.push(
+            "process observation unavailable: live use is unknown, preserving everything not otherwise retained"
+                .to_owned(),
+        );
+    }
     if plan.prune_setup_records.is_empty() && plan.prune_generations.is_empty() {
         lines.push("nothing to prune".to_owned());
     }
@@ -156,6 +162,7 @@ mod tests {
             active_setup_hexes: &[],
             active_generation_hexes: &[],
             unmanaged_names: &[],
+            observation: crate::live::ObservationStatus::Known,
         }
     }
 
@@ -173,6 +180,7 @@ mod tests {
             active_setup_hexes: &[],
             active_generation_hexes: &[],
             unmanaged_names: &unmanaged,
+            observation: crate::live::ObservationStatus::Known,
         });
         let listing = render_dry_run(&plan, &PruneBytes::default());
         assert!(listing.contains(&format!(".dx/setups/{}", stale.hex)));
@@ -191,6 +199,31 @@ mod tests {
         let listing = render_dry_run(&plan, &PruneBytes::default());
         assert!(listing.contains("nothing to prune"));
         assert!(listing.contains("reclaimable total: 0 bytes"));
+    }
+
+    #[test]
+    fn dry_run_names_unavailable_observation() {
+        let current = record('1', '2');
+        let stale = record('3', '4');
+        let records = vec![current.clone(), stale.clone()];
+        let generations = vec![generation(GenerationKind::Environment, '3')];
+        let plan = plan_prune(PruneInputs {
+            records: &records,
+            generations: &generations,
+            current_hex: Some(&current.hex),
+            active_setup_hexes: &[],
+            active_generation_hexes: &[],
+            unmanaged_names: &[],
+            observation: crate::live::ObservationStatus::Unknown,
+        });
+        assert!(plan.prune_setup_records.is_empty());
+        assert!(plan.prune_generations.is_empty());
+        let listing = render_dry_run(&plan, &PruneBytes::default());
+        assert!(
+            listing.contains("process observation unavailable"),
+            "{listing}"
+        );
+        assert!(listing.contains("nothing to prune"), "{listing}");
     }
 
     #[test]
@@ -231,6 +264,7 @@ mod tests {
             }],
             refused_unmanaged: Vec::new(),
             preserved_current: None,
+            observation: crate::live::ObservationStatus::Known,
         };
         let ghost_bytes = measure_prune_bytes(&workspace, &ghost).expect("ghost measure");
         assert_eq!(ghost_bytes.total(), 0);
@@ -261,6 +295,7 @@ mod tests {
             }],
             refused_unmanaged: Vec::new(),
             preserved_current: None,
+            observation: crate::live::ObservationStatus::Known,
         };
         let bytes = measure_prune_bytes(&workspace, &plan).expect("measure");
         assert!(
@@ -284,6 +319,7 @@ mod tests {
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
             preserved_current: None,
+            observation: crate::live::ObservationStatus::Known,
         };
         assert!(matches!(
             measure_prune_bytes(&root.join("no-such-dir"), &plan),
@@ -316,6 +352,8 @@ mod tests {
         let outcome = CleanOutcome {
             removed_setup_records: vec![removed_hex],
             removed_generations: vec![removed_generation],
+            skipped_leased: Vec::new(),
+            skipped_active: Vec::new(),
         };
         assert_eq!(bytes.reclaimed(&outcome), 400);
         assert_eq!(

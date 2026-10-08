@@ -51,6 +51,16 @@ Prunes unselected managed state under `.dx`. Never touches Bazel outputs
 unless `--bazel` also runs `bazel clean`. Takes no scopes.
 `--dry-run` only lists what would go.
 
+Keeps the current selection, generations kept records reference, generations
+live processes use, and generations a running `dx` command leases. A process
+counts as live when its working directory or an open file sits under `.dx`.
+Skipped generations are reported: text prints a skipped leased/live count,
+JSON emits one `clean_skipped` notice per generation.
+
+Without a readable process list, live use is unknown: `clean` preserves
+everything it would otherwise prune. Text names the unknown observation,
+JSON emits a `clean_observation_unknown` notice.
+
 Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including any scope, `1` a prune

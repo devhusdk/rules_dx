@@ -8,6 +8,7 @@ use dx_setup::{
     GENERATED_LINK_NAME, SETUPS_DIR_NAME,
 };
 
+use super::live::ObservationStatus;
 use super::planning::{plan_prune, CleanPlan, GenerationView, PruneInputs};
 use super::records::{validate_record, GenerationKind, SetupRecordView};
 use super::CleanError;
@@ -20,6 +21,7 @@ pub struct CollectedInventory {
     pub active_setup_hexes: Vec<String>,
     pub active_generation_hexes: Vec<String>,
     pub unmanaged_names: Vec<String>,
+    pub observation: ObservationStatus,
 }
 
 impl CollectedInventory {
@@ -31,6 +33,7 @@ impl CollectedInventory {
             active_setup_hexes: &self.active_setup_hexes,
             active_generation_hexes: &self.active_generation_hexes,
             unmanaged_names: &self.unmanaged_names,
+            observation: self.observation,
         }
     }
 
@@ -130,6 +133,7 @@ pub fn collect_inventory(
     let mut inventory = CollectedInventory {
         active_setup_hexes: active_setup_hexes.to_vec(),
         active_generation_hexes: active_generation_hexes.to_vec(),
+        observation: ObservationStatus::Known,
         ..CollectedInventory::default()
     };
 

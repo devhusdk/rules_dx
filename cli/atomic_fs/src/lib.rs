@@ -64,6 +64,22 @@ pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::Try
     }
 }
 
+pub fn lock_shared(file: &File, timeout: Duration) -> Result<(), std::fs::TryLockError> {
+    let start = Instant::now();
+    loop {
+        match file.try_lock_shared() {
+            Ok(()) => return Ok(()),
+            Err(std::fs::TryLockError::WouldBlock) => {
+                if start.elapsed() >= timeout {
+                    return Err(std::fs::TryLockError::WouldBlock);
+                }
+                std::thread::sleep(LOCK_POLL);
+            }
+            Err(other) => return Err(other),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,6 +279,42 @@ mod tests {
         let waiter = open_lock_file(&path);
         assert!(matches!(
             lock_exclusive(&waiter, Duration::ZERO),
+            Err(std::fs::TryLockError::WouldBlock)
+        ));
+        drop(held);
+        drop(waiter);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn lock_shared_blocks_exclusive_and_releases_on_drop() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-shared-");
+        let path = scratch.path().join("generation.lock");
+        let first = open_lock_file(&path);
+        let second = open_lock_file(&path);
+        lock_shared(&first, Duration::from_secs(10)).expect("first shared");
+        lock_shared(&second, Duration::from_secs(10)).expect("second shared");
+        let exclusive = open_lock_file(&path);
+        assert!(matches!(
+            lock_exclusive(&exclusive, Duration::ZERO),
+            Err(std::fs::TryLockError::WouldBlock)
+        ));
+        drop(first);
+        drop(second);
+        lock_exclusive(&exclusive, Duration::from_secs(10)).expect("exclusive after release");
+        drop(exclusive);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn lock_shared_times_out_while_exclusive_held() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-shared-busy-");
+        let path = scratch.path().join("generation.lock");
+        let held = open_lock_file(&path);
+        lock_exclusive(&held, Duration::from_secs(10)).expect("hold exclusive");
+        let waiter = open_lock_file(&path);
+        assert!(matches!(
+            lock_shared(&waiter, Duration::ZERO),
             Err(std::fs::TryLockError::WouldBlock)
         ));
         drop(held);

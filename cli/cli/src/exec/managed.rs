@@ -137,13 +137,14 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         return bazel_code;
     }
     let repository = matches!(scope, dx_setup::SetupScope::Repository);
-    let sides = match prepare_managed_sides(invocation.command, repository, workspace, &bep) {
-        Ok(sides) => sides,
-        Err((code, message)) => {
-            let _ = std::fs::remove_file(&bep);
-            return operational(invocation, out, err, &code, &message);
-        }
-    };
+    let (sides, _leases) =
+        match prepare_managed_sides(invocation.command, repository, workspace, &bep) {
+            Ok(prepared) => prepared,
+            Err((code, message)) => {
+                let _ = std::fs::remove_file(&bep);
+                return operational(invocation, out, err, &code, &message);
+            }
+        };
     let (pair, outcome) = match dx_setup::commit_prepared(workspace, sides) {
         Ok(committed) => committed,
         Err(error) => {
@@ -271,6 +272,21 @@ mod tests {
                 assert!(
                     harness.workspace.join(".dx").join(side).join(id).is_dir(),
                     "{command} stages its {side} generation"
+                );
+                let kind = if side == GENERATED_DIR_NAME {
+                    dx_clean::GenerationKind::Generated
+                } else {
+                    dx_clean::GenerationKind::Environment
+                };
+                assert!(
+                    dx_clean::lease_path(&harness.workspace.join(".dx"), kind, id).is_file(),
+                    "{command} leases its staged {side} generation across commit"
+                );
+                assert!(
+                    dx_clean::try_exclusive_lease(&harness.workspace.join(".dx"), kind, id)
+                        .expect("lease attempt")
+                        .is_some(),
+                    "{command} releases its {side} lease after commit"
                 );
             }
             let (code, out, err) = harness.run(&[command]);

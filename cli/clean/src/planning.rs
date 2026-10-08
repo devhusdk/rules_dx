@@ -1,3 +1,4 @@
+use super::live::ObservationStatus;
 use super::records::{GenerationKind, SetupRecordView};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,6 +14,7 @@ pub struct PruneInputs<'a> {
     pub active_setup_hexes: &'a [String],
     pub active_generation_hexes: &'a [String],
     pub unmanaged_names: &'a [String],
+    pub observation: ObservationStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,9 +23,23 @@ pub struct CleanPlan {
     pub prune_generations: Vec<GenerationView>,
     pub refused_unmanaged: Vec<String>,
     pub preserved_current: Option<String>,
+    pub observation: ObservationStatus,
 }
 
 pub fn plan_prune(inputs: PruneInputs<'_>) -> CleanPlan {
+    if inputs.observation == ObservationStatus::Unknown {
+        let mut refused_unmanaged: Vec<String> =
+            inputs.unmanaged_names.iter().map(Clone::clone).collect();
+        refused_unmanaged.sort();
+        refused_unmanaged.dedup();
+        return CleanPlan {
+            prune_setup_records: Vec::new(),
+            prune_generations: Vec::new(),
+            refused_unmanaged,
+            preserved_current: inputs.current_hex.map(str::to_owned),
+            observation: inputs.observation,
+        };
+    }
     let mut retained: Vec<&str> = Vec::new();
     if let Some(current) = inputs.current_hex {
         retained.push(current);
@@ -84,6 +100,7 @@ pub fn plan_prune(inputs: PruneInputs<'_>) -> CleanPlan {
         prune_generations,
         refused_unmanaged,
         preserved_current: inputs.current_hex.map(str::to_owned),
+        observation: inputs.observation,
     }
 }
 
@@ -126,6 +143,7 @@ mod tests {
             active_setup_hexes: &[],
             active_generation_hexes: &[],
             unmanaged_names: &[],
+            observation: ObservationStatus::Known,
         }
     }
 
@@ -184,9 +202,36 @@ mod tests {
             active_setup_hexes: &active_setup,
             active_generation_hexes: &active_generations,
             unmanaged_names: &[],
+            observation: ObservationStatus::Known,
         });
         assert!(plan.prune_setup_records.is_empty());
         assert!(plan.prune_generations.is_empty());
+    }
+
+    #[test]
+    fn unknown_observation_preserves_everything_but_still_refuses() {
+        let current = record('1', '2');
+        let stale = record('3', '4');
+        let records = vec![current.clone(), stale.clone()];
+        let generations = vec![
+            generation(GenerationKind::Environment, '3'),
+            generation(GenerationKind::Generated, '4'),
+        ];
+        let unmanaged = vec!["latest".to_owned()];
+        let plan = plan_prune(PruneInputs {
+            records: &records,
+            generations: &generations,
+            current_hex: Some(&current.hex),
+            active_setup_hexes: &[],
+            active_generation_hexes: &[],
+            unmanaged_names: &unmanaged,
+            observation: ObservationStatus::Unknown,
+        });
+        assert!(plan.prune_setup_records.is_empty());
+        assert!(plan.prune_generations.is_empty());
+        assert_eq!(plan.refused_unmanaged, unmanaged);
+        assert_eq!(plan.preserved_current, Some(current.hex));
+        assert_eq!(plan.observation, ObservationStatus::Unknown);
     }
 
     #[test]
@@ -200,6 +245,7 @@ mod tests {
             active_setup_hexes: &[],
             active_generation_hexes: &[],
             unmanaged_names: &unmanaged,
+            observation: ObservationStatus::Known,
         });
         assert_eq!(plan.refused_unmanaged, unmanaged);
         assert!(!plan

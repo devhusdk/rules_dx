@@ -15,12 +15,28 @@ pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> (String, String)
     }
 }
 
+fn lease_staged(
+    workspace: &Path,
+    kind: dx_clean::GenerationKind,
+    id: &dx_setup::GenerationId,
+) -> Result<dx_clean::GenerationLease, (String, String)> {
+    let dx_dir = workspace.join(dx_env::DX_DIR_NAME);
+    dx_clean::acquire_shared_lease(&dx_dir, kind, id.as_str(), dx_clean::LEASE_TIMEOUT).map_err(
+        |error| {
+            (
+                CODE_MANAGED_COMMIT_FAILED.to_owned(),
+                format!("cannot lease staged generation: {error}"),
+            )
+        },
+    )
+}
+
 pub(crate) fn prepare_managed_sides(
     command: Command,
     repository: bool,
     workspace: &Path,
     bep: &Path,
-) -> Result<dx_setup::PreparedSides, (String, String)> {
+) -> Result<(dx_setup::PreparedSides, Vec<dx_clean::GenerationLease>), (String, String)> {
     let empties = || dx_setup::PreparedSides {
         prepared_environment: None,
         prepared_generated: None,
@@ -30,38 +46,66 @@ pub(crate) fn prepare_managed_sides(
     match command {
         Command::Codegen => {
             let (_, plan) = collect_managed_codegen(bep, workspace)?;
+            let id = dx_setup::GenerationId::from_digest(plan.digest);
+            let lease = lease_staged(workspace, dx_clean::GenerationKind::Generated, &id)?;
             let generated = stage_codegen_side(workspace, &plan)?;
-            Ok(dx_setup::PreparedSides {
-                prepared_generated: Some(generated),
-                ..empties()
-            })
+            debug_assert_eq!(generated.as_str(), id.as_str());
+            Ok((
+                dx_setup::PreparedSides {
+                    prepared_generated: Some(generated),
+                    ..empties()
+                },
+                vec![lease],
+            ))
         }
         Command::Env => {
             let (_, plan) = collect_managed_env(bep, workspace)?;
+            let id = dx_setup::GenerationId::from_digest(plan.digest);
+            let lease = lease_staged(workspace, dx_clean::GenerationKind::Environment, &id)?;
             let environment = stage_env_side(workspace, &plan)?;
-            Ok(dx_setup::PreparedSides {
-                prepared_environment: Some(environment),
-                ..empties()
-            })
+            debug_assert_eq!(environment.as_str(), id.as_str());
+            Ok((
+                dx_setup::PreparedSides {
+                    prepared_environment: Some(environment),
+                    ..empties()
+                },
+                vec![lease],
+            ))
         }
         Command::Setup => {
             let (codegen_outputs, codegen_plan) = collect_managed_codegen(bep, workspace)?;
             let (env_outputs, env_plan) = collect_managed_env(bep, workspace)?;
+            let mut leases = Vec::new();
             let prepared_generated = if repository || !codegen_outputs.is_empty() {
+                let id = dx_setup::GenerationId::from_digest(codegen_plan.digest);
+                leases.push(lease_staged(
+                    workspace,
+                    dx_clean::GenerationKind::Generated,
+                    &id,
+                )?);
                 Some(stage_codegen_side(workspace, &codegen_plan)?)
             } else {
                 None
             };
             let prepared_environment = if repository || !env_outputs.is_empty() {
+                let id = dx_setup::GenerationId::from_digest(env_plan.digest);
+                leases.push(lease_staged(
+                    workspace,
+                    dx_clean::GenerationKind::Environment,
+                    &id,
+                )?);
                 Some(stage_env_side(workspace, &env_plan)?)
             } else {
                 None
             };
-            Ok(dx_setup::PreparedSides {
-                prepared_environment,
-                prepared_generated,
-                ..empties()
-            })
+            Ok((
+                dx_setup::PreparedSides {
+                    prepared_environment,
+                    prepared_generated,
+                    ..empties()
+                },
+                leases,
+            ))
         }
         // LCOV_EXCL_START - reason: unreached command, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         _ => {

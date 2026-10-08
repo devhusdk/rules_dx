@@ -77,10 +77,35 @@ rust_binary(
     ],
 )
 
+# keep
+rust_binary(
+    name = "matrix_harness",
+    srcs = ["src/matrix_harness.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_runner",
+        normal = True,
+    ),
+    crate_name = "matrix_harness",
+    crate_root = "src/matrix_harness.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "quality/quality_runner",
+    ) + [
+        "//cli/path:dx_path",
+        "//quality/result:quality_result",
+    ],
+)
+
 rustfmt_test(
     name = "quality_runner_fmt_test",
     size = "small",
     targets = [
+        ":matrix_harness",
         ":quality_runner_lib",
         ":quality_runner",
     ],
@@ -90,6 +115,7 @@ rust_clippy_test(
     name = "quality_runner_clippy_test",
     size = "small",
     targets = [
+        ":matrix_harness",
         ":quality_runner_lib",
         ":quality_runner",
     ],
@@ -99,6 +125,7 @@ exports_files([
     "Cargo.toml",
     "src/lib.rs",
     "src/main.rs",
+    "src/matrix_harness.rs",
     "src/real/check.rs",
     "src/real/staging.rs",
 ])
@@ -146,6 +173,30 @@ rust_test(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/output:dx_output",
         "//quality/result:quality_result",
+    ],
+)
+
+# keep
+rust_test(
+    name = "matrix_harness_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "quality/quality_runner",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":matrix_harness",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "quality/quality_runner",
+    ) + [
+        "//cli/path:dx_path",
+        "//quality/result:quality_result",
+        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 

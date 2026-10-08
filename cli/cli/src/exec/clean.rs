@@ -18,9 +18,10 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         ..
     } = env;
     let json = invocation.output == OutputMode::Json;
+    let apply = invocation.applies();
+    let mode = if apply { "default" } else { "check" };
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, "default")
-        {
+        if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, mode) {
             let _ = write_event(out, &event);
         }
         if let Ok(event) = operation_event(invocation.command.name(), "collect", None) {
@@ -59,6 +60,9 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
         }
         return 0;
+    }
+    if !apply {
+        return check_clean(invocation, out, &plan, &bytes, json, verbose);
     }
     let outcome = match apply_plan(workspace, &plan) {
         Ok(outcome) => outcome,
@@ -125,6 +129,42 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         let _ = writeln!(out, "{}", RECOVERY_GUIDANCE);
     }
     bazel_code
+}
+
+fn check_clean(
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    plan: &dx_clean::CleanPlan,
+    bytes: &dx_clean::PruneBytes,
+    json: bool,
+    verbose: bool,
+) -> i32 {
+    let drift = !plan.prune_setup_records.is_empty() || !plan.prune_generations.is_empty();
+    if !drift {
+        if json {
+            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+            return 0;
+        }
+        if verbose {
+            let _ = writeln!(out, "dx clean: nothing to prune");
+        }
+        return 0;
+    }
+    if json {
+        emit_clean_notices(out, plan, bytes, true);
+        let _ = write_event(out, &command_finished(1, &FinishedCounts::default()));
+        return 1;
+    }
+    if verbose {
+        let _ = writeln!(out, "{}", render_dry_run(plan, bytes));
+        if invocation.bazel_clean {
+            let _ = writeln!(out, "run `dx clean --apply --bazel` to prune it");
+            let _ = writeln!(out, "would forward: bazel clean");
+        } else {
+            let _ = writeln!(out, "run `dx clean --apply` to prune it");
+        }
+    }
+    1
 }
 
 fn emit_clean_notices(
@@ -341,7 +381,7 @@ mod tests {
         let harness = Harness::new("clean-apply");
         let stale = commit_clean_pair(&harness, '3', '4');
         let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean"]);
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("pruned 1 setup records and 2 generations"),
@@ -381,7 +421,7 @@ mod tests {
         let harness = Harness::new("clean-apply-shared");
         commit_clean_pair(&harness, '3', '2');
         commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean"]);
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("pruned 1 setup records and 1 generations"),
@@ -401,7 +441,7 @@ mod tests {
     #[test]
     fn clean_bazel_forward_runs_after_prune_and_propagates_code() {
         let harness = Harness::new("clean-bazel");
-        let (code, out, err) = harness.run(&["clean", "--bazel"]);
+        let (code, out, err) = harness.run(&["clean", "--apply", "--bazel"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("nothing to prune"), "{out}");
         assert!(out.contains("re-run `dx setup`"), "{out}");
@@ -413,7 +453,7 @@ mod tests {
 
         let mut failing = Harness::new("clean-bazel-fail");
         failing.bazel_code = 3;
-        let (code, _, err) = failing.run(&["clean", "--bazel"]);
+        let (code, _, err) = failing.run(&["clean", "--apply", "--bazel"]);
         assert_eq!(code, 3, "{err}");
 
         let dry = Harness::new("clean-bazel-dryrun");
@@ -497,7 +537,7 @@ mod tests {
         let harness = Harness::new("clean-live-json");
         let stale = commit_clean_pair(&harness, '3', '4');
         let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--output=json"]);
+        let (code, out, err) = harness.run(&["clean", "--apply", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         assert!(
@@ -530,6 +570,112 @@ mod tests {
         assert!(
             harness.workspace.join(".dx/setups").join(&stale).exists(),
             "failure prunes nothing"
+        );
+    }
+
+    #[test]
+    fn clean_default_reports_drift_without_pruning() {
+        let harness = Harness::new("clean-check-drift");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let current = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            out.contains(&format!("prune setup record: .dx/setups/{stale}")),
+            "{out}"
+        );
+        assert!(out.contains("run `dx clean --apply` to prune it"), "{out}");
+        assert_eq!(err, "", "{err}");
+        assert!(
+            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            "check prunes nothing"
+        );
+        assert!(
+            harness.workspace.join(".dx/setups").join(&current).exists(),
+            "check keeps current"
+        );
+        assert!(
+            harness.seen_env.borrow().is_empty(),
+            "check launches nothing"
+        );
+    }
+
+    #[test]
+    fn clean_default_clean_workspace_succeeds() {
+        let harness = Harness::new("clean-check-clean");
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("nothing to prune"), "{out}");
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn clean_explicit_check_matches_default() {
+        let default = Harness::new("clean-check-matches-default");
+        let stale = commit_clean_pair(&default, '3', '4');
+        let _current = commit_clean_pair(&default, '1', '2');
+        let (default_code, default_out, _) = default.run(&["clean"]);
+        let explicit = Harness::new("clean-check-matches-explicit");
+        let estale = commit_clean_pair(&explicit, '3', '4');
+        let _ecurrent = commit_clean_pair(&explicit, '1', '2');
+        assert_eq!(stale, estale, "fixtures agree");
+        let (explicit_code, explicit_out, _) = explicit.run(&["clean", "--check"]);
+        assert_eq!(default_code, explicit_code);
+        assert_eq!(default_out, explicit_out);
+        assert_eq!(default_code, 1, "{default_out}");
+        assert!(default_out.contains("run `dx clean --apply` to prune it"));
+    }
+
+    #[test]
+    fn clean_check_with_bazel_reports_without_forwarding() {
+        let harness = Harness::new("clean-check-bazel");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let _current = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["clean", "--bazel"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains(&stale), "{out}");
+        assert!(
+            out.contains("run `dx clean --apply --bazel` to prune it"),
+            "{out}"
+        );
+        assert!(out.contains("would forward: bazel clean"), "{out}");
+        assert!(
+            harness.seen_env.borrow().is_empty(),
+            "check never forwards bazel clean"
+        );
+        assert!(
+            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            "check prunes nothing"
+        );
+    }
+
+    #[test]
+    fn clean_check_json_emits_planned_notices_with_drift_exit() {
+        let harness = Harness::new("clean-check-json-drift");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let _current = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["clean", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started");
+        assert!(kinds.contains(&"operation"), "{kinds:?}");
+        assert!(kinds.contains(&"notice"), "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        let started = event(&events, "command_started");
+        assert_eq!(started["mode"], serde_json::json!("check"));
+        let notice = event(&events, "notice");
+        assert_eq!(notice["code"], serde_json::json!("clean_planned"));
+        let message = notice["message"].as_str().expect("message");
+        assert!(message.contains(&stale));
+        assert_eq!(
+            events.last().expect("finished")["exit_code"],
+            serde_json::json!(1)
+        );
+        assert_eq!(err, "", "{err}");
+        assert!(
+            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            "json check prunes nothing"
         );
     }
 }

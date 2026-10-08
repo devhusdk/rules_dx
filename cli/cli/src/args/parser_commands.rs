@@ -1163,7 +1163,6 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         );
     }
     for words in [
-        vec!["codegen", "--check"],
         vec!["env", "--fail-on=error"],
         vec!["setup", "--output=diff"],
         vec!["codegen", "--report=sarif=out.sarif"],
@@ -1180,6 +1179,22 @@ fn managed_commands_parse_repo_and_exact_scopes() {
                 Err(ArgsError::UnsupportedOption { .. })
             ),
             "words: {words:?}"
+        );
+    }
+    for command in ["codegen", "env", "setup"] {
+        let got = parse(&strings(&[command, "--check"])).expect("check parses");
+        assert!(got.check, "{command} --check sets the flag");
+        assert_eq!(got.operation(), OperationMode::Check);
+        assert!(!got.applies());
+        let got = parse(&strings(&[command, "--apply"])).expect("apply parses");
+        assert!(got.applies());
+        assert_eq!(
+            parse(&strings(&[command, "--check", "--apply"])),
+            Err(ArgsError::ConflictingModes {
+                first: "--check",
+                second: "--apply",
+            }),
+            "{command} --check with --apply conflicts"
         );
     }
 }

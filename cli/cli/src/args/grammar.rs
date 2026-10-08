@@ -635,7 +635,7 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { apply: ApplyFlag, own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         offline: OfflineFlag,
@@ -647,11 +647,11 @@ command_args! {
     /// The flags `dx migrate` accepts.
     Migrate => 16, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 17, BazelTail, { apply: ApplyFlag, };
+    Codegen => 17, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 18, BazelTail, { apply: ApplyFlag, };
+    Env => 18, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx setup` accepts.
-    Setup => 19, BazelTail, { apply: ApplyFlag, };
+    Setup => 19, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx init` accepts.
     Init => 20, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx new` accepts.

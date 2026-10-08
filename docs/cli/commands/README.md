@@ -53,7 +53,8 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--min-coverage <percent>`: fail `coverage` below this percent. Taken by
   `coverage`. Every other command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
-  `generate`, `check`, `fix`, `update`, `version`, `completion`, and `docs`.
+  `generate`, `codegen`, `env`, `setup`, `clean`, `check`, `fix`, `update`,
+  `version`, `completion`, and `docs`.
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,

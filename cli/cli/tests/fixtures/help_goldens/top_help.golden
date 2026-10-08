@@ -14,7 +14,7 @@ Commands:
   lint        run lint analysis over resolved scopes (check by default; --apply writes fixes)
   typecheck   run typecheck analysis over resolved scopes (check by default; --apply writes fixes)
   format      check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)
-  generate    emit/sync BUILD files (Gazelle pipeline; mutating by default; --check validates without writes)
+  generate    emit/sync BUILD files (Gazelle pipeline; check by default; --apply writes generated sources)
   build       run Bazel build over resolved targets
   test        run Bazel test over resolved targets
   coverage    collect LCOV coverage with optional threshold
@@ -22,13 +22,13 @@ Commands:
   deploy      build and run a single deployable target
   check       run format+lint+typecheck+generate checks in order (non-mutating)
   fix         apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
-  clean       prune unselected managed state, never Bazel outputs unless --bazel (no scopes)
+  clean       prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
   update      update dependencies per set through qualified resolvers (mutating without confirmation; --check validates selected sets without writing)
   bump        widen one declared requirement to a new version (explicit; mutating without confirmation)
   migrate     rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)
-  codegen     collect codegen outputs with atomic commit (mutating managed state)
-  env         collect the managed development environment (mutating managed state)
-  setup       collect setup outputs with atomic commit (mutating managed state)
+  codegen     collect codegen outputs with atomic commit (check by default; --apply writes managed state)
+  env         collect the managed development environment (check by default; --apply writes managed state)
+  setup       collect setup outputs with atomic commit (check by default; --apply writes managed state)
   init        scaffold dx into a foreign tree (absent-only; mutating by default)
   new         scaffold a minimal qualified project for one language (absent-only; mutating by default)
   upgrade     one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)

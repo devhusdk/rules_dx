@@ -19,8 +19,15 @@ pub(crate) fn prepare_managed_sides(
     command: Command,
     repository: bool,
     workspace: &Path,
+    state_root: &Path,
     bep: &Path,
-) -> Result<(dx_setup::PreparedSides, Vec<dx_atomic_fs::lease::SharedLease>), (String, String)> {
+) -> Result<
+    (
+        dx_setup::PreparedSides,
+        Vec<dx_atomic_fs::lease::SharedLease>,
+    ),
+    (String, String),
+> {
     let empties = || dx_setup::PreparedSides {
         prepared_environment: None,
         prepared_generated: None,
@@ -30,7 +37,7 @@ pub(crate) fn prepare_managed_sides(
     match command {
         Command::Codegen => {
             let (_, plan) = collect_managed_codegen(bep, workspace)?;
-            let (generated, lease) = stage_codegen_side(workspace, &plan)?;
+            let (generated, lease) = stage_codegen_side(state_root, workspace, &plan)?;
             Ok((
                 dx_setup::PreparedSides {
                     prepared_generated: Some(generated),
@@ -41,7 +48,7 @@ pub(crate) fn prepare_managed_sides(
         }
         Command::Env => {
             let (_, plan) = collect_managed_env(bep, workspace)?;
-            let (environment, lease) = stage_env_side(workspace, &plan)?;
+            let (environment, lease) = stage_env_side(state_root, &plan)?;
             Ok((
                 dx_setup::PreparedSides {
                     prepared_environment: Some(environment),
@@ -55,14 +62,14 @@ pub(crate) fn prepare_managed_sides(
             let (env_outputs, env_plan) = collect_managed_env(bep, workspace)?;
             let mut leases = Vec::new();
             let prepared_generated = if repository || !codegen_outputs.is_empty() {
-                let (generated, lease) = stage_codegen_side(workspace, &codegen_plan)?;
+                let (generated, lease) = stage_codegen_side(state_root, workspace, &codegen_plan)?;
                 leases.push(lease);
                 Some(generated)
             } else {
                 None
             };
             let prepared_environment = if repository || !env_outputs.is_empty() {
-                let (environment, lease) = stage_env_side(workspace, &env_plan)?;
+                let (environment, lease) = stage_env_side(state_root, &env_plan)?;
                 leases.push(lease);
                 Some(environment)
             } else {

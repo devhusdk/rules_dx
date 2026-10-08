@@ -44,11 +44,12 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(env.err, &error.to_string()),
     };
-    let plan = match plan_generate(&resolved, &invocation.bazel_options, invocation.check) {
+    let apply = invocation.applies();
+    let plan = match plan_generate(&resolved, &invocation.bazel_options, !apply) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(env.err, &format!("{error}")),
     };
-    let mode = if invocation.check { "check" } else { "default" };
+    let mode = if apply { "default" } else { "check" };
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, mode) {
@@ -102,7 +103,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     let finalized = finalize(&FinalizeInput {
         intended_json: &witness,
         workspace: env.workspace,
-        check: invocation.check,
+        check: !apply,
         gazelle_ok: bazel_code == 0,
     })
     .and_then(|manifest| project(&manifest).map_err(FinalizeError::Invalid));
@@ -125,7 +126,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
         for file in projected.sorted_files() {
             let _ = write_event(env.out, &change_value(&file.change));
         }
-        if !invocation.check {
+        if apply {
             for mutation in projected.mutations() {
                 let _ = write_event(
                     env.out,
@@ -179,7 +180,7 @@ mod tests {
     #[test]
     fn generate_runs_repo_wide_and_preserves_bazel_status() {
         let harness = generate_witness("xyz\n", "generate-text");
-        let (code, out, err) = harness.run(&["generate", "--output=text"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=text"]);
         assert_eq!(code, 0, "{err}");
         assert!(out.contains("Running generate for //..."), "{out}");
         assert!(
@@ -194,7 +195,7 @@ mod tests {
 
         let mut failing = generate_witness("xyz\n", "generate-fails");
         failing.bazel_code = 2;
-        let (code, _, _) = failing.run(&["generate", "--output=text"]);
+        let (code, _, _) = failing.run(&["generate", "--apply", "--output=text"]);
         assert_eq!(code, 2);
     }
 
@@ -208,7 +209,7 @@ mod tests {
             &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
             &intended_ignored("rust/tests/fixtures/hello/BUILD.bazel", "rust", "serde"),
         ));
-        let (code, out, err) = harness.run(&["generate", "--output=json"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("\"command_started\""), "{out}");
         assert!(out.contains("\"mode\":\"default\""), "{out}");
@@ -286,7 +287,7 @@ mod tests {
     fn generate_partial_default_reports_attempted_prefix() {
         let mut harness = generate_witness("xyz\n", "generate-partial");
         harness.bazel_code = 2;
-        let (code, out, _) = harness.run(&["generate", "--output=json"]);
+        let (code, out, _) = harness.run(&["generate", "--apply", "--output=json"]);
         assert_eq!(code, 2, "{out}");
         assert!(out.contains("\"event\":\"change\""), "{out}");
         assert!(out.contains("\"event\":\"mutation\""), "{out}");
@@ -297,7 +298,7 @@ mod tests {
     #[test]
     fn generate_not_applied_mutation_fails() {
         let harness = generate_witness("stale\n", "generate-not-applied");
-        let (code, out, err) = harness.run(&["generate", "--output=json"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("\"outcome\":\"not_applied\""), "{out}");
         assert!(out.contains("write_mismatch"), "{out}");
@@ -389,7 +390,7 @@ mod tests {
     #[test]
     fn generate_diff_renders_validated_patch_only() {
         let harness = generate_witness("xyz\n", "generate-diff");
-        let (code, out, err) = harness.run(&["generate", "--output=diff"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=diff"]);
         assert_eq!(code, 0, "{err}");
         assert!(
             out.contains("rust/tests/fixtures/hello/BUILD.bazel"),
@@ -411,7 +412,7 @@ mod tests {
             &intended_create("new/BUILD.bazel", b""),
             "",
         ));
-        let (code, out, err) = harness.run(&["generate", "--output=diff"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=diff"]);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(out, "", "{out}");
         assert!(
@@ -431,7 +432,7 @@ mod tests {
             &intended_create("new/BUILD.bazel", b"# created\n"),
             "",
         ));
-        let (code, out, err) = harness.run(&["generate", "--output=diff"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=diff"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
             out,
@@ -443,7 +444,7 @@ mod tests {
     #[test]
     fn generate_dispatch_env_carries_scope_mode_and_witness() {
         let harness = generate_witness("xyz\n", "generate-dispatch");
-        let (code, out, err) = harness.run(&["generate", "//a:one", "--output=text"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "//a:one", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         let seen = harness.seen_env.borrow();
         assert_eq!(seen.len(), 1, "{seen:?}");
@@ -498,7 +499,7 @@ mod tests {
 
         let mut quiet = Harness::new("generate-quiet");
         quiet.intended = Some(intended_witness("default", true, "", ""));
-        let (code, out, _) = quiet.run(&["generate", "--quiet"]);
+        let (code, out, _) = quiet.run(&["generate", "--apply", "--quiet"]);
         assert_eq!(code, 0, "{out}");
         assert_eq!(out, "", "{out:?}");
     }
@@ -506,7 +507,7 @@ mod tests {
     #[test]
     fn generate_scoped_run_resolves_labels_without_queries() {
         let harness = generate_witness("xyz\n", "generate-scoped");
-        let (code, out, err) = harness.run(&["generate", "//a:one", "--output=text"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "//a:one", "--output=text"]);
         assert_eq!(code, 0, "{err}");
         assert!(out.contains("Running generate for //a:one"), "{out}");
         assert!(
@@ -547,5 +548,103 @@ mod tests {
         let (code, _, err) = harness.run(&["generate", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_signalled"), "{err}");
+    }
+
+    #[test]
+    fn generate_default_checks_without_writing() {
+        let mut harness = Harness::new("generate-default-check");
+        harness.write_source("rust/tests/fixtures/hello/BUILD.bazel", "xyz\n");
+        harness.intended = Some(intended_witness(
+            "check",
+            true,
+            &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["generate", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("Running generate for //..."), "{out}");
+        assert!(
+            out.contains("Modified rust/tests/fixtures/hello/BUILD.bazel"),
+            "{out}"
+        );
+        assert_eq!(
+            std::fs::read(
+                harness
+                    .workspace
+                    .join("rust/tests/fixtures/hello/BUILD.bazel")
+            )
+            .expect("source"),
+            b"xyz\n",
+            "default check leaves sources untouched"
+        );
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn generate_default_check_json_reports_changes_without_mutations() {
+        let mut harness = Harness::new("generate-default-check-json");
+        harness.intended = Some(intended_witness(
+            "check",
+            true,
+            &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["generate", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("\"mode\":\"check\""), "{out}");
+        assert!(out.contains("\"event\":\"change\""), "{out}");
+        assert!(!out.contains("\"event\":\"mutation\""), "{out}");
+        assert!(out.contains("\"exit_code\":1"), "{out}");
+    }
+
+    #[test]
+    fn generate_explicit_check_matches_default() {
+        let witness = || {
+            intended_witness(
+                "check",
+                true,
+                &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+                "",
+            )
+        };
+        let mut default = Harness::new("generate-default-matches");
+        default.intended = Some(witness());
+        let (default_code, default_out, _) = default.run(&["generate", "--output=text"]);
+        let mut explicit = Harness::new("generate-explicit-matches");
+        explicit.intended = Some(witness());
+        let (explicit_code, explicit_out, _) =
+            explicit.run(&["generate", "--check", "--output=text"]);
+        assert_eq!(default_code, explicit_code);
+        assert_eq!(default_out, explicit_out);
+        assert_eq!(default_code, 1, "{default_out}");
+    }
+
+    #[test]
+    fn generate_apply_writes_after_default_check_reports_drift() {
+        let witness = || {
+            intended_witness(
+                "check",
+                true,
+                &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+                "",
+            )
+        };
+        let mut harness = Harness::new("generate-apply-after-check");
+        harness.write_source("rust/tests/fixtures/hello/BUILD.bazel", "xyz\n");
+        harness.intended = Some(witness());
+        let (code, _, _) = harness.run(&["generate", "--output=text"]);
+        assert_eq!(code, 1);
+        harness.intended = Some(intended_witness(
+            "default",
+            true,
+            &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("Modified rust/tests/fixtures/hello/BUILD.bazel"),
+            "{out}"
+        );
     }
 }

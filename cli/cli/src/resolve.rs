@@ -16,7 +16,9 @@ pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use test_map::map_owners_to_tests;
 #[cfg(test)]
 pub(crate) use types::NeverQuery;
-pub use types::{ProcessQueryRunner, QueryResult, QueryRunner, ResolveError, ResolvedScope};
+pub use types::{
+    ProcessQueryRunner, QueryResult, QueryRunner, ResolveError, ResolvedScope, StartupQueryRunner,
+};
 
 #[cfg(test)]
 mod tests {

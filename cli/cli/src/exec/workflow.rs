@@ -257,6 +257,54 @@ mod tests {
     }
 
     #[test]
+    fn startup_options_reach_bazel_argv_and_queries_before_the_verb() {
+        let harness = Harness::new("wf-startup");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:lib\n");
+        let inv = invocation(&[
+            "build",
+            "pkg/a.py",
+            "--bazel-startup-option=--output_base=/tmp/dx-a",
+            "--bazel-startup-option",
+            "--output_user_root=/tmp/dx-b",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        let argv = &run.argv[0];
+        let verb_at = argv
+            .iter()
+            .position(|arg| arg == "build")
+            .expect("build verb");
+        for token in [
+            "--output_base=/tmp/dx-a",
+            "--output_user_root=/tmp/dx-b",
+        ] {
+            assert!(
+                argv[..verb_at].contains(&token.to_owned()),
+                "{token} must precede the verb, one token: {argv:?}"
+            );
+        }
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 1, "one ownership query: {queries:?}");
+        let query_at = queries[0]
+            .iter()
+            .position(|arg| arg == "query")
+            .expect("query verb");
+        for token in [
+            "--output_base=/tmp/dx-a",
+            "--output_user_root=/tmp/dx-b",
+        ] {
+            assert!(
+                queries[0][..query_at].contains(&token.to_owned()),
+                "{token} must precede the query verb: {:?}",
+                queries[0]
+            );
+        }
+    }
+
+    #[test]
     fn workflow_dry_run_text_and_json() {
         let harness = Harness::new("wf-dry-text");
         let (code, out, _) = harness.run(&["build", "--dry-run", "--output=text"]);

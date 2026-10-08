@@ -956,3 +956,100 @@ fn ignored_selection_probe_runs_only_when_explicitly_selected() {
         "explicit ignored selection must reach the test binary: {args:?}"
     );
 }
+
+#[test]
+fn startup_option_accepts_the_selectable_equals_tokens_whole() {
+    for token in [
+        "--output_base=/tmp/dx-base",
+        "--output_user_root=/tmp/dx-root",
+        "--output_base=/tmp/with spaces/héllo",
+        "--output_base=relative/dir",
+    ] {
+        assert_eq!(
+            validate_startup_option(token).expect("selectable"),
+            token,
+            "the token must survive validation untouched"
+        );
+    }
+}
+
+#[test]
+fn startup_option_rejects_missing_and_malformed_values() {
+    assert!(matches!(
+        validate_startup_option("--output_base"),
+        Err(StartupOptionError::MissingValue { .. })
+    ));
+    assert!(matches!(
+        validate_startup_option("--output_user_root"),
+        Err(StartupOptionError::MissingValue { .. })
+    ));
+    assert!(matches!(
+        validate_startup_option("--output_base="),
+        Err(StartupOptionError::EmptyValue { .. })
+    ));
+    for token in ["output_base=/tmp/x", "--", "", "--=x"] {
+        assert!(
+            matches!(
+                validate_startup_option(token),
+                Err(StartupOptionError::NotAnOption { .. })
+            ),
+            "{token:?} is no startup option"
+        );
+    }
+    let text = validate_startup_option("--output_base=")
+        .expect_err("empty")
+        .to_string();
+    assert!(text.contains("--output_base"), "{text}");
+}
+
+#[test]
+fn startup_option_rejects_the_managed_policy_names() {
+    for token in [
+        "--nohome_rc",
+        "--home_rc=false",
+        "--nosystem_rc",
+        "--bazelrc=/tmp/rc",
+        "--host_jvm_args=-Xmx1g",
+        "--server_jvm_out=/tmp/jvm",
+    ] {
+        let error = validate_startup_option(token).expect_err("managed stays managed");
+        assert!(
+            matches!(error, StartupOptionError::ConflictingOption { .. }),
+            "{token}: got {error:?}"
+        );
+        assert!(error.to_string().contains("managed"), "{error}");
+    }
+}
+
+#[test]
+fn startup_options_splice_before_the_verb_and_keep_one_token_each() {
+    let mut argv = vec![
+        "bazel".to_owned(),
+        "--nohome_rc".to_owned(),
+        "--nosystem_rc".to_owned(),
+        "build".to_owned(),
+        "//...".to_owned(),
+    ];
+    splice_startup_options(
+        &mut argv,
+        &[
+            "--output_base=/tmp/with spaces".to_owned(),
+            "--output_user_root=/tmp/héllo".to_owned(),
+        ],
+    );
+    assert_eq!(
+        argv,
+        vec![
+            "bazel",
+            "--output_base=/tmp/with spaces",
+            "--output_user_root=/tmp/héllo",
+            "--nohome_rc",
+            "--nosystem_rc",
+            "build",
+            "//...",
+        ]
+    );
+    let mut bare = vec!["bazel".to_owned(), "query".to_owned(), "--".to_owned()];
+    splice_startup_options(&mut bare, &[]);
+    assert_eq!(bare, vec!["bazel", "query", "--"]);
+}

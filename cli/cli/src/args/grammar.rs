@@ -76,6 +76,7 @@ pub(crate) struct Flags {
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) startup_options: Vec<String>,
 }
 
 /// One flag group: a clap argument group that writes into the normalized invocation flags.
@@ -214,6 +215,7 @@ composite_group! {
         color: ColorFlag,
         log_level: LogLevelFlag,
         output: OutputFlag,
+        startup_options: StartupOptionsFlag,
     }
 }
 
@@ -385,6 +387,18 @@ flag_group! {
     OfflineFlag, {
         #[arg(long, visible_alias = "frozen", overrides_with = "offline")]
         offline: bool,
+    }
+}
+
+flag_group! {
+    /// Set one Bazel startup option, one token each.
+    StartupOptionsFlag, {
+        #[arg(
+            long = "bazel-startup-option",
+            value_name = "TOKEN",
+            allow_hyphen_values = true
+        )]
+        startup_options: Vec<String>,
     }
 }
 
@@ -723,6 +737,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--host",
     "--color",
     "--log-level",
+    "--bazel-startup-option",
 ];
 
 /// The long names the grammar gives the flags that belong to some commands only.

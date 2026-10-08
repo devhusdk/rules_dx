@@ -299,7 +299,9 @@ pub(crate) fn run_bazel(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
-    let status = match runner.run(argv, workspace, env) {
+    let mut owned = argv.to_vec();
+    dx_process::splice_startup_options(&mut owned, &invocation.startup_options);
+    let status = match runner.run(&owned, workspace, env) {
         Ok(status) => status,
         Err(error) => {
             return Err(operational(

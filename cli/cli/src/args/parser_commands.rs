@@ -1484,3 +1484,111 @@ fn clean_names_its_scope_before_the_passthrough_it_also_refuses() {
         );
     }
 }
+
+#[test]
+fn startup_options_parse_repeatably_on_every_command() {
+    use clap::ValueEnum;
+    for command in Command::value_variants() {
+        let command = *command;
+        if command == Command::Bazel {
+            continue;
+        }
+        let mut words = vec![command.name().to_owned()];
+        words.extend(required_words_for(command));
+        words.push("--bazel-startup-option=--output_base=/tmp/dx-a".to_owned());
+        words.push("--bazel-startup-option".to_owned());
+        words.push("--output_user_root=/tmp/dx-b".to_owned());
+        let got = parse(&strings(&words.iter().map(String::as_str).collect::<Vec<_>>()))
+            .unwrap_or_else(|error| panic!("dx {} takes startup options: {error}", command.name()));
+        assert_eq!(
+            got.startup_options,
+            vec![
+                "--output_base=/tmp/dx-a".to_owned(),
+                "--output_user_root=/tmp/dx-b".to_owned(),
+            ],
+            "dx {} keeps both tokens whole",
+            command.name()
+        );
+    }
+    let bare = parse(&strings(&["build"])).expect("bare build");
+    assert!(bare.startup_options.is_empty());
+}
+
+fn required_words_for(command: Command) -> Vec<String> {
+    match command.name() {
+        "bump" => vec!["cargo:demo".to_owned(), "1.0.0".to_owned()],
+        "migrate" | "upgrade" => vec!["--from=1.0.0".to_owned(), "--to=2.0.0".to_owned()],
+        "run" | "deploy" | "owners" | "deps" => vec!["//:demo".to_owned()],
+        "why" => vec!["a.rs".to_owned(), "//:demo".to_owned()],
+        "hooks" => vec!["status".to_owned()],
+        "new" => vec!["rust".to_owned()],
+        "watch" => vec!["build".to_owned()],
+        "completion" => vec!["bash".to_owned()],
+        _ => Vec::new(),
+    }
+}
+
+#[test]
+fn startup_options_keep_spaces_and_unicode_inside_one_token() {
+    let got = parse(&strings(&[
+        "build",
+        "--bazel-startup-option=--output_base=/tmp/with spaces/héllo",
+    ]))
+    .expect("spaces stay in one token");
+    assert_eq!(
+        got.startup_options,
+        vec!["--output_base=/tmp/with spaces/héllo".to_owned()]
+    );
+}
+
+#[test]
+fn startup_options_reject_missing_malformed_and_managed_tokens() {
+    for words in [
+        vec!["build", "--bazel-startup-option=--output_base"],
+        vec!["build", "--bazel-startup-option=--output_base="],
+        vec!["build", "--bazel-startup-option=output_base=/tmp/x"],
+        vec!["build", "--bazel-startup-option=--home_rc"],
+        vec!["build", "--bazel-startup-option=--nohome_rc"],
+        vec!["build", "--bazel-startup-option=--nosystem_rc"],
+        vec!["build", "--bazel-startup-option=--bazelrc=/tmp/rc"],
+        vec!["lint", "--bazel-startup-option=--jobs=4"],
+    ] {
+        let error = parse(&strings(&words)).expect_err("startup token must fail");
+        match error {
+            ArgsError::Usage { text } => {
+                assert!(
+                    text.contains("--bazel-startup-option") || text.contains("output_base"),
+                    "{words:?}: {text}"
+                );
+            }
+            other => panic!("{words:?}: want Usage, got {other:?}"),
+        }
+    }
+    let error = parse(&strings(&["build", "--bazel-startup-option=--home_rc"])).expect_err("managed");
+    match error {
+        ArgsError::Usage { text } => assert!(text.contains("managed"), "{text}"),
+        other => panic!("want Usage, got {other:?}"),
+    }
+}
+
+#[test]
+fn workflow_planning_still_rejects_raw_startup_options_after_separator() {
+    let invocation = parse(&strings(&["build", "--", "--output_base=/tmp/x"])).expect("parse");
+    assert_eq!(invocation.bazel_options, vec!["--output_base=/tmp/x".to_owned()]);
+    let resolved = crate::resolve::ResolvedScope {
+        scope: dx_process::Scope::Repository,
+        targets: vec!["//...".to_owned()],
+    };
+    let error = crate::plan::plan_workflow(
+        crate::args::WorkflowVerb::Build,
+        &resolved,
+        &invocation.bazel_options,
+        None,
+        Some(crate::args::Profile::Dev),
+    )
+    .expect_err("raw startup options never reach Bazel");
+    assert!(
+        matches!(error, dx_process::ForwardError::StartupOption { .. }),
+        "got {error:?}"
+    );
+}

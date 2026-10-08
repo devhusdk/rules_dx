@@ -373,6 +373,16 @@ impl Harness {
 
     /// Runs one invocation through a recording runner and returns what it saw.
     pub(crate) fn probe_with(&self, inv: &Invocation, codes: &[Option<i32>]) -> ProbeRun {
+        self.probe_with_ci(inv, codes, false)
+    }
+
+    /// Runs one invocation through a recording runner with an explicit CI flag.
+    pub(crate) fn probe_with_ci(
+        &self,
+        inv: &Invocation,
+        codes: &[Option<i32>],
+        ci: bool,
+    ) -> ProbeRun {
         let probe = ArgvProbe {
             codes: codes.to_vec(),
             seen: Rc::new(RefCell::new(Vec::new())),
@@ -380,7 +390,9 @@ impl Harness {
         };
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = execute(inv, self.env(&probe, &mut out, &mut err));
+        let mut env = self.env(&probe, &mut out, &mut err);
+        env.ci = ci;
+        let code = execute(inv, env);
         let argv = probe.seen.borrow().clone();
         ProbeRun {
             code,

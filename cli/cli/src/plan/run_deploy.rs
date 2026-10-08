@@ -26,6 +26,37 @@ pub fn plan_run(target: &str, app_args: &[String], profile: crate::args::Profile
     plan_run_targets(&[target.to_owned()], app_args, profile)
 }
 
+pub fn plan_run_build(targets: &[String], profile: crate::args::Profile) -> BuildPlan {
+    use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
+
+    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 3 + targets.len());
+    argv.push(launcher_argv0().to_owned());
+    argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.push("build".to_owned());
+    argv.push(profile.config_flag());
+    argv.extend(targets.iter().cloned());
+    let summary = format!("Running run build for {}", targets.join(" "));
+    BuildPlan { argv, summary }
+}
+
+pub fn shell_join(words: &[String]) -> String {
+    words
+        .iter()
+        .map(|word| {
+            if word.is_empty()
+                || word.chars().any(|cell| {
+                    cell.is_whitespace() || matches!(cell, '"' | '\'' | '\\' | '$' | '`' | '!')
+                })
+            {
+                format!("'{}'", word.replace('\'', "'\\''"))
+            } else {
+                word.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub fn plan_deploy_build(label: &str, profile: crate::args::Profile) -> BuildPlan {
     use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
 
@@ -112,5 +143,50 @@ mod tests {
                 "{profile:?}: {plan:?}"
             );
         }
+    }
+
+    #[test]
+    fn run_build_plan_builds_without_launching() {
+        let plan = plan_run_build(&strings(&["//a:one", "//b:two"]), Profile::Dev);
+        assert_eq!(
+            plan.argv,
+            strings(&[
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "build",
+                "--config=dx_dev",
+                "//a:one",
+                "//b:two",
+            ])
+        );
+        assert!(!plan.argv.contains(&"run".to_owned()));
+        assert!(!plan.argv.contains(&"--".to_owned()));
+        assert!(plan.summary.contains("//a:one //b:two"));
+    }
+
+    #[test]
+    fn shell_join_quotes_only_unsafe_words() {
+        assert_eq!(
+            shell_join(&strings(&["dx", "run", "--apply", "//app:bin"])),
+            "dx run --apply //app:bin"
+        );
+        assert_eq!(
+            shell_join(&strings(&[
+                "dx",
+                "run",
+                "--apply",
+                "//app:bin",
+                "--",
+                "--port=8080"
+            ])),
+            "dx run --apply //app:bin -- --port=8080"
+        );
+        assert_eq!(
+            shell_join(&strings(&["dx", "run", "--", "two words"])),
+            "dx run -- 'two words'"
+        );
+        assert_eq!(shell_join(&strings(&["o'clock"])), "'o'\\''clock'");
+        assert_eq!(shell_join(&strings(&[""])), "''");
     }
 }

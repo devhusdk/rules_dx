@@ -58,7 +58,7 @@ commands. See [Version Skew](status-version.md#version-skew).
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `setup`, `init`, `new`, `upgrade`, `hooks`, `version`, and `docs`.
+  `codegen`, `env`, `setup`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, and `docs`.
   Every other command rejects it. It never combines with `--check` or `--dry-run`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means

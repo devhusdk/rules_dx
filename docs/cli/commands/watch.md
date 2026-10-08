@@ -1,14 +1,16 @@
 # `dx watch`
 
 ```text
-dx watch <build|test|run|lint|typecheck|format|check|fix> [scope...]
+dx watch [--apply] <build|test|run|lint|typecheck|format|check|fix> [scope...]
 ```
 
 Reruns one command when files change. Scope is re-resolved each iteration.
+The wrapped command runs with the watch invocation mode: pass `--apply`
+when the wrapped effect needs it, such as `dx watch --apply run //app:bin`.
 
 - Wraps only `build`, `test`, `run`, `lint`, `typecheck`, `format`,
   `check`, and `fix`. Other commands fail with `not watchable`.
-- Takes no per-command flags. `--check`, `--here`, `--debug`, `--release`,
+- Takes `--apply` only. `--check`, `--here`, `--debug`, `--release`,
   and args after `--` do not apply.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
 - Ignores changes under `.dx/` and `bazel-*`, and to `dx.local.toml`.
@@ -31,4 +33,5 @@ Exit codes: `0` success, `2` usage error, `1` operational failures.
 ```sh
 bazel run @rules_dx//:dx -- watch build //...
 bazel run @rules_dx//:dx -- watch test //cli/...
+bazel run @rules_dx//:dx -- watch --apply run //app:bin
 ```

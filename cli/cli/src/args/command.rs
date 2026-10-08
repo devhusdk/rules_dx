@@ -822,8 +822,8 @@ pub static COMMANDS: [CommandMeta; 33] = [
         name: "watch",
         scope_policy: "require",
         describe: "watch for changes and rebuild (local only)",
-        usage: "Usage: dx watch <build|test|run|lint|typecheck|format|check|fix> [scope ...]",
-        flags: "Per-command flags: none (watch only wraps build|test|run|lint|typecheck|format|check|fix; --check/--here/--debug|--release and `-- --bazel-options` do not apply; local only, refuses CI; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        usage: "Usage: dx watch [--apply] <build|test|run|lint|typecheck|format|check|fix> [scope ...]",
+        flags: "Per-command flags: --apply (authorizes the wrapped effect; watch only wraps build|test|run|lint|typecheck|format|check|fix, and the wrapped command runs with the watch invocation mode). --check/--here/--debug|--release and `-- --bazel-options` do not apply; local only, refuses CI; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`.",
         scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check|fix are watchable).",
         is_audit_update: false,
         is_managed: false,
@@ -1096,6 +1096,7 @@ impl Command {
                 | Command::New
                 | Command::Upgrade
                 | Command::Hooks
+                | Command::Watch
                 | Command::Version
                 | Command::Docs
         )

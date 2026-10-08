@@ -21,10 +21,15 @@ pub mod records;
 pub use apply::{apply_plan, apply_plan_with_timeout, CleanOutcome, CLEAN_LOCK_TIMEOUT};
 
 pub use bytes::{measure_prune_bytes, render_dry_run, PruneBytes};
-pub use flags::{bazel_forward_argv, BAZEL_FLAG, DRY_RUN_FLAG, RECOVERY_GUIDANCE};
+pub use flags::{
+    bazel_forward_argv, BAZEL_FLAG, DRY_RUN_FLAG, PRUNE_UNOBSERVED_FLAG, RECOVERY_GUIDANCE,
+};
 pub use inventory::{collect_inventory, walk_filtered, CollectedInventory};
-pub use live::{collect_inventory_with_scan, scan_live_hexes, LiveHexes};
-pub use planning::{plan_prune, CleanPlan, GenerationView, PruneInputs};
+pub use live::{
+    collect_inventory_with_scan, collect_inventory_with_scan_from, scan_live_observation,
+    LiveHexes, LiveObservation,
+};
+pub use planning::{plan_prune, CleanPlan, GenerationView, PruneInputs, UnobservedPolicy};
 pub use records::{validate_record, GenerationKind, RecordProblem, SetupRecordView};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

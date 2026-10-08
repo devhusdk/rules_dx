@@ -63,6 +63,7 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) bazel_clean: bool,
+    pub(crate) prune_unobserved: bool,
     pub(crate) pin: Option<String>,
     pub(crate) rollback: bool,
     pub(crate) configured: bool,
@@ -274,6 +275,14 @@ flag_group! {
     BazelCleanFlag, {
         #[arg(long = "bazel", overrides_with = "bazel_clean")]
         bazel_clean: bool,
+    }
+}
+
+flag_group! {
+    /// Prune generations process observation cannot see.
+    PruneUnobservedFlag, {
+        #[arg(long = "prune-unobserved", overrides_with = "prune_unobserved")]
+        prune_unobserved: bool,
     }
 }
 
@@ -612,7 +621,7 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { own: BazelCleanFlag, };
+    Clean => 13, NoPassthroughTail, { own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         offline: OfflineFlag,

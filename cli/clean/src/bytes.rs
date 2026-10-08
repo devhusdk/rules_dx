@@ -98,8 +98,18 @@ pub fn measure_prune_bytes(
 
 pub fn render_dry_run(plan: &CleanPlan, bytes: &PruneBytes) -> String {
     let mut lines = vec!["dx clean --dry-run: reclaimable managed state".to_owned()];
-    if plan.prune_setup_records.is_empty() && plan.prune_generations.is_empty() {
+    if plan.prune_setup_records.is_empty()
+        && plan.prune_generations.is_empty()
+        && plan.preserved_unobserved_setup_records.is_empty()
+        && plan.preserved_unobserved_generations.is_empty()
+    {
         lines.push("nothing to prune".to_owned());
+    }
+    if plan.observation_unknown {
+        lines.push(
+            "process observation unavailable: unobserved state is preserved, never assumed idle"
+                .to_owned(),
+        );
     }
     for hex in &plan.prune_setup_records {
         let size = bytes
@@ -129,6 +139,18 @@ pub fn render_dry_run(plan: &CleanPlan, bytes: &PruneBytes) -> String {
         Some(current) => lines.push(format!("preserve current: .dx/setups/{current}")),
         None => lines.push("no current selection".to_owned()),
     }
+    for hex in &plan.preserved_unobserved_setup_records {
+        lines.push(format!(
+            "preserve unobserved setup record: .dx/setups/{hex}"
+        ));
+    }
+    for generation in &plan.preserved_unobserved_generations {
+        lines.push(format!(
+            "preserve unobserved generation: .dx/{}/{}",
+            generation.kind.dir_name(),
+            generation.hex
+        ));
+    }
     for unmanaged in &plan.refused_unmanaged {
         lines.push(format!("refuse unmanaged path: {unmanaged}"));
     }
@@ -141,7 +163,7 @@ mod tests {
     use super::*;
     use crate::fixtures::*;
     use crate::inventory::collect_inventory;
-    use crate::planning::{plan_prune, PruneInputs};
+    use crate::planning::{plan_prune, PruneInputs, UnobservedPolicy};
     use crate::records::{GenerationKind, SetupRecordView};
 
     fn inputs<'a>(
@@ -156,6 +178,8 @@ mod tests {
             active_setup_hexes: &[],
             active_generation_hexes: &[],
             unmanaged_names: &[],
+            observation_unknown: false,
+            unobserved: UnobservedPolicy::Preserve,
         }
     }
 
@@ -173,6 +197,8 @@ mod tests {
             active_setup_hexes: &[],
             active_generation_hexes: &[],
             unmanaged_names: &unmanaged,
+            observation_unknown: false,
+            unobserved: UnobservedPolicy::Preserve,
         });
         let listing = render_dry_run(&plan, &PruneBytes::default());
         assert!(listing.contains(&format!(".dx/setups/{}", stale.hex)));
@@ -231,6 +257,9 @@ mod tests {
             }],
             refused_unmanaged: Vec::new(),
             preserved_current: None,
+            observation_unknown: false,
+            preserved_unobserved_setup_records: Vec::new(),
+            preserved_unobserved_generations: Vec::new(),
         };
         let ghost_bytes = measure_prune_bytes(&workspace, &ghost).expect("ghost measure");
         assert_eq!(ghost_bytes.total(), 0);
@@ -261,6 +290,9 @@ mod tests {
             }],
             refused_unmanaged: Vec::new(),
             preserved_current: None,
+            observation_unknown: false,
+            preserved_unobserved_setup_records: Vec::new(),
+            preserved_unobserved_generations: Vec::new(),
         };
         let bytes = measure_prune_bytes(&workspace, &plan).expect("measure");
         assert!(
@@ -284,6 +316,9 @@ mod tests {
             prune_generations: Vec::new(),
             refused_unmanaged: Vec::new(),
             preserved_current: None,
+            observation_unknown: false,
+            preserved_unobserved_setup_records: Vec::new(),
+            preserved_unobserved_generations: Vec::new(),
         };
         assert!(matches!(
             measure_prune_bytes(&root.join("no-such-dir"), &plan),
@@ -316,6 +351,7 @@ mod tests {
         let outcome = CleanOutcome {
             removed_setup_records: vec![removed_hex],
             removed_generations: vec![removed_generation],
+            skipped_leased_generations: Vec::new(),
         };
         assert_eq!(bytes.reclaimed(&outcome), 400);
         assert_eq!(

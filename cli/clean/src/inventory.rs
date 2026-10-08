@@ -8,7 +8,7 @@ use dx_setup::{
     GENERATED_LINK_NAME, SETUPS_DIR_NAME,
 };
 
-use super::planning::{plan_prune, CleanPlan, GenerationView, PruneInputs};
+use super::planning::{plan_prune, CleanPlan, GenerationView, PruneInputs, UnobservedPolicy};
 use super::records::{validate_record, GenerationKind, SetupRecordView};
 use super::CleanError;
 
@@ -20,6 +20,8 @@ pub struct CollectedInventory {
     pub active_setup_hexes: Vec<String>,
     pub active_generation_hexes: Vec<String>,
     pub unmanaged_names: Vec<String>,
+    pub observation_unknown: bool,
+    pub unobserved: UnobservedPolicy,
 }
 
 impl CollectedInventory {
@@ -31,6 +33,8 @@ impl CollectedInventory {
             active_setup_hexes: &self.active_setup_hexes,
             active_generation_hexes: &self.active_generation_hexes,
             unmanaged_names: &self.unmanaged_names,
+            observation_unknown: self.observation_unknown,
+            unobserved: self.unobserved,
         }
     }
 

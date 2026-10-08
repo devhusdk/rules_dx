@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use dx_clean::{
     apply_plan, bazel_forward_argv, collect_inventory_with_scan, measure_prune_bytes,
-    render_dry_run, RECOVERY_GUIDANCE,
+    render_dry_run, UnobservedPolicy, RECOVERY_GUIDANCE,
 };
 use dx_output::{
     command_finished, command_started, error_event, notice_event, operation_event, write_event,
@@ -27,7 +27,12 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             let _ = write_event(out, &event);
         }
     }
-    let inventory = match collect_inventory_with_scan(workspace) {
+    let unobserved = if invocation.prune_unobserved {
+        UnobservedPolicy::PruneAcknowledged
+    } else {
+        UnobservedPolicy::Preserve
+    };
+    let inventory = match collect_inventory_with_scan(workspace, unobserved) {
         Ok(inventory) => inventory,
         Err(error) => {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
@@ -69,10 +74,18 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         } else {
             let _ = writeln!(
                 out,
-                "dx clean: pruned {} setup records and {} generations ({} bytes reclaimed)",
+                "dx clean: pruned {} setup records and {} generations ({} bytes reclaimed){}",
                 outcome.removed_setup_records.len(),
                 outcome.removed_generations.len(),
-                bytes.reclaimed(&outcome)
+                bytes.reclaimed(&outcome),
+                if outcome.skipped_leased_generations.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        "; preserved {} leased generations",
+                        outcome.skipped_leased_generations.len()
+                    )
+                }
             );
         }
     }
@@ -177,6 +190,36 @@ fn emit_clean_notices(
             let _ = write_event(out, &event);
         }
     }
+    for hex in &plan.preserved_unobserved_setup_records {
+        let path = format!(".dx/setups/{hex}");
+        if let Ok(event) = notice_event(&NoticeEvent {
+            level: "info".to_owned(),
+            code: "clean_preserved_unobserved".to_owned(),
+            message: format!("preserved unobserved setup record {path} (observation unavailable)"),
+            related_command: Some("clean".to_owned()),
+            scope: None,
+            path: Some(path),
+            language: None,
+            import: None,
+        }) {
+            let _ = write_event(out, &event);
+        }
+    }
+    for generation in &plan.preserved_unobserved_generations {
+        let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
+        if let Ok(event) = notice_event(&NoticeEvent {
+            level: "info".to_owned(),
+            code: "clean_preserved_unobserved".to_owned(),
+            message: format!("preserved unobserved generation {path} (observation unavailable)"),
+            related_command: Some("clean".to_owned()),
+            scope: None,
+            path: Some(path),
+            language: None,
+            import: None,
+        }) {
+            let _ = write_event(out, &event);
+        }
+    }
 }
 
 fn emit_clean_pruned(
@@ -217,6 +260,21 @@ fn emit_clean_pruned(
             level: "info".to_owned(),
             code: "clean_pruned".to_owned(),
             message: format!("pruned generation {path} ({size} bytes)"),
+            related_command: Some("clean".to_owned()),
+            scope: None,
+            path: Some(path),
+            language: None,
+            import: None,
+        }) {
+            let _ = write_event(out, &event);
+        }
+    }
+    for generation in &outcome.skipped_leased_generations {
+        let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
+        if let Ok(event) = notice_event(&NoticeEvent {
+            level: "info".to_owned(),
+            code: "clean_preserved_leased".to_owned(),
+            message: format!("preserved leased generation {path} (a live reader holds it)"),
             related_command: Some("clean".to_owned()),
             scope: None,
             path: Some(path),

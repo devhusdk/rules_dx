@@ -73,7 +73,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
     ("--pin", &["--pin=1.0.0"], &["version"]),
     ("--rollback", &["--rollback"], &["version"]),
     (
@@ -87,6 +87,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
     ("--host", &["--serve", "--host=127.0.0.1"], &["docs"]),
     ("--open", &["--serve", "--open"], &["docs"]),
     ("--bazel", &["--bazel"], &["clean"]),
+    ("--prune-unobserved", &["--prune-unobserved"], &["clean"]),
 ];
 
 fn required_words(name: &str) -> &'static [&'static str] {

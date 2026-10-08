@@ -1,5 +1,6 @@
 use super::common::*;
 use super::managed_staging::{ensure_generation_dir, symlink_leaf};
+use dx_atomic_fs::lease::SharedLease;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -39,8 +40,9 @@ pub(crate) fn stage_env_generation(
     workspace: &Path,
     id: &dx_setup::GenerationId,
     projection: &[dx_env_plan::ProjectionEntry],
-) -> Result<(), (String, String)> {
-    let dir = ensure_generation_dir(workspace, dx_setup::ENVIRONMENTS_DIR_NAME, id.as_str())?;
+) -> Result<SharedLease, (String, String)> {
+    let (dir, lease) =
+        ensure_generation_dir(workspace, dx_setup::ENVIRONMENTS_DIR_NAME, id.as_str())?;
     let mut seen: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
     for entry in projection {
         validate_env_key(&entry.key).map_err(|reason| {
@@ -132,16 +134,16 @@ pub(crate) fn stage_env_generation(
             format!("cannot publish {}: {e}", target.display()),
         )
     })?;
-    Ok(())
+    Ok(lease)
 }
 
 pub(crate) fn stage_env_side(
     workspace: &Path,
     plan: &dx_env_plan::CollectedPlan,
-) -> Result<dx_setup::GenerationId, (String, String)> {
+) -> Result<(dx_setup::GenerationId, SharedLease), (String, String)> {
     let id = dx_setup::GenerationId::from_digest(plan.digest);
-    stage_env_generation(workspace, &id, &plan.projection)?;
-    Ok(id)
+    let lease = stage_env_generation(workspace, &id, &plan.projection)?;
+    Ok((id, lease))
 }
 
 #[cfg(test)]
@@ -175,6 +177,35 @@ mod tests {
         for bad in ["", "a/b", "a\\b", ".", ".."] {
             assert!(validate_env_key(bad).is_err(), "env key {bad:?} must fail");
         }
+    }
+
+    #[test]
+    fn staged_environment_stays_leased_until_released() {
+        let fixture = managed_stage_fixture("managed-env-leased");
+        let workspace = fixture.workspace().to_path_buf();
+        let first = fixture.first.clone();
+        let id = empty_env_id();
+        let lease =
+            stage_env_generation(&workspace, &id, &[env_entry("k", "v", &first)]).expect("stage");
+        assert!(
+            dx_atomic_fs::lease::shared_held(
+                &workspace.join(".dx"),
+                dx_atomic_fs::lease::GenerationUse::Environment,
+                id.as_str(),
+            )
+            .expect("probe"),
+            "staging holds the generation lease so cleanup cannot prune mid-stage"
+        );
+        drop(lease);
+        assert!(
+            !dx_atomic_fs::lease::shared_held(
+                &workspace.join(".dx"),
+                dx_atomic_fs::lease::GenerationUse::Environment,
+                id.as_str(),
+            )
+            .expect("reprobe"),
+            "releasing the staging lease makes the generation prunable again"
+        );
     }
 
     #[test]
@@ -253,8 +284,9 @@ mod tests {
         assert_eq!(code, CODE_INVALID_RESULT);
         assert!(message.contains("Bazel owns materialization"), "{message}");
         let dir_id = dx_setup::GenerationId::new(&"4".repeat(64)).expect("fixture id");
-        let dir = ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, dir_id.as_str())
-            .expect("gen dir");
+        let (dir, _lease) =
+            ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, dir_id.as_str())
+                .expect("gen dir");
         std::fs::create_dir_all(dir.join("artifacts")).expect("artifacts dir");
         std::fs::create_dir_all(dir.join("artifacts/k")).expect("blocking dir");
         let (code, message) =
@@ -266,7 +298,7 @@ mod tests {
             "{message}"
         );
         let blocked_id = dx_setup::GenerationId::new(&"5".repeat(64)).expect("fixture id");
-        let blocked_dir =
+        let (blocked_dir, _held) =
             ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, blocked_id.as_str())
                 .expect("gen dir");
         std::fs::write(blocked_dir.join("artifacts"), "file").expect("blocking file");
@@ -276,14 +308,14 @@ mod tests {
         assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
         assert!(message.contains("cannot create"), "{message}");
         let staging_id = dx_setup::GenerationId::new(&"6".repeat(64)).expect("fixture id");
-        let staging_dir =
+        let (staging_dir, _staged) =
             ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, staging_id.as_str())
                 .expect("gen dir");
         std::fs::create_dir_all(staging_dir.join("values.json.next")).expect("blocking dir");
         stage_env_generation(&workspace, &staging_id, &[env_entry("k", "v", &first)])
             .expect("legacy staging leftover ignored");
         let publish_id = dx_setup::GenerationId::new(&"7".repeat(64)).expect("fixture id");
-        let publish_dir =
+        let (publish_dir, _published) =
             ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, publish_id.as_str())
                 .expect("gen dir");
         std::fs::create_dir_all(publish_dir.join("values.json")).expect("blocking dir");

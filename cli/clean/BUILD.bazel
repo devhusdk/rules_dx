@@ -2,6 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
+# gazelle:resolve rust dx_atomic_fs //cli/atomic_fs:dx_atomic_fs
 # gazelle:resolve rust dx_env //cli/env:dx_env
 
 package(default_visibility = VIS_CLI)
@@ -25,6 +26,7 @@ dx_rust_crate(
         "src/records.rs",
     ],
     extra_deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/env:dx_env",
         "//cli/setup:dx_setup",
     ],

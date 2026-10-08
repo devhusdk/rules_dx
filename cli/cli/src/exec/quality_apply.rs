@@ -15,7 +15,7 @@ pub(crate) struct ApplyOutcome {
 
 pub(crate) fn apply_collected_changes(
     workspace: &Path,
-    check: bool,
+    apply: bool,
     complete: bool,
     changes: &[FileChange],
 ) -> ApplyOutcome {
@@ -29,7 +29,7 @@ pub(crate) fn apply_collected_changes(
     let fs = RealFileSystem;
     let mut applied: BTreeMap<String, bool> = BTreeMap::new();
     let mut not_applied: Vec<(String, &'static str)> = Vec::new();
-    if check {
+    if !apply {
     } else if !complete {
         for change in changes {
             applied.insert(change.path.clone(), false);
@@ -69,7 +69,7 @@ pub(crate) fn apply_collected_changes(
 }
 
 pub(crate) fn project_status(
-    check: bool,
+    apply: bool,
     initial: &[DiagnosticEvent],
     terminal: &[DiagnosticEvent],
     applied: &BTreeMap<String, bool>,
@@ -77,7 +77,7 @@ pub(crate) fn project_status(
     has_changes: bool,
 ) -> (Vec<DiagnosticEvent>, bool) {
     let mut status: Vec<DiagnosticEvent> = Vec::new();
-    if check {
+    if !apply {
         status.extend(initial.iter().cloned());
     } else {
         status.extend(terminal.iter().cloned());
@@ -97,7 +97,7 @@ pub(crate) fn project_status(
         .iter()
         .any(|diagnostic| meets_threshold(diagnostic.severity, fail_on));
     let mut failed = failing;
-    if check && has_changes {
+    if !apply && has_changes {
         failed = true;
     }
     (status, failed)
@@ -107,6 +107,7 @@ pub(crate) fn project_status(
 mod tests {
     use super::super::common::{
         FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
+        REASON_UNREADABLE_SOURCE,
     };
     use super::super::test_support::temp_dir;
     use super::apply_collected_changes;
@@ -134,7 +135,7 @@ mod tests {
     fn check_mode_writes_nothing() {
         let workspace = write_workspace("apply-check", &[("src/a.rs", b"BAD\n")]);
         let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
-        let outcome = apply_collected_changes(workspace.path(), true, true, &[change]);
+        let outcome = apply_collected_changes(workspace.path(), false, true, &[change]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"
@@ -147,7 +148,7 @@ mod tests {
     fn incomplete_collection_writes_nothing() {
         let workspace = write_workspace("apply-incomplete", &[("src/a.rs", b"BAD\n")]);
         let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
-        let outcome = apply_collected_changes(workspace.path(), false, false, &[change]);
+        let outcome = apply_collected_changes(workspace.path(), true, false, &[change]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"
@@ -171,7 +172,7 @@ mod tests {
             original_digest: digest(b"OTHER\n"),
             edits: vec![(0, 6, "NEW\n".to_owned())],
         };
-        let outcome = apply_collected_changes(workspace.path(), false, true, &[valid, stale]);
+        let outcome = apply_collected_changes(workspace.path(), true, true, &[valid, stale]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"GOOD\n"
@@ -189,6 +190,29 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
+    fn failed_write_leaves_source_untouched() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let workspace = write_workspace("apply-write-fails", &[("src/a.rs", b"BAD\n")]);
+        let dir = workspace.path().join("src");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555))
+            .expect("make dir read-only");
+        let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
+        let outcome = apply_collected_changes(workspace.path(), true, true, &[change]);
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755))
+            .expect("restore dir");
+        assert_eq!(
+            std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
+            b"BAD\n"
+        );
+        assert_eq!(outcome.applied.get("src/a.rs"), Some(&false));
+        assert_eq!(
+            outcome.not_applied,
+            vec![("src/a.rs".to_owned(), REASON_UNREADABLE_SOURCE)]
+        );
+    }
+
+    #[test]
     fn invalid_edits_rejected_without_write() {
         let workspace = write_workspace("apply-invalid", &[("src/a.rs", b"BAD\n")]);
         let change = FileChange {
@@ -196,7 +220,7 @@ mod tests {
             original_digest: digest(b"BAD\n"),
             edits: vec![(5, 2, "X".to_owned())],
         };
-        let outcome = apply_collected_changes(workspace.path(), false, true, &[change]);
+        let outcome = apply_collected_changes(workspace.path(), true, true, &[change]);
         assert_eq!(
             std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
             b"BAD\n"

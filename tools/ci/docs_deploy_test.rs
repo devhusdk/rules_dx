@@ -165,20 +165,21 @@ fn the_publish_job_validates_the_staged_tree_before_it_uploads() {
 
 #[test]
 fn the_publish_job_smokes_the_page_url_it_deployed_before_the_clean_proof() {
-    let smoke = steps(PUBLISH)
+    let publish_steps = steps(PUBLISH);
+    let smoke_step = publish_steps
         .iter()
         .find(|step| field(step, "run").contains(SMOKE))
         .unwrap_or_else(|| panic!("{WORKFLOW} job {PUBLISH} runs no deploy smoke test"));
     assert_eq!(
-        field(&smoke["env"], "PAGES_URL"),
+        field(&smoke_step["env"], "PAGES_URL"),
         PAGE_URL,
         "{WORKFLOW} job {PUBLISH} must smoke the URL deploy-pages reported"
     );
     assert!(
-        field(smoke, "run").contains("--test_env=DX_PAGES_URL=\"$PAGES_URL\""),
+        field(smoke_step, "run").contains("--test_env=DX_PAGES_URL=\"$PAGES_URL\""),
         "{WORKFLOW} job {PUBLISH} must pass the deployed URL to {SMOKE}"
     );
-    let deploy = steps(PUBLISH)
+    let deploy = publish_steps
         .iter()
         .find(|step| field(step, "uses").contains(PAGE_DEPLOY))
         .unwrap_or_else(|| panic!("{WORKFLOW} job {PUBLISH} never deploys to Pages"));

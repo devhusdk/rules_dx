@@ -34,7 +34,14 @@ incomplete.
 bazel run @rules_dx//:dx -- build //cli/...
 bazel run @rules_dx//:dx -- test --here
 bazel run @rules_dx//:dx -- test //... -- --jobs=4
+bazel run @rules_dx//:dx -- test //cli/process/... -- --test_arg=workflow_argv --test_filter=workflow
 ```
+
+Args after `--` reach the test binary through Bazel. `dx test` and
+`dx coverage` accept repeatable `--test_arg` tokens, in equals and
+two-token form, with spaces and Unicode kept verbatim. `--test_filter`
+stays a Bazel option with framework-dependent semantics. Other commands
+reject `--test_arg`; run those cases with `dx bazel` instead.
 
 ## `dx run`
 

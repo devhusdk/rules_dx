@@ -60,7 +60,8 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(build) => build,
         Err(message) => return pre_exec(err, &message),
     };
-    let mode = if invocation.check { "check" } else { "default" };
+    let apply = invocation.apply;
+    let mode = if apply { "default" } else { "check" };
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, mode) {
@@ -101,7 +102,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
 
     let applied_outcome = apply_collected_changes(
         workspace,
-        invocation.check,
+        !apply,
         collected.complete,
         &collected.changes,
     );
@@ -109,7 +110,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let applied = applied_outcome.applied;
     let not_applied = applied_outcome.not_applied;
     let (status, failed) = project_status(
-        invocation.check,
+        !apply,
         &collected.initial,
         &collected.terminal,
         &applied,
@@ -178,10 +179,10 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
                 results_complete: Some(collected.complete),
                 diagnostics: Some([info, warning, error]),
                 changes: Some([0, change_count]),
-                mutations: if invocation.check {
-                    None
-                } else {
+                mutations: if apply {
                     Some([applied_count, not_applied_count])
+                } else {
+                    None
                 },
             },
         );

@@ -54,7 +54,7 @@ fn json_mixed_applied_and_not_applied_fail_together() {
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
     harness.write_source("src/b.py", "z = 2\n");
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -212,7 +212,7 @@ fn missing_source_is_unreadable() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", true)], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=text"]);
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert!(err.contains("Not applied: src/missing.py (unreadable_source)"));
 }
@@ -235,7 +235,7 @@ fn out_of_bounds_edit_is_invalid() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", true)], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=text"]);
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -262,7 +262,7 @@ fn multibyte_split_edit_is_invalid() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", true)], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=text"]);
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -295,7 +295,7 @@ fn non_utf8_source_is_invalid_in_default_mode() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", true)], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=text"]);
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -321,7 +321,7 @@ fn legacy_staging_dir_does_not_block_atomic_write() {
         ),
     );
     std::fs::create_dir_all(harness.workspace.join("src/.a.py.dx-apply-tmp")).expect("staging dir");
-    let (code, out, err) = harness.run(&["lint", "--output=text"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 0);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -474,7 +474,7 @@ fn diff_stale_source_fails_render_in_default_mode() {
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
     harness.write_source("src/a.py", "z = 2\n");
-    let (code, out, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=diff"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -501,7 +501,7 @@ fn json_default_marks_remaining_resolution() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -537,7 +537,7 @@ fn json_default_marks_not_applied_resolution() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -567,7 +567,7 @@ fn json_default_drops_applied_fixable_finding() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 0, "{out}");
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),

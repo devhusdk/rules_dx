@@ -61,7 +61,7 @@ fn check_mode_fails_on_replacement_without_diagnostics() {
 }
 
 #[test]
-fn default_mode_applies_and_hides_fixed_findings() {
+fn apply_mode_applies_and_hides_fixed_findings() {
     let mut harness = Harness::new("default-apply");
     harness.write_source("src/a.py", "x = 1\n");
     harness.results.insert(
@@ -71,7 +71,7 @@ fn default_mode_applies_and_hides_fixed_findings() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=text"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 0);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -82,7 +82,7 @@ fn default_mode_applies_and_hides_fixed_findings() {
 }
 
 #[test]
-fn default_mode_applies_without_rerunning_bazel() {
+fn apply_mode_applies_without_rerunning_bazel() {
     let mut harness = Harness::new("no-rerun-after-apply");
     harness.write_source("src/a.py", "x = 1\n");
     harness.results.insert(
@@ -92,7 +92,7 @@ fn default_mode_applies_without_rerunning_bazel() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=text"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 0);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -102,7 +102,7 @@ fn default_mode_applies_without_rerunning_bazel() {
     assert_eq!(
         harness.seen_env.borrow().len(),
         1,
-        "default apply must launch Bazel exactly once, no post-apply rerun"
+        "apply must launch Bazel exactly once, no post-apply rerun"
     );
     let mut check = Harness::new("no-rerun-after-apply-check");
     check.write_source("src/a.py", "x = 1\n");
@@ -141,8 +141,8 @@ fn typecheck_and_format_apply_without_rerunning_bazel() {
                 vec![harness.replacement(b"y")],
             ),
         );
-        let (code, out, _) = harness.run(&[command, "--output=text"]);
-        assert_eq!(code, 0, "{command} default apply must succeed");
+        let (code, out, _) = harness.run(&[command, "--apply", "--output=text"]);
+        assert_eq!(code, 0, "{command} apply must succeed");
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
             b"y = 1\n",
@@ -152,7 +152,7 @@ fn typecheck_and_format_apply_without_rerunning_bazel() {
         assert_eq!(
             harness.seen_env.borrow().len(),
             1,
-            "{command} default apply must launch Bazel exactly once, no post-apply rerun"
+            "{command} apply must launch Bazel exactly once, no post-apply rerun"
         );
     }
 }
@@ -352,7 +352,7 @@ fn undecodable_artifact_marks_collection_incomplete() {
         "//test:corpus".to_owned(),
         b"not-a-validated-result".to_vec(),
     );
-    let (code, _, _) = harness.run(&["lint", "--output=text"]);
+    let (code, _, _) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -375,7 +375,7 @@ fn undecodable_sibling_blocks_valid_mutation() {
         "//other:corpus".to_owned(),
         b"not-a-validated-result".to_vec(),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=text"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -508,7 +508,7 @@ fn failed_bazel_with_changes_skips_mutation() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=text"]);
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -534,7 +534,7 @@ fn terminal_diagnostics_map_with_terminal_snapshot() {
             }],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 1);
     let events = json_events(&out);
     let diagnostics = events_of_kind(&events, "diagnostic");
@@ -556,7 +556,7 @@ fn diff_mode_lists_unapplied_changes_after_failed_bazel() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=diff"]);
     assert_eq!(code, 1);
     assert!(out.contains("--- a/src/a.py"));
     assert!(err.contains("Not applied: src/a.py (incomplete_collection)"));
@@ -576,7 +576,7 @@ fn json_mode_lists_unapplied_changes_after_failed_bazel() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 1);
     let events = json_events(&out);
     let finished = event(&events, "command_finished");
@@ -596,7 +596,7 @@ fn stale_source_skips_mutation() {
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
     harness.write_source("src/a.py", "z = 2\n");
-    let (code, _, err) = harness.run(&["lint", "--output=text"]);
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -656,7 +656,7 @@ fn mixed_applied_and_not_applied_fail_together() {
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
     harness.write_source("src/b.py", "z = 2\n");
-    let (code, out, err) = harness.run(&["lint", "--output=text"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -668,4 +668,67 @@ fn mixed_applied_and_not_applied_fail_together() {
     );
     assert!(out.contains("Applied 1 file(s)."));
     assert!(err.contains("Not applied: src/b.py (stale_source)"));
+}
+
+#[test]
+fn bare_quality_commands_write_nothing() {
+    for command in ["lint", "typecheck", "format"] {
+        let mut harness = Harness::new(&format!("bare-{command}"));
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(
+                vec![Harness::diagnostic("unused", true)],
+                vec![harness.replacement(b"y")],
+            ),
+        );
+        let (code, out, err) = harness.run(&[command, "--output=json"]);
+        assert_eq!(code, 1, "{command}: {out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"x = 1\n",
+            "{command} must not write without --apply"
+        );
+        assert!(
+            !out.contains("\"mutation\""),
+            "{command} reports no mutation: {out}"
+        );
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            1,
+            "{command} launches Bazel exactly once"
+        );
+    }
+}
+
+#[test]
+fn explicit_check_matches_the_default_mode() {
+    let mut default = Harness::new("bare-default");
+    default.write_source("src/a.py", "x = 1\n");
+    default.results.insert(
+        "//test:corpus".to_owned(),
+        default.valid_result(
+            vec![Harness::diagnostic("unused", true)],
+            vec![default.replacement(b"y")],
+        ),
+    );
+    let mut check = Harness::new("explicit-check");
+    check.write_source("src/a.py", "x = 1\n");
+    check.results.insert(
+        "//test:corpus".to_owned(),
+        check.valid_result(
+            vec![Harness::diagnostic("unused", true)],
+            vec![check.replacement(b"y")],
+        ),
+    );
+    let (default_code, default_out, default_err) = default.run(&["lint", "--output=json"]);
+    let (check_code, check_out, check_err) = check.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(default_code, 1);
+    assert_eq!(default_code, check_code);
+    assert_eq!(default_out, check_out, "stdout is byte-identical");
+    assert_eq!(default_err, check_err, "stderr is byte-identical");
+    assert_eq!(
+        std::fs::read(check.workspace.join("src/a.py")).expect("source"),
+        b"x = 1\n"
+    );
 }

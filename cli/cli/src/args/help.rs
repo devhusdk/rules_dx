@@ -517,10 +517,13 @@ mod tests {
             Err(ArgsError::Help { text }) => text,
             other => panic!("fix --help: want Help, got {other:?}"),
         };
-        assert!(fix_help.contains("no rerun"), "fix surprise:\n{fix_help}");
         assert!(
-            fix_help.contains("dx check"),
-            "fix rerun guidance:\n{fix_help}"
+            fix_help.contains("verifies every phase with read-only checks"),
+            "fix surprise:\n{fix_help}"
+        );
+        assert!(
+            fix_help.contains("--apply"),
+            "fix apply guidance:\n{fix_help}"
         );
         let check_help = match parse(&strings(&["check", "--help"])) {
             Err(ArgsError::Help { text }) => text,

@@ -11,9 +11,9 @@ Usage: dx [COMMAND]
 Commands:
   security    run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
   license     run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
-  lint        run lint analysis over resolved scopes (mutating by default; --check is non-mutating)
-  typecheck   run typecheck analysis over resolved scopes (mutating by default; --check is non-mutating)
-  format      check or rewrite formatting over resolved scopes (mutating by default; --check is non-mutating)
+  lint        run lint analysis over resolved scopes (non-mutating by default; --apply writes fixes)
+  typecheck   run typecheck analysis over resolved scopes (non-mutating by default; --apply writes fixes)
+  format      check or rewrite formatting over resolved scopes (non-mutating by default; --apply writes fixes)
   generate    emit/sync BUILD files (Gazelle pipeline; mutating by default; --check validates without writes)
   build       run Bazel build over resolved targets
   test        run Bazel test over resolved targets
@@ -21,7 +21,7 @@ Commands:
   run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
   deploy      build and run a single deployable target
   check       run format+lint+typecheck+generate checks in order (non-mutating)
-  fix         apply format+lint+typecheck+generate fixes in order (mutating by default; no rerun, run `dx check` to validate)
+  fix         apply format+lint+typecheck+generate fixes in order (non-mutating by default; --apply writes fixes and verifies them)
   clean       prune unselected managed state, never Bazel outputs unless --bazel (no scopes)
   update      update dependencies per set through qualified resolvers (mutating without confirmation; --check validates selected sets without writing)
   bump        widen one declared requirement to a new version (explicit; mutating without confirmation)

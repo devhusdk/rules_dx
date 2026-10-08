@@ -223,7 +223,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
             vec![default.replacement(b"y")],
         ),
     );
-    let (default_code, default_out, _) = default.run(&["lint", "--output=json"]);
+    let (default_code, default_out, _) = default.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(default_code, 0);
     assert_eq!(
         std::fs::read(default.workspace.join("src/a.py")).expect("source"),
@@ -297,7 +297,7 @@ fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
             vec![default.replacement(b"y")],
         ),
     );
-    let (default_code, default_out, _) = default.run(&["lint", "--output=diff"]);
+    let (default_code, default_out, _) = default.run(&["lint", "--apply", "--output=diff"]);
     assert_eq!(default_code, 0);
     assert_eq!(
         std::fs::read(default.workspace.join("src/a.py")).expect("source"),
@@ -400,7 +400,7 @@ fn default_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
         ],
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
-    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
     assert_eq!(code, 0);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -477,7 +477,7 @@ fn default_apply_depends_on_bytes_not_git_status() {
                 vec![harness.replacement(b"y")],
             ),
         );
-        let (code, out, _) = harness.run(&["lint", "--output=json"]);
+        let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
         assert_eq!(code, 0, "{status}");
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -516,7 +516,7 @@ fn default_apply_depends_on_bytes_not_git_status() {
     );
     stale.results.insert("//test:corpus".to_owned(), bytes);
     stale.write_source("src/a.py", "z = 2\n");
-    let (code, _, err) = stale.run(&["lint", "--output=text"]);
+    let (code, _, err) = stale.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert!(err.contains("Not applied: src/a.py (stale_source)"));
     assert_eq!(
@@ -575,7 +575,7 @@ fn invalid_edits_in_one_file_do_not_block_valid_sibling() {
         ],
     );
     harness.results.insert("//test:corpus".to_owned(), bytes);
-    let (code, out, err) = harness.run(&["lint", "--output=text"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),

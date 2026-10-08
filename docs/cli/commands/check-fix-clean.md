@@ -2,7 +2,7 @@
 
 ```sh
 bazel run @rules_dx//:dx -- check //...
-bazel run @rules_dx//:dx -- fix //...
+bazel run @rules_dx//:dx -- fix --apply //...
 bazel run @rules_dx//:dx -- clean
 ```
 
@@ -15,7 +15,8 @@ dx fix [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sar
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order. Stops
 on the first failure. `--fail-on` and `--report sarif=<dest>` pass through to
-each phase. `dx check` is always a check, so `--check` is implied. Reports
+each phase. `dx check` is always a check, so `--check` is implied; `dx fix`
+reads the same way until `--apply` authorizes writes. Reports
 merge the `lint` and `typecheck` phases; `-` for stdout is rejected because
 the phases share one document.
 
@@ -29,16 +30,22 @@ Output: `--output text|diff|json`. JSON adds one correlated `operation` event
 per phase (`check/format`), a correlated `notice` per skipped phase, and a
 correlated `error` per capture the run could not collect.
 
-`dx check` only reports. `dx fix` applies fixes without re-running. Run
-`dx check` again after `dx fix` to confirm.
+`dx check` only reports. `dx fix` reports too and writes only with `--apply`.
+With `--apply`, `dx fix` writes the fixes and then runs every phase again with
+read-only checks. The run passes only when those checks pass. A check that
+still reports a finding, a change that was not applied, a skipped check, and a
+failed phase all keep the run failing. JSON names each verification phase with
+a correlated `operation` event (`fix/verify/format`) and each check that never
+ran with a correlated `notice`.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed, a
-capture could not be collected, or a report could not be written. The failing
-phase's code wins, so a `generate` phase keeps Bazel's code.
+capture could not be collected, a report could not be written, or a
+verification check failed. The failing phase's code wins, so a `generate`
+phase keeps Bazel's code.
 
 ```sh
 bazel run @rules_dx//:dx -- check //...
-bazel run @rules_dx//:dx -- fix --here
+bazel run @rules_dx//:dx -- fix --apply --here
 ```
 
 ## `dx clean`

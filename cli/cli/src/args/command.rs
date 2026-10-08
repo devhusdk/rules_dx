@@ -173,9 +173,9 @@ pub static COMMANDS: [CommandMeta; 33] = [
         command: Command::Lint,
         name: "lint",
         scope_policy: "default-//...",
-        describe: "run lint analysis over resolved scopes (mutating by default; --check is non-mutating)",
+        describe: "run lint analysis over resolved scopes (non-mutating by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format|generate [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`). --apply authorizes writing fixes.",
+        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`). Defaults to a read-only check; --apply writes validated fixes.",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -188,7 +188,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         supports_min_coverage: false,
         supports_profile: false,
         supports_offline: false,
-        is_mutating_by_default: true,
+        is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -200,9 +200,9 @@ pub static COMMANDS: [CommandMeta; 33] = [
         command: Command::Typecheck,
         name: "typecheck",
         scope_policy: "default-//...",
-        describe: "run typecheck analysis over resolved scopes (mutating by default; --check is non-mutating)",
+        describe: "run typecheck analysis over resolved scopes (non-mutating by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format|generate [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`). --apply authorizes writing fixes.",
+        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`). Defaults to a read-only check; --apply writes validated fixes.",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -215,7 +215,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         supports_min_coverage: false,
         supports_profile: false,
         supports_offline: false,
-        is_mutating_by_default: true,
+        is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -227,9 +227,9 @@ pub static COMMANDS: [CommandMeta; 33] = [
         command: Command::Format,
         name: "format",
         scope_policy: "default-//...",
-        describe: "check or rewrite formatting over resolved scopes (mutating by default; --check is non-mutating)",
+        describe: "check or rewrite formatting over resolved scopes (non-mutating by default; --apply writes fixes)",
         usage: "Usage: dx lint|typecheck|format|generate [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`). --apply authorizes writing fixes.",
+        flags: "Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`). Defaults to a read-only check; --apply writes validated fixes.",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -242,7 +242,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         supports_min_coverage: false,
         supports_profile: false,
         supports_offline: false,
-        is_mutating_by_default: true,
+        is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -443,9 +443,9 @@ pub static COMMANDS: [CommandMeta; 33] = [
         command: Command::Fix,
         name: "fix",
         scope_policy: "default-//...",
-        describe: "apply format+lint+typecheck+generate fixes in order (mutating by default; no rerun, run `dx check` to validate)",
+        describe: "apply format+lint+typecheck+generate fixes in order (non-mutating by default; --apply writes fixes and verifies them)",
         usage: "Usage: dx check|fix [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report pass through per phase (fix only; mutating by default with no rerun, run `dx check` to validate). --apply authorizes the fix run to write sources.",
+        flags: "Per-command flags: --check/--fail-on/--report pass through per phase (fix only; defaults to a read-only check; --apply writes sources and then verifies every phase with read-only checks).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -458,7 +458,7 @@ pub static COMMANDS: [CommandMeta; 33] = [
         supports_min_coverage: false,
         supports_profile: false,
         supports_offline: false,
-        is_mutating_by_default: true,
+        is_mutating_by_default: false,
         default_release: false,
         skew: SkewKind::Refuse,
         workflow_verb: None,
@@ -1337,9 +1337,6 @@ mod tests {
     #[test]
     fn mutating_by_default_matches_contract_and_help() {
         for command in [
-            Command::Lint,
-            Command::Typecheck,
-            Command::Format,
             Command::Update,
             Command::Bump,
             Command::Migrate,
@@ -1350,7 +1347,6 @@ mod tests {
             Command::Env,
             Command::Setup,
             Command::Init,
-            Command::Fix,
             Command::Hooks,
         ] {
             assert!(
@@ -1366,12 +1362,16 @@ mod tests {
         for command in [
             Command::Security,
             Command::License,
+            Command::Lint,
+            Command::Typecheck,
+            Command::Format,
             Command::Build,
             Command::Test,
             Command::Coverage,
             Command::Run,
             Command::Deploy,
             Command::Check,
+            Command::Fix,
             Command::Clean,
             Command::Status,
             Command::Version,
@@ -1388,10 +1388,19 @@ mod tests {
                 "{command:?} must stay non-mutating by default"
             );
         }
-        assert!(
-            Command::Check.describe().contains("non-mutating"),
-            "check help must name its non-mutating mode"
-        );
+        for command in [
+            Command::Lint,
+            Command::Typecheck,
+            Command::Format,
+            Command::Fix,
+            Command::Check,
+        ] {
+            assert!(
+                command.describe().contains("non-mutating"),
+                "{command:?} help must name its non-mutating default: {}",
+                command.describe()
+            );
+        }
         for command in [
             Command::Lint,
             Command::Typecheck,

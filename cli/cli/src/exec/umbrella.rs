@@ -238,6 +238,11 @@ fn phase_correlation(command: &str, phase: &str) -> String {
     format!("{command}/{phase}")
 }
 
+/// Names the JSON correlation of one umbrella verification phase.
+fn verify_correlation(command: &str, phase: &str) -> String {
+    format!("{command}/verify/{phase}")
+}
+
 /// Emits the correlated JSON lifecycle event for one phase the umbrella starts.
 fn announce_phase(
     out: &mut dyn Write,
@@ -251,6 +256,24 @@ fn announce_phase(
     if let Ok(event) = operation_event(command, phase, None) {
         let correlated =
             with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event);
+        emit_event(out, &correlated)?;
+    }
+    Ok(())
+}
+
+/// Emits the correlated JSON lifecycle event for one verification phase.
+fn announce_verify_phase(
+    out: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    phase: &str,
+) -> Result<(), i32> {
+    if output != OutputMode::Json {
+        return Ok(());
+    }
+    if let Ok(event) = operation_event(command, phase, None) {
+        let correlated =
+            with_correlation(event.clone(), &verify_correlation(command, phase)).unwrap_or(event);
         emit_event(out, &correlated)?;
     }
     Ok(())
@@ -276,6 +299,175 @@ fn announce_skip(out: &mut dyn Write, output: OutputMode, command: &str, phase: 
             with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event);
         let _ = write_event(out, &correlated);
     }
+}
+
+/// Emits the JSON notice for one verification phase that never started.
+fn announce_verify_skip(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str) {
+    if output != OutputMode::Json {
+        return;
+    }
+    let notice = NoticeEvent {
+        level: "warning".to_owned(),
+        code: "umbrella_phase_skipped".to_owned(),
+        message: format!("{phase} verification skipped after an earlier phase failed"),
+        related_command: Some(command.to_owned()),
+        scope: None,
+        path: None,
+        language: None,
+        import: None,
+    };
+    if let Ok(event) = notice_event(&notice) {
+        let correlated =
+            with_correlation(event.clone(), &verify_correlation(command, phase)).unwrap_or(event);
+        let _ = write_event(out, &correlated);
+    }
+}
+
+/// Reports that no verification phase ran after an apply phase failed.
+fn announce_verification_skipped(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+) {
+    let message = "verification did not run after an apply phase failed";
+    if output == OutputMode::Json {
+        let notice = NoticeEvent {
+            level: "warning".to_owned(),
+            code: "umbrella_verification_skipped".to_owned(),
+            message: message.to_owned(),
+            related_command: Some(command.to_owned()),
+            scope: None,
+            path: None,
+            language: None,
+            import: None,
+        };
+        if let Ok(event) = notice_event(&notice) {
+            let correlated =
+                with_correlation(event.clone(), &phase_correlation(command, "verify"))
+                    .unwrap_or(event);
+            let _ = write_event(out, &correlated);
+        }
+    } else {
+        let _ = writeln!(err, "dx: umbrella_verification_skipped: {message}");
+    }
+}
+
+/// Builds one umbrella phase invocation from the umbrella's own flags.
+fn phase_invocation(
+    base: &Invocation,
+    phase: Command,
+    check: bool,
+    apply: bool,
+    reports: Vec<ReportRequest>,
+) -> Invocation {
+    let mut next = base.clone();
+    next.command = phase;
+    next.check = check;
+    next.apply = apply;
+    next.reports = reports;
+    next.debug = false;
+    next.release = false;
+    next.bazel_clean = false;
+    next.prune_unobserved = false;
+    next.pin = None;
+    next.rollback = false;
+    next.configured = false;
+    next.from = None;
+    next.to = None;
+    next.here = false;
+    next.serve = false;
+    next.port = None;
+    next.host = None;
+    next.open = false;
+    next.offline = false;
+    next
+}
+
+/// Runs one umbrella phase and returns its code with its own output buffers.
+fn run_phase(
+    phase: Command,
+    phase_invocation: &Invocation,
+    workspace: &std::path::Path,
+    runner: &dyn dx_process::Runner,
+    query_runner: &dyn crate::resolve::QueryRunner,
+    temp_dir: &std::path::Path,
+    pid: u32,
+    nonce: u64,
+    ci: bool,
+) -> (i32, Vec<u8>, Vec<u8>) {
+    let mut phase_out = Vec::new();
+    let mut phase_err = Vec::new();
+    let code = {
+        let phase_env = Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut phase_out,
+            err: &mut phase_err,
+            ci,
+        };
+        if phase == Command::Generate {
+            execute_generate(phase_invocation, phase_env)
+        } else {
+            execute(phase_invocation, phase_env)
+        }
+    };
+    (code, phase_out, phase_err)
+}
+
+/// Runs every phase again in read-only mode once an apply pass finished.
+fn verify_phases(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    command: &str,
+    workspace: &std::path::Path,
+    runner: &dyn dx_process::Runner,
+    query_runner: &dyn crate::resolve::QueryRunner,
+    temp_dir: &std::path::Path,
+    pid: u32,
+    nonce: u64,
+    ci: bool,
+) -> Result<Option<i32>, i32> {
+    if invocation.chatty() {
+        let _ = writeln!(out, "Verifying applied fixes with read-only checks.");
+    }
+    let mut failed: Option<i32> = None;
+    for (index, phase) in UMBRELLA_PHASES.iter().enumerate() {
+        let running = failed.is_none();
+        if !running {
+            announce_verify_skip(out, invocation.output, command, phase.name());
+            continue;
+        }
+        if let Err(exit) = announce_verify_phase(out, invocation.output, command, phase.name()) {
+            return Err(exit);
+        }
+        let phase_invocation = phase_invocation(invocation, *phase, true, false, Vec::new());
+        let (code, phase_out, phase_err) = run_phase(
+            *phase,
+            &phase_invocation,
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce.wrapping_add(index as u64),
+            ci,
+        );
+        let forwarded = check_stdout_write(out.write_all(&phase_out))
+            .and_then(|()| check_stdout_write(err.write_all(&phase_err)));
+        if let Err(exit) = forwarded {
+            return Err(exit);
+        }
+        if code != 0 {
+            failed = Some(code);
+        }
+    }
+    Ok(failed)
 }
 
 /// Reports one phase capture the umbrella could not collect.
@@ -341,7 +533,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         ci,
     } = env;
     let umbrella_check = invocation.command == Command::Check;
-    let phase_check = umbrella_check || invocation.check;
+    let phase_check = umbrella_check || !invocation.apply;
     let mode = if phase_check { "check" } else { "default" };
     let command = invocation.command.name();
     if let Err(error) = plan_reports(
@@ -408,58 +600,19 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         if let Some(capture) = sarif_capture {
             collector.require_capture(index, capture);
         }
-        let phase_invocation = Invocation {
-            command: *phase,
-            check: phase_check,
-            apply: invocation.apply,
-            debug: false,
-            release: false,
-            workspace: invocation.workspace.clone(),
-            dry_run: invocation.dry_run,
-            quiet: invocation.quiet,
-            verbose: invocation.verbose,
-            log_level: invocation.log_level,
-            color: invocation.color,
-            output: invocation.output,
-            reports: phase_reports,
-            fail_on: invocation.fail_on,
-            min_coverage: invocation.min_coverage,
-            targets: invocation.targets.clone(),
-            bazel_options: invocation.bazel_options.clone(),
-            bazel_clean: false,
-            prune_unobserved: false,
-            pin: None,
-            rollback: false,
-            configured: false,
-            from: None,
-            to: None,
-            here: false,
-            serve: false,
-            port: None,
-            host: None,
-            open: false,
-            offline: false,
-        };
-        let mut phase_out = Vec::new();
-        let mut phase_err = Vec::new();
-        let code = {
-            let phase_env = Env {
-                workspace,
-                runner,
-                query_runner,
-                temp_dir,
-                pid,
-                nonce: phase_nonce,
-                out: &mut phase_out,
-                err: &mut phase_err,
-                ci,
-            };
-            if *phase == Command::Generate {
-                execute_generate(&phase_invocation, phase_env)
-            } else {
-                execute(&phase_invocation, phase_env)
-            }
-        };
+        let phase_invocation =
+            phase_invocation(invocation, *phase, phase_check, invocation.apply, phase_reports);
+        let (code, phase_out, phase_err) = run_phase(
+            *phase,
+            &phase_invocation,
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            phase_nonce,
+            ci,
+        );
         collector.record_exit(index, code);
         let forwarded = check_stdout_write(out.write_all(&phase_out))
             .and_then(|()| check_stdout_write(err.write_all(&phase_err)));
@@ -470,6 +623,29 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         if code != 0 {
             stop_code = Some(code);
             break;
+        }
+    }
+    let mut verify_code: Option<i32> = None;
+    if invocation.apply {
+        if stop_code.is_some() || stdout_exit.is_some() {
+            announce_verification_skipped(out, err, invocation.output, command);
+        } else {
+            match verify_phases(
+                invocation,
+                out,
+                err,
+                command,
+                workspace,
+                runner,
+                query_runner,
+                temp_dir,
+                pid,
+                nonce,
+                ci,
+            ) {
+                Ok(failed) => verify_code = failed,
+                Err(exit) => stdout_exit = Some(exit),
+            }
         }
     }
     collector.skip_remaining();
@@ -521,8 +697,12 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         None => match stop_code {
             Some(phase_code) if reports_ok => phase_code,
             Some(_) => 1,
-            None if reports_ok => 0,
-            None => 1,
+            None => match verify_code {
+                Some(verify_phase) if reports_ok => verify_phase,
+                Some(_) => 1,
+                None if reports_ok => 0,
+                None => 1,
+            },
         },
     };
     if invocation.output == OutputMode::Json {
@@ -608,6 +788,36 @@ mod tests {
             if !self.done.get() && self.capture.exists() {
                 self.done.set(true);
                 self.rewrite.apply(&self.capture);
+            }
+            Ok(status)
+        }
+    }
+
+    /// Serves a clean witness from a chosen launch onward, as a re-run after fixes land.
+    struct CleanWitnessAfter {
+        inner: FakeRunner,
+        after: usize,
+        witness: Vec<u8>,
+        launches: Cell<usize>,
+    }
+
+    impl Runner for CleanWitnessAfter {
+        fn run(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<ChildStatus> {
+            let status = self.inner.run(argv, cwd, env)?;
+            let launch = self.launches.get();
+            self.launches.set(launch + 1);
+            if launch >= self.after {
+                if let Some(path) = env
+                    .iter()
+                    .find_map(|(key, value)| (*key == GENERATE_ENV_INTENDED).then_some(*value))
+                {
+                    std::fs::write(path, &self.witness).expect("clean witness");
+                }
             }
             Ok(status)
         }
@@ -767,22 +977,38 @@ mod tests {
             &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
             "",
         ));
-        let (code, out, err) = harness.run(&["fix", "--output=text"]);
+        let inv = umbrella_invocation(&harness, &["fix", "--apply", "--output=text"]);
+        let runner = CleanWitnessAfter {
+            inner: harness.runner(),
+            after: 4,
+            witness: intended_witness("check", true, "", ""),
+            launches: Cell::new(0),
+        };
+        let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("Modified rust/tests/fixtures/hello/BUILD.bazel"),
+            "{out}"
+        );
+        assert!(
+            out.contains("Verifying applied fixes with read-only checks."),
             "{out}"
         );
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
             b"x = 1\n"
         );
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            8,
+            "every apply phase runs once, then every phase again as a read-only check"
+        );
     }
 
     #[test]
     fn fix_stops_when_later_phase_goes_stale() {
         let harness = umbrella_findings("umbrella-stale");
-        let (code, out, _) = harness.run(&["fix", "--output=text"]);
+        let (code, out, _) = harness.run(&["fix", "--apply", "--output=text"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert!(out.contains("Running lint analysis for //..."), "{out}");
@@ -900,7 +1126,12 @@ mod tests {
     #[test]
     fn umbrella_sarif_skips_phase_that_could_not_render() {
         let harness = umbrella_findings("umbrella-sarif-unrendered");
-        let (code, out, err) = harness.run(&["fix", "--output=text", "--report=sarif=out.sarif"]);
+        let (code, out, err) = harness.run(&[
+            "fix",
+            "--apply",
+            "--output=text",
+            "--report=sarif=out.sarif",
+        ]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("failed to render SARIF report"), "{err}");
         assert!(
@@ -955,18 +1186,167 @@ mod tests {
 
     #[test]
     fn fix_json_reports_umbrella_lifecycle() {
-        let mut harness = umbrella_clean("umbrella-fix-json");
-        harness.intended = Some(intended_witness("default", true, "", ""));
+        let harness = umbrella_clean("umbrella-fix-json");
         let (code, out, err) = harness.run(&["fix", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         assert_eq!(events.first().expect("first")["command"], "fix");
         assert_eq!(
             events.first().expect("first")["mode"],
-            "default",
-            "fix mutates without --check"
+            "check",
+            "fix defaults to a read-only check"
         );
         assert_eq!(events.last().expect("last")["exit_code"], 0);
+    }
+
+    #[test]
+    fn fix_apply_json_reports_umbrella_lifecycle() {
+        let mut harness = umbrella_clean("umbrella-fix-apply-json");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        assert_eq!(events.first().expect("first")["command"], "fix");
+        assert_eq!(
+            events.first().expect("first")["mode"],
+            "default",
+            "--apply opts back into mutation"
+        );
+        assert_eq!(events.last().expect("last")["exit_code"], 0);
+    }
+
+    #[test]
+    fn bare_fix_writes_nothing() {
+        let harness = umbrella_findings("umbrella-bare-fix");
+        let (code, out, err) = harness.run(&["fix", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("Running format analysis for //..."), "{out}");
+        assert!(!out.contains("Applied"), "{out}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"x = 1\n",
+            "bare fix is a read-only check"
+        );
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            1,
+            "the pending change stops the run before later phases launch"
+        );
+    }
+
+    #[test]
+    fn fix_apply_verifies_every_phase_with_read_only_checks() {
+        let harness = umbrella_clean("umbrella-fix-verify");
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let operations: Vec<&str> = events_of_kind(&events, "operation")
+            .iter()
+            .map(|operation| operation["correlation"].as_str().expect("correlation"))
+            .collect();
+        assert_eq!(
+            operations,
+            vec![
+                "fix/format",
+                "fix/lint",
+                "fix/typecheck",
+                "fix/generate",
+                "fix/verify/format",
+                "fix/verify/lint",
+                "fix/verify/typecheck",
+                "fix/verify/generate",
+            ],
+            "{out}"
+        );
+        assert!(
+            events_of_kind(&events, "notice").is_empty(),
+            "nothing failed, nothing to notice: {out}"
+        );
+        assert_eq!(events.last().expect("last")["exit_code"], 0);
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            8,
+            "every phase runs once to apply, then once again as a read-only check"
+        );
+    }
+
+    #[test]
+    fn fix_apply_skips_verification_when_a_phase_fails() {
+        let harness = umbrella_findings("umbrella-fix-verify-skip");
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(err, "", "{err}");
+        let events = json_events(&out);
+        let operations: Vec<&str> = events_of_kind(&events, "operation")
+            .iter()
+            .map(|operation| operation["correlation"].as_str().expect("correlation"))
+            .collect();
+        assert_eq!(operations, vec!["fix/format", "fix/lint"], "{out}");
+        let notices: Vec<(&str, &str)> = events_of_kind(&events, "notice")
+            .iter()
+            .map(|notice| {
+                (
+                    notice["code"].as_str().expect("code"),
+                    notice["message"].as_str().expect("message"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            notices,
+            vec![
+                (
+                    "umbrella_verification_skipped",
+                    "verification did not run after an apply phase failed"
+                ),
+                (
+                    "umbrella_phase_skipped",
+                    "typecheck skipped after an earlier phase failed"
+                ),
+                (
+                    "umbrella_phase_skipped",
+                    "generate skipped after an earlier phase failed"
+                ),
+            ],
+            "{out}"
+        );
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "format applied before lint went stale"
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 2, "{out}");
+    }
+
+    #[test]
+    fn fix_apply_verification_failure_fails_the_run() {
+        let mut harness = Harness::new("umbrella-fix-verify-fail");
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.write_source("rust/tests/fixtures/hello/BUILD.bazel", "xyz\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![]),
+        );
+        harness.intended = Some(intended_witness(
+            "default",
+            true,
+            &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            out.contains("Modified rust/tests/fixtures/hello/BUILD.bazel"),
+            "{out}"
+        );
+        assert!(
+            out.contains("Verifying applied fixes with read-only checks."),
+            "{out}"
+        );
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            8,
+            "four apply phases, then four read-only checks that report the leftover change"
+        );
     }
 
     #[test]
@@ -1164,7 +1544,7 @@ mod tests {
         let (harness, code, out, err) = umbrella_with_broken_capture(
             harness,
             Rewrite::Remove,
-            &["fix", "--output=text", "--report=sarif=out.sarif"],
+            &["fix", "--apply", "--output=text", "--report=sarif=out.sarif"],
         );
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(

@@ -1,6 +1,6 @@
 use super::{execute, Env};
 use crate::args::Invocation;
-use crate::plan::GENERATE_ENV_INTENDED;
+use crate::plan::{GENERATE_ENV_INTENDED, GENERATE_ENV_MODE};
 use crate::resolve::{QueryResult, QueryRunner};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use dx_digest::blake3 as digest;
@@ -441,11 +441,29 @@ impl Runner for FakeRunner {
             .find_map(|(key, value)| (*key == GENERATE_ENV_INTENDED).then_some(*value))
         {
             if let Some(witness) = &self.intended {
-                std::fs::write(path, witness).expect("intended witness");
+                let mode = env
+                    .iter()
+                    .find_map(|(key, value)| (*key == GENERATE_ENV_MODE).then_some(*value));
+                std::fs::write(path, witness_for_mode(witness, mode)).expect("intended witness");
             }
         }
         Ok(ChildStatus { code: self.code })
     }
+}
+
+/// Rewrites the canned witness mode only when the dispatched mode disagrees.
+fn witness_for_mode(witness: &[u8], mode: Option<&str>) -> Vec<u8> {
+    let Some(mode) = mode else {
+        return witness.to_vec();
+    };
+    let Ok(mut payload) = serde_json::from_slice::<serde_json::Value>(witness) else {
+        return witness.to_vec();
+    };
+    if payload.get("mode").and_then(serde_json::Value::as_str) == Some(mode) {
+        return witness.to_vec();
+    }
+    payload["mode"] = serde_json::Value::String(mode.to_owned());
+    serde_json::to_vec(&payload).expect("witness JSON")
 }
 
 pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored: &str) -> Vec<u8> {

@@ -697,6 +697,311 @@ pub fn notice_verify_files(
     Ok(format!("notice OK: {} entries bundled\n", entries.len()))
 }
 
+pub const DRY_RUN_SCHEMA: &str = "publish-dry-run/v1";
+pub const DRY_RUN_BINARY_NAME: &str = "dx-linux-x86_64";
+pub const DRY_RUN_STANDALONE_NAME: &str = "dx-standalone.tar.gz";
+pub const DRY_RUN_REPORT_NAME: &str = "dry-run-report.json";
+pub const DRY_RUN_SUMMARY_NAME: &str = "dry-run-summary.md";
+pub const DRY_RUN_SPDX_BASENAME: &str = "sbom_demo.spdx.json";
+pub const DRY_RUN_PROVENANCE_BASENAME: &str = "sbom_demo.provenance.json";
+pub const DRY_RUN_NOTICE_BASENAME: &str = "notice_demo.NOTICE";
+pub const DRY_RUN_RELEASE_MEMBERS: [&str; 4] = [
+    "licenses.toml",
+    DRY_RUN_SPDX_BASENAME,
+    DRY_RUN_PROVENANCE_BASENAME,
+    DRY_RUN_NOTICE_BASENAME,
+];
+pub const DRY_RUN_DRAFT_PLACEHOLDER: &str = "v0.0.0-dryrun";
+pub const DRY_RUN_DRAFT_FLAGS: &str = "--draft --verify-tag";
+pub const DRY_RUN_TESTS_MARKER: &str = "tests pass";
+pub const DRY_RUN_BCR_MARKER: &str = "would submit, submitting nothing";
+pub const DRY_RUN_DRIVER_MARKER: &str = "dry run (RELEASE_DRY_RUN=1)";
+pub const DRY_RUN_VERIFY_REFUSAL_MARKER: &str =
+    "checksum-only verification is not publisher-identity proof";
+pub const DRY_RUN_MODULE_NAME_LINE: &str = "name = \"rules_dx\"";
+pub const DRY_RUN_MODULE_VERSION_LINE: &str = "version = \"0.0.0\"";
+
+#[derive(Clone, Debug)]
+pub struct DryRunInputs {
+    pub approve: bool,
+    pub binary: std::path::PathBuf,
+    pub standalone_archive: std::path::PathBuf,
+    pub release_artifacts: std::path::PathBuf,
+    pub spdx: std::path::PathBuf,
+    pub provenance: std::path::PathBuf,
+    pub notice: std::path::PathBuf,
+    pub sbom_artifact: std::path::PathBuf,
+    pub notice_manifest: std::path::PathBuf,
+    pub notice_texts: Vec<std::path::PathBuf>,
+    pub draft_log: std::path::PathBuf,
+    pub tests_log: std::path::PathBuf,
+    pub signing_log: std::path::PathBuf,
+    pub bcr_log: std::path::PathBuf,
+    pub driver_log: std::path::PathBuf,
+    pub verify_refusal_log: std::path::PathBuf,
+    pub module_file: std::path::PathBuf,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DryRunReport {
+    pub approved: bool,
+    pub binary_digest: String,
+    pub standalone_digest: String,
+    pub subject_digest: String,
+}
+
+fn dry_run_read(role: &str, path: &Path) -> Result<String, String> {
+    std::fs::read_to_string(path)
+        .map_err(|error| format!("dry-run: cannot read {role} {}: {error}", path.display()))
+}
+
+fn dry_run_require(role: &str, text: &str, marker: &str) -> Result<(), String> {
+    if text.contains(marker) {
+        return Ok(());
+    }
+    Err(format!("dry-run: {role} missing {marker:?}"))
+}
+
+fn dry_run_hash(role: &str, path: &Path) -> Result<String, String> {
+    dx_digest::sha256_file_hex(path)
+        .map_err(|error| format!("dry-run: cannot hash {role} {}: {error}", path.display()))
+}
+
+pub fn dry_run_spdx_subject(spdx_text: &str) -> Result<String, String> {
+    let value: serde_json::Value = serde_json::from_str(spdx_text)
+        .map_err(|error| format!("dry-run: SBOM SPDX is not JSON: {error}"))?;
+    value
+        .pointer("/packages/0/checksums/0/checksumValue")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            "dry-run: SBOM SPDX has no packages[0].checksums[0].checksumValue".to_owned()
+        })
+}
+
+pub fn dry_run_check(inputs: &DryRunInputs) -> Result<DryRunReport, String> {
+    let listing = dry_run_read("release artifacts listing", &inputs.release_artifacts)?;
+    for member in DRY_RUN_RELEASE_MEMBERS {
+        if !listing.contains(member) {
+            return Err(format!("dry-run: release artifacts missing {member}"));
+        }
+    }
+    let binary_digest = dry_run_hash("staged binary", &inputs.binary)?;
+    let standalone_digest = dry_run_hash("staged standalone archive", &inputs.standalone_archive)?;
+    let spdx_text = dry_run_read("staged SBOM SPDX", &inputs.spdx)?;
+    dry_run_require("staged SBOM SPDX", &spdx_text, "SPDX-2.3")?;
+    let subject_digest = dry_run_spdx_subject(&spdx_text)?;
+    let provenance_text = dry_run_read("staged SBOM provenance", &inputs.provenance)?;
+    dry_run_require(
+        "staged SBOM provenance",
+        &provenance_text,
+        "https://slsa.dev/provenance/v1",
+    )?;
+    if !provenance_text.contains(&subject_digest) {
+        return Err(format!(
+            "dry-run: SBOM provenance missing SPDX subject digest {subject_digest}"
+        ));
+    }
+    sbom_verify_files(&inputs.sbom_artifact, &inputs.spdx, &inputs.provenance)
+        .map_err(|error| format!("dry-run: {error}"))?;
+    let notice_text = dry_run_read("staged NOTICE", &inputs.notice)?;
+    if !notice_text.starts_with("NOTICE for ") {
+        return Err("dry-run: NOTICE bundle missing header".to_owned());
+    }
+    notice_verify_files(
+        &inputs.notice,
+        &inputs.notice_manifest,
+        &inputs.notice_texts,
+    )
+    .map_err(|error| format!("dry-run: {error}"))?;
+    let draft_log = dry_run_read("draft dry-run log", &inputs.draft_log)?;
+    dry_run_require("draft dry-run log", &draft_log, DRY_RUN_DRAFT_PLACEHOLDER)?;
+    dry_run_require("draft dry-run log", &draft_log, DRY_RUN_DRAFT_FLAGS)?;
+    let tests_log = dry_run_read("release tests log", &inputs.tests_log)?;
+    dry_run_require("release tests log", &tests_log, DRY_RUN_TESTS_MARKER)?;
+    let signing_log = dry_run_read("signing dry-run log", &inputs.signing_log)?;
+    dry_run_require("signing dry-run log", &signing_log, "cosign sign-blob")?;
+    dry_run_require("signing dry-run log", &signing_log, SIGNING_TRUST_ROOT)?;
+    for asset in [
+        DRY_RUN_SPDX_BASENAME,
+        DRY_RUN_PROVENANCE_BASENAME,
+        DRY_RUN_NOTICE_BASENAME,
+    ] {
+        dry_run_require("signing dry-run log", &signing_log, asset)?;
+    }
+    let bcr_log = dry_run_read("BCR dry-run log", &inputs.bcr_log)?;
+    dry_run_require("BCR dry-run log", &bcr_log, DRY_RUN_BCR_MARKER)?;
+    let driver_log = dry_run_read("release driver dry-run log", &inputs.driver_log)?;
+    dry_run_require(
+        "release driver dry-run log",
+        &driver_log,
+        DRY_RUN_DRIVER_MARKER,
+    )?;
+    let refusal_log = dry_run_read("install verifier refusal log", &inputs.verify_refusal_log)?;
+    dry_run_require(
+        "install verifier refusal log",
+        &refusal_log,
+        DRY_RUN_VERIFY_REFUSAL_MARKER,
+    )?;
+    let module_text = dry_run_read("module file", &inputs.module_file)?;
+    dry_run_require("module file", &module_text, DRY_RUN_MODULE_NAME_LINE)?;
+    dry_run_require("module file", &module_text, DRY_RUN_MODULE_VERSION_LINE)?;
+    Ok(DryRunReport {
+        approved: inputs.approve,
+        binary_digest,
+        standalone_digest,
+        subject_digest,
+    })
+}
+
+pub fn render_dry_run_report(report: &DryRunReport) -> String {
+    render_pretty(&serde_json::json!({
+        "schema": DRY_RUN_SCHEMA,
+        "approved": report.approved,
+        "published": false,
+        "artifacts": [
+            {
+                "name": DRY_RUN_BINARY_NAME,
+                "sha256": report.binary_digest,
+                "note": "seed-host binary; release matrix frozen in deploy/release/matrix.bzl",
+            },
+            {
+                "name": DRY_RUN_STANDALONE_NAME,
+                "sha256": report.standalone_digest,
+                "note": "seed-host standalone archive via //cli/cli:dx_standalone; wider matrix qualified per-host under issue #815 (human-run only, not built here)",
+            },
+        ],
+        "release_matrix": [
+            {"name": "dx-linux-x86_64", "status": "qualified-seed-built-here"},
+            {"name": "dx-linux-arm64", "status": "qualified-host-evidence"},
+            {"name": "dx-macos-arm64", "status": "qualified-host-evidence"},
+            {"name": "dx-windows-x86_64", "status": "qualified-host-evidence"},
+        ],
+        "exercised": [
+            "seed binary build //cli/cli:dx with sha256 staged under RUNNER_TEMP",
+            "seed standalone archive //cli/cli:dx_standalone with sha256 staged under RUNNER_TEMP",
+            "seed releasable unit //deploy/release:release_artifacts (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)",
+            "SBOM/provenance generation //deploy/release:sbom_demo (SPDX-2.3 + SLSA v1, subject digest equal to artifact sha256, owner-gated, publishes nothing)",
+            "aggregated NOTICE //deploy/release:notice_demo (hermetic notice_bundle, byte-identical, missing-notice-text fails, publishes nothing)",
+            "draft-only publisher //cli/cli:github_draft in GH_RELEASE_DRY_RUN=1 mode (placeholder v0.0.0-dryrun, draft-only flags, publishes nothing)",
+            "owner-gated signing //deploy/release:signing_demo in RELEASE_SIGN_DRY_RUN=1 mode (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)",
+            "Bazel Central Registry shape via //deploy/release:bcr_demo in BCR_DRY_RUN=1 mode (rules_dx at 0.0.0, checked not submitted)",
+            "human-run driver //deploy/release:release_driver dry run (owner approval + tag ceiling, publishes nothing)",
+            "install verifier //deploy/install:dx_verify refusal proof (checksum-only rejected, TUF trust root, fails before install)",
+        ],
+        "draft_dry_run": {
+            "target": "//cli/cli:github_draft",
+            "mode": "GH_RELEASE_DRY_RUN=1",
+            "placeholder": DRY_RUN_DRAFT_PLACEHOLDER,
+            "flags": DRY_RUN_DRAFT_FLAGS,
+            "ok": true,
+            "published": false,
+        },
+        "sbom": {
+            "target": "//deploy/release:sbom_demo",
+            "spdx": "SPDX-2.3",
+            "predicate": "https://slsa.dev/provenance/v1",
+            "subject_digest": report.subject_digest,
+            "linkage_ok": true,
+            "verified": true,
+            "published": false,
+        },
+        "notice": {
+            "target": "//deploy/release:notice_demo",
+            "header_ok": true,
+            "signed_with_sbom": true,
+            "verified": true,
+            "published": false,
+        },
+        "packaging": {
+            "target": "//deploy/release:release_artifacts",
+            "curator": "//:audit_curator",
+            "sbom_signed_with_notice": true,
+            "ok": true,
+            "published": false,
+        },
+        "signing_dry_run": {
+            "target": "//deploy/release:signing_demo",
+            "mode": "RELEASE_SIGN_DRY_RUN=1",
+            "trust_root": SIGNING_TRUST_ROOT,
+            "ok": true,
+            "published": false,
+        },
+        "bcr_shape": {
+            "module": "rules_dx",
+            "version": "0.0.0",
+            "target": "//deploy/release:bcr_demo",
+            "mode": "BCR_DRY_RUN=1",
+            "checked": true,
+            "submitted": false,
+        },
+        "verify_refusal": {
+            "verifier": "//deploy/install:dx_verify",
+            "trust_root": SIGNING_TRUST_ROOT,
+            "checksum_only_refused": true,
+            "installed": false,
+        },
+        "would_publish": [
+            "Bazel Central Registry `rules_dx` module (owner-gated via //deploy/release:bcr_demo; owner approval required)",
+            "GitHub Release with standalone `dx` binaries (draft only via //cli/cli:github_draft; owner approval required)",
+        ],
+        "not_attempted": [
+            "SBOM/provenance publishing (generated owner-gated via //deploy/release:sbom_demo)",
+            "Signing/attestation publishing (Sigstore keyless + GitHub attestations on the trust root, signing-first; GHCR images sign separately via cosign <digest>)",
+            "GHCR prebuilt images (separate workflow .github/workflows/ghcr.yml per owner decision)",
+            "Non-seed release matrix builds (qualified per-host under issue #815, human-run only, not built in dry-run)",
+            "BCR submission (owner-gated via //deploy/release:bcr_demo)",
+            "Any tag, registry submission, or release creation",
+        ],
+    }))
+}
+
+pub fn render_dry_run_console(report: &DryRunReport) -> String {
+    let approved = if report.approved { "true" } else { "false" };
+    format!(
+        "seed binary sha256: {}\nstandalone archive sha256: {}\nsbom subject digest: {} (linkage ok: True)\npackaging ok: True (SBOM pair plus NOTICE signed together)\ndraft dry-run ok: True\nsigning dry-run ok: True\nbcr dry-run ok: True\napproved: {approved}; published: False (dry run never publishes)\n",
+        report.binary_digest, report.standalone_digest, report.subject_digest,
+    )
+}
+
+pub fn render_dry_run_summary(report: &DryRunReport) -> String {
+    let approved = if report.approved { "true" } else { "false" };
+    format!(
+        "## Publish dry-run report\n\n- approved: `{approved}`; published: **no** (dry run never publishes)\n- seed binary: `dx-linux-x86_64` `{}`\n- standalone: `dx-standalone.tar.gz` `{}`\n- draft dry-run: `//cli/cli:github_draft` `GH_RELEASE_DRY_RUN=1` ok (placeholder `v0.0.0-dryrun`, draft-only flags, publishes nothing)\n- packaging: `//deploy/release:release_artifacts` ok (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)\n- SBOM: `//deploy/release:sbom_demo` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing\n- NOTICE: `//deploy/release:notice_demo` ok (hermetic bundle, signed alongside SBOM pair, publishes nothing)\n- signing dry-run: `//deploy/release:signing_demo` `RELEASE_SIGN_DRY_RUN=1` ok (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)\n- BCR shape: `rules_dx` at `0.0.0` via `//deploy/release:bcr_demo` checked, not submitted\n- verifier: checksum-only refused, TUF trust root, nothing installed\n- full report: `dry-run-report.json` in the job logs\n",
+        report.binary_digest, report.standalone_digest,
+    )
+}
+
+pub fn write_dry_run_outputs(stage: &Path, report: &DryRunReport) -> io::Result<()> {
+    for (name, digest) in [
+        (DRY_RUN_BINARY_NAME, report.binary_digest.as_str()),
+        (DRY_RUN_STANDALONE_NAME, report.standalone_digest.as_str()),
+    ] {
+        let target = stage.join(format!("{name}.sha256"));
+        std::fs::write(&target, format!("{digest}  {name}\n").as_bytes()).map_err(|error| {
+            io::Error::other(format!(
+                "dry-run: cannot write {}: {error}",
+                target.display()
+            ))
+        })?;
+    }
+    let document = stage.join(DRY_RUN_REPORT_NAME);
+    std::fs::write(&document, render_dry_run_report(report).as_bytes()).map_err(|error| {
+        io::Error::other(format!(
+            "dry-run: cannot write {}: {error}",
+            document.display()
+        ))
+    })?;
+    let summary = stage.join(DRY_RUN_SUMMARY_NAME);
+    std::fs::write(&summary, render_dry_run_summary(report).as_bytes()).map_err(|error| {
+        io::Error::other(format!(
+            "dry-run: cannot write {}: {error}",
+            summary.display()
+        ))
+    })?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1129,6 +1434,42 @@ mod tests {
         std::fs::write(&notice, "tampered bytes\n").expect("tamper");
         let err = notice_verify_files(&notice, &good_manifest, &texts).expect_err("tampered");
         assert!(err.to_string().contains("NOTICE"));
+    }
+
+    #[test]
+    fn dry_run_spdx_subject_reads_package_checksums() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let text = render_spdx("artifact.bin", digest, "dx", "rules_dx");
+        assert_eq!(dry_run_spdx_subject(&text).expect("subject"), digest);
+        assert!(dry_run_spdx_subject("{not json").is_err());
+        assert!(dry_run_spdx_subject("{\"spdxVersion\": \"SPDX-2.3\"}").is_err());
+    }
+
+    #[test]
+    fn dry_run_report_renders_schema_and_console() {
+        let report = DryRunReport {
+            approved: false,
+            binary_digest: "a".repeat(64),
+            standalone_digest: "b".repeat(64),
+            subject_digest: "c".repeat(64),
+        };
+        let value: serde_json::Value =
+            serde_json::from_str(&render_dry_run_report(&report)).expect("report JSON");
+        assert_eq!(value["schema"], serde_json::json!(DRY_RUN_SCHEMA));
+        assert_eq!(value["published"], serde_json::json!(false));
+        assert_eq!(
+            value["artifacts"][0]["sha256"],
+            serde_json::json!("a".repeat(64))
+        );
+        assert_eq!(
+            value["sbom"]["subject_digest"],
+            serde_json::json!("c".repeat(64))
+        );
+        let console = render_dry_run_console(&report);
+        assert!(console.contains("approved: false; published: False (dry run never publishes)"));
+        let summary = render_dry_run_summary(&report);
+        assert!(summary.contains("published: **no** (dry run never publishes)"));
+        assert!(summary.contains(&"a".repeat(64)));
     }
 
     #[test]

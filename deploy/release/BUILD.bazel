@@ -28,6 +28,7 @@ exports_files([
     "signing.bzl",
     "signing_tests.bzl",
     "src/bin_bcr_source_gen.rs",
+    "src/bin_dry_run_report.rs",
     "src/bin_notice_gen.rs",
     "src/bin_release_driver.rs",
     "src/bin_sbom_prov_gen.rs",
@@ -202,6 +203,7 @@ rustfmt_test(
         ":sbom_spdx_gen",
         ":sbom_prov_gen",
         ":bcr_source_gen",
+        ":dry_run_report",
         ":notice_gen",
         ":release_driver",
     ],
@@ -215,6 +217,7 @@ rust_clippy_test(
         ":sbom_spdx_gen",
         ":sbom_prov_gen",
         ":bcr_source_gen",
+        ":dry_run_report",
         ":notice_gen",
         ":release_driver",
     ],
@@ -238,6 +241,64 @@ rust_binary(
         ],
         package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
+)
+
+rust_binary(
+    name = "dry_run_report",
+    srcs = ["src/bin_dry_run_report.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "dry_run_report",
+    crate_root = "src/bin_dry_run_report.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "dry_run_report_verify",
+    size = "small",
+    srcs = ["dry_run_report_test.rs"],
+    data = [
+        ":notice_demo_a.txt",
+        ":notice_demo_b.txt",
+        ":notice_demo_inventory.txt",
+        ":notice_demo_notice",
+        ":sbom_demo_provenance",
+        ":sbom_demo_spdx",
+        "//:MODULE.bazel",
+        "//deploy/rules:release_demo_archive",
+    ],
+    env = {
+        "DX_NOTICE": "$(rootpath :notice_demo_notice)",
+        "DX_NOTICE_MANIFEST": "$(rootpath :notice_demo_inventory.txt)",
+        "DX_NOTICE_TEXT_A": "$(rootpath :notice_demo_a.txt)",
+        "DX_NOTICE_TEXT_B": "$(rootpath :notice_demo_b.txt)",
+        "DX_SBOM_ARTIFACT": "$(rootpath //deploy/rules:release_demo_archive)",
+        "DX_SBOM_PROVENANCE": "$(rootpath :sbom_demo_provenance)",
+        "DX_SBOM_SPDX": "$(rootpath :sbom_demo_spdx)",
+        "DX_MODULE_BAZEL": "$(rootpath //:MODULE.bazel)",
+    },
+    deps = crate_deps(
+        [
+            "serde_json",
+            "tempfile",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 exports_files(["Cargo.toml"])
@@ -304,6 +365,7 @@ test_suite(
     name = "all",
     tests = [
         ":bcr_unit",
+        ":dry_run_report_verify",
         ":dx_release_tools_test",
         ":matrix_unit",
         ":notice_demo_contains_words",

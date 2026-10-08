@@ -1,0 +1,122 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH dx 1  "dx 0.0.0" 
+.SH NAME
+dx \- Run Bazel workflows
+.SH SYNOPSIS
+\fBdx\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
+.SH DESCRIPTION
+dx <command> [flags] [scope ...] [\-\- bazel\-options ...]
+.PP
+Scopes: labels, patterns, files, or dirs. No scope means //... for most commands.
+.PP
+Exit codes: 0 success, 2 usage error, 1 failed check.
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+dx\-security(1)
+run security audit over resolved scopes (non\-mutating; live Gitleaks plus advisory/vuln backends)
+.TP
+dx\-license(1)
+run license audit over resolved scopes (non\-mutating; live license\-policy plus SPDX backend)
+.TP
+dx\-lint(1)
+run lint analysis over resolved scopes (check by default; \-\-apply writes fixes)
+.TP
+dx\-typecheck(1)
+run typecheck analysis over resolved scopes (check by default; \-\-apply writes fixes)
+.TP
+dx\-format(1)
+check or rewrite formatting over resolved scopes (check by default; \-\-apply writes fixes)
+.TP
+dx\-generate(1)
+emit/sync BUILD files (Gazelle pipeline; check by default; \-\-apply writes generated sources)
+.TP
+dx\-build(1)
+run Bazel build over resolved targets
+.TP
+dx\-test(1)
+run Bazel test over resolved targets
+.TP
+dx\-coverage(1)
+collect LCOV coverage with optional threshold
+.TP
+dx\-run(1)
+build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
+.TP
+dx\-deploy(1)
+build and run a single deployable target
+.TP
+dx\-check(1)
+run format+lint+typecheck+generate checks in order (non\-mutating)
+.TP
+dx\-fix(1)
+apply format+lint+typecheck+generate fixes in order (check by default; \-\-apply writes fixes, then verifies with a read\-only check)
+.TP
+dx\-clean(1)
+prune unselected managed state, never Bazel outputs unless \-\-bazel (check by default; \-\-apply prunes; no scopes)
+.TP
+dx\-update(1)
+update dependencies per set through qualified resolvers (mutating without confirmation; \-\-check validates selected sets without writing)
+.TP
+dx\-bump(1)
+widen one declared requirement to a new version (explicit; mutating without confirmation)
+.TP
+dx\-migrate(1)
+rewrite breaking changes across releases (upgrade\-only; mutating by default; \-\-dry\-run plans without writes)
+.TP
+dx\-codegen(1)
+collect codegen outputs with atomic commit (check by default; \-\-apply writes managed state)
+.TP
+dx\-env(1)
+collect the managed development environment (check by default; \-\-apply writes managed state)
+.TP
+dx\-setup(1)
+collect setup outputs with atomic commit (check by default; \-\-apply writes managed state)
+.TP
+dx\-init(1)
+scaffold dx into a foreign tree (absent\-only; mutating by default)
+.TP
+dx\-new(1)
+scaffold a minimal qualified project for one language (absent\-only; mutating by default)
+.TP
+dx\-upgrade(1)
+one\-shot pin+migrate+setup composition with recovery pointer (mutating by default; \-\-dry\-run plans without writes)
+.TP
+dx\-hooks(1)
+manage Git hooks via hermetic Git (mutating by default)
+.TP
+dx\-status(1)
+report workspace and target status
+.TP
+dx\-version(1)
+report version and pin drift
+.TP
+dx\-watch(1)
+watch for changes and rebuild (local only)
+.TP
+dx\-owners(1)
+query owners of files via Bazel query
+.TP
+dx\-deps(1)
+query dependencies of targets
+.TP
+dx\-why(1)
+explain why a target depends on another
+.TP
+dx\-completion(1)
+emit shell completions from the CLI grammar (bash|zsh|fish|powershell; \-\-check verifies without writing)
+.TP
+dx\-docs(1)
+build, check, and serve the mdBook documentation site (non\-mutating; \-\-check validates without rendering)
+.TP
+dx\-bazel(1)
+forward raw arguments to the Bazel launcher
+.SH VERSION
+v0.0.0

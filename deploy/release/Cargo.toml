@@ -27,6 +27,10 @@ path = "src/bin_notice_gen.rs"
 name = "release_driver"
 path = "src/bin_release_driver.rs"
 
+[[bin]]
+name = "dry_run_report"
+path = "src/bin_dry_run_report.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

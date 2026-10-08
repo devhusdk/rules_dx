@@ -1,0 +1,4 @@
+# would-run manifest for github_deploy
+asset-sha256: 8ca00ea50a9a3a49330ed6c7c4c213534af2e827c565df7534b028354564be3c  dx
+asset-sha256: 5cef362d5fa64421885ba1d5fd093a61c41e1b90bbed946469886877cebf748b  dx.1
+gh release create v0.0.0-dryrun dx dx.1 --draft --verify-tag

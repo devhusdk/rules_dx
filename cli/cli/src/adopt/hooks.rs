@@ -15,6 +15,7 @@ pub(crate) fn execute_hooks(
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
     runner: &dyn dx_process::Runner,
+    hook_stdin: Option<&[u8]>,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -91,7 +92,15 @@ pub(crate) fn execute_hooks(
             }
         }
         "status" => execute_status(invocation, workspace, out, err),
-        "run" => execute_run(invocation, workspace, query_runner, runner, out, err),
+        "run" => execute_run(
+            invocation,
+            workspace,
+            query_runner,
+            runner,
+            hook_stdin,
+            out,
+            err,
+        ),
         _ => pre_exec(
             err,
             &format!("usage: dx hooks <{}>", dx_adopt::hook_verb_pipe()),
@@ -183,6 +192,7 @@ fn execute_run(
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
     runner: &dyn dx_process::Runner,
+    hook_stdin: Option<&[u8]>,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -238,37 +248,68 @@ fn execute_run(
         }
         return 0;
     }
-    let staged = match staged_files(&git, workspace, query_runner) {
-        Ok(files) => files,
-        Err(detail) => {
-            return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+    let (changes, source) = match trigger {
+        "pre-commit" => match staged_changes(&git, workspace, query_runner) {
+            Ok(changes) => (changes, dx_adopt::ChangeSource::Staged),
+            Err(detail) => {
+                return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+            }
+        },
+        _ => {
+            let stdin_bytes = match read_push_stdin(hook_stdin) {
+                Ok(bytes) => bytes,
+                Err(detail) => {
+                    return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+                }
+            };
+            let refs = match dx_adopt::parse_push_refs(&stdin_bytes) {
+                Ok(refs) => refs,
+                Err(detail) => {
+                    return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+                }
+            };
+            if refs.is_empty() {
+                if !summaries_suppressed(invocation) {
+                    if let Err(exit) = check_stdout_write(writeln!(
+                        out,
+                        "ran {trigger}: ok (no pushed refs on stdin)"
+                    )) {
+                        return exit;
+                    }
+                }
+                return 0;
+            }
+            match pushed_changes(&git, workspace, query_runner, &refs) {
+                Ok(changes) => (changes, dx_adopt::ChangeSource::Pushed),
+                Err(detail) => {
+                    return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+                }
+            }
         }
     };
-    if staged.is_empty() {
+    if changes.is_empty() {
+        let note = match source {
+            dx_adopt::ChangeSource::Staged => "no staged changes",
+            dx_adopt::ChangeSource::Pushed => "no pushed changes",
+        };
         if !summaries_suppressed(invocation) {
-            if let Err(exit) =
-                check_stdout_write(writeln!(out, "ran {trigger}: ok (no staged files)"))
-            {
+            if let Err(exit) = check_stdout_write(writeln!(out, "ran {trigger}: ok ({note})")) {
                 return exit;
             }
         }
         return 0;
     }
-    let targets = match affected_targets(&staged, workspace, query_runner) {
+    let targets = match change_targets(&changes, workspace, query_runner) {
         Ok(targets) => targets,
         Err(detail) => {
             return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
         }
     };
-    if targets.is_empty() {
-        if !summaries_suppressed(invocation) {
-            if let Err(exit) =
-                check_stdout_write(writeln!(out, "ran {trigger}: ok (no affected targets)"))
-            {
-                return exit;
-            }
+    if !summaries_suppressed(invocation) {
+        let line = dx_adopt::render_selection_line(trigger, &source, changes.len(), targets.len());
+        if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
+            return exit;
         }
-        return 0;
     }
     let dx_exe = match std::env::current_exe() {
         Ok(exe) => exe.to_string_lossy().into_owned(),
@@ -350,17 +391,28 @@ fn execute_run(
     0
 }
 
-fn staged_files(
+fn read_push_stdin(injected: Option<&[u8]>) -> Result<Vec<u8>, String> {
+    match injected {
+        Some(bytes) => Ok(bytes.to_vec()),
+        None => {
+            let mut buf = Vec::new();
+            use std::io::Read;
+            std::io::stdin()
+                .read_to_end(&mut buf)
+                .map_err(|error| format!("hook pre-push stdin unreadable: {error}"))?; // LCOV_EXCL_LINE - reason: process stdin, issue: 1348, policy: docs/cli/commands/build-test-coverage.md
+            Ok(buf)
+        }
+    }
+}
+
+fn run_git_name_status(
     git: &std::path::Path,
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
-) -> Result<Vec<String>, String> {
-    let argv = vec![
-        git.to_string_lossy().into_owned(),
-        "diff".to_owned(),
-        "--cached".to_owned(),
-        "--name-only".to_owned(),
-    ];
+    extra: &[String],
+) -> Result<Vec<dx_adopt::GitChange>, String> {
+    let mut argv = vec![git.to_string_lossy().into_owned()];
+    argv.extend(extra.iter().cloned());
     let result: QueryResult = query_runner
         .run_query(&argv, workspace)
         .map_err(|error| format!("hook git diff failed: {error}"))?;
@@ -368,32 +420,90 @@ fn staged_files(
         let detail = first_line(&result.stderr);
         return Err(format!("hook git diff failed: {detail}"));
     }
-    let text = String::from_utf8(result.stdout)
-        .map_err(|error| format!("hook git diff output is not UTF-8: {error}"))?;
-    Ok(text
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(ToOwned::to_owned)
-        .collect())
+    dx_adopt::parse_name_status_nul(&result.stdout)
 }
 
-fn affected_targets(
-    staged: &[String],
+fn staged_changes(
+    git: &std::path::Path,
+    workspace: &std::path::Path,
+    query_runner: &dyn QueryRunner,
+) -> Result<Vec<dx_adopt::GitChange>, String> {
+    run_git_name_status(
+        git,
+        workspace,
+        query_runner,
+        &[
+            "diff".to_owned(),
+            "--cached".to_owned(),
+            "--name-status".to_owned(),
+            "-z".to_owned(),
+        ],
+    )
+    .map(dx_adopt::dedupe_changes)
+}
+
+fn pushed_changes(
+    git: &std::path::Path,
+    workspace: &std::path::Path,
+    query_runner: &dyn QueryRunner,
+    refs: &[dx_adopt::PushRef],
+) -> Result<Vec<dx_adopt::GitChange>, String> {
+    let mut changes = Vec::new();
+    for push_ref in refs {
+        let Some(base) = dx_adopt::push_diff_base(push_ref) else {
+            continue;
+        };
+        changes.extend(run_git_name_status(
+            git,
+            workspace,
+            query_runner,
+            &[
+                "diff".to_owned(),
+                "--name-status".to_owned(),
+                "-z".to_owned(),
+                base,
+                push_ref.local_sha.clone(),
+            ],
+        )?);
+    }
+    Ok(dx_adopt::dedupe_changes(changes))
+}
+
+fn change_targets(
+    changes: &[dx_adopt::GitChange],
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
 ) -> Result<Vec<String>, String> {
-    let existing: Vec<String> = staged
-        .iter()
-        .filter(|path| workspace.join(path).is_file())
-        .cloned()
-        .collect();
-    if existing.is_empty() {
-        return Ok(Vec::new());
+    let mut existing = Vec::new();
+    let mut missing = Vec::new();
+    for change in changes {
+        for path in change.from.iter().chain(std::iter::once(&change.path)) {
+            if workspace.join(path).is_file() || workspace.join(path).is_dir() {
+                existing.push(path.clone());
+            } else {
+                missing.push(path.clone());
+            }
+        }
     }
-    crate::resolve::resolve(&existing, workspace, query_runner)
-        .map(|resolved| resolved.targets)
-        .map_err(|error| error.to_string())
+    existing.sort();
+    existing.dedup();
+    missing.sort();
+    missing.dedup();
+    let mut targets = if existing.is_empty() {
+        Vec::new()
+    } else {
+        crate::resolve::resolve(&existing, workspace, query_runner)
+            .map(|resolved| resolved.targets)
+            .map_err(|error| error.to_string())?
+    };
+    for path in &missing {
+        if !existing.iter().any(|kept| path == kept) {
+            targets.push(dx_adopt::nearest_package_pattern(workspace, path));
+        }
+    }
+    targets.sort();
+    targets.dedup();
+    Ok(targets)
 }
 
 fn check_argv(dx_exe: &str, check: &str, targets: &[String]) -> Vec<String> {
@@ -445,6 +555,7 @@ mod tests {
                     root,
                     &NullQuery,
                     &NullRunner,
+                    None,
                     &mut out,
                     &mut err
                 ),
@@ -471,6 +582,7 @@ mod tests {
                     foreign.path(),
                     &NullQuery,
                     &NullRunner,
+                    None,
                     &mut Vec::new(),
                     &mut err
                 ),
@@ -502,6 +614,7 @@ mod tests {
                     scratch.path(),
                     &NullQuery,
                     &NullRunner,
+                    None,
                     &mut out,
                     &mut err
                 ),
@@ -544,7 +657,7 @@ mod tests {
         let inv = invocation(&["hooks", "run", "pre-commit"]);
         for query in [
             &MissingProcess as &dyn QueryRunner,
-            &ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n"),
+            &ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n"),
         ] {
             let mut err = Vec::new();
             assert_eq!(
@@ -553,6 +666,7 @@ mod tests {
                     scratch.path(),
                     query,
                     &MissingProcess,
+                    None,
                     &mut Vec::new(),
                     &mut err
                 ),
@@ -660,19 +774,29 @@ mod tests {
 
     impl ScriptQuery {
         fn staged_then_owners(staged: &str, owners: &str) -> Self {
+            Self::scripted(&[staged], owners)
+        }
+
+        fn push_then_owners(diffs: &[&str], owners: &str) -> Self {
+            Self::scripted(diffs, owners)
+        }
+
+        fn scripted(git_outputs: &[&str], owners: &str) -> Self {
+            let mut outputs: Vec<crate::resolve::QueryResult> = git_outputs
+                .iter()
+                .map(|stdout| crate::resolve::QueryResult {
+                    code: Some(0),
+                    stdout: stdout.as_bytes().to_vec(),
+                    stderr: Vec::new(),
+                })
+                .collect();
+            outputs.push(crate::resolve::QueryResult {
+                code: Some(0),
+                stdout: owners.as_bytes().to_vec(),
+                stderr: Vec::new(),
+            });
             Self {
-                outputs: RefCell::new(vec![
-                    crate::resolve::QueryResult {
-                        code: Some(0),
-                        stdout: staged.as_bytes().to_vec(),
-                        stderr: Vec::new(),
-                    },
-                    crate::resolve::QueryResult {
-                        code: Some(0),
-                        stdout: owners.as_bytes().to_vec(),
-                        stderr: Vec::new(),
-                    },
-                ]),
+                outputs: RefCell::new(outputs),
                 seen: RefCell::new(Vec::new()),
             }
         }
@@ -729,19 +853,19 @@ mod tests {
     fn hooks_run_handles_empty_selection_signal_and_invalid_state() {
         for (scenario, want_code, want_detail) in [
             ("no-checks", 0, "no checks configured"),
-            ("deleted-file", 0, "no affected targets"),
+            ("deleted-file", 0, "staged 1 file(s) as 1 target(s)"),
             ("bad-config", 1, ""),
             ("signal", 1, "terminated by signal"),
             ("bad-timings", 1, ""),
             ("timings-collision", 1, "write timings"),
             ("query-failed", 1, "hook git diff failed"),
-            ("query-utf8", 1, "not UTF-8"),
+            ("query-utf8", 1, "UTF-8"),
             ("owner-failed", 1, "query"),
         ] {
             let scratch = dx_test_scratch::scratch("hooks-failure-");
             let root = scratch.path();
             write_workspace(root);
-            let query = ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n");
+            let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
             let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
             match scenario {
                 "no-checks" => {
@@ -773,7 +897,7 @@ mod tests {
             let mut err = Vec::new();
             let inv = invocation(&["hooks", "run", "pre-commit"]);
             assert_eq!(
-                execute_hooks(&inv, root, &query, &runner, &mut out, &mut err),
+                execute_hooks(&inv, root, &query, &runner, None, &mut out, &mut err),
                 want_code,
                 "{scenario}"
             );
@@ -822,7 +946,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-run-");
         let root = scratch.path().to_path_buf();
         write_workspace(&root);
-        let query = ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n");
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
         let (code, out, _err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 0);
@@ -849,7 +973,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-run-fail-");
         let root = scratch.path().to_path_buf();
         write_workspace(&root);
-        let query = ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n");
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(1), Some(0)]);
         let (code, _out, err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 1);
@@ -864,7 +988,7 @@ mod tests {
         write_workspace(&root);
         std::fs::write(root.join("dx.hooks.toml"), "[hooks]\nbudget_secs = 0\n")
             .expect("zero budget");
-        let query = ScriptQuery::staged_then_owners("pkg/a.py\n", "//pkg:lib\n");
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
         let (code, _out, err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 1);
@@ -905,7 +1029,338 @@ mod tests {
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
         let (code, out, _err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 0);
-        assert!(out.contains("no staged files"));
+        assert!(out.contains("no staged changes"));
         assert!(runner.seen.borrow().is_empty());
+    }
+
+    fn run_with_stdin(
+        inv: &Invocation,
+        root: &Path,
+        query: &dyn QueryRunner,
+        runner: &dyn dx_process::Runner,
+        hook_stdin: Option<&[u8]>,
+    ) -> (i32, String, String) {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = execute_hooks(inv, root, query, runner, hook_stdin, &mut out, &mut err);
+        (
+            code,
+            String::from_utf8(out).expect("stdout"),
+            String::from_utf8(err).expect("stderr"),
+        )
+    }
+
+    fn zero_sha() -> String {
+        "0".repeat(40)
+    }
+
+    fn push_stdin(refs: &[(&str, &str, &str, &str)]) -> Vec<u8> {
+        refs.iter()
+            .map(|(local_ref, local, remote_ref, remote)| {
+                format!("{local_ref} {local} {remote_ref} {remote}\n")
+            })
+            .collect::<String>()
+            .into_bytes()
+    }
+
+    #[test]
+    fn hooks_run_push_ignores_the_index_and_checks_pushed_paths() {
+        let inv = invocation(&["hooks", "run", "pre-push"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-push-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        let local = "a".repeat(40);
+        let remote = "b".repeat(40);
+        let stdin = push_stdin(&[("refs/heads/main", &local, "refs/heads/main", &remote)]);
+        let query = ScriptQuery::push_then_owners(&["M\0pkg/a.py\0"], "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
+        let (code, out, err) = run_with_stdin(&inv, &root, &query, &runner, Some(&stdin));
+        assert_eq!(code, 0, "{out}{err}");
+        let git_argv = &query.seen.borrow()[0];
+        assert!(
+            git_argv.contains(&"--name-status".to_owned()),
+            "{git_argv:?}"
+        );
+        assert!(git_argv.contains(&"-z".to_owned()), "{git_argv:?}");
+        assert!(git_argv.contains(&remote), "{git_argv:?}");
+        assert!(git_argv.contains(&local), "{git_argv:?}");
+        assert!(!git_argv.contains(&"--cached".to_owned()), "{git_argv:?}");
+        assert!(
+            runner.seen.borrow()[0].contains(&"//pkg:lib".to_owned()),
+            "{:?}",
+            runner.seen.borrow()
+        );
+        assert!(out.contains("pushed 1 file(s) as 1 target(s)"), "{out}");
+        assert!(out.contains("worktree files"), "{out}");
+    }
+
+    #[test]
+    fn hooks_run_push_reports_empty_stdin_and_deletion_only_refs() {
+        let inv = invocation(&["hooks", "run", "pre-push"]);
+        for (name, stdin, want) in [
+            ("empty-stdin", Vec::new(), "no pushed refs on stdin"),
+            (
+                "deletion-only",
+                push_stdin(&[(
+                    "refs/heads/gone",
+                    &zero_sha(),
+                    "refs/heads/gone",
+                    &"c".repeat(40),
+                )]),
+                "no pushed changes",
+            ),
+        ] {
+            let scratch = dx_test_scratch::scratch("dx-adopt-hooks-push-empty-");
+            let root = scratch.path().to_path_buf();
+            write_workspace(&root);
+            let query = ScriptQuery::push_then_owners(&[], "//pkg:lib\n");
+            let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
+            let (code, out, _err) = run_with_stdin(&inv, &root, &query, &runner, Some(&stdin));
+            assert_eq!(code, 0, "{name}");
+            assert!(out.contains(want), "{name}: {out}");
+            assert!(runner.seen.borrow().is_empty(), "{name}");
+        }
+    }
+
+    #[test]
+    fn hooks_run_push_diffs_new_branches_against_the_empty_tree() {
+        let inv = invocation(&["hooks", "run", "pre-push"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-push-new-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        let local = "a".repeat(40);
+        let stdin = push_stdin(&[
+            ("refs/heads/new", &local, "refs/heads/new", &zero_sha()),
+            (
+                "refs/heads/gone",
+                &zero_sha(),
+                "refs/heads/gone",
+                &"c".repeat(40),
+            ),
+        ]);
+        let query = ScriptQuery::push_then_owners(&["A\0pkg/a.py\0"], "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
+        let (code, out, err) = run_with_stdin(&inv, &root, &query, &runner, Some(&stdin));
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(query.seen.borrow().len(), 2, "{:?}", query.seen.borrow());
+        let git_argv = &query.seen.borrow()[0];
+        assert!(
+            git_argv.contains(&dx_adopt::EMPTY_TREE_SHA.to_owned()),
+            "{git_argv:?}"
+        );
+        assert!(git_argv.contains(&local), "{git_argv:?}");
+        assert!(
+            runner.seen.borrow()[0].contains(&"//pkg:lib".to_owned()),
+            "{:?}",
+            runner.seen.borrow()
+        );
+        assert!(out.contains("pushed 1 file(s) as 1 target(s)"), "{out}");
+    }
+
+    #[test]
+    fn hooks_run_push_rejects_malformed_stdin() {
+        let inv = invocation(&["hooks", "run", "pre-push"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-push-bad-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        let query = ScriptQuery::push_then_owners(&[], "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
+        let (code, _out, err) = run_with_stdin(
+            &inv,
+            &root,
+            &query,
+            &runner,
+            Some(b"refs/heads/main only-two-fields\n"),
+        );
+        assert_eq!(code, 1);
+        assert!(err.contains("four fields"), "{err}");
+    }
+
+    #[test]
+    fn hooks_run_precommit_keeps_rename_identities_and_deleted_fallbacks() {
+        let inv = invocation(&["hooks", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-rename-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        let query = ScriptQuery::staged_then_owners("R100\0pkg/was.py\0pkg/a.py\0", "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
+        let (code, out, err) = run_with_stdin(&inv, &root, &query, &runner, None);
+        assert_eq!(code, 0, "{out}{err}");
+        let argv = &runner.seen.borrow()[0];
+        assert!(argv.contains(&"//pkg:lib".to_owned()), "{argv:?}");
+        assert!(argv.contains(&"//pkg/...".to_owned()), "{argv:?}");
+        assert!(out.contains("staged 1 file(s) as 2 target(s)"), "{out}");
+    }
+
+    #[test]
+    fn hooks_run_precommit_checks_spaced_and_build_inputs_verbatim() {
+        let inv = invocation(&["hooks", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-spaced-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        std::fs::write(root.join("pkg/space name.py"), "x = 1\n").expect("spaced");
+        let query = ScriptQuery::staged_then_owners(
+            "A\0pkg/space name.py\0M\0pkg/BUILD.bazel\0",
+            "//pkg:lib\n",
+        );
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
+        let (code, out, err) = run_with_stdin(&inv, &root, &query, &runner, None);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("staged 2 file(s) as 1 target(s)"), "{out}");
+        assert!(
+            runner.seen.borrow()[0].contains(&"//pkg:lib".to_owned()),
+            "{:?}",
+            runner.seen.borrow()
+        );
+        let git_argv = &query.seen.borrow()[0];
+        assert!(git_argv.contains(&"-z".to_owned()), "{git_argv:?}");
+    }
+
+    #[test]
+    fn hooks_run_precommit_rejects_control_character_names_explicitly() {
+        let inv = invocation(&["hooks", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-control-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        std::fs::write(root.join("pkg/we\nird.py"), "x = 1\n").expect("newline name");
+        let query = ScriptQuery::staged_then_owners("A\0pkg/we\nird.py\0", "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
+        let (code, _out, err) = run_with_stdin(&inv, &root, &query, &runner, None);
+        assert_eq!(code, 1);
+        assert!(err.contains("control characters"), "{err}");
+        assert!(runner.seen.borrow().is_empty());
+    }
+
+    struct RealGit {
+        git: PathBuf,
+        owners: String,
+        git_calls: RefCell<Vec<Vec<String>>>,
+    }
+
+    impl QueryRunner for RealGit {
+        fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+            if argv
+                .first()
+                .is_some_and(|bin| bin == &self.git.to_string_lossy())
+            {
+                self.git_calls.borrow_mut().push(argv.to_vec());
+                let output = std::process::Command::new(&self.git)
+                    .args(&argv[1..])
+                    .current_dir(cwd)
+                    .output()
+                    .expect("real git runs in fixtures");
+                return Ok(QueryResult {
+                    code: output.status.code(),
+                    stdout: output.stdout,
+                    stderr: output.stderr,
+                });
+            }
+            Ok(QueryResult {
+                code: Some(0),
+                stdout: self.owners.as_bytes().to_vec(),
+                stderr: Vec::new(),
+            })
+        }
+    }
+
+    fn fixture_git() -> PathBuf {
+        let system = PathBuf::from("/usr/bin/git");
+        if system.exists() {
+            system
+        } else {
+            PathBuf::from("git")
+        }
+    }
+
+    fn git_fixture(git: &Path, root: &Path, args: &[&str]) -> String {
+        let output = std::process::Command::new(git)
+            .args(args)
+            .current_dir(root)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .output()
+            .expect("fixture git runs");
+        assert!(
+            output.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("git stdout")
+    }
+
+    fn init_push_fixture(git: &Path, root: &Path) {
+        git_fixture(git, root, &["init", "-q"]);
+        git_fixture(git, root, &["config", "user.email", "hook@test"]);
+        git_fixture(git, root, &["config", "user.name", "hook"]);
+        git_fixture(git, root, &["config", "commit.gpgsign", "false"]);
+        std::fs::create_dir_all(root.join("pkg")).expect("pkg");
+        std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("build");
+        std::fs::write(root.join("pkg/a.py"), "x = 1\n").expect("source");
+        std::fs::write(root.join("pkg/old.py"), "x = 0\n").expect("deleted later");
+        git_fixture(git, root, &["add", "-A"]);
+        git_fixture(git, root, &["commit", "-qm", "base"]);
+    }
+
+    #[test]
+    fn hooks_selection_uses_real_git_change_sets() {
+        let git = fixture_git();
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-real-git-");
+        let root = scratch.path().to_path_buf();
+        init_push_fixture(&git, &root);
+        std::fs::write(root.join("pkg/a.py"), "x = 2\n").expect("modify");
+        std::fs::write(root.join("pkg/space name.py"), "y = 1\n").expect("spaced");
+        std::fs::remove_file(root.join("pkg/old.py")).expect("delete");
+        std::fs::write(root.join("pkg/BUILD.bazel"), "# touched\n").expect("build change");
+        git_fixture(&git, &root, &["add", "-A"]);
+        let runner = RealGit {
+            git: git.clone(),
+            owners: "//pkg:lib\n".to_owned(),
+            git_calls: RefCell::new(Vec::new()),
+        };
+        let staged = staged_changes(&git, &root, &runner).expect("staged");
+        let mut paths: Vec<String> = staged.iter().map(|change| change.path.clone()).collect();
+        paths.sort();
+        assert_eq!(
+            paths,
+            vec![
+                "pkg/BUILD.bazel".to_owned(),
+                "pkg/a.py".to_owned(),
+                "pkg/old.py".to_owned(),
+                "pkg/space name.py".to_owned(),
+            ],
+            "{staged:?}"
+        );
+        let deleted = staged
+            .iter()
+            .find(|change| change.path == "pkg/old.py")
+            .expect("deleted change");
+        assert_eq!(deleted.kind, dx_adopt::ChangeKind::Deleted);
+        let targets = change_targets(&staged, &root, &runner).expect("targets");
+        assert!(targets.contains(&"//pkg:lib".to_owned()), "{targets:?}");
+        assert!(targets.contains(&"//pkg/...".to_owned()), "{targets:?}");
+
+        git_fixture(&git, &root, &["commit", "-qm", "staged work"]);
+        std::fs::write(root.join("pkg/b.py"), "z = 3\n").expect("pushed file");
+        git_fixture(&git, &root, &["add", "-A"]);
+        git_fixture(&git, &root, &["commit", "-qm", "pushed work"]);
+        let remote = git_fixture(&git, &root, &["rev-parse", "HEAD~1"]);
+        let local = git_fixture(&git, &root, &["rev-parse", "HEAD"]);
+        let stdin = push_stdin(&[(
+            "refs/heads/main",
+            local.trim(),
+            "refs/heads/main",
+            remote.trim(),
+        )]);
+        let refs = dx_adopt::parse_push_refs(&stdin).expect("refs");
+        let push_calls = runner.git_calls.borrow().len();
+        let pushed = pushed_changes(&git, &root, &runner, &refs).expect("pushed");
+        let paths: Vec<String> = pushed.iter().map(|change| change.path.clone()).collect();
+        assert_eq!(paths, vec!["pkg/b.py".to_owned()], "{pushed:?}");
+        assert!(
+            runner.git_calls.borrow()[push_calls..]
+                .iter()
+                .all(|argv| !argv.contains(&"--cached".to_owned())),
+            "{:?}",
+            runner.git_calls.borrow()
+        );
     }
 }

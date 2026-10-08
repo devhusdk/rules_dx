@@ -38,6 +38,16 @@ Manages Git hooks through hermetic Git.
 Git binary. A relative path is rejected and `PATH` is never searched. Without
 it the run exits `1` with `hook git must be hermetic`.
 
+`run pre-commit` checks staged changes. `run pre-push` reads the pushed refs
+from stdin and checks the outgoing commits, even with an empty index.
+A deleted ref is skipped. A new remote ref diffs against the empty tree.
+
+Change lists use NUL-delimited Git output, so spaces and quotes in names
+survive. A non-UTF-8 name fails with an explicit error. A deleted path maps
+to its nearest enclosing Bazel package, so it never vanishes silently.
+Every run prints which source it selected. Checks read worktree files, not
+staged bytes.
+
 Output: `--output text`.
 
 Exit codes: `0` success, `2` usage errors including an unknown verb or

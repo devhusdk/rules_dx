@@ -43,7 +43,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::New => new::execute_new(invocation, workspace, out, err),
         Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, out, err),
         Command::Hooks => {
-            hooks::execute_hooks(invocation, workspace, query_runner, runner, out, err)
+            hooks::execute_hooks(invocation, workspace, query_runner, runner, None, out, err)
         }
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Version => version::execute_version(invocation, workspace, out, err),

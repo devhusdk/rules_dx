@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn clean_run_exits_zero() {
-        let clean = report(&[("cargo-lock", ReportedStatus::Success)], false);
+        let clean = report(&[("cargo-lock", ReportedStatus::Updated)], false);
         assert_eq!(exit_code(&clean), EXIT_SUCCESS);
         assert_eq!(exit_code(&clean), 0);
     }
@@ -46,7 +46,7 @@ mod tests {
     fn any_failure_exits_one() {
         let failed = report(
             &[
-                ("cargo-lock", ReportedStatus::Success),
+                ("cargo-lock", ReportedStatus::Updated),
                 ("npm-root", ReportedStatus::Failed),
             ],
             true,
@@ -71,5 +71,19 @@ mod tests {
     fn verdict_follows_overall_flag_not_blocked_presence() {
         let blocked_only = report(&[("app-set", ReportedStatus::Blocked)], false);
         assert_eq!(exit_code(&blocked_only), 0);
+    }
+
+    #[test]
+    fn unsupported_fails_while_unavailable_does_not() {
+        let unsupported = report(&[("cargo", ReportedStatus::Unsupported)], true);
+        assert_eq!(exit_code(&unsupported), 1);
+        let unavailable = report(
+            &[
+                ("cargo", ReportedStatus::Unavailable),
+                ("uv", ReportedStatus::Current),
+            ],
+            false,
+        );
+        assert_eq!(exit_code(&unavailable), 0);
     }
 }

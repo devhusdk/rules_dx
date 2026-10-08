@@ -106,6 +106,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         fail_on,
         min_coverage,
         check,
+        apply,
         debug,
         release,
         bazel_clean,
@@ -186,6 +187,9 @@ pub fn parse_with<S: AsRef<OsStr>>(
     };
     if verbose && log_level.is_some() {
         return Err(ArgsError::ConflictingVerboseLogLevel);
+    }
+    if command == Command::Update && check && apply {
+        return Err(ArgsError::ConflictingCheckApply);
     }
     let color_name = invocation_defaults::resolve_string(
         color_name,
@@ -370,6 +374,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     Ok(Invocation {
         command,
         check,
+        apply,
         debug,
         release,
         workspace,

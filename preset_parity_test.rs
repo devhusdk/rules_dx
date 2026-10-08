@@ -13,10 +13,31 @@ fn dx_update(dx: &Path, scratch: &Path, args: &[&str]) -> dx_testing::Run {
     dx_testing::run(dx, &full, &[]).expect("dx update must execute")
 }
 
+fn preset_update(bin: &Path, scratch: &Path, args: &[&str]) -> dx_testing::Run {
+    let workspace = scratch.to_string_lossy().into_owned();
+    dx_testing::run(
+        bin,
+        args,
+        &[("BUILD_WORKSPACE_DIRECTORY", workspace.as_str())],
+    )
+    .expect("preset_update must execute")
+}
+
+fn write_scratch(scratch: &Path) {
+    std::fs::write(scratch.join("MODULE.bazel"), b"").expect("write module");
+    std::fs::write(
+        scratch.join(".bazelrc"),
+        b"import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
+    )
+    .expect("write bazelrc");
+    std::fs::create_dir_all(scratch.join("tools/bazelrc")).expect("write source dir");
+}
+
 #[test]
 fn preset_parity() {
     let expected = data("DX_PRESET_EXPECTED");
     let dx = data("DX_DX_BIN");
+    let updater = data("DX_PRESET_UPDATE_BIN");
     let preset_rs = data("DX_PRESET_RS");
 
     let expected_text = std::fs::read_to_string(&expected).expect("read checked-in preset");
@@ -64,12 +85,7 @@ fn preset_parity() {
     .expect("preset src lost its Bazel/dx version pins");
 
     let scratch = dx_testing::mkscratch("preset-parity-").expect("scratch");
-    std::fs::write(scratch.join("MODULE.bazel"), b"").expect("write module");
-    std::fs::write(
-        scratch.join(".bazelrc"),
-        b"import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
-    )
-    .expect("write bazelrc");
+    write_scratch(&scratch);
 
     let update = dx_update(&dx, &scratch, &["update", "go", "--quiet"]);
     assert!(
@@ -77,44 +93,54 @@ fn preset_parity() {
         "dx update go failed in scratch workspace\n{}",
         update.combined()
     );
-
     let actual = scratch.join("tools/bazelrc/preset.bazelrc");
     assert!(
+        !actual.is_file(),
+        "dx update must not own tools/bazelrc/preset.bazelrc"
+    );
+
+    let create = preset_update(&updater, &scratch, &[]);
+    assert!(
+        create.status.success(),
+        "preset_update failed in scratch workspace\n{}",
+        create.combined()
+    );
+    assert!(
         actual.is_file(),
-        "dx update did not create tools/bazelrc/preset.bazelrc"
+        "preset_update did not create tools/bazelrc/preset.bazelrc"
     );
     dx_testing::snapshot_diff(&expected, &actual, Some("tools/bazelrc/preset.bazelrc"))
         .expect("preset parity snapshot");
 
-    let check = dx_update(&dx, &scratch, &["update", "--check", "--quiet"]);
+    let check = preset_update(&updater, &scratch, &["--verify-only"]);
     assert!(
         check.status.success(),
-        "dx update --check failed on the fresh fragment\n{}",
+        "preset_update --verify-only failed on the fresh fragment\n{}",
         check.combined()
     );
 
     std::fs::write(&actual, b"# dirty\n").expect("dirty the fragment");
-    let dirty_check = dx_update(&dx, &scratch, &["update", "--check", "--quiet"]);
+    let dirty_check = preset_update(&updater, &scratch, &["--verify-only"]);
     assert!(
         !dirty_check.status.success(),
-        "dx update --check passed on a dirty fragment"
+        "preset_update --verify-only passed on a dirty fragment"
     );
     let dirty_text = std::fs::read_to_string(&actual).expect("read dirty fragment");
     assert!(
         dirty_text.contains("# dirty"),
-        "check mode mutated the dirty fragment (check must never write)"
+        "verify mode mutated the dirty fragment (verify must never write)"
     );
 
-    let fix = dx_update(&dx, &scratch, &["update", "go", "--quiet"]);
+    let fix = preset_update(&updater, &scratch, &[]);
     assert!(
         fix.status.success(),
-        "dx update failed to fix the dirty fragment\n{}",
+        "preset_update failed to fix the dirty fragment\n{}",
         fix.combined()
     );
-    let fixed_check = dx_update(&dx, &scratch, &["update", "--check", "--quiet"]);
+    let fixed_check = preset_update(&updater, &scratch, &["--verify-only"]);
     assert!(
         fixed_check.status.success(),
-        "dx update --check failed after the fix\n{}",
+        "preset_update --verify-only failed after the fix\n{}",
         fixed_check.combined()
     );
 }

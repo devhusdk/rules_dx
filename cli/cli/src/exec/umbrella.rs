@@ -411,6 +411,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         let phase_invocation = Invocation {
             command: *phase,
             check: phase_check,
+            apply: false,
             debug: false,
             release: false,
             workspace: invocation.workspace.clone(),

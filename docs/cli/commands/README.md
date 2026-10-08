@@ -55,6 +55,8 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `check`, `fix`, `update`, `version`, `completion`, and `docs`.
   Every other command rejects it.
+- `--apply`: refresh the selected sets. Taken by `update` only, where checking
+  is the default. Every other command rejects it.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means
   release. Every other command rejects them.

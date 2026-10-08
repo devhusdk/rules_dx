@@ -13,6 +13,7 @@ pub struct ReportRequest {
 pub struct Invocation {
     pub command: Command,
     pub check: bool,
+    pub apply: bool,
     pub debug: bool,
     pub release: bool,
     pub workspace: Option<String>,
@@ -152,6 +153,7 @@ mod tests {
         Invocation {
             command,
             check: false,
+            apply: false,
             debug: false,
             release: false,
             workspace: None,

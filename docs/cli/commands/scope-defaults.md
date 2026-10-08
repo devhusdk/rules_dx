@@ -22,7 +22,7 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## Set Selectors
 
-- `dx update`: set selectors. No selector updates every set.
+- `dx update`: set selectors. No selector checks every set.
 - `dx bump`: exactly one `set:package` plus one version.
 
 ## Required Arguments

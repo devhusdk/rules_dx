@@ -30,7 +30,7 @@ pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
 pub fn restore_paths(report: &UpdateReport) -> Vec<String> {
     let mut paths = BTreeSet::new();
     for outcome in &report.outcomes {
-        if outcome.status != ReportedStatus::Success {
+        if outcome.status != ReportedStatus::Updated {
             continue;
         }
         if let Some(set) = SetId::parse(outcome.set.as_str()) {
@@ -44,9 +44,9 @@ pub fn restore_paths(report: &UpdateReport) -> Vec<String> {
 
 pub fn retry_command(retry: &[String]) -> String {
     if retry.is_empty() {
-        return "dx update".to_owned();
+        return "dx update --apply".to_owned();
     }
-    let mut command = String::from("dx update");
+    let mut command = String::from("dx update --apply");
     for set in retry {
         command.push(' ');
         command.push_str(set);
@@ -94,12 +94,17 @@ pub fn plan(report: &UpdateReport) -> Option<RecoveryPlan> {
     let succeeded = report
         .outcomes
         .iter()
-        .filter(|outcome| outcome.status == ReportedStatus::Success)
+        .filter(|outcome| {
+            matches!(
+                outcome.status,
+                ReportedStatus::Updated | ReportedStatus::Current | ReportedStatus::ManualPinned
+            )
+        })
         .count();
     let failed = report
         .outcomes
         .iter()
-        .filter(|outcome| outcome.status == ReportedStatus::Failed)
+        .filter(|outcome| outcome.status.fails_run())
         .count();
     let retry_command = retry_command(&retry);
     let restore_command = restore_command(&restore);
@@ -133,7 +138,7 @@ mod tests {
             outcomes: vec![
                 ReportedOutcome {
                     set: "cargo".to_owned(),
-                    status: ReportedStatus::Success,
+                    status: ReportedStatus::Updated,
                 },
                 ReportedOutcome {
                     set: "maven".to_owned(),
@@ -141,7 +146,7 @@ mod tests {
                 },
                 ReportedOutcome {
                     set: "npm".to_owned(),
-                    status: ReportedStatus::Success,
+                    status: ReportedStatus::Updated,
                 },
             ],
             overall_failure: true,
@@ -153,7 +158,7 @@ mod tests {
         let clean = UpdateReport {
             outcomes: vec![ReportedOutcome {
                 set: "cargo".to_owned(),
-                status: ReportedStatus::Success,
+                status: ReportedStatus::Updated,
             }],
             overall_failure: false,
         };
@@ -164,7 +169,7 @@ mod tests {
     fn failed_report_plans_retry_plus_restore() {
         let plan = plan(&report()).expect("failed report plans recovery");
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
-        assert_eq!(plan.retry_command, "dx update maven");
+        assert_eq!(plan.retry_command, "dx update --apply maven");
         assert!(plan.restore_paths.contains(&"pnpm-lock.yaml".to_owned()));
         assert!(plan
             .restore_paths
@@ -172,7 +177,7 @@ mod tests {
         let restore = plan.restore_command.expect("kept successes restore");
         assert!(restore.starts_with("git checkout -- "));
         assert!(restore.contains("pnpm-lock.yaml"));
-        assert!(plan.message.contains("dx update maven"));
+        assert!(plan.message.contains("dx update --apply maven"));
         assert!(plan.message.contains("idempotent"));
     }
 
@@ -190,7 +195,7 @@ mod tests {
                 },
                 ReportedOutcome {
                     set: "cargo".to_owned(),
-                    status: ReportedStatus::Success,
+                    status: ReportedStatus::Updated,
                 },
             ],
             overall_failure: true,
@@ -200,7 +205,7 @@ mod tests {
             plan.retry_sets,
             vec!["maven".to_owned(), "nuget".to_owned()]
         );
-        assert_eq!(plan.retry_command, "dx update maven nuget");
+        assert_eq!(plan.retry_command, "dx update --apply maven nuget");
         let mut sorted = plan.restore_paths.clone();
         sorted.sort();
         assert_eq!(plan.restore_paths, sorted);
@@ -208,7 +213,10 @@ mod tests {
 
     #[test]
     fn retry_command_is_idempotent_shape() {
-        assert_eq!(retry_command(&[]), "dx update");
-        assert_eq!(retry_command(&["go".to_owned()]), "dx update go".to_owned());
+        assert_eq!(retry_command(&[]), "dx update --apply");
+        assert_eq!(
+            retry_command(&["go".to_owned()]),
+            "dx update --apply go".to_owned()
+        );
     }
 }

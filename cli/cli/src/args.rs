@@ -54,6 +54,9 @@ pub enum ArgsError {
     /// Verbosity was requested twice over.
     #[error("options --verbose and --log-level are mutually exclusive")]
     ConflictingVerboseLogLevel,
+    /// A validating run was asked to mutate at once.
+    #[error("options --check and --apply are mutually exclusive")]
+    ConflictingCheckApply,
     /// The here tree was asked for alongside explicit scopes.
     #[error("option \"--here/--cwd\" cannot be combined with explicit scopes")]
     ConflictingHere,

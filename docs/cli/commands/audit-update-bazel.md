@@ -187,17 +187,23 @@ codes: 0 success, 2 usage or scope errors, 1 operational failures.
 ## `dx update`
 
 ```text
-dx update [--check] [--offline|--frozen] [set...]
+dx update [--check] [--apply] [--offline|--frozen] [set...]
 ```
 
-Updates dependencies per set through the qualified resolvers. No selector
-updates all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
+Checks dependencies per set through the qualified resolvers. A bare run
+checks. Nothing is written without `--apply`. No selector checks every set.
+Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
 `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
 `uv-adopt`, `uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`,
-or a label/path. `go`, `powershell`, and `ruby` are pinned no-op successes.
-`ruby` pins come from `bundle lock` on the seed host; `powershell` pins are
-hand-written in `third_party/powershell/PSGallery.lock.json`. `--check` fails if
-the preset is stale and ignores selectors. `--offline` and `--frozen` run cache-only with no network
+or a label/path. `--check` and `--apply` are mutually exclusive. `--apply`
+refreshes only the selected sets. Sets with no qualified check report
+`unavailable` and stay exit 0. A selective `set:package` refresh a backend
+cannot do reports `unsupported` and exits 1. `go`, `powershell`, and `ruby`
+are pinned and left untouched. `ruby` pins come from `bundle lock` on the
+seed host; `powershell` pins are hand-written in
+`third_party/powershell/PSGallery.lock.json`. The Bazelrc preset is never
+touched here; refresh it with `bazel run //tools/bazelrc:preset_update`.
+`--offline` and `--frozen` run cache-only with no network
 fetches. `--fail-on`, `--report`, and Bazel options do not apply.
 Output: `--output text|json`. `json` reports per set plus a summary count.
 Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
@@ -208,8 +214,8 @@ bazel run @rules_dx//:dx -- update go
 bazel run @rules_dx//:dx -- update ruby
 bazel run @rules_dx//:dx -- update powershell
 bazel run @rules_dx//:dx -- update uv uv-tools
-bazel run @rules_dx//:dx -- update npm-tools
-bazel run @rules_dx//:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
+bazel run @rules_dx//:dx -- update --apply npm-tools
+bazel run @rules_dx//:dx -- update --apply npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
 bazel run @rules_dx//:dx -- update --dry-run
 ```
 
@@ -227,7 +233,7 @@ the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
-`dx update <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
+`dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
 and `github-actions` are file-only and refresh nothing. Review the pin diff
 and run `bazel build //...`.
 

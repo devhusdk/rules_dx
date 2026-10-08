@@ -236,12 +236,14 @@ rust_test(
     data = [
         "//cli/cli:dx",
         "//tools/bazelrc:preset.bazelrc",
+        "//tools/bazelrc:preset_update",
         "//tools/bazelrc:src/lib.rs",
     ],
     env = {
         "DX_DX_BIN": "$(rootpath //cli/cli:dx)",
         "DX_PRESET_EXPECTED": "$(rootpath //tools/bazelrc:preset.bazelrc)",
         "DX_PRESET_RS": "$(rootpath //tools/bazelrc:src/lib.rs)",
+        "DX_PRESET_UPDATE_BIN": "$(rootpath //tools/bazelrc:preset_update)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],

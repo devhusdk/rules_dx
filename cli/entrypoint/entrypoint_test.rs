@@ -40,6 +40,26 @@ fn the_public_label_runs_real_commands_over_a_consumer_workspace() {
 }
 
 #[test]
+fn the_public_label_dry_runs_run_under_ci_like_consumer_ci() {
+    let dryrun = read("DX_RUN_CI_DRYRUN");
+    assert!(
+        dryrun.contains("Running run for //app:bin"),
+        "CI dry run must plan without launching: {dryrun}"
+    );
+    for refused in [
+        "refuses when CI=true",
+        "CI=true",
+        "local-only",
+        "local only",
+    ] {
+        assert!(
+            !dryrun.contains(refused),
+            "CI dry run must not refuse: {dryrun}"
+        );
+    }
+}
+
+#[test]
 fn the_public_label_reports_a_drifted_consumer_pin() {
     let drift = read("DX_PUBLIC_DRIFT");
     assert!(

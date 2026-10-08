@@ -9,6 +9,7 @@ _BUILD_BAZEL = '''genrule(
         "public_help.txt",
         "public_status.txt",
         "public_version.txt",
+        "run_ci_dryrun.txt",
         "workspace/.dx/version",
         "workspace/MODULE.bazel",
     ],
@@ -25,6 +26,8 @@ ws="$$(dirname "$(location workspace/MODULE.bazel)")"
 "$$public" status --workspace "$$ws" > "$(location public_status.txt)"
 "$$public" version --workspace "$$ws" > "$(location public_version.txt)"
 "$$public" completion bash --workspace "$$ws" > "$(location public_completion.txt)"
+CI=true "$$public" run --dry-run //app:bin --workspace "$$ws" > "$(location run_ci_dryrun.txt)" 2>&1
+grep -q "Running run for //app:bin" "$(location run_ci_dryrun.txt)"
 echo '9.9.9' > "$(location workspace/.dx/version)"
 if "$$public" version --check --workspace "$$ws" > "$(location public_drift.txt)" 2>&1; then
   echo "dx version --check accepted a drifted pin" >&2

@@ -719,8 +719,7 @@ mod tests {
             "app args stay out of the CI validation build: {run:?}"
         );
         let harness = Harness::new("run-ci-check-text");
-        let (code, _, err) =
-            harness.run_with_ci(&["run", "//app:bin", "--", "--port=8080"], true);
+        let (code, _, err) = harness.run_with_ci(&["run", "//app:bin", "--", "--port=8080"], true);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("Running run build for //app:bin"), "{err}");
         assert!(
@@ -817,8 +816,7 @@ mod tests {
     #[test]
     fn run_ci_check_json_reports_build_phase() {
         let harness = Harness::new("run-ci-check-json");
-        let (code, out, err) =
-            harness.run_with_ci(&["run", "//app:bin", "--output=json"], true);
+        let (code, out, err) = harness.run_with_ci(&["run", "//app:bin", "--output=json"], true);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         assert_eq!(events[0]["mode"], serde_json::json!("check"));

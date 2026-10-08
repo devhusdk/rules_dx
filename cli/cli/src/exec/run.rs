@@ -33,11 +33,8 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
         nonce: _,
         out,
         err,
-        ci,
+        ci: _,
     } = env;
-    if ci {
-        return pre_exec(err, "dx run refuses when CI=true: local-only command");
-    }
     let planned_reports = match plan_reports(
         invocation.command,
         &invocation.reports,
@@ -709,14 +706,137 @@ mod tests {
     }
 
     #[test]
-    fn run_ci_refusal_is_pre_exec() {
-        let harness = Harness::new("run-ci");
-        let (code, _, err) = harness.run_with_ci(&["run", "//app:bin"], true);
+    fn run_ci_default_check_builds_without_launching() {
+        let harness = Harness::new("run-ci-check");
+        let inv = invocation(&["run", "//app:bin", "--", "--port=8080"]);
+        let run = harness.probe_with_ci(&inv, &[Some(0)], true);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(run.argv[0].contains(&"build".to_owned()), "{run:?}");
+        assert!(!run.argv[0].contains(&"run".to_owned()), "{run:?}");
+        assert!(
+            !run.argv[0].contains(&"--port=8080".to_owned()),
+            "app args stay out of the CI validation build: {run:?}"
+        );
+        let harness = Harness::new("run-ci-check-text");
+        let (code, _, err) =
+            harness.run_with_ci(&["run", "//app:bin", "--", "--port=8080"], true);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("Running run build for //app:bin"), "{err}");
+        assert!(
+            err.contains("dx run --apply //app:bin -- --port=8080"),
+            "{err}"
+        );
+        assert!(!err.contains("Running run for //app:bin"), "{err}");
+    }
+
+    #[test]
+    fn run_ci_dry_run_plans_without_launching() {
+        let harness = Harness::new("run-ci-dry");
+        let (code, _, err) = harness.run_with_ci(&["run", "//app:bin", "--dry-run"], true);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("Running run"), "{err}");
+        assert!(
+            harness.seen_env.borrow().is_empty(),
+            "dry run launches nothing"
+        );
+        let harness = Harness::new("run-ci-dry-json");
+        let (code, out, err) =
+            harness.run_with_ci(&["run", "//app:bin", "--dry-run", "--output=json"], true);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("command_started"), "{out}");
+        assert!(out.contains("\"phase\":\"execute\""), "{out}");
+        assert!(out.contains("command_finished"), "{out}");
+        assert_eq!(err, "", "{err}");
+        assert!(
+            harness.seen_env.borrow().is_empty(),
+            "json dry run launches nothing"
+        );
+    }
+
+    #[test]
+    fn run_ci_apply_executes_with_app_args_and_status() {
+        let harness = Harness::new("run-ci-apply");
+        let inv = invocation(&["run", "--apply", "//app:bin", "--", "--port=8080"]);
+        let run = harness.probe_with_ci(&inv, &[Some(0)], true);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(run.argv[0].contains(&"run".to_owned()), "{run:?}");
+        assert!(run.argv[0].contains(&"--port=8080".to_owned()), "{run:?}");
+        let harness = Harness::new("run-ci-apply-fails");
+        let inv = invocation(&["run", "--apply", "//app:bin"]);
+        let run = harness.probe_with_ci(&inv, &[Some(7)], true);
+        assert_eq!(run.code, 7, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+    }
+
+    #[test]
+    fn run_ci_apply_runs_multiple_targets_sequentially() {
+        let harness = Harness::new("run-ci-multi");
+        let inv = invocation(&["run", "--apply", "//a:bin", "//b:bin", "--", "--port=8080"]);
+        let run = harness.probe_with_ci(&inv, &[Some(0)], true);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        assert!(run.argv[0].contains(&"//a:bin".to_owned()), "{run:?}");
+        assert!(run.argv[1].contains(&"//b:bin".to_owned()), "{run:?}");
+        for argv in &run.argv {
+            assert!(argv.contains(&"--port=8080".to_owned()), "{argv:?}");
+        }
+    }
+
+    #[test]
+    fn run_ci_apply_reports_launch_and_signal_failures() {
+        let mut harness = Harness::new("run-ci-launch");
+        harness.io_error = true;
+        let (code, _, err) = harness.run_with_ci(&["run", "--apply", "//app:bin"], true);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("launch_failed"), "{err}");
+        let mut harness = Harness::new("run-ci-signal");
+        harness.signalled = true;
+        let (code, _, err) = harness.run_with_ci(&["run", "--apply", "//app:bin"], true);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("bazel_signalled"), "{err}");
+    }
+
+    #[test]
+    fn run_ci_json_apply_isolates_output_streams() {
+        let harness = Harness::new("run-ci-json");
+        let (code, out, err) =
+            harness.run_with_ci(&["run", "--apply", "//app:bin", "--output=json"], true);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started");
+        assert!(kinds.contains(&"operation"), "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        let op = event(&events, "operation");
+        assert_eq!(op["phase"], serde_json::json!("execute"));
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn run_ci_check_json_reports_build_phase() {
+        let harness = Harness::new("run-ci-check-json");
+        let (code, out, err) =
+            harness.run_with_ci(&["run", "//app:bin", "--output=json"], true);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        assert_eq!(events[0]["mode"], serde_json::json!("check"));
+        let op = event(&events, "operation");
+        assert_eq!(op["phase"], serde_json::json!("build"));
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn run_ci_resolution_errors_keep_their_codes() {
+        let harness = Harness::new("run-ci-empty");
+        let (code, _, err) = harness.run_with_ci(&["run"], true);
         assert_eq!(code, 2, "{err}");
-        assert!(err.contains("CI=true"), "{err}");
+        assert!(err.contains("empty scope"), "{err}");
+        let harness = Harness::new("run-ci-amb");
         std::fs::create_dir_all(harness.workspace.join("app")).expect("dir");
         harness.query.script_owners("//app:two\n//app:one\n");
-        let (code, _, err) = harness.run(&["run", "app"]);
+        let (code, _, err) = harness.run_with_ci(&["run", "app"], true);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("ambiguous_runnable"), "{err}");
     }

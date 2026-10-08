@@ -77,7 +77,15 @@ pub fn plan_workflow(
     let required = workflow_options(verb, bep_path, profile);
     let protected = workflow_protected(verb, profile);
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv(verb.name(), bazel_options, &required, &protected, &labels)?;
+    let allow_test_args = matches!(verb, WorkflowVerb::Test | WorkflowVerb::Coverage);
+    let argv = build_workflow_argv(
+        verb.name(),
+        bazel_options,
+        &required,
+        &protected,
+        &labels,
+        allow_test_args,
+    )?;
     let summary = format!("Running {} for {}", verb.name(), describe_scope(&scope));
     Ok(BuildPlan { argv, summary })
 }

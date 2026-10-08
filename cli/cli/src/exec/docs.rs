@@ -104,7 +104,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             format!("Running docs build for {scope_text} (mdBook render)"),
         )
     };
-    let argv = match build_workflow_argv("build", &invocation.bazel_options, &[], &[], &labels) {
+    let argv = match build_workflow_argv("build", &invocation.bazel_options, &[], &[], &labels, false) {
         Ok(argv) => argv,
         Err(error) => return pre_exec(err, &format!("{error}")),
     };

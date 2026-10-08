@@ -221,6 +221,16 @@ impl Harness {
         }
     }
 
+    /// Pairs every canned result label with its BEP artifact path and bytes.
+    pub(crate) fn staged_artifacts(&self) -> Vec<(PathBuf, Vec<u8>)> {
+        let mut staged = Vec::new();
+        for (label, bytes) in &self.results {
+            let safe = label.replace(['/', ':'], "_");
+            staged.push((self.temp.join(format!("{safe}.pb")), bytes.clone()));
+        }
+        staged
+    }
+
     pub(crate) fn runner(&self) -> FakeRunner {
         if let Some(lines) = &self.raw_bep {
             return FakeRunner {
@@ -232,15 +242,17 @@ impl Harness {
                 seen_env: Rc::clone(&self.seen_env),
             };
         }
-        let mut lines = Vec::new();
-        let mut files = Vec::new();
-        for (label, bytes) in &self.results {
-            let safe = label.replace(['/', ':'], "_");
-            let artifact = self.temp.join(format!("{safe}.pb"));
-            std::fs::write(&artifact, bytes).expect("artifact");
-            files
-                .push(serde_json::json!({"uri": format!("file://{}", artifact.to_string_lossy())}));
+        let staged = self.staged_artifacts();
+        for (artifact, bytes) in &staged {
+            std::fs::write(artifact, bytes).expect("artifact");
         }
+        let files: Vec<serde_json::Value> = staged
+            .iter()
+            .map(|(artifact, _)| {
+                serde_json::json!({"uri": format!("file://{}", artifact.to_string_lossy())})
+            })
+            .collect();
+        let mut lines = Vec::new();
         lines.push(
             serde_json::json!({
                 "id": {"namedSet": {"id": "0"}},

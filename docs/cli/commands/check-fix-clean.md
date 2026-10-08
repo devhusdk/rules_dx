@@ -29,8 +29,10 @@ Output: `--output text|diff|json`. JSON adds one correlated `operation` event
 per phase (`check/format`), a correlated `notice` per skipped phase, and a
 correlated `error` per capture the run could not collect.
 
-`dx check` only reports. `dx fix` applies fixes without re-running. Run
-`dx check` again after `dx fix` to confirm.
+`dx check` only reports. `dx fix` checks by default; `dx fix --apply`
+writes validated fixes, then verifies the composed tree with a read-only
+check pass. `dx fix --apply` succeeds only when that verification passes;
+remaining findings or a failed verification stay visible and fail the run.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed, a
 capture could not be collected, or a report could not be written. The failing
@@ -39,6 +41,7 @@ phase's code wins, so a `generate` phase keeps Bazel's code.
 ```sh
 bazel run @rules_dx//:dx -- check //...
 bazel run @rules_dx//:dx -- fix --here
+bazel run @rules_dx//:dx -- fix --apply //...
 ```
 
 ## `dx clean`

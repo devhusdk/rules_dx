@@ -58,6 +58,17 @@ impl Resolver {
         &self.source
     }
 
+    /// Reads the runfiles tree rooted at one directory.
+    pub fn for_tree(tree: &Path) -> io::Result<Self> {
+        if !tree.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("no runfiles tree at {}", tree.display()),
+            ));
+        }
+        Resolver::new(Runfiles::builder().directory(tree), tree.to_path_buf())
+    }
+
     /// Returns the file one key names, read as this runfiles' own repository.
     pub fn lookup(&self, key: &str) -> io::Result<PathBuf> {
         self.lookup_from(key, "")
@@ -97,6 +108,21 @@ fn dx_path_display(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_key_resolves_from_an_explicit_tree_root() {
+        let dir = scratch("explicit-tree");
+        let target = write(&dir, "tree/_main/pkg/tool.txt", "from the tree\n");
+        let resolver = Resolver::for_tree(&dir.join("tree")).expect("resolver");
+        assert_eq!(found(&resolver, "_main/pkg/tool.txt"), target);
+    }
+
+    #[test]
+    fn an_explicit_tree_root_must_exist() {
+        let dir = scratch("missing-tree");
+        let error = Resolver::for_tree(&dir.join("absent")).expect_err("no such tree");
+        assert!(error.to_string().contains("no runfiles tree"), "{error}");
+    }
 
     #[test]
     fn a_missing_manifest_names_the_one_the_binary_asked_for() {

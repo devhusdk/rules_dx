@@ -254,7 +254,7 @@ impl Drop for Browser {
 struct Frame {
     length: Option<usize>,
     digits: String,
-    body: String,
+    body: Vec<u8>,
 }
 
 impl Frame {
@@ -283,9 +283,9 @@ impl Frame {
                 }
             }
             Some(_) => {
-                self.body.push(byte as char);
+                self.body.push(byte);
                 if self.body.len() == self.length.unwrap_or_default() {
-                    let body = self.body.clone();
+                    let body = String::from_utf8_lossy(&self.body).into_owned();
                     self.length = None;
                     self.body.clear();
                     return Ok(Some(body));

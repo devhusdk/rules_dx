@@ -17,4 +17,4 @@ Both tests pass (`greet_test`, `pure_test`).
 bazel build --features=treat_warnings_as_errors //pkg/...
 ```
 
-See [cc/rules](../../cc/rules/README.md) for the wrapper contract.
+See `cc/rules/README.md` for the wrapper contract.

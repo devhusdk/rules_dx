@@ -187,10 +187,12 @@ version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/version/update/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
-where the command takes it (run/deploy launch, clean pruning, update/bump/migrate/upgrade writes, \
-init/new scaffolding, hooks install/uninstall/run, version --pin/--rollback, docs rendering/serving); \
+where the command takes it (lint/typecheck/format/fix writes, run/deploy launch, clean pruning, \
+update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \
+version --pin/--rollback, docs rendering/serving); \
 every other command rejects it, and --apply never combines with --check or --dry-run. \
-fix applies without rerun (run `dx check` to validate). \
+by default lint, typecheck, format, and fix only check, while --apply writes fixes \
+(fix then verifies with a read-only check). \
 no dx doctor; use `dx status` for diagnostics. \
 see `dx help <command>` or `dx <command> --help`."
     )

@@ -107,6 +107,7 @@ pub(crate) fn project_status(
 mod tests {
     use super::super::common::{
         FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_STALE_SOURCE,
+        REASON_UNREADABLE_SOURCE,
     };
     use super::super::test_support::temp_dir;
     use super::apply_collected_changes;
@@ -185,6 +186,29 @@ mod tests {
         assert_eq!(
             outcome.not_applied,
             vec![("src/b.rs".to_owned(), REASON_STALE_SOURCE)]
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn failed_write_leaves_source_untouched() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let workspace = write_workspace("apply-write-fails", &[("src/a.rs", b"BAD\n")]);
+        let dir = workspace.path().join("src");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555))
+            .expect("make dir read-only");
+        let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
+        let outcome = apply_collected_changes(workspace.path(), true, true, &[change]);
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755))
+            .expect("restore dir");
+        assert_eq!(
+            std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
+            b"BAD\n"
+        );
+        assert_eq!(outcome.applied.get("src/a.rs"), Some(&false));
+        assert_eq!(
+            outcome.not_applied,
+            vec![("src/a.rs".to_owned(), REASON_UNREADABLE_SOURCE)]
         );
     }
 

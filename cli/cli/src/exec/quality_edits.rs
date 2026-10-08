@@ -466,7 +466,7 @@ fn diff_stale_source_fails_render() {
 }
 
 #[test]
-fn diff_stale_source_fails_render_in_default_mode() {
+fn diff_stale_source_fails_render_in_apply_mode() {
     let mut harness = Harness::new("diff-stale-default");
     harness.write_source("src/a.py", "x = 1\n");
     harness.results.insert(
@@ -474,7 +474,7 @@ fn diff_stale_source_fails_render_in_default_mode() {
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
     harness.write_source("src/a.py", "z = 2\n");
-    let (code, out, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=diff"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -486,7 +486,7 @@ fn diff_stale_source_fails_render_in_default_mode() {
     assert_eq!(
         harness.seen_env.borrow().len(),
         1,
-        "stale default diff must launch Bazel exactly once, no rerun"
+        "stale apply diff must launch Bazel exactly once, no rerun"
     );
 }
 

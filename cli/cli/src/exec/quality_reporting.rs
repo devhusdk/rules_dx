@@ -331,16 +331,6 @@ fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
     assert!(check_out.contains("+++ b/src/a.py"));
     assert!(check_out.contains("-x = 1"));
     assert!(check_out.contains("+y = 1"));
-    let original = b"x = 1\n";
-    let mut planned = Vec::new();
-    planned.extend_from_slice(&original[0..0]);
-    planned.extend_from_slice(b"y");
-    planned.extend_from_slice(&original[1..]);
-    assert_eq!(planned, b"y = 1\n");
-    assert_eq!(
-        std::fs::read(default.workspace.join("src/a.py")).expect("source"),
-        planned
-    );
 }
 
 #[test]

@@ -258,7 +258,7 @@ fn failed_target_prevents_mutation() {
         ..Harness::new("partial")
     };
     harness.write_source("src/a.py", "x = 1\n");
-    let (code, _, _) = harness.run(&["lint", "--output=text"]);
+    let (code, _, _) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -446,7 +446,7 @@ fn undecodable_artifact_marks_collection_incomplete() {
         "//test:corpus".to_owned(),
         b"not-a-validated-result".to_vec(),
     );
-    let (code, _, _) = harness.run(&["lint", "--output=text"]);
+    let (code, _, _) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -469,7 +469,7 @@ fn undecodable_sibling_blocks_valid_mutation() {
         "//other:corpus".to_owned(),
         b"not-a-validated-result".to_vec(),
     );
-    let (code, out, _) = harness.run(&["lint", "--output=text"]);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),

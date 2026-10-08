@@ -44,207 +44,29 @@ jobs:
           rm -rf "$stage"
           mkdir -p "$stage"
           bin="$(bazel cquery --output=files //cli/cli:dx)"
-          cp "$bin" "$stage/dx-linux-x86_64"
-          (cd "$stage" && sha256sum dx-linux-x86_64 > dx-linux-x86_64.sha256)
-          archive="$(bazel cquery --output=files //cli/cli:dx_standalone_archive)"
-          checksum="$(bazel cquery --output=files //cli/cli:dx_standalone_checksum)"
-          cp "$archive" "$stage/dx-standalone.tar.gz"
-          cp "$checksum" "$stage/dx-standalone.tar.gz.sha256"
           bazel build //deploy/release:release_artifacts --noshow_progress
           bazel cquery --output=files //deploy/release:release_artifacts > "$stage/release-artifacts.txt"
-          grep -q "licenses.toml" "$stage/release-artifacts.txt"
-          grep -q "sbom_demo.spdx.json" "$stage/release-artifacts.txt"
-          grep -q "sbom_demo.provenance.json" "$stage/release-artifacts.txt"
-          grep -q "notice_demo.NOTICE" "$stage/release-artifacts.txt"
-          spdx="$(bazel cquery --output=files //deploy/release:sbom_demo_spdx)"
-          prov="$(bazel cquery --output=files //deploy/release:sbom_demo_provenance)"
-          notice="$(bazel cquery --output=files //deploy/release:notice_demo_notice)"
-          cp "$spdx" "$stage/sbom_demo.spdx.json"
-          cp "$prov" "$stage/sbom_demo.provenance.json"
-          cp "$notice" "$stage/notice_demo.NOTICE"
-          grep -q "SPDX-2.3" "$stage/sbom_demo.spdx.json"
-          grep -q "https://slsa.dev/provenance/v1" "$stage/sbom_demo.provenance.json"
-          grep -q "^NOTICE for " "$stage/notice_demo.NOTICE"
-          sbom_digest="$(python3 -c "import json; print(json.load(open('$stage/sbom_demo.spdx.json'))['packages'][0]['checksums'][0]['checksumValue'])")"
-          grep -q "$sbom_digest" "$stage/sbom_demo.provenance.json"
           GH_RELEASE_DRY_RUN=1 bazel run //cli/cli:github_draft > "$stage/draft-dry-run.log" 2>&1
-          grep -q "v0.0.0-dryrun" "$stage/draft-dry-run.log"
-          grep -q -- "--draft --verify-tag" "$stage/draft-dry-run.log"
           bazel test //deploy/release:all --noshow_progress > "$stage/release-tests.log" 2>&1
-          grep -q "tests pass" "$stage/release-tests.log"
           RELEASE_SIGN_DRY_RUN=1 bazel run //deploy/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
-          grep -q "tuf-repo-cdn.sigstore.dev" "$stage/signing-dry-run.log"
-          grep -q "cosign sign-blob" "$stage/signing-dry-run.log"
-          grep -q "sbom_demo.spdx.json" "$stage/signing-dry-run.log"
-          grep -q "sbom_demo.provenance.json" "$stage/signing-dry-run.log"
-          grep -q "notice_demo.NOTICE" "$stage/signing-dry-run.log"
           BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
-          grep -q "would submit, submitting nothing" "$stage/bcr-dry-run.log"
           bazel run //deploy/release:release_driver -- v0.0.0-dryrun > "$stage/human-run-dry-run.log" 2>&1
-          grep -q "dry run (RELEASE_DRY_RUN=1)" "$stage/human-run-dry-run.log"
-          {
-            echo "Bazel Central Registry module shape (checked, not submitted):"
-            grep -F 'name = "rules_dx"' MODULE.bazel
-            grep -F 'version = "0.0.0"' MODULE.bazel
-          } > "$stage/bcr-shape.txt"
-          {
-            echo "install verifier refusal proof (no network, publishes nothing):"
-            bazel run //deploy/install:dx_verify -- --help > "$stage/verify-help.txt"
-            grep -q "tuf-repo-cdn.sigstore.dev" deploy/install/src/lib.rs
-            if bazel run //deploy/install:dx_verify -- --binary "$stage/dx-linux-x86_64" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
-              echo "expected checksum-only refusal failed" >&2
-              exit 1
-            fi
-            grep -q "checksum-only verification is not publisher-identity proof" "$stage/verify-refusal.log"
-          }
-          python3 - "$stage" "$APPROVE" <<'EOF'
-          import hashlib
-          import json
-          import sys
-          stage, approve = sys.argv[1], sys.argv[2] == "true"
-          digest = hashlib.sha256(open(f"{stage}/dx-linux-x86_64", "rb").read()).hexdigest()
-          standalone_digest = hashlib.sha256(open(f"{stage}/dx-standalone.tar.gz", "rb").read()).hexdigest()
-          draft_log = open(f"{stage}/draft-dry-run.log", encoding="utf-8").read()
-          draft_ok = "v0.0.0-dryrun" in draft_log and "--draft --verify-tag" in draft_log
-          signing_log = open(f"{stage}/signing-dry-run.log", encoding="utf-8").read()
-          signing_ok = "cosign sign-blob" in signing_log and "tuf-repo-cdn.sigstore.dev" in signing_log
-          packaging_ok = "sbom_demo.spdx.json" in signing_log and "sbom_demo.provenance.json" in signing_log and "notice_demo.NOTICE" in signing_log
-          sbom_spdx = json.load(open(f"{stage}/sbom_demo.spdx.json", encoding="utf-8"))
-          sbom_digest = sbom_spdx["packages"][0]["checksums"][0]["checksumValue"]
-          sbom_linkage_ok = sbom_digest in open(f"{stage}/sbom_demo.provenance.json", encoding="utf-8").read()
-          notice_ok = open(f"{stage}/notice_demo.NOTICE", encoding="utf-8").read().startswith("NOTICE for ")
-          bcr_log = open(f"{stage}/bcr-dry-run.log", encoding="utf-8").read()
-          bcr_ok = "would submit, submitting nothing" in bcr_log
-          report = {
-              "schema": "publish-dry-run/v1",
-              "approved": approve,
-              "published": False,
-              "artifacts": [
-                  {
-                      "name": "dx-linux-x86_64",
-                      "sha256": digest,
-                      "note": "seed-host binary; release matrix frozen in deploy/release/matrix.bzl",
-                  },
-                  {
-                      "name": "dx-standalone.tar.gz",
-                      "sha256": standalone_digest,
-                      "note": "seed-host standalone archive via //cli/cli:dx_standalone; wider matrix qualified per-host under issue #815 (human-run only, not built here)",
-                  },
-              ],
-              "release_matrix": [
-                  {"name": "dx-linux-x86_64", "status": "qualified-seed-built-here"},
-                  {"name": "dx-linux-arm64", "status": "qualified-host-evidence"},
-                  {"name": "dx-macos-arm64", "status": "qualified-host-evidence"},
-                  {"name": "dx-windows-x86_64", "status": "qualified-host-evidence"},
-              ],
-              "exercised": [
-                  "seed binary build //cli/cli:dx with sha256 staged under RUNNER_TEMP",
-                  "seed standalone archive //cli/cli:dx_standalone with sha256 staged under RUNNER_TEMP",
-                  "seed releasable unit //deploy/release:release_artifacts (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)",
-                  "SBOM/provenance generation //deploy/release:sbom_demo (SPDX-2.3 + SLSA v1, subject digest equal to artifact sha256, owner-gated, publishes nothing)",
-                  "aggregated NOTICE //deploy/release:notice_demo (hermetic notice_bundle, byte-identical, missing-notice-text fails, publishes nothing)",
-                  "draft-only publisher //cli/cli:github_draft in GH_RELEASE_DRY_RUN=1 mode (placeholder v0.0.0-dryrun, draft-only flags, publishes nothing)",
-                  "owner-gated signing //deploy/release:signing_demo in RELEASE_SIGN_DRY_RUN=1 mode (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)",
-                  "Bazel Central Registry shape via //deploy/release:bcr_demo in BCR_DRY_RUN=1 mode (rules_dx at 0.0.0, checked not submitted)",
-                  "human-run driver //deploy/release:release_driver dry run (owner approval + tag ceiling, publishes nothing)",
-                  "install verifier //deploy/install:dx_verify refusal proof (checksum-only rejected, TUF trust root, fails before install)",
-              ],
-              "draft_dry_run": {
-                  "target": "//cli/cli:github_draft",
-                  "mode": "GH_RELEASE_DRY_RUN=1",
-                  "placeholder": "v0.0.0-dryrun",
-                  "flags": "--draft --verify-tag",
-                  "ok": draft_ok,
-                  "published": False,
-              },
-              "sbom": {
-                  "target": "//deploy/release:sbom_demo",
-                  "spdx": "SPDX-2.3",
-                  "predicate": "https://slsa.dev/provenance/v1",
-                  "subject_digest": sbom_digest,
-                  "linkage_ok": sbom_linkage_ok,
-                  "verified": True,
-                  "published": False,
-              },
-              "notice": {
-                  "target": "//deploy/release:notice_demo",
-                  "header_ok": notice_ok,
-                  "signed_with_sbom": packaging_ok,
-                  "verified": True,
-                  "published": False,
-              },
-              "packaging": {
-                  "target": "//deploy/release:release_artifacts",
-                  "curator": "//:audit_curator",
-                  "sbom_signed_with_notice": packaging_ok,
-                  "ok": packaging_ok and sbom_linkage_ok and notice_ok,
-                  "published": False,
-              },
-              "signing_dry_run": {
-                  "target": "//deploy/release:signing_demo",
-                  "mode": "RELEASE_SIGN_DRY_RUN=1",
-                  "trust_root": "https://tuf-repo-cdn.sigstore.dev",
-                  "ok": signing_ok,
-                  "published": False,
-              },
-              "bcr_shape": {
-                  "module": "rules_dx",
-                  "version": "0.0.0",
-                  "target": "//deploy/release:bcr_demo",
-                  "mode": "BCR_DRY_RUN=1",
-                  "checked": True,
-                  "submitted": False,
-              },
-              "verify_refusal": {
-                  "verifier": "//deploy/install:dx_verify",
-                  "trust_root": "https://tuf-repo-cdn.sigstore.dev",
-                  "checksum_only_refused": True,
-                  "installed": False,
-              },
-              "would_publish": [
-                  "Bazel Central Registry `rules_dx` module (owner-gated via //deploy/release:bcr_demo; owner approval required)",
-                  "GitHub Release with standalone `dx` binaries (draft only via //cli/cli:github_draft; owner approval required)",
-              ],
-              "not_attempted": [
-                  "SBOM/provenance publishing (generated owner-gated via //deploy/release:sbom_demo)",
-                  "Signing/attestation publishing (Sigstore keyless + GitHub attestations on the trust root, signing-first; GHCR images sign separately via cosign <digest>)",
-                  "GHCR prebuilt images (separate workflow .github/workflows/ghcr.yml per owner decision)",
-                  "Non-seed release matrix builds (qualified per-host under issue #815, human-run only, not built in dry-run)",
-                  "BCR submission (owner-gated via //deploy/release:bcr_demo)",
-                  "Any tag, registry submission, or release creation",
-              ],
-          }
-          assert draft_ok, "draft dry-run log missing placeholder or draft-only flags"
-          assert signing_ok, "signing dry-run log missing cosign or trust root"
-          assert packaging_ok, "signing dry-run log missing SBOM pair plus NOTICE packaging linkage"
-          assert sbom_linkage_ok, "SBOM provenance missing SPDX subject digest linkage"
-          assert notice_ok, "NOTICE bundle missing header"
-          assert bcr_ok, "bcr dry-run log missing would-submit gate"
-          with open(f"{stage}/dry-run-report.json", "w", encoding="utf-8") as fh:
-              json.dump(report, fh, indent=2)
-          print(f"seed binary sha256: {digest}")
-          print(f"standalone archive sha256: {standalone_digest}")
-          print(f"sbom subject digest: {sbom_digest} (linkage ok: {sbom_linkage_ok})")
-          print(f"packaging ok: {packaging_ok} (SBOM pair plus NOTICE signed together)")
-          print(f"draft dry-run ok: {draft_ok}")
-          print(f"signing dry-run ok: {signing_ok}")
-          print(f"bcr dry-run ok: {bcr_ok}")
-          print(f"approved: {approve}; published: False (dry run never publishes)")
-          EOF
-          {
-            echo "## Publish dry-run report"
-            echo ""
-            echo "- approved: \`$APPROVE\`; published: **no** (dry run never publishes)"
-            echo "- seed binary: \`dx-linux-x86_64\` \`$(cut -d' ' -f1 "$stage/dx-linux-x86_64.sha256")\`"
-            echo "- standalone: \`dx-standalone.tar.gz\` \`$(cut -d' ' -f1 "$stage/dx-standalone.tar.gz.sha256")\`"
-            echo "- draft dry-run: \`//cli/cli:github_draft\` \`GH_RELEASE_DRY_RUN=1\` ok (placeholder \`v0.0.0-dryrun\`, draft-only flags, publishes nothing)"
-            echo "- packaging: \`//deploy/release:release_artifacts\` ok (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)"
-            echo "- SBOM: \`//deploy/release:sbom_demo\` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing"
-            echo "- NOTICE: \`//deploy/release:notice_demo\` ok (hermetic bundle, signed alongside SBOM pair, publishes nothing)"
-            echo "- signing dry-run: \`//deploy/release:signing_demo\` \`RELEASE_SIGN_DRY_RUN=1\` ok (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)"
-            echo "- BCR shape: \`rules_dx\` at \`0.0.0\` via \`//deploy/release:bcr_demo\` checked, not submitted"
-            echo "- verifier: checksum-only refused, TUF trust root, nothing installed"
-            echo "- full report: \`dry-run-report.json\` in the job logs"
-          } >> "$GITHUB_STEP_SUMMARY"
+          bazel run //deploy/install:dx_verify -- --help > "$stage/verify-help.txt"
+          if bazel run //deploy/install:dx_verify -- --binary "$bin" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
+            echo "expected checksum-only refusal failed" >&2
+            exit 1
+          fi
+          bazel run //deploy/release:publish_dry_run -- \
+            --stage "$stage" \
+            --approve "$APPROVE" \
+            --binary "$bin" \
+            --standalone "$(bazel cquery --output=files //cli/cli:dx_standalone_archive)" \
+            --standalone-checksum "$(bazel cquery --output=files //cli/cli:dx_standalone_checksum)" \
+            --spdx "$(bazel cquery --output=files //deploy/release:sbom_demo_spdx)" \
+            --provenance "$(bazel cquery --output=files //deploy/release:sbom_demo_provenance)" \
+            --notice "$(bazel cquery --output=files //deploy/release:notice_demo_notice)" \
+            --module-bazel MODULE.bazel \
+            --install-lib deploy/install/src/lib.rs \
+            --summary "${GITHUB_STEP_SUMMARY:-}"
       - name: Prove checkout left clean
         run: test -z "$(git status --porcelain)"

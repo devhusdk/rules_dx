@@ -11,6 +11,8 @@
 use std::io;
 use std::path::Path;
 
+pub mod dry_run;
+pub mod ghcr;
 mod spdx;
 
 use spdx::SpdxDocument;

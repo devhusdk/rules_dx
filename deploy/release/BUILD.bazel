@@ -28,7 +28,10 @@ exports_files([
     "signing.bzl",
     "signing_tests.bzl",
     "src/bin_bcr_source_gen.rs",
+    "src/bin_cosign_fetch_check.rs",
+    "src/bin_devcontainer_check.rs",
     "src/bin_notice_gen.rs",
+    "src/bin_publish_dry_run.rs",
     "src/bin_release_driver.rs",
     "src/bin_sbom_prov_gen.rs",
     "src/bin_sbom_spdx_gen.rs",
@@ -37,6 +40,8 @@ exports_files([
 rust_library(
     name = "dx_release_tools",
     srcs = [
+        "src/dry_run.rs",
+        "src/ghcr.rs",
         "src/lib.rs",
         "src/spdx.rs",
     ],
@@ -198,7 +203,10 @@ rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
     targets = [
+        ":cosign_fetch_check",
+        ":devcontainer_check",
         ":dx_release_tools",
+        ":publish_dry_run",
         ":sbom_spdx_gen",
         ":sbom_prov_gen",
         ":bcr_source_gen",
@@ -211,7 +219,10 @@ rust_clippy_test(
     name = "dx_release_tools_clippy_test",
     size = "small",
     targets = [
+        ":cosign_fetch_check",
+        ":devcontainer_check",
         ":dx_release_tools",
+        ":publish_dry_run",
         ":sbom_spdx_gen",
         ":sbom_prov_gen",
         ":bcr_source_gen",
@@ -238,6 +249,48 @@ rust_binary(
         ],
         package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
+)
+
+# keep
+rust_binary(
+    name = "publish_dry_run",
+    srcs = ["src/bin_publish_dry_run.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "publish_dry_run",
+    crate_root = "src/bin_publish_dry_run.rs",
+    edition = "2021",
+    deps = [":dx_release_tools"],
+)
+
+# keep
+rust_binary(
+    name = "devcontainer_check",
+    srcs = ["src/bin_devcontainer_check.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "devcontainer_check",
+    crate_root = "src/bin_devcontainer_check.rs",
+    edition = "2021",
+    deps = [":dx_release_tools"],
+)
+
+# keep
+rust_binary(
+    name = "cosign_fetch_check",
+    srcs = ["src/bin_cosign_fetch_check.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "cosign_fetch_check",
+    crate_root = "src/bin_cosign_fetch_check.rs",
+    edition = "2021",
+    deps = [":dx_release_tools"],
 )
 
 exports_files(["Cargo.toml"])

@@ -85,6 +85,22 @@ python_test(
 
 # keep
 rust_test(
+    name = "bump_workflow_test",
+    size = "small",
+    srcs = ["bump_workflow_test.rs"],
+    data = [
+        "//.github:workflows/bump.yml",
+        "//cli/bump:sets_source",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "actionlint_test",
     size = "small",
     srcs = ["actionlint_test.rs"],

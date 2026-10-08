@@ -49,6 +49,19 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Validate bump App credentials (fail before mutation)
+        if: inputs.selector != '' && inputs.version != ''
+        env:
+          BUMP_APP_ID: ${{ secrets.BUMP_APP_ID }}
+          BUMP_APP_PRIVATE_KEY: ${{ secrets.BUMP_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${BUMP_APP_ID:-}" || -z "${BUMP_APP_PRIVATE_KEY:-}" ]]; then
+            echo "Bump credentials unavailable: set the BUMP_APP_ID and BUMP_APP_PRIVATE_KEY repository secrets before dispatching with a selector plus version."
+            echo "Setup lives on the GitHub CI docs page under Bump workflow."
+            exit 1
+          fi
+          echo "Bump App credentials present; the push token is minted just before the push."
       - name: Plan single widen (dry-run, never batch)
         env:
           SELECTOR: ${{ inputs.selector }}
@@ -197,10 +210,17 @@ jobs:
           bazel run "$@" --noshow_progress //cli/cli:dx -- format --check //... -- "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- security //...
           bazel run "$@" --noshow_progress //cli/cli:dx -- license //...
+      - name: Mint bump push token (GitHub App)
+        id: bump-app
+        if: inputs.selector != '' && inputs.version != ''
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.BUMP_APP_ID }}
+          private-key: ${{ secrets.BUMP_APP_PRIVATE_KEY }}
       - name: Open one PR if green (fork-safe, no retry-until-green)
         if: inputs.selector != '' && inputs.version != ''
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bump-app.outputs.token }}
           SELECTOR: ${{ inputs.selector }}
           VERSION: ${{ inputs.version }}
           AUTOMERGE: ${{ inputs.automerge }}
@@ -216,10 +236,55 @@ jobs:
             echo "Nothing widened: record and stop (failures never retry-until-green)."
             exit 0
           fi
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "Bump push token unavailable: the App mint step produced no token (nothing pushed)."
+            exit 1
+          fi
+          allowed=""
+          set_name="${SELECTOR%%:*}"
+          case "$set_name" in
+            bazel) allowed=".bazelversion MODULE.bazel" ;;
+            cargo) allowed="rust/tests/fixtures/hello/Cargo.toml rust/tests/fixtures/hello/Cargo.lock cargo-bazel-lock.json" ;;
+            github-actions|gha) allowed=".github/workflows" ;;
+            go|gomod) allowed="third_party/go/go.mod third_party/go/go.sum" ;;
+            maven) allowed="MODULE.bazel third_party/jvm/maven_install.json" ;;
+            npm) allowed="package.json pnpm-lock.yaml" ;;
+            nuget) allowed="third_party/dotnet/paket.dependencies third_party/dotnet/paket.lock third_party/dotnet/deps" ;;
+            *)
+              echo "Unknown set $set_name: refusing to stage (one dep per PR, known sets only)."
+              exit 1
+              ;;
+          esac
+          changed="$(git status --porcelain)"
+          while IFS= read -r line; do
+            [[ -n "$line" ]] || continue
+            flag="${line:0:2}"
+            path="${line:3}"
+            if [[ "$flag" == "??" ]]; then
+              echo "Unexpected untracked file: $path (not committed)."
+              exit 1
+            fi
+            match="false"
+            # shellcheck disable=SC2086
+            for want in $allowed; do
+              if [[ "$path" == "$want" ]]; then match="true"; fi
+              if [[ -d "$want" && "$path" == "$want"/* ]]; then match="true"; fi
+            done
+            if [[ "$match" != "true" ]]; then
+              echo "Unexpected change outside the $set_name set: $path (not committed)."
+              exit 1
+            fi
+          done <<< "$changed"
           branch="bump/${SELECTOR//[^A-Za-z0-9_.-]/-}-${VERSION//[^A-Za-z0-9_.-]/-}"
           git checkout -b "$branch"
-          git add -A
+          # shellcheck disable=SC2086
+          git add -- $allowed
+          if [[ -z "$(git diff --cached --name-only)" ]]; then
+            echo "Owned paths unchanged after filtering: nothing to commit."
+            exit 0
+          fi
           git -c user.name="dx-bump" -c user.email="dx-bump@local" commit -m "bump $SELECTOR to $VERSION (widen-one, one dep per PR)"
+          gh auth setup-git
           git push --set-upstream origin "$branch"
           # One dep per PR, never batch.
           gh pr create --title "bump $SELECTOR to $VERSION" --body "Widen-one-requirement loop (issue #260): one dep per PR, never batch. Verification: regen, preset flag-diff, bazel build //..., bazel test //... (with CI flaky/timeout flags), dx coverage --min-coverage 96 //... plus dx lint/typecheck/format --check //... plus dx security/license //... dogfood gates (seed host; full host matrix in CI). Automerge toggle: $AUTOMERGE (on merges solely on the full required-check set; off leaves the PR open). Human merge path preserved." --label dependencies
@@ -241,4 +306,4 @@ jobs:
         if: always()
         run: |
           echo "### bump widen-one — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 96 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + GITHUB_TOKEN + fork-safety + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 96 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + GitHub App token + fork-safety + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"

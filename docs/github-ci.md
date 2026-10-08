@@ -155,6 +155,29 @@ Inputs:
 Publishing needs `pages: write` plus `id-token: write`. Enable Pages with
 source GitHub Actions before the first publishing run.
 
+## Bump Workflow
+
+`.github/workflows/bump.yml` opens one dependency PR per run. A weekly
+schedule lists outdated dependencies. Dispatch the workflow with `selector`
+(`set:package`, such as `cargo:anyhow`), `version`, and `automerge` (`true`
+merges on the full required-check set, `false` leaves the PR open).
+
+Create a GitHub App, install it on the repository, and set two secrets:
+
+- `BUMP_APP_ID`: the App id.
+- `BUMP_APP_PRIVATE_KEY`: the App private key.
+
+Grant the App `Contents: read and write` plus `Pull requests: read and
+write`. The workflow mints a token from the App just before pushing. The
+branch push and the PR use that identity, so the PR schedules the ordinary
+required CI. A run without both secrets fails before changing anything.
+
+One run widens one requirement, refreshes its resolver-owned lockfile, runs
+regen plus the build, test, coverage, lint, typecheck, format, security, and
+license gates, then stages only that set's manifest and lock files. Changed
+files outside the set, and any untracked file, fail the run instead of being
+committed. Fork runs plan only and never push.
+
 ## Repository Settings
 
 Set these once in the repository. Each caller already grants its job

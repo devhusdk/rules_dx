@@ -8,6 +8,15 @@ exports_files([
     "src/lib.rs",
 ])
 
+filegroup(
+    name = "sets_source",
+    srcs = [
+        "src/gha.rs",
+        "src/sets.rs",
+    ],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
 dx_rust_crate(
     name = "dx_bump",
     package_name = "cli/dx_bump",

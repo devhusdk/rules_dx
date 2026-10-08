@@ -225,6 +225,7 @@ const COMMAND_FLAGS: &[&str] = &[
     "--fail-on",
     "--min-coverage",
     "--check",
+    "--apply",
     "--debug",
     "--release",
     "--bazel",
@@ -491,11 +492,15 @@ mod tests {
             other => panic!("clean --help: want Help, got {other:?}"),
         };
         assert!(
-            clean.contains("clean [--dry-run] [--bazel] [--prune-unobserved]"),
+            clean.contains("clean [--apply] [--dry-run] [--bazel] [--prune-unobserved]"),
             "clean usage:\n{clean}"
         );
+        assert!(clean.contains("--apply"), "clean flags:\n{clean}");
         assert!(clean.contains("--bazel"), "clean flags:\n{clean}");
-        assert!(clean.contains("--prune-unobserved"), "clean flags:\n{clean}");
+        assert!(
+            clean.contains("--prune-unobserved"),
+            "clean flags:\n{clean}"
+        );
         assert!(
             clean.contains("distinct from `dx bazel`"),
             "clean disambiguation:\n{clean}"

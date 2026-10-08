@@ -55,6 +55,11 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `check`, `fix`, `update`, `version`, `completion`, and `docs`.
   Every other command rejects it.
+- `--apply`: consent to the writes or effects a command performs. Taken by
+  `lint`, `typecheck`, `format`, `generate`, `run`, `deploy`, `fix`, `clean`,
+  `update`, `bump`, `migrate`, `codegen`, `env`, `setup`, `init`, `new`,
+  `upgrade`, `hooks`, `version`, and `docs`. Every other command rejects it.
+  `--check` with `--apply` and `--dry-run` with `--apply` are usage errors.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means
   release. Every other command rejects them.

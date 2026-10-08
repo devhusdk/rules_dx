@@ -394,6 +394,9 @@ fn strict_known_flags_on_wrong_commands_fail_as_unsupported() {
         vec!["build", "--open"],
         vec!["lint", "--min-coverage=80"],
         vec!["build", "--check"],
+        vec!["build", "--apply"],
+        vec!["check", "--apply"],
+        vec!["status", "--apply"],
         vec!["lint", "--bazel"],
     ] {
         assert!(

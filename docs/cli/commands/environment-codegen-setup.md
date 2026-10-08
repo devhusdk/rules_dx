@@ -8,9 +8,9 @@ bazel run @rules_dx//:dx -- codegen
 ```
 
 ```text
-dx env [<label>] [-- bazel-options...]
-dx codegen [<label>] [-- bazel-options...]
-dx setup [<label>] [-- bazel-options...]
+dx env [--apply] [<label>] [-- bazel-options...]
+dx codegen [--apply] [<label>] [-- bazel-options...]
+dx setup [--apply] [<label>] [-- bazel-options...]
 ```
 
 `dx setup` prepares codegen plus env in one go. `dx env` refreshes the

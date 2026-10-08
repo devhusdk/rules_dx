@@ -10,7 +10,7 @@ bazel run @rules_dx//:dx -- clean
 
 ```text
 dx check [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
-dx fix [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx fix [--apply] [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order. Stops
@@ -44,7 +44,7 @@ bazel run @rules_dx//:dx -- fix --here
 ## `dx clean`
 
 ```text
-dx clean [--dry-run] [--bazel]
+dx clean [--apply] [--dry-run] [--bazel]
 ```
 
 Prunes unselected managed state under `.dx`. Never touches Bazel outputs

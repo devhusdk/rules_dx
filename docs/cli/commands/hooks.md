@@ -8,7 +8,7 @@ bazel run @rules_dx//:dx -- hooks install
 ## `dx init`
 
 ```text
-dx init [module-name]
+dx init [--apply] [module-name]
 ```
 
 Scaffolds `dx` into a foreign tree. Takes an optional module name. Never
@@ -22,7 +22,7 @@ scaffolding failed.
 ## `dx hooks`
 
 ```text
-dx hooks <install|uninstall|status|run> [pre-commit|pre-push]
+dx hooks [--apply] <install|uninstall|status|run> [pre-commit|pre-push]
 ```
 
 Manages Git hooks through hermetic Git.

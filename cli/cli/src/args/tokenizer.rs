@@ -170,6 +170,8 @@ fn unsupported_option<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
         "--offline".to_owned()
     } else if present("--check") && !command.supports_check() {
         "--check".to_owned()
+    } else if present("--apply") && !command.supports_apply() {
+        "--apply".to_owned()
     } else if present("--fail-on") && !command.supports_fail_on() {
         "--fail-on".to_owned()
     } else if !command.supports_diff()
@@ -235,11 +237,23 @@ pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<Tokenized, ArgsErr
         .first()
         .is_some_and(|first| first.as_ref() == OsStr::new("bazel"))
     {
+        let forwarded = collect_bazel_options(&args[1..])?;
+        let managed = forwarded
+            .iter()
+            .take_while(|word| word.as_str() != "--")
+            .find(|word| word.as_str() == "--apply")
+            .cloned();
+        if let Some(option) = managed {
+            return Err(ArgsError::UnsupportedOption {
+                command: Command::Bazel.name(),
+                option,
+            });
+        }
         return Ok(Tokenized {
             command: Command::Bazel,
             flags: Flags::default(),
             targets: Vec::new(),
-            bazel_options: collect_bazel_options(&args[1..])?,
+            bazel_options: forwarded,
         });
     }
     let command = parse_tokens(args)?.ok_or(ArgsError::MissingCommand)?;

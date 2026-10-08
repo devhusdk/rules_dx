@@ -1,7 +1,7 @@
 # `dx docs`
 
 ```text
-dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
+dx docs [--apply] [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
 ```
 
 Builds the documentation site with Bazel and the pinned upstream mdBook:
@@ -12,6 +12,7 @@ current directory tree. Args after `--` go to Bazel unchanged.
 
 - `--check`: validate the book without rendering it. Builds the generated
   summary and landing page only.
+- `--apply`: consent to serving or opening the preview.
 - `--serve`: preview the last build locally after building. Serves the
   rendered site tree, so every page has its own URL.
 - `--port <n>`, `--host <addr>`, `--open`: need `--serve`. `--open` opens

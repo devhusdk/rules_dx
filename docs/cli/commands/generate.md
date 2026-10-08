@@ -9,11 +9,12 @@ Refreshes Gazelle `BUILD` files over the scope. No scope means the whole
 repo. Use `--here` for the current dir tree.
 
 ```text
-dx generate [--here] [--check] [scope...] [-- bazel-options...]
+dx generate [--apply] [--here] [--check] [scope...] [-- bazel-options...]
 ```
 
 - `--check`: fail if files are stale instead of writing them. Run
   `dx generate` without `--check` to update, then `dx check` to confirm.
+- `--apply`: consent to writing BUILD files.
 - `--fail-on info|warning|error`: rejected. Generation reports staleness, not
   findings with severities.
 - `--report`: rejected. No report format exists for this command.

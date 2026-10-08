@@ -38,12 +38,13 @@ or empty `.dx/version` fails the same way.
 ## `dx version`
 
 ```text
-dx version [--check] [--pin <version>|--rollback]
+dx version [--apply] [--check] [--pin <version>|--rollback]
 ```
 
 Prints the version.
 
 - `--check`: verify the pin without changing it.
+- `--apply`: consent to changing the pin.
 - `--pin <version>`: re-pin to this version.
 - `--rollback`: restore the last pin. Conflicts with `--pin`.
 

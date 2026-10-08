@@ -172,6 +172,7 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--fail-on", Some("error")),
     ("--min-coverage", Some("80")),
     ("--check", None),
+    ("--apply", None),
     ("--debug", None),
     ("--release", None),
     ("--bazel", None),
@@ -512,6 +513,46 @@ fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
             accepted,
             advertised,
             "dx {} accepts={accepted} advertises={advertised} for --check: {words:?}\n{usage}",
+            command.name()
+        );
+    }
+}
+
+#[test]
+fn command_usage_advertises_apply_exactly_where_the_parser_accepts_it() {
+    for command in Command::value_variants() {
+        let command = *command;
+        let usage = command.usage();
+        if command == Command::Bazel {
+            assert_eq!(
+                parse(&strings(&[command.name(), "--apply"])),
+                Err(ArgsError::UnsupportedOption {
+                    command: "bazel",
+                    option: "--apply".to_owned(),
+                }),
+                "dx bazel rejects the managed --apply instead of forwarding it"
+            );
+            assert!(
+                !usage.contains("[--apply]"),
+                "dx bazel never advertises the managed --apply: {usage}"
+            );
+            continue;
+        }
+        let mut words = vec![command.name().to_owned()];
+        words.extend(required_words(command));
+        words.push("--apply".to_owned());
+        let accepted = parse(&words).is_ok();
+        let advertised = usage.contains("[--apply]");
+        assert_eq!(
+            accepted,
+            advertised,
+            "dx {} accepts={accepted} advertises={advertised} for --apply: {words:?}\n{usage}",
+            command.name()
+        );
+        assert_eq!(
+            accepted,
+            command.supports_apply(),
+            "dx {} registry and parser disagree on --apply",
             command.name()
         );
     }
@@ -927,6 +968,15 @@ fn global_flags_page_names_every_reporting_command_and_format() {
             "docs/cli/commands/README.md --report bullet never names the {format} format"
         );
     }
+}
+
+#[test]
+fn global_flags_page_names_every_apply_command() {
+    assert_eq!(
+        global_flag_bullet_names("apply"),
+        commands_where(Command::supports_apply),
+        "docs/cli/commands/README.md --apply bullet must name every command that takes explicit consent"
+    );
 }
 
 #[test]

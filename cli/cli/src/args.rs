@@ -54,6 +54,12 @@ pub enum ArgsError {
     /// Verbosity was requested twice over.
     #[error("options --verbose and --log-level are mutually exclusive")]
     ConflictingVerboseLogLevel,
+    /// A check was asked for alongside explicit apply.
+    #[error("options --check and --apply are mutually exclusive")]
+    ConflictingCheckApply,
+    /// A dry run was asked for alongside explicit apply.
+    #[error("options --dry-run and --apply are mutually exclusive")]
+    ConflictingDryRunApply,
     /// The here tree was asked for alongside explicit scopes.
     #[error("option \"--here/--cwd\" cannot be combined with explicit scopes")]
     ConflictingHere,
@@ -94,7 +100,7 @@ pub use completion::{
     registers_callback, render_completion, try_complete, COMPLETE_VAR, COMPLETION_SHELLS,
 };
 pub use grammar::cli_command;
-pub use invocation::{apply_here, here_scope, Invocation, ReportRequest};
+pub use invocation::{apply_here, here_scope, Invocation, OperationMode, ReportRequest};
 pub use parser::{load_file_defaults, parse, parse_with};
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 

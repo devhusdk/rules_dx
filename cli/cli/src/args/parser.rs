@@ -106,6 +106,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         fail_on,
         min_coverage,
         check,
+        apply,
         debug,
         release,
         bazel_clean,
@@ -186,6 +187,12 @@ pub fn parse_with<S: AsRef<OsStr>>(
     };
     if verbose && log_level.is_some() {
         return Err(ArgsError::ConflictingVerboseLogLevel);
+    }
+    if check && apply {
+        return Err(ArgsError::ConflictingCheckApply);
+    }
+    if dry_run && apply {
+        return Err(ArgsError::ConflictingDryRunApply);
     }
     let color_name = invocation_defaults::resolve_string(
         color_name,
@@ -370,6 +377,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     Ok(Invocation {
         command,
         check,
+        apply,
         debug,
         release,
         workspace,
@@ -409,6 +417,9 @@ mod parser_commands;
 #[cfg(test)]
 #[path = "parser_core.rs"]
 mod parser_core;
+#[cfg(test)]
+#[path = "mode_tests.rs"]
+mod mode_tests;
 #[cfg(test)]
 #[path = "strict_tests.rs"]
 mod strict_tests;

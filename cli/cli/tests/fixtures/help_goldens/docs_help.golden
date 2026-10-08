@@ -2,7 +2,7 @@ dx docs - build, check, and serve the mdBook documentation site (non-mutating; -
 
 build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
 
-Usage: dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]
+Usage: dx docs [--apply] [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -42,6 +42,9 @@ Options:
       --check
           Check without changing files
 
+      --apply
+          Consent to the writes or effects this command performs
+
       --here
           Use the current dir tree
           
@@ -62,11 +65,11 @@ Options:
   -h, --help
           Print help
 
-Per-command flags: --check/--serve/--port/--host/--open (docs only; `-- --bazel-options` pass through to the docs build; --check validates the book without rendering it, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).
+Per-command flags: --apply/--check/--serve/--port/--host/--open (docs only; --apply consents to serve/open effects; `-- --bazel-options` pass through to the docs build; --check validates the book without rendering it, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).
 
 Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:user_site, //docs/site:user_site_check in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json; --report has no standard format for this command.
-Rejected: --report, --fail-on, --min-coverage, --debug, --release, --bazel, --pin, --rollback, --configured, --from, --to, --offline.
+Rejected: --report, --fail-on, --min-coverage, --debug, --release, --bazel, --prune-unobserved, --pin, --rollback, --configured, --from, --to, --offline.
 Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 

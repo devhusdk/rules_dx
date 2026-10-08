@@ -13,6 +13,7 @@ pub struct ReportRequest {
 pub struct Invocation {
     pub command: Command,
     pub check: bool,
+    pub apply: bool,
     pub debug: bool,
     pub release: bool,
     pub workspace: Option<String>,
@@ -42,6 +43,36 @@ pub struct Invocation {
     pub offline: bool,
 }
 
+/// The mutation posture one invocation runs with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationMode {
+    Check,
+    Apply,
+    Plan,
+}
+
+impl OperationMode {
+    pub fn name(self) -> &'static str {
+        match self {
+            OperationMode::Check => "check",
+            OperationMode::Apply => "apply",
+            OperationMode::Plan => "plan",
+        }
+    }
+
+    /// Check is the default and explicit --check agrees with it; only explicit
+    /// --apply authorizes writes or effects, and any --dry-run plans instead.
+    pub fn resolve(dry_run: bool, apply: bool) -> Self {
+        if dry_run {
+            OperationMode::Plan
+        } else if apply {
+            OperationMode::Apply
+        } else {
+            OperationMode::Check
+        }
+    }
+}
+
 impl Invocation {
     pub fn mode(self) -> &'static str {
         if self.check {
@@ -49,6 +80,10 @@ impl Invocation {
         } else {
             "default"
         }
+    }
+
+    pub fn operation_mode(&self) -> OperationMode {
+        OperationMode::resolve(self.dry_run, self.apply)
     }
 
     pub fn profile_flag(&self) -> Option<Profile> {
@@ -152,6 +187,7 @@ mod tests {
         Invocation {
             command,
             check: false,
+            apply: false,
             debug: false,
             release: false,
             workspace: None,
@@ -180,6 +216,29 @@ mod tests {
             open: false,
             offline: false,
         }
+    }
+
+    #[test]
+    fn operation_mode_names_every_posture() {
+        assert_eq!(OperationMode::Check.name(), "check");
+        assert_eq!(OperationMode::Apply.name(), "apply");
+        assert_eq!(OperationMode::Plan.name(), "plan");
+    }
+
+    #[test]
+    fn operation_mode_defaults_to_check_and_apply_needs_consent() {
+        assert_eq!(OperationMode::resolve(false, false), OperationMode::Check);
+        assert_eq!(OperationMode::resolve(false, true), OperationMode::Apply);
+        assert_eq!(OperationMode::resolve(true, false), OperationMode::Plan);
+        assert_eq!(OperationMode::resolve(true, true), OperationMode::Plan);
+        let bare = invocation_for(Command::Lint, &[]);
+        assert_eq!(bare.operation_mode(), OperationMode::Check);
+        let mut consented = invocation_for(Command::Lint, &[]);
+        consented.apply = true;
+        assert_eq!(consented.operation_mode(), OperationMode::Apply);
+        let mut planned = invocation_for(Command::Lint, &[]);
+        planned.dry_run = true;
+        assert_eq!(planned.operation_mode(), OperationMode::Plan);
     }
 
     #[test]

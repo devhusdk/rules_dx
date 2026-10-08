@@ -19,6 +19,8 @@ dx test [--here] [--debug|--release] [--report junit=<path>] [scope...] [-- baze
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 `--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
+Extra `--config` values pass through after the dx profile in their original
+order. Only a conflicting dx profile is rejected.
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`

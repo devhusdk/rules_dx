@@ -7,7 +7,62 @@ pub use crate::args::WorkflowVerb;
 
 pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 
-pub const BLESSED_EXTRA_CONFIGS: [&str; 2] = ["--config=ci", "--config=ci-pr"];
+fn is_dx_profile_config(value: &str) -> bool {
+    [
+        crate::args::Profile::Debug,
+        crate::args::Profile::Dev,
+        crate::args::Profile::Release,
+    ]
+    .iter()
+    .any(|profile| profile.config() == value)
+}
+
+fn filter_configs(
+    options: &[String],
+    profile: Option<crate::args::Profile>,
+) -> Result<Vec<String>, ForwardError> {
+    let Some(profile) = profile else {
+        return Ok(options.to_vec());
+    };
+    let required = profile.config_flag();
+    let mut kept = Vec::with_capacity(options.len());
+    let mut index = 0;
+    while index < options.len() {
+        let arg = &options[index];
+        if arg == &required {
+            index += 1;
+            continue;
+        }
+        let (value, consumed) = if let Some(value) = arg.strip_prefix("--config=") {
+            (Some(value.to_owned()), 1)
+        } else if arg == "--config" {
+            match options.get(index + 1) {
+                Some(value) => (Some(value.clone()), 2),
+                None => (None, 1),
+            }
+        } else {
+            kept.push(arg.clone());
+            index += 1;
+            continue;
+        };
+        if consumed == 2 && Some(profile.config()) == value.as_deref() {
+            index += consumed;
+            continue;
+        }
+        if let Some(value) = value {
+            if is_dx_profile_config(&value) {
+                return Err(ForwardError::ConflictingOption {
+                    flag: "config".to_owned(),
+                });
+            }
+        }
+        for offset in 0..consumed {
+            kept.push(options[index + offset].clone());
+        }
+        index += consumed;
+    }
+    Ok(kept)
+}
 
 pub fn workflow_options(
     verb: WorkflowVerb,
@@ -30,21 +85,8 @@ pub fn workflow_options(
     required
 }
 
-pub fn workflow_protected(
-    verb: WorkflowVerb,
-    profile: Option<crate::args::Profile>,
-) -> Vec<ProtectedFlag> {
+pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
     let mut protected = Vec::new();
-    if let Some(profile) = profile {
-        protected.push(ProtectedFlag {
-            name: "config".to_owned(),
-            required: Some(profile.config_flag()),
-            allowed: BLESSED_EXTRA_CONFIGS
-                .iter()
-                .map(ToString::to_string)
-                .collect(),
-        });
-    }
     if verb == WorkflowVerb::Coverage {
         protected.push(ProtectedFlag {
             name: "combined_report".to_owned(),
@@ -75,9 +117,10 @@ pub fn plan_workflow(
     profile: Option<crate::args::Profile>,
 ) -> Result<BuildPlan, ForwardError> {
     let required = workflow_options(verb, bep_path, profile);
-    let protected = workflow_protected(verb, profile);
+    let protected = workflow_protected(verb);
+    let bazel_options = filter_configs(bazel_options, profile)?;
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv(verb.name(), bazel_options, &required, &protected, &labels)?;
+    let argv = build_workflow_argv(verb.name(), &bazel_options, &required, &protected, &labels)?;
     let summary = format!("Running {} for {}", verb.name(), describe_scope(&scope));
     Ok(BuildPlan { argv, summary })
 }
@@ -199,19 +242,69 @@ mod tests {
     }
 
     #[test]
-    fn workflow_plan_accepts_blessed_ci_configs_beside_profile() {
+    fn workflow_plan_forwards_consumer_configs_after_profile() {
         for verb in [WorkflowVerb::Build, WorkflowVerb::Test] {
             let plan = plan_workflow(
                 verb,
                 &resolved(&[]),
-                &strings(&["--config=ci", "--config=ci-pr"]),
+                &strings(&[
+                    "--keep_going",
+                    "--config=ci",
+                    "--config=ci-pr",
+                    "--config=sanitizer",
+                ]),
                 None,
                 Some(Profile::Dev),
             )
-            .expect("blessed configs pass");
-            assert!(plan.argv.iter().any(|arg| arg == "--config=dx_dev"));
-            assert!(plan.argv.iter().any(|arg| arg == "--config=ci"));
-            assert!(plan.argv.iter().any(|arg| arg == "--config=ci-pr"));
+            .expect("consumer configs pass");
+            let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+            let dev = argv
+                .iter()
+                .position(|arg| *arg == "--config=dx_dev")
+                .expect("profile is planned");
+            let keep_going = argv
+                .iter()
+                .position(|arg| *arg == "--keep_going")
+                .expect("keep_going is planned");
+            let ci = argv
+                .iter()
+                .position(|arg| *arg == "--config=ci")
+                .expect("ci is planned");
+            let ci_pr = argv
+                .iter()
+                .position(|arg| *arg == "--config=ci-pr")
+                .expect("ci-pr is planned");
+            let sanitizer = argv
+                .iter()
+                .position(|arg| *arg == "--config=sanitizer")
+                .expect("sanitizer is planned");
+            assert!(dev < keep_going, "{verb:?}: {plan:?}");
+            assert!(
+                keep_going < ci && ci < ci_pr && ci_pr < sanitizer,
+                "{verb:?}: {plan:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn workflow_plan_rejects_only_conflicting_dx_profile() {
+        for options in [
+            vec!["--config=dx_release"],
+            vec!["--config", "dx_release"],
+            vec!["--config=sanitizer", "--config=dx_debug"],
+        ] {
+            let err = plan_workflow(
+                WorkflowVerb::Build,
+                &resolved(&[]),
+                &strings(&options),
+                None,
+                Some(Profile::Dev),
+            )
+            .expect_err("conflicting dx profile must fail");
+            assert!(
+                matches!(err, ForwardError::ConflictingOption { .. }),
+                "got {err:?}"
+            );
         }
         let err = plan_workflow(
             WorkflowVerb::Test,
@@ -220,8 +313,66 @@ mod tests {
             None,
             Some(Profile::Dev),
         )
-        .expect_err("profile override still conflicts");
+        .expect_err("test keeps the profile conflict");
         assert!(matches!(err, ForwardError::ConflictingOption { .. }));
+    }
+
+    #[test]
+    fn workflow_plan_dedupes_repeated_profile_config() {
+        let plan = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &strings(&["--config=dx_dev", "--config=sanitizer"]),
+            None,
+            Some(Profile::Dev),
+        )
+        .expect("repeated profile config is accepted");
+        assert_eq!(
+            plan.argv
+                .iter()
+                .filter(|arg| *arg == "--config=dx_dev")
+                .count(),
+            1,
+            "{plan:?}"
+        );
+        let plan = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &strings(&["--config", "dx_dev", "--config", "sanitizer"]),
+            None,
+            Some(Profile::Dev),
+        )
+        .expect("bare repeated profile config is accepted");
+        assert_eq!(
+            plan.argv
+                .iter()
+                .filter(|arg| *arg == "--config=dx_dev")
+                .count(),
+            1,
+            "{plan:?}"
+        );
+        let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+        let bare = argv.iter().position(|arg| *arg == "--config");
+        assert_eq!(
+            argv[bare.expect("bare consumer config is planned") + 1],
+            "sanitizer",
+            "{plan:?}"
+        );
+    }
+
+    #[test]
+    fn workflow_plan_forwards_any_config_without_profile() {
+        for options in [vec!["--config=sanitizer"], vec!["--config=dx_release"]] {
+            let plan = plan_workflow(
+                WorkflowVerb::Coverage,
+                &resolved(&[]),
+                &strings(&options),
+                None,
+                None,
+            )
+            .expect("coverage has no profile pin to conflict with");
+            assert!(plan.argv.iter().any(|arg| arg == &options[0]), "{plan:?}");
+        }
     }
 
     #[test]

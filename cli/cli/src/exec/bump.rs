@@ -30,6 +30,34 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.targets.len() != 2 {
         return pre_exec(err, "bump needs exactly <selector> <version>");
     }
+    if let Some(registry) = match dx_adopt::dependency_sets::load(workspace) {
+        Ok(registry) => registry,
+        Err(error) => return pre_exec(err, &error.to_string()),
+    } {
+        let head = invocation.targets[0]
+            .split_once(':')
+            .map(|(head, _)| head)
+            .unwrap_or(&invocation.targets[0]);
+        if let Some(set) = registry.find(head) {
+            return operational(
+                invocation,
+                out,
+                err,
+                CODE_BUMP_FAILED,
+                &format!(
+                    "bump is not supported for ecosystem {} set {} (supported operations: {})",
+                    set.ecosystem.name(),
+                    set.name,
+                    [
+                        set.ecosystem.supported_check(),
+                        set.ecosystem.supported_update(),
+                        set.ecosystem.supported_audit(),
+                    ]
+                    .join(", "),
+                ),
+            );
+        }
+    }
     let request = match dx_bump::BumpRequest::parse(&invocation.targets[0], &invocation.targets[1])
     {
         Ok(request) => request,
@@ -173,7 +201,8 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     ) {
         Ok(plan) => plan,
         Err(error) => match error {
-            dx_update::backend::BackendError::Unsupported { reason, .. } => {
+            dx_update::backend::BackendError::Unsupported { reason, .. }
+            | dx_update::backend::BackendError::UnsupportedOwned { reason, .. } => {
                 return bump_refresh_failed(
                     invocation,
                     out,
@@ -183,7 +212,8 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                     &format!("unsupported refresh: {reason}"),
                 );
             }
-            dx_update::backend::BackendError::OfflineRequired { .. } => {
+            dx_update::backend::BackendError::OfflineRequired { .. }
+            | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => {
                 return bump_offline_failed(invocation, out, err, &request, manifest);
             }
         },
@@ -522,6 +552,61 @@ mod tests {
 (then refresh via `dx update cargo` automatically); if major bump, run `dx migrate --from <old> \
 --to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 \
 missing-versions)";
+
+    const CONSUMER_DX_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "uv"
+manifests = ["apps/frontend/pyproject.toml"]
+locks = ["apps/frontend/uv.lock"]
+scopes = ["apps/frontend"]
+"#;
+
+    const CONSUMER_PYPROJECT: &str = r#"
+[project]
+name = "frontend"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = ["anyio>=4"]
+"#;
+
+    #[test]
+    fn consumer_configured_set_reports_unsupported_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer");
+        harness.write_source("dx.toml", CONSUMER_DX_TOML);
+        harness.write_source("apps/frontend/pyproject.toml", CONSUMER_PYPROJECT);
+        for selector in ["frontend", "frontend:anyio"] {
+            let (code, _, err) = harness.run(&["bump", selector, "4.1.0"]);
+            assert_eq!(code, 1, "{err}");
+            assert!(
+                err.contains(
+                    "bump is not supported for ecosystem uv set frontend \
+(supported operations: check, update, audit)"
+                ),
+                "{err}"
+            );
+        }
+        assert_eq!(
+            std::fs::read(harness.workspace.join("apps/frontend/pyproject.toml"))
+                .expect("manifest"),
+            CONSUMER_PYPROJECT.as_bytes()
+        );
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_registry_leaves_builtin_bump_selectors_alone() {
+        let harness = Harness::new("bump-consumer-builtin");
+        harness.write_source("dx.toml", CONSUMER_DX_TOML);
+        let (code, _, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3"]);
+        assert_ne!(code, 0, "{err}");
+        assert!(
+            !err.contains("not supported for ecosystem"),
+            "builtin selectors must not hit the configured branch: {err}"
+        );
+    }
 
     #[test]
     fn unreadable_and_non_utf8_manifests_fail_without_refresh() {

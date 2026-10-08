@@ -310,6 +310,10 @@ _consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_rep
 
 _consumer_dx_repo(name = "dx_consumer_entry")
 
+_consumer_sets_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_sets_repo")
+
+_consumer_sets_repo(name = "dx_consumer_sets")
+
 _consumer_cc_repo = use_repo_rule("//cc/tests/fixtures/consumer_cc:repos.bzl", "consumer_cc_repo")
 
 _consumer_cc_repo(

@@ -22,6 +22,7 @@ dx_rust_crate(
         "src/sets.rs",
     ],
     extra_deps = [
+        "//cli/adopt:dx_adopt",
         "//cli/identity:dx_identity",
         "//cli/path:dx_path",
     ],

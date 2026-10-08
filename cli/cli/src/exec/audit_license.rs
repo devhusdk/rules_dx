@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn run_license(
     workspace: &Path,
-    sets: &[dx_update::sets::SetId],
+    sets: &[AuditTarget],
     roots: &[String],
     fail_on: Threshold,
     today: &str,
@@ -58,11 +58,26 @@ pub(super) fn run_license(
     let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
     let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
         std::collections::BTreeMap::new();
-    let uncovered = dx_audit::backend::sets_without_coverage(sets.iter().map(|set| set.name()));
-    for set in sets {
-        if dx_audit::backend::is_empty_set(set.name()) {
+    let uncovered: Vec<&str> = sets
+        .iter()
+        .filter(|target| !target.advisory_covered())
+        .map(|target| target.name())
+        .collect();
+    for target in sets {
+        if let AuditTarget::Configured(set) = target {
+            if let Err(error) = lock_texts_for_configured(workspace, set) {
+                if incomplete.is_none() {
+                    incomplete = Some(format!("failed to assess {}: {error}", target.name()));
+                }
+            }
             continue;
         }
+        if !target.advisory_covered() {
+            continue;
+        }
+        let AuditTarget::Builtin(set) = target else {
+            continue;
+        };
         let locks = match lock_texts_for_set(workspace, *set) {
             Err(error) => {
                 if incomplete.is_none() {

@@ -155,6 +155,59 @@ pub(crate) fn audited_set_names() -> Vec<&'static str> {
         .collect()
 }
 
+pub(super) enum AuditTarget<'a> {
+    Builtin(dx_update::sets::SetId),
+    Configured(&'a dx_adopt::dependency_sets::ResolvedSet),
+}
+
+impl AuditTarget<'_> {
+    pub(super) fn name(&self) -> &str {
+        match self {
+            AuditTarget::Builtin(set) => set.name(),
+            AuditTarget::Configured(set) => set.name.as_str(),
+        }
+    }
+
+    pub(super) fn advisory_covered(&self) -> bool {
+        match self {
+            AuditTarget::Builtin(set) => !dx_audit::backend::is_empty_set(set.name()),
+            AuditTarget::Configured(set) => match set.ecosystem {
+                dx_adopt::dependency_sets::Ecosystem::Uv => false,
+            },
+        }
+    }
+}
+
+fn resolve_configured_audit_sets(
+    registry: &dx_adopt::dependency_sets::Registry,
+    scopes: &[String],
+) -> Result<Vec<dx_adopt::dependency_sets::ResolvedSet>, AuditError> {
+    let mut union: BTreeSet<String> = BTreeSet::new();
+    for scope in scopes {
+        if let Some(set) = registry.find(scope) {
+            union.insert(set.name.clone());
+            continue;
+        }
+        let owners = dx_adopt::dependency_sets::owning_sets(registry, scope);
+        if owners.is_empty() {
+            return Err(AuditError::NoOwningSet {
+                scope: scope.clone(),
+                sets: registry.name_list(),
+            });
+        }
+        for name in owners {
+            union.insert(name.to_owned());
+        }
+    }
+    let mut ordered = Vec::new();
+    for set in &registry.sets {
+        if union.contains(&set.name) {
+            ordered.push(dx_adopt::dependency_sets::ResolvedSet::of(set));
+        }
+    }
+    Ok(ordered)
+}
+
 fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, AuditError> {
     let mut union: BTreeSet<dx_update::sets::SetId> = BTreeSet::new();
     for scope in scopes {
@@ -405,6 +458,26 @@ fn parse_locked_for_set(
             fallback,
         },
     ))
+}
+
+fn lock_texts_for_configured(
+    workspace: &Path,
+    set: &dx_adopt::dependency_sets::ResolvedSet,
+) -> Result<Vec<(String, String)>, AuditError> {
+    let mut out = Vec::new();
+    for rel in &set.locks {
+        match read_workspace_text(workspace, rel) {
+            Ok(text) => out.push((rel.clone(), text)),
+            Err(AuditError::Read {
+                rel: missing_rel,
+                error,
+            }) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(AuditError::LockMissing { rel: missing_rel });
+            }
+            Err(other) => return Err(other),
+        }
+    }
+    Ok(out)
 }
 
 fn default_license_policy() -> dx_audit::license_policy::LicensePolicy {
@@ -707,7 +780,7 @@ struct SecurityInputs<'a> {
     temp_dir: &'a Path,
     pid: u32,
     nonce: u64,
-    sets: &'a [dx_update::sets::SetId],
+    sets: &'a [AuditTarget<'a>],
     fail_on: Threshold,
     today: &'a str,
     offline: bool,
@@ -751,7 +824,11 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             };
         }
     };
-    let uncovered = dx_audit::backend::sets_without_coverage(sets.iter().map(|set| set.name()));
+    let uncovered: Vec<&str> = sets
+        .iter()
+        .filter(|target| !target.advisory_covered())
+        .map(|target| target.name())
+        .collect();
     let mut live_exceptions: Vec<&dx_audit::exception::RiskException> = Vec::new();
     for exception in &exceptions {
         match dx_audit::exception::validate_exception(exception, today) {
@@ -763,10 +840,21 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             }
         }
     }
-    for set in sets {
-        if dx_audit::backend::is_empty_set(set.name()) {
+    for target in sets {
+        if let AuditTarget::Configured(set) = target {
+            if let Err(error) = lock_texts_for_configured(workspace, set) {
+                if incomplete.is_none() {
+                    incomplete = Some(format!("failed to assess {}: {error}", target.name()));
+                }
+            }
             continue;
         }
+        if !target.advisory_covered() {
+            continue;
+        }
+        let AuditTarget::Builtin(set) = target else {
+            continue;
+        };
         let locks = match lock_texts_for_set(workspace, *set) {
             Err(error) => {
                 let message = format!("failed to assess {}: {error}", set.name());
@@ -954,10 +1042,35 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return 0;
     }
-    let sets = match resolve_audit_sets(&effective) {
-        Ok(sets) => sets,
+    let registry = match dx_adopt::dependency_sets::load(workspace) {
+        Ok(registry) => registry,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
+    let builtin_sets;
+    let configured_sets;
+    let targets: Vec<AuditTarget> = match &registry {
+        None => {
+            builtin_sets = match resolve_audit_sets(&effective) {
+                Ok(sets) => sets,
+                Err(error) => return pre_exec(err, &error.to_string()),
+            };
+            builtin_sets
+                .iter()
+                .map(|set| AuditTarget::Builtin(*set))
+                .collect()
+        }
+        Some(registry) => {
+            configured_sets = match resolve_configured_audit_sets(registry, &effective) {
+                Ok(sets) => sets,
+                Err(error) => return pre_exec(err, &error.to_string()),
+            };
+            configured_sets
+                .iter()
+                .map(AuditTarget::Configured)
+                .collect()
+        }
+    };
+    let sets = targets;
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
             let _ = write_event(out, &event);
@@ -1209,6 +1322,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod audit_license;
 use audit_license::*;
 
+#[cfg(test)]
+#[path = "audit_consumer.rs"]
+mod audit_consumer;
 #[cfg(test)]
 #[path = "audit_live.rs"]
 mod audit_live;

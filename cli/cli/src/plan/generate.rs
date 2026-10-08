@@ -81,6 +81,7 @@ pub fn plan_generate(
         &required,
         &protected,
         &[target.to_owned()],
+        false,
     )?;
     let dirs = generate_traversal_dirs(resolved);
     let root_only = dirs.len() == 1 && dirs.first().is_some_and(String::is_empty);

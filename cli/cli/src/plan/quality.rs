@@ -113,7 +113,7 @@ pub fn plan_build(
     let required = required_options(&entry, bep_path);
     let protected = protected_flags(&required, entry.settings)?;
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv("build", bazel_options, &required, &protected, &labels)?;
+    let argv = build_workflow_argv("build", bazel_options, &required, &protected, &labels, false)?;
     let summary = operation_summary(command.name(), "analysis", &scope);
     Ok(BuildPlan { argv, summary })
 }

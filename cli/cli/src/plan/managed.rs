@@ -125,7 +125,7 @@ fn managed_argv(
             allowed: Vec::new(),
         },
     ];
-    build_workflow_argv("build", bazel_options, &required, &protected, roots)
+    build_workflow_argv("build", bazel_options, &required, &protected, roots, false)
 }
 
 #[cfg(test)]

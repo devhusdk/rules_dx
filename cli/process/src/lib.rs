@@ -328,13 +328,14 @@ pub fn build_workflow_argv(
     required_options: &[String],
     protected: &[ProtectedFlag],
     labels: &[String],
+    allow_test_args: bool,
 ) -> Result<Vec<String>, ForwardError> {
     for arg in user_options {
         if is_startup_option(arg) {
             let flag = flag_name(arg).unwrap_or_default();
             return Err(ForwardError::StartupOption { flag });
         }
-        if is_test_binary_arg(arg) {
+        if !allow_test_args && is_test_binary_arg(arg) {
             let flag = flag_name(arg).unwrap_or_default();
             return Err(ForwardError::TestBinaryArgs { flag });
         }

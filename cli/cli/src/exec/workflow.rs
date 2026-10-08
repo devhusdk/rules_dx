@@ -263,4 +263,41 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_signalled"), "{err}");
     }
+
+    #[test]
+    fn test_forwards_test_binary_args_to_bazel_argv() {
+        let harness = Harness::new("test-args");
+        let inv = invocation(&[
+            "test",
+            "--",
+            "--test_arg=--exact",
+            "--test_arg",
+            "some case",
+            "--test_arg=--ignored",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        let test_argv = &run.argv[0];
+        assert!(
+            test_argv.contains(&"--test_arg=--exact".to_owned()),
+            "{test_argv:?}"
+        );
+        let at = test_argv
+            .iter()
+            .position(|arg| arg == "--test_arg=--exact")
+            .expect("position");
+        assert_eq!(
+            test_argv[at..at + 3],
+            ["--test_arg=--exact", "--test_arg", "some case"],
+            "{test_argv:?}"
+        );
+    }
+
+    #[test]
+    fn build_rejects_test_binary_args_before_launch() {
+        let harness = Harness::new("build-args");
+        let (code, _, err) = harness.run(&["build", "--", "--test_arg=fast"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("test binary"), "{err}");
+    }
 }

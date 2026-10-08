@@ -77,7 +77,15 @@ pub fn plan_workflow(
     let required = workflow_options(verb, bep_path, profile);
     let protected = workflow_protected(verb, profile);
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv(verb.name(), bazel_options, &required, &protected, &labels)?;
+    let allow_test_args = matches!(verb, WorkflowVerb::Test | WorkflowVerb::Coverage);
+    let argv = build_workflow_argv(
+        verb.name(),
+        bazel_options,
+        &required,
+        &protected,
+        &labels,
+        allow_test_args,
+    )?;
     let summary = format!("Running {} for {}", verb.name(), describe_scope(&scope));
     Ok(BuildPlan { argv, summary })
 }
@@ -267,6 +275,61 @@ mod tests {
         .expect_err("conflicting config must fail");
         assert!(
             matches!(err, ForwardError::ConflictingOption { .. }),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_and_coverage_forward_test_binary_args_verbatim() {
+        for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
+            let plan = plan_workflow(
+                verb,
+                &resolved(&["//cli/cli:dx_cli_test"]),
+                &strings(&[
+                    "--test_arg=--exact",
+                    "--test_arg",
+                    "some case with spaces",
+                    "--test_arg=--ignored",
+                ]),
+                None,
+                Some(Profile::Dev),
+            )
+            .expect("test args pass");
+            let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+            let at = argv
+                .iter()
+                .position(|arg| *arg == "--test_arg=--exact")
+                .expect("position");
+            assert_eq!(
+                argv[at..at + 4],
+                [
+                    "--test_arg=--exact",
+                    "--test_arg",
+                    "some case with spaces",
+                    "--test_arg=--ignored",
+                ],
+                "{verb:?}: {plan:?}"
+            );
+            assert_eq!(
+                argv.last(),
+                Some(&"//cli/cli:dx_cli_test"),
+                "{verb:?}: labels stay last: {plan:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn build_still_rejects_test_binary_args() {
+        let err = plan_workflow(
+            WorkflowVerb::Build,
+            &resolved(&[]),
+            &strings(&["--test_arg=fast"]),
+            None,
+            Some(Profile::Dev),
+        )
+        .expect_err("build must reject test args");
+        assert!(
+            matches!(err, ForwardError::TestBinaryArgs { .. }),
             "got {err:?}"
         );
     }

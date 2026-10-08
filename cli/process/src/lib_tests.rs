@@ -333,6 +333,7 @@ fn workflow_argv_orders_startup_command_required_user_labels() {
         &["--keep_going".to_owned(), "--config=dx".to_owned()],
         &protected,
         &["//...".to_owned()],
+        false,
     )
     .expect("argv");
     assert_eq!(
@@ -359,6 +360,7 @@ fn workflow_argv_rejects_startup_options() {
         &[],
         &[],
         &["//...".to_owned()],
+        false,
     )
     .expect_err("startup");
     assert_eq!(
@@ -372,22 +374,61 @@ fn workflow_argv_rejects_startup_options() {
 }
 
 #[test]
-fn workflow_argv_rejects_test_binary_args() {
-    let err = build_workflow_argv(
+fn workflow_argv_rejects_test_binary_args_when_disallowed() {
+    for command in ["build", "test", "coverage", "run"] {
+        let err = build_workflow_argv(
+            command,
+            &["--test_arg=fast".to_owned()],
+            &[],
+            &[],
+            &["//...".to_owned()],
+            false,
+        )
+        .expect_err("binary args");
+        assert_eq!(
+            err,
+            ForwardError::TestBinaryArgs {
+                flag: "test_arg".to_owned(),
+            }
+        );
+        assert!(err.to_string().contains("dx bazel"));
+    }
+}
+
+#[test]
+fn workflow_argv_forwards_test_args_verbatim_when_allowed() {
+    let argv = build_workflow_argv(
         "test",
-        &["--test_arg=fast".to_owned()],
+        &[
+            "--test_arg=--exact".to_owned(),
+            "--test_arg".to_owned(),
+            "some case with spaces".to_owned(),
+            "--test_arg=--ignored".to_owned(),
+            "--test_filter=*ünicode*".to_owned(),
+            "--jobs=4".to_owned(),
+        ],
         &[],
         &[],
-        &["//...".to_owned()],
+        &["//cli/cli:dx_cli_test".to_owned()],
+        true,
     )
-    .expect_err("binary args");
+    .expect("argv");
     assert_eq!(
-        err,
-        ForwardError::TestBinaryArgs {
-            flag: "test_arg".to_owned(),
-        }
+        argv,
+        vec![
+            "bazel",
+            "--nohome_rc",
+            "--nosystem_rc",
+            "test",
+            "--test_arg=--exact",
+            "--test_arg",
+            "some case with spaces",
+            "--test_arg=--ignored",
+            "--test_filter=*ünicode*",
+            "--jobs=4",
+            "//cli/cli:dx_cli_test",
+        ]
     );
-    assert!(err.to_string().contains("dx bazel"));
 }
 
 #[test]
@@ -413,6 +454,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             &[],
             &[],
             &["//...".to_owned()],
+            false,
         )
         .expect_err("startup must fail");
         assert!(
@@ -426,19 +468,89 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             is_test_binary_arg(binary),
             "{binary} must count as test-binary"
         );
-        let err = build_workflow_argv(
-            "test",
-            &[binary.to_owned()],
-            &[],
-            &[],
-            &["//...".to_owned()],
-        )
-        .expect_err("test-binary must fail");
-        assert!(
-            matches!(err, ForwardError::TestBinaryArgs { .. }),
-            "{binary} produced {err:?}"
-        );
+        for command in ["build", "test", "coverage", "run"] {
+            let err = build_workflow_argv(
+                command,
+                &[binary.to_owned()],
+                &[],
+                &[],
+                &["//...".to_owned()],
+                false,
+            )
+            .expect_err("test-binary must fail when disallowed");
+            assert!(
+                matches!(err, ForwardError::TestBinaryArgs { .. }),
+                "{binary} produced {err:?}"
+            );
+        }
+        for command in ["test", "coverage"] {
+            let argv = build_workflow_argv(
+                command,
+                &[binary.to_owned()],
+                &[],
+                &[],
+                &["//...".to_owned()],
+                true,
+            )
+            .expect("test-binary must pass when allowed");
+            assert!(argv.contains(&binary.to_owned()), "{binary}: {argv:?}");
+        }
     }
+}
+
+#[test]
+fn launcher_preserves_spaced_and_unicode_test_args() {
+    if std::env::var("DX_ASSERT_TEST_ARGS").is_err() {
+        return;
+    }
+    let args: Vec<String> = std::env::args().collect();
+    assert!(
+        args.iter().any(|arg| arg == "spaced value"),
+        "spaced test arg missing: {args:?}"
+    );
+    assert!(
+        args.iter().any(|arg| arg == "ünicode-value"),
+        "unicode test arg missing: {args:?}"
+    );
+}
+
+#[test]
+fn allowed_test_args_keep_startup_and_protected_rejections() {
+    let err = build_workflow_argv(
+        "test",
+        &["--test_arg=fast".to_owned(), "--output_base=/tmp/x".to_owned()],
+        &[],
+        &[],
+        &["//...".to_owned()],
+        true,
+    )
+    .expect_err("startup still fails");
+    assert!(
+        matches!(err, ForwardError::StartupOption { .. }),
+        "got {err:?}"
+    );
+    let protected = vec![ProtectedFlag {
+        name: "build_event_json_file".to_owned(),
+        required: None,
+        allowed: Vec::new(),
+    }];
+    let err = build_workflow_argv(
+        "test",
+        &[
+            "--test_arg=fast".to_owned(),
+            "--build_event_json_file=/tmp/bep.json".to_owned(),
+        ],
+        &["--build_event_json_file=/tmp/required.json".to_owned()],
+        &protected,
+        &["//...".to_owned()],
+        true,
+    )
+    .expect_err("protected capture still conflicts");
+    assert!(
+        matches!(err, ForwardError::ConflictingOption { .. }),
+        "got {err:?}"
+    );
+    assert!(!err.to_string().contains("/tmp/bep.json"));
 }
 
 #[test]
@@ -461,6 +573,7 @@ fn quality_workflows_reject_nokeep_going() {
         &["--keep_going".to_owned()],
         &protected,
         &["//...".to_owned()],
+        false,
     )
     .expect_err("nokeep_going");
     assert_eq!(
@@ -484,6 +597,7 @@ fn workflow_argv_rejects_protected_conflicts() {
         &["--build_event_json_file=/tmp/required.json".to_owned()],
         &protected,
         &["//...".to_owned()],
+        false,
     )
     .expect_err("conflict");
     assert!(matches!(err, ForwardError::ConflictingOption { .. }));

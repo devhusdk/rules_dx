@@ -54,6 +54,18 @@ pub enum AdoptError {
     MigrateNotUpgrade { from: String, to: String },
     #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp)")]
     NewUnknownLanguage { language: String },
+    #[error("invalid destination for dx new: {name:?}: {reason}")]
+    NewInvalidDestination { name: String, reason: String },
+    #[error("invalid package identity for dx new {language}: {name:?}: {reason}")]
+    NewInvalidIdentity {
+        language: String,
+        name: String,
+        reason: String,
+    },
+    #[error("invalid module name for dx init: {module:?}: {reason}")]
+    InitInvalidModule { module: String, reason: String },
+    #[error("scaffold path escapes the workspace root: {path}")]
+    ScaffoldEscapesRoot { path: String },
     #[error("invalid hooks config: {detail}")]
     InvalidHooks { detail: String },
     #[error("invalid hooks timings: {detail}")]
@@ -100,6 +112,42 @@ mod tests {
             }
             .to_string(),
             "watch failed: boom"
+        );
+    }
+
+    #[test]
+    fn scaffold_errors_render_stably() {
+        assert_eq!(
+            AdoptError::NewInvalidDestination {
+                name: "../evil".to_owned(),
+                reason: "destinations stay inside the workspace (no absolute paths)".to_owned(),
+            }
+            .to_string(),
+            "invalid destination for dx new: \"../evil\": destinations stay inside the workspace (no absolute paths)"
+        );
+        assert_eq!(
+            AdoptError::NewInvalidIdentity {
+                language: "rust".to_owned(),
+                name: String::new(),
+                reason: "cargo crate names use [A-Za-z0-9_-] only".to_owned(),
+            }
+            .to_string(),
+            "invalid package identity for dx new rust: \"\": cargo crate names use [A-Za-z0-9_-] only"
+        );
+        assert_eq!(
+            AdoptError::InitInvalidModule {
+                module: "Bad".to_owned(),
+                reason: "module names start with [a-z0-9] and use [a-z0-9._-] only".to_owned(),
+            }
+            .to_string(),
+            "invalid module name for dx init: \"Bad\": module names start with [a-z0-9] and use [a-z0-9._-] only"
+        );
+        assert_eq!(
+            AdoptError::ScaffoldEscapesRoot {
+                path: "../evil".to_owned(),
+            }
+            .to_string(),
+            "scaffold path escapes the workspace root: ../evil"
         );
     }
 

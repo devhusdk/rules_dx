@@ -45,8 +45,9 @@ pub use migrate::{
     plan_migrate, MigratePlan,
 };
 pub use new::{
-    apply_new, default_new_name, new_is_known_language, new_language_name_list,
-    normalize_new_language, plan_new_files, NEW_LANGUAGE_ALIASES, SUPPORTED_NEW_LANGUAGES,
+    apply_new, default_new_name, derive_new_identity, new_is_known_language,
+    new_language_name_list, normalize_new_language, plan_new_files, validate_new_destination,
+    NEW_LANGUAGE_ALIASES, SUPPORTED_NEW_LANGUAGES,
 };
 pub use policy::{devcontainer_is_admissible, diagnostics_command_allowed};
 pub use preset_fragment::{
@@ -54,8 +55,9 @@ pub use preset_fragment::{
     PresetError, PRESET_BAZEL_VERSION,
 };
 pub use scaffold::{
-    apply_init, editor_disposition, editor_language_supported, plan_init_files, ScaffoldFile,
-    DEVCONTAINER_JSON, ENVRC_CONTENT,
+    apply_init, editor_disposition, editor_language_supported, plan_init_files,
+    scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
+    ENVRC_CONTENT,
 };
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{

@@ -79,13 +79,30 @@ pub fn editor_language_supported(language: &str) -> bool {
     )
 }
 
-pub fn plan_init_files(module_name: &str) -> Vec<ScaffoldFile> {
+pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
     let module = if module_name.is_empty() {
         "my_project"
     } else {
         module_name
     };
-    vec![
+    let mut chars = module.chars();
+    let first_ok = chars
+        .next()
+        .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
+    let rest_ok = chars
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-' || c == '_');
+    if !first_ok || !rest_ok {
+        return Err(AdoptError::InitInvalidModule {
+            module: module_name.to_owned(),
+            reason: "module names start with [a-z0-9] and use [a-z0-9._-] only".to_owned(),
+        });
+    }
+    Ok(module.to_owned())
+}
+
+pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    let module = validate_init_module(module_name)?;
+    Ok(vec![
         ScaffoldFile {
             path: ".dx/version".to_owned(),
             content: format!("{DX_VERSION}\n"),
@@ -130,14 +147,46 @@ pub fn plan_init_files(module_name: &str) -> Vec<ScaffoldFile> {
                 "# Add to MODULE.bazel:\nbazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n# module: {module}\n"
             ),
         },
-    ]
+    ])
+}
+
+pub fn scaffold_dest_within_root(
+    root: &Path,
+    relative: &str,
+) -> Result<std::path::PathBuf, AdoptError> {
+    use std::path::Component;
+    let mut dest = root.to_path_buf();
+    let mut pushed = false;
+    for component in Path::new(relative).components() {
+        match component {
+            Component::Normal(part) => {
+                dest.push(part);
+                pushed = true;
+            }
+            _ => {
+                return Err(AdoptError::ScaffoldEscapesRoot {
+                    path: relative.to_owned(),
+                });
+            }
+        }
+    }
+    if !pushed {
+        return Err(AdoptError::ScaffoldEscapesRoot {
+            path: relative.to_owned(),
+        });
+    }
+    Ok(dest)
 }
 
 pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
+    let files = plan_init_files(module_name)?;
+    let mut staged = Vec::with_capacity(files.len());
+    for file in &files {
+        staged.push(scaffold_dest_within_root(root, &file.path)?);
+    }
     let mut written = Vec::new();
     let mut refused = Vec::new();
-    for file in plan_init_files(module_name) {
-        let dest = root.join(&file.path);
+    for (file, dest) in files.iter().zip(staged.iter()) {
         if dest.exists() {
             refused.push(format!("refused:{}", file.path));
             continue;
@@ -148,13 +197,13 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
                 detail: e.to_string(),
             })?;
         }
-        dx_atomic_fs::write_atomic(&dest, file.content.as_ref()).map_err(|e| {
+        dx_atomic_fs::write_atomic(dest, file.content.as_ref()).map_err(|e| {
             AdoptError::WriteFile {
                 path: dest.display().to_string(),
                 detail: e.to_string(),
             }
         })?;
-        written.push(file.path);
+        written.push(file.path.clone());
     }
     written.push("---".to_owned());
     written.extend(refused);
@@ -176,7 +225,7 @@ mod tests {
 
     #[test]
     fn init_plans_nine_absent_only_files() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("init plans");
         assert_eq!(files.len(), 9);
         assert!(files.iter().any(|f| f.path == ".dx/version"));
         assert!(files
@@ -188,7 +237,7 @@ mod tests {
 
     #[test]
     fn envrc_scaffold_is_path_only_with_watch_and_regeneration_guard() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("init plans");
         let envrc = files
             .iter()
             .find(|f| f.path == ".envrc")
@@ -203,7 +252,7 @@ mod tests {
 
     #[test]
     fn devcontainer_scaffold_runs_bootstrap_not_full_build() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("init plans");
         let scaffold = files
             .iter()
             .find(|f| f.path == ".devcontainer/devcontainer.json")
@@ -255,7 +304,7 @@ mod tests {
 
     #[test]
     fn init_scaffold_covers_admitted_editors() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("init plans");
         let settings = files
             .iter()
             .find(|f| f.path == ".vscode/settings.json")
@@ -351,7 +400,7 @@ mod tests {
 
     #[test]
     fn hooks_scaffold_budget_tracks_hook_budget_const() {
-        let files = plan_init_files("demo");
+        let files = plan_init_files("demo").expect("init plans");
         let hooks = files
             .iter()
             .find(|f| f.path == "dx.hooks.toml")
@@ -363,5 +412,84 @@ mod tests {
             "{}",
             hooks.content
         );
+    }
+
+    #[test]
+    fn init_module_names_are_lowercase_module_shaped() {
+        assert_eq!(
+            super::validate_init_module("").expect("default"),
+            "my_project"
+        );
+        for valid in ["demo", "my_project", "a.b-c_d", "x"] {
+            assert_eq!(
+                super::validate_init_module(valid).expect("valid"),
+                valid,
+                "{valid}"
+            );
+        }
+        for hostile in [
+            "MyApp",
+            "UPPER",
+            "-lead",
+            "has space",
+            "with/slash",
+            "with\nnewline",
+            "with\"quote",
+            "semi;colon",
+        ] {
+            assert!(
+                super::validate_init_module(hostile).is_err(),
+                "{hostile:?} must not be a module"
+            );
+            assert!(
+                plan_init_files(hostile).is_err(),
+                "{hostile:?} must not plan"
+            );
+        }
+        assert_eq!(
+            super::validate_init_module("9lives").expect("leading digit"),
+            "9lives"
+        );
+        assert_eq!(
+            super::validate_init_module("Bad Name").unwrap_err().to_string(),
+            "invalid module name for dx init: \"Bad Name\": module names start with [a-z0-9] and use [a-z0-9._-] only"
+        );
+    }
+
+    #[test]
+    fn init_module_names_cannot_break_the_ci_template() {
+        let files = plan_init_files("demo").expect("init plans");
+        let ci = files
+            .iter()
+            .find(|f| f.path == ".github/workflows/ci.yml")
+            .expect("ci scaffold");
+        assert!(ci.content.contains("uses: demo/.github/workflows/"));
+        let snippet = files
+            .iter()
+            .find(|f| f.path == "MODULE.bazel.snippet")
+            .expect("snippet");
+        assert!(snippet.content.contains("# module: demo\n"));
+    }
+
+    #[test]
+    fn apply_init_writes_nothing_for_invalid_modules() {
+        for hostile in ["Bad Name", "../evil", "with\nnewline"] {
+            let scratch = dx_test_scratch::scratch("dx-adopt-init-reject-");
+            let root = scratch.path().to_path_buf();
+            std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
+            assert!(apply_init(&root, hostile).is_err(), "{hostile:?} must fail");
+            let mut entries: Vec<String> = Vec::new();
+            for entry in std::fs::read_dir(&root).expect("read") {
+                entries.push(
+                    entry
+                        .expect("entry")
+                        .file_name()
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+            }
+            assert_eq!(entries, vec!["sentinel".to_owned()], "{hostile:?}");
+            scratch.close().expect("cleanup");
+        }
     }
 }

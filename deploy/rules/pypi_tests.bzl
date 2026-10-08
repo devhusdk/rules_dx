@@ -69,9 +69,10 @@ def pypi_unit_tests(name):
 EXPECTED_PYPI_DEFAULT_OBSERVATIONS = """subject //deploy/rules:pypi_demo
 file pypi_demo
 field app=
+field artifacts=
 field profile=release
 aspect_field aspect_seen=True
-aspect_field field_count=2
+aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//deploy/rules:pypi_demo
 aspect_field transitive_count=0"""
@@ -79,9 +80,10 @@ aspect_field transitive_count=0"""
 EXPECTED_PYPI_DEBUG_OBSERVATIONS = """subject //deploy/rules:pypi_demo_debug
 file pypi_demo_debug
 field app=
+field artifacts=
 field profile=debug
 aspect_field aspect_seen=True
-aspect_field field_count=2
+aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//deploy/rules:pypi_demo_debug
 aspect_field transitive_count=0"""

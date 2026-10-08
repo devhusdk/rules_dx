@@ -6,6 +6,7 @@ load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":aspect_tests.bzl", "aspect_fixture_tests")
+load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes")
 load(":real_aspect_subject.bzl", "real_aspect_subject")
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
@@ -126,6 +127,11 @@ biome_config(
 eslint_config(
     name = "eslint_cfg",
     src = "eslint_cfg/eslint.config.js",
+)
+
+foreign_hint(
+    name = "foreign_integration_hint",
+    tag = "unrelated",
 )
 
 real_source_target(

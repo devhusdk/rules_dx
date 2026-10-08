@@ -407,12 +407,9 @@ mod tests {
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let proc_root = root.join("proc");
         fs::create_dir_all(&proc_root).expect("empty proc root");
-        let scanned = collect_inventory_with_scan_from(
-            &workspace,
-            &proc_root,
-            UnobservedPolicy::Preserve,
-        )
-        .expect("scan");
+        let scanned =
+            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
+                .expect("scan");
         assert!(!scanned.observation_unknown);
         let plain = collect_inventory(&workspace, &[], &[]).expect("plain collect");
         assert_eq!(scanned.plan(), plain.plan());
@@ -431,12 +428,9 @@ mod tests {
         let (workspace, stale_hex, _) = two_record_workspace(&root);
         let blocker = root.join("proc");
         fs::write(&blocker, "not a directory").expect("blocker file");
-        let scanned = collect_inventory_with_scan_from(
-            &workspace,
-            &blocker,
-            UnobservedPolicy::Preserve,
-        )
-        .expect("scan");
+        let scanned =
+            collect_inventory_with_scan_from(&workspace, &blocker, UnobservedPolicy::Preserve)
+                .expect("scan");
         assert!(scanned.observation_unknown);
         let plan = scanned.plan();
         assert!(plan.observation_unknown);
@@ -444,7 +438,8 @@ mod tests {
         assert!(plan.prune_generations.is_empty());
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale_hex]);
         assert_eq!(plan.preserved_unobserved_generations.len(), 2);
-        let listing = super::super::bytes::render_dry_run(&plan, &super::super::bytes::PruneBytes::default());
+        let listing =
+            super::super::bytes::render_dry_run(&plan, &super::super::bytes::PruneBytes::default());
         assert!(listing.contains("observation unavailable"));
         assert!(!listing.contains("nothing to prune"));
         let _ = fs::remove_dir_all(&root);
@@ -497,12 +492,9 @@ mod tests {
             std::time::Duration::from_secs(10),
         )
         .expect("lease the stale environment");
-        let scanned = collect_inventory_with_scan_from(
-            &workspace,
-            &proc_root,
-            UnobservedPolicy::Preserve,
-        )
-        .expect("scan");
+        let scanned =
+            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
+                .expect("scan");
         assert!(scanned.active_generation_hexes.contains(&stale_env));
         let plan = scanned.plan();
         assert!(
@@ -513,12 +505,9 @@ mod tests {
             "a leased generation is never planned for pruning"
         );
         drop(lease);
-        let rescanned = collect_inventory_with_scan_from(
-            &workspace,
-            &proc_root,
-            UnobservedPolicy::Preserve,
-        )
-        .expect("rescan");
+        let rescanned =
+            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
+                .expect("rescan");
         assert!(!rescanned.active_generation_hexes.contains(&stale_env));
         assert!(
             rescanned

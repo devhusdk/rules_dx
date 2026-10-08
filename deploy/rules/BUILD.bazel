@@ -6,7 +6,7 @@ load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tes
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
-load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests")
+load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_artifact_analysis_tests", "deploy_config_probe", "deploy_debug_analysis_tests", "deploy_empty_artifact_failure_tests", "deploy_split_config_analysis_tests", "deploy_unit_tests")
 load(":github.bzl", "github_deploy")
 load(":github_tests.bzl", "github_analysis_tests", "github_debug_analysis_tests", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
@@ -215,11 +215,92 @@ dx_deployment(
     deploy = ":deploy_app",
 )
 
+constraint_setting(
+    name = "deploy_side",
+    default_constraint_value = ":launcher_side",
+)
+
+constraint_value(
+    name = "artifact_side",
+    constraint_setting = ":deploy_side",
+)
+
+constraint_value(
+    name = "launcher_side",
+    constraint_setting = ":deploy_side",
+)
+
+platform(
+    name = "artifact_platform",
+    constraint_values = [":artifact_side"],
+)
+
+genrule(
+    name = "web_index",
+    outs = ["web_site/index.html"],
+    cmd = "printf '<!doctype html><html><body>dx web</body></html>\\n' > $@",
+)
+
+genrule(
+    name = "web_style",
+    outs = ["web_site/site.css"],
+    cmd = "printf 'body { color: black; }\\n' > $@",
+)
+
+filegroup(
+    name = "web_dir",
+    srcs = [
+        ":web_index",
+        ":web_style",
+    ],
+)
+
+dx_deployment(
+    name = "deploy_with_artifact",
+    artifacts = [":web_dir"],
+    deploy = ":deploy_program",
+)
+
+filegroup(
+    name = "empty_artifact",
+    srcs = [],
+)
+
+dx_deployment(
+    name = "deploy_empty_artifact",
+    artifacts = [":empty_artifact"],
+    deploy = ":deploy_program",
+    tags = ["manual"],
+)
+
+deploy_config_probe(
+    name = "split_launcher",
+    tags = ["manual"],
+)
+
+deploy_config_probe(
+    name = "split_artifact",
+    tags = ["manual"],
+)
+
+dx_deployment(
+    name = "deploy_split_config",
+    artifacts = [":split_artifact"],
+    deploy = ":split_launcher",
+    tags = ["manual"],
+)
+
 deploy_unit_tests(name = "deploy_unit")
 
 deploy_analysis_tests(name = "deploy_analysis")
 
 deploy_debug_analysis_tests(name = "deploy_debug_analysis")
+
+deploy_artifact_analysis_tests(name = "deploy_artifact_analysis")
+
+deploy_split_config_analysis_tests(name = "deploy_split_config_analysis")
+
+deploy_empty_artifact_failure_tests(name = "deploy_empty_artifact_failure")
 
 deploy_app_analysis_tests(name = "deploy_app_analysis")
 
@@ -289,7 +370,9 @@ test_suite(
         ":crates_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
+        ":deploy_artifact_analysis",
         ":deploy_debug_analysis",
+        ":deploy_empty_artifact_failure",
         ":deploy_unit",
         ":dx_deploy_tools_test",
         ":github_analysis",

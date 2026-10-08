@@ -36,6 +36,9 @@ Options:
       --output <OUTPUT>
           Set output format
 
+      --bazel-startup-option <TOKEN>
+          Set one Bazel startup option, one token each
+
   -h, --help
           Print help
 

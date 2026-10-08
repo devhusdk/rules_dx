@@ -111,6 +111,32 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         "{} reaches a family whose commands reject --output=diff",
         invocation.command.name()
     );
+    let startup = crate::resolve::StartupQueryRunner::new(
+        env.query_runner,
+        &invocation.startup_options,
+    );
+    let Env {
+        workspace,
+        runner,
+        query_runner: _,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    } = env;
+    let env = Env {
+        workspace,
+        runner,
+        query_runner: &startup,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    };
     if invocation.here {
         let Env { err, .. } = env;
         return common::pre_exec(err, "option \"--here/--cwd\" needs cwd resolution");

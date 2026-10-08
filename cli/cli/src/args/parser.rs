@@ -239,6 +239,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        startup_options,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
     let bazel_options = tokenized.bazel_options;
@@ -327,6 +328,17 @@ pub fn parse_with<S: AsRef<OsStr>>(
         value: color_name.clone(),
     })?;
     let reports = report;
+    let mut validated_startup = Vec::with_capacity(startup_options.len());
+    for token in &startup_options {
+        match dx_process::validate_startup_option(token) {
+            Ok(kept) => validated_startup.push(kept),
+            Err(error) => {
+                return Err(ArgsError::Usage {
+                    text: error.to_string(),
+                });
+            }
+        }
+    }
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
     }
@@ -528,6 +540,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        startup_options: validated_startup,
     })
 }
 

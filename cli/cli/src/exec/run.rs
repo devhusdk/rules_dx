@@ -653,6 +653,7 @@ mod tests {
             host: None,
             open: false,
             offline: false,
+            startup_options: Vec::new(),
         }
     }
 

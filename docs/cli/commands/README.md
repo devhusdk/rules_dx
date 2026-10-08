@@ -66,6 +66,11 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--offline`, `--frozen`: run cache-only, no network fetches. Taken by
   `security`, `license`, `update`, and `bump`. Every other command rejects it.
 - `--here`: limit to the current directory tree.
+- `--bazel-startup-option <token>`: one Bazel startup option, exactly one token.
+  Repeatable. Only `--output_base=<path>` and `--output_user_root=<path>` are
+  taken; every other startup option is rejected. dx inserts each token before
+  the Bazel verb for every `query`, `cquery`, `info`, `build`, `test`, and `run`
+  launch, so parallel worktrees can keep isolated output bases.
 - `-h`, `--help`: print help for a command.
 - `-V`, `--version`: print the version.
 

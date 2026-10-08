@@ -1,5 +1,6 @@
 use super::selector::SetRequest;
 use super::sets::SetId;
+use dx_adopt::dependency_sets::{Ecosystem, ResolvedSet, Selection};
 use std::path::Path;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -18,8 +19,12 @@ pub enum BackendError {
         set: &'static str,
         reason: &'static str,
     },
+    #[error("unsupported selective update for {set}: {reason}")]
+    UnsupportedOwned { set: String, reason: &'static str },
     #[error("offline_required: cannot update {set} without network (re-run without --offline once connected)")]
     OfflineRequired { set: &'static str },
+    #[error("offline_required: cannot update {set} without network (re-run without --offline once connected)")]
+    OfflineRequiredOwned { set: String },
 }
 
 pub fn plan(
@@ -248,6 +253,60 @@ pub fn check(
         Ok(_) => Ok(CheckPlan::Unavailable),
         Err(error) => Err(error),
     }
+}
+
+pub fn plan_configured(
+    set: &ResolvedSet,
+    request: &Selection,
+    offline: bool,
+) -> Result<BackendPlan, BackendError> {
+    match (set.ecosystem, request) {
+        (Ecosystem::Uv, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequiredOwned {
+                    set: set.name.clone(),
+                });
+            }
+            Ok(BackendPlan::Run {
+                argv: configured_uv_argv(&set.dir, false, false),
+                env: vec![],
+            })
+        }
+        (Ecosystem::Uv, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
+            set: set.name.clone(),
+            reason: "uv repin refreshes the whole uv lock; select the set without a package",
+        }),
+    }
+}
+
+pub fn check_configured(
+    set: &ResolvedSet,
+    request: &Selection,
+    offline: bool,
+) -> Result<CheckPlan, BackendError> {
+    match (set.ecosystem, request) {
+        (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
+            argv: configured_uv_argv(&set.dir, true, offline),
+            env: vec![],
+        }),
+        (Ecosystem::Uv, Selection::Packages(_)) => Err(BackendError::UnsupportedOwned {
+            set: set.name.clone(),
+            reason: "uv repin refreshes the whole uv lock; select the set without a package",
+        }),
+    }
+}
+
+fn configured_uv_argv(dir: &str, check: bool, offline: bool) -> Vec<String> {
+    let mut argv = strings(&["uv", "lock"]);
+    if check {
+        argv.push("--check".to_owned());
+    }
+    argv.push("--directory".to_owned());
+    argv.push(dir.to_owned());
+    if offline {
+        argv.push("--offline".to_owned());
+    }
+    argv
 }
 
 fn strings(words: &[&str]) -> Vec<String> {
@@ -703,6 +762,86 @@ mod tests {
                 env: vec![],
             }
         );
+    }
+
+    fn configured_set(dir: &str) -> ResolvedSet {
+        ResolvedSet {
+            name: "frontend".to_owned(),
+            ecosystem: Ecosystem::Uv,
+            dir: dir.to_owned(),
+            manifests: vec![format!("{dir}/pyproject.toml")],
+            locks: vec![format!("{dir}/uv.lock")],
+            writable: true,
+        }
+    }
+
+    #[test]
+    fn configured_uv_plans_use_the_set_directory() {
+        let set = configured_set("apps/frontend");
+        assert_eq!(
+            plan_configured(&set, &Selection::Full, false).expect("configured update"),
+            BackendPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--directory".to_owned(),
+                    "apps/frontend".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        assert_eq!(
+            check_configured(&set, &Selection::Full, false).expect("configured check"),
+            CheckPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--check".to_owned(),
+                    "--directory".to_owned(),
+                    "apps/frontend".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+        assert_eq!(
+            check_configured(&set, &Selection::Full, true).expect("configured check offline"),
+            CheckPlan::Run {
+                argv: vec![
+                    "uv".to_owned(),
+                    "lock".to_owned(),
+                    "--check".to_owned(),
+                    "--directory".to_owned(),
+                    "apps/frontend".to_owned(),
+                    "--offline".to_owned(),
+                ],
+                env: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn configured_uv_selective_and_offline_update_fail_closed() {
+        let set = configured_set("apps/frontend");
+        let error = plan_configured(&set, &Selection::Packages(vec!["anyio".to_owned()]), false)
+            .expect_err("configured selective stays unsupported");
+        assert!(
+            matches!(error, BackendError::UnsupportedOwned { .. }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("frontend"));
+        let error = check_configured(&set, &Selection::Packages(vec!["anyio".to_owned()]), false)
+            .expect_err("configured selective check stays unsupported");
+        assert!(
+            matches!(error, BackendError::UnsupportedOwned { .. }),
+            "{error:?}"
+        );
+        let error = plan_configured(&set, &Selection::Full, true)
+            .expect_err("offline update needs network");
+        assert!(
+            matches!(error, BackendError::OfflineRequiredOwned { .. }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("offline_required"));
     }
 
     #[test]

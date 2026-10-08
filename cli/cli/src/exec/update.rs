@@ -53,6 +53,12 @@ impl RunMode {
 }
 
 fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) -> i32 {
+    if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
+        Ok(registry) => registry,
+        Err(error) => return pre_exec(env.err, &error.to_string()),
+    } {
+        return update_consumer::execute_configured(invocation, env, &registry, verbose);
+    }
     let Env {
         workspace,
         runner,
@@ -80,19 +86,26 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
     }
     let (attempted, details) =
         run_update_check_backends(&resolved, runner, workspace, invocation.offline);
-    finish_selected_update(
+    let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
+    finish_update(FinishUpdate {
         invocation,
         out,
         err,
-        &resolved,
+        selected,
         attempted,
         details,
         verbose,
-        RunMode::Check,
-    )
+        mode: RunMode::Check,
+    })
 }
 
 fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) -> i32 {
+    if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
+        Ok(registry) => registry,
+        Err(error) => return pre_exec(env.err, &error.to_string()),
+    } {
+        return update_consumer::execute_configured(invocation, env, &registry, verbose);
+    }
     let Env {
         workspace,
         runner,
@@ -120,29 +133,41 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
     }
     let (attempted, details) =
         run_update_backends(&resolved, runner, workspace, invocation.offline);
-    finish_selected_update(
+    let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
+    finish_update(FinishUpdate {
         invocation,
         out,
         err,
-        &resolved,
+        selected,
         attempted,
         details,
         verbose,
-        RunMode::Update,
-    )
+        mode: RunMode::Update,
+    })
 }
 
-fn finish_selected_update(
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
+struct FinishUpdate<'a> {
+    invocation: &'a Invocation,
+    out: &'a mut dyn std::io::Write,
+    err: &'a mut dyn std::io::Write,
+    selected: Vec<String>,
     attempted: Vec<dx_update::outcome::SetOutcome>,
-    details: BTreeMap<dx_update::sets::SetId, String>,
+    details: BTreeMap<String, String>,
     verbose: bool,
     mode: RunMode,
-) -> i32 {
-    let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
+}
+
+fn finish_update(finish: FinishUpdate<'_>) -> i32 {
+    let FinishUpdate {
+        invocation,
+        out,
+        err,
+        selected,
+        attempted,
+        details,
+        verbose,
+        mode,
+    } = finish;
     let depends: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let report = match dx_update::outcome::aggregate(&selected, &attempted, &depends) {
         Ok(report) => report,
@@ -268,7 +293,7 @@ fn describe_check_plan(
 
 fn record(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<dx_update::sets::SetId, String>,
+    details: &mut BTreeMap<String, String>,
     set: dx_update::sets::SetId,
     status: dx_update::outcome::SetStatus,
     message: String,
@@ -277,7 +302,21 @@ fn record(
         set: set.name().to_owned(),
         status,
     });
-    details.insert(set, message);
+    details.insert(set.name().to_owned(), message);
+}
+
+pub(super) fn record_named(
+    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
+    details: &mut BTreeMap<String, String>,
+    name: &str,
+    status: dx_update::outcome::SetStatus,
+    message: String,
+) {
+    attempted.push(dx_update::outcome::SetOutcome {
+        set: name.to_owned(),
+        status,
+    });
+    details.insert(name.to_owned(), message);
 }
 
 fn unavailable_message(set: dx_update::sets::SetId) -> String {
@@ -295,23 +334,25 @@ fn run_update_backends(
     offline: bool,
 ) -> (
     Vec<dx_update::outcome::SetOutcome>,
-    BTreeMap<dx_update::sets::SetId, String>,
+    BTreeMap<String, String>,
 ) {
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<dx_update::sets::SetId, String> = BTreeMap::new();
+    let mut details: BTreeMap<String, String> = BTreeMap::new();
     for (set, request) in resolved {
         match dx_update::backend::plan(workspace, *set, request, offline) {
             Err(error) => {
                 let message = format!("cannot update {}: {error}", set.name());
                 match error {
-                    dx_update::backend::BackendError::Unsupported { .. } => record(
+                    dx_update::backend::BackendError::Unsupported { .. }
+                    | dx_update::backend::BackendError::UnsupportedOwned { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,
                         dx_update::outcome::SetStatus::Unsupported,
                         message,
                     ),
-                    dx_update::backend::BackendError::OfflineRequired { .. } => record(
+                    dx_update::backend::BackendError::OfflineRequired { .. }
+                    | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,
@@ -355,23 +396,25 @@ fn run_update_check_backends(
     offline: bool,
 ) -> (
     Vec<dx_update::outcome::SetOutcome>,
-    BTreeMap<dx_update::sets::SetId, String>,
+    BTreeMap<String, String>,
 ) {
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<dx_update::sets::SetId, String> = BTreeMap::new();
+    let mut details: BTreeMap<String, String> = BTreeMap::new();
     for (set, request) in resolved {
         match dx_update::backend::check(workspace, *set, request, offline) {
             Err(error) => {
                 let message = format!("cannot check {}: {error}", set.name());
                 match error {
-                    dx_update::backend::BackendError::Unsupported { .. } => record(
+                    dx_update::backend::BackendError::Unsupported { .. }
+                    | dx_update::backend::BackendError::UnsupportedOwned { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,
                         dx_update::outcome::SetStatus::Unsupported,
                         message,
                     ),
-                    dx_update::backend::BackendError::OfflineRequired { .. } => record(
+                    dx_update::backend::BackendError::OfflineRequired { .. }
+                    | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,
@@ -419,7 +462,7 @@ fn run_update_check_backends(
 
 struct BackendRun<'a> {
     attempted: &'a mut Vec<dx_update::outcome::SetOutcome>,
-    details: &'a mut BTreeMap<dx_update::sets::SetId, String>,
+    details: &'a mut BTreeMap<String, String>,
     set: dx_update::sets::SetId,
     request: &'a dx_update::selector::SetRequest,
     runner: &'a dyn dx_process::Runner,
@@ -499,7 +542,7 @@ fn emit_update_json(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     report: &dx_update::outcome::UpdateReport,
-    details: &BTreeMap<dx_update::sets::SetId, String>,
+    details: &BTreeMap<String, String>,
     verbose: bool,
     exit: i32,
     _mode: RunMode,
@@ -510,7 +553,7 @@ fn emit_update_json(
         match outcome.status {
             dx_update::outcome::ReportedStatus::Updated => {
                 let message = details
-                    .get(&parse_set(set_name))
+                    .get(set_name)
                     .cloned()
                     .unwrap_or_else(|| format!("updated {set_name}"));
                 if let Ok(event) = notice_event(&NoticeEvent {
@@ -545,10 +588,7 @@ fn emit_update_json(
                         format!("{set_name} pins are manual; nothing to resolve"),
                     ),
                 };
-                let message = details
-                    .get(&parse_set(set_name))
-                    .cloned()
-                    .unwrap_or(fallback);
+                let message = details.get(set_name).cloned().unwrap_or(fallback);
                 if let Ok(event) = notice_event(&NoticeEvent {
                     level: "info".to_owned(),
                     code: code.to_owned(),
@@ -565,7 +605,7 @@ fn emit_update_json(
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
                 let message = details
-                    .get(&parse_set(set_name))
+                    .get(set_name)
                     .cloned()
                     .unwrap_or_else(|| format!("cannot update {set_name}"));
                 if let Ok(event) = error_event(
@@ -582,7 +622,7 @@ fn emit_update_json(
             }
             dx_update::outcome::ReportedStatus::Failed => {
                 let message = details
-                    .get(&parse_set(set_name))
+                    .get(set_name)
                     .cloned()
                     .unwrap_or_else(|| format!("failed to update {set_name}"));
                 let code = if message.contains(CODE_OFFLINE_REQUIRED) {
@@ -652,7 +692,7 @@ fn emit_update_text(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     report: &dx_update::outcome::UpdateReport,
-    details: &BTreeMap<dx_update::sets::SetId, String>,
+    details: &BTreeMap<String, String>,
     verbose: bool,
     exit: i32,
     mode: RunMode,
@@ -663,18 +703,18 @@ fn emit_update_text(
             | dx_update::outcome::ReportedStatus::Current
             | dx_update::outcome::ReportedStatus::Pinned => {
                 if verbose {
-                    if let Some(message) = details.get(&parse_set(outcome.set.as_str())) {
+                    if let Some(message) = details.get(outcome.set.as_str()) {
                         let _ = writeln!(out, "{message}");
                     }
                 }
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
-                if let Some(message) = details.get(&parse_set(outcome.set.as_str())) {
+                if let Some(message) = details.get(outcome.set.as_str()) {
                     let _ = writeln!(err, "dx: update_set_unsupported: {message}");
                 }
             }
             dx_update::outcome::ReportedStatus::Failed => {
-                if let Some(message) = details.get(&parse_set(outcome.set.as_str())) {
+                if let Some(message) = details.get(outcome.set.as_str()) {
                     let code = if message.contains(CODE_OFFLINE_REQUIRED) {
                         CODE_OFFLINE_REQUIRED
                     } else {
@@ -760,10 +800,6 @@ pub(crate) fn project_manifest_events(
         events.push(mutation);
     }
     Ok(events)
-}
-
-fn parse_set(name: &str) -> dx_update::sets::SetId {
-    dx_update::sets::SetId::parse(name).unwrap_or(dx_update::sets::SetId::Cargo)
 }
 
 fn display_summary(
@@ -902,6 +938,8 @@ fn success_line(set: dx_update::sets::SetId, request: &dx_update::selector::SetR
 #[cfg(test)]
 #[path = "update_check.rs"]
 mod update_check;
+#[path = "update_consumer.rs"]
+mod update_consumer;
 #[cfg(test)]
 #[path = "update_live.rs"]
 mod update_live;

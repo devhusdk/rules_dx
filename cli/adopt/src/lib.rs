@@ -9,6 +9,7 @@
 )]
 
 pub mod defaults;
+pub mod dependency_sets;
 pub mod error;
 pub mod hooks;
 pub mod inspect;

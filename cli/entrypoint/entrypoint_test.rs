@@ -47,3 +47,86 @@ fn the_public_label_reports_a_drifted_consumer_pin() {
         "a drifted pin must fail through the public label: {drift}"
     );
 }
+
+#[test]
+fn consumer_dependency_sets_plan_update_from_their_own_directories() {
+    let dryrun = read("DX_SETS_DRYRUN");
+    assert!(
+        dryrun.contains("Running update for frontend, worker"),
+        "bare update selects exactly the configured sets: {dryrun}"
+    );
+    assert!(
+        dryrun.contains("Would update frontend: uv lock --directory apps/frontend"),
+        "frontend plans from its own directory: {dryrun}"
+    );
+    assert!(
+        dryrun.contains("Would update worker: uv lock --directory services/worker"),
+        "worker plans from its own directory: {dryrun}"
+    );
+    for phantom in [
+        "cargo",
+        "pnpm",
+        "maven",
+        "nuget",
+        "examples/",
+        "third_party/",
+    ] {
+        assert!(
+            !dryrun.contains(phantom),
+            "no rules_dx builtin set may appear: {dryrun}"
+        );
+    }
+    let one = read("DX_SETS_DRYRUN_ONE");
+    assert!(
+        one.contains("Running update for worker"),
+        "selective update narrows to one set: {one}"
+    );
+    assert!(!one.contains("frontend"), "selective update leaks: {one}");
+    let check = read("DX_SETS_CHECK_DRYRUN");
+    assert!(
+        check.contains("Would check frontend: uv lock --check --directory apps/frontend"),
+        "check mode plans read-only: {check}"
+    );
+}
+
+#[test]
+fn consumer_dependency_sets_audit_and_reject_bump() {
+    let security = read("DX_SETS_SECURITY");
+    assert!(
+        security.contains("no advisory coverage for frontend, worker"),
+        "audit names both configured sets: {security}"
+    );
+    let license = read("DX_SETS_LICENSE");
+    assert!(
+        license.contains("audit_license_clean"),
+        "license passes with no packages: {license}"
+    );
+    let bump = read("DX_SETS_BUMP");
+    assert!(
+        bump.contains("bump is not supported for ecosystem uv set frontend"),
+        "bump names the unsupported operation: {bump}"
+    );
+}
+
+#[test]
+fn consumer_dependency_set_fixtures_fail_closed() {
+    let overlap = read("DX_SETS_OVERLAP");
+    assert!(
+        overlap.contains("Running update for left, right"),
+        "an overlapping scope selects every owner: {overlap}"
+    );
+    let bad = read("DX_SETS_BAD_KIND");
+    assert!(
+        bad.contains("unknown ecosystem"),
+        "an unknown backend kind fails closed: {bad}"
+    );
+    let nolock = read("DX_SETS_NOLOCK");
+    assert!(
+        nolock.contains("failed to assess frontend"),
+        "a missing lock fails the license audit: {nolock}"
+    );
+    assert!(
+        nolock.contains("apps/frontend/uv.lock"),
+        "a missing lock names its path: {nolock}"
+    );
+}

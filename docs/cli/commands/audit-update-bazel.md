@@ -254,3 +254,53 @@ Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 bazel run @rules_dx//:dx -- bump cargo:anyhow 1.0.100
 bazel run @rules_dx//:dx -- bump go:github.com/google/go-cmp 0.7.0
 ```
+
+## Consumer dependency sets (`dx.toml`)
+
+A workspace outside `rules_dx` declares its own dependency sets in a
+committed `dx.toml` at the workspace root. When the file exists, `update`,
+`security`, `license`, and `bump` resolve names and scopes from it instead
+of the built-in sets. No built-in set is selected.
+
+```toml
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "uv"
+manifests = ["apps/frontend/pyproject.toml"]
+locks = ["apps/frontend/uv.lock"]
+scopes = ["apps/frontend"]
+```
+
+Each record names one set: a stable `name`, an `ecosystem` backend kind
+(`uv`), workspace-relative `manifests`, `locks`, and owning `scopes`.
+Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+paths, `..`, and `\` fail. Two writable sets cannot own the same manifest
+or lock; mark shared read-only ownership with `writable = false`.
+`schema_version` must be `1`. Unknown keys, unknown ecosystems, duplicate
+names, empty records, and manifests spread across directories fail with
+exit `2` before anything runs.
+
+Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
+or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
+selects every configured set. A scope selects every set whose scope covers
+it; overlapping scopes select every owner and the run names them all.
+Unknown names and unowned paths fail with exit `2`.
+
+`dx update` runs `uv lock --directory <dir>` per set and `dx update --check`
+runs `uv lock --check --directory <dir>`, with `--offline` added when
+`dx` runs offline.
+Selective `set:package` updates are unsupported for `uv`: the set refreshes
+as a whole. Updating a read-only set fails; checking one works.
+`dx security` and `dx license` assess the configured locks. `uv` sets have
+no advisory coverage, so the run reports `no advisory coverage for <names>`
+and a missing lock fails the family. `dx bump` names a configured set only
+to refuse it: widening is unsupported for configured ecosystems.
+
+```sh
+bazel run @rules_dx//:dx -- update --check frontend
+bazel run @rules_dx//:dx -- update worker
+bazel run @rules_dx//:dx -- security apps/frontend
+bazel run @rules_dx//:dx -- license --output=json
+```

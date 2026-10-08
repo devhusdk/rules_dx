@@ -13,7 +13,10 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use dx_cli::args::{load_file_defaults, parse_with};
+use dx_cli::args::{
+    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request, parse_with,
+    select_startup_defaults, DX_WORKSPACE_ENV,
+};
 use dx_cli::exec::common::{emit_event, flush_out};
 use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
@@ -160,11 +163,35 @@ fn run() -> i32 {
         Ok(false) => {}
         Err(message) => return usage_error(&message),
     }
-    let defaults_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
-    let defaults_start = dx_process::workspace_start(&defaults_cwd);
-    let file_defaults = match load_file_defaults(&defaults_start) {
-        Ok(defaults) => defaults,
-        Err(detail) => return usage_error(&detail),
+    let initial_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
+    let initial_start = dx_process::workspace_start(&initial_cwd);
+    let flag_workspace = early_workspace_flag(&args);
+    let env_workspace = std::env::var(DX_WORKSPACE_ENV)
+        .ok()
+        .filter(|value| !value.is_empty());
+    let (mut file_defaults, file_redirect) =
+        match select_startup_defaults(&initial_start, flag_workspace, env_workspace) {
+            Ok(selected) => (selected.defaults, selected.file_workspace),
+            Err(detail) => {
+                if is_help_request(&args) {
+                    (dx_cli::args::FileDefaults::default(), None)
+                } else {
+                    return usage_error(&detail);
+                }
+            }
+        };
+    if let Some(target) = file_redirect {
+        let dir = dx_process::resolve_override_display(Path::new(&target), &initial_start);
+        match select_startup_defaults(&dir, Some(target.clone()), None) {
+            Ok(selected) => {
+                file_defaults = freeze_workspace(&selected.defaults, &target);
+            }
+            Err(detail) => {
+                if !is_help_request(&args) {
+                    return usage_error(&detail);
+                }
+            }
+        }
     };
     let env_get = |name: &str| std::env::var(name).ok();
     let mut invocation = match parse_with(&args, &env_get, &file_defaults) {
@@ -234,7 +261,7 @@ fn run() -> i32 {
     let workspace = match discover_real(&start, invocation.workspace.as_deref().map(Path::new)) {
         Ok(workspace) => workspace,
         Err(error) => {
-            if invocation.command == dx_cli::args::Command::Init {
+            if is_discovery_exempt(invocation.command) {
                 invocation
                     .workspace
                     .as_deref()

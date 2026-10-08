@@ -5,7 +5,7 @@ dx completion [<shell>] [--check]
 ```
 
 Prints the completion script for one shell: `bash`, `zsh`, `fish`, or
-`powershell`.
+`powershell`. Runs outside a workspace.
 
 - With one shell and no `--check`: print that shell script.
 - With `--check`: verify without writing. Zero shells checks all shells.

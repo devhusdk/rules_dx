@@ -84,6 +84,123 @@ pub fn load_file_defaults(start: &std::path::Path) -> Result<super::FileDefaults
     }
 }
 
+/// The startup defaults and a file-directed workspace hop for one more load.
+#[derive(Debug)]
+pub struct StartupDefaults {
+    /// The defaults read from the preliminary workspace.
+    pub defaults: super::FileDefaults,
+    /// The config-directed workspace when no flag or environment value set one.
+    pub file_workspace: Option<String>,
+}
+
+/// Reads the `--workspace` value off the raw command line, if one is spelled.
+pub fn early_workspace_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
+    let words: Vec<&str> = args
+        .iter()
+        .map(|word| word.as_ref().to_str())
+        .take_while(|word| word.is_some_and(|word| word != "--"))
+        .map(|word| word.unwrap_or(""))
+        .collect();
+    let mut index = 0;
+    while index < words.len() {
+        let word = words[index];
+        if let Some(value) = word.strip_prefix("--workspace=") {
+            return (!value.is_empty()).then(|| value.to_owned());
+        }
+        if word == "--workspace" {
+            match words.get(index + 1) {
+                Some(next) if !next.is_empty() && !next.starts_with('-') => {
+                    return Some((*next).to_owned());
+                }
+                _ => return None,
+            }
+        }
+        if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+            index += 1;
+        }
+        index += 1;
+    }
+    None
+}
+
+/// Whether the raw command line asks for help or the delivered version.
+pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
+    if super::help::help_verb_error_in(args).is_some() {
+        return true;
+    }
+    if args
+        .first()
+        .is_some_and(|first| first.as_ref() == OsStr::new("bazel"))
+    {
+        return false;
+    }
+    let words: Vec<&str> = args
+        .iter()
+        .map(|word| word.as_ref().to_str())
+        .take_while(|word| word.is_some_and(|word| word != "--"))
+        .map(|word| word.unwrap_or(""))
+        .collect();
+    let mut index = 0;
+    while index < words.len() {
+        let word = words[index];
+        if word == "-h"
+            || word == "--help"
+            || word == "-V"
+            || word == "--version"
+            || word.starts_with("--help=")
+            || word.starts_with("--version=")
+        {
+            return true;
+        }
+        if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+            index += 1;
+        }
+        index += 1;
+    }
+    false
+}
+
+/// Whether the command runs without MODULE.bazel discovery.
+pub fn is_discovery_exempt(command: Command) -> bool {
+    matches!(command, Command::Init | Command::New | Command::Completion)
+}
+
+/// Loads defaults from the selected workspace: the flag, the environment, else
+/// the start directory. A config-directed workspace is reported for one more
+/// load instead of being followed here, so a redirect cycle cannot loop.
+pub fn select_startup_defaults(
+    start: &std::path::Path,
+    flag_workspace: Option<String>,
+    env_workspace: Option<String>,
+) -> Result<StartupDefaults, String> {
+    let preliminary = flag_workspace.or(env_workspace);
+    let dir = match &preliminary {
+        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
+        None => start.to_path_buf(),
+    };
+    match dx_adopt::defaults::load_defaults(&dir) {
+        Ok((defaults, _)) => {
+            let file_workspace = match preliminary {
+                Some(_) => None,
+                None => defaults.workspace.clone(),
+            };
+            Ok(StartupDefaults {
+                defaults,
+                file_workspace,
+            })
+        }
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// Returns the defaults with the workspace pinned to the redirect target, so a
+/// second load never follows another redirect.
+pub fn freeze_workspace(defaults: &super::FileDefaults, workspace: &str) -> super::FileDefaults {
+    let mut frozen = defaults.clone();
+    frozen.workspace = Some(workspace.to_owned());
+    frozen
+}
+
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -412,3 +529,178 @@ mod parser_core;
 #[cfg(test)]
 #[path = "strict_tests.rs"]
 mod strict_tests;
+
+#[cfg(test)]
+mod startup_tests {
+    use super::*;
+    use crate::test_support::strings;
+
+    fn scratch_with_config(name: &str, config: Option<&str>) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch(name);
+        std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx dir");
+        if let Some(text) = config {
+            std::fs::write(scratch.path().join(".dx/config.toml"), text).expect("config");
+        }
+        scratch
+    }
+
+    #[test]
+    fn early_workspace_flag_reads_both_spellings_after_the_command() {
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--workspace", "/repo"])),
+            Some("/repo".to_owned())
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--workspace=/repo"])),
+            Some("/repo".to_owned())
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&["--workspace", "/repo", "lint"])),
+            Some("/repo".to_owned())
+        );
+        assert_eq!(early_workspace_flag(&strings(&["lint"])), None);
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--workspace="])),
+            None
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--workspace"])),
+            None
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--workspace", "--quiet"])),
+            None
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--", "--workspace=/repo"])),
+            None
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&[
+                "lint",
+                "--output",
+                "json",
+                "--workspace",
+                "/repo"
+            ])),
+            Some("/repo".to_owned())
+        );
+    }
+
+    #[test]
+    fn help_requests_cover_verbs_flags_and_the_delivered_version() {
+        for words in [
+            vec!["--help"],
+            vec!["-h"],
+            vec!["--version"],
+            vec!["-V"],
+            vec!["help"],
+            vec!["help", "lint"],
+            vec!["lint", "--help"],
+            vec!["lint", "--output", "json", "--help"],
+            vec!["version", "--workspace=/repo", "--help"],
+        ] {
+            assert!(is_help_request(&strings(&words)), "{words:?} asks for help");
+        }
+        for words in [
+            vec!["lint"],
+            vec!["lint", "--check"],
+            vec!["new", "rust", "demo"],
+            vec!["version"],
+            vec!["bazel", "--help"],
+            vec!["lint", "--", "--help"],
+            vec!["lint", "--output", "--help"],
+        ] {
+            assert!(
+                !is_help_request(&strings(&words)),
+                "{words:?} is operational"
+            );
+        }
+    }
+
+    #[test]
+    fn discovery_runs_without_a_module_only_for_init_new_and_completion() {
+        for command in [Command::Init, Command::New, Command::Completion] {
+            assert!(is_discovery_exempt(command), "{command:?} is exempt");
+        }
+        for command in [
+            Command::Lint,
+            Command::Build,
+            Command::Status,
+            Command::Version,
+            Command::Docs,
+            Command::Bazel,
+            Command::Check,
+            Command::Update,
+        ] {
+            assert!(
+                !is_discovery_exempt(command),
+                "{command:?} needs a workspace"
+            );
+        }
+    }
+
+    #[test]
+    fn startup_defaults_come_from_the_selected_workspace() {
+        let a = scratch_with_config("startup-select-a-", Some("[dx]\noutput = \"json\"\n"));
+        let b = scratch_with_config("startup-select-b-", Some("[dx]\noutput = \"text\"\n"));
+        let a_root = a.path().to_path_buf();
+        let selected =
+            select_startup_defaults(&a_root, None, None).expect("loads the start directory");
+        assert_eq!(selected.defaults.output, Some("json".to_owned()));
+        assert_eq!(selected.file_workspace, None);
+        let selected =
+            select_startup_defaults(&a_root, Some(b.path().to_string_lossy().into_owned()), None)
+                .expect("loads the flag workspace");
+        assert_eq!(
+            selected.defaults.output,
+            Some("text".to_owned()),
+            "the flag workspace supplies the defaults"
+        );
+        assert_eq!(selected.file_workspace, None);
+        let selected =
+            select_startup_defaults(&a_root, None, Some(b.path().to_string_lossy().into_owned()))
+                .expect("loads the environment workspace");
+        assert_eq!(selected.defaults.output, Some("text".to_owned()));
+        let missing = a_root.join("no-such-dir");
+        let selected = select_startup_defaults(&missing, None, None).expect("walks up");
+        assert_eq!(selected.defaults.output, Some("json".to_owned()));
+    }
+
+    #[test]
+    fn startup_reports_a_file_directed_workspace_for_one_more_load() {
+        let b = scratch_with_config(
+            "startup-redirect-b-",
+            Some("[dx]\noutput = \"text\"\nworkspace = \"/elsewhere\"\n"),
+        );
+        let config = format!(
+            "[dx]\noutput = \"json\"\nworkspace = \"{}\"\n",
+            b.path().display()
+        );
+        let a = scratch_with_config("startup-redirect-a-", Some(&config));
+        let selected =
+            select_startup_defaults(a.path(), None, None).expect("loads the start directory");
+        assert_eq!(selected.defaults.output, Some("json".to_owned()));
+        let target = selected
+            .file_workspace
+            .expect("the file directs a workspace");
+        assert_eq!(target, b.path().to_string_lossy());
+        let reloaded =
+            select_startup_defaults(b.path(), Some(target.clone()), None).expect("follows once");
+        assert_eq!(
+            reloaded.file_workspace, None,
+            "the second load follows nothing"
+        );
+        let frozen = freeze_workspace(&reloaded.defaults, &target);
+        assert_eq!(frozen.workspace, Some(target));
+        assert_eq!(frozen.output, Some("text".to_owned()));
+    }
+
+    #[test]
+    fn startup_malformed_config_fails_with_the_file_and_key() {
+        let scratch = scratch_with_config("startup-malformed-", Some("not toml = ["));
+        let error =
+            select_startup_defaults(scratch.path(), None, None).expect_err("malformed fails");
+        assert!(error.contains("config.toml"), "{error}");
+    }
+}

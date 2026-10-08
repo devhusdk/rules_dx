@@ -14,7 +14,7 @@ dx new <language> [name]
 Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
 `fsharp`, `c`, `cc`, or `cpp`. Never overwrites existing files. There is no
-`--force`.
+`--force`. Runs outside a workspace.
 
 Two spellings scaffold the same projects:
 

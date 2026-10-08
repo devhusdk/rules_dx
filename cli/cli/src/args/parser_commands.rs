@@ -967,6 +967,32 @@ fn bazel_forwards_verbatim_and_rejects_the_prefix_order() {
 }
 
 #[test]
+fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
+    for command in ["test", "coverage"] {
+        let got = parse(&strings(&[
+            command,
+            "//a:one",
+            "--",
+            "--test_arg=--exact",
+            "--test_arg",
+            "case with spaces héllo",
+            "--test_filter=unit",
+        ]))
+        .expect("parse");
+        assert_eq!(
+            got.bazel_options,
+            strings(&[
+                "--test_arg=--exact",
+                "--test_arg",
+                "case with spaces héllo",
+                "--test_filter=unit",
+            ]),
+            "{command}"
+        );
+    }
+}
+
+#[test]
 fn version_rollback_check_and_configured_parse() {
     let got = parse(&strings(&["version", "--rollback"])).expect("parse");
     assert_eq!(got.command, Command::Version);

@@ -340,6 +340,22 @@ mod tests {
                 std::fs::write(&ready, b"ready").expect("signal ready");
                 wait_for(&release, "release");
             }
+            "contend" => {
+                let verdict = match acquire_shared(
+                    root,
+                    GenerationUse::Generated,
+                    HEX_B,
+                    Duration::from_secs(1),
+                ) {
+                    Ok(held) => {
+                        drop(held);
+                        "acquired"
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => "blocked",
+                    Err(error) => panic!("contention probe wants WouldBlock, got {error:?}"),
+                };
+                std::fs::write(root.join("child-verdict"), verdict).expect("signal verdict");
+            }
             other => panic!("unknown child mode {other:?}"),
         }
     }
@@ -418,6 +434,55 @@ mod tests {
         assert!(
             !shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"),
             "the generation frees once every holder exits"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn shared_acquire_fails_closed_while_cleanup_holds_exclusive() {
+        if let Some(mode) =
+            std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
+        {
+            let root = std::env::var_os("DX_LEASE_ROOT")
+                .map(PathBuf::from)
+                .expect("child root");
+            child_main(&root, &mode);
+            return;
+        }
+        let scratch = dx_test_scratch::scratch("dx-lease-contend-");
+        let root = root(scratch.path());
+        let exclusive = try_acquire_exclusive(&root, GenerationUse::Generated, HEX_B)
+            .expect("probe the idle generation")
+            .expect("cleanup holds the generation while it prunes");
+        let mut blocked = spawn_child(
+            "shared_acquire_fails_closed_while_cleanup_holds_exclusive",
+            &root,
+            "",
+            "contend",
+        );
+        wait_for(&root.join("child-verdict"), "contention verdict");
+        let status = blocked.wait().expect("reap the contender");
+        assert!(status.success(), "the contender exits cleanly");
+        assert_eq!(
+            std::fs::read_to_string(root.join("child-verdict")).expect("read the verdict"),
+            "blocked",
+            "a shared acquire during an exclusive cleanup hold fails instead of waiting forever"
+        );
+        drop(exclusive);
+        std::fs::remove_file(root.join("child-verdict")).expect("reset the verdict");
+        let mut admitted = spawn_child(
+            "shared_acquire_fails_closed_while_cleanup_holds_exclusive",
+            &root,
+            "",
+            "contend",
+        );
+        wait_for(&root.join("child-verdict"), "admission verdict");
+        let status = admitted.wait().expect("reap the admitted child");
+        assert!(status.success(), "the admitted child exits cleanly");
+        assert_eq!(
+            std::fs::read_to_string(root.join("child-verdict")).expect("read the verdict"),
+            "acquired",
+            "releasing the exclusive hold admits shared acquirers again"
         );
         scratch.close().expect("cleanup");
     }

@@ -1,0 +1,110 @@
+# gazelle:dx_ignore_import typescript absent
+# gazelle:dx_ignore_import typescript bindings
+# gazelle:dx_ignore_import typescript greeting
+# gazelle:dx_ignore_import typescript widget
+load("//javascript/rules:defs.bzl", "javascript_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load("//typescript/rules:defs.bzl", "typescript_project")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_project(
+    name = "greet",
+    testonly = True,
+    srcs = ["greet.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    declaration_srcs = ["greeting.d.ts"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_project(
+    name = "main",
+    testonly = True,
+    srcs = ["main.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":greet"],
+)
+
+javascript_binary(
+    name = "main_bin",
+    testonly = True,
+    data = [":main"],
+    entry_point = "main.js",
+)
+
+genrule(
+    name = "bindings",
+    testonly = True,
+    srcs = [],
+    outs = ["bindings.d.ts"],
+    cmd = "printf 'export interface Point {\\n\\tx: number;\\n\\ty: number;\\n}\\n' > $@",
+)
+
+typescript_project(
+    name = "shapes",
+    testonly = True,
+    srcs = ["shapes.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    declaration_srcs = [":bindings"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_project(
+    name = "missing_import",
+    testonly = True,
+    srcs = ["missing_import.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    tags = ["manual"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_project(
+    name = "broken_user",
+    testonly = True,
+    srcs = ["broken_user.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    declaration_srcs = ["broken.d.ts"],
+    tags = ["manual"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_project(
+    name = "widget_user",
+    testonly = True,
+    srcs = ["widget_user.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    declaration_srcs = ["widget.d.mts"],
+    tags = ["manual"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+dx_hello_output_test(
+    name = "main_output_test",
+    binary = ":main_bin",
+    expected = "hello world",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

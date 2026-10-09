@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection", "typescript_upstream_srcs")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -52,6 +52,53 @@ def typescript_wrapper_contract_tests(name):
                 "empty srcs are clean",
                 typescript_srcs_rejection([]),
                 None,
+            ),
+            expect_equal(
+                "every declaration suffix is accepted as declaration input",
+                typescript_declaration_srcs_rejection(["a.d.ts", "b.d.mts", "c.d.cts"]),
+                None,
+            ),
+            expect_equal(
+                "generated declaration labels pass through",
+                typescript_declaration_srcs_rejection([":generated_bindings"]),
+                None,
+            ),
+            expect_equal(
+                "empty declaration inputs are clean",
+                typescript_declaration_srcs_rejection([]),
+                None,
+            ),
+            expect_equal(
+                "absent declaration inputs are clean",
+                typescript_declaration_srcs_rejection(None),
+                None,
+            ),
+            expect_equal(
+                "real sources are rejected as declaration inputs",
+                typescript_declaration_srcs_rejection(["main.ts"]),
+                "typescript_project declaration_srcs takes declaration files " +
+                "only; list real sources in srcs instead: main.ts",
+            ),
+            expect_equal(
+                "mixed declaration inputs reject only the real sources",
+                typescript_declaration_srcs_rejection(["types.d.ts", "main.ts", "view.tsx"]),
+                "typescript_project declaration_srcs takes declaration files " +
+                "only; list real sources in srcs instead: main.ts, view.tsx",
+            ),
+            expect_equal(
+                "upstream sources combine real and declaration inputs",
+                typescript_upstream_srcs(["main.ts"], ["types.d.ts"]),
+                ["main.ts", "types.d.ts"],
+            ),
+            expect_equal(
+                "upstream sources keep real order without declarations",
+                typescript_upstream_srcs(["b.ts", "a.ts"], None),
+                ["b.ts", "a.ts"],
+            ),
+            expect_equal(
+                "upstream sources keep declaration order",
+                typescript_upstream_srcs(["main.ts"], ["b.d.ts", "a.d.ts"]),
+                ["main.ts", "b.d.ts", "a.d.ts"],
             ),
             expect_equal(
                 "disabling standard reporters is rejected",

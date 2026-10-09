@@ -3,7 +3,7 @@
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
-load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
+load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_TS_PROJECT_PROVIDES = [
@@ -51,6 +51,26 @@ def typescript_srcs_rejection(srcs):
                 "files are inert and must not be listed in srcs: " +
                 ", ".join(sorted(bad)))
     return None
+
+def _is_declaration_label(src):
+    """Returns whether a declaration input is statically a declaration file."""
+    text = str(src)
+    if ":" in text:
+        return True
+    return _is_declaration(text)
+
+def typescript_declaration_srcs_rejection(declaration_srcs):
+    """Returns the rejection for non-declaration declaration inputs, or None."""
+    bad = [str(src) for src in declaration_srcs or [] if not _is_declaration_label(src)]
+    if bad:
+        return ("typescript_project declaration_srcs takes declaration files " +
+                "only; list real sources in srcs instead: " +
+                ", ".join(sorted(bad)))
+    return None
+
+def typescript_upstream_srcs(srcs, declaration_srcs):
+    """Returns the combined upstream sources for real plus declaration inputs."""
+    return list(srcs) + list(declaration_srcs or [])
 
 _DX_TSCONFIG_EXTS = (".ts", ".tsx", ".mts", ".cts")
 
@@ -180,16 +200,42 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
 
     return dx_scoped_tsconfig_out(name, kwargs)
 
-def _typescript_wrap_project(name, srcs, visibility = None, **kwargs):
+def _typescript_wrap_project(name, srcs, declaration_srcs = None, visibility = None, **kwargs):
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
+    decl_rejection = typescript_declaration_srcs_rejection(declaration_srcs)
+    if decl_rejection != None:
+        fail(decl_rejection)
+    upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
+    scoped = _dx_scoped_tsconfig(name, upstream_srcs, kwargs)
+    upstream_kwargs = dict(scoped)
+    upstream_kwargs["srcs"] = upstream_srcs
+    upstream_kwargs["visibility"] = ["//visibility:private"]
+    _ts_project(
+        name = name + "_upstream",
+        **upstream_kwargs
+    )
+    forward_kwargs = {}
+    if scoped.get("aspect_hints", None) != None:
+        forward_kwargs["aspect_hints"] = scoped["aspect_hints"]
+    if scoped.get("hdrs", None) != None:
+        forward_kwargs["hdrs"] = scoped["hdrs"]
+    if scoped.get("tags", None) != None:
+        forward_kwargs["tags"] = scoped["tags"]
+    if scoped.get("testonly", None) != None:
+        forward_kwargs["testonly"] = scoped["testonly"]
+    _typescript_project_forward(
+        name = name,
+        upstream = name + "_upstream",
+        srcs = list(srcs),
+        visibility = visibility,
+        **forward_kwargs
+    )
 
-    dx_wrap(name, _ts_project, _typescript_project_forward, srcs, visibility = visibility, **_dx_scoped_tsconfig(name, srcs, kwargs))
-
-def typescript_project(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over ts_project, isolated typecheck on by default."""
-    _typescript_wrap_project(name, srcs, visibility = visibility, **kwargs)
+def typescript_project(name, srcs, declaration_srcs = None, visibility = None, **kwargs):
+    """Experimental minimal wrapper over ts_project, isolated typecheck on by default; declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
+    _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 def _typescript_test_forward_impl(ctx):
     upstream = ctx.attr.upstream
@@ -233,11 +279,14 @@ def typescript_test_env(env_inherit):
         env.append("TESTBRIDGE_TEST_ONLY")
     return env
 
-def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, visibility = None, tags = None, env_inherit = None, **kwargs):
-    """Experimental minimal wrapper over jest_test for TypeScript sources."""
+def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+    """Experimental minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
+    decl_rejection = typescript_declaration_srcs_rejection(declaration_srcs)
+    if decl_rejection != None:
+        fail(decl_rejection)
     reporter_rejection = typescript_test_rejection(kwargs)
     if reporter_rejection != None:
         fail(reporter_rejection)
@@ -252,12 +301,13 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
         ts_kwargs["transpiler"] = transpiler
     if declaration != None:
         ts_kwargs["declaration"] = declaration
+    upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
     _ts_project(
         name = name + "_ts",
-        srcs = srcs,
+        srcs = upstream_srcs,
         testonly = True,
         visibility = ["//visibility:private"],
-        **_dx_scoped_tsconfig(name + "_ts", srcs, ts_kwargs)
+        **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
     )
 
     upstream_data = [":" + name + "_ts"] + list(deps or []) + list(data or [])

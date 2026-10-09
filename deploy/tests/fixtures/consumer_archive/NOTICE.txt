@@ -1,0 +1,5 @@
+consumer-release NOTICE
+Fixture application archive: the consumer_app binary, the consumer-owned
+banner asset (@consumer_resources//:banner.txt) and the fixture greet native
+library. No third-party runtime is bundled; the host provides the recorded
+glibc floor from IDENTITY.txt.

@@ -4,7 +4,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
-load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests")
+load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests", "consumer_archive_unit_tests")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
@@ -443,6 +443,8 @@ archive_deploy(
 
 archive_unit_tests(name = "archive_unit")
 
+consumer_archive_unit_tests(name = "consumer_archive_unit")
+
 archive_analysis_tests(name = "archive_analysis")
 
 archive_debug_analysis_tests(name = "archive_debug_analysis")
@@ -491,6 +493,7 @@ test_suite(
         ":archive_analysis",
         ":archive_debug_analysis",
         ":archive_unit",
+        ":consumer_archive_unit",
         ":crates_analysis",
         ":crates_debug_analysis",
         ":crates_unit",

@@ -436,6 +436,10 @@ def _make_real_impl(capability, allowed_tools, output_suffix, has_rust_toolchain
 
     return _impl
 
+def real_wired_tools():
+    """Returns the sorted tool IDs the real aspects can run."""
+    return sorted(_REAL_TOOL_TABLE.keys())
+
 def real_allowed_tools_error():
     """Validates aspect shards stay registry subsets."""
     allowed = (

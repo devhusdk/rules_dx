@@ -175,6 +175,12 @@ the `set` ecosystem.
 Output: `--output text|json`. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+Every report needs its own destination: a repeat, a cross-format share, or
+a normalized alias of one path fails with exit 2 before anything runs.
+Relative destinations resolve under the invocation workspace; absolute
+destinations are used as-is. Parent directories must exist; a failed write
+names the resolved destination and the cause, fails the run, and keeps any
+pre-existing report content.
 
 ```sh
 bazel run @rules_dx//:dx -- security //...

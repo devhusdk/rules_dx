@@ -109,7 +109,9 @@ fn json_report_write_failure_emits_error() {
         "--report=sarif=nodir/out.sarif",
     ]);
     assert_eq!(code, 1);
-    assert!(err.contains("dx: report_failed: failed to write sarif report to nodir/out.sarif"));
+    assert!(err.contains("dx: report_failed: failed to write sarif report to "));
+    assert!(err.contains("nodir/out.sarif"));
+    assert!(err.contains("does not exist"));
     let events = json_events(&out);
     assert_eq!(
         event(&events, "error")["code"],
@@ -155,6 +157,67 @@ fn diff_file_report_notes_to_stderr() {
     assert_eq!(code, 0);
     assert!(err.contains("Wrote sarif report to out.sarif."));
     assert!(harness.workspace.join("out.sarif").exists());
+}
+
+#[test]
+fn duplicate_report_destination_alias_fails_before_execution() {
+    let mut harness = Harness::new("report-alias-conflict");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=out.sarif",
+        "--report=sarif=./sub/../out.sarif",
+    ]);
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("duplicate report"), "{err}");
+    assert!(harness.query.calls.borrow().is_empty());
+    assert!(!harness.workspace.join("out.sarif").exists());
+}
+
+#[test]
+fn absolute_report_destination_writes_outside_the_workspace() {
+    let mut harness = Harness::new("report-absolute");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let target = harness.temp.join("external.sarif");
+    let destination = format!("--report=sarif={}", target.to_string_lossy());
+    let (code, _, err) = harness.run(&["lint", "--check", "--output=text", destination.as_str()]);
+    assert_eq!(code, 0, "{err}");
+    assert!(target.exists());
+}
+
+#[test]
+#[cfg(unix)]
+fn report_through_a_symlinked_parent_lands_in_the_target() {
+    let mut harness = Harness::new("report-symlink");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    std::fs::create_dir(harness.workspace.join("real")).expect("real dir");
+    std::os::unix::fs::symlink(
+        harness.workspace.join("real"),
+        harness.workspace.join("link"),
+    )
+    .expect("symlink");
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=link/out.sarif",
+    ]);
+    assert_eq!(code, 0, "{err}");
+    assert!(harness.workspace.join("real/out.sarif").exists());
 }
 
 #[test]

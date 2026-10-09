@@ -620,17 +620,9 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     if stdout_exit.is_none() {
         let document = collector.document();
         for request in &invocation.reports {
-            if !write_report_file(workspace, &request.destination, &document) {
+            if let Err(error) = write_report_file(workspace, &request.destination, &document) {
                 reports_ok = false;
-                report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!(
-                        "failed to write {} report to {}",
-                        request.format, request.destination
-                    ),
-                );
+                report_failed(out, err, invocation.output, &error.message(&request.format));
                 continue;
             }
             let announced = announce_report(

@@ -1154,18 +1154,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     continue;
                 }
             };
-            let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) =
+                write_report_document(out, workspace, &planned.destination, &document)
+            {
                 reports_ok = false;
-                report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!(
-                        "failed to write sarif report to {}",
-                        planned.destination.display()
-                    ),
-                );
+                report_failed(out, err, invocation.output, &error.message("sarif"));
                 continue;
             }
             if invocation.output == OutputMode::Json {
@@ -1187,18 +1180,11 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 dx_audit::spdx::document_namespace(&effective, &spdx_packages, &contains);
             let document =
                 dx_audit::spdx::render_spdx(&effective, &spdx_packages, &contains, &namespace);
-            let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) =
+                write_report_document(out, workspace, &planned.destination, &document)
+            {
                 reports_ok = false;
-                report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!(
-                        "failed to write spdx report to {}",
-                        planned.destination.display()
-                    ),
-                );
+                report_failed(out, err, invocation.output, &error.message("spdx"));
                 continue;
             }
             if invocation.output == OutputMode::Json {

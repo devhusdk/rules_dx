@@ -215,7 +215,7 @@ fn report_clause(command: Command) -> String {
     if formats.is_empty() {
         return "--report has no standard format for this command.".to_owned();
     }
-    format!("--report {formats}=<destination> (repeatable).")
+    format!("--report {formats}=<destination> (repeatable; destinations must be distinct).")
 }
 
 pub(crate) fn output_line(command: Command) -> String {
@@ -659,7 +659,10 @@ mod tests {
             let report = if reports.is_empty() {
                 "--report has no standard format for this command.".to_owned()
             } else {
-                format!("--report {}=<destination> (repeatable).", reports.join("|"))
+                format!(
+                    "--report {}=<destination> (repeatable; destinations must be distinct).",
+                    reports.join("|")
+                )
             };
             assert_eq!(
                 line,

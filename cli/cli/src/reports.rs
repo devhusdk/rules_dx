@@ -37,6 +37,12 @@ pub enum ReportError {
     },
     #[error("duplicate report {format:?} for destination {destination:?}")]
     DuplicateReport { format: String, destination: String },
+    #[error("reports {first} and {second} both target {destination:?}: use distinct destinations")]
+    ConflictingDestinations {
+        first: String,
+        second: String,
+        destination: String,
+    },
     #[error("more than one standard report targets stdout")]
     MultipleStdoutReports,
     #[error(
@@ -65,4 +71,30 @@ pub enum ReportError {
     Fingerprint(#[from] dx_fingerprint::FingerprintError),
     #[error("junit report serialization failed: {detail}")]
     JunitRender { detail: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ReportWriteCause {
+    #[error("parent directory {parent:?} does not exist")]
+    MissingParent { parent: String },
+    #[error("parent {parent:?} is not a directory")]
+    ParentNotDirectory { parent: String },
+    #[error("write failed: {detail}")]
+    Io { detail: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("failed to write report to {destination:?}: {cause}")]
+pub struct ReportWriteError {
+    pub destination: String,
+    pub cause: ReportWriteCause,
+}
+
+impl ReportWriteError {
+    pub fn message(&self, format: &str) -> String {
+        format!(
+            "failed to write {format} report to {}: {}",
+            self.destination, self.cause
+        )
+    }
 }

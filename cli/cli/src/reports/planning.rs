@@ -1,6 +1,7 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Component, Path, PathBuf};
 
-use super::ReportError;
+use super::{ReportError, ReportWriteCause, ReportWriteError};
 use crate::args::{Command, ReportRequest};
 use crate::plan::spec;
 use dx_output::{check_output_conflict, OutputError, OutputMode};
@@ -71,6 +72,97 @@ fn stdout_conflict(error: OutputError) -> ReportError {
     }
 }
 
+pub fn normalize_report_destination(raw: &str) -> String {
+    let mut prefix = String::new();
+    let mut stack: Vec<String> = Vec::new();
+    for component in Path::new(raw).components() {
+        match component {
+            Component::Prefix(part) => {
+                prefix.push_str(&part.as_os_str().to_string_lossy());
+            }
+            Component::RootDir => prefix.push('/'),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if stack.pop().is_none() && prefix.is_empty() {
+                    stack.push("..".to_owned());
+                }
+            }
+            Component::Normal(part) => {
+                stack.push(part.to_string_lossy().into_owned());
+            }
+        }
+    }
+    let mut out = prefix;
+    out.push_str(&stack.join("/"));
+    if out.is_empty() {
+        out.push('.');
+    }
+    out
+}
+
+fn collision_key_for(normalized: &str, case_insensitive: bool) -> String {
+    if case_insensitive {
+        normalized.to_lowercase()
+    } else {
+        normalized.to_owned()
+    }
+}
+
+fn collision_key(normalized: &str) -> String {
+    collision_key_for(normalized, cfg!(windows))
+}
+
+pub fn resolve_file_report_path(workspace: &Path, raw: &str) -> PathBuf {
+    let normalized = normalize_report_destination(raw);
+    let path = Path::new(&normalized);
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        workspace.join(path)
+    }
+}
+
+pub fn resolve_report_path(workspace: &Path, destination: &Destination) -> Option<PathBuf> {
+    match destination {
+        Destination::Stdout => None,
+        Destination::File(raw) => Some(resolve_file_report_path(workspace, raw)),
+    }
+}
+
+pub fn write_report_target(
+    workspace: &Path,
+    raw: &str,
+    document: &[u8],
+    write: impl FnOnce(&Path, &[u8]) -> std::io::Result<()>,
+) -> Result<(), ReportWriteError> {
+    let target = resolve_file_report_path(workspace, raw);
+    let resolved = target.to_string_lossy().into_owned();
+    if let Some(parent) = target.parent().filter(|path| !path.as_os_str().is_empty()) {
+        if !parent.exists() {
+            return Err(ReportWriteError {
+                destination: resolved,
+                cause: ReportWriteCause::MissingParent {
+                    parent: parent.to_string_lossy().into_owned(),
+                },
+            });
+        }
+        if !parent.is_dir() {
+            return Err(ReportWriteError {
+                destination: resolved,
+                cause: ReportWriteCause::ParentNotDirectory {
+                    parent: parent.to_string_lossy().into_owned(),
+                },
+            });
+        }
+    }
+    write(&target, document).map_err(|error| ReportWriteError {
+        destination: resolved,
+        cause: ReportWriteCause::Io {
+            detail: error.to_string(),
+        },
+    })
+}
+
 pub fn plan_reports(
     command: Command,
     requests: &[ReportRequest],
@@ -82,7 +174,8 @@ pub fn plan_reports(
     }
     let entry = spec(command);
     let mut planned = Vec::with_capacity(requests.len());
-    let mut seen = BTreeSet::new();
+    let mut seen_files: BTreeMap<String, (StandardFormat, String)> = BTreeMap::new();
+    let mut seen_stdout: BTreeSet<StandardFormat> = BTreeSet::new();
     for request in requests {
         let format = StandardFormat::parse(&request.format).ok_or_else(|| {
             ReportError::UnsupportedFormat {
@@ -103,11 +196,34 @@ pub fn plan_reports(
         } else {
             Destination::File(request.destination.clone())
         };
-        if !seen.insert((format, destination.clone())) {
-            return Err(ReportError::DuplicateReport {
-                format: format.name().to_owned(),
-                destination: destination.display().to_owned(),
-            });
+        match &destination {
+            Destination::Stdout => {
+                if !seen_stdout.insert(format) {
+                    return Err(ReportError::DuplicateReport {
+                        format: format.name().to_owned(),
+                        destination: destination.display().to_owned(),
+                    });
+                }
+            }
+            Destination::File(raw) => {
+                let key = collision_key(&normalize_report_destination(raw));
+                match seen_files.insert(key, (format, destination.display().to_owned())) {
+                    None => {}
+                    Some((first, _)) if first == format => {
+                        return Err(ReportError::DuplicateReport {
+                            format: format.name().to_owned(),
+                            destination: destination.display().to_owned(),
+                        });
+                    }
+                    Some((first, _)) => {
+                        return Err(ReportError::ConflictingDestinations {
+                            first: first.name().to_owned(),
+                            second: format.name().to_owned(),
+                            destination: normalize_report_destination(request.destination.as_str()),
+                        });
+                    }
+                }
+            }
         }
         planned.push(PlannedReport {
             format,
@@ -274,6 +390,178 @@ mod tests {
         assert!(plan_reports(Command::Format, &[], &text_mode(), false)
             .expect("plan")
             .is_empty());
+    }
+
+    #[test]
+    fn cross_format_same_destination_conflicts_before_any_write() {
+        assert_eq!(
+            plan_reports(
+                Command::License,
+                &requests(&[("sarif", "out.sarif"), ("spdx", "out.sarif")]),
+                &text_mode(),
+                false,
+            ),
+            Err(ReportError::ConflictingDestinations {
+                first: "sarif".to_owned(),
+                second: "spdx".to_owned(),
+                destination: "out.sarif".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn normalized_aliases_share_one_destination() {
+        assert_eq!(
+            plan_reports(
+                Command::Lint,
+                &requests(&[("sarif", "out.sarif"), ("sarif", "./sub/../out.sarif")]),
+                &text_mode(),
+                false,
+            ),
+            Err(ReportError::DuplicateReport {
+                format: "sarif".to_owned(),
+                destination: "./sub/../out.sarif".to_owned(),
+            })
+        );
+        assert_eq!(
+            plan_reports(
+                Command::License,
+                &requests(&[("sarif", "out.sarif"), ("spdx", "sub/../out.sarif")]),
+                &text_mode(),
+                false,
+            ),
+            Err(ReportError::ConflictingDestinations {
+                first: "sarif".to_owned(),
+                second: "spdx".to_owned(),
+                destination: "out.sarif".to_owned(),
+            })
+        );
+        plan_reports(
+            Command::License,
+            &requests(&[("sarif", "sarif-out.sarif"), ("spdx", "spdx-out.spdx")]),
+            &text_mode(),
+            false,
+        )
+        .expect("distinct destinations plan");
+    }
+
+    #[test]
+    fn normalize_report_destination_collapses_aliases() {
+        for (raw, want) in [
+            ("out.sarif", "out.sarif"),
+            ("./out.sarif", "out.sarif"),
+            ("sub/../out.sarif", "out.sarif"),
+            ("a/./b.sarif", "a/b.sarif"),
+            ("a//b.sarif", "a/b.sarif"),
+            ("../out.sarif", "../out.sarif"),
+            ("a/../../out.sarif", "../out.sarif"),
+            ("/abs/out.sarif", "/abs/out.sarif"),
+            ("/a/../out.sarif", "/out.sarif"),
+            ("/../out.sarif", "/out.sarif"),
+        ] {
+            assert_eq!(normalize_report_destination(raw), want, "raw {raw:?}");
+        }
+    }
+
+    #[test]
+    fn resolve_report_path_anchors_relative_and_keeps_absolute() {
+        let workspace = Path::new("/ws");
+        assert_eq!(
+            resolve_report_path(
+                workspace,
+                &Destination::File("./sub/../out.sarif".to_owned())
+            ),
+            Some(PathBuf::from("/ws/out.sarif"))
+        );
+        assert_eq!(
+            resolve_report_path(workspace, &Destination::File("/tmp/out.sarif".to_owned())),
+            Some(PathBuf::from("/tmp/out.sarif"))
+        );
+        assert_eq!(resolve_report_path(workspace, &Destination::Stdout), None);
+    }
+
+    #[test]
+    fn write_report_target_names_parent_and_cause() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = write_report_target(dir.path(), "nodir/out.sarif", b"{}\n", |_, _| {
+            panic!("must not write without a parent")
+        })
+        .expect_err("missing parent");
+        assert_eq!(
+            missing.destination,
+            dir.path().join("nodir/out.sarif").to_string_lossy()
+        );
+        assert_eq!(
+            missing.message("sarif"),
+            format!(
+                "failed to write sarif report to {}: parent directory {:?} does not exist",
+                dir.path().join("nodir/out.sarif").to_string_lossy(),
+                dir.path().join("nodir").to_string_lossy(),
+            )
+        );
+        assert!(!dir.path().join("nodir").exists());
+
+        std::fs::write(dir.path().join("blocker"), b"stale").expect("blocker");
+        let blocked = write_report_target(dir.path(), "blocker/out.sarif", b"{}\n", |_, _| {
+            panic!("must not write through a file")
+        })
+        .expect_err("parent is a file");
+        assert!(blocked.message("sarif").contains("is not a directory"));
+        assert_eq!(
+            std::fs::read(dir.path().join("blocker")).expect("blocker intact"),
+            b"stale"
+        );
+
+        let failed = write_report_target(dir.path(), "out.sarif", b"{}\n", |_, _| {
+            Err(std::io::Error::new(std::io::ErrorKind::Other, "boom"))
+        })
+        .expect_err("io failure");
+        assert!(failed.message("sarif").contains("write failed: boom"));
+        assert!(!dir.path().join("out.sarif").exists());
+
+        write_report_target(dir.path(), "out.sarif", b"{}\n", |target, bytes| {
+            assert_eq!(target, dir.path().join("out.sarif"));
+            std::fs::write(target, bytes)
+        })
+        .expect("write");
+        assert_eq!(
+            std::fs::read(dir.path().join("out.sarif")).expect("report"),
+            b"{}\n"
+        );
+    }
+
+    #[test]
+    fn collision_key_folds_case_only_where_the_platform_needs_it() {
+        assert_eq!(collision_key_for("OUT.SARIF", true), "out.sarif");
+        assert_eq!(collision_key_for("OUT.SARIF", false), "OUT.SARIF");
+        if cfg!(windows) {
+            assert_eq!(collision_key("OUT.SARIF"), "out.sarif");
+        } else {
+            assert_eq!(collision_key("OUT.SARIF"), "OUT.SARIF");
+        }
+    }
+
+    #[test]
+    fn conflicting_destinations_and_write_errors_display() {
+        assert!(format!(
+            "{}",
+            ReportError::ConflictingDestinations {
+                first: "sarif".to_owned(),
+                second: "spdx".to_owned(),
+                destination: "out.sarif".to_owned(),
+            }
+        )
+        .contains("use distinct destinations"));
+        let error = crate::reports::ReportWriteError {
+            destination: "out.sarif".to_owned(),
+            cause: crate::reports::ReportWriteCause::MissingParent {
+                parent: "nodir".to_owned(),
+            },
+        };
+        assert!(format!("{error}").contains("nodir"));
+        assert!(error
+            .message("sarif")
+            .starts_with("failed to write sarif report to out.sarif: parent directory"));
     }
 
     #[test]

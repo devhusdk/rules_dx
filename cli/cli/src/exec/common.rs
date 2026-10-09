@@ -1,5 +1,6 @@
 use crate::args::Invocation;
-use crate::reports::Destination;
+use crate::reports::planning::write_report_target;
+use crate::reports::{Destination, ReportWriteCause, ReportWriteError};
 use crate::resolve::QueryRunner;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
@@ -233,30 +234,37 @@ pub(crate) fn report_failed(
     }
 }
 
-/// Writes one report document to a path under the workspace and reports whether it landed.
-pub(crate) fn write_report_file(workspace: &Path, destination: &str, document: &str) -> bool {
-    let target = workspace.join(destination);
-    let parent_ok = target
-        .parent()
-        .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-    parent_ok
-        && RealFileSystem
-            .write_atomic(&target, document.as_bytes())
-            .is_ok()
+/// Writes one report document to its resolved destination.
+pub(crate) fn write_report_file(
+    workspace: &Path,
+    destination: &str,
+    document: &str,
+) -> Result<(), ReportWriteError> {
+    write_report_target(
+        workspace,
+        destination,
+        document.as_bytes(),
+        |target, bytes| RealFileSystem.write_atomic(target, bytes),
+    )
 }
 
-/// Writes one report document to its planned destination and reports whether it landed.
+/// Writes one report document to its planned destination.
 pub(crate) fn write_report_document(
     out: &mut dyn Write,
     workspace: &Path,
     destination: &Destination,
     document: &str,
-) -> bool {
+) -> Result<(), ReportWriteError> {
     match destination {
         Destination::Stdout => out
             .write_all(document.as_bytes())
             .and_then(|()| out.write_all(b"\n"))
-            .is_ok(),
+            .map_err(|error| ReportWriteError {
+                destination: "-".to_owned(),
+                cause: ReportWriteCause::Io {
+                    detail: error.to_string(),
+                },
+            }),
         Destination::File(path) => write_report_file(workspace, path, document),
     }
 }
@@ -632,46 +640,62 @@ mod tests {
     fn write_report_document_honours_the_destination() {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut out = Vec::new();
-        assert!(write_report_document(
+        write_report_document(
             &mut out,
             dir.path(),
             &Destination::File("out.sarif".to_owned()),
-            "{}\n"
-        ));
+            "{}\n",
+        )
+        .expect("write");
         assert_eq!(
             std::fs::read_to_string(dir.path().join("out.sarif")).expect("report"),
             "{}\n"
         );
         assert!(out.is_empty());
 
-        assert!(write_report_document(
-            &mut out,
-            dir.path(),
-            &Destination::Stdout,
-            "{}"
-        ));
+        write_report_document(&mut out, dir.path(), &Destination::Stdout, "{}").expect("stdout");
         assert_eq!(String::from_utf8(out).expect("utf8"), "{}\n");
 
-        assert!(!write_report_document(
+        assert!(write_report_document(
             &mut BrokenPipeWriter,
             dir.path(),
             &Destination::Stdout,
             "{}\n"
-        ));
+        )
+        .is_err());
     }
 
     #[test]
     fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
         let dir = tempfile::tempdir().expect("tempdir");
-        assert!(!write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        let missing =
+            write_report_file(dir.path(), "nested/out.sarif", "{}\n").expect_err("missing parent");
+        assert_eq!(
+            missing.cause,
+            crate::reports::ReportWriteCause::MissingParent {
+                parent: dir.path().join("nested").to_string_lossy().into_owned(),
+            }
+        );
         assert!(!dir.path().join("nested").exists());
         std::fs::create_dir(dir.path().join("nested")).expect("mkdir");
-        assert!(write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        write_report_file(dir.path(), "nested/out.sarif", "{}\n").expect("write");
         assert_eq!(
             std::fs::read_to_string(dir.path().join("nested/out.sarif")).expect("report"),
             "{}\n"
         );
-        assert!(!write_report_file(dir.path(), "nested", "{}\n"));
+        std::fs::write(dir.path().join("blocker"), b"x").expect("blocker");
+        let not_dir = write_report_file(dir.path(), "blocker/out.sarif", "{}\n")
+            .expect_err("parent is a file");
+        assert_eq!(
+            not_dir.cause,
+            crate::reports::ReportWriteCause::ParentNotDirectory {
+                parent: dir.path().join("blocker").to_string_lossy().into_owned(),
+            }
+        );
+        assert_eq!(
+            std::fs::read(dir.path().join("blocker")).expect("blocker intact"),
+            b"x"
+        );
     }
 
     #[test]

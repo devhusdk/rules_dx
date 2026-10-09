@@ -20,7 +20,13 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 - `--apply`: write validated fixes. Without it files stay untouched.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
-  Repeatable. `dx format` has no report format.
+  Repeatable. `dx format` has no report format. Every report needs its own
+  destination: a repeat or a normalized alias of one path (`.`/`..`/repeated
+  separators collapse before comparison) fails with exit 2 before anything
+  runs. Relative destinations resolve under the invocation workspace;
+  absolute destinations are used as-is. Parent directories must exist; a
+  failed write names the resolved destination and the cause, fails the run,
+  and keeps any pre-existing report content.
 - `--output text|diff|json`: result shape.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above

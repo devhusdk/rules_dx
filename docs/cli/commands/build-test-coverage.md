@@ -25,7 +25,12 @@ the run when collected test evidence is incomplete instead of tolerating gaps.
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
-for stdout. `dx build` has no report format. `dx test --output=json` adds one
+for stdout. Every report needs its own destination: a repeat or a normalized
+alias of one path fails with exit 2 before anything runs. Relative
+destinations resolve under the invocation workspace; absolute destinations
+are used as-is. Parent directories must exist; a failed write names the
+resolved destination and the cause, fails the run, and keeps any pre-existing
+report content. `dx build` has no report format. `dx test --output=json` adds one
 `test_outcome` event per test result, with its Bazel status, run, shard,
 attempt, cached state, duration, case counts, artifact counts, and whether its
 evidence is complete. `--run-output <dir>` copies every reported test output
@@ -106,7 +111,12 @@ is accepted and keeps scripts uniform; coverage already fails on incomplete
 evidence with or without it.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
-combined LCOV. Repeat the flag for more files. Use `-` for stdout.
+combined LCOV. Repeat the flag for more files. Use `-` for stdout. Every
+report needs its own destination: a repeat or a normalized alias of one path
+fails with exit 2 before anything runs. Relative destinations resolve under
+the invocation workspace; absolute destinations are used as-is. Parent
+directories must exist; a failed write names the resolved destination and
+the cause, fails the run, and keeps any pre-existing report content.
 `dx coverage --output=json` adds one `test_outcome` event per test result,
 with its Bazel status, run, shard, attempt, cached state, duration, artifact
 counts, and whether its evidence is complete. `--run-output <dir>` copies

@@ -1198,6 +1198,25 @@ fn audit_report_write_failure_json_reports_error_event() {
 }
 
 #[test]
+fn license_cross_format_destination_conflict_fails_before_execution() {
+    use crate::args::parse;
+    let runner = AuditRunner::clean();
+    let harness = Harness::new("license-report-conflict");
+    write_cargo_license_set(&harness);
+    let invocation = parse(&[
+        "license".to_owned(),
+        "//rust/tests/fixtures/hello:hello".to_owned(),
+        "--report=sarif=out.sarif".to_owned(),
+        "--report=spdx=out.sarif".to_owned(),
+    ])
+    .expect("parse");
+    let (code, out_text, err_text) = harness.execute_with(&invocation, &runner);
+    assert_eq!(code, 2, "{out_text}{err_text}");
+    assert!(err_text.contains("both target"), "{err_text}");
+    assert!(!harness.workspace.join("out.sarif").exists());
+}
+
+#[test]
 fn offline_dry_run_plans_cache_only_without_launching() {
     let harness = Harness::new("audit-offline-dryrun");
     let (code, out, err) = harness.run(&["security", "--offline", "--dry-run"]);

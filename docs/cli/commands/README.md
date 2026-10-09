@@ -51,7 +51,16 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
   `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
-  Every other command rejects `--report`.
+  Every other command rejects `--report`. Relative destinations resolve under
+  the invocation workspace; absolute destinations are used as-is. Destinations
+  compare after collapsing `.`, `..`, and repeated separators, so aliases of
+  one file conflict. Every report needs a distinct destination: a repeat, a
+  cross-format share, or an alias fails with exit 2 before anything runs.
+  Comparison is lexical: distinct spellings that meet through a symlink are
+  not rejected, and writes follow links. Windows compares case-insensitively.
+  Parent directories must exist; a failed write names the resolved destination
+  and the cause, fails the run, and keeps any pre-existing report content.
+  Use `-` for stdout.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`. Taken by
   `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
   Every other command rejects it.

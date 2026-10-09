@@ -52,6 +52,8 @@ commands. See [Version Skew](status-version.md#version-skew).
   Every other command rejects it.
 - `--min-coverage <percent>`: fail `coverage` below this percent. Taken by
   `coverage`. Every other command rejects it.
+- `--strict-evidence`: fail when collected test or coverage evidence is
+  incomplete. Taken by `test`, `coverage`. Every other command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `codegen`, `env`, `setup`, `clean`, `check`, `fix`, `update`,
   `version`, `completion`, and `docs`.
@@ -98,6 +100,9 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `notice`: a note, with `level`, `code`, `message`, and optional
   `related_command`, `scope`, `path`, `language`, and `import`.
 - `report`: a report written, with `format`, `path`, and `results_complete`.
+- `test_outcome`: one test result, with `target`, `outcome`, `evidence_complete`,
+  and `artifacts`, plus optional `configuration`, `status`, `cached`, `run`,
+  `shard`, `attempt`, `duration_millis`, and case counts.
 - `error`: a failure, with `code`, `message`, and optional `path`, `flag`, and
   `phase`.
 - `command_finished`: the `exit_code`, plus any `results_complete`,

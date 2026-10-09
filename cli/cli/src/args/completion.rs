@@ -551,6 +551,7 @@ mod tests {
             "--report",
             "--fail-on",
             "--min-coverage",
+            "--strict-evidence",
             "--check",
             "--bazel",
             "--pin",

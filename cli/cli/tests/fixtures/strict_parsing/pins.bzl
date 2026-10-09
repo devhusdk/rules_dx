@@ -42,6 +42,8 @@ STRICT_UNSUPPORTED_REJECTED = [
     "build --host=example.test",
     "build --open",
     "lint --min-coverage",
+    "build --strict-evidence",
+    "lint --strict-evidence",
     "build --check",
     "lint --bazel",
 ]

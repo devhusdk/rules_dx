@@ -70,6 +70,32 @@ fn min_coverage_rejects_bad_values_and_other_commands() {
 }
 
 #[test]
+fn strict_evidence_parses_for_test_and_coverage_only() {
+    let test = parse(&strings(&["test", "--strict-evidence"])).expect("parse");
+    assert_eq!(test.command, Command::Test);
+    assert!(test.strict_evidence);
+    let coverage = parse(&strings(&["coverage", "--strict-evidence"])).expect("parse");
+    assert_eq!(coverage.command, Command::Coverage);
+    assert!(coverage.strict_evidence);
+    let bare = parse(&strings(&["test"])).expect("parse");
+    assert!(!bare.strict_evidence);
+    assert_eq!(
+        parse(&strings(&["build", "--strict-evidence"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "build",
+            option: "--strict-evidence".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["lint", "--strict-evidence"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "lint",
+            option: "--strict-evidence".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn check_selects_check_mode() {
     let got = parse(&strings(&["format", "--check"])).expect("parse");
     assert_eq!(got.command, Command::Format);

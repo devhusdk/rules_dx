@@ -170,10 +170,7 @@ struct PendingSummary {
 
 /// One string field of a JSON object, when it is present and a string.
 fn opt_string(object: &serde_json::Map<String, Value>, field: &str) -> Option<String> {
-    object
-        .get(field)
-        .and_then(Value::as_str)
-        .map(str::to_owned)
+    object.get(field).and_then(Value::as_str).map(str::to_owned)
 }
 
 /// One boolean field of a JSON object, when it is present and a boolean.
@@ -269,29 +266,29 @@ pub fn collect_test_events(
         };
         let label = TestResultId::parse(result_id, line_no)?;
         let result = object.get("testResult").and_then(Value::as_object);
-        let Some(files) = result.and_then(|result| result.get("testActionOutput")) else {
-            continue;
-        };
-        let files = files.as_array().ok_or_else(|| {
-            malformed(
-                line_no,
-                "testResult.testActionOutput",
-                "testActionOutput must be an array",
-            )
-        })?;
-        let mut pending_files = Vec::with_capacity(files.len());
-        for (index, file) in files.iter().enumerate() {
-            let entry = TestActionOutput::parse(file, index, line_no)?;
-            pending_files.push(PendingFile {
-                name: entry.name.to_owned(),
-                uri: entry.uri.to_owned(),
-                path_prefix: entry.path_prefix,
-            });
+        let reported = result.and_then(|result| result.get("testActionOutput"));
+        let mut pending_files = Vec::new();
+        if let Some(reported) = reported {
+            let files = reported.as_array().ok_or_else(|| {
+                malformed(
+                    line_no,
+                    "testResult.testActionOutput",
+                    "testActionOutput must be an array",
+                )
+            })?;
+            pending_files.reserve(files.len());
+            for (index, file) in files.iter().enumerate() {
+                let entry = TestActionOutput::parse(file, index, line_no)?;
+                pending_files.push(PendingFile {
+                    name: entry.name.to_owned(),
+                    uri: entry.uri.to_owned(),
+                    path_prefix: entry.path_prefix,
+                });
+            }
         }
         let status = result.and_then(|body| opt_string(body, "status"));
         let cached_locally = result.and_then(|body| opt_bool(body, "cachedLocally"));
-        let duration_millis =
-            result.and_then(|body| opt_count(body, "testAttemptDurationMillis"));
+        let duration_millis = result.and_then(|body| opt_count(body, "testAttemptDurationMillis"));
         let strategy = result
             .and_then(|body| body.get("executionInfo"))
             .and_then(Value::as_object)
@@ -469,6 +466,9 @@ fn record_shard_count(
 fn run_totals(pending: &[PendingResult]) -> HashMap<&str, u32> {
     let mut totals: HashMap<&str, u32> = HashMap::new();
     for result in pending {
+        if result.files.is_empty() {
+            continue;
+        }
         let seen = totals.entry(result.label.as_str()).or_insert(0);
         *seen = (*seen).max(result.run);
     }
@@ -478,6 +478,9 @@ fn run_totals(pending: &[PendingResult]) -> HashMap<&str, u32> {
 fn attempt_totals(pending: &[PendingResult]) -> HashMap<(&str, u32, u32), u32> {
     let mut totals: HashMap<(&str, u32, u32), u32> = HashMap::new();
     for result in pending {
+        if result.files.is_empty() {
+            continue;
+        }
         let key = (result.label.as_str(), result.run, result.shard);
         let seen = totals.entry(key).or_insert(0);
         *seen = (*seen).max(result.attempt);
@@ -488,7 +491,7 @@ fn attempt_totals(pending: &[PendingResult]) -> HashMap<(&str, u32, u32), u32> {
 fn shard_max(pending: &[PendingResult], label: &str) -> u32 {
     pending
         .iter()
-        .filter(|result| result.label == label)
+        .filter(|result| result.label == label && !result.files.is_empty())
         .map(|result| result.shard)
         .max()
         .unwrap_or(0)

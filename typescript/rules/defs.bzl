@@ -3,7 +3,6 @@
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
-load("@aspect_rules_ts//ts/private:ts_config.bzl", _write_tsconfig = "write_tsconfig")
 load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -53,6 +52,82 @@ def typescript_srcs_rejection(srcs):
                 ", ".join(sorted(bad)))
     return None
 
+_DX_TSCONFIG_EXTS = (".ts", ".tsx", ".mts", ".cts")
+
+def dx_tsconfig_is_source(basename):
+    """Returns whether a basename is listed in a scoped tsconfig files array."""
+    return basename.endswith(_DX_TSCONFIG_EXTS)
+
+def dx_tsconfig_relpath(from_path, to_path):
+    """Returns the relative path from one file to another file."""
+    from_segs = from_path.split("/")[:-1]
+    to_segs = to_path.split("/")
+    common = 0
+    for i in range(min(len(from_segs), len(to_segs))):
+        if from_segs[i] != to_segs[i]:
+            break
+        common += 1
+    rel = [".."] * (len(from_segs) - common) + to_segs[common:]
+    path = "/".join(rel)
+    if not path.startswith("../"):
+        path = "./" + path
+    return path
+
+def _dx_write_tsconfig_impl(ctx):
+    extends_path = dx_tsconfig_relpath(ctx.outputs.out.short_path, ctx.file.extends.short_path)
+    local_package_prefix = "%s/" % ctx.label.package if ctx.label.package else ""
+    if len(ctx.label.repo_name) > 0:
+        local_package_prefix = "../{}/{}".format(ctx.label.repo_name, local_package_prefix)
+    path_to_root = "/".join([".."] * (ctx.label.package.count("/") + 1))
+    local_package_prefix_len = len(local_package_prefix)
+    root_prefix = "./%s/" % path_to_root
+    src_files = []
+    for f in ctx.files.files:
+        if not dx_tsconfig_is_source(f.basename):
+            continue
+        short_path = f.short_path
+        if short_path.startswith(local_package_prefix):
+            src_files.append("./" + short_path[local_package_prefix_len:])
+        else:
+            src_files.append(root_prefix + short_path)
+    ctx.actions.write(
+        output = ctx.outputs.out,
+        content = '{"extends":"' + extends_path + '","files":' + str(src_files) + "}",
+    )
+    return [DefaultInfo(files = depset([ctx.outputs.out]))]
+
+_dx_tsconfig = rule(
+    implementation = _dx_write_tsconfig_impl,
+    attrs = {
+        "extends": attr.label(
+            doc = "Inherited tsconfig file named in extends.",
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "files": attr.label_list(
+            doc = "TypeScript sources listed in the files array.",
+            allow_files = True,
+        ),
+        "out": attr.output(
+            doc = "Generated scoped tsconfig file.",
+            mandatory = True,
+        ),
+    },
+    doc = "Writes a scoped tsconfig naming an inherited file and these sources.",
+)
+
+def _dx_write_tsconfig(name, files, out, extends, **kwargs):
+    """Instantiates the scoped tsconfig writer in the package directory."""
+    if out.find("/") >= 0:
+        fail("tsconfig should be generated in the package directory, to make relative pathing simple")
+    _dx_tsconfig(
+        name = name,
+        files = files,
+        extends = extends,
+        out = out,
+        **kwargs
+    )
+
 def _dx_scoped_tsconfig(name, srcs, kwargs):
     """Returns kwargs with a tsconfig that lists only this target's own sources."""
     tsconfig = kwargs.get("tsconfig", None)
@@ -60,9 +135,8 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
         return kwargs
 
     generated = "tsconfig_" + name
-    _write_tsconfig(
+    _dx_write_tsconfig(
         name = generated,
-        config = {},
         files = srcs,
         extends = tsconfig,
         out = generated + ".json",

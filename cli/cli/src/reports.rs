@@ -8,7 +8,10 @@ pub mod sarif;
 
 pub use junit::{junit_infrastructure_case, parse_test_xml, render_junit, JunitCase, JunitMessage};
 pub use lcov::{coverage_line_rate, validate_lcov};
-pub use planning::{format_names, plan_reports, Destination, PlannedReport, StandardFormat};
+pub use planning::{
+    destination_key, format_names, plan_reports, resolve_destination, Destination, PlannedReport,
+    StandardFormat,
+};
 pub use sarif::{byte_to_line, render_sarif};
 
 fn unsupported_format_message(command: &str, format: &str, supported: &[&str]) -> String {
@@ -37,6 +40,14 @@ pub enum ReportError {
     },
     #[error("duplicate report {format:?} for destination {destination:?}")]
     DuplicateReport { format: String, destination: String },
+    #[error(
+        "conflicting reports {first:?} and {second:?} for destination {destination:?}: use distinct destinations"
+    )]
+    ConflictingDestinations {
+        first: String,
+        second: String,
+        destination: String,
+    },
     #[error("more than one standard report targets stdout")]
     MultipleStdoutReports,
     #[error(

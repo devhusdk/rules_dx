@@ -215,7 +215,10 @@ fn report_clause(command: Command) -> String {
     if formats.is_empty() {
         return "--report has no standard format for this command.".to_owned();
     }
-    format!("--report {formats}=<destination> (repeatable).")
+    format!(
+        "--report {formats}=<destination> (repeatable). Relative destinations resolve under the workspace root; \
+        absolute destinations are used as written. Every report needs its own file; missing parent directories fail the run."
+    )
 }
 
 pub(crate) fn output_line(command: Command) -> String {
@@ -659,7 +662,11 @@ mod tests {
             let report = if reports.is_empty() {
                 "--report has no standard format for this command.".to_owned()
             } else {
-                format!("--report {}=<destination> (repeatable).", reports.join("|"))
+                format!(
+                    "--report {}=<destination> (repeatable). Relative destinations resolve under the workspace root; \
+                    absolute destinations are used as written. Every report needs its own file; missing parent directories fail the run.",
+                    reports.join("|")
+                )
             };
             assert_eq!(
                 line,

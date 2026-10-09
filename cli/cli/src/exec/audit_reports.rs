@@ -1152,6 +1152,44 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
 }
 
 #[test]
+fn audit_reports_to_one_file_fail_before_anything_is_written() {
+    use crate::args::parse;
+    let runner = AuditRunner::clean();
+    let harness = Harness::new("audit-report-collision");
+    let invocation = parse(&[
+        "license".to_owned(),
+        "//rust/tests/fixtures/hello:hello".to_owned(),
+        "--report=sarif=out.dat".to_owned(),
+        "--report=spdx=out.dat".to_owned(),
+    ])
+    .expect("parse");
+    let (code, _, err_text) = harness.execute_with(&invocation, &runner);
+    assert_eq!(code, dx_process::pre_exec_code(), "{err_text}");
+    assert!(err_text.contains("conflicting reports"), "{err_text}");
+    assert!(err_text.contains("out.dat"), "{err_text}");
+    assert!(!harness.workspace.join("out.dat").exists());
+}
+
+#[test]
+fn audit_report_aliases_of_one_file_fail_before_anything_is_written() {
+    use crate::args::parse;
+    let runner = AuditRunner::clean();
+    let harness = Harness::new("audit-report-alias");
+    let absolute = harness.workspace.join("out.dat");
+    let invocation = parse(&[
+        "license".to_owned(),
+        "//rust/tests/fixtures/hello:hello".to_owned(),
+        "--report=sarif=./out.dat".to_owned(),
+        format!("--report=spdx={}", absolute.to_str().expect("utf8")),
+    ])
+    .expect("parse");
+    let (code, _, err_text) = harness.execute_with(&invocation, &runner);
+    assert_eq!(code, dx_process::pre_exec_code(), "{err_text}");
+    assert!(err_text.contains("conflicting reports"), "{err_text}");
+    assert!(!harness.workspace.join("out.dat").exists());
+}
+
+#[test]
 fn audit_sarif_spdx_write_failures_are_fail_closed() {
     use crate::args::parse;
     for (format, path) in [

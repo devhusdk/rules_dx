@@ -17,7 +17,9 @@ Runs `format`, then `lint`, then `typecheck`, then `generate` in order. Stops
 on the first failure. `--fail-on` and `--report sarif=<dest>` pass through to
 each phase. `dx check` is always a check, so `--check` is implied. Reports
 merge the `lint` and `typecheck` phases; `-` for stdout is rejected because
-the phases share one document.
+the phases share one document. Relative destinations resolve under the
+workspace root; absolute destinations are used as written. Every report needs
+its own file; missing parent directories fail the run.
 
 Every phase that ran and owed a capture must leave a readable SARIF document
 behind. A missing, unreadable, or malformed capture is a `collection_failed`

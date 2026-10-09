@@ -473,12 +473,16 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let phase_check = !fix_apply;
     let mode = if phase_check { "check" } else { "default" };
     let command = invocation.command.name();
-    if let Err(error) = plan_reports(
+    let planned_reports = match plan_reports(
         invocation.command,
         &invocation.reports,
         &invocation.output,
         invocation.dry_run,
     ) {
+        Ok(planned) => planned,
+        Err(error) => return pre_exec(err, &error.to_string()),
+    };
+    if let Some(error) = resolved_report_conflict(workspace, &planned_reports) {
         return pre_exec(err, &error.to_string());
     }
     for request in &invocation.reports {
@@ -620,14 +624,14 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     if stdout_exit.is_none() {
         let document = collector.document();
         for request in &invocation.reports {
-            if !write_report_file(workspace, &request.destination, &document) {
+            if let Err(error) = write_report_file(workspace, &request.destination, &document) {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!(
-                        "failed to write {} report to {}",
+                        "failed to write {} report to {}: {error}",
                         request.format, request.destination
                     ),
                 );

@@ -1,5 +1,7 @@
 use crate::args::Invocation;
-use crate::reports::Destination;
+use crate::reports::{
+    destination_key, resolve_destination, Destination, PlannedReport, ReportError,
+};
 use crate::resolve::QueryRunner;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
@@ -9,8 +11,9 @@ use dx_output::{
     FinishedCounts, OutputMode,
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
+use std::collections::BTreeMap;
 use std::io::{self, BufReader, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
     if error.is_broken_pipe() {
@@ -233,30 +236,102 @@ pub(crate) fn report_failed(
     }
 }
 
-/// Writes one report document to a path under the workspace and reports whether it landed.
-pub(crate) fn write_report_file(workspace: &Path, destination: &str, document: &str) -> bool {
-    let target = workspace.join(destination);
-    let parent_ok = target
-        .parent()
-        .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-    parent_ok
-        && RealFileSystem
-            .write_atomic(&target, document.as_bytes())
-            .is_ok()
+/// A failed report write with the resolved destination and the cause.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReportWriteError {
+    pub(crate) destination: String,
+    pub(crate) resolved: PathBuf,
+    pub(crate) reason: String,
 }
 
-/// Writes one report document to its planned destination and reports whether it landed.
+impl std::fmt::Display for ReportWriteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} (destination resolves to {})",
+            self.reason,
+            self.resolved.display()
+        )
+    }
+}
+
+impl std::error::Error for ReportWriteError {}
+
+/// Rejects planned reports that resolve to one file before anything is written.
+pub(crate) fn resolved_report_conflict(
+    workspace: &Path,
+    planned: &[PlannedReport],
+) -> Option<ReportError> {
+    let mut owners: BTreeMap<String, &str> = BTreeMap::new();
+    for report in planned {
+        let destination = match &report.destination {
+            Destination::Stdout => continue,
+            Destination::File(path) => path,
+        };
+        let resolved = resolve_destination(workspace, destination);
+        let key = destination_key(&resolved.to_string_lossy());
+        if let Some(owner) = owners.get(&key) {
+            return Some(ReportError::ConflictingDestinations {
+                first: (*owner).to_owned(),
+                second: report.format.name().to_owned(),
+                destination: destination.clone(),
+            });
+        }
+        owners.insert(key, report.format.name());
+    }
+    None
+}
+
+pub(crate) fn write_report_file(
+    workspace: &Path,
+    destination: &str,
+    document: &str,
+) -> Result<(), ReportWriteError> {
+    let target = resolve_destination(workspace, destination);
+    let missing_parent = |parent: &Path| ReportWriteError {
+        destination: destination.to_owned(),
+        resolved: target.clone(),
+        reason: if parent.exists() {
+            format!("parent is not a directory: {}", parent.display())
+        } else {
+            format!("parent directory does not exist: {}", parent.display())
+        },
+    };
+    match target.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() && !parent.is_dir() => {
+            Err(missing_parent(parent))
+        }
+        _ if target.is_dir() => Err(ReportWriteError {
+            destination: destination.to_owned(),
+            resolved: target.clone(),
+            reason: format!("destination is a directory: {}", target.display()),
+        }),
+        _ => RealFileSystem
+            .write_atomic(&target, document.as_bytes())
+            .map_err(|error| ReportWriteError {
+                destination: destination.to_owned(),
+                resolved: target.clone(),
+                reason: format!("write failed: {error}"),
+            }),
+    }
+}
+
+/// Writes one report document to its planned destination.
 pub(crate) fn write_report_document(
     out: &mut dyn Write,
     workspace: &Path,
     destination: &Destination,
     document: &str,
-) -> bool {
+) -> Result<(), ReportWriteError> {
     match destination {
         Destination::Stdout => out
             .write_all(document.as_bytes())
             .and_then(|()| out.write_all(b"\n"))
-            .is_ok(),
+            .map_err(|error| ReportWriteError {
+                destination: "-".to_owned(),
+                resolved: PathBuf::from("-"),
+                reason: format!("stdout write failed: {error}"),
+            }),
         Destination::File(path) => write_report_file(workspace, path, document),
     }
 }
@@ -637,41 +712,137 @@ mod tests {
             dir.path(),
             &Destination::File("out.sarif".to_owned()),
             "{}\n"
-        ));
+        )
+        .is_ok());
         assert_eq!(
             std::fs::read_to_string(dir.path().join("out.sarif")).expect("report"),
             "{}\n"
         );
         assert!(out.is_empty());
 
-        assert!(write_report_document(
-            &mut out,
-            dir.path(),
-            &Destination::Stdout,
-            "{}"
-        ));
+        assert!(write_report_document(&mut out, dir.path(), &Destination::Stdout, "{}").is_ok());
         assert_eq!(String::from_utf8(out).expect("utf8"), "{}\n");
 
-        assert!(!write_report_document(
+        assert!(write_report_document(
             &mut BrokenPipeWriter,
             dir.path(),
             &Destination::Stdout,
             "{}\n"
-        ));
+        )
+        .is_err());
     }
 
     #[test]
     fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
         let dir = tempfile::tempdir().expect("tempdir");
-        assert!(!write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        let missing = write_report_file(dir.path(), "nested/out.sarif", "{}\n")
+            .expect_err("missing parent fails");
+        assert_eq!(missing.destination, "nested/out.sarif");
+        assert_eq!(missing.resolved, dir.path().join("nested/out.sarif"));
+        assert!(missing.reason.contains("does not exist"), "{missing}");
+        assert!(missing.to_string().contains("nested"), "{missing}");
         assert!(!dir.path().join("nested").exists());
         std::fs::create_dir(dir.path().join("nested")).expect("mkdir");
-        assert!(write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        assert!(write_report_file(dir.path(), "nested/out.sarif", "{}\n").is_ok());
         assert_eq!(
             std::fs::read_to_string(dir.path().join("nested/out.sarif")).expect("report"),
             "{}\n"
         );
-        assert!(!write_report_file(dir.path(), "nested", "{}\n"));
+        let clash = write_report_file(dir.path(), "nested", "{}\n").expect_err("file parent");
+        assert!(clash.reason.contains("is a directory"), "{clash}");
+    }
+
+    #[test]
+    fn write_report_file_anchors_relative_paths_at_the_workspace() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        assert!(write_report_file(dir.path(), "sub/../out.sarif", "{}\n").is_ok());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("out.sarif")).expect("report"),
+            "{}\n"
+        );
+        assert!(!dir.path().join("sub").exists());
+        let absolute = dir.path().join("abs.sarif");
+        assert!(write_report_file(dir.path(), absolute.to_str().expect("utf8"), "{}\n").is_ok());
+        assert_eq!(std::fs::read_to_string(&absolute).expect("report"), "{}\n");
+    }
+
+    #[test]
+    fn write_report_failure_preserves_the_existing_report() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("out.sarif"), "stale\n").expect("stale");
+        let error = write_report_file(dir.path(), "out.sarif/blocked.sarif", "{}\n")
+            .expect_err("file parent fails");
+        assert!(error.reason.contains("not a directory"), "{error}");
+        assert_eq!(error.resolved, dir.path().join("out.sarif/blocked.sarif"));
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("out.sarif")).expect("stale survives"),
+            "stale\n"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn atomic_write_failure_preserves_the_existing_report() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let reports = dir.path().join("locked");
+        std::fs::create_dir(&reports).expect("mkdir");
+        let target = reports.join("out.sarif");
+        std::fs::write(&target, "stale\n").expect("stale");
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&reports, std::fs::Permissions::from_mode(0o555))
+            .expect("read-only");
+        let error = write_report_file(dir.path(), "locked/out.sarif", "{}\n")
+            .expect_err("unwritable dir fails");
+        assert_eq!(error.destination, "locked/out.sarif");
+        assert_eq!(error.resolved, target);
+        assert!(error.reason.contains("write failed"), "{error}");
+        assert_eq!(
+            std::fs::read_to_string(&target).expect("stale survives"),
+            "stale\n"
+        );
+        std::fs::set_permissions(&reports, std::fs::Permissions::from_mode(0o755))
+            .expect("writable");
+    }
+
+    #[test]
+    fn resolved_conflicts_catch_absolute_aliases_of_relative_destinations() {
+        use crate::reports::StandardFormat;
+        let dir = tempfile::tempdir().expect("tempdir");
+        let absolute = dir.path().join("out.dat");
+        let planned = vec![
+            PlannedReport {
+                format: StandardFormat::Sarif,
+                destination: Destination::File("out.dat".to_owned()),
+            },
+            PlannedReport {
+                format: StandardFormat::Spdx,
+                destination: Destination::File(absolute.to_str().expect("utf8").to_owned()),
+            },
+        ];
+        assert_eq!(
+            resolved_report_conflict(dir.path(), &planned),
+            Some(ReportError::ConflictingDestinations {
+                first: "sarif".to_owned(),
+                second: "spdx".to_owned(),
+                destination: absolute.to_str().expect("utf8").to_owned(),
+            })
+        );
+        let distinct = vec![
+            PlannedReport {
+                format: StandardFormat::Sarif,
+                destination: Destination::File("one.dat".to_owned()),
+            },
+            PlannedReport {
+                format: StandardFormat::Spdx,
+                destination: Destination::File("other.dat".to_owned()),
+            },
+            PlannedReport {
+                format: StandardFormat::Sarif,
+                destination: Destination::Stdout,
+            },
+        ];
+        assert_eq!(resolved_report_conflict(dir.path(), &distinct), None);
+        assert_eq!(resolved_report_conflict(dir.path(), &[]), None);
     }
 
     #[test]

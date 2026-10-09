@@ -51,7 +51,11 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
   `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
-  Every other command rejects `--report`.
+  Every other command rejects `--report`. Relative destinations resolve under
+  the workspace root no matter where dx runs; absolute destinations are used
+  as written. Every report needs its own file: two reports to one file fail
+  before anything runs. Missing parent directories fail the run; dx never
+  creates them.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`. Taken by
   `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
   Every other command rejects it.

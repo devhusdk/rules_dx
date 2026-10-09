@@ -38,6 +38,9 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
+    if let Some(error) = resolved_report_conflict(workspace, &planned_reports) {
+        return pre_exec(err, &error.to_string());
+    }
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);

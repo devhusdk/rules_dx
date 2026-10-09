@@ -46,17 +46,23 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             "temporary event path is not UTF-8",
         );
     };
-    let build = match resolve(&invocation.targets, workspace, query_runner)
-        .map_err(|error| error.to_string())
-        .and_then(|resolved| {
-            plan_build(
-                invocation.command,
-                &resolved,
-                &invocation.bazel_options,
-                bep_text,
-            )
-            .map_err(|error| format!("{error}"))
-        }) {
+    let build = match resolve(
+        &invocation.targets,
+        workspace,
+        query_runner,
+        &invocation.bazel_startup_options,
+    )
+    .map_err(|error| error.to_string())
+    .and_then(|resolved| {
+        plan_build(
+            invocation.command,
+            &resolved,
+            &invocation.bazel_options,
+            bep_text,
+            &invocation.bazel_startup_options,
+        )
+        .map_err(|error| format!("{error}"))
+    }) {
         Ok(build) => build,
         Err(message) => return pre_exec(err, &message),
     };

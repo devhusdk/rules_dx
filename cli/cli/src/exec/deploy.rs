@@ -31,7 +31,12 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(label) => label,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let info = match check_deployable(&label, workspace, query_runner) {
+    let info = match check_deployable(
+        &label,
+        workspace,
+        query_runner,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(info) => info,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
@@ -45,8 +50,13 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         attr,
         Profile::default_for(Command::Deploy),
     );
-    let build_plan = plan_deploy_build(&label, profile);
-    let run_plan = plan_deploy_run(&label, &invocation.bazel_options, profile);
+    let build_plan = plan_deploy_build(&label, profile, &invocation.bazel_startup_options);
+    let run_plan = plan_deploy_run(
+        &label,
+        &invocation.bazel_options,
+        profile,
+        &invocation.bazel_startup_options,
+    );
     let app_display = if info.app_raw == "NONE" || info.app_raw == "None" {
         label.clone()
     } else {

@@ -51,7 +51,12 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let expanded: Option<Vec<String>> = match (invocation.command, &scope) {
         (Command::Codegen | Command::Setup, dx_setup::SetupScope::Exact(label)) => {
-            match expand_codegen_roots(label, workspace, query_runner) {
+            match expand_codegen_roots(
+                label,
+                workspace,
+                query_runner,
+                &invocation.bazel_startup_options,
+            ) {
                 Ok(roots) => Some(roots),
                 Err(error) => return pre_exec(err, &error.to_string()),
             }
@@ -64,12 +69,14 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             roots,
             &invocation.bazel_options,
             bep_text,
+            &invocation.bazel_startup_options,
         ),
         None => plan_managed(
             invocation.command,
             &scope,
             &invocation.bazel_options,
             bep_text,
+            &invocation.bazel_startup_options,
         ),
     };
     let plan = match plan {

@@ -240,6 +240,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        bazel_startup_options: startup_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
     let bazel_options = tokenized.bazel_options;
@@ -327,6 +328,20 @@ pub fn parse_with<S: AsRef<OsStr>>(
     let color = dx_output::ColorMode::parse(&color_name).map_err(|_| ArgsError::BadColor {
         value: color_name.clone(),
     })?;
+    let mut bazel_startup_options = Vec::with_capacity(startup_tokens.len());
+    for token in &startup_tokens {
+        match dx_process::validate_startup_option(token) {
+            Ok(kept) => bazel_startup_options.push(kept),
+            Err(dx_process::StartupOptionError::MissingValue { flag }) => {
+                return Err(ArgsError::BadStartupOption {
+                    value: format!("--{flag}"),
+                });
+            }
+            Err(dx_process::StartupOptionError::UnsupportedStartup { flag }) => {
+                return Err(ArgsError::BadStartupOption { value: flag });
+            }
+        }
+    }
     let reports = report;
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
@@ -530,6 +545,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        bazel_startup_options,
     })
 }
 

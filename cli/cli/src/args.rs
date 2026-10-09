@@ -45,6 +45,11 @@ pub enum ArgsError {
     /// The resolved --color value is not a mode.
     #[error("unknown --color {value:?}: want auto|always|never")]
     BadColor { value: String },
+    /// A --bazel-startup-option token is not a qualified startup option.
+    #[error(
+        "unknown --bazel-startup-option {value:?}: want --output_base=<path>|--output_user_root=<path>"
+    )]
+    BadStartupOption { value: String },
     /// An environment default is not a value dx reads.
     #[error("{detail}")]
     BadDefault { detail: String },

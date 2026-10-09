@@ -1,4 +1,4 @@
-load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_py_test", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 python_library(
@@ -19,6 +19,15 @@ python_test(
         "@pypi//coverage",  # keep
         "@pypi//pytest",  # keep
     ],
+)
+
+python_py_test(
+    name = "pure_unittest_test",
+    srcs = ["pure_unittest_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "hello",
+    imports = ["."],
+    deps = [":pure"],
 )
 
 real_source_target(

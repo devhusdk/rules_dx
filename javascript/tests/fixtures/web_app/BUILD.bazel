@@ -1,0 +1,81 @@
+load("//javascript/rules:web.bzl", "web_app", "web_server")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+web_app(
+    name = "app",
+    assets = ["assets/greeting.txt"],
+    bindgen = "//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
+    index = "index.html",
+)
+
+web_server(
+    name = "server",
+    app = ":app",
+    aspect_hints = ["//:ruff_config"],
+)
+
+# keep
+rust_test(
+    name = "server_lifecycle_test",
+    size = "small",
+    srcs = ["server_lifecycle_test.rs"],
+    data = [":server"],
+    env = {"DX_WEB_SERVER": "$(rootpath :server)"},
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "browser_test",
+    size = "large",
+    srcs = ["browser_test.rs"],
+    data = [
+        ":server",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_WEB_SERVER": "$(rootpath :server)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+web_app(
+    name = "duplicate_asset_app",
+    assets = [
+        "assets/extra/greeting.txt",
+        "assets/greeting.txt",
+    ],
+    bindgen = "//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
+    index = "index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "duplicate_asset_test",
+    expected_failure_substring = "duplicate asset name",
+    target = ":duplicate_asset_app",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

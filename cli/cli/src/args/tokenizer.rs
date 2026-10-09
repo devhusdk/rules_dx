@@ -199,26 +199,26 @@ fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Option<Verb>, ArgsError> 
     .map_err(|error| map_clap_error(args, &error))
 }
 
-/// Every word after the first `--` is forwarded to the Bazel launcher.
-fn collect_bazel_options<S: AsRef<OsStr>>(args: &[S]) -> Result<Vec<String>, ArgsError> {
-    let mut forwarded = Vec::with_capacity(args.len());
+/// `dx bazel` startup selections, spelled `--bazel-startup-option=<token>`
+/// before the first `--`; every other word forwards verbatim.
+fn split_bazel_startup(words: &[String]) -> (Vec<String>, Vec<String>) {
+    let mut startup = Vec::new();
+    let mut forwarded = Vec::with_capacity(words.len());
     let mut past_separator = false;
-    for arg in args {
-        let raw = arg.as_ref();
-        if !past_separator && raw == OsStr::new("--") {
+    for word in words {
+        if !past_separator && word == "--" {
             past_separator = true;
             continue;
         }
-        forwarded.push(match raw.to_str() {
-            Some(text) => text.to_owned(),
-            None => {
-                return Err(ArgsError::InvalidScope {
-                    scope: raw.to_string_lossy().into_owned(),
-                });
+        if !past_separator {
+            if let Some(token) = word.strip_prefix("--bazel-startup-option=") {
+                startup.push(token.to_owned());
+                continue;
             }
-        });
+        }
+        forwarded.push(word.clone());
     }
-    Ok(forwarded)
+    (startup, forwarded)
 }
 
 /// The parsed invocation: the command, its flags, its scopes, and its `--` payload.
@@ -235,11 +235,26 @@ pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<Tokenized, ArgsErr
         .first()
         .is_some_and(|first| first.as_ref() == OsStr::new("bazel"))
     {
+        let mut words = Vec::with_capacity(args.len());
+        for arg in &args[1..] {
+            match arg.as_ref().to_str() {
+                Some(text) => words.push(text.to_owned()),
+                None => {
+                    return Err(ArgsError::InvalidScope {
+                        scope: arg.as_ref().to_string_lossy().into_owned(),
+                    });
+                }
+            }
+        }
+        let (startup, forwarded) = split_bazel_startup(&words);
         return Ok(Tokenized {
             command: Command::Bazel,
-            flags: Flags::default(),
+            flags: Flags {
+                bazel_startup_options: startup,
+                ..Flags::default()
+            },
             targets: Vec::new(),
-            bazel_options: collect_bazel_options(&args[1..])?,
+            bazel_options: forwarded,
         });
     }
     let command = parse_tokens(args)?.ok_or(ArgsError::MissingCommand)?;

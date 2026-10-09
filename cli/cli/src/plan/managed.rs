@@ -3,14 +3,16 @@ use dx_process::{build_workflow_argv, ForwardError, ProtectedFlag};
 use super::{BuildPlan, BEP_FLAG_NAME};
 use crate::args::Command;
 
-pub fn plan_bazel(forwarded: &[String]) -> BuildPlan {
-    let mut argv = Vec::with_capacity(1 + forwarded.len());
+pub fn plan_bazel(forwarded: &[String], startup_options: &[String]) -> BuildPlan {
+    let mut argv = Vec::with_capacity(1 + startup_options.len() + forwarded.len());
     argv.push(dx_process::launcher_argv0().to_owned());
+    argv.extend(startup_options.iter().cloned());
     argv.extend(forwarded.iter().cloned());
-    let summary = if forwarded.is_empty() {
+    let rest = &argv[1..];
+    let summary = if rest.is_empty() {
         "Running bazel".to_owned()
     } else {
-        format!("Running bazel {}", forwarded.join(" "))
+        format!("Running bazel {}", rest.join(" "))
     };
     BuildPlan { argv, summary }
 }
@@ -304,13 +306,26 @@ mod tests {
 
     #[test]
     fn bazel_plan_forwards_arguments_verbatim() {
-        let plan = plan_bazel(&strings(&["build", "//...", "--jobs=4"]));
+        let plan = plan_bazel(&strings(&["build", "//...", "--jobs=4"]), &[]);
         assert_eq!(
             plan.argv,
             strings(&["bazel", "build", "//...", "--jobs=4",])
         );
         assert!(plan.summary.contains("build //..."));
-        let bare = plan_bazel(&[]);
+        let bare = plan_bazel(&[], &[]);
         assert_eq!(bare.argv, strings(&["bazel"]));
+    }
+
+    #[test]
+    fn bazel_plan_splices_startup_options_before_the_verb() {
+        let plan = plan_bazel(
+            &strings(&["build", "//..."]),
+            &strings(&["--output_base=/tmp/sb"]),
+        );
+        assert_eq!(
+            plan.argv,
+            strings(&["bazel", "--output_base=/tmp/sb", "build", "//..."])
+        );
+        assert!(plan.summary.contains("--output_base=/tmp/sb build //..."));
     }
 }

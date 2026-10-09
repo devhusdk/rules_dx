@@ -10,7 +10,10 @@ pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
-    let plan = plan_bazel(&invocation.bazel_options);
+    let plan = plan_bazel(
+        &invocation.bazel_options,
+        &invocation.bazel_startup_options,
+    );
     if invocation.dry_run {
         if invocation.chatty() {
             let _ = writeln!(out, "{}", plan.summary);
@@ -68,6 +71,31 @@ mod tests {
             "dx bazel forwards every word verbatim"
         );
         assert!(run.out.contains("Running bazel build"), "{run:?}");
+    }
+
+    #[test]
+    fn bazel_passthrough_splices_startup_options_before_the_verb() {
+        let harness = Harness::new("bazel-startup");
+        let inv = invocation(&[
+            "bazel",
+            "--bazel-startup-option=--output_base=/tmp/sb",
+            "--",
+            "build",
+            "//...",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert_eq!(
+            run.argv[0],
+            vec![
+                "bazel".to_owned(),
+                "--output_base=/tmp/sb".to_owned(),
+                "build".to_owned(),
+                "//...".to_owned(),
+            ],
+            "{run:?}"
+        );
     }
 
     #[test]

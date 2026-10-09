@@ -1,0 +1,24 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":metadata_tests.bzl", "android_toolchain_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "cc_toolchain_config.bzl",
+    "metadata_tests.bzl",
+    "repos.bzl",
+])
+
+android_toolchain_tests(name = "metadata")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cc_toolchain_config.bzl",
+        "metadata_tests.bzl",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -162,7 +162,6 @@ def _android_ndk_toolchain_repo_impl(ctx):
             fail("android_ndk_toolchain: '" + path + "' is absent from the declared SDK")
     sdk = ctx.path(local_path)
     ctx.symlink(sdk, "sdk")
-    ndk_root = "sdk/ndk/" + revision
     prebuilt = _HOST_PREBUILT
     sysroot = "sysroot"
     clang = str(sdk) + "/ndk/" + revision + "/" + prebuilt + "/bin/clang"

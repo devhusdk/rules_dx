@@ -63,7 +63,7 @@ bazel run @rules_dx//:dx -- version --rollback
 Every command reads the pin in `.dx/version` and compares it with the
 `MODULE.bazel` pin before it runs. A mismatch is version skew.
 
-- Runs anyway: `version`, `status`, `completion`.
+- Runs anyway: `version`, `status`, `completion`, `capabilities`.
 - Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`.
 - Stops with exit code `1`: every other command.
 

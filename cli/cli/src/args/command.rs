@@ -33,6 +33,7 @@ pub enum Command {
     Completion,
     Docs,
     Bazel,
+    Capabilities,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,7 +115,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 33] = [
+pub static COMMANDS: [CommandMeta; 34] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -1006,6 +1007,33 @@ pub static COMMANDS: [CommandMeta; 33] = [
         labels: LabelsPolicy::Never,
         hook_triggers_on_run: false,
     },
+    CommandMeta {
+        command: Command::Capabilities,
+        name: "capabilities",
+        scope_policy: "reject",
+        describe: "print machine-readable CLI and workspace capabilities (no downloads; --workspace-capabilities adds workspace facts)",
+        usage: "Usage: dx capabilities [--workspace-capabilities]",
+        flags: "Per-command flags: --workspace-capabilities (capabilities only; adds workspace facts from local records without downloads or probing; --output text|json only, diff has no patch; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: none (capabilities takes no scopes).",
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_check: false,
+        supports_fail_on: false,
+        supports_min_coverage: false,
+        supports_profile: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
 ];
 
 impl Command {
@@ -1270,6 +1298,7 @@ mod tests {
             Command::Completion,
             Command::Docs,
             Command::Bazel,
+            Command::Capabilities,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1296,6 +1325,7 @@ mod tests {
             "bazel",
             "build",
             "bump",
+            "capabilities",
             "check",
             "clean",
             "codegen",
@@ -1328,8 +1358,8 @@ mod tests {
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 33");
-        assert_eq!(Command::value_variants().len(), 33);
+        assert_eq!(got, want, "Command registry drifted from the final 34");
+        assert_eq!(Command::value_variants().len(), 34);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1387,6 +1417,7 @@ mod tests {
             Command::Completion,
             Command::Docs,
             Command::Bazel,
+            Command::Capabilities,
         ] {
             assert!(
                 !command.is_mutating_by_default(),
@@ -1473,7 +1504,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            33,
+            34,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1491,7 +1522,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities",
             "pipe_list order must match declaration order"
         );
     }
@@ -1499,7 +1530,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 33);
+        assert_eq!(Command::value_variants().len(), 34);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1718,7 +1749,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 33);
+        assert_eq!(COMMANDS.len(), 34);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

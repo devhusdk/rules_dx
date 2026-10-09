@@ -175,12 +175,13 @@ pub fn usage_banner() -> String {
     let shells = COMPLETION_SHELLS.join("|");
     format!(
         "usage: dx <{commands}> [--workspace DIR] [--dry-run] [--quiet] [--verbose|-v] \
-[--log-level error|warn|info|debug|trace] [--color auto|always|never] \
+ [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
 [--output text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
-per-command flags: clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
+per-command flags: capabilities --workspace-capabilities (adds workspace facts from local records); \
+clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
 distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why --configured (cquery); \
 coverage --min-coverage; build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
@@ -248,6 +249,7 @@ const COMMAND_FLAGS: &[&str] = &[
     "--host",
     "--open",
     "--offline",
+    "--workspace-capabilities",
 ];
 
 const PASSTHROUGH: &str = "-- <bazel-options>";

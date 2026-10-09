@@ -20,6 +20,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx status`, `dx version`](status-version.md)
 - [`dx owners`, `dx deps`, `dx why`](inspect.md)
 - [`dx completion`](completion.md)
+- [`dx capabilities`](capabilities.md)
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`](new-upgrade.md)
 - [`dx watch`](watch.md)
@@ -92,6 +93,9 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 ```
 
 - `command_started`: the command, whether it is a dry run, and its mode.
+- `capability`: one declared capability, with `name`, `source`,
+  `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
+  `effect`, and `passthrough`.
 - `operation`: a phase, with the scopes it resolved to.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.

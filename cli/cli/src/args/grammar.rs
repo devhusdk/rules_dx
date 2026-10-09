@@ -77,6 +77,7 @@ pub(crate) struct Flags {
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) workspace_capabilities: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
 
@@ -407,6 +408,14 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Include workspace facts from local records.
+    WorkspaceCapabilitiesFlag, {
+        #[arg(long = "workspace-capabilities", overrides_with = "workspace_capabilities")]
+        workspace_capabilities: bool,
+    }
+}
+
 composite_group! {
     /// The profile flags the workflow commands share.
     ProfileArgs, {
@@ -709,6 +718,8 @@ command_args! {
     };
     /// The flags `dx bazel` accepts.
     Bazel => 32, NoScopeTail, {};
+    /// The flags `dx capabilities` accepts.
+    Capabilities => 33, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
 }
 
 #[derive(Parser)]

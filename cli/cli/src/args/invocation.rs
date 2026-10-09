@@ -60,6 +60,7 @@ pub struct Invocation {
     pub host: Option<String>,
     pub open: bool,
     pub offline: bool,
+    pub workspace_capabilities: bool,
     pub bazel_startup_options: Vec<String>,
 }
 
@@ -219,6 +220,7 @@ mod tests {
             host: None,
             open: false,
             offline: false,
+            workspace_capabilities: false,
             bazel_startup_options: Vec::new(),
         }
     }

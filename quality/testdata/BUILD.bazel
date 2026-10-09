@@ -119,6 +119,40 @@ ruff_config(
     src = "ruff.toml",
 )
 
+genrule(
+    name = "generated_ruff_toml",
+    srcs = ["ruff.toml"],
+    outs = ["generated_ruff.toml"],
+    cmd = "cp $(SRCS) $@",
+)
+
+genrule(
+    name = "generated_ruff_extra",
+    srcs = ["real_clean.toml"],
+    outs = ["generated_ruff_extra.toml"],
+    cmd = "cp $(SRCS) $@",
+)
+
+ruff_config(
+    name = "ruff_cfg_generated",
+    src = ":generated_ruff_toml",
+    allow_generated = True,
+    data = [":generated_ruff_extra"],
+)
+
+ruff_config(
+    name = "ruff_cfg_generated_no_optin",
+    src = ":generated_ruff_toml",
+    tags = ["manual"],
+)
+
+ruff_config(
+    name = "ruff_cfg_generated_data_no_optin",
+    src = "ruff.toml",
+    data = [":generated_ruff_extra"],
+    tags = ["manual"],
+)
+
 biome_config(
     name = "biome_cfg",
     src = "biome_cfg/biome.json",
@@ -214,6 +248,26 @@ real_source_target(
     name = "fixture_real_python",
     aspect_hints = [":ruff_cfg"],
     python_srcs = ["real_clean.py"],
+)
+
+real_source_target(
+    name = "fixture_real_python_generated_config",
+    aspect_hints = [":ruff_cfg_generated"],
+    python_srcs = ["real_clean.py"],
+)
+
+real_source_target(
+    name = "fixture_real_python_generated_no_optin",
+    aspect_hints = [":ruff_cfg_generated_no_optin"],
+    python_srcs = ["real_clean.py"],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "fixture_real_python_generated_data_no_optin",
+    aspect_hints = [":ruff_cfg_generated_data_no_optin"],
+    python_srcs = ["real_clean.py"],
+    tags = ["manual"],
 )
 
 real_source_target(
@@ -411,6 +465,35 @@ real_aspect_subject(
 real_aspect_subject(
     name = "fixture_real_python_subject",
     target = ":fixture_real_python",
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_generated_config_subject",
+    target = ":fixture_real_python_generated_config",
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_generated_no_optin_subject",
+    tags = ["manual"],
+    target = ":fixture_real_python_generated_no_optin",
+)
+
+failure_test(
+    name = "fixture_real_python_generated_no_optin_test",
+    expected_failure_substring = "must be a checked-in source file",
+    target = ":fixture_real_python_generated_no_optin_subject",
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_generated_data_no_optin_subject",
+    tags = ["manual"],
+    target = ":fixture_real_python_generated_data_no_optin",
+)
+
+failure_test(
+    name = "fixture_real_python_generated_data_no_optin_test",
+    expected_failure_substring = "data must be checked-in source files",
+    target = ":fixture_real_python_generated_data_no_optin_subject",
 )
 
 real_aspect_subject(
@@ -629,6 +712,7 @@ real_aspect_fixture_tests(
         ":fixture_real_no_format_subject",
         ":fixture_real_no_lint_subject",
         ":fixture_real_python_foreign_hint_subject",
+        ":fixture_real_python_generated_config_subject",
         ":fixture_real_python_hinted_subject",
         ":fixture_real_python_subject",
         ":fixture_real_rust_subject",

@@ -62,14 +62,14 @@ def _native_config_suffix_error(tool_id, config_path, wants):
     return ("native_config (" + tool_id + "): src must end in one of " +
             ", ".join(quoted) + ", got " + config_path)
 
-def native_config_error(tool_id, config_path, config_is_source, data):
+def native_config_error(tool_id, config_path, config_is_source, data, allow_generated = False):
     """Returns the validation error for a native config, or "" when valid."""
     if tool_id not in _NATIVE_CONFIG_SUFFIXES:
         return ("native_config: unknown tool '" + tool_id + "': want one of " +
                 ", ".join(sorted(_NATIVE_CONFIG_SUFFIXES.keys())))
     if config_path == "":
         return "native_config (" + tool_id + "): src is required"
-    if not config_is_source:
+    if not config_is_source and not allow_generated:
         return ("native_config (" + tool_id + "): src must be a checked-in " +
                 "source file, got generated " + config_path)
     wants = _NATIVE_CONFIG_SUFFIXES[tool_id]
@@ -77,7 +77,7 @@ def native_config_error(tool_id, config_path, config_is_source, data):
     if len(accepted) == 0:
         return _native_config_suffix_error(tool_id, config_path, wants)
     for entry in data:
-        if not entry.is_source:
+        if not entry.is_source and not allow_generated:
             return ("native_config (" + tool_id + "): data must be " +
                     "checked-in source files, got generated " + entry.path)
     return ""
@@ -106,7 +106,7 @@ def _native_config_impl(ctx):
     config_path = config.path if config else ""
     config_is_source = config.is_source if config else False
     data = [struct(path = f.path, is_source = f.is_source) for f in ctx.files.data]
-    err = native_config_error(tool_id, config_path, config_is_source, data)
+    err = native_config_error(tool_id, config_path, config_is_source, data, ctx.attr.allow_generated)
     if err != "":
         fail(err + " (in " + str(ctx.label) + ")")
     closure = depset([config] + ctx.files.data)
@@ -123,6 +123,9 @@ def _make_native_config_rule(tool_id):
     return rule(
         implementation = _native_config_impl,
         attrs = {
+            "allow_generated": attr.bool(
+                default = False,
+            ),
             "data": attr.label_list(
                 allow_files = True,
                 default = [],

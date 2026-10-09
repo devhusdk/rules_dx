@@ -124,4 +124,15 @@ JS_CASES = [
         "config_files": [":eslint_cfg/eslint.import.mjs"],
         "expected_file": ":matrix/matrix_javascript_eslint_import_fail.expected.txt",
     },
+    {
+        "name": "matrix_javascript_malformed_fail",
+        "generated": {
+            "matrix/js_malformed.js": "export function add( {\n",
+        },
+        "capability": "lint",
+        "stages": ["biome;javascript;matrix/js_malformed.js"],
+        "tool_names": ["biome"],
+        "tool_binaries": ["@dx_tools//:biome"],
+        "expected_file": ":matrix/matrix_javascript_malformed_fail.expected.txt",
+    },
 ]

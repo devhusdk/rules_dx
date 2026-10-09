@@ -90,8 +90,9 @@ the static native deps and signs the APK with the debug key. The
 default manifest launches a `NativeActivity` loading that library;
 pass `manifest` to package a custom one. `app_id`, `permissions`,
 `abis`, `api_level`, `version_code`, and `version_name` stay with the
-consumer; unknown ABIs, malformed app IDs, and downgraded API levels
-fail at analysis. Package outputs are explicit-label only. Custom
+consumer; unknown ABIs, empty ABI sets, malformed app IDs, downgraded
+API levels, non-positive version codes, and empty launch activities
+fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. Custom
 release signing and AAB distribution are later stages.
 
 Device operations are explicit launchers that never run at build time:

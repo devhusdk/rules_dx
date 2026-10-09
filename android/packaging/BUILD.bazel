@@ -52,6 +52,45 @@ failure_test(
     target = ":bad_api_manifest",
 )
 
+rust_android_apk(
+    name = "bad_version",
+    app_id = "com.example.app",
+    version_code = 0,
+    deps = [],
+)
+
+failure_test(
+    name = "bad_version_test",
+    expected_failure_substring = "version_code 0 must be positive",
+    target = ":bad_version_validation",
+)
+
+rust_android_apk(
+    name = "bad_abis",
+    abis = [],
+    app_id = "com.example.app",
+    deps = [],
+)
+
+failure_test(
+    name = "bad_abis_test",
+    expected_failure_substring = "abis must name at least one ABI",
+    target = ":bad_abis_validation",
+)
+
+rust_android_apk(
+    name = "bad_activity",
+    activity = "",
+    app_id = "com.example.app",
+    deps = [],
+)
+
+failure_test(
+    name = "bad_activity_test",
+    expected_failure_substring = "activity must not be empty",
+    target = ":bad_activity_manifest",
+)
+
 android_adb_install(
     name = "no_serial_install",
     apk = ":bad_app_id",
@@ -74,6 +113,18 @@ failure_test(
     name = "bad_start_app_test",
     expected_failure_substring = "needs at least two dot-separated parts",
     target = ":bad_start_app_selection",
+)
+
+android_adb_start(
+    name = "no_serial_start",
+    app_id = "com.example.app",
+    serial = "",
+)
+
+failure_test(
+    name = "no_serial_start_test",
+    expected_failure_substring = "serial names the target device",
+    target = ":no_serial_start_selection",
 )
 
 android_adb_log(

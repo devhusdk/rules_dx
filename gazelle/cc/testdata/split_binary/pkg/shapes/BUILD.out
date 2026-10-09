@@ -1,0 +1,9 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+
+# Split-layout fixture: this library package is fully generated.
+
+cc_library(
+    name = "shapes",
+    srcs = ["shapes.cc"],
+    hdrs = ["shapes.h"],
+)

@@ -1,0 +1,8 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
+
+# A handwritten thin binary must survive generation unchanged.
+cc_binary(
+    name = "shapes_main",
+    srcs = ["shapes_main.cc"],
+    deps = ["//pkg/shapes"],
+)

@@ -23,7 +23,7 @@ workspace below records exact commands and expected evidence in its own
 - [adopt-fsharp](adopt-fsharp/) foreign SDK-style tree adopted by the F# Gazelle extension.
 - [adopt-ruby](adopt-ruby/) foreign Bundler-layout tree adopted by the Ruby Gazelle extension.
 - [adopt-powershell](adopt-powershell/) foreign PowerShell tree adopted by handwritten wrappers.
-- [adopt-polyglot](adopt-polyglot/) foreign Python+Rust+JS/TS tree adopted package by package.
+- [adopt-polyglot](adopt-polyglot/) foreign Python+Rust+JS/TS+C++ tree adopted package by package.
 
 ## Mix Frameworks
 

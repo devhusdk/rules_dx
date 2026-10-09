@@ -65,6 +65,7 @@ real_source_target(
         "testdata/entries/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",
+        "testdata/split_binary/README.md",
     ],
     tags = ["corpus"],
 )

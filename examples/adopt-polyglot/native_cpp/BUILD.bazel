@@ -1,0 +1,17 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+cc_library(
+    name = "native_cpp",
+    srcs = ["shapes.cc"],
+    hdrs = ["shapes.h"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

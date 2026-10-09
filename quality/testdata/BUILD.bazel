@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
+load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
@@ -13,6 +15,7 @@ load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
+load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
 
@@ -195,6 +198,121 @@ real_source_target(
 real_source_target(
     name = "fixture_real_rust",
     rust_srcs = ["clean.rs"],
+)
+
+upstream_rust_library(
+    name = "fixture_upstream_rust",
+    srcs = ["upstream_clean.rs"],
+    crate_name = "fixture_upstream_rust",
+    crate_root = "upstream_clean.rs",
+    edition = "2021",
+)
+
+upstream_rust_library(
+    name = "fixture_upstream_rust_dirty",
+    srcs = ["upstream_dirty.rs"],
+    crate_name = "fixture_upstream_rust_dirty",
+    crate_root = "upstream_dirty.rs",
+    edition = "2021",
+    tags = ["manual"],
+)
+
+upstream_cc_library(
+    name = "fixture_upstream_cc",
+    srcs = ["upstream_hello.cc"],
+    hdrs = ["upstream_hello.h"],
+)
+
+upstream_cc_library(
+    name = "fixture_upstream_cc_configured",
+    srcs = select({"//conditions:default": ["upstream_hello.cc"]}),
+    hdrs = ["upstream_hello.h"],
+)
+
+upstream_cc_library(
+    name = "fixture_upstream_cc_empty",
+    srcs = [],
+)
+
+genrule(
+    name = "upstream_generated_header",
+    outs = ["upstream_generated.h"],
+    cmd = "echo '#pragma once' > $@",
+)
+
+upstream_cc_library(
+    name = "fixture_upstream_cc_generated",
+    hdrs = [":upstream_generated_header"],
+    tags = ["manual"],
+)
+
+no_context_cc(
+    name = "fixture_upstream_cc_no_context",
+    tags = ["manual"],
+)
+
+real_aspect_subject(
+    name = "fixture_upstream_rust_subject",
+    target = ":fixture_upstream_rust",
+)
+
+real_aspect_subject(
+    name = "fixture_upstream_cc_subject",
+    target = ":fixture_upstream_cc",
+)
+
+real_aspect_subject(
+    name = "fixture_upstream_cc_no_context_subject",
+    tags = ["manual"],
+    target = ":fixture_upstream_cc_no_context",
+)
+
+upstream_ownership_subject(
+    name = "upstream_rust_subject",
+    target = ":fixture_upstream_rust",
+)
+
+upstream_ownership_subject(
+    name = "upstream_cc_subject",
+    target = ":fixture_upstream_cc",
+)
+
+upstream_ownership_subject(
+    name = "upstream_cc_configured_subject",
+    target = ":fixture_upstream_cc_configured",
+)
+
+upstream_ownership_subject(
+    name = "upstream_cc_empty_subject",
+    target = ":fixture_upstream_cc_empty",
+)
+
+upstream_ownership_subject(
+    name = "upstream_cc_generated_subject",
+    target = ":fixture_upstream_cc_generated",
+)
+
+upstream_ownership_subject(
+    name = "upstream_cc_no_context_subject",
+    tags = ["manual"],
+    target = ":fixture_upstream_cc_no_context",
+)
+
+failure_test(
+    name = "upstream_cc_no_context_test",
+    expected_failure_substring = "unchecked, not clean",
+    target = ":fixture_upstream_cc_no_context_subject",
+)
+
+upstream_ownership_tests(
+    name = "upstream_ownership_presence",
+    subjects = [
+        ":upstream_cc_configured_subject",
+        ":upstream_cc_empty_subject",
+        ":upstream_cc_generated_subject",
+        ":upstream_cc_subject",
+        ":upstream_rust_subject",
+    ],
 )
 
 real_source_target(
@@ -719,6 +837,8 @@ real_aspect_fixture_tests(
         ":fixture_real_rust_generated_shape_subject",
         ":fixture_real_starlark_subject",
         ":fixture_real_toml_subject",
+        ":fixture_upstream_cc_subject",
+        ":fixture_upstream_rust_subject",
         ":real_plain_subject",
     ],
 )

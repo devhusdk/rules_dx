@@ -1,7 +1,11 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasm_bindgen", "rust_wasm_bindgen_test", "rust_wasm_bindgen_toolchain", "rustfmt_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasm_bindgen", "rust_wasm_bindgen_js", "rust_wasm_bindgen_test", "rust_wasm_bindgen_toolchain", "rustfmt_test")
 load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
+load("//javascript/rules:defs.bzl", "javascript_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//typescript/rules:defs.bzl", "typescript_project")
+load(":fake_bindgen.bzl", "fake_bindgen")
+load(":js_adapter_tests.bzl", "wasm_bindgen_js_no_actions_test", "wasm_bindgen_js_parity_test")
 load(":raw_transition.bzl", "raw_wasm_proxy")
 
 # gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen
@@ -197,6 +201,8 @@ rust_test(
     data = [
         "@consumer_wasm_bindgen//:bundle_bare_js",
         "@consumer_wasm_bindgen//:bundle_bare_no_ts",
+        "@consumer_wasm_bindgen//:bundle_js_snippets",
+        "@consumer_wasm_bindgen//:bundle_js_types",
         "@consumer_wasm_bindgen//:bundle_raw",
         "@consumer_wasm_bindgen//:bundle_web_js",
         "@consumer_wasm_bindgen//:bundle_web_wasm",
@@ -205,6 +211,8 @@ rust_test(
         "DX_WASM_BARE_JS": "$(rootpath @consumer_wasm_bindgen//:bundle_bare_js)",
         "DX_WASM_BOUND": "$(rootpath @consumer_wasm_bindgen//:bundle_web_wasm)",
         "DX_WASM_JS": "$(rootpath @consumer_wasm_bindgen//:bundle_web_js)",
+        "DX_WASM_JS_SNIPPETS": "$(rootpath @consumer_wasm_bindgen//:bundle_js_snippets)",
+        "DX_WASM_JS_TYPES": "$(rootpath @consumer_wasm_bindgen//:bundle_js_types)",
         "DX_WASM_RAW": "$(rootpath @consumer_wasm_bindgen//:bundle_raw)",
     },
 )
@@ -214,8 +222,148 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "fake_bindgen.bzl",
+        "js_adapter_tests.bzl",
         "raw_transition.bzl",
         "repos.bzl",
     ],
     tags = ["corpus"],
+)
+
+javascript_library(
+    name = "browser_consumer_lib",
+    srcs = ["browser_consumer.mjs"],
+    aspect_hints = ["//:biome_config"],
+)
+
+rust_wasm_bindgen_js(
+    name = "wasm_hello_web_js",
+    bindings = ":wasm_hello_web",
+    require_types = True,
+    visibility = ["//visibility:public"],
+)
+
+wasm_bindgen_js_parity_test(
+    name = "wasm_hello_web_js_parity_test",
+    reference = ":wasm_hello_web",
+    subject = ":wasm_hello_web_js",
+)
+
+wasm_bindgen_js_no_actions_test(
+    name = "wasm_hello_web_js_no_actions_test",
+    subject = ":wasm_hello_web_js",
+)
+
+typescript_project(
+    name = "wasm_consumer",
+    srcs = ["consumer.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    deps = [":wasm_hello_web_js"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+rust_test(
+    name = "wasm_hello_js_browser_test",
+    size = "large",
+    srcs = ["src/browser_check.rs"],
+    data = [
+        "browser_consumer.mjs",
+        "browser_index.html",
+        ":wasm_hello_web_js",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+fake_bindgen(
+    name = "fake_bindgen_no_js",
+    snippets = "src/lib.rs",
+    tags = ["manual"],
+    wasm = "src/main.rs",
+)
+
+rust_wasm_bindgen_js(
+    name = "fake_bindgen_no_js_adapter",
+    bindings = ":fake_bindgen_no_js",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_bindgen_js_missing_js_test",
+    expected_failure_substring = "produced no JavaScript outputs",
+    target = ":fake_bindgen_no_js_adapter",
+)
+
+fake_bindgen(
+    name = "fake_bindgen_no_wasm",
+    js = ["src/lib.rs"],
+    snippets = "src/lib.rs",
+    tags = ["manual"],
+)
+
+rust_wasm_bindgen_js(
+    name = "fake_bindgen_no_wasm_adapter",
+    bindings = ":fake_bindgen_no_wasm",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_bindgen_js_missing_wasm_test",
+    expected_failure_substring = "produced no .wasm output",
+    target = ":fake_bindgen_no_wasm_adapter",
+)
+
+fake_bindgen(
+    name = "fake_bindgen_no_snippets",
+    js = ["src/lib.rs"],
+    tags = ["manual"],
+    wasm = "src/main.rs",
+)
+
+rust_wasm_bindgen_js(
+    name = "fake_bindgen_no_snippets_adapter",
+    bindings = ":fake_bindgen_no_snippets",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_bindgen_js_missing_snippets_test",
+    expected_failure_substring = "produced no snippets directory",
+    target = ":fake_bindgen_no_snippets_adapter",
+)
+
+rust_wasm_bindgen_js(
+    name = "wasm_hello_web_bare_js",
+    bindings = ":wasm_hello_web_bare",
+    require_types = True,
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_bindgen_js_missing_types_test",
+    expected_failure_substring = "produced no TypeScript declarations",
+    target = ":wasm_hello_web_bare_js",
+)
+
+rust_wasm_bindgen_js(
+    name = "js_shape_rejected_adapter",
+    bindings = ":browser_consumer_lib",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_bindgen_js_wrong_provider_test",
+    expected_failure_substring = "mandatory providers",
+    target = ":js_shape_rejected_adapter",
 )

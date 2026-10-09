@@ -71,6 +71,47 @@ genrule(
     testonly = True,
     visibility = ["//visibility:public"],
 )
+
+genrule(
+    name = "bundle_js_types",
+    srcs = ["@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_js"],
+    outs = ["js_types.txt"],
+    cmd = """
+        for f in $(locations @rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_js); do
+          case "$$f" in
+            *.d.ts) echo "$$f" >> $@ ;;
+          esac
+        done
+        test -s $@
+    """,
+    testonly = True,
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "bundle_js_snippets",
+    srcs = ["@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_js"],
+    outs = ["js_snippets.txt"],
+    cmd = """
+        found=0
+        for f in $(locations @rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_js); do
+          case "$$f" in
+            */snippets)
+              if [ -n "$$(find "$$f" -name '*.js' -print -quit)" ]; then
+                found=1
+              fi
+              ;;
+          esac
+        done
+        if [ "$$found" -ne 1 ]; then
+          echo "adapter exposed no snippet javascript" >&2
+          exit 1
+        fi
+        echo ok > $@
+    """,
+    testonly = True,
+    visibility = ["//visibility:public"],
+)
 '''
 
 def _consumer_wasm_bindgen_repo_impl(ctx):

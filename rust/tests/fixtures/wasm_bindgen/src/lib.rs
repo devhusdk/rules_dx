@@ -14,6 +14,16 @@ pub fn add(left: u32, right: u32) -> u32 {
     left + right
 }
 
+#[wasm_bindgen(inline_js = "export function decorate(text) { return text.toUpperCase(); }")]
+extern "C" {
+    fn decorate(text: &str) -> String;
+}
+
+#[wasm_bindgen]
+pub fn shout_greet(name: &str) -> String {
+    decorate(&greet(name))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{add, greeting};

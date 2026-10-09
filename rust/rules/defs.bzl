@@ -6,6 +6,9 @@ load("@rules_rust_wasm_bindgen//:defs.bzl", _rust_wasm_bindgen = "rust_wasm_bind
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
+load(":wasm_js.bzl", _rust_wasm_bindgen_js = "rust_wasm_bindgen_js")
+
+rust_wasm_bindgen_js = _rust_wasm_bindgen_js
 
 _DX_FORWARD_PROVIDES = [
     _rust_common.crate_info,

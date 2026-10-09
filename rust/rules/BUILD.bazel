@@ -11,6 +11,7 @@ exports_files([
     "defs.bzl",
     "edition.bzl",
     "probe.bzl",
+    "wasm_js.bzl",
     "wrapper_tests.bzl",
 ])
 
@@ -23,6 +24,7 @@ real_source_target(
         "defs.bzl",
         "edition.bzl",
         "probe.bzl",
+        "wasm_js.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

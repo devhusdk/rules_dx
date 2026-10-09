@@ -51,6 +51,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle/cc/testdata holds the cc generation-test corpus with
 # gazelle:exclude gazelle/cc/testdata
 # gazelle:exclude rust/tests/fixtures/cxx_identity
+# gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude csharp/tests/fixtures/hello
 # gazelle:exclude csharp/tests/fixtures/xunit
 # gazelle:exclude csharp/tests/fixtures/roslyn

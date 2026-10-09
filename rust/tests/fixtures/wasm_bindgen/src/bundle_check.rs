@@ -42,3 +42,17 @@ fn bare_js_exposes_greet() {
     let js = std::fs::read_to_string(bundle_path("DX_WASM_BARE_JS")).expect("bare js is readable");
     assert!(js.contains("greet"), "bare js does not expose greet");
 }
+
+#[test]
+fn adapted_bindings_publish_declarations() {
+    let text = std::fs::read_to_string(bundle_path("DX_WASM_JS_TYPES"))
+        .expect("types list is readable");
+    assert!(text.contains(".d.ts"), "adapter exposed no declaration");
+}
+
+#[test]
+fn adapted_bindings_publish_snippets() {
+    let text = std::fs::read_to_string(bundle_path("DX_WASM_JS_SNIPPETS"))
+        .expect("snippets list is readable");
+    assert_eq!(text.trim(), "ok", "adapter exposed no snippet javascript");
+}

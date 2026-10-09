@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>wasm hello</title>
+</head>
+<body>
+<div id="app">loading</div>
+<script type="module">
+import init, { greet } from './wasm_hello_web.js';
+await init();
+document.getElementById('app').textContent = greet('browser');
+</script>
+</body>
+</html>

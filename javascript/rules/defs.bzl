@@ -2,7 +2,8 @@
 
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
-load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
+load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
+load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -76,6 +77,70 @@ def _javascript_wrap_binary(name, srcs, visibility = None, **kwargs):
 def javascript_library(name, srcs, visibility = None, **kwargs):
     """Experimental minimal wrapper over js_library."""
     _javascript_wrap_library(name, srcs, visibility = visibility, **kwargs)
+
+def _javascript_wasm_bindgen_library_impl(ctx):
+    """Adapts one rust_wasm_bindgen target to JsInfo without rerunning bindgen."""
+    bindgen = ctx.attr.bindgen
+    if _RustWasmBindgenInfo not in bindgen:
+        fail("javascript_wasm_bindgen_library requires bindgen to provide RustWasmBindgenInfo")
+    info = bindgen[_RustWasmBindgenInfo]
+    js = info.js.to_list()
+    if len(js) == 0:
+        fail("javascript_wasm_bindgen_library bindgen produces no JavaScript output")
+    if info.wasm == None:
+        fail("javascript_wasm_bindgen_library bindgen produces no Wasm output")
+    ts = info.ts.to_list()
+    if len(ts) == 0:
+        fail("javascript_wasm_bindgen_library bindgen produces no TypeScript declarations")
+    if info.snippets == None:
+        fail("javascript_wasm_bindgen_library bindgen produces no snippets directory")
+    dep_sources = [dep[_JsInfo].transitive_sources for dep in ctx.attr.deps]
+    dep_types = [dep[_JsInfo].transitive_types for dep in ctx.attr.deps]
+    dep_npm = [dep[_JsInfo].npm_sources for dep in ctx.attr.deps]
+    dep_stores = [dep[_JsInfo].npm_package_store_infos for dep in ctx.attr.deps]
+    js_info = _js_info(
+        target = ctx.label,
+        sources = info.js,
+        types = info.ts,
+        transitive_sources = depset(transitive = [info.js] + dep_sources),
+        transitive_types = depset(transitive = [info.ts] + dep_types),
+        npm_sources = depset(transitive = dep_npm),
+        npm_package_store_infos = depset(transitive = dep_stores),
+    )
+    direct = [info.wasm, info.snippets] + js + ts
+    transitive_runfiles = []
+    if DefaultInfo in bindgen:
+        transitive_runfiles.append(bindgen[DefaultInfo].default_runfiles.files)
+    for dep in ctx.attr.deps:
+        if DefaultInfo in dep:
+            transitive_runfiles.append(dep[DefaultInfo].default_runfiles.files)
+    return [
+        DefaultInfo(
+            files = depset(direct),
+            runfiles = ctx.runfiles(files = direct, transitive_files = depset(transitive = transitive_runfiles)),
+        ),
+        js_info,
+        info,
+    ]
+
+_javascript_wasm_bindgen_library = rule(
+    implementation = _javascript_wasm_bindgen_library_impl,
+    provides = [_JsInfo, DefaultInfo, _RustWasmBindgenInfo],
+    attrs = {
+        "bindgen": attr.label(mandatory = True, allow_files = True),
+        "deps": attr.label_list(providers = [[_JsInfo]]),
+    },
+)
+
+def javascript_wasm_bindgen_library(name, bindgen, deps = None, visibility = None, **kwargs):
+    """Adapts one rust_wasm_bindgen target to JsInfo without rerunning bindgen."""
+    _javascript_wasm_bindgen_library(
+        name = name,
+        bindgen = bindgen,
+        deps = deps or [],
+        visibility = visibility,
+        **kwargs
+    )
 
 def javascript_binary(name, srcs = None, visibility = None, **kwargs):
     """Experimental minimal wrapper over js_binary."""

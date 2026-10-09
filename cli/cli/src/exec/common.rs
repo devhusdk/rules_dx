@@ -1,5 +1,5 @@
 use crate::args::Invocation;
-use crate::reports::Destination;
+use crate::reports::{resolve_destination, Destination};
 use crate::resolve::QueryRunner;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
@@ -233,30 +233,62 @@ pub(crate) fn report_failed(
     }
 }
 
-/// Writes one report document to a path under the workspace and reports whether it landed.
-pub(crate) fn write_report_file(workspace: &Path, destination: &str, document: &str) -> bool {
-    let target = workspace.join(destination);
-    let parent_ok = target
-        .parent()
-        .is_none_or(|parent| parent.as_os_str().is_empty() || parent.is_dir());
-    parent_ok
-        && RealFileSystem
-            .write_atomic(&target, document.as_bytes())
-            .is_ok()
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("failed to write report to {destination}: {cause}")]
+pub(crate) struct ReportWriteError {
+    pub(crate) destination: String,
+    pub(crate) cause: String,
 }
 
-/// Writes one report document to its planned destination and reports whether it landed.
+/// Writes one report document to its resolved destination.
+pub(crate) fn write_report_file(
+    workspace: &Path,
+    destination: &str,
+    document: &str,
+) -> Result<(), ReportWriteError> {
+    let failed = |cause: String| ReportWriteError {
+        destination: destination.to_owned(),
+        cause,
+    };
+    let target = resolve_destination(workspace, &Destination::File(destination.to_owned()))
+        .ok_or_else(|| failed("destination is stdout".to_owned()))?;
+    match target.parent() {
+        None => {}
+        Some(parent) if parent.as_os_str().is_empty() => {}
+        Some(parent) if parent.is_dir() => {}
+        Some(parent) if !parent.exists() => {
+            return Err(failed(format!(
+                "parent directory {} does not exist; create it first",
+                parent.display()
+            )));
+        }
+        Some(parent) => {
+            return Err(failed(format!(
+                "parent {} is not a directory",
+                parent.display()
+            )));
+        }
+    }
+    RealFileSystem
+        .write_atomic(&target, document.as_bytes())
+        .map_err(|error| failed(error.to_string()))
+}
+
+/// Writes one report document to its planned destination.
 pub(crate) fn write_report_document(
     out: &mut dyn Write,
     workspace: &Path,
     destination: &Destination,
     document: &str,
-) -> bool {
+) -> Result<(), ReportWriteError> {
     match destination {
         Destination::Stdout => out
             .write_all(document.as_bytes())
             .and_then(|()| out.write_all(b"\n"))
-            .is_ok(),
+            .map_err(|error| ReportWriteError {
+                destination: "-".to_owned(),
+                cause: error.to_string(),
+            }),
         Destination::File(path) => write_report_file(workspace, path, document),
     }
 }
@@ -637,7 +669,8 @@ mod tests {
             dir.path(),
             &Destination::File("out.sarif".to_owned()),
             "{}\n"
-        ));
+        )
+        .is_ok());
         assert_eq!(
             std::fs::read_to_string(dir.path().join("out.sarif")).expect("report"),
             "{}\n"
@@ -649,29 +682,72 @@ mod tests {
             dir.path(),
             &Destination::Stdout,
             "{}"
-        ));
+        )
+        .is_ok());
         assert_eq!(String::from_utf8(out).expect("utf8"), "{}\n");
 
-        assert!(!write_report_document(
+        assert!(write_report_document(
             &mut BrokenPipeWriter,
             dir.path(),
             &Destination::Stdout,
             "{}\n"
-        ));
+        )
+        .is_err());
     }
 
     #[test]
     fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
         let dir = tempfile::tempdir().expect("tempdir");
-        assert!(!write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        let missing = write_report_file(dir.path(), "nested/out.sarif", "{}\n").expect_err("absent");
+        assert_eq!(missing.destination, "nested/out.sarif");
+        assert!(missing.cause.contains("does not exist"), "{}", missing.cause);
         assert!(!dir.path().join("nested").exists());
         std::fs::create_dir(dir.path().join("nested")).expect("mkdir");
-        assert!(write_report_file(dir.path(), "nested/out.sarif", "{}\n"));
+        assert!(write_report_file(dir.path(), "nested/out.sarif", "{}\n").is_ok());
         assert_eq!(
             std::fs::read_to_string(dir.path().join("nested/out.sarif")).expect("report"),
             "{}\n"
         );
-        assert!(!write_report_file(dir.path(), "nested", "{}\n"));
+        let blocked = write_report_file(dir.path(), "nested", "{}\n").expect_err("is dir");
+        assert_eq!(blocked.destination, "nested");
+        assert!(!blocked.cause.is_empty());
+    }
+
+    #[test]
+    fn write_report_file_names_an_unwritable_parent_and_keeps_old_bytes() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("keep.sarif"), "old\n").expect("seed");
+        let error =
+            write_report_file(dir.path(), "keep.sarif/child.sarif", "{}\n").expect_err("blocked");
+        assert_eq!(error.destination, "keep.sarif/child.sarif");
+        assert!(error.cause.contains("not a directory"), "{}", error.cause);
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("keep.sarif")).expect("kept"),
+            "old\n"
+        );
+    }
+
+    #[test]
+    fn write_report_file_honours_absolute_destinations() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let outside = tempfile::tempdir().expect("outside");
+        let target = outside.path().join("abs.sarif");
+        let raw = target.to_str().expect("utf8").to_owned();
+        assert!(write_report_file(dir.path(), &raw, "{}\n").is_ok());
+        assert_eq!(std::fs::read_to_string(&target).expect("report"), "{}\n");
+        assert!(!dir.path().join("abs.sarif").exists());
+    }
+
+    #[test]
+    fn write_report_error_names_the_destination() {
+        let error = ReportWriteError {
+            destination: "out.sarif".to_owned(),
+            cause: "boom".to_owned(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "failed to write report to out.sarif: boom"
+        );
     }
 
     #[test]

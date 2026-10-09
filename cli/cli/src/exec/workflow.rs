@@ -4,7 +4,7 @@ use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
 use crate::args::{Command, Invocation};
 use crate::plan::{bep_path, plan_workflow, WorkflowVerb};
-use crate::reports::{plan_reports, Destination};
+use crate::reports::{check_report_collisions, plan_reports, Destination};
 use crate::resolve::{resolve, resolve_for_test};
 use dx_output::{
     command_finished, command_started, error_event, write_event, FinishedCounts, OutputMode,
@@ -38,6 +38,9 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
+    if let Err(error) = check_report_collisions(workspace, &planned_reports) {
+        return pre_exec(err, &error.to_string());
+    }
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);

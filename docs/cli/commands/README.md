@@ -51,7 +51,10 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
   `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
-  Every other command rejects `--report`.
+  Every other command rejects `--report`. Destinations anchor to the workspace:
+  relative paths land under it from any directory, absolute paths write outside
+  it. Two reports cannot share one file. Parent directories must exist. Writes
+  are atomic, so a failed write keeps the old file.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`. Taken by
   `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
   Every other command rejects it.

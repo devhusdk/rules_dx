@@ -3,7 +3,7 @@ use super::execute;
 use super::generate::execute_generate;
 use crate::args::{Command, Invocation, ReportRequest};
 use crate::plan::spec;
-use crate::reports::plan_reports;
+use crate::reports::{check_report_collisions, plan_reports};
 use crate::resolve::QueryRunner;
 use dx_output::{
     command_finished, command_started, error_event, notice_event, operation_event, report_event,
@@ -473,12 +473,16 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let phase_check = !fix_apply;
     let mode = if phase_check { "check" } else { "default" };
     let command = invocation.command.name();
-    if let Err(error) = plan_reports(
+    let planned_reports = match plan_reports(
         invocation.command,
         &invocation.reports,
         &invocation.output,
         invocation.dry_run,
     ) {
+        Ok(planned) => planned,
+        Err(error) => return pre_exec(err, &error.to_string()),
+    };
+    if let Err(error) = check_report_collisions(workspace, &planned_reports) {
         return pre_exec(err, &error.to_string());
     }
     for request in &invocation.reports {
@@ -620,15 +624,15 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     if stdout_exit.is_none() {
         let document = collector.document();
         for request in &invocation.reports {
-            if !write_report_file(workspace, &request.destination, &document) {
+            if let Err(error) = write_report_file(workspace, &request.destination, &document) {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!(
-                        "failed to write {} report to {}",
-                        request.format, request.destination
+                        "failed to write {} report to {}: {}",
+                        request.format, request.destination, error.cause
                     ),
                 );
                 continue;
@@ -1028,6 +1032,24 @@ mod tests {
             harness.seen_env.borrow().len(),
             1,
             "later phases never launch"
+        );
+    }
+
+    #[test]
+    fn check_alias_report_destinations_are_rejected_before_any_phase() {
+        let harness = Harness::new("umbrella-report-alias");
+        let (code, _, err) = harness.run(&[
+            "check",
+            "--output=text",
+            "--report=sarif=out.sarif",
+            "--report=sarif=./out.sarif",
+        ]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("duplicate report"), "{err}");
+        assert!(!harness.workspace.join("out.sarif").exists());
+        assert!(
+            harness.seen_env.borrow().is_empty(),
+            "rejected reports launch nothing"
         );
     }
 

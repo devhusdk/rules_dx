@@ -118,6 +118,93 @@ fn json_report_write_failure_emits_error() {
 }
 
 #[test]
+fn sarif_alias_destinations_are_rejected_before_any_write() {
+    let mut harness = Harness::new("report-alias");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=out.sarif",
+        "--report=sarif=./out.sarif",
+    ]);
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("duplicate report"), "{err}");
+    assert!(!harness.workspace.join("out.sarif").exists());
+    assert!(
+        harness.seen_env.borrow().is_empty(),
+        "rejected reports launch nothing"
+    );
+}
+
+#[test]
+fn sarif_absolute_destination_writes_outside_the_workspace() {
+    let mut harness = Harness::new("report-absolute");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let outside = temp_dir("report-absolute-out");
+    let target = outside.path().join("abs.sarif");
+    let raw = target.to_str().expect("utf8").to_owned();
+    let request = format!("--report=sarif={raw}");
+    let (code, out, err) = harness.run(&["lint", "--check", "--output=text", request.as_str()]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(target.exists(), "absolute destination writes outside");
+    assert!(!harness.workspace.join("abs.sarif").exists());
+}
+
+#[test]
+fn sarif_write_failure_names_the_cause() {
+    let mut harness = Harness::new("report-blocked");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.write_source("blocker", "x\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=blocker/out.sarif",
+    ]);
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains("dx: report_failed: failed to write sarif report to blocker/out.sarif"),
+        "{err}"
+    );
+    assert!(err.contains("not a directory"), "{err}");
+}
+
+#[test]
+fn failed_report_write_keeps_the_old_file() {
+    let mut harness = Harness::new("report-kept");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.write_source("keep.sarif", "old\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=keep.sarif/child.sarif",
+    ]);
+    assert_eq!(code, 1, "{err}");
+    assert_eq!(
+        std::fs::read_to_string(harness.workspace.join("keep.sarif")).expect("kept"),
+        "old\n"
+    );
+}
+
+#[test]
 fn json_file_report_emits_report_event() {
     let mut harness = Harness::new("report-ok");
     harness.write_source("src/a.py", "x = 1\n");

@@ -231,7 +231,7 @@ composite_group! {
 }
 
 flag_group! {
-    /// Write a report file.
+    /// Write a report file under the workspace, or an absolute path.
     ReportFlag, {
         #[arg(long, allow_negative_numbers = true, value_parser = report_request)]
         report: Vec<ReportRequest>,

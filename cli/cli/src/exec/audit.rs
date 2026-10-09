@@ -1,6 +1,6 @@
 use super::common::*;
 use crate::args::{Command, Invocation};
-use crate::reports::{plan_reports, Destination};
+use crate::reports::{check_report_collisions, plan_reports, Destination};
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
     command_finished, command_started, error_event, notice_event, report_event, write_event,
@@ -1014,6 +1014,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
+    if let Err(error) = check_report_collisions(workspace, &planned_reports) {
+        return pre_exec(err, &error.to_string());
+    }
     let families = request
         .families
         .iter()
@@ -1155,15 +1158,16 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 }
             };
             let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) = written {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!(
-                        "failed to write sarif report to {}",
-                        planned.destination.display()
+                        "failed to write sarif report to {}: {}",
+                        planned.destination.display(),
+                        error.cause
                     ),
                 );
                 continue;
@@ -1188,15 +1192,16 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             let document =
                 dx_audit::spdx::render_spdx(&effective, &spdx_packages, &contains, &namespace);
             let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) = written {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!(
-                        "failed to write spdx report to {}",
-                        planned.destination.display()
+                        "failed to write spdx report to {}: {}",
+                        planned.destination.display(),
+                        error.cause
                     ),
                 );
                 continue;

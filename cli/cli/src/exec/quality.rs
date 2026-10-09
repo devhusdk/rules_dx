@@ -6,7 +6,7 @@ use super::quality_reports::{write_standard_reports, StandardReports};
 use super::results::collect_results;
 use crate::args::Invocation;
 use crate::plan::{bep_path, plan_build};
-use crate::reports::{plan_reports, Destination};
+use crate::reports::{check_report_collisions, plan_reports, Destination};
 use crate::resolve::resolve;
 use dx_output::{
     command_finished, command_started, write_event, FinishedCounts, OutputMode, Severity,
@@ -33,6 +33,9 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
+    if let Err(error) = check_report_collisions(workspace, &planned_reports) {
+        return pre_exec(err, &error.to_string());
+    }
     let stdout_report = planned_reports
         .iter()
         .any(|report| report.destination == Destination::Stdout);

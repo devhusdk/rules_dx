@@ -72,6 +72,23 @@ fn npm_lock_with(license: &str) -> String {
 }
 
 #[test]
+fn license_reports_sharing_one_file_are_rejected_before_any_write() {
+    let (code, _, err) = run_with(
+        &[
+            "license",
+            "//javascript:demo",
+            "--report=sarif=out.dat",
+            "--report=spdx=out.dat",
+        ],
+        &AuditRunner::clean(),
+        &|_| {},
+    );
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("share destination"), "{err}");
+    assert!(err.contains("out.dat"), "{err}");
+}
+
+#[test]
 fn the_built_in_license_table_passes_only_its_allow_list() {
     for (license, rule) in [
         ("ISC", ""),

@@ -1,4 +1,5 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Component, Path, PathBuf};
 
 use super::ReportError;
 use crate::args::{Command, ReportRequest};
@@ -51,6 +52,72 @@ impl Destination {
             Destination::File(path) => path,
         }
     }
+}
+
+pub fn resolve_destination(workspace: &Path, destination: &Destination) -> Option<PathBuf> {
+    match destination {
+        Destination::Stdout => None,
+        Destination::File(raw) => Some(normalize_report_path(&workspace.join(raw))),
+    }
+}
+
+fn normalize_report_path(joined: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in joined.components() {
+        match component {
+            Component::Prefix(prefix) => out.push(prefix.as_os_str()),
+            Component::RootDir => out.push(Component::RootDir.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !out.pop() && !out.has_root() {
+                    out.push("..");
+                }
+            }
+            Component::Normal(part) => out.push(part),
+        }
+    }
+    if out.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        out
+    }
+}
+
+fn collision_key(path: &Path) -> String {
+    let text = path.to_string_lossy().into_owned();
+    if cfg!(windows) {
+        text.to_lowercase()
+    } else {
+        text
+    }
+}
+
+pub fn check_report_collisions(
+    workspace: &Path,
+    planned: &[PlannedReport],
+) -> Result<(), ReportError> {
+    let mut seen: BTreeMap<String, &StandardFormat> = BTreeMap::new();
+    for report in planned {
+        let Some(path) = resolve_destination(workspace, &report.destination) else {
+            continue;
+        };
+        let key = collision_key(&path);
+        if let Some(first) = seen.get(&key) {
+            if *first == &report.format {
+                return Err(ReportError::DuplicateReport {
+                    format: report.format.name().to_owned(),
+                    destination: report.destination.display().to_owned(),
+                });
+            }
+            return Err(ReportError::ConflictingReports {
+                first: first.name().to_owned(),
+                second: report.format.name().to_owned(),
+                destination: report.destination.display().to_owned(),
+            });
+        }
+        seen.insert(key, &report.format);
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -474,5 +541,128 @@ mod tests {
             );
         }
         assert!(spec(Command::Format).reports.is_empty());
+    }
+
+    fn workspace() -> std::path::PathBuf {
+        std::path::Path::new("/ws").to_path_buf()
+    }
+
+    fn planned(pairs: &[(&str, &str)]) -> Vec<PlannedReport> {
+        plan_reports(Command::License, &requests(pairs), &text_mode(), false).expect("plan")
+    }
+
+    #[test]
+    fn relative_destinations_anchor_to_the_workspace() {
+        assert_eq!(
+            resolve_destination(&workspace(), &Destination::Stdout),
+            None
+        );
+        assert_eq!(
+            resolve_destination(
+                &workspace(),
+                &Destination::File("out.sarif".to_owned())
+            ),
+            Some(std::path::Path::new("/ws/out.sarif").to_path_buf())
+        );
+        assert_eq!(
+            resolve_destination(
+                &workspace(),
+                &Destination::File("sub/../out.sarif".to_owned())
+            ),
+            Some(std::path::Path::new("/ws/out.sarif").to_path_buf())
+        );
+    }
+
+    #[test]
+    fn absolute_destinations_write_outside_the_workspace() {
+        assert_eq!(
+            resolve_destination(
+                &workspace(),
+                &Destination::File("/tmp/out.sarif".to_owned())
+            ),
+            Some(std::path::Path::new("/tmp/out.sarif").to_path_buf())
+        );
+        assert_eq!(
+            resolve_destination(
+                &workspace(),
+                &Destination::File("../out.sarif".to_owned())
+            ),
+            Some(std::path::Path::new("/out.sarif").to_path_buf())
+        );
+    }
+
+    #[test]
+    fn spelling_aliases_of_one_file_collide() {
+        let reports = planned(&[("sarif", "out.sarif"), ("sarif", "./out.sarif")]);
+        assert_eq!(
+            check_report_collisions(&workspace(), &reports),
+            Err(ReportError::DuplicateReport {
+                format: "sarif".to_owned(),
+                destination: "out.sarif".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn different_formats_cannot_share_one_file() {
+        let reports = planned(&[("sarif", "out.dat"), ("spdx", "out.dat")]);
+        assert_eq!(
+            check_report_collisions(&workspace(), &reports),
+            Err(ReportError::ConflictingReports {
+                first: "sarif".to_owned(),
+                second: "spdx".to_owned(),
+                destination: "out.dat".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn absolute_and_relative_spellings_of_one_file_collide() {
+        let reports = planned(&[("sarif", "out.dat"), ("spdx", "/ws/out.dat")]);
+        assert_eq!(
+            check_report_collisions(&workspace(), &reports),
+            Err(ReportError::ConflictingReports {
+                first: "sarif".to_owned(),
+                second: "spdx".to_owned(),
+                destination: "/ws/out.dat".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn parent_dir_aliases_of_one_file_collide() {
+        let reports = planned(&[("sarif", "sub/../out.dat"), ("spdx", "out.dat")]);
+        assert_eq!(
+            check_report_collisions(&workspace(), &reports),
+            Err(ReportError::ConflictingReports {
+                first: "sarif".to_owned(),
+                second: "spdx".to_owned(),
+                destination: "out.dat".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn distinct_files_and_stdout_pass_collision_check() {
+        let reports = planned(&[("sarif", "a.sarif"), ("spdx", "b.spdx")]);
+        assert_eq!(check_report_collisions(&workspace(), &reports), Ok(()));
+        let stdout = planned(&[("sarif", "-"), ("spdx", "a.sarif")]);
+        assert_eq!(check_report_collisions(&workspace(), &stdout), Ok(()));
+        assert_eq!(check_report_collisions(&workspace(), &[]), Ok(()));
+    }
+
+    #[test]
+    fn conflicting_reports_render_the_shared_destination() {
+        assert!(
+            format!(
+                "{}",
+                ReportError::ConflictingReports {
+                    first: "sarif".to_owned(),
+                    second: "spdx".to_owned(),
+                    destination: "out.dat".to_owned(),
+                }
+            )
+            .contains("out.dat")
+        );
     }
 }

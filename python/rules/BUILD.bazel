@@ -1,14 +1,18 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load(":runtime_tests.bzl", "python_runtime_unit_tests")
 load(":wrapper_tests.bzl", "python_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "runtime_tests.bzl",
     "wrapper_tests.bzl",
 ])
 
 python_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+python_runtime_unit_tests(name = "runtime_unit")
 
 real_source_target(
     name = "corpus_starlark",
@@ -16,6 +20,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "runtime_tests.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

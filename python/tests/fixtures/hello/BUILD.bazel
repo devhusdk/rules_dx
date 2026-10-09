@@ -1,3 +1,4 @@
+load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_py_tests", "thin_compare_subject")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -59,6 +60,15 @@ dx_hello_output_test(
     binary = ":hello",
     expected = "Hello, world!",
 )
+
+thin_compare_subject(
+    name = "thin_py_subject",
+    kind = "python_library",
+    thin = ":hello_lib_upstream",
+    wrapper = ":hello_lib",
+)
+
+thin_compare_py_tests(name = "thin_py_test")
 
 real_source_target(
     name = "corpus_starlark",

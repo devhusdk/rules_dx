@@ -89,6 +89,15 @@ def thin_compare_rust_tests(name):
         expected_observations = THIN_RUST_OBSERVATIONS,
     )
 
+def thin_compare_py_tests(name):
+    """Instantiates the Python wrapper against raw upstream comparison."""
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = [":thin_py_subject"],
+        expected_observations = THIN_PY_OBSERVATIONS,
+    )
+
 THIN_CC_OBSERVATIONS = """subject //cc/tests/fixtures/hello:thin_cc_subject
 file thin_cc_subject.txt
 field kind=cc_library
@@ -125,4 +134,23 @@ aspect_field aspect_seen=True
 aspect_field field_count=11
 aspect_field has_subject=True
 aspect_field subject_label=//rust/tests/fixtures/hello:thin_rust_subject
+aspect_field transitive_count=0"""
+
+THIN_PY_OBSERVATIONS = """subject //python/tests/fixtures/hello:thin_py_subject
+file thin_py_subject.txt
+field kind=python_library
+field labels_differ=True
+field quality_only_on_wrapper=True
+field thin_direct_sources=(none)
+field thin_has_instrumented_files=True
+field thin_has_quality_sources=False
+field thin_label=//python/tests/fixtures/hello:hello_lib_upstream
+field wrapper_direct_sources=python:hello.py
+field wrapper_has_instrumented_files=True
+field wrapper_has_quality_sources=True
+field wrapper_label=//python/tests/fixtures/hello:hello_lib
+aspect_field aspect_seen=True
+aspect_field field_count=11
+aspect_field has_subject=True
+aspect_field subject_label=//python/tests/fixtures/hello:thin_py_subject
 aspect_field transitive_count=0"""

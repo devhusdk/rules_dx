@@ -1,7 +1,7 @@
 """Frozen v1 acceptance inventory: owner, executable evidence, applicability."""
 
-FROZEN_BASE_REVISION = "eaa69aa43f961249485bee39464031db98238d28"
-FROZEN_ON = "2026-10-06"
+FROZEN_BASE_REVISION = "4116a49925f7aa71c564485f066e6ccd3c46d8df"
+FROZEN_ON = "2026-10-09"
 
 PROMISES = [
     {
@@ -1157,6 +1157,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "dep.llvm",
+        "native": False,
+        "owner": "//:MODULE.bazel",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "dep.platforms",
         "native": False,
         "owner": "//:MODULE.bazel",
@@ -1266,6 +1275,15 @@ PROMISES = [
             "//modules:versions_contract",
         ],
         "id": "dep.rules_rust_prost",
+        "native": False,
+        "owner": "//:MODULE.bazel",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
+        "id": "dep.rules_rust_wasm_bindgen",
         "native": False,
         "owner": "//:MODULE.bazel",
         "state": "evidenced",
@@ -3121,7 +3139,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 337
+PROMISE_COUNT = 339
 
 PROMISE_FAMILIES = [
     "artifact",

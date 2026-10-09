@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
 package(default_testonly = True)
 
@@ -37,4 +37,16 @@ rust_test(
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",
     ],
+)
+
+rustfmt_test(
+    name = "v1_acceptance_fmt_test",
+    size = "small",
+    targets = [":v1_acceptance_test"],
+)
+
+rust_clippy_test(
+    name = "v1_acceptance_clippy_test",
+    size = "small",
+    targets = [":v1_acceptance_test"],
 )

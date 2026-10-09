@@ -97,6 +97,40 @@ fn strict_evidence_parses_for_test_and_coverage_only() {
 }
 
 #[test]
+fn run_output_parses_for_test_and_coverage_only() {
+    let test = parse(&strings(&["test", "--run-output=out"])).expect("parse");
+    assert_eq!(test.command, Command::Test);
+    assert_eq!(test.run_output.as_deref(), Some("out"));
+    let spaced = parse(&strings(&["test", "--run-output", "out"])).expect("parse");
+    assert_eq!(spaced.run_output.as_deref(), Some("out"));
+    let coverage = parse(&strings(&["coverage", "--run-output=out"])).expect("parse");
+    assert_eq!(coverage.command, Command::Coverage);
+    assert_eq!(coverage.run_output.as_deref(), Some("out"));
+    let bare = parse(&strings(&["test"])).expect("parse");
+    assert_eq!(bare.run_output, None);
+    assert_eq!(
+        parse(&strings(&["test", "--run-output="])),
+        Err(ArgsError::MissingValue {
+            option: "--run-output".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["build", "--run-output=out"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "build",
+            option: "--run-output".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["lint", "--run-output=out"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "lint",
+            option: "--run-output".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn check_selects_check_mode() {
     let got = parse(&strings(&["format", "--check"])).expect("parse");
     assert_eq!(got.command, Command::Format);

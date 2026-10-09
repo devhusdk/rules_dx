@@ -226,6 +226,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         fail_on,
         min_coverage,
         strict_evidence,
+        run_output: run_output_os,
         check,
         apply,
         debug,
@@ -259,6 +260,15 @@ pub fn parse_with<S: AsRef<OsStr>>(
     if flag_workspace.as_deref().is_some_and(str::is_empty) {
         return Err(ArgsError::MissingValue {
             option: "--workspace".to_owned(),
+        });
+    }
+    let run_output = match run_output_os {
+        Some(value) => Some(decode_scope(value.as_os_str())?),
+        None => None,
+    };
+    if run_output.as_deref().is_some_and(str::is_empty) {
+        return Err(ArgsError::MissingValue {
+            option: "--run-output".to_owned(),
         });
     }
     use dx_adopt::defaults as invocation_defaults;
@@ -523,6 +533,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         command,
         check,
         strict_evidence,
+        run_output,
         apply,
         debug,
         release,

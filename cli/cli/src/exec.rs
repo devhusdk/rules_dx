@@ -21,6 +21,7 @@ mod quality_patch;
 mod quality_reports;
 mod results;
 mod run;
+mod run_output;
 mod test_reports;
 #[cfg(test)]
 mod test_support;

@@ -14,7 +14,7 @@ targets. Args after `--` go to Bazel unchanged.
 
 ```text
 dx build [--here] [--debug|--release] [scope...] [-- bazel-options...]
-dx test [--here] [--debug|--release] [--strict-evidence] [--report junit=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--debug|--release] [--strict-evidence] [--run-output DIR] [--report junit=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -22,24 +22,34 @@ Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 Extra `--config` values pass through after the dx profile in their original
 order. Only a conflicting dx profile is rejected. `--strict-evidence` fails
 the run when collected test evidence is incomplete instead of tolerating gaps.
+`--run-output <dir>` copies every reported test output into one owned run
+directory under `<dir>` and writes a `manifest.json` index. A relative dir
+resolves under the workspace. The run directory name carries the process id
+and a counter, so concurrent runs never share one. Each entry names the
+target, run, shard, attempt, status, and logical file name, plus the retained
+path or the reason it is missing. Sources are only read, never changed.
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
-for stdout. `dx build` has no report format. `dx test --output=json` adds one
+for stdout. `dx test --output=json` adds one
 `test_outcome` event per test result, with its Bazel status, run, shard,
 attempt, cached state, duration, case counts, artifact counts, and whether its
-evidence is complete.
+evidence is complete. With `--run-output`, both modes also record a `report`
+event with format `run-output` and the manifest path.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. Missing or invalid `test.xml`
 artifacts warn and pass when Bazel passes, other results exist, and at most
 a quarter of the reported results are unusable. More than that fails as
 incomplete. `--strict-evidence` fails any incomplete evidence instead.
+A `--run-output` directory that cannot be created fails the run as
+`run_output_failed`.
 
 ```sh
 bazel run @rules_dx//:dx -- build //cli/...
 bazel run @rules_dx//:dx -- test --here
 bazel run @rules_dx//:dx -- test //... -- --jobs=4
+bazel run @rules_dx//:dx -- test //... --run-output /tmp/dx-runs
 bazel run @rules_dx//:dx -- test //cli/process/... -- --test_arg=workflow_argv --test_filter=workflow
 ```
 
@@ -93,19 +103,21 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--min-coverage <percent>] [--strict-evidence] [--report lcov=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--min-coverage <percent>] [--strict-evidence] [--run-output DIR] [--report lcov=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that
 percent. Without it, coverage collects without enforcing. `--strict-evidence`
 is accepted and keeps scripts uniform; coverage already fails on incomplete
-evidence with or without it.
+evidence with or without it. `--run-output <dir>` works as for `dx test`,
+retaining the reported coverage outputs beside a `manifest.json` index.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout.
 `dx coverage --output=json` adds one `test_outcome` event per test result,
 with its Bazel status, run, shard, attempt, cached state, duration, artifact
-counts, and whether its evidence is complete.
+counts, and whether its evidence is complete. With `--run-output`, both modes
+also record a `report` event with format `run-output` and the manifest path.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures
@@ -120,6 +132,7 @@ are accepted and contribute no lines.
 ```sh
 bazel run @rules_dx//:dx -- coverage //...
 bazel run @rules_dx//:dx -- coverage --min-coverage 96 //...
+bazel run @rules_dx//:dx -- coverage //... --run-output /tmp/dx-runs
 ```
 
 Coverage ignores use `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`

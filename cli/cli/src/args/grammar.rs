@@ -60,6 +60,7 @@ pub(crate) struct Flags {
     pub(crate) fail_on: Option<String>,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) strict_evidence: bool,
+    pub(crate) run_output: Option<OsString>,
     pub(crate) check: bool,
     pub(crate) apply: bool,
     pub(crate) debug: bool,
@@ -264,6 +265,14 @@ flag_group! {
     StrictEvidenceFlag, {
         #[arg(long = "strict-evidence", overrides_with = "strict_evidence")]
         strict_evidence: bool,
+    }
+}
+
+flag_group! {
+    /// Retain test outputs under this directory.
+    RunOutputFlag, {
+        #[arg(long = "run-output", value_name = "DIR", allow_negative_numbers = true, overrides_with = "run_output")]
+        run_output: Option<OsString>,
     }
 }
 
@@ -636,12 +645,14 @@ command_args! {
         own: ProfileArgs,
         report: ReportFlag,
         strict_evidence: StrictEvidenceFlag,
+        run_output: RunOutputFlag,
         here: HereFlag,
     };
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
         min_coverage: MinCoverageFlag,
         strict_evidence: StrictEvidenceFlag,
+        run_output: RunOutputFlag,
         report: ReportFlag,
         here: HereFlag,
     };
@@ -748,6 +759,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--report",
     "--fail-on",
     "--min-coverage",
+    "--run-output",
     "--pin",
     "--from",
     "--to",

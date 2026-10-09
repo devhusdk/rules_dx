@@ -553,6 +553,7 @@ mod tests {
             "--fail-on",
             "--min-coverage",
             "--strict-evidence",
+            "--run-output",
             "--check",
             "--bazel",
             "--pin",

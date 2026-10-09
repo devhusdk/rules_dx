@@ -232,6 +232,7 @@ const COMMAND_FLAGS: &[&str] = &[
     "--fail-on",
     "--min-coverage",
     "--strict-evidence",
+    "--run-output",
     "--check",
     "--apply",
     "--debug",

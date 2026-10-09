@@ -1,4 +1,5 @@
 use super::common::*;
+use super::run_output::{export_run_outputs, CODE_RUN_OUTPUT_FAILED, RUN_OUTPUT_FORMAT};
 use crate::args::Invocation;
 use crate::plan::WorkflowVerb;
 use crate::reports::{
@@ -97,6 +98,8 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
+    pub(crate) pid: u32,
+    pub(crate) nonce: u64,
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
@@ -154,6 +157,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         stdout_report,
         bazel_code,
         query_runner,
+        pid,
+        nonce,
     } = request;
     let events = match std::fs::File::open(bep).map_err(|err| {
         (
@@ -184,6 +189,39 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     };
     let _ = std::fs::remove_file(bep);
     let reader = FsArtifacts;
+    let mut run_output_export: Option<super::run_output::ExportedRun> = None;
+    let mut run_output_ok = true;
+    if let Some(parent) = invocation.run_output.as_deref() {
+        let requested = Path::new(parent);
+        let resolved = if requested.is_absolute() {
+            requested.to_path_buf()
+        } else {
+            workspace.join(requested)
+        };
+        match export_run_outputs(
+            &resolved,
+            invocation.command.name(),
+            pid,
+            nonce,
+            &events,
+            &reader,
+        ) {
+            Ok(exported) => {
+                run_output_export = Some(exported);
+            }
+            Err(detail) => {
+                run_output_ok = false;
+                let _ = writeln!(err, "dx: {CODE_RUN_OUTPUT_FAILED}: {detail}");
+                if invocation.output == OutputMode::Json {
+                    if let Ok(event) =
+                        dx_output::error_event(CODE_RUN_OUTPUT_FAILED, &detail, None, None, None)
+                    {
+                        let _ = write_event(out, &event);
+                    }
+                }
+            }
+        }
+    }
     let mut complete = bazel_code == 0;
     let mut detail = String::new();
     let mut strict_detail = String::new();
@@ -501,6 +539,25 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             );
         }
     }
+    if let Some(exported) = &run_output_export {
+        if invocation.output == OutputMode::Json {
+            if let Ok(event) = report_event(
+                RUN_OUTPUT_FORMAT,
+                &exported.manifest.display().to_string(),
+                complete && reports_ok && run_output_ok && !strict_fail,
+            ) {
+                let _ = write_event(out, &event);
+            }
+        } else if !stdout_report {
+            let _ = writeln!(
+                out,
+                "Wrote run outputs to {} ({} retained, {} missing).",
+                exported.dir.display(),
+                exported.retained,
+                exported.missing
+            );
+        }
+    }
     let evidence_detail = if detail.is_empty() {
         strict_detail.as_str()
     } else {
@@ -575,7 +632,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         bazel_code
     } else if strict_fail {
         1
-    } else if complete && reports_ok && threshold_ok {
+    } else if complete && reports_ok && run_output_ok && threshold_ok {
         0
     } else {
         1
@@ -613,7 +670,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
     use super::stable_exec_path;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn an_exec_path_reads_the_same_on_every_host() {
@@ -2265,5 +2322,251 @@ mod tests {
         assert_eq!(outcomes[0]["attempt"], serde_json::json!(2));
         assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
         assert_eq!(outcomes[0]["artifacts"]["collected"], serde_json::json!(1));
+    }
+
+    fn run_output_dir(harness: &Harness) -> PathBuf {
+        let parent = harness.workspace.join("runs");
+        let mut dirs: Vec<PathBuf> = std::fs::read_dir(&parent)
+            .expect("run output parent")
+            .map(|entry| entry.expect("entry").path())
+            .collect();
+        dirs.sort();
+        assert_eq!(dirs.len(), 1, "one owned run directory: {dirs:?}");
+        assert!(dirs[0].is_dir());
+        dirs.pop().expect("run dir")
+    }
+
+    fn run_output_manifest(dir: &Path) -> serde_json::Value {
+        let manifest = dir.join("manifest.json");
+        serde_json::from_slice(&std::fs::read(&manifest).expect("manifest")).expect("manifest json")
+    }
+
+    #[test]
+    fn test_run_output_retains_declared_outputs() {
+        let harness = Harness::new("test-run-output");
+        let xml = write_bep_artifact(&harness, "a.xml", MINIMAL_TEST_XML.as_bytes());
+        let log = write_bep_artifact(&harness, "a.log", b"full log bytes");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (String::from("test.log"), log),
+                ],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--run-output=runs"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Wrote run outputs to"), "{out}");
+        let dir = run_output_dir(&harness);
+        let manifest = run_output_manifest(&dir);
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 2, "{manifest}");
+        for entry in artifacts {
+            assert_eq!(entry["target"], serde_json::json!("//a:t"));
+            assert_eq!(entry["run"], serde_json::json!(1));
+            assert_eq!(entry["shard"], serde_json::json!(1));
+            assert_eq!(entry["attempt"], serde_json::json!(1));
+            assert_eq!(entry["state"], serde_json::json!("retained"));
+            let stored = entry["path"].as_str().expect("retained path");
+            let body = std::fs::read(dir.join(stored)).expect("retained body");
+            if entry["name"] == serde_json::json!("test.log") {
+                assert_eq!(body, b"full log bytes");
+            } else {
+                assert_eq!(entry["name"], serde_json::json!("test.xml"));
+                assert_eq!(body, MINIMAL_TEST_XML.as_bytes());
+            }
+        }
+        assert_eq!(
+            std::fs::read(harness.temp.join("a.log")).expect("source intact"),
+            b"full log bytes"
+        );
+    }
+
+    #[test]
+    fn test_run_output_json_reports_the_manifest() {
+        let harness = Harness::new("test-run-output-json");
+        let uri = write_bep_artifact(&harness, "a.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json", "--run-output=runs"]);
+        assert_eq!(code, 0, "{out}");
+        for line in out.lines() {
+            serde_json::from_str::<serde_json::Value>(line)
+                .unwrap_or_else(|error| panic!("stdout stays NDJSON: {error}: {line}"));
+        }
+        let events = json_events(&out);
+        let reports = events_of_kind(&events, "report");
+        let manifest = reports
+            .iter()
+            .find(|event| event["format"] == serde_json::json!("run-output"))
+            .expect("run-output report event");
+        let path = manifest["path"].as_str().expect("manifest path");
+        assert!(path.ends_with("manifest.json"), "{path}");
+        assert!(
+            std::path::Path::new(path).is_absolute(),
+            "the manifest path resolves without the workspace: {path}"
+        );
+        let body: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(path).expect("manifest")).expect("manifest json");
+        assert_eq!(body["artifacts"].as_array().expect("array").len(), 1);
+    }
+
+    #[test]
+    fn test_run_output_marks_missing_but_keeps_tolerated_status() {
+        let harness = Harness::new("test-run-output-missing");
+        let raw = (0..4)
+            .map(|index| {
+                test_result_line(
+                    &format!("//a:ok{index}"),
+                    &[(
+                        String::from("test.xml"),
+                        write_bep_artifact(
+                            &harness,
+                            &format!("ok-{index}.xml"),
+                            MINIMAL_TEST_XML.as_bytes(),
+                        ),
+                    )],
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut lines = raw;
+        lines.push(test_result_line(
+            "//a:missing",
+            &[(String::from("test.xml"), missing_uri("gone.xml"))],
+        ));
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text", "--run-output=runs"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("tolerated"), "{err}");
+        let dir = run_output_dir(&harness);
+        let manifest = run_output_manifest(&dir);
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 5, "{manifest}");
+        let missing = artifacts
+            .iter()
+            .find(|entry| entry["target"] == serde_json::json!("//a:missing"))
+            .expect("missing entry");
+        assert_eq!(missing["state"], serde_json::json!("missing"));
+        assert!(missing["path"].is_null());
+        assert!(
+            missing["detail"]
+                .as_str()
+                .expect("detail")
+                .contains("unreadable"),
+            "{missing}"
+        );
+    }
+
+    #[test]
+    fn test_run_output_parent_file_fails_precisely() {
+        let harness = Harness::new("test-run-output-conflict");
+        std::fs::write(harness.workspace.join("runs"), b"owned").expect("blocker");
+        let uri = write_bep_artifact(&harness, "a.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text", "--run-output=runs"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("run_output_failed"), "{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("runs")).expect("untouched"),
+            b"owned"
+        );
+    }
+
+    #[test]
+    fn test_run_output_second_run_gets_its_own_directory() {
+        let harness = Harness::new("test-run-output-twice");
+        let uri = write_bep_artifact(&harness, "a.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (first, _, _) = harness.run(&["test", "--output=text", "--run-output=runs"]);
+        assert_eq!(first, 0);
+        let (second, _, _) = harness.run(&["test", "--output=text", "--run-output=runs"]);
+        assert_eq!(second, 0);
+        let parent = harness.workspace.join("runs");
+        let mut dirs: Vec<PathBuf> = std::fs::read_dir(&parent)
+            .expect("runs")
+            .map(|entry| entry.expect("entry").path())
+            .collect();
+        dirs.sort();
+        assert_eq!(dirs.len(), 2, "simultaneous runs stay separate: {dirs:?}");
+        for dir in &dirs {
+            assert!(dir.join("manifest.json").is_file(), "{dir:?}");
+        }
+    }
+
+    #[test]
+    fn test_run_output_leaves_stdout_reports_alone() {
+        let harness = Harness::new("test-run-output-stdout");
+        let uri = write_bep_artifact(&harness, "a.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&[
+            "test",
+            "--output=text",
+            "--report=junit=-",
+            "--run-output=runs",
+        ]);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("<testsuites name=\"dx\""), "{out}");
+        assert!(!out.contains("Wrote run outputs to"), "{out}");
+        let parent = harness.workspace.join("runs");
+        assert_eq!(
+            std::fs::read_dir(&parent).expect("runs").count(),
+            1,
+            "the export still lands when stdout owns the report"
+        );
+    }
+
+    #[test]
+    fn coverage_run_output_retains_lcov() {
+        let harness = Harness::new("cov-run-output");
+        let uri = write_bep_artifact(&harness, "cov.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.lcov"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["coverage", "--output=text", "--run-output=runs"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Wrote run outputs to"), "{out}");
+        let dir = run_output_dir(&harness);
+        let manifest = run_output_manifest(&dir);
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 1, "{manifest}");
+        assert_eq!(artifacts[0]["name"], serde_json::json!("test.lcov"));
+        assert_eq!(artifacts[0]["state"], serde_json::json!("retained"));
+        let stored = artifacts[0]["path"].as_str().expect("path");
+        assert_eq!(
+            std::fs::read(dir.join(stored)).expect("lcov"),
+            MINIMAL_LCOV.as_bytes()
+        );
     }
 }

@@ -40,4 +40,10 @@ common:ci-pr --noremote_upload_local_results
 # Fixture for consumer --config passthrough checks.
 build:dx_consumer_probe --copt=-DDX_CONSUMER_PROBE
 
+# Opt-in Android resolution needs the local SDK and NDK.
+build:android --extra_toolchains=@androidndk//:all
+build:android --repo_env=ANDROID_NDK_HOME
+build:android --repo_env=ANDROID_HOME
+build:android --repo_env=ANDROID_SDK_ROOT
+
 try-import %workspace%/user.bazelrc

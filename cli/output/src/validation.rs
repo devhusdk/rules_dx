@@ -12,6 +12,10 @@ pub enum OutputError {
     BadCommandMode { value: String },
     #[error("invalid severity {value:?}")]
     BadSeverity { value: String },
+    #[error("invalid capability source {value:?}: want cli-grammar|workspace-record|unobserved")]
+    BadSource { value: String },
+    #[error("invalid capability availability {value:?}: want available|unavailable|unknown")]
+    BadAvailability { value: String },
     #[error("invalid threshold {value:?}")]
     BadThreshold { value: String },
     #[error("invalid log level {value:?}: want error|warn|info|debug|trace")]

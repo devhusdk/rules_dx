@@ -39,7 +39,7 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## No Scopes
 
-- `dx clean`, `dx status`, `dx version`, `dx upgrade`
+- `dx clean`, `dx status`, `dx version`, `dx upgrade`, `dx capabilities`
 
 ## Raw Bazel Args
 

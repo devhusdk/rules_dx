@@ -11,6 +11,7 @@ rust_library(
     name = "dx_cli",
     srcs = [
         "src/adopt.rs",
+        "src/adopt/capabilities.rs",
         "src/adopt/completion.rs",
         "src/adopt/hooks.rs",
         "src/adopt/init.rs",

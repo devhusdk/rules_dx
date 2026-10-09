@@ -5,6 +5,7 @@ pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
 pub const EVENTS: &[&str] = &[
+    "capability",
     "change",
     "command_finished",
     "command_started",
@@ -150,6 +151,107 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
     Ok(Value::Object(map))
+}
+
+/// One declared capability and where its availability was observed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapabilityEvent {
+    pub name: String,
+    pub source: String,
+    pub availability: String,
+    pub detail: String,
+    pub flags: Vec<String>,
+    pub outputs: Vec<String>,
+    pub reports: Vec<String>,
+    pub scope_policy: String,
+    pub effect: String,
+    pub passthrough: bool,
+}
+
+/// Builds the event for a capability whose producer already validated it.
+pub fn capability_value(capability: &CapabilityEvent) -> Value {
+    let mut map = base("capability");
+    map.insert("name".to_owned(), Value::String(capability.name.clone()));
+    map.insert(
+        "source".to_owned(),
+        Value::String(capability.source.clone()),
+    );
+    map.insert(
+        "availability".to_owned(),
+        Value::String(capability.availability.clone()),
+    );
+    map.insert(
+        "detail".to_owned(),
+        Value::String(capability.detail.clone()),
+    );
+    map.insert(
+        "flags".to_owned(),
+        Value::Array(
+            capability
+                .flags
+                .iter()
+                .map(|flag| Value::String(flag.clone()))
+                .collect(),
+        ),
+    );
+    map.insert(
+        "outputs".to_owned(),
+        Value::Array(
+            capability
+                .outputs
+                .iter()
+                .map(|mode| Value::String(mode.clone()))
+                .collect(),
+        ),
+    );
+    map.insert(
+        "reports".to_owned(),
+        Value::Array(
+            capability
+                .reports
+                .iter()
+                .map(|format| Value::String(format.clone()))
+                .collect(),
+        ),
+    );
+    map.insert(
+        "scope_policy".to_owned(),
+        Value::String(capability.scope_policy.clone()),
+    );
+    map.insert(
+        "effect".to_owned(),
+        Value::String(capability.effect.clone()),
+    );
+    map.insert(
+        "passthrough".to_owned(),
+        Value::Bool(capability.passthrough),
+    );
+    Value::Object(map)
+}
+
+/// Builds the event for one declared capability.
+pub fn capability_event(capability: &CapabilityEvent) -> Result<Value, OutputError> {
+    nonempty("name", &capability.name)?;
+    match capability.source.as_str() {
+        "cli-grammar" | "workspace-record" | "unobserved" => {}
+        _ => {
+            return Err(OutputError::BadSource {
+                value: capability.source.clone(),
+            });
+        }
+    }
+    match capability.availability.as_str() {
+        "available" | "unavailable" | "unknown" => {}
+        _ => {
+            return Err(OutputError::BadAvailability {
+                value: capability.availability.clone(),
+            });
+        }
+    }
+    nonempty("detail", &capability.detail)?;
+    nonempty("scope_policy", &capability.scope_policy)?;
+    nonempty("effect", &capability.effect)?;
+    Ok(capability_value(capability))
 }
 
 pub fn error_event(
@@ -435,6 +537,55 @@ mod tests {
             write_event(&mut Vec::new(), &fake).expect_err("no schema"),
             OutputError::NotAnEvent
         );
+    }
+
+    #[test]
+    fn capability_event_shape() {
+        let capability = CapabilityEvent {
+            name: "lint".to_owned(),
+            source: "cli-grammar".to_owned(),
+            availability: "available".to_owned(),
+            detail: "run lint analysis".to_owned(),
+            flags: vec!["--check".to_owned()],
+            outputs: vec!["text".to_owned(), "json".to_owned()],
+            reports: vec!["sarif".to_owned()],
+            scope_policy: "default-//...".to_owned(),
+            effect: "apply".to_owned(),
+            passthrough: true,
+        };
+        let event = capability_event(&capability).expect("capability");
+        assert_eq!(event["event"], Value::String("capability".to_owned()));
+        assert_eq!(event["schema"], schema());
+        assert_eq!(event["name"], Value::String("lint".to_owned()));
+        assert_eq!(event["flags"][0], Value::String("--check".to_owned()));
+        assert_eq!(
+            event,
+            capability_value(&capability),
+            "the checked entry point must agree with the value builder"
+        );
+        let mut buf = Vec::new();
+        write_event(&mut buf, &event).expect("write");
+        let parsed: Value = serde_json::from_slice(&buf).expect("parse");
+        assert_eq!(
+            parsed["availability"],
+            Value::String("available".to_owned())
+        );
+        let mut with_unknown = event.clone();
+        with_unknown["reader_future"] = Value::String("ignored".to_owned());
+        assert_eq!(
+            with_unknown["name"],
+            Value::String("lint".to_owned()),
+            "a new field must not move the fields a reader owns"
+        );
+        let mut bad = capability.clone();
+        bad.source = "probed".to_owned();
+        assert!(capability_event(&bad).is_err());
+        bad.source = "cli-grammar".to_owned();
+        bad.availability = "maybe".to_owned();
+        assert!(capability_event(&bad).is_err());
+        bad.availability = "available".to_owned();
+        bad.name = String::new();
+        assert!(capability_event(&bad).is_err());
     }
 
     #[test]

@@ -188,6 +188,7 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--host", Some("example.test")),
     ("--open", None),
     ("--offline", None),
+    ("--workspace-capabilities", None),
     ("-- <bazel-options>", None),
 ];
 

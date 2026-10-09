@@ -326,6 +326,12 @@ _consumer_resources_repo(
     name = "consumer_resources",
 )
 
+_consumer_native_repo = use_repo_rule("//rust/tests/fixtures/consumer_native:repos.bzl", "consumer_native_repo")
+
+_consumer_native_repo(
+    name = "consumer_native",
+)
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

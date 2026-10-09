@@ -1,0 +1,100 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@rules_cc//cc:defs.bzl", _raw_cc_library = "cc_library")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//cc/rules:defs.bzl", "cc_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+bool_flag(
+    name = "offset_100",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "offset_100_set",
+    flag_values = {":offset_100": "true"},
+)
+
+cc_library(
+    name = "native_c",
+    srcs = ["native.c"],
+    hdrs = ["native.h"],
+    copts = select({
+        ":offset_100_set": ["-DNATIVE_CALL_OFFSET=100"],
+        "//conditions:default": ["-DNATIVE_CALL_OFFSET=0"],
+    }),
+    features = ["treat_warnings_as_errors"],
+)
+
+sh_binary(
+    name = "make_bindings",
+    srcs = ["make_bindings.sh"],
+)
+
+genrule(
+    name = "native_bindings",
+    srcs = ["native.h"],
+    outs = ["bindings.rs"],
+    cmd = "$(location :make_bindings) $(location :native.h) $@ native_add native_div native_offset",
+    tools = [":make_bindings"],
+)
+
+cargo_build_script(
+    name = "native_call_build_script",
+    srcs = ["build.rs"],
+    build_script_env = {
+        "DX_NATIVE_BINDINGS_SRC": "$(location :native_bindings)",
+    },
+    crate_name = "native_call_build_script",
+    crate_root = "build.rs",
+    data = [":native_bindings"],
+    edition = "2021",
+    pkg_name = "native_call",
+    use_cc_toolchain = 0,
+    use_default_shell_env = 0,
+    version = "0.1.0",
+)
+
+rust_library(
+    name = "native_call",
+    srcs = ["src/lib.rs"],
+    crate_name = "native_call",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    link_deps = [":native_c"],
+    deps = [":native_call_build_script"],
+)
+
+rust_test(
+    name = "native_call_test",
+    crate = ":native_call",
+    link_deps = [":native_c"],
+    deps = [":native_call_build_script"],
+)
+
+_raw_cc_library(
+    name = "native_bad_extension",
+    srcs = ["notes.txt"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "native_call_rejects_unsupported_extension",
+    expected_failure_substring = "misplaced here",
+    target = ":native_bad_extension",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

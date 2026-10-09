@@ -320,6 +320,12 @@ _consumer_cc_repo(
     name = "consumer_cc",
 )
 
+_consumer_resources_repo = use_repo_rule("//deploy/tests/fixtures/consumer_resources:repos.bzl", "consumer_resources_repo")
+
+_consumer_resources_repo(
+    name = "consumer_resources",
+)
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

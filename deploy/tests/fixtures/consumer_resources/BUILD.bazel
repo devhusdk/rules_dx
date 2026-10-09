@@ -1,0 +1,64 @@
+load("@rules_dx//deploy/rules:resources.bzl", "dx_resources")
+load("@rules_dx//deploy/rules:resources_tests.bzl", "resources_consumer_analysis_tests")
+load("@rules_dx//libs/starlark:defs.bzl", "starlark_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+genrule(
+    name = "consumer_generated",
+    outs = ["consumer_sprite.bin"],
+    cmd = "printf 'dx-consumer-shared-marker\\ngenerated-v1\\n' > $@",
+)
+
+dx_resources(
+    name = "consumer_plain",
+    mappings = {
+        "@consumer_resources//:banner.txt": "banner.txt",
+        ":consumer_generated": "generated/sprite.bin",
+    },
+)
+
+dx_resources(
+    name = "consumer_processed",
+    mappings = {
+        ":consumer_generated": "generated/sprite.bin",
+    },
+    processor = "@consumer_resources//:processor",
+    processor_args = ["--consumer-stamp"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+resources_consumer_analysis_tests(name = "consumer_analysis")
+
+starlark_test(
+    name = "consumer_plain_reads",
+    testonly = True,
+    file_checks = {
+        ":consumer_plain": "dx-consumer-shared-marker",
+    },
+    mode = "execution",
+)
+
+starlark_test(
+    name = "consumer_processed_reads",
+    file_checks = {
+        ":consumer_processed": "FOOTER-dx-consumer-v1\ngenerated-v1",
+    },
+    mode = "execution",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

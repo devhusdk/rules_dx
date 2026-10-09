@@ -1,4 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -24,6 +25,8 @@ load(":promotion.bzl", "promotion_deploy")
 load(":promotion_tests.bzl", "promotion_analysis_tests", "promotion_debug_analysis_tests", "promotion_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_analysis_tests", "pypi_debug_analysis_tests", "pypi_unit_tests")
+load(":resources.bzl", "dx_resources")
+load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -271,6 +274,162 @@ failure_test(
     target = ":deploy_non_executable_tool",
 )
 
+sh_binary(
+    name = "resources_demo_processor",
+    srcs = ["resources_demo/process.sh"],
+)
+
+genrule(
+    name = "resources_demo_generated",
+    outs = ["resources_demo_sprite.bin"],
+    cmd = "printf 'dx-generated-sprite-v1' > $@",
+)
+
+dx_resources(
+    name = "resources_demo_plain",
+    mappings = {
+        "resources_demo/logo.txt": "logo.txt",
+        ":resources_demo_generated": "generated/sprite.bin",
+    },
+)
+
+dx_resources(
+    name = "resources_demo_processed",
+    mappings = {
+        "resources_demo/logo.txt": "logo.txt",
+        ":resources_demo_generated": "generated/sprite.bin",
+    },
+    processor = ":resources_demo_processor",
+    processor_args = ["--demo-stamp"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+resources_unit_tests(name = "resources_unit")
+
+resources_plain_analysis_tests(name = "resources_plain_analysis")
+
+resources_processed_analysis_tests(name = "resources_processed_analysis")
+
+# keep
+rust_test(
+    name = "resources_demo_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":resources_demo_plain",
+        ":resources_demo_processed",
+    ],
+    env = {
+        "DX_RESOURCES_PLAIN": "$(rootpaths :resources_demo_plain)",
+        "DX_RESOURCES_PROCESSED": "$(rootpaths :resources_demo_processed)",
+        "DX_VERIFY_MODE": "resources",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+filegroup(
+    name = "resources_empty_source",
+    srcs = [],
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "resources_two_sources",
+    srcs = [
+        "resources_demo/logo.txt",
+        ":resources_demo_generated",
+    ],
+    tags = ["manual"],
+)
+
+dx_resources(
+    name = "resources_bad_duplicate",
+    mappings = {
+        "resources_demo/logo.txt": "logo.txt",
+        ":resources_demo_generated": "logo.txt",
+    },
+    tags = ["manual"],
+)
+
+dx_resources(
+    name = "resources_bad_escape",
+    mappings = {
+        "resources_demo/logo.txt": "../evil.txt",
+    },
+    tags = ["manual"],
+)
+
+dx_resources(
+    name = "resources_bad_collision",
+    mappings = {
+        "resources_demo/logo.txt": "data",
+        ":resources_demo_generated": "data/blob.bin",
+    },
+    tags = ["manual"],
+)
+
+dx_resources(
+    name = "resources_bad_processor",
+    mappings = {
+        "resources_demo/logo.txt": "logo.txt",
+    },
+    processor = ":resources_two_sources",
+    tags = ["manual"],
+)
+
+dx_resources(
+    name = "resources_bad_empty",
+    mappings = {
+        ":resources_empty_source": "logo.txt",
+    },
+    tags = ["manual"],
+)
+
+dx_resources(
+    name = "resources_bad_multi",
+    mappings = {
+        ":resources_two_sources": "logo.txt",
+    },
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "resources_collision_fails",
+    expected_failure_substring = "collides with",
+    target = ":resources_bad_collision",
+)
+
+failure_test(
+    name = "resources_duplicate_fails",
+    expected_failure_substring = "duplicate path",
+    target = ":resources_bad_duplicate",
+)
+
+failure_test(
+    name = "resources_empty_source_fails",
+    expected_failure_substring = "provides no files",
+    target = ":resources_bad_empty",
+)
+
+failure_test(
+    name = "resources_escape_fails",
+    expected_failure_substring = "invalid path",
+    target = ":resources_bad_escape",
+)
+
+failure_test(
+    name = "resources_multi_source_fails",
+    expected_failure_substring = "must provide exactly one file",
+    target = ":resources_bad_multi",
+)
+
+failure_test(
+    name = "resources_processor_fails",
+    expected_failure_substring = "has no executable",
+    target = ":resources_bad_processor",
+)
+
 archive_deploy(
     name = "release_demo",
     app = ":deploy_program",
@@ -370,6 +529,16 @@ test_suite(
         ":pypi_unit",
         ":release_demo_debug_verify",
         ":release_demo_verify",
+        ":resources_collision_fails",
+        ":resources_demo_verify",
+        ":resources_duplicate_fails",
+        ":resources_empty_source_fails",
+        ":resources_escape_fails",
+        ":resources_multi_source_fails",
+        ":resources_plain_analysis",
+        ":resources_processed_analysis",
+        ":resources_processor_fails",
+        ":resources_unit",
     ],
 )
 
@@ -660,6 +829,8 @@ real_source_target(
         "promotion_tests.bzl",
         "pypi.bzl",
         "pypi_tests.bzl",
+        "resources.bzl",
+        "resources_tests.bzl",
     ],
     tags = ["corpus"],
 )

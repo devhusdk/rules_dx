@@ -4,6 +4,7 @@ use super::{AdoptError, ScaffoldFile};
 
 pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "rust",
+    "rust-web",
     "python",
     "javascript",
     "typescript",
@@ -155,7 +156,7 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
     let stem = destination.rsplit('/').next().unwrap_or(destination);
     let identity = fold_identity_text(stem);
     let check = match canonical {
-        "rust" => dx_identity::validate_cargo(&identity),
+        "rust" | "rust-web" => dx_identity::validate_cargo(&identity),
         "python" => {
             dx_identity::validate_dotted(&identity, "python project names use [A-Za-z0-9_.-] only")
         }
@@ -240,7 +241,141 @@ fn cargo_manifest(identity: &str) -> Result<String, AdoptError> {
     })
 }
 
-fn python_manifest(identity: &str) -> Result<String, AdoptError> {
+fn shared_core_manifest(identity: &str) -> Result<String, AdoptError> {
+    let mut package = toml::Table::new();
+    package.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
+    package.insert(
+        "version".to_owned(),
+        toml::Value::String("0.1.0".to_owned()),
+    );
+    package.insert("edition".to_owned(), toml::Value::String("2021".to_owned()));
+    let mut lib = toml::Table::new();
+    lib.insert(
+        "name".to_owned(),
+        toml::Value::String("shared_core".to_owned()),
+    );
+    let mut root = toml::Table::new();
+    root.insert("package".to_owned(), toml::Value::Table(package));
+    root.insert("lib".to_owned(), toml::Value::Table(lib));
+    toml::to_string(&root).map_err(|e| AdoptError::NewInvalidIdentity {
+        language: "rust-web".to_owned(),
+        name: identity.to_owned(),
+        reason: e.to_string(),
+    })
+}
+
+pub const SHARED_CORE_LIB: &str = concat!(
+    "use wasm_bindgen::prelude::*;\n",
+    "\n",
+    "pub fn greeting(name: &str) -> String {\n",
+    "    format!(\"Hello from shared core, {name}!\")\n",
+    "}\n",
+    "\n",
+    "pub fn add(left: u32, right: u32) -> u32 {\n",
+    "    left + right\n",
+    "}\n",
+    "\n",
+    "#[wasm_bindgen]\n",
+    "pub fn greet(name: &str) -> String {\n",
+    "    greeting(name)\n",
+    "}\n",
+    "\n",
+    "#[cfg(test)]\n",
+    "mod tests {\n",
+    "    use super::{add, greeting};\n",
+    "\n",
+    "    #[test]\n",
+    "    fn greeting_mentions_name() {\n",
+    "        assert!(greeting(\"dx\").contains(\"dx\"));\n",
+    "    }\n",
+    "\n",
+    "    #[test]\n",
+    "    fn add_sums() {\n",
+    "        assert_eq!(add(40, 2), 42);\n",
+    "    }\n",
+    "}\n",
+);
+
+pub const SHARED_CORE_MAIN: &str = concat!(
+    "fn main() {\n",
+    "    println!(\"{}\", shared_core::greeting(\"native\"));\n",
+    "}\n",
+);
+
+pub const SHARED_CORE_INDEX: &str = concat!(
+    "<!doctype html>\n",
+    "<html lang=\"en\">\n",
+    "<head>\n",
+    "<meta charset=\"utf-8\">\n",
+    "<title>shared core web</title>\n",
+    "</head>\n",
+    "<body>\n",
+    "<main>\n",
+    "<h1>shared core web</h1>\n",
+    "<p id=\"proof\">loading</p>\n",
+    "<p id=\"asset\">loading</p>\n",
+    "</main>\n",
+    "<script type=\"module\">\n",
+    "import init, { greet } from \"./app_web.js\";\n",
+    "await init();\n",
+    "document.getElementById(\"proof\").textContent = greet(\"web\");\n",
+    "const asset = await (await fetch(\"./assets/data.txt\")).text();\n",
+    "document.getElementById(\"asset\").textContent = asset.trim();\n",
+    "</script>\n",
+    "</body>\n",
+    "</html>\n",
+);
+
+pub const SHARED_CORE_ASSET: &str = "shared core asset\n";
+
+pub const SHARED_CORE_BUILD: &str = concat!(
+    "# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\n",
+    "load(\"@rules_dx//javascript/rules:web.bzl\", \"javascript_web_app\", \"javascript_web_server\")\n",
+    "load(\"@rules_dx//rust/rules:defs.bzl\", \"rust_binary\", \"rust_library\", \"rust_test\", \"rust_wasm_bindgen\")\n",
+    "\n",
+    "package(default_visibility = [\"//visibility:public\"])\n",
+    "\n",
+    "rust_library(\n",
+    "    name = \"shared_core\",\n",
+    "    srcs = [\"src/lib.rs\"],\n",
+    "    crate_name = \"shared_core\",\n",
+    "    crate_root = \"src/lib.rs\",\n",
+    "    edition = \"2021\",\n",
+    "    deps = [\"@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\"],\n",
+    ")\n",
+    "\n",
+    "rust_test(\n",
+    "    name = \"shared_core_test\",\n",
+    "    crate = \":shared_core\",\n",
+    ")\n",
+    "\n",
+    "rust_binary(\n",
+    "    name = \"app\",\n",
+    "    srcs = [\"src/main.rs\"],\n",
+    "    crate_name = \"app\",\n",
+    "    crate_root = \"src/main.rs\",\n",
+    "    edition = \"2021\",\n",
+    "    deps = [\":shared_core\"],\n",
+    ")\n",
+    "\n",
+    "rust_wasm_bindgen(\n",
+    "    name = \"app_web\",\n",
+    "    target = \"web\",\n",
+    "    wasm_file = \":app_upstream\",\n",
+    ")\n",
+    "\n",
+    "javascript_web_app(\n",
+    "    name = \"web\",\n",
+    "    assets = {\":data.txt\": \"assets/data.txt\"},\n",
+    "    bindgen = \":app_web\",\n",
+    "    html = \":index.html\",\n",
+    ")\n",
+    "\n",
+    "javascript_web_server(\n",
+    "    name = \"serve\",\n",
+    "    app = \":web\",\n",
+    ")\n",
+);
     let mut project = toml::Table::new();
     project.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
     project.insert(
@@ -275,6 +410,14 @@ fn new_language_files(
                 "src/main.rs".to_owned(),
                 "fn main() {\n    println!(\"hello world\");\n}\n".to_owned(),
             ),
+        ],
+        "rust-web" => vec![
+            ("Cargo.toml".to_owned(), shared_core_manifest(identity)?),
+            ("src/lib.rs".to_owned(), SHARED_CORE_LIB.to_owned()),
+            ("src/main.rs".to_owned(), SHARED_CORE_MAIN.to_owned()),
+            ("index.html".to_owned(), SHARED_CORE_INDEX.to_owned()),
+            ("assets/data.txt".to_owned(), SHARED_CORE_ASSET.to_owned()),
+            ("BUILD.bazel".to_owned(), SHARED_CORE_BUILD.to_owned()),
         ],
         "python" => vec![
             ("pyproject.toml".to_owned(), python_manifest(identity)?),

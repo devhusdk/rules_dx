@@ -226,6 +226,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         fail_on,
         min_coverage,
         strict_evidence,
+        run_output,
         check,
         apply,
         debug,
@@ -519,10 +520,21 @@ pub fn parse_with<S: AsRef<OsStr>>(
     if output_name == "diff" && !command.supports_diff() {
         return Err(unsupported(command, "--output=diff"));
     }
+    if run_output.is_some() && !command.supports_run_output() {
+        return Err(unsupported(command, "--run-output"));
+    }
+    if let Some(dir) = run_output.as_deref() {
+        if dir.is_empty() {
+            return Err(ArgsError::MissingValue {
+                option: "--run-output".to_owned(),
+            });
+        }
+    }
     Ok(Invocation {
         command,
         check,
         strict_evidence,
+        run_output,
         apply,
         debug,
         release,

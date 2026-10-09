@@ -310,8 +310,8 @@ pub static COMMANDS: [CommandMeta; 34] = [
         name: "test",
         scope_policy: "default-//...",
         describe: "run Bazel test over resolved targets",
-        usage: "Usage: dx test [--here] [--debug|--release] [--strict-evidence] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release). --strict-evidence fails on incomplete test evidence instead of tolerating gaps (test/coverage only).",
+        usage: "Usage: dx test [--here] [--debug|--release] [--strict-evidence] [--run-output <dir>] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release). --strict-evidence fails on incomplete test evidence instead of tolerating gaps (test/coverage only). --run-output <dir> retains test logs under a unique child directory with a manifest (test/coverage only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -337,8 +337,8 @@ pub static COMMANDS: [CommandMeta; 34] = [
         name: "coverage",
         scope_policy: "default-//...",
         describe: "collect LCOV coverage with optional threshold",
-        usage: "Usage: dx coverage [--here] [--min-coverage 0-100] [--strict-evidence] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --min-coverage <0-100> (coverage only; collects without enforcing when absent). --strict-evidence fails on incomplete coverage evidence instead of tolerating gaps (test/coverage only).",
+        usage: "Usage: dx coverage [--here] [--min-coverage 0-100] [--strict-evidence] [--run-output <dir>] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --min-coverage <0-100> (coverage only; collects without enforcing when absent). --strict-evidence fails on incomplete coverage evidence instead of tolerating gaps (test/coverage only). --run-output <dir> retains test logs under a unique child directory with a manifest (test/coverage only).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -1139,6 +1139,10 @@ impl Command {
     }
 
     pub fn supports_strict_evidence(self) -> bool {
+        matches!(self, Command::Test | Command::Coverage)
+    }
+
+    pub fn supports_run_output(self) -> bool {
         matches!(self, Command::Test | Command::Coverage)
     }
 

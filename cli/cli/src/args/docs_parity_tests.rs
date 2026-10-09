@@ -172,6 +172,7 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--fail-on", Some("error")),
     ("--min-coverage", Some("80")),
     ("--strict-evidence", None),
+    ("--run-output", Some("out")),
     ("--check", None),
     ("--apply", None),
     ("--debug", None),

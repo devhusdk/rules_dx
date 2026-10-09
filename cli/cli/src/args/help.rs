@@ -176,7 +176,7 @@ pub fn usage_banner() -> String {
     format!(
         "usage: dx <{commands}> [--workspace DIR] [--dry-run] [--quiet] [--verbose|-v] \
 [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
-[--output text|diff|json] [--report <format>=<destination>]... \
+[--output text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \

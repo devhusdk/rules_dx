@@ -42,10 +42,18 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         .iter()
         .any(|report| report.destination == Destination::Stdout);
     let resolved = match invocation.command {
-        Command::Build => resolve(&invocation.targets, workspace, query_runner),
-        Command::Test | Command::Coverage => {
-            resolve_for_test(&invocation.targets, workspace, query_runner)
-        }
+        Command::Build => resolve(
+            &invocation.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ),
+        Command::Test | Command::Coverage => resolve_for_test(
+            &invocation.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ),
         _ => {
             return pre_exec(
                 err,
@@ -90,7 +98,14 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         Some(invocation.profile())
     };
-    let plan = match plan_workflow(verb, &resolved, &invocation.bazel_options, bep_arg, profile) {
+    let plan = match plan_workflow(
+        verb,
+        &resolved,
+        &invocation.bazel_options,
+        bep_arg,
+        profile,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
@@ -320,5 +335,62 @@ mod tests {
         let (code, _, err) = harness.run(&["build", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_signalled"), "{err}");
+    }
+
+    #[test]
+    fn startup_options_reach_query_and_build_argv() {
+        let harness = Harness::new("wf-startup");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:lib\n");
+        let inv = invocation(&[
+            "build",
+            "--bazel-startup-option=--output_base=/tmp/a",
+            "--bazel-startup-option=--output_user_root=/tmp/b",
+            "pkg/a.py",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 1, "one ownership query");
+        assert_eq!(
+            queries[0],
+            vec![
+                "bazel".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
+                "--output_base=/tmp/a".to_owned(),
+                "--output_user_root=/tmp/b".to_owned(),
+                "query".to_owned(),
+                "--".to_owned(),
+                "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
+            ]
+        );
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        let build = &run.argv[0];
+        let verb = build
+            .iter()
+            .position(|arg| arg == "build")
+            .expect("build verb");
+        assert_eq!(
+            &build[..verb],
+            &[
+                "bazel".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
+                "--output_base=/tmp/a".to_owned(),
+                "--output_user_root=/tmp/b".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn invalid_startup_options_fail_before_launch() {
+        let harness = Harness::new("wf-startup-bad");
+        let (code, _, err) =
+            harness.run(&["build", "--bazel-startup-option=--jobs=4", "//app:bin"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("\"jobs\""), "{err}");
+        assert!(harness.query.calls.borrow().is_empty());
     }
 }

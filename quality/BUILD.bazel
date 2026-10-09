@@ -5,6 +5,7 @@ load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
 load(":fixtures_tests.bzl", "fixtures_unit_tests")
+load(":js_responsibilities_tests.bzl", "js_responsibilities_unit_tests")
 load(":native_config.bzl", "checkstyle_config", "vale_config")
 load(":native_config_tests.bzl", "native_config_unit_tests")
 load(":parity_tests.bzl", "parity_unit_tests")
@@ -245,6 +246,14 @@ consumer_policy_tests(
             "policy": "//quality/tests/fixtures/consumer_policy:json_biome_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_json",
         },
+        {
+            "case": "js_eslint",
+            "expected_dx_results": [
+                "clean_js-real-lint-js.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:js_eslint_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
+        },
     ],
 )
 
@@ -252,9 +261,12 @@ sources_registry_tests(name = "sources_registry")
 
 fixtures_unit_tests(name = "fixtures_unit")
 
+js_responsibilities_unit_tests(name = "js_responsibilities_unit")
+
 test_suite(
     name = "all",
     tests = [
+        ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
         ":consumer_policy_toml_format_off_test",
@@ -262,6 +274,7 @@ test_suite(
         ":curated_defaults_unit",
         ":execution_requirements_unit",
         ":fixtures_unit",
+        ":js_responsibilities_unit",
         ":native_config_unit",
         ":parity_unit",
         ":pipeline_unit",
@@ -301,6 +314,7 @@ real_source_target(
         "execution_requirements_tests.bzl",
         "fixtures.bzl",
         "fixtures_tests.bzl",
+        "js_responsibilities_tests.bzl",
         "native_config.bzl",
         "native_config_tests.bzl",
         "parity_tests.bzl",

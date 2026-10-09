@@ -39,6 +39,9 @@ Options:
       --output <OUTPUT>
           Set output format
 
+      --bazel-startup-option <TOKEN>
+          Pass one Bazel startup option (repeatable)
+
       --debug
           Use debug build
 

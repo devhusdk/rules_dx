@@ -43,6 +43,10 @@ commands. See [Version Skew](status-version.md#version-skew).
   `typecheck`, `format`, `generate`, `check`, and `fix`. `json` is rejected by
   `deploy`, `init`, `new`, `hooks`, `watch`, `completion`, and `bazel`, which
   take `text` only.
+- `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
+  `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the
+  Bazel verb for every managed invocation. Isolated output bases isolate
+  concurrent runs.
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
   `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.

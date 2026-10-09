@@ -299,7 +299,12 @@ fn execute_run(
         }
         return 0;
     }
-    let targets = match change_targets(&changes, workspace, query_runner) {
+    let targets = match change_targets(
+        &changes,
+        workspace,
+        query_runner,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(targets) => targets,
         Err(detail) => {
             return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
@@ -475,6 +480,7 @@ fn change_targets(
     changes: &[dx_adopt::GitChange],
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
+    startup_options: &[String],
 ) -> Result<Vec<String>, String> {
     let mut existing = Vec::new();
     let mut missing = Vec::new();
@@ -494,7 +500,7 @@ fn change_targets(
     let mut targets = if existing.is_empty() {
         Vec::new()
     } else {
-        crate::resolve::resolve(&existing, workspace, query_runner)
+        crate::resolve::resolve(&existing, workspace, query_runner, startup_options)
             .map(|resolved| resolved.targets)
             .map_err(|error| error.to_string())?
     };
@@ -1442,7 +1448,7 @@ mod tests {
             .find(|change| change.path == "pkg/old.py")
             .expect("deleted change");
         assert_eq!(deleted.kind, dx_adopt::ChangeKind::Deleted);
-        let targets = change_targets(&staged, &root, &runner).expect("targets");
+        let targets = change_targets(&staged, &root, &runner, &[]).expect("targets");
         assert!(targets.contains(&"//pkg:lib".to_owned()), "{targets:?}");
         assert!(targets.contains(&"//pkg/...".to_owned()), "{targets:?}");
 

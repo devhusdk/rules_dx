@@ -1,9 +1,11 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality:__pkg__"])
 
 exports_files([
+    "clean.js",
     "clean.json",
     "clean.toml",
 ])
@@ -84,6 +86,36 @@ quality_family(
 workspace_policy(
     name = "json_biome_policy",
     families = [":biome_json_family"],
+)
+
+quality_family(
+    name = "eslint_js_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "javascript",
+    lint = ["eslint"],
+)
+
+workspace_policy(
+    name = "js_eslint_policy",
+    families = [":eslint_js_family"],
+)
+
+eslint_config(
+    name = "consumer_eslint_config",
+    src = "eslint.config.js",
+)
+
+real_source_target(
+    name = "clean_js",
+    aspect_hints = [
+        ":consumer_eslint_config",
+        "//:biome_config",
+    ],
+    javascript_srcs = ["clean.js"],
+    tags = ["corpus"],
 )
 
 real_source_target(

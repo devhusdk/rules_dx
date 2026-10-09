@@ -16,6 +16,7 @@ load(":policy_tests.bzl", "policy_analysis_tests", "policy_unit_tests")
 load(":real_pipeline_tests.bzl", "real_pipeline_unit_tests")
 load(":registry_tests.bzl", "registry_unit_tests")
 load(":sources_tests.bzl", "sources_registry_tests")
+load(":tool_override_tests.bzl", "tool_override_unit_tests")
 load(":wrapper_owners.bzl", "wrapper_unit_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -34,6 +35,7 @@ exports_files([
     "registry.bzl",
     "result.proto",
     "sources.bzl",
+    "tool_override.bzl",
 ])
 
 exports_files([
@@ -254,12 +256,24 @@ consumer_policy_tests(
             "policy": "//quality/tests/fixtures/consumer_policy:js_eslint_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
         },
+        {
+            "case": "python_tool_override",
+            "expected_dx_results": [
+                "clean_python-real-format.pb",
+                "clean_python-real-lint-py.pb",
+                "clean_python-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_tool:override_python_policy",
+            "subject": "//quality/tests/fixtures/consumer_tool:clean_python",
+        },
     ],
 )
 
 sources_registry_tests(name = "sources_registry")
 
 fixtures_unit_tests(name = "fixtures_unit")
+
+tool_override_unit_tests(name = "tool_override_unit")
 
 js_responsibilities_unit_tests(name = "js_responsibilities_unit")
 
@@ -269,6 +283,7 @@ test_suite(
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
+        ":consumer_policy_python_tool_override_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
         ":curated_defaults_unit",
@@ -283,6 +298,7 @@ test_suite(
         ":real_pipeline_unit",
         ":registry_unit",
         ":sources_registry",
+        ":tool_override_unit",
         ":wrapper_owners_unit",
     ],
 )
@@ -329,6 +345,8 @@ real_source_target(
         "registry_tests.bzl",
         "sources.bzl",
         "sources_tests.bzl",
+        "tool_override.bzl",
+        "tool_override_tests.bzl",
         "wrapper_owners.bzl",
     ],
     tags = ["corpus"],

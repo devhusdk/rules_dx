@@ -1,0 +1,45 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load("//quality:tool_override.bzl", "quality_tool_override")
+
+package(default_visibility = ["//quality:__pkg__"])
+
+genrule(
+    name = "ruff_override_bin",
+    srcs = ["@dx_tools//:ruff"],
+    outs = ["ruff_override_copy"],
+    cmd = "cp $(SRCS) $@",
+    executable = True,
+)
+
+quality_tool_override(
+    name = "ruff_override",
+    data = [":override_note.txt"],
+    tool = ":ruff_override_bin",
+    tool_id = "ruff",
+    version = "0.16.7-dx-consumer",
+)
+
+quality_family(
+    name = "override_python_family",
+    family_id = "python",
+    format = ["ruff"],
+    lint = [
+        "pydoclint",
+        "ruff",
+    ],
+)
+
+workspace_policy(
+    name = "override_python_policy",
+    families = [":override_python_family"],
+)
+
+real_source_target(
+    name = "clean_python",
+    aspect_hints = [
+        "//quality/testdata:ruff_cfg",
+        ":ruff_override",
+    ],
+    python_srcs = ["clean.py"],
+)

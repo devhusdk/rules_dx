@@ -640,6 +640,20 @@ def real_pipeline_unit_tests(name):
                 },
             ),
             expect_equal(
+                "real_request_tool carries a consumer override version",
+                real_request_tool(
+                    binary_path = "bin/ruff",
+                    version = "0.16.7-dx-override",
+                ),
+                {
+                    "binary": "bin/ruff",
+                    "env": [],
+                    "files": [],
+                    "upstream": [],
+                    "version": "0.16.7-dx-override",
+                },
+            ),
+            expect_equal(
                 "real_request_doc pins schema version one without a scratch parent",
                 real_request_doc(
                     "//pkg:target",

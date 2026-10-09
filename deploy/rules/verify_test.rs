@@ -85,12 +85,50 @@ fn github_case() {
     );
 }
 
+fn resources_case() {
+    let plain = std::env::var("DX_RESOURCES_PLAIN").expect("DX_RESOURCES_PLAIN must list files");
+    let processed =
+        std::env::var("DX_RESOURCES_PROCESSED").expect("DX_RESOURCES_PROCESSED must list files");
+    let by_base = |paths: &str| {
+        let mut found = std::collections::BTreeMap::new();
+        for rel in paths.split_whitespace() {
+            let path = dx_testing::resolve_runfiles(rel);
+            let base = path
+                .file_name()
+                .expect("staged file must have a name")
+                .to_string_lossy()
+                .into_owned();
+            found.insert(base, path);
+        }
+        found
+    };
+    let plain_files = by_base(&plain);
+    let processed_files = by_base(&processed);
+    let logo = std::fs::read_to_string(&plain_files["logo.txt"]).expect("read staged logo");
+    assert_eq!(logo, "dx resources demo logo v1\n");
+    let sprite = std::fs::read_to_string(&plain_files["sprite.bin"]).expect("read staged sprite");
+    assert_eq!(sprite, "dx-generated-sprite-v1");
+    let staged_logo =
+        std::fs::read_to_string(&processed_files["logo.txt"]).expect("read processed logo");
+    assert_eq!(
+        staged_logo,
+        "DX-RESOURCES-DEMO-V1\ndx resources demo logo v1\n"
+    );
+    let staged_sprite =
+        std::fs::read_to_string(&processed_files["sprite.bin"]).expect("read processed sprite");
+    assert_eq!(
+        staged_sprite,
+        "DX-RESOURCES-DEMO-V1\ndx-generated-sprite-v1"
+    );
+}
+
 #[test]
 fn deploy_verify() {
     let mode = std::env::var("DX_VERIFY_MODE").expect("DX_VERIFY_MODE must select the harness");
     match mode.as_str() {
         "archive" => archive_case(),
         "github" => github_case(),
+        "resources" => resources_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),
     }
 }

@@ -321,4 +321,37 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_signalled"), "{err}");
     }
+
+    #[test]
+    fn build_with_startup_option_scopes_query_and_build_behind_the_launcher() {
+        let harness = Harness::new("wf-startup-scope");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:lib\n");
+        let inv = invocation(&[
+            "build",
+            "pkg/a.py",
+            "--bazel-startup-option=--output_base=/tmp/sb",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 1, "one ownership query");
+        assert_eq!(queries[0][0], "bazel");
+        assert_eq!(queries[0][1], "--output_base=/tmp/sb");
+        assert_eq!(queries[0][4], "query");
+        assert_eq!(run.argv.len(), 1, "one build launch");
+        assert_eq!(run.argv[0][0], "bazel");
+        assert_eq!(run.argv[0][1], "--output_base=/tmp/sb");
+        assert_eq!(run.argv[0][4], "build");
+        assert!(run.argv[0].contains(&"//pkg:lib".to_owned()));
+    }
+
+    #[test]
+    fn build_still_rejects_startup_options_after_separator() {
+        let harness = Harness::new("wf-startup-separator");
+        let (code, _, err) = harness.run(&["build", "--", "--output_base=/tmp/sb"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("startup option"), "{err}");
+    }
 }

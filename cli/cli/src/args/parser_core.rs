@@ -699,3 +699,135 @@ fn audit_update_parse_and_reject_unsupported_options() {
         })
     );
 }
+
+#[test]
+fn bazel_startup_options_parse_repeatably_for_bazel_commands() {
+    let got = parse(&strings(&[
+        "build",
+        "--bazel-startup-option=--output_base=/tmp/a",
+        "--bazel-startup-option=--output_user_root=/tmp/r",
+    ]))
+    .expect("parse");
+    assert_eq!(
+        got.bazel_startup_options,
+        strings(&["--output_base=/tmp/a", "--output_user_root=/tmp/r"])
+    );
+    let spaced = parse(&strings(&[
+        "test",
+        "--bazel-startup-option",
+        "--output_base=/tmp/a",
+    ]))
+    .expect("space form");
+    assert_eq!(
+        spaced.bazel_startup_options,
+        strings(&["--output_base=/tmp/a"])
+    );
+    let owners = parse(&strings(&[
+        "owners",
+        "//:demo",
+        "--bazel-startup-option=--output_base=/tmp/a",
+    ]))
+    .expect("owners");
+    assert_eq!(
+        owners.bazel_startup_options,
+        strings(&["--output_base=/tmp/a"])
+    );
+    let clean = parse(&strings(&[
+        "clean",
+        "--bazel",
+        "--bazel-startup-option=--output_base=/tmp/a",
+    ]))
+    .expect("clean forwards with --bazel");
+    assert_eq!(
+        clean.bazel_startup_options,
+        strings(&["--output_base=/tmp/a"])
+    );
+    let bare = parse(&strings(&["lint"])).expect("bare");
+    assert!(bare.bazel_startup_options.is_empty());
+}
+
+#[test]
+fn bazel_startup_options_reject_duplicates() {
+    assert_eq!(
+        parse(&strings(&[
+            "build",
+            "--bazel-startup-option=--output_base=/a",
+            "--bazel-startup-option=--output_base=/b"
+        ])),
+        Err(ArgsError::DuplicateStartupOption {
+            name: "--output_base".to_owned(),
+        })
+    );
+    let distinct = parse(&strings(&[
+        "build",
+        "--bazel-startup-option=--output_base=/a",
+        "--bazel-startup-option=--output_user_root=/r",
+    ]))
+    .expect("distinct roots compose");
+    assert_eq!(distinct.bazel_startup_options.len(), 2);
+}
+
+#[test]
+fn bazel_startup_options_reject_malformed_tokens() {
+    for words in [
+        vec!["build", "--bazel-startup-option=--output_base"],
+        vec!["build", "--bazel-startup-option=--output_base="],
+        vec!["build", "--bazel-startup-option=--output_user_root"],
+        vec!["build", "--bazel-startup-option=--home_rc"],
+        vec!["build", "--bazel-startup-option=--home_rc=/tmp/rc"],
+        vec!["build", "--bazel-startup-option=output_base=/tmp/a"],
+        vec!["build", "--bazel-startup-option="],
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["bazel-startup-option", "output_base"],
+        );
+    }
+    assert_usage(
+        &["build", "--bazel-startup-option"],
+        parse(&strings(&["build", "--bazel-startup-option"])).unwrap_err(),
+        &["bazel-startup-option"],
+    );
+}
+
+#[test]
+fn bazel_startup_options_are_refused_where_no_bazel_runs() {
+    for words in [
+        vec!["status", "--bazel-startup-option=--output_base=/tmp/a"],
+        vec!["version", "--bazel-startup-option=--output_base=/tmp/a"],
+        vec!["clean", "--bazel-startup-option=--output_base=/tmp/a"],
+        vec!["update", "--bazel-startup-option=--output_base=/tmp/a"],
+        vec!["security", "--bazel-startup-option=--output_base=/tmp/a"],
+        vec!["license", "--bazel-startup-option=--output_base=/tmp/a"],
+        vec!["init", "--bazel-startup-option=--output_base=/tmp/a"],
+        vec![
+            "watch",
+            "build",
+            "--bazel-startup-option=--output_base=/tmp/a",
+        ],
+    ] {
+        match parse(&strings(&words)) {
+            Err(ArgsError::UnsupportedOption { option, .. }) => {
+                assert_eq!(option, "--bazel-startup-option", "words: {words:?}")
+            }
+            other => panic!("words: {words:?}: want UnsupportedOption, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn bazel_command_forwards_startup_shaped_words_verbatim() {
+    let got = parse(&strings(&[
+        "bazel",
+        "--bazel-startup-option=--output_base=/tmp/a",
+        "build",
+    ]))
+    .expect("verbatim");
+    assert_eq!(got.command, Command::Bazel);
+    assert!(got.bazel_startup_options.is_empty());
+    assert_eq!(
+        got.bazel_options,
+        strings(&["--bazel-startup-option=--output_base=/tmp/a", "build"])
+    );
+}

@@ -65,6 +65,13 @@ commands. See [Version Skew](status-version.md#version-skew).
   release. Every other command rejects them.
 - `--offline`, `--frozen`: run cache-only, no network fetches. Taken by
   `security`, `license`, `update`, and `bump`. Every other command rejects it.
+- `--bazel-startup-option <token>`: select the Bazel server for every query and
+  build in this invocation. Repeatable. Each token is one argv entry, spelled
+  `--output_base=<path>` or `--output_user_root=<path>`. Taken by `lint`,
+  `typecheck`, `format`, `generate`, `build`, `test`, `coverage`, `run`,
+  `deploy`, `check`, `fix`, `clean` (with `--bazel` only), `codegen`, `env`,
+  `setup`, `owners`, `deps`, `why`, and `docs`.
+  Every other command rejects it.
 - `--here`: limit to the current directory tree.
 - `-h`, `--help`: print help for a command.
 - `-V`, `--version`: print the version.

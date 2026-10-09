@@ -928,6 +928,97 @@ fn real_fs_override_keeps_display_path() {
     scratch.close().expect("cleanup");
 }
 
+#[test]
+fn startup_identity_tokens_keep_equals_form_and_named_roots() {
+    for token in [
+        "--output_base=/tmp/dx-base",
+        "--output_user_root=/tmp/dx-root",
+        "--output_base=/tmp/my base héllo",
+    ] {
+        assert_eq!(validate_startup_option(token), Ok(token.to_owned()));
+    }
+    for token in [
+        "--output_base",
+        "--output_base=",
+        "--output_user_root",
+        "output_base=/tmp/x",
+        "--home_rc",
+        "--home_rc=/tmp/rc",
+        "--host_jvm_args=-Xmx1g",
+        "--jobs=4",
+        "",
+        "--",
+    ] {
+        let err = validate_startup_option(token).expect_err("malformed");
+        assert!(err.contains("--output_base=<path>"), "{token:?}: {err}");
+        assert!(
+            err.contains("--output_user_root=<path>"),
+            "{token:?}: {err}"
+        );
+    }
+}
+
+#[test]
+fn startup_splice_lands_behind_the_launcher_before_every_verb() {
+    for verb in [
+        "query", "cquery", "aquery", "info", "build", "test", "run", "clean",
+    ] {
+        let argv = vec![
+            "bazel".to_owned(),
+            "--nohome_rc".to_owned(),
+            "--nosystem_rc".to_owned(),
+            verb.to_owned(),
+            "//...".to_owned(),
+        ];
+        let startup = vec!["--output_base=/tmp/dx-base".to_owned()];
+        let got = with_startup_options(&argv, &startup);
+        assert_eq!(
+            got,
+            vec![
+                "bazel".to_owned(),
+                "--output_base=/tmp/dx-base".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
+                verb.to_owned(),
+                "//...".to_owned(),
+            ],
+            "{verb}"
+        );
+    }
+    let clean = vec!["bazel".to_owned(), "clean".to_owned()];
+    assert_eq!(
+        with_startup_options(&clean, &["--output_base=/tmp/c".to_owned()]),
+        vec![
+            "bazel".to_owned(),
+            "--output_base=/tmp/c".to_owned(),
+            "clean".to_owned()
+        ]
+    );
+    let spaced = vec!["--output_base=/tmp/my base héllo".to_owned()];
+    let got = with_startup_options(&clean, &spaced);
+    assert_eq!(got[1], "--output_base=/tmp/my base héllo");
+    assert_eq!(got.len(), 3);
+}
+
+#[test]
+fn startup_splice_is_identity_without_selection_or_on_reapplication() {
+    let argv = vec![
+        "bazel".to_owned(),
+        "--nohome_rc".to_owned(),
+        "query".to_owned(),
+    ];
+    assert_eq!(with_startup_options(&argv, &[]), argv);
+    let startup = vec!["--output_base=/tmp/dx-base".to_owned()];
+    let once = with_startup_options(&argv, &startup);
+    assert_eq!(with_startup_options(&once, &startup), once);
+    let both = vec![
+        "--output_base=/a".to_owned(),
+        "--output_user_root=/r".to_owned(),
+    ];
+    let got = with_startup_options(&argv, &both);
+    assert_eq!(&got[1..3], &both[..]);
+}
+
 const SELECTION_PROBE_FILTER: &str = "selection_argv_probe_marker";
 const UNICODE_PROBE_ARG: &str = "dx_argv_probe with spaces héllo";
 

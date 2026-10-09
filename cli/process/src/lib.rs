@@ -207,6 +207,9 @@ pub fn launcher_argv0() -> &'static str {
 
 pub const WORKFLOW_STARTUP_OPTS: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
+/// The startup options one dx invocation may select for every Bazel server it uses.
+pub const STARTUP_IDENTITY_OPTS: &[&str] = &["output_base", "output_user_root"];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Repository,
@@ -293,6 +296,41 @@ pub fn is_test_binary_arg(arg: &str) -> bool {
         Some(name) => name == "test_arg",
         None => false,
     }
+}
+
+/// Checks one `--bazel-startup-option` token without splitting it further.
+pub fn validate_startup_option(token: &str) -> Result<String, String> {
+    let shape = "want --output_base=<path> or --output_user_root=<path>";
+    let Some(bare) = token.strip_prefix("--") else {
+        return Err(format!("{shape}, got {token:?}"));
+    };
+    let Some((name, value)) = bare.split_once('=') else {
+        return Err(format!("{shape}, got {token:?}"));
+    };
+    if !STARTUP_IDENTITY_OPTS.contains(&name) || value.is_empty() {
+        return Err(format!("{shape}, got {token:?}"));
+    }
+    Ok(token.to_owned())
+}
+
+/// Splices selected startup options behind the launcher so they precede every Bazel verb.
+pub fn with_startup_options(argv: &[String], startup: &[String]) -> Vec<String> {
+    if startup.is_empty() {
+        return argv.to_vec();
+    }
+    if argv.len() > 1 && argv[1..].starts_with(startup) {
+        return argv.to_vec();
+    }
+    let mut out = Vec::with_capacity(argv.len() + startup.len());
+    match argv.split_first() {
+        Some((first, rest)) => {
+            out.push(first.clone());
+            out.extend(startup.iter().cloned());
+            out.extend(rest.iter().cloned());
+        }
+        None => out.extend(startup.iter().cloned()),
+    }
+    out
 }
 
 fn accepts_test_binary_arg(bazel_command: &str) -> bool {

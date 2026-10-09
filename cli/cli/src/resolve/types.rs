@@ -40,6 +40,30 @@ impl QueryRunner for ProcessQueryRunner {
 }
 // LCOV_EXCL_STOP - reason: end prod spawn, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 
+/// Runs queries and info calls behind the invocation's selected Bazel startup options.
+pub struct StartupQueryRunner<'a> {
+    runner: &'a dyn QueryRunner,
+    startup: &'a [String],
+}
+
+impl<'a> StartupQueryRunner<'a> {
+    pub fn new(runner: &'a dyn QueryRunner, startup: &'a [String]) -> Self {
+        StartupQueryRunner { runner, startup }
+    }
+}
+
+impl QueryRunner for StartupQueryRunner<'_> {
+    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        self.runner
+            .run_query(&dx_process::with_startup_options(argv, self.startup), cwd)
+    }
+
+    fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
+        self.runner
+            .run_info(&dx_process::with_startup_options(argv, self.startup), cwd)
+    }
+}
+
 // LCOV_EXCL_START - reason: test guard, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[cfg(test)]
 pub struct NeverQuery;
@@ -117,4 +141,90 @@ pub enum ResolveError {
     NotDeployable { label: String },
     #[error("ownership query for {label} failed: {detail}")]
     QueryFailed { label: String, detail: String },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct Recording {
+        seen: RefCell<Vec<Vec<String>>>,
+    }
+
+    impl QueryRunner for Recording {
+        fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+            self.seen.borrow_mut().push(argv.to_vec());
+            Ok(QueryResult {
+                code: Some(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        }
+    }
+
+    fn query_argv() -> Vec<String> {
+        vec![
+            "bazel".to_owned(),
+            "--nohome_rc".to_owned(),
+            "--nosystem_rc".to_owned(),
+            "query".to_owned(),
+            "--".to_owned(),
+            "kind('rule', //...)".to_owned(),
+        ]
+    }
+
+    #[test]
+    fn startup_runner_scopes_query_and_info_behind_the_launcher() {
+        let recording = Recording {
+            seen: RefCell::new(Vec::new()),
+        };
+        let startup = vec!["--output_base=/tmp/sb".to_owned()];
+        let scoped = StartupQueryRunner::new(&recording, &startup);
+        let workspace = Path::new("/ws");
+        scoped.run_query(&query_argv(), workspace).expect("query");
+        scoped.run_info(&query_argv(), workspace).expect("info");
+        let seen = recording.seen.borrow();
+        assert_eq!(seen.len(), 2);
+        for argv in seen.iter() {
+            assert_eq!(argv[0], "bazel");
+            assert_eq!(argv[1], "--output_base=/tmp/sb");
+            assert_eq!(argv[4], "query");
+        }
+    }
+
+    #[test]
+    fn startup_runner_is_identity_without_selection() {
+        let recording = Recording {
+            seen: RefCell::new(Vec::new()),
+        };
+        let empty: Vec<String> = Vec::new();
+        let scoped = StartupQueryRunner::new(&recording, &empty);
+        scoped
+            .run_query(&query_argv(), Path::new("/ws"))
+            .expect("query");
+        assert_eq!(recording.seen.borrow().as_slice(), &[query_argv()]);
+    }
+
+    #[test]
+    fn startup_runner_reapplication_keeps_single_selection() {
+        let recording = Recording {
+            seen: RefCell::new(Vec::new()),
+        };
+        let startup = vec!["--output_base=/tmp/sb".to_owned()];
+        let outer = StartupQueryRunner::new(&recording, &startup);
+        let inner = StartupQueryRunner::new(&outer, &startup);
+        inner
+            .run_query(&query_argv(), Path::new("/ws"))
+            .expect("query");
+        let seen = recording.seen.borrow();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(
+            seen[0]
+                .iter()
+                .filter(|arg| *arg == "--output_base=/tmp/sb")
+                .count(),
+            1
+        );
+    }
 }

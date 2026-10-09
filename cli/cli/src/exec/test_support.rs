@@ -41,6 +41,7 @@ pub(crate) struct Harness {
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    pub(crate) seen_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
 
 pub(crate) struct ScriptQuery {
@@ -112,6 +113,7 @@ impl Harness {
             },
             intended: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
+            seen_argv: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -240,6 +242,7 @@ impl Harness {
                 skip_bep: self.skip_bep,
                 intended: self.intended.clone(),
                 seen_env: Rc::clone(&self.seen_env),
+                seen_argv: Rc::clone(&self.seen_argv),
             };
         }
         let staged = self.staged_artifacts();
@@ -282,6 +285,7 @@ impl Harness {
             skip_bep: self.skip_bep,
             intended: self.intended.clone(),
             seen_env: Rc::clone(&self.seen_env),
+            seen_argv: Rc::clone(&self.seen_argv),
         }
     }
 
@@ -428,6 +432,7 @@ pub(crate) struct FakeRunner {
     pub(crate) skip_bep: bool,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    pub(crate) seen_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
 
 impl Runner for FakeRunner {
@@ -435,6 +440,7 @@ impl Runner for FakeRunner {
         if self.io_error {
             return Err(io::Error::other("fake launch failure"));
         }
+        self.seen_argv.borrow_mut().push(argv.to_vec());
         self.seen_env.borrow_mut().push(
             env.iter()
                 .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))

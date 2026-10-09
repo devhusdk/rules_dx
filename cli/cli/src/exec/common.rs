@@ -299,7 +299,8 @@ pub(crate) fn run_bazel(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
-    let status = match runner.run(argv, workspace, env) {
+    let argv = dx_process::with_startup_options(argv, &invocation.bazel_startup_options);
+    let status = match runner.run(&argv, workspace, env) {
         Ok(status) => status,
         Err(error) => {
             return Err(operational(
@@ -457,6 +458,54 @@ mod tests {
         assert_eq!(
             String::from_utf8(err).expect("utf8"),
             "dx: bazel_signalled: Bazel terminated by signal\n"
+        );
+    }
+
+    #[test]
+    fn run_bazel_inserts_startup_options_behind_the_launcher() {
+        let seen = Rc::new(RefCell::new((Vec::new(), Vec::new())));
+        let runner = ProbeRunner {
+            code: Some(0),
+            spawn_error: false,
+            seen: Rc::clone(&seen),
+        };
+        let invocation = crate::args::parse(&[
+            "build".to_owned(),
+            "--bazel-startup-option=--output_base=/tmp/sb".to_owned(),
+            "--bazel-startup-option=--output_user_root=/tmp/rt".to_owned(),
+        ])
+        .expect("parse");
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let argv = vec![
+            "bazel".to_owned(),
+            "--nohome_rc".to_owned(),
+            "--nosystem_rc".to_owned(),
+            "build".to_owned(),
+            "//...".to_owned(),
+        ];
+        let code = run_bazel(
+            &invocation,
+            &mut out,
+            &mut err,
+            Path::new("/ws"),
+            &runner,
+            &argv,
+            &[],
+        );
+        assert_eq!(code, Ok(0));
+        let seen = seen.borrow();
+        assert_eq!(
+            seen.0,
+            vec![
+                "bazel".to_owned(),
+                "--output_base=/tmp/sb".to_owned(),
+                "--output_user_root=/tmp/rt".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
+                "build".to_owned(),
+                "//...".to_owned(),
+            ]
         );
     }
 

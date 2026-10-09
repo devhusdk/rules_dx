@@ -354,6 +354,7 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
             min_coverage: invocation.min_coverage,
             targets: invocation.targets.clone(),
             bazel_options: invocation.bazel_options.clone(),
+            bazel_startup_options: invocation.bazel_startup_options.clone(),
             bazel_clean: false,
             prune_unobserved: false,
             pin: None,
@@ -551,6 +552,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             min_coverage: invocation.min_coverage,
             targets: invocation.targets.clone(),
             bazel_options: invocation.bazel_options.clone(),
+            bazel_startup_options: invocation.bazel_startup_options.clone(),
             bazel_clean: false,
             prune_unobserved: false,
             pin: None,
@@ -944,6 +946,30 @@ mod tests {
             4,
             "one Bazel launch per phase"
         );
+    }
+
+    #[test]
+    fn check_phases_share_one_startup_selection() {
+        let harness = umbrella_clean("umbrella-check-startup");
+        let (code, out, err) = harness.run(&[
+            "check",
+            "--output=text",
+            "--bazel-startup-option=--output_base=/tmp/sb",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        let argv = harness.seen_argv.borrow();
+        assert_eq!(argv.len(), 4, "one Bazel launch per phase");
+        for (index, launch) in argv.iter().enumerate() {
+            assert_eq!(launch[0], "bazel", "phase {index}: {launch:?}");
+            assert_eq!(
+                launch[1], "--output_base=/tmp/sb",
+                "phase {index}: {launch:?}"
+            );
+            assert!(
+                launch[4] == "build" || launch[4] == "run",
+                "phase {index} runs build or run: {launch:?}"
+            );
+        }
     }
 
     #[test]

@@ -36,6 +36,9 @@ Options:
       --output <OUTPUT>
           Set output format
 
+      --bazel-startup-option <TOKEN>
+          Select the Bazel server with --output_base=<path> or --output_user_root=<path>
+
       --check
           Check without changing files
 

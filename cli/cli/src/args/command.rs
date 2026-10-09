@@ -1114,6 +1114,33 @@ impl Command {
         self.meta().supports_profile
     }
 
+    /// Whether `dx <command> --bazel-startup-option` selects the Bazel server
+    /// for every query and build the command runs.
+    pub fn supports_bazel_startup_option(self) -> bool {
+        matches!(
+            self,
+            Command::Lint
+                | Command::Typecheck
+                | Command::Format
+                | Command::Generate
+                | Command::Build
+                | Command::Test
+                | Command::Coverage
+                | Command::Run
+                | Command::Deploy
+                | Command::Check
+                | Command::Fix
+                | Command::Clean
+                | Command::Codegen
+                | Command::Env
+                | Command::Setup
+                | Command::Owners
+                | Command::Deps
+                | Command::Why
+                | Command::Docs
+        )
+    }
+
     pub fn is_mutating_by_default(self) -> bool {
         self.meta().is_mutating_by_default
     }

@@ -178,6 +178,7 @@ pub fn usage_banner() -> String {
 [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
 [--output text|diff|json] [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
+[--bazel-startup-option=<token>]... \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
 per-command flags: clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \

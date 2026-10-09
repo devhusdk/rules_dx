@@ -115,6 +115,30 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         let Env { err, .. } = env;
         return common::pre_exec(err, "option \"--here/--cwd\" needs cwd resolution");
     }
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    } = env;
+    let scoped =
+        crate::resolve::StartupQueryRunner::new(query_runner, &invocation.bazel_startup_options);
+    let env = Env {
+        workspace,
+        runner,
+        query_runner: &scoped,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    };
     if invocation.command == Command::Watch {
         return crate::adopt::watch::execute_watch(invocation, env);
     }

@@ -9,6 +9,14 @@ use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode,
 };
 
+fn forward_line(invocation: &Invocation) -> String {
+    let argv = dx_process::with_startup_options(
+        &["bazel".to_owned(), "clean".to_owned()],
+        &invocation.bazel_startup_options,
+    );
+    format!("would forward: {}", argv.join(" "))
+}
+
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
@@ -56,7 +64,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         if verbose {
             let _ = writeln!(out, "{}", render_dry_run(&plan, &bytes));
             if invocation.bazel_clean {
-                let _ = writeln!(out, "would forward: bazel clean");
+                let _ = writeln!(out, "{}", forward_line(invocation));
             }
         }
         return 0;
@@ -159,7 +167,7 @@ fn check_clean(
         let _ = writeln!(out, "{}", render_dry_run(plan, bytes));
         if invocation.bazel_clean {
             let _ = writeln!(out, "run `dx clean --apply --bazel` to prune it");
-            let _ = writeln!(out, "would forward: bazel clean");
+            let _ = writeln!(out, "{}", forward_line(invocation));
         } else {
             let _ = writeln!(out, "run `dx clean --apply` to prune it");
         }
@@ -463,6 +471,45 @@ mod tests {
         assert!(
             dry.seen_env.borrow().is_empty(),
             "dry-run lists the forward without launching"
+        );
+    }
+
+    #[test]
+    fn clean_forward_names_the_selected_startup_option() {
+        let dry = Harness::new("clean-startup-dryrun");
+        let (code, out, err) = dry.run(&[
+            "clean",
+            "--dry-run",
+            "--bazel",
+            "--bazel-startup-option=--output_base=/tmp/c",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("would forward: bazel --output_base=/tmp/c clean"),
+            "{out}"
+        );
+        assert!(
+            dry.seen_env.borrow().is_empty(),
+            "dry-run lists the forward without launching"
+        );
+
+        let harness = Harness::new("clean-startup-apply");
+        let (code, out, err) = harness.run(&[
+            "clean",
+            "--apply",
+            "--bazel",
+            "--bazel-startup-option=--output_base=/tmp/c",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        let argv = harness.seen_argv.borrow();
+        assert_eq!(argv.len(), 1, "exactly one Bazel launch");
+        assert_eq!(
+            argv[0],
+            vec![
+                "bazel".to_owned(),
+                "--output_base=/tmp/c".to_owned(),
+                "clean".to_owned()
+            ]
         );
     }
 

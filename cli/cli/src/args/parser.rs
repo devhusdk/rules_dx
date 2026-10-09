@@ -239,6 +239,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         host,
         open,
         offline,
+        bazel_startup_options,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
     let bazel_options = tokenized.bazel_options;
@@ -329,6 +330,21 @@ pub fn parse_with<S: AsRef<OsStr>>(
     let reports = report;
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
+    }
+    if !bazel_startup_options.is_empty() {
+        let startup_allowed =
+            command.supports_bazel_startup_option() && (command != Command::Clean || bazel_clean);
+        if !startup_allowed {
+            return Err(unsupported(command, "--bazel-startup-option"));
+        }
+        let mut seen = Vec::with_capacity(bazel_startup_options.len());
+        for token in &bazel_startup_options {
+            let name = token.split('=').next().unwrap_or_default().to_owned();
+            if seen.contains(&name) {
+                return Err(ArgsError::DuplicateStartupOption { name });
+            }
+            seen.push(name);
+        }
     }
     if command != Command::Bazel {
         for scope in &targets {
@@ -515,6 +531,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         min_coverage,
         targets,
         bazel_options,
+        bazel_startup_options,
         bazel_clean,
         prune_unobserved,
         pin,

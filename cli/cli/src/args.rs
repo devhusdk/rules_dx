@@ -45,6 +45,9 @@ pub enum ArgsError {
     /// The resolved --color value is not a mode.
     #[error("unknown --color {value:?}: want auto|always|never")]
     BadColor { value: String },
+    /// One startup option was selected twice for the same invocation.
+    #[error("duplicate --bazel-startup-option={name}: pass each startup option once")]
+    DuplicateStartupOption { name: String },
     /// An environment default is not a value dx reads.
     #[error("{detail}")]
     BadDefault { detail: String },

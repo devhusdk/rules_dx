@@ -27,6 +27,11 @@ fn non_empty(raw: &str) -> Result<String, String> {
     }
 }
 
+/// One `--bazel-startup-option` token, kept verbatim as a single Bazel argv entry.
+fn startup_option(raw: &str) -> Result<String, String> {
+    dx_process::validate_startup_option(raw)
+}
+
 /// A coverage percent between 0 and 100.
 fn percent(raw: &str) -> Result<u32, String> {
     match raw.parse::<u32>() {
@@ -76,6 +81,7 @@ pub(crate) struct Flags {
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) bazel_startup_options: Vec<String>,
 }
 
 /// One flag group: a clap argument group that writes into the normalized invocation flags.
@@ -204,6 +210,19 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Select the Bazel server with --output_base=<path> or --output_user_root=<path>.
+    BazelStartupOptionFlag, {
+        #[arg(
+            long = "bazel-startup-option",
+            value_name = "TOKEN",
+            allow_hyphen_values = true,
+            value_parser = startup_option
+        )]
+        bazel_startup_options: Vec<String>,
+    }
+}
+
 composite_group! {
     /// The flags every command accepts.
     CommonArgs, {
@@ -214,6 +233,7 @@ composite_group! {
         color: ColorFlag,
         log_level: LogLevelFlag,
         output: OutputFlag,
+        bazel_startup_option: BazelStartupOptionFlag,
     }
 }
 
@@ -723,6 +743,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--host",
     "--color",
     "--log-level",
+    "--bazel-startup-option",
 ];
 
 /// The long names the grammar gives the flags that belong to some commands only.

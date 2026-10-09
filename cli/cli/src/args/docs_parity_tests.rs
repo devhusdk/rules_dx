@@ -1014,6 +1014,15 @@ fn global_flags_page_names_every_offline_command() {
 }
 
 #[test]
+fn global_flags_page_names_every_startup_command() {
+    assert_eq!(
+        global_flag_bullet_names("bazel-startup-option"),
+        commands_where(Command::supports_bazel_startup_option),
+        "docs/cli/commands/README.md --bazel-startup-option bullet must name every command that selects the Bazel server"
+    );
+}
+
+#[test]
 fn global_flags_page_names_every_profile_command() {
     assert_eq!(
         global_flag_bullet_names("debug"),

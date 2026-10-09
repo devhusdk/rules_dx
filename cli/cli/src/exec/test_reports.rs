@@ -1667,4 +1667,35 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(harness.query.info_calls.borrow().len(), 1);
     }
+
+    #[test]
+    fn test_info_carries_the_selected_startup_option() {
+        let harness = Harness::new("test-startup-info");
+        let root = harness.workspace.join("bazel-testlogs").join("a").join("t");
+        std::fs::create_dir_all(&root).expect("testlogs dir");
+        std::fs::write(root.join("test.xml"), MINIMAL_TEST_XML).expect("test.xml");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(
+                    String::from("test.xml"),
+                    "bytestream://remote.buildbuddy.io/blobs/abc/10".to_owned(),
+                )],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&[
+            "test",
+            "--output=text",
+            "--report=junit=out.xml",
+            "--bazel-startup-option=--output_base=/tmp/sb",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        let calls = harness.query.info_calls.borrow();
+        assert_eq!(calls.len(), 1, "one bazel info run per report run");
+        assert_eq!(calls[0][0], "bazel");
+        assert_eq!(calls[0][1], "--output_base=/tmp/sb");
+        assert_eq!(calls[0][2], "--nohome_rc");
+        assert!(calls[0].contains(&"info".to_owned()), "{calls:?}");
+    }
 }

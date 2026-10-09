@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection")
+load(":defs.bzl", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -94,6 +94,41 @@ def typescript_wrapper_contract_tests(name):
                 "present filter channel is not duplicated",
                 typescript_test_env(["FOO", "TESTBRIDGE_TEST_ONLY"]),
                 ["FOO", "TESTBRIDGE_TEST_ONLY"],
+            ),
+            expect_equal(
+                "same-directory inherited config takes an explicit prefix",
+                dx_tsconfig_relpath("typescript/tests/fixtures/entries/tsconfig_helper.json", "typescript/tests/fixtures/entries/tsconfig.json"),
+                "./tsconfig.json",
+            ),
+            expect_equal(
+                "parent-directory inherited config navigates up",
+                dx_tsconfig_relpath("a/b/out.json", "a/tsconfig.json"),
+                "../tsconfig.json",
+            ),
+            expect_equal(
+                "root-level files take an explicit prefix",
+                dx_tsconfig_relpath("out.json", "other.json"),
+                "./other.json",
+            ),
+            expect_equal(
+                "other-repository inherited config navigates to the root",
+                dx_tsconfig_relpath("pkg/out.json", "../ext/pkg/tsconfig.json"),
+                "../../ext/pkg/tsconfig.json",
+            ),
+            expect_equal(
+                "every TypeScript extension is listed",
+                [dx_tsconfig_is_source(s) for s in ["main.ts", "view.tsx", "lib.mts", "old.cts"]],
+                [True, True, True, True],
+            ),
+            expect_equal(
+                "declaration files stay listed like the upstream default",
+                dx_tsconfig_is_source("types.d.ts"),
+                True,
+            ),
+            expect_equal(
+                "other extensions are not listed",
+                [dx_tsconfig_is_source(s) for s in ["main.js", "data.json", "README.md"]],
+                [False, False, False],
             ),
         ],
     )

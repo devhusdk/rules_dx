@@ -474,6 +474,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mode = if phase_check { "check" } else { "default" };
     let command = invocation.command.name();
     if let Err(error) = plan_reports(
+        workspace,
         invocation.command,
         &invocation.reports,
         &invocation.output,
@@ -620,16 +621,13 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     if stdout_exit.is_none() {
         let document = collector.document();
         for request in &invocation.reports {
-            if !write_report_file(workspace, &request.destination, &document) {
+            if let Err(error) = write_report_file(workspace, &request.destination, &document) {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
                     invocation.output,
-                    &format!(
-                        "failed to write {} report to {}",
-                        request.format, request.destination
-                    ),
+                    &format!("failed to write {} report to {error}", request.format),
                 );
                 continue;
             }

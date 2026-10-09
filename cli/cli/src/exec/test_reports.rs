@@ -678,16 +678,15 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             continue;
         };
         let written = write_report_document(out, workspace, &planned.destination, &document);
-        if !written {
+        if let Err(error) = written {
             reports_ok = false;
             report_failed(
                 out,
                 err,
                 invocation.output,
                 &format!(
-                    "failed to write {} report to {}",
+                    "failed to write {} report to {error}",
                     planned.format.name(),
-                    planned.destination.display()
                 ),
             );
             continue;

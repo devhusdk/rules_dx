@@ -32,6 +32,7 @@ fn finish_incomplete_generate(invocation: &Invocation, out: &mut dyn Write, code
 
 pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     match plan_reports(
+        env.workspace,
         invocation.command,
         &invocation.reports,
         &invocation.output,

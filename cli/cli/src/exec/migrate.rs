@@ -11,8 +11,14 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command == Command::Migrate,
         "migrate dispatch guards commands"
     );
-    let Env { out, err, .. } = env;
+    let Env {
+        workspace,
+        out,
+        err,
+        ..
+    } = env;
     match plan_reports(
+        workspace,
         invocation.command,
         &invocation.reports,
         &invocation.output,

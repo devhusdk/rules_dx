@@ -15,7 +15,10 @@ dx fix [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sar
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order. Stops
 on the first failure. `--fail-on` and `--report sarif=<dest>` pass through to
-each phase. `dx check` is always a check, so `--check` is implied. Reports
+each phase. A relative destination anchors at the workspace root; an absolute
+one writes as given. Colliding destinations fail before anything runs, parents
+must exist, and a failed write keeps the previous file bytes. `dx check` is
+always a check, so `--check` is implied. Reports
 merge the `lint` and `typecheck` phases; `-` for stdout is rejected because
 the phases share one document.
 

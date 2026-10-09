@@ -1,7 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasm_bindgen", "rust_wasm_bindgen_test", "rust_wasm_bindgen_toolchain", "rustfmt_test")
 load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
-load("//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library", "javascript_wasm_bindgen_library")
+load("//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library", "javascript_wasm_bindgen_library", "javascript_web_app")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//typescript/rules:defs.bzl", "typescript_project")
 load(":js_parity.bzl", "synthetic_bindgen", "wasm_js_parity_subject", "wasm_js_parity_tests")
@@ -118,6 +118,76 @@ javascript_js_test(
     entry_point = "wasm_node_test.js",
 )
 
+javascript_web_app(
+    name = "wasm_hello_web_app",
+    assets = ["assets/message.json"],
+    bindgen = ":wasm_hello_web",
+    checks = [
+        "greet('dx')",
+        "add(40, 2)",
+        "add_via_snippet(40, 2)",
+    ],
+    title = "wasm hello",
+)
+
+# keep
+rust_test(
+    name = "wasm_web_app_browser_test",
+    size = "large",
+    srcs = ["src/web_app_browser.rs"],
+    data = [
+        ":wasm_hello_web_app",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_WEB_APP": "$(rootpath :wasm_hello_web_app)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+javascript_web_app(
+    name = "wasm_web_app_no_wasm",
+    bindgen = ":wasm_missing_wasm",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_web_app_no_wasm_test",
+    expected_failure_substring = "produces no Wasm output",
+    target = ":wasm_web_app_no_wasm",
+)
+
+javascript_web_app(
+    name = "wasm_web_app_no_js",
+    bindgen = ":wasm_missing_js",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_web_app_no_js_test",
+    expected_failure_substring = "produces no JavaScript output",
+    target = ":wasm_web_app_no_js",
+)
+
+javascript_web_app(
+    name = "wasm_web_app_raw",
+    bindgen = ":wasm_hello_raw",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_web_app_raw_test",
+    expected_failure_substring = "requires bindgen to provide RustWasmBindgenInfo",
+    target = ":wasm_web_app_raw",
+)
+
 genrule(
     name = "wasm_nodejs_types",
     srcs = [":wasm_hello_nodejs"],
@@ -232,6 +302,12 @@ failure_test(
 synthetic_bindgen(
     name = "wasm_missing_wasm",
     flavor = "missing_wasm",
+    tags = ["manual"],
+)
+
+synthetic_bindgen(
+    name = "wasm_missing_js",
+    flavor = "missing_js",
     tags = ["manual"],
 )
 

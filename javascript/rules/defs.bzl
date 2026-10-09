@@ -4,6 +4,7 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
+load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -138,6 +139,135 @@ def javascript_wasm_bindgen_library(name, bindgen, deps = None, visibility = Non
         name = name,
         bindgen = bindgen,
         deps = deps or [],
+        visibility = visibility,
+        **kwargs
+    )
+
+_WEB_APP_INDEX = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>__TITLE__</title>
+</head>
+<body>
+<main>
+<h1>__TITLE__</h1>
+<pre id="dx-out">loading</pre>
+</main>
+<script type="module">
+import init, * as app from './__ENTRY__';
+const out = document.getElementById('dx-out');
+const assets = {};
+const outcomes = {};
+async function load() {
+  await init();
+  for (const name of __ASSETS__) {
+    const response = await fetch('./assets/' + name);
+    if (!response.ok) {
+      throw new Error('asset ' + name + ' answered ' + response.status);
+    }
+    assets[name] = await response.text();
+  }
+  const names = Object.keys(app).sort();
+  for (const check of __CHECKS__) {
+    const run = new Function(...names, 'return (' + check + ')');
+    try {
+      outcomes[check] = await run(...names.map((name) => app[name]));
+    } catch (error) {
+      throw new Error('check ' + check + ' failed: ' + (error && error.message ? error.message : error));
+    }
+  }
+  out.textContent = JSON.stringify({assets: assets, checks: outcomes, exports: names});
+  window.dxWebReady = true;
+}
+load().catch((error) => {
+  const message = error && error.message ? error.message : String(error);
+  out.textContent = message;
+  window.dxWebError = message;
+});
+</script>
+</body>
+</html>
+"""
+
+def _web_app_title(raw, name):
+    """Returns the page title with markup characters escaped."""
+    text = raw if raw else name
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+def _javascript_web_app_impl(ctx):
+    """Stages one relocatable browser directory from a web bindgen target."""
+    bindgen = ctx.attr.bindgen
+    if _RustWasmBindgenInfo not in bindgen:
+        fail("javascript_web_app requires bindgen to provide RustWasmBindgenInfo")
+    info = bindgen[_RustWasmBindgenInfo]
+    js = sorted(info.js.to_list(), key = lambda f: f.basename)
+    if len(js) == 0:
+        fail("javascript_web_app bindgen produces no JavaScript output")
+    if len(js) != 1:
+        fail("javascript_web_app bindgen produces more than one JavaScript output")
+    if info.wasm == None:
+        fail("javascript_web_app bindgen produces no Wasm output")
+    seen = {}
+    for asset in ctx.files.assets:
+        if asset.basename in seen:
+            fail("javascript_web_app assets share the file name " + asset.basename)
+        seen[asset.basename] = True
+    title = _web_app_title(ctx.attr.title, ctx.label.name)
+    index = ctx.actions.declare_file(ctx.label.name + ".index.html")
+    ctx.actions.write(
+        output = index,
+        content = _WEB_APP_INDEX.replace("__TITLE__", title).replace("__ENTRY__", js[0].basename).replace("__ASSETS__", json.encode(sorted(seen.keys()))).replace("__CHECKS__", json.encode(ctx.attr.checks)),
+    )
+    app = ctx.actions.declare_directory(ctx.label.name)
+    inputs = list(js) + [info.wasm, index] + ctx.files.assets
+    copies = []
+    for f in js + [info.wasm]:
+        copies.append("cp \"" + f.path + "\" \"$out/" + f.basename + "\"")
+    copies.append("cp \"" + index.path + "\" \"$out/index.html\"")
+    if len(ctx.files.assets) > 0:
+        copies.append("mkdir -p \"$out/assets\"")
+        for asset in ctx.files.assets:
+            copies.append("cp \"" + asset.path + "\" \"$out/assets/" + asset.basename + "\"")
+    if info.snippets != None:
+        inputs.append(info.snippets)
+        copies.append("cp -r \"" + info.snippets.path + "\" \"$out/snippets\"")
+    ctx.actions.run_shell(
+        inputs = inputs,
+        outputs = [app],
+        command = "out=\"" + app.path + "\"\nmkdir -p \"$out\"\n" + "\n".join(copies) + "\n",
+        mnemonic = "DxWebApp",
+        progress_message = "Staging web application %{label}",
+    )
+    return [
+        DefaultInfo(files = depset([app])),
+        DxSubjectInfo(fields = {
+            "assets": ",".join(sorted(seen.keys())),
+            "checks": str(len(ctx.attr.checks)),
+            "entry": js[0].basename,
+            "title": title,
+            "wasm": info.wasm.basename,
+        }),
+    ]
+
+_javascript_web_app = rule(
+    implementation = _javascript_web_app_impl,
+    attrs = {
+        "assets": attr.label_list(allow_files = True),
+        "bindgen": attr.label(mandatory = True, allow_files = True),
+        "checks": attr.string_list(),
+        "title": attr.string(),
+    },
+)
+
+def javascript_web_app(name, bindgen, assets = None, checks = None, title = None, visibility = None, **kwargs):
+    """Stages one relocatable browser application from a web bindgen target."""
+    _javascript_web_app(
+        name = name,
+        bindgen = bindgen,
+        assets = assets or [],
+        checks = checks or [],
+        title = title or name,
         visibility = visibility,
         **kwargs
     )

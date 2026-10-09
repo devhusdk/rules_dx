@@ -1,6 +1,7 @@
 """Target-scoped real capability aspects over real adapters."""
 
 load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load(
@@ -13,7 +14,7 @@ load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_config
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "upstream_source_class")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
@@ -78,19 +79,63 @@ def real_policy_error(policy, capability, what):
             return what + ": " + error
     return ""
 
+def upstream_direct_sources(target, ctx):
+    """Derives directly owned sources for an ordinary upstream native target."""
+    is_rust = _rust_common.crate_info in target or _rust_common.test_crate_info in target
+    is_cc = CcInfo in target
+    if not is_rust and not is_cc:
+        return (False, {}, "")
+    files = []
+    if is_rust:
+        rust_srcs = getattr(ctx.rule.files, "srcs", None)
+        if rust_srcs == None:
+            return (True, {}, "upstream rust target has no readable srcs; unsupported ownership is unchecked, not clean")
+        files.extend(rust_srcs)
+    if is_cc:
+        cc_srcs = getattr(ctx.rule.files, "srcs", None)
+        cc_hdrs = getattr(ctx.rule.files, "hdrs", None)
+        if cc_srcs == None and cc_hdrs == None:
+            return (True, {}, "upstream cc target has no readable srcs or hdrs; unsupported ownership is unchecked, not clean")
+        if cc_srcs != None:
+            files.extend(cc_srcs)
+        if cc_hdrs != None:
+            files.extend(cc_hdrs)
+    buckets = {}
+    for f in files:
+        if not f.is_source:
+            continue
+        class_id = upstream_source_class(f.extension)
+        if class_id == "":
+            continue
+        buckets.setdefault(class_id, []).append(f)
+    direct_sources = {}
+    for class_id in buckets.keys():
+        if len(buckets[class_id]) > 0:
+            direct_sources[class_id] = depset(buckets[class_id])
+    check_direct_sources(direct_sources, str(target.label))
+    return (True, direct_sources, "")
+
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
     policy = ctx.attr._policy[QualityPolicyInfo]
     policy_error = real_policy_error(policy, capability, what)
     if policy_error != "":
         fail(policy_error)
-    if QualitySourcesInfo not in target:
-        return []
     if aspect_capability_blocked(ctx.rule.attr, capability):
         return []
-    info = target[QualitySourcesInfo]
+    if QualitySourcesInfo in target:
+        direct_sources = target[QualitySourcesInfo].direct_sources
+    else:
+        (recognized, derived, ownership_error) = upstream_direct_sources(target, ctx)
+        if ownership_error != "":
+            fail(what + ": " + ownership_error)
+        if not recognized:
+            return []
+        if len(derived) == 0:
+            return []
+        direct_sources = derived
 
-    (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(info.direct_sources, what)
+    (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(direct_sources, what)
     selections = aspect_family_selections(policy, capability)
     resolved = resolve_pipeline(
         target_classes,

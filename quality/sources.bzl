@@ -64,6 +64,23 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
 
 RUST = "rust"
 
+UPSTREAM_RUST_EXTENSIONS = ["rs"]
+
+UPSTREAM_CC_CLASS_EXTENSIONS = {
+    "c": ["c", "h"],
+    "cpp": ["cc", "cpp", "cxx", "hh", "hpp", "hxx"],
+    "cuda": ["cu", "cuh"],
+}
+
+def upstream_source_class(extension):
+    """Returns the semantic file class for one upstream native extension, or ""."""
+    if extension in UPSTREAM_RUST_EXTENSIONS:
+        return RUST
+    for class_id in sorted(UPSTREAM_CC_CLASS_EXTENSIONS.keys()):
+        if extension in UPSTREAM_CC_CLASS_EXTENSIONS[class_id]:
+            return class_id
+    return ""
+
 def is_known_semantic_class(class_id):
     """Reports whether a class ID is in the versioned registry."""
     return class_id in KNOWN_SEMANTIC_FILE_CLASSES

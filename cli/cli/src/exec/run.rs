@@ -101,7 +101,8 @@ fn execute_run_check(
     err: &mut dyn Write,
     targets: &[String],
 ) -> i32 {
-    let plan = plan_run_build(targets, invocation.profile());
+    let mut plan = plan_run_build(targets, invocation.profile());
+    dx_process::insert_startup_options(&mut plan.argv, &invocation.bazel_startup_options);
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "check") {
             let _ = write_event(out, &event);
@@ -169,7 +170,8 @@ fn execute_run_single(
     err: &mut dyn Write,
     target: &str,
 ) -> i32 {
-    let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+    let mut plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+    dx_process::insert_startup_options(&mut plan.argv, &invocation.bazel_startup_options);
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
@@ -256,7 +258,8 @@ fn execute_run_multi(
         }
         emit_run_operations(out, invocation.command.name(), targets);
         for target in targets {
-            let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+            let mut plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+            dx_process::insert_startup_options(&mut plan.argv, &invocation.bazel_startup_options);
             let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
                 Ok(code) => code,
                 Err(exit) => return exit,
@@ -281,7 +284,8 @@ fn execute_run_multi(
         return 0;
     }
     for target in targets {
-        let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+        let mut plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+        dx_process::insert_startup_options(&mut plan.argv, &invocation.bazel_startup_options);
         if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
@@ -629,6 +633,7 @@ mod tests {
             debug: false,
             release: false,
             workspace: None,
+            bazel_startup_options: Vec::new(),
             dry_run,
             quiet: false,
             verbose: false,

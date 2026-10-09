@@ -55,6 +55,13 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
                 &invocation.bazel_options,
                 bep_text,
             )
+            .map(|mut plan| {
+                dx_process::insert_startup_options(
+                    &mut plan.argv,
+                    &invocation.bazel_startup_options,
+                );
+                plan
+            })
             .map_err(|error| format!("{error}"))
         }) {
         Ok(build) => build,

@@ -30,6 +30,9 @@ pub enum ArgsError {
     /// A value flag arrived with no value.
     #[error("missing value for {option:?}")]
     MissingValue { option: String },
+    /// A `--bazel-startup-option` token names an unqualified option.
+    #[error("invalid --bazel-startup-option: {detail}")]
+    BadStartupOption { detail: String },
     /// A scope token is not a flag or a label.
     #[error("unknown option {option:?}")]
     UnknownOption { option: String },

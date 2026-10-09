@@ -20,9 +20,11 @@ pub fn map_owners_to_tests(
         return Ok(Vec::new());
     }
     let expression = tests_expression(owners);
-    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 4);
+    let startup = runner.startup_options();
+    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + startup.len() + 4);
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(startup);
     argv.push("query".to_owned());
     argv.push("--".to_owned());
     argv.push(expression.clone());

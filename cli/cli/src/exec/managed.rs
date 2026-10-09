@@ -73,7 +73,10 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         ),
     };
     let plan = match plan {
-        Ok(plan) => plan,
+        Ok(mut plan) => {
+            dx_process::insert_startup_options(&mut plan.argv, &invocation.bazel_startup_options);
+            plan
+        }
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
     let verbose = invocation.chatty();

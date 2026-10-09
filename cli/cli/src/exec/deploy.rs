@@ -45,8 +45,10 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         attr,
         Profile::default_for(Command::Deploy),
     );
-    let build_plan = plan_deploy_build(&label, profile);
-    let run_plan = plan_deploy_run(&label, &invocation.bazel_options, profile);
+    let mut build_plan = plan_deploy_build(&label, profile);
+    dx_process::insert_startup_options(&mut build_plan.argv, &invocation.bazel_startup_options);
+    let mut run_plan = plan_deploy_run(&label, &invocation.bazel_options, profile);
+    dx_process::insert_startup_options(&mut run_plan.argv, &invocation.bazel_startup_options);
     let app_display = if info.app_raw == "NONE" || info.app_raw == "None" {
         label.clone()
     } else {

@@ -17,12 +17,28 @@ pub trait QueryRunner {
     fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         self.run_query(argv, cwd)
     }
+
+    /// The validated `--bazel-startup-option` tokens one invocation selected.
+    fn startup_options(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 // LCOV_EXCL_START - reason: prod spawn, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-pub struct ProcessQueryRunner;
+pub struct ProcessQueryRunner {
+    pub startup: Vec<String>,
+}
 
 impl QueryRunner for ProcessQueryRunner {
+    fn startup_options(&self) -> Vec<String> {
+        self.startup.clone()
+    }
+
+impl QueryRunner for ProcessQueryRunner {
+    fn startup_options(&self) -> Vec<String> {
+        self.startup.clone()
+    }
+
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         let output = dx_process::spawn_output(argv, cwd, &[], false).map_err(|error| {
             if error.kind() == io::ErrorKind::InvalidInput {

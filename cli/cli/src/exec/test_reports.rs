@@ -100,6 +100,7 @@ fn output_locations(
     let mut locations = OutputLocations::new(workspace);
     let mut argv = vec![launcher_argv0().to_owned()];
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(invocation.bazel_startup_options.iter().cloned());
     argv.push("info".to_owned());
     if verb != WorkflowVerb::Coverage {
         argv.push(invocation.profile().config_flag());

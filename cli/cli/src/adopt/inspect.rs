@@ -47,11 +47,12 @@ pub(crate) fn execute_inspect(
         if !summaries_suppressed(invocation) {
             for scope in &invocation.targets {
                 if let Ok(plan) = dx_adopt::plan_inspect(kind, scope, invocation.configured) {
-                    if let Err(exit) = check_stdout_write(writeln!(
-                        out,
-                        "would run bazel {} {}",
-                        plan.verb, plan.expr
-                    )) {
+                    let mut argv = vec!["bazel".to_owned(), plan.verb.clone(), plan.expr.clone()];
+                    dx_process::insert_startup_options(
+                        &mut argv,
+                        &invocation.bazel_startup_options,
+                    );
+                    if let Err(exit) = check_stdout_write(writeln!(out, "would run {}", argv.join(" "))) {
                         return exit;
                     }
                 }
@@ -77,7 +78,7 @@ pub(crate) fn execute_inspect(
                 Err(error) => return pre_exec(err, &error.to_string()),
             };
             if let Err(exit) =
-                run_inspect_query_json(kind, scope, &plan, workspace, query_runner, out, err)
+                run_inspect_query_json(kind, scope, &plan, &invocation.bazel_startup_options, workspace, query_runner, out, err)
             {
                 if exit == operational_code() {
                     failed = true;
@@ -118,12 +119,14 @@ fn run_inspect_query_json(
     kind: &str,
     scope: &str,
     plan: &dx_adopt::InspectPlan,
+    startup: &[String],
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<(), i32> {
-    let argv = vec!["bazel".to_owned(), plan.verb.clone(), plan.expr.clone()];
+    let mut argv = vec!["bazel".to_owned(), plan.verb.clone(), plan.expr.clone()];
+    dx_process::insert_startup_options(&mut argv, startup);
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -177,7 +180,8 @@ fn run_inspect_query(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let argv = vec!["bazel".to_owned(), verb.to_owned(), expr.to_owned()];
+    let mut argv = vec!["bazel".to_owned(), verb.to_owned(), expr.to_owned()];
+    dx_process::insert_startup_options(&mut argv, &invocation.bazel_startup_options);
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {

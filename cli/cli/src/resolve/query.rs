@@ -22,10 +22,11 @@ pub(crate) fn quote_label(label: &str) -> String {
     dx_codegen::quote_label(label)
 }
 
-fn query_argv(expression: &str) -> Vec<String> {
-    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 4);
+fn query_argv(expression: &str, startup: &[String]) -> Vec<String> {
+    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + startup.len() + 4);
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(startup.iter().cloned());
     argv.push("query".to_owned());
     argv.push("--".to_owned());
     argv.push(expression.to_owned());
@@ -37,7 +38,7 @@ pub(crate) fn run_label_query(
     workspace: &Path,
     runner: &dyn QueryRunner,
 ) -> Result<Vec<String>, ResolveError> {
-    let argv = query_argv(expression);
+    let argv = query_argv(expression, &runner.startup_options());
     let result = runner
         .run_query(&argv, workspace)
         .map_err(|error| ResolveError::QueryFailed {

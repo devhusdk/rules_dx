@@ -50,6 +50,7 @@ fn after_help_of(index: usize) -> String {
 #[derive(Debug, Default)]
 pub(crate) struct Flags {
     pub(crate) workspace: Option<OsString>,
+    pub(crate) bazel_startup_option: Vec<String>,
     pub(crate) dry_run: Option<bool>,
     pub(crate) quiet: Option<bool>,
     pub(crate) verbose: Option<bool>,
@@ -121,6 +122,14 @@ flag_group! {
     WorkspaceFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "workspace")]
         workspace: Option<OsString>,
+    }
+}
+
+flag_group! {
+    /// Pass a Bazel startup option.
+    BazelStartupOptionFlag, {
+        #[arg(long = "bazel-startup-option", allow_negative_numbers = true)]
+        bazel_startup_option: Vec<String>,
     }
 }
 
@@ -208,6 +217,7 @@ composite_group! {
     /// The flags every command accepts.
     CommonArgs, {
         workspace: WorkspaceFlag,
+        bazel_startup_option: BazelStartupOptionFlag,
         dry_run: DryRunFlag,
         quiet: QuietFlag,
         verbose: VerboseFlag,
@@ -712,6 +722,7 @@ pub fn cli_command() -> clap::Command {
 
 pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--workspace",
+    "--bazel-startup-option",
     "--output",
     "--report",
     "--fail-on",

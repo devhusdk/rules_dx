@@ -105,8 +105,11 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         )
     };
     let argv = match build_workflow_argv("build", &invocation.bazel_options, &[], &[], &labels) {
-        Ok(argv) => argv,
-        Err(error) => return pre_exec(err, &format!("{error}")),
+        Ok(mut argv) => {
+            dx_process::insert_startup_options(&mut argv, &invocation.bazel_startup_options);
+            argv
+        }
+        Err(error) => return pre_exec(err, &error.to_string()),
     };
     if json {
         if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, mode) {

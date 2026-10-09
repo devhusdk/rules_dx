@@ -213,6 +213,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     let command = tokenized.command;
     let Flags {
         workspace: workspace_os,
+        bazel_startup_option,
         dry_run,
         quiet,
         verbose,
@@ -246,6 +247,17 @@ pub fn parse_with<S: AsRef<OsStr>>(
         Some(value) => Some(decode_scope(value.as_os_str())?),
         None => None,
     };
+    let mut bazel_startup_options = Vec::with_capacity(bazel_startup_option.len());
+    for token in &bazel_startup_option {
+        match dx_process::validate_startup_option(token) {
+            Ok(kept) => bazel_startup_options.push(kept),
+            Err(error) => {
+                return Err(ArgsError::BadStartupOption {
+                    detail: error.to_string(),
+                });
+            }
+        }
+    }
     let mut targets = Vec::with_capacity(targets_os.len());
     for scope in &targets_os {
         targets.push(decode_scope(scope.as_os_str())?);
@@ -504,6 +516,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         debug,
         release,
         workspace,
+        bazel_startup_options,
         dry_run,
         quiet,
         verbose,

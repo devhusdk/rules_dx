@@ -100,6 +100,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         return 0;
     }
     let mut argv = vec!["bazel".to_owned()];
+    dx_process::insert_startup_options(&mut argv, &invocation.bazel_startup_options);
     argv.extend(bazel_forward_argv());
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
         Ok(code) => code,

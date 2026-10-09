@@ -207,6 +207,90 @@ pub fn launcher_argv0() -> &'static str {
 
 pub const WORKFLOW_STARTUP_OPTS: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
+/// The Bazel startup options dx qualifies through `--bazel-startup-option`.
+pub const QUALIFIED_STARTUP_OPTIONS: &[&str] = &["output_base", "output_user_root"];
+
+/// How one `--bazel-startup-option` token can fail validation.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StartupOptionError {
+    #[error("want --<name>=<path>, one token")]
+    Malformed,
+    #[error("startup option --{name} wants --{name}=<path>")]
+    MissingValue { name: String },
+    #[error("startup option --{name} conflicts with required workflow policy")]
+    ConflictingOption { name: String },
+    #[error("unsupported startup option --{name}; dx qualifies --output_base and --output_user_root")]
+    UnsupportedOption { name: String },
+}
+
+/// Checks one `--bazel-startup-option` token without splitting it.
+///
+/// Only the equals form of the qualified options passes, and the token is
+/// returned unchanged so it stays exactly one Bazel argv element.
+pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError> {
+    let Some(bare) = token.strip_prefix("--") else {
+        return Err(StartupOptionError::Malformed);
+    };
+    let Some((name, value)) = bare.split_once('=') else {
+        return Err(StartupOptionError::MissingValue {
+            name: bare.to_owned(),
+        });
+    };
+    if name.is_empty() || value.is_empty() {
+        if name.is_empty() {
+            return Err(StartupOptionError::Malformed);
+        }
+        return Err(StartupOptionError::MissingValue {
+            name: name.to_owned(),
+        });
+    }
+    if QUALIFIED_STARTUP_OPTIONS.contains(&name) {
+        return Ok(token.to_owned());
+    }
+    if is_managed_startup_name(name) {
+        return Err(StartupOptionError::ConflictingOption {
+            name: name.to_owned(),
+        });
+    }
+    Err(StartupOptionError::UnsupportedOption {
+        name: name.to_owned(),
+    })
+}
+
+/// Whether the startup name belongs to dx's required workflow policy.
+fn is_managed_startup_name(name: &str) -> bool {
+    matches!(
+        name,
+        "bazelrc"
+            | "home_rc"
+            | "nohome_rc"
+            | "system_rc"
+            | "nosystem_rc"
+            | "host_jvm_args"
+            | "server_jvm_out"
+    )
+}
+
+/// Inserts validated startup options before the Bazel verb.
+///
+/// The tokens land after the managed startup policy when it leads the argv,
+/// else directly after the launcher, so query, info, build and test calls
+/// share one startup-setting identity. An empty selection changes nothing.
+pub fn insert_startup_options(argv: &mut Vec<String>, startup: &[String]) {
+    if startup.is_empty() {
+        return;
+    }
+    let mut index = 1;
+    while argv
+        .get(index)
+        .is_some_and(|arg| WORKFLOW_STARTUP_OPTS.contains(&arg.as_str()))
+    {
+        index += 1;
+    }
+    let index = index.min(argv.len());
+    argv.splice(index..index, startup.iter().cloned());
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Repository,
@@ -247,7 +331,7 @@ pub struct ProtectedFlag {
 pub enum ForwardError {
     #[error("conflicting_option: --{flag} conflicts with required workflow policy")]
     ConflictingOption { flag: String },
-    #[error("invalid_usage: --{flag} is a startup option; use dx bazel")]
+    #[error("invalid_usage: --{flag} is a startup option; use --bazel-startup-option or dx bazel")]
     StartupOption { flag: String },
     #[error("invalid_usage: --{flag} targets the test binary; use dx bazel")]
     TestBinaryArgs { flag: String },

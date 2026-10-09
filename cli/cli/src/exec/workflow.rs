@@ -91,7 +91,10 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Some(invocation.profile())
     };
     let plan = match plan_workflow(verb, &resolved, &invocation.bazel_options, bep_arg, profile) {
-        Ok(plan) => plan,
+        Ok(mut plan) => {
+            dx_process::insert_startup_options(&mut plan.argv, &invocation.bazel_startup_options);
+            plan
+        }
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
     if invocation.dry_run {

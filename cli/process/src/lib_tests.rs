@@ -534,6 +534,145 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
 }
 
 #[test]
+fn qualified_startup_options_pass_through_unchanged() {
+    for token in [
+        "--output_base=/tmp/x",
+        "--output_user_root=/tmp/y",
+        "--output_base=/tmp/with spaces héllo",
+        "--output_base=/tmp/a=b",
+        "--output_user_root=relative/dir",
+    ] {
+        assert_eq!(
+            validate_startup_option(token).expect("qualified"),
+            token,
+            "{token} must pass through as one token"
+        );
+    }
+}
+
+#[test]
+fn startup_options_reject_missing_and_malformed_values() {
+    for token in [
+        "--output_base",
+        "--output_user_root",
+        "--output_base=",
+        "--output_user_root=",
+        "--=value",
+        "output_base=/tmp/x",
+        "/tmp/x",
+        "",
+        "--",
+    ] {
+        let err = validate_startup_option(token).expect_err("malformed must fail");
+        assert!(
+            matches!(
+                err,
+                StartupOptionError::Malformed | StartupOptionError::MissingValue { .. }
+            ),
+            "{token:?} produced {err:?}"
+        );
+    }
+    assert!(!validate_startup_option("--output_base=").is_ok());
+}
+
+#[test]
+fn startup_options_reject_managed_policy_and_unknown_names() {
+    for name in [
+        "--nohome_rc",
+        "--home_rc",
+        "--nosystem_rc",
+        "--system_rc",
+        "--bazelrc=/tmp/rc",
+        "--host_jvm_args=-Xmx1g",
+        "--server_jvm_out=/tmp/jvm.out",
+    ] {
+        let err = validate_startup_option(name).expect_err("managed must fail");
+        assert!(
+            matches!(err, StartupOptionError::ConflictingOption { .. }),
+            "{name} produced {err:?}"
+        );
+        assert!(err.to_string().contains("workflow policy"), "{name}: {err}");
+    }
+    for name in ["--jobs=4", "--keep_going", "--config=dx_dev"] {
+        let err = validate_startup_option(name).expect_err("unknown must fail");
+        assert!(
+            matches!(err, StartupOptionError::UnsupportedOption { .. }),
+            "{name} produced {err:?}"
+        );
+    }
+}
+
+#[test]
+fn startup_options_never_echo_path_values() {
+    for token in ["--output_base=", "--unknown=/tmp/secret", "--nohome_rc"] {
+        let err = validate_startup_option(token).expect_err("must fail");
+        assert!(
+            !err.to_string().contains("/tmp/"),
+            "{token}: {err} echoes a path"
+        );
+    }
+}
+
+#[test]
+fn startup_insertion_lands_before_the_verb() {
+    let startup = vec![
+        "--output_base=/tmp/x".to_owned(),
+        "--output_user_root=/tmp/y".to_owned(),
+    ];
+    let mut managed = vec![
+        "bazel".to_owned(),
+        "--nohome_rc".to_owned(),
+        "--nosystem_rc".to_owned(),
+        "build".to_owned(),
+        "//...".to_owned(),
+    ];
+    insert_startup_options(&mut managed, &startup);
+    assert_eq!(
+        managed,
+        vec![
+            "bazel",
+            "--nohome_rc",
+            "--nosystem_rc",
+            "--output_base=/tmp/x",
+            "--output_user_root=/tmp/y",
+            "build",
+            "//...",
+        ]
+    );
+    let mut bare = vec![
+        "bazel".to_owned(),
+        "query".to_owned(),
+        "deps(//...)".to_owned(),
+    ];
+    insert_startup_options(&mut bare, &startup[..1]);
+    assert_eq!(
+        bare,
+        vec!["bazel", "--output_base=/tmp/x", "query", "deps(//...)"]
+    );
+    let mut clean = vec!["bazel".to_owned(), "clean".to_owned()];
+    insert_startup_options(&mut clean, &startup[..1]);
+    assert_eq!(clean, vec!["bazel", "--output_base=/tmp/x", "clean"]);
+}
+
+#[test]
+fn startup_insertion_keeps_one_token_per_occurrence() {
+    let spaced = "--output_base=/tmp/with spaces héllo".to_owned();
+    let mut argv = vec![
+        "bazel".to_owned(),
+        "--nohome_rc".to_owned(),
+        "--nosystem_rc".to_owned(),
+        "test".to_owned(),
+        "//...".to_owned(),
+    ];
+    insert_startup_options(&mut argv, &[spaced.clone()]);
+    assert_eq!(argv[3], spaced, "a spaced token stays one argv element");
+    let mut argv = vec!["bazel".to_owned(), "info".to_owned()];
+    let before = argv.clone();
+    insert_startup_options(&mut argv, &[]);
+    assert_eq!(argv, before, "empty selection changes nothing");
+}
+
+#[test]
 fn quality_workflows_reject_nokeep_going() {
     let protected = vec![
         ProtectedFlag {

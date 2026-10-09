@@ -136,10 +136,11 @@ fn deploy_starlark_expr() -> String {
     )
 }
 
-fn deploy_query_argv(label: &str) -> Vec<String> {
-    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 5);
+fn deploy_query_argv(label: &str, startup: &[String]) -> Vec<String> {
+    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + startup.len() + 5);
     argv.push(launcher_argv0().to_owned());
     argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    argv.extend(startup.iter().cloned());
     argv.push("cquery".to_owned());
     argv.push(label.to_owned());
     argv.push("--output=starlark".to_owned());
@@ -152,7 +153,7 @@ pub fn check_deployable(
     workspace: &Path,
     runner: &dyn QueryRunner,
 ) -> Result<DeployInfo, ResolveError> {
-    let argv = deploy_query_argv(label);
+    let argv = deploy_query_argv(label, &runner.startup_options());
     let result = runner
         .run_query(&argv, workspace)
         .map_err(|error| ResolveError::QueryFailed {

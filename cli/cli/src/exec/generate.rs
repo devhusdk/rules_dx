@@ -46,7 +46,10 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let apply = invocation.applies();
     let plan = match plan_generate(&resolved, &invocation.bazel_options, !apply) {
-        Ok(plan) => plan,
+        Ok(mut plan) => {
+            dx_process::insert_startup_options(&mut plan.argv, &invocation.bazel_startup_options);
+            plan
+        }
         Err(error) => return pre_exec(env.err, &format!("{error}")),
     };
     let mode = if apply { "default" } else { "check" };

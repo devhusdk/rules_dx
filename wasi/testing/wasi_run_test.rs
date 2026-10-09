@@ -20,8 +20,8 @@ fn wasi_module_runs_with_declared_capabilities() {
         serde_json::from_str(&var("DX_WASI_ARGS")).expect("DX_WASI_ARGS must be a JSON array");
     let declared_env: BTreeMap<String, String> =
         serde_json::from_str(&var("DX_WASI_ENV")).expect("DX_WASI_ENV must be a JSON object");
-    let preopens: BTreeMap<String, String> =
-        serde_json::from_str(&var("DX_WASI_PREOPENS")).expect("DX_WASI_PREOPENS must be a JSON object");
+    let preopens: BTreeMap<String, String> = serde_json::from_str(&var("DX_WASI_PREOPENS"))
+        .expect("DX_WASI_PREOPENS must be a JSON object");
     let expected_code: i32 = var("DX_WASI_EXPECTED_CODE")
         .parse()
         .expect("DX_WASI_EXPECTED_CODE must be an integer");

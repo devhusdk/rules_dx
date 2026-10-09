@@ -17,4 +17,10 @@ mod browser_tests {
     fn add_roundtrip() {
         assert_eq!(wasm_hello::add(40, 2), 42);
     }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test]
+    fn snippet_roundtrip() {
+        assert_eq!(wasm_hello::add_via_snippet(40, 2), 42);
+    }
 }

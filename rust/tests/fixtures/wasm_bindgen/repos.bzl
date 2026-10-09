@@ -1,6 +1,8 @@
 """A consumer-owned bundle of rules_dx wasm outputs."""
 
-_BUILD_BAZEL = '''genrule(
+_BUILD_BAZEL = '''load("@rules_dx//javascript/rules:defs.bzl", javascript_wasm_bindgen_library = "javascript_wasm_bindgen_library")
+
+genrule(
     name = "bundle_raw",
     srcs = ["@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_raw"],
     outs = ["raw.wasm"],
@@ -68,6 +70,13 @@ genrule(
         done
         echo ok > $@
     """,
+    testonly = True,
+    visibility = ["//visibility:public"],
+)
+
+javascript_wasm_bindgen_library(
+    name = "selected_web_js",
+    bindgen = "@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
     testonly = True,
     visibility = ["//visibility:public"],
 )

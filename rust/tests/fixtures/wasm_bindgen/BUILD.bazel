@@ -1,9 +1,13 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasm_bindgen", "rust_wasm_bindgen_test", "rust_wasm_bindgen_toolchain", "rustfmt_test")
 load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
+load("//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library", "javascript_wasm_bindgen_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//typescript/rules:defs.bzl", "typescript_project")
+load(":js_parity.bzl", "synthetic_bindgen", "wasm_js_parity_subject", "wasm_js_parity_tests")
 load(":raw_transition.bzl", "raw_wasm_proxy")
 
+# gazelle:dx_ignore_import typescript wasm_nodejs_types
 # gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen
 # gazelle:resolve rust wasm_bindgen_test @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test
 
@@ -80,6 +84,63 @@ rust_wasm_bindgen(
     wasm_file = ":wasm_hello_bin_upstream",
 )
 
+rust_wasm_bindgen(
+    name = "wasm_hello_nodejs",
+    target = "nodejs",
+    visibility = ["//visibility:public"],
+    wasm_file = ":wasm_hello_bin_upstream",
+)
+
+javascript_library(
+    name = "wasm_helper_lib",
+    srcs = ["helper.js"],
+    aspect_hints = ["//:biome_config"],
+)
+
+javascript_wasm_bindgen_library(
+    name = "wasm_hello_web_js",
+    bindgen = ":wasm_hello_web",
+    visibility = ["//visibility:public"],
+    deps = [":wasm_helper_lib"],
+)
+
+javascript_wasm_bindgen_library(
+    name = "wasm_hello_nodejs_js",
+    bindgen = ":wasm_hello_nodejs",
+    visibility = ["//visibility:public"],
+)
+
+javascript_js_test(
+    name = "wasm_node_test",
+    srcs = ["wasm_node_test.js"],
+    aspect_hints = ["//:biome_config"],
+    data = [":wasm_hello_web_js"],
+    entry_point = "wasm_node_test.js",
+)
+
+genrule(
+    name = "wasm_nodejs_types",
+    srcs = [":wasm_hello_nodejs"],
+    outs = ["wasm_nodejs_types.d.ts"],
+    cmd = """
+        for f in $(locations :wasm_hello_nodejs); do
+          case "$$f" in
+            *.d.ts) cp "$$f" $@ ;;
+          esac
+        done
+    """,
+)
+
+typescript_project(
+    name = "wasm_ts_consumer",
+    srcs = ["wasm_ts_consumer.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    declaration_srcs = [":wasm_nodejs_types"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
 rust_wasm_bindgen_test(
     name = "wasm_hello_browser_test",
     tags = ["manual"],
@@ -142,6 +203,66 @@ failure_test(
     name = "wasm_hello_raw_browser_rejected_test",
     expected_failure_substring = "No attribute 'wasm_file' in attr",
     target = ":wasm_hello_raw_browser_test",
+)
+
+javascript_wasm_bindgen_library(
+    name = "wasm_hello_bare_js",
+    bindgen = ":wasm_hello_web_bare",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_hello_bare_declarations_test",
+    expected_failure_substring = "produces no TypeScript declarations",
+    target = ":wasm_hello_bare_js",
+)
+
+javascript_wasm_bindgen_library(
+    name = "wasm_hello_raw_js",
+    bindgen = ":wasm_hello_raw",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_hello_raw_shape_test",
+    expected_failure_substring = "requires bindgen to provide RustWasmBindgenInfo",
+    target = ":wasm_hello_raw_js",
+)
+
+synthetic_bindgen(
+    name = "wasm_missing_wasm",
+    flavor = "missing_wasm",
+    tags = ["manual"],
+)
+
+javascript_wasm_bindgen_library(
+    name = "wasm_missing_wasm_js",
+    bindgen = ":wasm_missing_wasm",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_missing_wasm_test",
+    expected_failure_substring = "produces no Wasm output",
+    target = ":wasm_missing_wasm_js",
+)
+
+synthetic_bindgen(
+    name = "wasm_missing_snippets",
+    flavor = "missing_snippets",
+    tags = ["manual"],
+)
+
+javascript_wasm_bindgen_library(
+    name = "wasm_missing_snippets_js",
+    bindgen = ":wasm_missing_snippets",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_missing_snippets_test",
+    expected_failure_substring = "produces no snippets directory",
+    target = ":wasm_missing_snippets_js",
 )
 
 rust_library(
@@ -209,11 +330,40 @@ rust_test(
     },
 )
 
+wasm_js_parity_subject(
+    name = "web_parity",
+    adapter = ":wasm_hello_web_js",
+    expected_transitives = ["helper.js"],
+    upstream = ":wasm_hello_web",
+)
+
+wasm_js_parity_subject(
+    name = "nodejs_parity",
+    adapter = ":wasm_hello_nodejs_js",
+    upstream = ":wasm_hello_nodejs",
+)
+
+wasm_js_parity_subject(
+    name = "consumer_parity",
+    adapter = "@consumer_wasm_bindgen//:selected_web_js",
+    upstream = ":wasm_hello_web",
+)
+
+wasm_js_parity_tests(
+    name = "wasm_js_parity_test",
+    subjects = [
+        "consumer_parity",
+        "nodejs_parity",
+        "web_parity",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "js_parity.bzl",
         "raw_transition.bzl",
         "repos.bzl",
     ],

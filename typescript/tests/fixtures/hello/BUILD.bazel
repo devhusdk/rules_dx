@@ -1,7 +1,7 @@
 load("//javascript/rules:defs.bzl", "javascript_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load("//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("//typescript/rules:defs.bzl", "typescript_js_test", "typescript_project", "typescript_test")
 
 package(
     default_testonly = True,
@@ -43,6 +43,17 @@ dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
     expected = "hello world",
+)
+
+typescript_js_test(
+    name = "plain_test",
+    srcs = ["plain_test.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    entry_point = "plain_test.js",
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":hello_lib"],
 )
 
 real_source_target(

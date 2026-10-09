@@ -1,7 +1,7 @@
 """Experimental minimal JavaScript wrappers."""
 
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
-load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library")
+load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -112,7 +112,29 @@ def javascript_test_rejection(kwargs):
     if kwargs.get("auto_configure_reporters", True) == False:
         return ("javascript_test always uses jest with the standard " +
                 "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported.")
+                "`auto_configure_reporters = False` is not supported. " +
+                "Use javascript_js_test for a custom runner.")
+    return None
+
+_JAVASCRIPT_JEST_ONLY_KEYS = [
+    "node_modules",
+    "config",
+    "snapshots",
+    "run_in_band",
+    "colors",
+    "auto_configure_reporters",
+    "auto_configure_test_sequencer",
+    "snapshots_ext",
+    "quiet_snapshot_updates",
+]
+
+def javascript_js_test_rejection(kwargs):
+    """Returns the rejection for forbidden javascript_js_test kwargs, or None."""
+    for key in _JAVASCRIPT_JEST_ONLY_KEYS:
+        if key in kwargs:
+            return ("javascript_js_test runs plain Node via js_test without " +
+                    "Jest reporting; `" + key + "` is not supported. " +
+                    "Use javascript_test for Jest behavior.")
     return None
 
 def javascript_test_env(env_inherit):
@@ -144,6 +166,44 @@ def javascript_test(name, srcs, node_modules, data = None, visibility = None, ta
     _jest_test(
         name = name + "_upstream",
         node_modules = node_modules,
+        data = upstream_data,
+        env_inherit = effective_env,
+        visibility = ["//visibility:private"],
+        **upstream_kwargs
+    )
+    forward_kwargs = dx_test_forward_kwargs(kwargs)
+    _javascript_test(
+        name = name,
+        upstream = name + "_upstream",
+        srcs = srcs,
+        env_inherit = effective_env,
+        visibility = visibility,
+        tags = [t for t in tags if t != "manual"] if tags != None else forward_kwargs.pop("tags", None),
+        **forward_kwargs
+    )
+
+def javascript_js_test(name, srcs, entry_point, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+    """Experimental minimal wrapper over js_test."""
+    rejection = javascript_js_test_rejection(kwargs)
+    if rejection != None:
+        fail(rejection)
+    upstream_data = list(srcs) + (list(data) if data != None else [])
+    effective_env = javascript_test_env(env_inherit)
+    upstream_kwargs = dict(kwargs)
+    upstream_kwargs.pop("aspect_hints", None)
+    if tags != None:
+        kept = [t for t in tags if t != "manual"]
+        if len(kept) > 0:
+            upstream_kwargs["tags"] = kept
+        elif "tags" in upstream_kwargs:
+            upstream_kwargs.pop("tags")
+    elif "tags" in upstream_kwargs:
+        upstream_kwargs.pop("tags")
+    if "//:package_json" not in upstream_data:
+        upstream_data.append("//:package_json")
+    _js_test(
+        name = name + "_upstream",
+        entry_point = entry_point,
         data = upstream_data,
         env_inherit = effective_env,
         visibility = ["//visibility:private"],

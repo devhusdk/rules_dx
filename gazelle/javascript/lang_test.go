@@ -213,9 +213,45 @@ func TestCheckClaims(t *testing.T) {
 	if err := checkClaims(nil, otherWrong, claimants); err == nil || !strings.Contains(err.Error(), "existing javascript_test") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
+	plainClaimants := []Claimant{{Name: "demo", Source: "demo_test.js", Kind: testKind}}
+	plainFile := rule.EmptyFile("BUILD.bazel", "pkg")
+	plainFile.Rules = append(plainFile.Rules, rule.NewRule(plainTestKind, "demo"))
+	if err := checkClaims(plainFile, nil, plainClaimants); err != nil {
+		t.Errorf("plain-runner handwritten claims = %v", err)
+	}
+	plainOther := []*rule.Rule{rule.NewRule(plainTestKind, "demo")}
+	if err := checkClaims(nil, plainOther, plainClaimants); err != nil {
+		t.Errorf("plain-runner other claims = %v", err)
+	}
 	dupes := []Claimant{{Name: "a_b", Source: "a-b.js"}, {Name: "a_b", Source: "a_b.jsx"}}
 	if err := checkClaims(wrongKind, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
+	}
+}
+
+func TestGeneratePlainTestKeepsHandwrittenRunner(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/plain_test.js", "import { test } from \"node:test\";\ntest(\"ok\", () => {});\n")
+	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+	file.Rules = append(file.Rules, rule.NewRule(plainTestKind, "plain_test"))
+	l := &javascriptLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"plain_test.js"},
+		File:         file,
+	})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v, want none", l.errors)
+	}
+	for _, r := range result.Gen {
+		if r.Kind() == testKind && r.Name() == "plain_test" {
+			t.Fatalf("emitted %s(%s) beside hand-written %s", r.Kind(), r.Name(), plainTestKind)
+		}
+	}
+	if len(result.Gen) != len(result.Imports) {
+		t.Fatalf("generated %d rules and %d import sets, want aligned", len(result.Gen), len(result.Imports))
 	}
 }
 

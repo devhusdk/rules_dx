@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection", "typescript_upstream_srcs")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -110,7 +110,8 @@ def typescript_wrapper_contract_tests(name):
                 typescript_test_rejection({"auto_configure_reporters": False}),
                 "typescript_test always uses jest with the standard " +
                 "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported.",
+                "`auto_configure_reporters = False` is not supported. " +
+                "Use typescript_js_test for a custom runner.",
             ),
             expect_equal(
                 "empty kwargs are clean",
@@ -125,6 +126,38 @@ def typescript_wrapper_contract_tests(name):
             expect_equal(
                 "ordinary jest kwargs are clean",
                 typescript_test_rejection({"config": "jest.config.cjs", "snapshots": False}),
+                None,
+            ),
+            expect_equal(
+                "plain runner rejects the managed node_modules label",
+                typescript_js_test_rejection({"node_modules": "//:node_modules"}) != None,
+                True,
+            ),
+            expect_equal(
+                "plain runner rejection names the jest route",
+                typescript_js_test_rejection({"node_modules": "//:node_modules"}),
+                "typescript_js_test runs plain Node via js_test without " +
+                "Jest reporting; `node_modules` is not supported. " +
+                "Use typescript_test for Jest behavior.",
+            ),
+            expect_equal(
+                "plain runner rejects the jest config",
+                typescript_js_test_rejection({"config": "jest.config.cjs"}) != None,
+                True,
+            ),
+            expect_equal(
+                "plain runner rejects disabled jest reporters",
+                typescript_js_test_rejection({"auto_configure_reporters": True}) != None,
+                True,
+            ),
+            expect_equal(
+                "plain runner keeps ordinary node kwargs",
+                typescript_js_test_rejection({"node_options": ["--experimental-vm-modules"], "env": {"DX_PLAIN": "1"}}),
+                None,
+            ),
+            expect_equal(
+                "plain runner with empty kwargs is clean",
+                typescript_js_test_rejection({}),
                 None,
             ),
             expect_equal(

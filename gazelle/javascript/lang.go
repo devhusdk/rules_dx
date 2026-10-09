@@ -22,6 +22,7 @@ const (
 	languageName    = "javascript"
 	libraryKind     = "javascript_library"
 	testKind        = "javascript_test"
+	plainTestKind   = "javascript_js_test"
 	binaryKind      = "javascript_binary"
 	rootNodeModules = "//:node_modules"
 )
@@ -241,9 +242,13 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		return language.GenerateResult{}
 	}
 
+	plain := handPlainTests(args.File, args.OtherGen)
 	var result language.GenerateResult
 	for _, p := range plans {
 		if p.test {
+			if plain[p.name] {
+				continue
+			}
 			r := rule.NewRule(testKind, p.name)
 			r.SetAttr("srcs", []string{p.src})
 			r.SetAttr("node_modules", rootNodeModules)
@@ -282,7 +287,51 @@ func claimKind(c Claimant) string {
 }
 
 func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	return common.CheckClaimsMulti(file, other, claimants, claimKind)
+	return common.CheckClaimsMulti(plainTestsAsTests(file), plainTestsAsTestsOther(other), claimants, claimKind)
+}
+
+func handPlainTests(file *rule.File, other []*rule.Rule) map[string]bool {
+	owned := make(map[string]bool)
+	if file != nil {
+		for _, r := range file.Rules {
+			if r.Kind() == plainTestKind {
+				owned[r.Name()] = true
+			}
+		}
+	}
+	for _, r := range other {
+		if r.Kind() == plainTestKind {
+			owned[r.Name()] = true
+		}
+	}
+	return owned
+}
+
+func plainTestsAsTests(file *rule.File) *rule.File {
+	if file == nil {
+		return nil
+	}
+	view := rule.EmptyFile(file.Path, file.Pkg)
+	for _, r := range file.Rules {
+		kind := r.Kind()
+		if kind == plainTestKind {
+			kind = testKind
+		}
+		view.Rules = append(view.Rules, rule.NewRule(kind, r.Name()))
+	}
+	return view
+}
+
+func plainTestsAsTestsOther(other []*rule.Rule) []*rule.Rule {
+	out := make([]*rule.Rule, 0, len(other))
+	for _, r := range other {
+		kind := r.Kind()
+		if kind == plainTestKind {
+			kind = testKind
+		}
+		out = append(out, rule.NewRule(kind, r.Name()))
+	}
+	return out
 }
 
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }

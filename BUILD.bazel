@@ -98,6 +98,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude quality/tests/fixtures/consumer_policy
 # gazelle:exclude rust/tests/fixtures/consumer_std
 # gazelle:exclude rust/tests/fixtures/consumer_hub
+# gazelle:exclude rust/tests/fixtures/consumer_wasm
 
 package(default_visibility = ["//:__subpackages__"])
 

@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_env", "typescript_test_rejection")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -129,6 +129,67 @@ def typescript_wrapper_contract_tests(name):
                 "other extensions are not listed",
                 [dx_tsconfig_is_source(s) for s in ["main.js", "data.json", "README.md"]],
                 [False, False, False],
+            ),
+            expect_equal(
+                "absent typecheck defaults to isolated",
+                dx_scoped_tsconfig_out("lib", {"tsconfig": "tsconfig.json"}),
+                {"tsconfig": "tsconfig_lib.json", "extends": "tsconfig.json", "isolated_typecheck": True},
+            ),
+            expect_equal(
+                "explicit false typecheck is preserved",
+                dx_scoped_tsconfig_out("lib", {"tsconfig": "tsconfig.json", "isolated_typecheck": False}),
+                {"tsconfig": "tsconfig_lib.json", "extends": "tsconfig.json", "isolated_typecheck": False},
+            ),
+            expect_equal(
+                "explicit true typecheck is preserved",
+                dx_scoped_tsconfig_out("lib", {"tsconfig": "tsconfig.json", "isolated_typecheck": True}),
+                {"tsconfig": "tsconfig_lib.json", "extends": "tsconfig.json", "isolated_typecheck": True},
+            ),
+            expect_equal(
+                "redundant matching extends is kept",
+                dx_scoped_tsconfig_out("lib", {"tsconfig": "tsconfig.json", "extends": "tsconfig.json"}),
+                {"tsconfig": "tsconfig_lib.json", "extends": "tsconfig.json", "isolated_typecheck": True},
+            ),
+            expect_equal(
+                "missing tsconfig passes kwargs through",
+                dx_scoped_tsconfig_out("lib", {"declaration": True}),
+                {"declaration": True},
+            ),
+            expect_equal(
+                "conflicting extends is rejected",
+                typescript_scoped_tsconfig_rejection({"tsconfig": "tsconfig.json", "extends": "other.json"}) != None,
+                True,
+            ),
+            expect_equal(
+                "extends rejection names the contract",
+                typescript_scoped_tsconfig_rejection({"tsconfig": "tsconfig.json", "extends": "other.json"}),
+                "typescript_project derives extends from tsconfig; omit extends " +
+                "or name the same file as tsconfig.",
+            ),
+            expect_equal(
+                "dictionary tsconfig is rejected",
+                typescript_scoped_tsconfig_rejection({"tsconfig": {"compilerOptions": {}}}) != None,
+                True,
+            ),
+            expect_equal(
+                "non-boolean typecheck is rejected",
+                typescript_scoped_tsconfig_rejection({"tsconfig": "tsconfig.json", "isolated_typecheck": "yes"}) != None,
+                True,
+            ),
+            expect_equal(
+                "absent typecheck is clean",
+                typescript_scoped_tsconfig_rejection({"tsconfig": "tsconfig.json"}),
+                None,
+            ),
+            expect_equal(
+                "explicit false typecheck is clean",
+                typescript_scoped_tsconfig_rejection({"tsconfig": "tsconfig.json", "isolated_typecheck": False}),
+                None,
+            ),
+            expect_equal(
+                "missing tsconfig is clean",
+                typescript_scoped_tsconfig_rejection({"declaration": True}),
+                None,
             ),
         ],
     )

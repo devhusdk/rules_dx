@@ -14,8 +14,8 @@ pub fn upgrade_retry_command(from: &str, to: &str) -> String {
     format!("dx upgrade --from {from} --to {to}")
 }
 
-pub fn upgrade_restore_command() -> Option<String> {
-    Some("git checkout -- .dx/version".to_owned())
+pub fn upgrade_restore_command_for(from: &str) -> Option<String> {
+    Some(format!("dx version --pin {from}"))
 }
 
 pub fn upgrade_recovery_message(plan: &UpgradePlan) -> String {
@@ -34,7 +34,7 @@ pub fn upgrade_recovery_message(plan: &UpgradePlan) -> String {
 pub fn plan_upgrade(from: &str, to: &str) -> Result<UpgradePlan, AdoptError> {
     let migrate = super::plan_migrate(from, to)?;
     let retry_command = upgrade_retry_command(from, to);
-    let restore_command = upgrade_restore_command();
+    let restore_command = upgrade_restore_command_for(from);
     let mut plan = UpgradePlan {
         from: from.to_owned(),
         to: to.to_owned(),
@@ -60,11 +60,12 @@ mod tests {
         assert_eq!(plan.retry_command, "dx upgrade --from 1.2.3 --to 2.0.0");
         assert_eq!(
             plan.restore_command,
-            Some("git checkout -- .dx/version".to_owned())
+            Some("dx version --pin 1.2.3".to_owned())
         );
         assert!(plan.message.contains("dx upgrade --from 1.2.3 --to 2.0.0"));
         assert!(plan.message.contains("idempotent"));
         assert!(plan.message.contains("dx setup"));
+        assert!(!plan.message.contains("git checkout"));
         let minor = plan_upgrade("1.2.3", "1.3.0").expect("minor plans");
         assert_eq!(minor.manifest, "migrate-v1.2.3-to-v1.3.0.json");
         assert!(plan_upgrade("2.0.0", "1.0.0").is_err());
@@ -86,11 +87,12 @@ mod tests {
             "dx upgrade --from 1.2.3 --to 2.0.0"
         );
         assert_eq!(
-            upgrade_restore_command(),
-            Some("git checkout -- .dx/version".to_owned())
+            upgrade_restore_command_for("1.2.3"),
+            Some("dx version --pin 1.2.3".to_owned())
         );
         let message = upgrade_recovery_message(&plan);
         assert!(message.contains("rerun"));
-        assert!(message.contains("git checkout -- .dx/version"));
+        assert!(message.contains("dx version --pin 1.2.3"));
+        assert!(!message.contains("git checkout"));
     }
 }

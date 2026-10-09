@@ -74,7 +74,7 @@ Environment:
       Disable color output.
   BUILD_WORKSPACE_DIRECTORY=<dir>
       Workspace start under `bazel run`.
-  .dx/config.toml
-  .dx/config
-      Same defaults as the DX_ variables, below the environment.
+  dx.toml (committed) and dx.local.toml (local-only, gitignored) carry the same defaults as the DX_ variables, below the environment.
+      Local beats committed. In CI the local file and DX_ variables are ignored; flags still win.
+      A legacy .dx/config.toml with a new file present is a usage error naming both files.
       An unknown key is a usage error.

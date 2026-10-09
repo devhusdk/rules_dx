@@ -149,8 +149,9 @@ is unset.
 
 ## Config File
 
-`.dx/config.toml` and `.dx/config` set the same defaults. A key is the flag
-name without `--`.
+`dx.toml` (committed) and `dx.local.toml` (local-only, gitignored) set the
+same defaults. `.dx/config.toml` and `.dx/config` are the legacy paths. A key
+is the flag name without `--`.
 
 ```toml
 [dx]
@@ -167,16 +168,22 @@ fail-on = "error"
 `true` or `false`, not the `<bool>` spellings above. An empty value is unset.
 An unknown key is a usage error that names the key and the keys it accepts.
 
-Keys go under `[dx]` or at the top level, and `[dx]` wins. When a directory
-holds both `.dx/config.toml` and `.dx/config`, the `.toml` one wins. The
-nearest file to the working directory wins, and its values sit below the
-environment. The search reads the working directory and each directory above
-it, so a neighboring or nested workspace tree never supplies defaults. Under
-`bazel run` the search starts at the workspace root.
+Keys go under `[dx]` or at the top level, and `[dx]` wins. Commit shared
+defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local
+beats committed. When a directory holds both `.dx/config.toml` and
+`.dx/config`, the `.toml` one wins. A legacy file with a new file present is
+a usage error naming both files. Move legacy keys into `[dx]` in `dx.toml`
+or `dx.local.toml`, then remove the legacy file.
+The nearest file to the working directory wins, and its values sit below the environment. The search
+reads the working directory and each directory above it, so a neighboring or
+nested workspace tree never supplies defaults. Under `bazel run` the search
+starts at the workspace root. In CI the local file and `DX_` variables are
+ignored. Flags still win. CI never implies `--apply`.
 
 The command line wins over the environment, and the environment wins over
 the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
 file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
 `--version` print without reading a broken config. `dx new` and
-`dx completion` run outside a workspace.
+`dx completion` run outside a workspace. Deleting `.dx` keeps committed
+behavior. Read-only commands never rewrite config.

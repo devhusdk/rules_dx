@@ -14,6 +14,7 @@ pub const EVENTS: &[&str] = &[
     "notice",
     "operation",
     "report",
+    "run_output",
     "selection",
     "status",
     "test_outcome",
@@ -102,6 +103,30 @@ pub fn report_event(
     map.insert("format".to_owned(), Value::String(format.to_owned()));
     map.insert("path".to_owned(), Value::String(path.to_owned()));
     map.insert("results_complete".to_owned(), Value::Bool(results_complete));
+    Ok(Value::Object(map))
+}
+
+/// One retained invocation output directory, named by its manifest.
+pub fn run_output_event(
+    manifest: &str,
+    directory: &str,
+    retained: u64,
+    unavailable: u64,
+    bytes: u64,
+    complete: bool,
+) -> Result<Value, OutputError> {
+    nonempty("manifest", manifest)?;
+    nonempty("directory", directory)?;
+    let mut map = base("run_output");
+    map.insert("manifest".to_owned(), Value::String(manifest.to_owned()));
+    map.insert(
+        "directory".to_owned(),
+        Value::String(directory.to_owned()),
+    );
+    map.insert("retained".to_owned(), Value::from(retained));
+    map.insert("unavailable".to_owned(), Value::from(unavailable));
+    map.insert("bytes".to_owned(), Value::from(bytes));
+    map.insert("complete".to_owned(), Value::Bool(complete));
     Ok(Value::Object(map))
 }
 
@@ -341,6 +366,28 @@ mod tests {
         assert_eq!(event["results_complete"], Value::Bool(true));
         assert!(report_event("", "out.sarif", true).is_err());
         assert!(report_event("sarif", "", true).is_err());
+    }
+
+    #[test]
+    fn run_output_event_shape() {
+        let event =
+            run_output_event("runs/dx-run-7-0/manifest.json", "runs/dx-run-7-0", 3, 1, 512, false)
+                .expect("run output");
+        assert_eq!(event["event"], Value::String("run_output".to_owned()));
+        assert_eq!(
+            event["manifest"],
+            Value::String("runs/dx-run-7-0/manifest.json".to_owned())
+        );
+        assert_eq!(
+            event["directory"],
+            Value::String("runs/dx-run-7-0".to_owned())
+        );
+        assert_eq!(event["retained"], Value::from(3));
+        assert_eq!(event["unavailable"], Value::from(1));
+        assert_eq!(event["bytes"], Value::from(512));
+        assert_eq!(event["complete"], Value::Bool(false));
+        assert!(run_output_event("", "runs/dx-run-7-0", 0, 0, 0, true).is_err());
+        assert!(run_output_event("manifest.json", "", 0, 0, 0, true).is_err());
     }
 
     #[test]

@@ -338,6 +338,12 @@ _consumer_abi_repo(
     name = "consumer_abi",
 )
 
+_consumer_archive_repo = use_repo_rule("//deploy/tests/fixtures/consumer_archive:repos.bzl", "consumer_archive_repo")
+
+_consumer_archive_repo(
+    name = "consumer_archive_repo",
+)
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

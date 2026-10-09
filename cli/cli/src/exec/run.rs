@@ -655,6 +655,7 @@ mod tests {
             command,
             check: false,
             strict_evidence: false,
+            run_output: None,
             apply: false,
             debug: false,
             release: false,

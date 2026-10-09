@@ -71,6 +71,40 @@ fn min_coverage_rejects_bad_values_and_other_commands() {
 }
 
 #[test]
+fn run_output_parses_for_test_and_coverage_only() {
+    let test = parse(&strings(&["test", "--run-output", "out"])).expect("parse");
+    assert_eq!(test.command, Command::Test);
+    assert_eq!(test.run_output, Some("out".to_owned()));
+    let inline = parse(&strings(&["coverage", "--run-output=out"])).expect("parse");
+    assert_eq!(inline.command, Command::Coverage);
+    assert_eq!(inline.run_output, Some("out".to_owned()));
+    assert!(inline.command.supports_run_output());
+    assert!(Command::Test.supports_run_output());
+    assert!(!Command::Build.supports_run_output());
+    let bare = parse(&strings(&["test"])).expect("parse");
+    assert_eq!(bare.run_output, None);
+    assert_usage(
+        &["test", "--run-output="],
+        parse(&strings(&["test", "--run-output="])).unwrap_err(),
+        &["run-output"],
+    );
+    assert_eq!(
+        parse(&strings(&["build", "--run-output=out"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "build",
+            option: "--run-output".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["lint", "--run-output=out"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "lint",
+            option: "--run-output".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn strict_evidence_parses_for_test_and_coverage_only() {
     let test = parse(&strings(&["test", "--strict-evidence"])).expect("parse");
     assert_eq!(test.command, Command::Test);

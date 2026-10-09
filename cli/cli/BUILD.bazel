@@ -67,6 +67,7 @@ rust_library(
         "src/exec/quality_reports.rs",
         "src/exec/results.rs",
         "src/exec/run.rs",
+        "src/exec/run_outputs.rs",
         "src/exec/test_reports.rs",
         "src/exec/test_support.rs",
         "src/exec/umbrella.rs",

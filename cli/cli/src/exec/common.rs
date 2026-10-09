@@ -73,6 +73,7 @@ pub(crate) const CODE_LAUNCH_FAILED: &str = "launch_failed";
 pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
 pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
 pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";
+pub(crate) const CODE_RUN_OUTPUT_FAILED: &str = "run_output_failed";
 pub(crate) const CODE_DIFF_FAILED: &str = "diff_failed";
 pub(crate) const CODE_REPORT_FAILED: &str = "report_failed";
 pub(crate) const CODE_COLLECTION_FAILED: &str = "collection_failed";

@@ -59,6 +59,9 @@ commands. See [Version Skew](status-version.md#version-skew).
   `coverage`. Every other command rejects it.
 - `--strict-evidence`: fail when collected test or coverage evidence is
   incomplete. Taken by `test`, `coverage`. Every other command rejects it.
+- `--run-output <dir>`: retain test outputs under one new directory per
+  invocation, with a manifest. Taken by `test`, `coverage`. Every other
+  command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `codegen`, `env`, `setup`, `clean`, `check`, `fix`, `update`,
   `version`, `completion`, and `docs`.

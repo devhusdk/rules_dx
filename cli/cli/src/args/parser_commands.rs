@@ -95,6 +95,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
         &["owners", "deps", "why"],
     ),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
+    ("--run-output", &["--run-output=out"], &["test", "coverage"]),
     ("--serve", &["--serve"], &["docs"]),
     ("--port", &["--serve", "--port=8080"], &["docs"]),
     ("--host", &["--serve", "--host=127.0.0.1"], &["docs"]),
@@ -193,6 +194,11 @@ const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
         "--min-coverage",
         Command::supports_min_coverage,
         &["--min-coverage=80"],
+    ),
+    (
+        "--run-output",
+        Command::supports_run_output,
+        &["--run-output=out"],
     ),
 ];
 

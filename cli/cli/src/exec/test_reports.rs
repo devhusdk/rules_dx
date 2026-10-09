@@ -1,4 +1,5 @@
 use super::common::*;
+use super::run_outputs::{export_run_outputs, MANIFEST_FORMAT, RetentionLimits};
 use crate::args::Invocation;
 use crate::plan::WorkflowVerb;
 use crate::reports::{
@@ -183,6 +184,29 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         }
     };
     let _ = std::fs::remove_file(bep);
+    let run_output = match invocation.run_output.as_deref() {
+        None => None,
+        Some(parent) => {
+            let root = Path::new(parent);
+            let root = if root.is_absolute() {
+                root.to_path_buf()
+            } else {
+                workspace.join(root)
+            };
+            match export_run_outputs(&root, invocation.command.name(), &events, RetentionLimits::default()) {
+                Ok(summary) => Some(summary),
+                Err(message) => {
+                    return operational(
+                        invocation,
+                        out,
+                        err,
+                        CODE_RUN_OUTPUT_FAILED,
+                        &message,
+                    );
+                }
+            }
+        }
+    };
     let reader = FsArtifacts;
     let mut complete = bazel_code == 0;
     let mut detail = String::new();
@@ -498,6 +522,27 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 "Wrote {} report to {}.",
                 planned.format.name(),
                 planned.destination.display()
+            );
+        }
+    }
+    if let Some(summary) = &run_output {
+        let manifest_complete =
+            complete && reports_ok && !strict_fail && summary.missing == 0;
+        if invocation.output == OutputMode::Json {
+            if let Ok(event) = report_event(
+                MANIFEST_FORMAT,
+                &summary.manifest.display().to_string(),
+                manifest_complete,
+            ) {
+                let _ = write_event(out, &event);
+            }
+        } else if !stdout_report {
+            let _ = writeln!(
+                out,
+                "Wrote run outputs to {} ({} stored, {} missing).",
+                summary.manifest.display(),
+                summary.stored,
+                summary.missing
             );
         }
     }
@@ -2266,4 +2311,467 @@ mod tests {
         assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
         assert_eq!(outcomes[0]["artifacts"]["collected"], serde_json::json!(1));
     }
-}
+
+    fn run_output_parent(harness: &Harness, name: &str) -> std::path::PathBuf {
+        harness.temp.join(name)
+    }
+
+    fn only_child(parent: &std::path::Path) -> std::path::PathBuf {
+        let mut children: Vec<std::path::PathBuf> = std::fs::read_dir(parent)
+            .expect("readable parent")
+            .map(|entry| entry.expect("entry").path())
+            .collect();
+        assert_eq!(children.len(), 1, "one owned directory: {children:?}");
+        children.pop().expect("child")
+    }
+
+    fn read_manifest(child: &std::path::Path) -> serde_json::Value {
+        let manifest = child.join("manifest.json");
+        serde_json::from_slice(&std::fs::read(&manifest).expect("manifest")).expect("json")
+    }
+
+    #[test]
+    fn test_run_output_retains_declared_outputs_with_manifest() {
+        let harness = Harness::new("test-run-out");
+        let xml = write_bep_artifact(&harness, "keep.xml", MINIMAL_TEST_XML.as_bytes());
+        let log = write_bep_artifact(&harness, "keep.log", b"failure details\n");
+        let shot = write_bep_artifact(&harness, "shot.bin", b"\x89PNG\r\n");
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (String::from("test.log"), log),
+                    (String::from("screenshot.png"), shot),
+                ],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, out, _) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 0, "{out}");
+        let child = only_child(&parent);
+        assert!(
+            out.contains(&format!(
+                "Wrote run outputs to {} (3 stored, 0 missing).",
+                child.join("manifest.json").display()
+            )),
+            "{out}"
+        );
+        let manifest = read_manifest(&child);
+        assert_eq!(manifest["command"], "test".into());
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 3);
+        let mut names: Vec<&str> = artifacts
+            .iter()
+            .map(|artifact| artifact["name"].as_str().expect("name"))
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["screenshot.png", "test.log", "test.xml"]);
+        for artifact in artifacts {
+            assert_eq!(artifact["target"], "//a:t".into());
+            assert_eq!(artifact["run"], 1.into());
+            assert_eq!(artifact["missing_reason"], serde_json::Value::Null);
+            let stored = child.join(artifact["path"].as_str().expect("path"));
+            assert!(stored.starts_with(&child));
+        }
+        let log_entry = artifacts
+            .iter()
+            .find(|artifact| artifact["name"] == "test.log".into())
+            .expect("log entry");
+        assert_eq!(
+            std::fs::read(child.join(log_entry["path"].as_str().unwrap())).expect("bytes"),
+            b"failure details\n"
+        );
+    }
+
+    #[test]
+    fn test_run_output_marks_missing_and_remote_attachments_explicit() {
+        let harness = Harness::new("test-run-out-missing");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (
+                        String::from("ghost.bin"),
+                        missing_uri("ghost.bin"),
+                    ),
+                    (
+                        String::from("remote.png"),
+                        String::from("bytestream://remote.buildbuddy.io/blobs/abc/10"),
+                    ),
+                ],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, out, _) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("(1 stored, 2 missing)"), "{out}");
+        let manifest = read_manifest(&only_child(&parent));
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 3);
+        for name in ["ghost.bin", "remote.png"] {
+            let entry = artifacts
+                .iter()
+                .find(|artifact| artifact["name"] == name.into())
+                .expect("missing entry");
+            assert_eq!(entry["path"], serde_json::Value::Null, "{name}");
+            assert_eq!(entry["bytes"], serde_json::Value::Null, "{name}");
+            let reason = entry["missing_reason"].as_str().expect("reason");
+            assert!(reason.contains("unreadable"), "{name}: {reason}");
+        }
+    }
+
+    #[test]
+    fn test_run_output_contains_traversal_names() {
+        let harness = Harness::new("test-run-out-traversal");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let payload = write_bep_artifact(&harness, "payload.bin", b"payload");
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (String::from("../../../evil.bin"), payload),
+                ],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, out, _) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 0, "{out}");
+        let child = only_child(&parent);
+        assert!(!parent.join("evil.bin").exists());
+        assert!(!harness.temp.join("evil.bin").exists());
+        let manifest = read_manifest(&child);
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        let entry = artifacts
+            .iter()
+            .find(|artifact| artifact["name"] == "../../../evil.bin".into())
+            .expect("traversal entry");
+        let stored = child.join(entry["path"].as_str().expect("path"));
+        assert!(stored.starts_with(&child));
+        assert_eq!(std::fs::read(stored).expect("bytes"), b"payload");
+    }
+
+    #[test]
+    fn test_run_output_copies_symlinks_to_regular_files() {
+        let harness = Harness::new("test-run-out-link");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let outside = harness.temp.join("outside.txt");
+        std::fs::write(&outside, b"linked").expect("write");
+        let link = harness.temp.join("link.bin");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside, &link).expect("symlink");
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&outside, &link).expect("symlink");
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (
+                        String::from("linked.bin"),
+                        format!("file://{}", link.display()),
+                    ),
+                ],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, out, _) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 0, "{out}");
+        let child = only_child(&parent);
+        let manifest = read_manifest(&child);
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        let entry = artifacts
+            .iter()
+            .find(|artifact| artifact["name"] == "linked.bin".into())
+            .expect("link entry");
+        let stored = child.join(entry["path"].as_str().expect("path"));
+        assert_eq!(std::fs::read(&stored).expect("bytes"), b"linked");
+        assert!(
+            !std::fs::symlink_metadata(&stored)
+                .expect("metadata")
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(std::fs::read(&outside).expect("outside"), b"linked");
+    }
+
+    #[test]
+    fn test_run_output_disambiguates_duplicate_logical_names() {
+        let harness = Harness::new("test-run-out-dup");
+        let first = write_bep_artifact(&harness, "one.bin", b"one");
+        let second = write_bep_artifact(&harness, "two.bin", b"two");
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:t", &[(String::from("same.bin"), first)]),
+                test_result_line("//b:t", &[(String::from("same.bin"), second)]),
+            ]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, out, _) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 1, "{out}");
+        assert!(out.contains("(2 stored, 0 missing)"), "{out}");
+        let manifest = read_manifest(&only_child(&parent));
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 2);
+        assert_ne!(artifacts[0]["path"], artifacts[1]["path"]);
+    }
+
+    #[test]
+    fn test_run_output_fails_closed_on_an_unusable_parent() {
+        let harness = Harness::new("test-run-out-conflict");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let file = harness.temp.join("file");
+        std::fs::write(&file, b"not a dir").expect("write");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), xml)],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", file.display());
+        let (code, _, err) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("run_output_failed"), "{err}");
+    }
+
+    #[test]
+    fn test_run_output_failure_reports_a_json_event() {
+        let harness = Harness::new("test-run-out-json-fail");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let file = harness.temp.join("file");
+        std::fs::write(&file, b"not a dir").expect("write");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), xml)],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", file.display());
+        let (code, out, _) = harness.run(&["test", "--output=json", flag.leak() as &str]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert!(
+            errors.iter().any(|event| event["code"] == "run_output_failed".into()),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn test_run_output_json_reports_the_manifest_event() {
+        let harness = Harness::new("test-run-out-json");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), xml)],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, out, _) = harness.run(&["test", "--output=json", flag.leak() as &str]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let reports = events_of_kind(&events, "report");
+        let manifest = reports
+            .iter()
+            .find(|event| event["format"] == "manifest".into())
+            .expect("manifest event");
+        assert_eq!(manifest["results_complete"], serde_json::json!(true));
+        let path = manifest["path"].as_str().expect("path");
+        assert!(std::path::Path::new(path).is_file(), "{path}");
+    }
+
+    #[test]
+    fn test_run_output_survives_a_bazel_failure() {
+        let harness = Harness::new("test-run-out-bazelfail");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), xml)],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, _, _) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 3);
+        let manifest = read_manifest(&only_child(&parent));
+        assert_eq!(manifest["stored"], 1.into());
+    }
+
+    #[test]
+    fn test_run_output_skipped_when_bazel_is_cancelled() {
+        let harness = Harness::new("test-run-out-cancelled");
+        let parent = run_output_parent(&harness, "run-out");
+        std::fs::create_dir_all(&parent).expect("mkdir");
+        let harness = Harness {
+            signalled: true,
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, _, err) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("bazel_signalled"), "{err}");
+        assert_eq!(
+            std::fs::read_dir(&parent).expect("read").count(),
+            0,
+            "a cancelled run retains nothing"
+        );
+    }
+
+    #[test]
+    fn test_run_output_malformed_locator_stays_operational() {
+        let harness = Harness::new("test-run-out-badloc");
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![String::from(
+                "{\"id\": {\"testResult\": {\"label\": \"//a:t\"}}, \"testResult\": {\"status\": \"PASSED\", \"testActionOutput\": [{\"name\": \"test.xml\", \"uri\": \":::not a locator:::\"}]}}",
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, _, err) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("invalid_bep"), "{err}");
+        assert!(
+            std::fs::read_dir(&parent).is_err() || std::fs::read_dir(&parent).expect("read").count() == 0,
+            "no manifest may precede valid events"
+        );
+    }
+
+    #[test]
+    fn test_run_output_relative_parent_resolves_under_the_workspace() {
+        let harness = Harness::new("test-run-out-relative");
+        let xml = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), xml)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=text", "--run-output=rel-out"]);
+        assert_eq!(code, 0, "{out}");
+        only_child(&harness.workspace.join("rel-out"));
+    }
+
+    #[test]
+    fn test_two_runs_keep_separate_manifests_for_one_logical_name() {
+        let parent = Harness::new("test-run-out-shared").temp.join("shared");
+        let first = Harness::new("test-run-out-first");
+        let first_uri = write_bep_artifact(&first, "attach.bin", b"first run");
+        let first = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("attach.bin"), first_uri)],
+            )]),
+            ..first
+        };
+        let second = Harness::new("test-run-out-second");
+        let second_uri = write_bep_artifact(&second, "attach.bin", b"second run");
+        let second = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("attach.bin"), second_uri)],
+            )]),
+            ..second
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let leaked: &'static str = Box::leak(flag.into_boxed_str());
+        let (first_code, _, _) = first.run(&["test", "--output=text", leaked]);
+        let (second_code, _, _) = second.run(&["test", "--output=text", leaked]);
+        assert_eq!((first_code, second_code), (0, 0));
+        let children: Vec<std::path::PathBuf> = std::fs::read_dir(&parent)
+            .expect("readable parent")
+            .map(|entry| entry.expect("entry").path())
+            .collect();
+        assert_eq!(children.len(), 2, "{children:?}");
+        let mut bodies = Vec::new();
+        for child in &children {
+            let manifest = read_manifest(child);
+            let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+            assert_eq!(artifacts.len(), 1);
+            assert_eq!(artifacts[0]["name"], "attach.bin".into());
+            bodies.push(
+                std::fs::read(child.join(artifacts[0]["path"].as_str().unwrap())).expect("bytes"),
+            );
+        }
+        bodies.sort();
+        assert_eq!(bodies, vec![b"first run".to_vec(), b"second run".to_vec()]);
+    }
+
+    #[test]
+    fn coverage_run_output_retains_lcov_with_manifest() {
+        let harness = Harness::new("cov-run-out");
+        let uri = write_bep_artifact(&harness, "coverage.dat", MINIMAL_LCOV.as_bytes());
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.lcov"), uri)],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, out, _) = harness.run(&["coverage", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 0, "{out}");
+        let manifest = read_manifest(&only_child(&parent));
+        assert_eq!(manifest["command"], "coverage".into());
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 1);
+        assert_eq!(artifacts[0]["name"], "test.lcov".into());
+    }
+
+    #[test]
+    fn test_run_output_retains_large_failed_test_logs() {
+        let harness = Harness::new("test-run-out-large");
+        let xml = write_bep_artifact(&harness, "fail.xml", MINIMAL_TEST_XML.as_bytes());
+        let big: Vec<u8> = (0..200_000).map(|index| (index % 251) as u8).collect();
+        let log = write_bep_artifact(&harness, "big.log", &big);
+        let parent = run_output_parent(&harness, "run-out");
+        let harness = Harness {
+            bazel_code: 1,
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (String::from("test.log"), log),
+                ],
+            )]),
+            ..harness
+        };
+        let flag = format!("--run-output={}", parent.display());
+        let (code, _, _) = harness.run(&["test", "--output=text", flag.leak() as &str]);
+        assert_eq!(code, 1);
+        let manifest = read_manifest(&only_child(&parent));
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        let entry = artifacts
+            .iter()
+            .find(|artifact| artifact["name"] == "test.log".into())
+            .expect("log entry");
+        assert_eq!(entry["bytes"], serde_json::json!(200_000));
+        let child = only_child(&parent);
+        assert_eq!(
+            std::fs::read(child.join(entry["path"].as_str().unwrap())).expect("bytes"),
+            big
+        );
+    }

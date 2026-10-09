@@ -14,7 +14,7 @@ targets. Args after `--` go to Bazel unchanged.
 
 ```text
 dx build [--here] [--debug|--release] [scope...] [-- bazel-options...]
-dx test [--here] [--debug|--release] [--strict-evidence] [--report junit=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--debug|--release] [--strict-evidence] [--run-output <dir>] [--report junit=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -36,9 +36,21 @@ artifacts warn and pass when Bazel passes, other results exist, and at most
 a quarter of the reported results are unusable. More than that fails as
 incomplete. `--strict-evidence` fails any incomplete evidence instead.
 
+Pass `--run-output <dir>` to retain test outputs. Each invocation creates
+one new directory under `<dir>` and copies every declared test output into
+it: `test.xml`, `test.log`, and named attachments. A `manifest.json` maps
+each file to its target, run, shard, and attempt. Missing files stay explicit
+in the manifest with a reason. Relative directories resolve under the
+workspace. The manifest declares a 30-day retention window. Files over 64 MiB
+each, or 512 MiB per invocation, stay explicit instead of copying. Text output
+names the manifest. JSON output adds one `report` event with format
+`manifest`. A broken destination fails the run as `run_output_failed`.
+`dx clean` never touches run-output directories.
+
 ```sh
 bazel run @rules_dx//:dx -- build //cli/...
 bazel run @rules_dx//:dx -- test --here
+bazel run @rules_dx//:dx -- test --run-output /tmp/dx-run-out //...
 bazel run @rules_dx//:dx -- test //... -- --jobs=4
 bazel run @rules_dx//:dx -- test //cli/process/... -- --test_arg=workflow_argv --test_filter=workflow
 ```
@@ -93,13 +105,15 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--min-coverage <percent>] [--strict-evidence] [--report lcov=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--min-coverage <percent>] [--strict-evidence] [--run-output <dir>] [--report lcov=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that
 percent. Without it, coverage collects without enforcing. `--strict-evidence`
 is accepted and keeps scripts uniform; coverage already fails on incomplete
-evidence with or without it.
+evidence with or without it. `--run-output <dir>` retains coverage outputs
+the same way `dx test` retains test outputs, with a `manifest.json` per
+invocation.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout.

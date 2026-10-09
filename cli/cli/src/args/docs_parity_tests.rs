@@ -171,6 +171,7 @@ fn probe_rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
 const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--fail-on", Some("error")),
     ("--min-coverage", Some("80")),
+    ("--run-output", Some("out")),
     ("--strict-evidence", None),
     ("--check", None),
     ("--apply", None),

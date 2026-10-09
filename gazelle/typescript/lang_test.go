@@ -659,6 +659,42 @@ func TestCheckClaimsOtherAndMismatch(t *testing.T) {
 	if err := checkClaims(existing, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
 	}
+	plainClaimants := []Claimant{{Name: "demo", Source: "demo_test.ts", Kind: testKind}}
+	plainFile := rule.EmptyFile("BUILD.bazel", "pkg")
+	plainFile.Rules = append(plainFile.Rules, rule.NewRule(plainTestKind, "demo"))
+	if err := checkClaims(plainFile, nil, plainClaimants); err != nil {
+		t.Errorf("plain-runner handwritten claims = %v", err)
+	}
+	plainOther := []*rule.Rule{rule.NewRule(plainTestKind, "demo")}
+	if err := checkClaims(nil, plainOther, plainClaimants); err != nil {
+		t.Errorf("plain-runner other claims = %v", err)
+	}
+}
+
+func TestGeneratePlainTestKeepsHandwrittenRunner(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/plain_test.ts", "import { test } from \"node:test\";\ntest(\"ok\", () => {});\n")
+	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+	file.Rules = append(file.Rules, rule.NewRule(plainTestKind, "plain_test"))
+	l := &typescriptLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"plain_test.ts"},
+		File:         file,
+	})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v, want none", l.errors)
+	}
+	for _, r := range result.Gen {
+		if r.Kind() == testKind && r.Name() == "plain_test" {
+			t.Fatalf("emitted %s(%s) beside hand-written %s", r.Kind(), r.Name(), plainTestKind)
+		}
+	}
+	if len(result.Gen) != len(result.Imports) {
+		t.Fatalf("generated %d rules and %d import sets, want aligned", len(result.Gen), len(result.Imports))
+	}
 }
 
 func TestUnionStringsEmpty(t *testing.T) {

@@ -1,4 +1,4 @@
-load("//javascript/rules:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("//javascript/rules:defs.bzl", "javascript_binary", "javascript_js_test", "javascript_library", "javascript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -32,6 +32,14 @@ dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
     expected = "hello world",
+)
+
+javascript_js_test(
+    name = "plain_test",
+    srcs = ["plain_test.js"],
+    aspect_hints = ["//:biome_config"],
+    data = [":hello_lib"],
+    entry_point = "plain_test.js",
 )
 
 real_source_target(

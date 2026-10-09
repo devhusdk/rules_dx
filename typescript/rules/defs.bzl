@@ -1,6 +1,7 @@
 """Experimental minimal TypeScript wrappers."""
 
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
+load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
 load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs")
@@ -269,7 +270,29 @@ def typescript_test_rejection(kwargs):
     if kwargs.get("auto_configure_reporters", True) == False:
         return ("typescript_test always uses jest with the standard " +
                 "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported.")
+                "`auto_configure_reporters = False` is not supported. " +
+                "Use typescript_js_test for a custom runner.")
+    return None
+
+_TYPESCRIPT_JEST_ONLY_KEYS = [
+    "node_modules",
+    "config",
+    "snapshots",
+    "run_in_band",
+    "colors",
+    "auto_configure_reporters",
+    "auto_configure_test_sequencer",
+    "snapshots_ext",
+    "quiet_snapshot_updates",
+]
+
+def typescript_js_test_rejection(kwargs):
+    """Returns the rejection for forbidden typescript_js_test kwargs, or None."""
+    for key in _TYPESCRIPT_JEST_ONLY_KEYS:
+        if key in kwargs:
+            return ("typescript_js_test runs plain Node via js_test without " +
+                    "Jest reporting; `" + key + "` is not supported. " +
+                    "Use typescript_test for Jest behavior.")
     return None
 
 def typescript_test_env(env_inherit):
@@ -328,6 +351,71 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
     _jest_test(
         name = name + "_upstream",
         node_modules = node_modules,
+        data = upstream_data,
+        env_inherit = effective_env,
+        visibility = ["//visibility:private"],
+        **upstream_kwargs
+    )
+    forward_kwargs = dx_test_forward_kwargs(kwargs)
+    _typescript_test(
+        name = name,
+        upstream = name + "_upstream",
+        srcs = srcs,
+        env_inherit = effective_env,
+        visibility = visibility,
+        tags = [t for t in tags if t != "manual"] if tags != None else forward_kwargs.pop("tags", None),
+        **forward_kwargs
+    )
+
+def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+    """Experimental minimal wrapper over js_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
+    rejection = typescript_srcs_rejection(srcs)
+    if rejection != None:
+        fail(rejection)
+    decl_rejection = typescript_declaration_srcs_rejection(declaration_srcs)
+    if decl_rejection != None:
+        fail(decl_rejection)
+    reporter_rejection = typescript_js_test_rejection(kwargs)
+    if reporter_rejection != None:
+        fail(reporter_rejection)
+    effective_env = typescript_test_env(env_inherit)
+
+    ts_kwargs = {}
+    if deps != None:
+        ts_kwargs["deps"] = list(deps)
+    if tsconfig != None:
+        ts_kwargs["tsconfig"] = tsconfig
+    if transpiler != None:
+        ts_kwargs["transpiler"] = transpiler
+    if declaration != None:
+        ts_kwargs["declaration"] = declaration
+    upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
+    _ts_project(
+        name = name + "_ts",
+        srcs = upstream_srcs,
+        testonly = True,
+        visibility = ["//visibility:private"],
+        **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
+    )
+
+    upstream_data = [":" + name + "_ts"] + list(deps or []) + list(data or [])
+    if "//:package_json" not in upstream_data:
+        upstream_data.append("//:package_json")
+
+    upstream_kwargs = dict(kwargs)
+    upstream_kwargs.pop("aspect_hints", None)
+    if tags != None:
+        kept = [t for t in tags if t != "manual"]
+        if len(kept) > 0:
+            upstream_kwargs["tags"] = kept
+        elif "tags" in upstream_kwargs:
+            upstream_kwargs.pop("tags")
+    elif "tags" in upstream_kwargs:
+        upstream_kwargs.pop("tags")
+
+    _js_test(
+        name = name + "_upstream",
+        entry_point = entry_point,
         data = upstream_data,
         env_inherit = effective_env,
         visibility = ["//visibility:private"],

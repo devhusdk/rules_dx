@@ -9,6 +9,6 @@ bazel build //examples/adopt-js-ts/...
 bazel test //examples/adopt-js-ts/...
 ```
 
-Both tests pass (`greet_test`, `app_test`). The TypeScript wrapper emits its
+All 4 tests pass (`greet_test`, `plain_test`, `app_test`, `plain_test`). The TypeScript wrapper emits its
 own typecheck tests, so `bazel test` runs more targets than the example
 declares.

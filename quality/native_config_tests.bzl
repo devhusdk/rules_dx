@@ -181,6 +181,42 @@ def native_config_unit_tests(name):
                 "file, got generated gen/taplo.toml",
             ),
             expect_equal(
+                "native_config_error accepts a generated config with allow_generated",
+                [
+                    native_config_error(
+                        "taplo",
+                        "gen/taplo.toml",
+                        False,
+                        [],
+                        True,
+                    ),
+                    native_config_error(
+                        "ruff",
+                        "gen/ruff.toml",
+                        False,
+                        [struct(is_source = False, path = "gen/extra.toml")],
+                        True,
+                    ),
+                ],
+                ["", ""],
+            ),
+            expect_equal(
+                "native_config_error accepts generated data with allow_generated",
+                native_config_error(
+                    "vale",
+                    ".vale.ini",
+                    True,
+                    [struct(is_source = False, path = "gen/Cotton.yml")],
+                    True,
+                ),
+                "",
+            ),
+            expect_equal(
+                "native_config_error keeps suffix checks for generated configs",
+                native_config_error("vale", ".vale.json", False, [], True),
+                "native_config (vale): src must end in '.ini', got .vale.json",
+            ),
+            expect_equal(
                 "native_config_error rejects a mis-suffixed config",
                 native_config_error("vale", ".vale.json", True, []),
                 "native_config (vale): src must end in '.ini', got .vale.json",

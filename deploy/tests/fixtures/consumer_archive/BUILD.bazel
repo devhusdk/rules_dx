@@ -79,6 +79,81 @@ starlark_test(
     mode = "execution",
 )
 
+dx_resources(
+    name = "external_res",
+    mappings = {"@consumer_archive_repo//:banner.txt": "banner.txt"},
+)
+
+filegroup(
+    name = "external_notice_files",
+    srcs = ["@consumer_archive_repo//:NOTICE.txt"],
+)
+
+consumer_archive(
+    name = "external_release",
+    app = "@consumer_archive_repo//:external_app",
+    arch = select({
+        "@platforms//cpu:arm64": "aarch64",
+        "@platforms//cpu:x86_64": "x86_64",
+    }),
+    min_runtime = "glibc-2.17",
+    notice = ":external_notice_files",
+    os = "linux",
+    resources = [":external_res"],
+)
+
+# keep
+rust_test(
+    name = "external_release_verify",
+    srcs = ["external_verify.rs"],
+    data = [
+        ":external_release_archive",
+        ":external_release_checksum",
+    ],
+    env = {
+        "DX_EXTERNAL_CHECKSUM": "$(rootpath :external_release_checksum)",
+        "DX_EXTERNAL_TARBALL": "$(rootpath :external_release_archive)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+filegroup(
+    name = "stray_files",
+    srcs = ["NOTICE.txt"],
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_stray_resources",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    resources = [":stray_files"],
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "two_notice_files",
+    srcs = [
+        "NOTICE.txt",
+        "app.rs",
+    ],
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_two_notices",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":two_notice_files",
+    os = "linux",
+    tags = ["manual"],
+)
+
 consumer_archive(
     name = "consumer_bad_arch",
     app = ":consumer_app",
@@ -160,10 +235,25 @@ failure_test(
     target = ":consumer_empty_resources_stage",
 )
 
+failure_test(
+    name = "consumer_stray_resources_fails",
+    expected_failure_substring = "cannot map",
+    target = ":consumer_stray_resources_stage",
+)
+
+failure_test(
+    name = "consumer_two_notices_fails",
+    expected_failure_substring = "must provide exactly one file",
+    target = ":consumer_two_notices_stage",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
     tags = ["corpus"],
 )

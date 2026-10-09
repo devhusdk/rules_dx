@@ -1,3 +1,4 @@
+load("//python/rules:defs.bzl", "python_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
 
@@ -6,10 +7,18 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "defs.bzl",
     "frameworks.bzl",
+    "web.bzl",
     "wrapper_tests.bzl",
 ])
 
 javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+python_library(
+    name = "web_server",
+    srcs = ["web_server.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
 
 real_source_target(
     name = "corpus_starlark",
@@ -18,6 +27,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "frameworks.bzl",
+        "web.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

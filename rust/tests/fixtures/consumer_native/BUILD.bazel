@@ -1,0 +1,60 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+genrule(
+    name = "consumer_bindings",
+    srcs = ["@consumer_native//:native.h"],
+    outs = ["bindings.rs"],
+    cmd = "$(location @rules_dx//rust/tests/fixtures/native_call:make_bindings) $(location @consumer_native//:native.h) $@ consumer_add consumer_offset",
+    tools = ["@rules_dx//rust/tests/fixtures/native_call:make_bindings"],
+)
+
+cargo_build_script(
+    name = "consumer_native_build_script",
+    srcs = ["build.rs"],
+    build_script_env = {
+        "DX_NATIVE_BINDINGS_SRC": "$(location :consumer_bindings)",
+    },
+    crate_name = "consumer_native_build_script",
+    crate_root = "build.rs",
+    data = [":consumer_bindings"],
+    edition = "2021",
+    pkg_name = "consumer_native",
+    use_cc_toolchain = 0,
+    use_default_shell_env = 0,
+    version = "0.1.0",
+)
+
+rust_library(
+    name = "consumer_native",
+    srcs = ["src/lib.rs"],
+    crate_name = "consumer_native",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    link_deps = ["@consumer_native//:native"],
+    deps = [":consumer_native_build_script"],
+)
+
+rust_test(
+    name = "consumer_native_test",
+    crate = ":consumer_native",
+    link_deps = ["@consumer_native//:native"],
+    deps = [":consumer_native_build_script"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

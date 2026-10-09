@@ -99,6 +99,8 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude rust/tests/fixtures/consumer_std
 # gazelle:exclude rust/tests/fixtures/consumer_hub
 # gazelle:exclude rust/tests/fixtures/consumer_wasm
+# gazelle:exclude rust/tests/fixtures/native_call
+# gazelle:exclude rust/tests/fixtures/consumer_native
 
 package(default_visibility = ["//:__subpackages__"])
 

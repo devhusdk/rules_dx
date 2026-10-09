@@ -125,3 +125,19 @@ Inspect the artifact with the SDK `aapt`, or run the manual
 `inspect_apk_test` in `//android/tests/fixtures/rust_apk`, which
 asserts the package ID, SDK floors, label, activity, permission, both
 native libraries, the asset bundle, and the debug signature.
+
+## Backend decision (#1461)
+
+Packaging stays on the upstream backend: `rust_android_apk` composes
+`android_binary` from `rules_android` 0.6.6, so manifest merge,
+resources, native ABI placement, DEX, and signing come from the
+upstream rules plus the installed SDK. There is no owned APK
+packager: a native-only reimplementation would still need the same
+package and signature semantics without shedding supported behavior.
+
+APK assembly and device install/launch need a qualified SDK host (see
+above). Selection, negative, and adapter coverage runs everywhere:
+
+```sh
+bazel test //android/...
+```

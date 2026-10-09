@@ -217,8 +217,10 @@ rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",
     extra_target_triples = [
+        "aarch64-linux-android",
         "wasm32-unknown-unknown",
         "wasm32-wasip1",
+        "x86_64-linux-android",
     ],
     rustfmt_version = "1.98.0",
     versions = ["1.98.0"],
@@ -393,6 +395,14 @@ _consumer_wasm_bindgen_repo = use_repo_rule("//rust/tests/fixtures/wasm_bindgen:
 
 _consumer_wasm_bindgen_repo(
     name = "consumer_wasm_bindgen",
+)
+
+_android_ndk_toolchain_repo = use_repo_rule("//android/toolchain:repos.bzl", "android_ndk_toolchain_repo")
+
+_android_ndk_toolchain_repo(
+    name = "android_ndk_toolchain",
+    api_level = 31,
+    cxx_runtime = "shared",
 )
 
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")

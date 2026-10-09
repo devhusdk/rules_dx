@@ -1,0 +1,92 @@
+# gazelle:ignore the macro owns every source in this package.
+
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//android/rules:defs.bzl", "android_native_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cargo_build_script(
+    name = "native_lib_build_script",
+    srcs = ["build.rs"],
+    crate_name = "native_lib_build_script",
+    crate_root = "build.rs",
+    edition = "2021",
+    pkg_name = "native_lib",
+    use_cc_toolchain = 0,
+    use_default_shell_env = 0,
+    version = "0.1.0",
+)
+
+android_native_library(
+    name = "native_lib",
+    hdrs = ["native.h"],
+    c_srcs = ["native.c"],
+    copts = ["-DNATIVE_OFFSET=7"],
+    crate_features = ["neon"],
+    crate_name = "native_lib",
+    rust_srcs = ["src/lib.rs"],
+    rustc_flags = ["--cfg=dx_native_lib_cfg_probe"],
+    deps = [":native_lib_build_script"],
+)
+
+android_native_library(
+    name = "bad_api",
+    hdrs = ["native.h"],
+    api_level = 29,
+    c_srcs = ["native.c"],
+    copts = ["-DNATIVE_OFFSET=7"],
+    crate_name = "bad_api",
+    rust_srcs = ["src/lib.rs"],
+    deps = [":native_lib_build_script"],
+)
+
+failure_test(
+    name = "bad_api_test",
+    expected_failure_substring = "api_level 29 is below 31",
+    tags = ["manual"],
+    target = ":bad_api_device",
+)
+
+rust_test(
+    name = "native_lib_host_test",
+    crate = ":native_lib_rust",
+    link_deps = [":native_lib_cc"],
+    deps = [":native_lib_build_script"],
+)
+
+rustfmt_test(
+    name = "native_lib_fmt_test",
+    size = "small",
+    targets = [":native_lib_rust"],
+)
+
+sh_test(
+    name = "native_lib_arch_test",
+    srcs = ["arch_test.sh"],
+    args = [
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "$(location :native_lib_device)",
+        "$(location :native_lib_emulator)",
+    ],
+    data = [
+        ":native_lib_device",
+        ":native_lib_emulator",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

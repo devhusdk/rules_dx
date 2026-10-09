@@ -2,18 +2,17 @@ fn main() {
     println!("{}", wasm_hello::greeting("wasm"));
 }
 
-#[cfg(all(test, target_arch = "wasm32"))]
+#[cfg(test)]
 mod browser_tests {
     use wasm_bindgen_test::*;
 
+    #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen_test]
     fn greet_roundtrip() {
-        assert_eq!(
-            wasm_hello::greeting("browser"),
-            "Hello from wasm, browser!"
-        );
+        assert_eq!(wasm_hello::greeting("browser"), "Hello from wasm, browser!");
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen_test]
     fn add_roundtrip() {
         assert_eq!(wasm_hello::add(40, 2), 42);

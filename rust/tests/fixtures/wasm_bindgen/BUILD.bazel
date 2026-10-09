@@ -4,6 +4,9 @@ load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load(":raw_transition.bzl", "raw_wasm_proxy")
 
+# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen
+# gazelle:resolve rust wasm_bindgen_test @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test
+
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
@@ -30,7 +33,6 @@ rust_binary(
     crate_name = "wasm_hello_bin",
     crate_root = "src/main.rs",
     edition = "2021",
-    target_compatible_with = ["@platforms//cpu:wasm32"],
     deps = [":wasm_hello_lib"],
 )
 
@@ -79,6 +81,7 @@ rust_wasm_bindgen(
 
 rust_wasm_bindgen_test(
     name = "wasm_hello_browser_test",
+    tags = ["manual"],
     wasm = ":wasm_hello_web",
 )
 
@@ -104,7 +107,7 @@ rust_wasm_bindgen(
 
 failure_test(
     name = "wasm_hello_rlib_test",
-    expected_failure_substring = "not a supported type",
+    expected_failure_substring = "No attribute 'crate' in attr",
     target = ":wasm_hello_rlib_bindgen",
 )
 

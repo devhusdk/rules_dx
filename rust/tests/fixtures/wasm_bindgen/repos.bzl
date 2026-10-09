@@ -5,6 +5,7 @@ _BUILD_BAZEL = '''genrule(
     srcs = ["@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_raw"],
     outs = ["raw.wasm"],
     cmd = "cp $(location @rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_raw) $@",
+    testonly = True,
     visibility = ["//visibility:public"],
 )
 
@@ -20,6 +21,7 @@ genrule(
           esac
         done
     """,
+    testonly = True,
     visibility = ["//visibility:public"],
 )
 
@@ -34,6 +36,7 @@ genrule(
           esac
         done
     """,
+    testonly = True,
     visibility = ["//visibility:public"],
 )
 '''

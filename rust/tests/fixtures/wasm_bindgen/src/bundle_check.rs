@@ -8,15 +8,27 @@ fn bundle_path(name: &str) -> PathBuf {
 fn raw_wasm_has_module_magic() {
     let bytes = std::fs::read(bundle_path("DX_WASM_RAW")).expect("raw wasm is readable");
     assert!(bytes.len() > 8, "raw wasm is suspiciously small");
-    assert_eq!(&bytes[0..4], b"\0asm", "raw output is missing the wasm magic");
-    assert_eq!(&bytes[4..8], &[1, 0, 0, 0], "raw output has an unexpected version");
+    assert_eq!(
+        &bytes[0..4],
+        b"\0asm",
+        "raw output is missing the wasm magic"
+    );
+    assert_eq!(
+        &bytes[4..8],
+        &[1, 0, 0, 0],
+        "raw output has an unexpected version"
+    );
 }
 
 #[test]
 fn bound_wasm_has_module_magic() {
     let bytes = std::fs::read(bundle_path("DX_WASM_BOUND")).expect("bound wasm is readable");
     assert!(bytes.len() > 8, "bound wasm is suspiciously small");
-    assert_eq!(&bytes[0..4], b"\0asm", "bound output is missing the wasm magic");
+    assert_eq!(
+        &bytes[0..4],
+        b"\0asm",
+        "bound output is missing the wasm magic"
+    );
 }
 
 #[test]

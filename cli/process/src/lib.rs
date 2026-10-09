@@ -207,6 +207,52 @@ pub fn launcher_argv0() -> &'static str {
 
 pub const WORKFLOW_STARTUP_OPTS: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
+pub const QUALIFIED_STARTUP_OPTIONS: &[&str] = &["output_base", "output_user_root"];
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StartupOptionError {
+    #[error("missing value: --bazel-startup-option --{flag} needs =<path>")]
+    MissingValue { flag: String },
+    #[error(
+        "unsupported startup option: --{flag}; want --output_base=<path>|--output_user_root=<path>"
+    )]
+    UnsupportedStartup { flag: String },
+}
+
+pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError> {
+    let Some(bare) = token.strip_prefix("--") else {
+        return Err(StartupOptionError::UnsupportedStartup {
+            flag: token.to_owned(),
+        });
+    };
+    let (name, value) = match bare.split_once('=') {
+        Some((name, value)) => (name, Some(value)),
+        None => (bare, None),
+    };
+    if name.is_empty() || !QUALIFIED_STARTUP_OPTIONS.contains(&name) {
+        return Err(StartupOptionError::UnsupportedStartup {
+            flag: name.to_owned(),
+        });
+    }
+    match value {
+        Some(path) if !path.is_empty() => Ok(token.to_owned()),
+        _ => Err(StartupOptionError::MissingValue {
+            flag: name.to_owned(),
+        }),
+    }
+}
+
+pub fn startup_argv(startup_options: &[String]) -> Vec<String> {
+    let capacity = 1 + WORKFLOW_STARTUP_OPTS.len() + startup_options.len();
+    let mut argv = Vec::with_capacity(capacity);
+    argv.push(launcher_argv0().to_owned());
+    for opt in WORKFLOW_STARTUP_OPTS {
+        argv.push((*opt).to_owned());
+    }
+    argv.extend(startup_options.iter().cloned());
+    argv
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Repository,
@@ -332,6 +378,7 @@ pub fn build_workflow_argv(
     required_options: &[String],
     protected: &[ProtectedFlag],
     labels: &[String],
+    startup_options: &[String],
 ) -> Result<Vec<String>, ForwardError> {
     for arg in user_options {
         if is_startup_option(arg) {
@@ -344,12 +391,14 @@ pub fn build_workflow_argv(
         }
     }
     let canonical = check_protected(user_options, protected)?;
-    let mut argv =
-        Vec::with_capacity(2 + WORKFLOW_STARTUP_OPTS.len() + canonical.len() + labels.len());
+    let mut argv = Vec::with_capacity(
+        2 + WORKFLOW_STARTUP_OPTS.len() + startup_options.len() + canonical.len() + labels.len(),
+    );
     argv.push(launcher_argv0().to_owned());
     for opt in WORKFLOW_STARTUP_OPTS {
         argv.push((*opt).to_owned());
     }
+    argv.extend(startup_options.iter().cloned());
     argv.push(bazel_command.to_owned());
     argv.extend(required_options.iter().cloned());
     argv.extend(canonical);

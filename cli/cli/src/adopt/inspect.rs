@@ -15,6 +15,13 @@ pub(crate) const CODE_QUERY_FAILED: &str = "bazel_failed";
 pub(crate) const CODE_NO_OWNER: &str = "no_owner";
 pub(crate) const CODE_WHY_INVALID: &str = "invalid_result";
 
+fn inspect_argv(invocation: &Invocation, verb: &str, expr: &str) -> Vec<String> {
+    let mut argv = dx_process::startup_argv(&invocation.bazel_startup_options);
+    argv.push(verb.to_owned());
+    argv.push(expr.to_owned());
+    argv
+}
+
 pub(crate) fn execute_inspect(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -77,7 +84,7 @@ pub(crate) fn execute_inspect(
                 Err(error) => return pre_exec(err, &error.to_string()),
             };
             if let Err(exit) =
-                run_inspect_query_json(kind, scope, &plan, workspace, query_runner, out, err)
+                run_inspect_query_json(invocation, scope, &plan, workspace, query_runner, out, err)
             {
                 if exit == operational_code() {
                     failed = true;
@@ -115,7 +122,7 @@ pub(crate) fn execute_inspect(
 }
 
 fn run_inspect_query_json(
-    kind: &str,
+    invocation: &Invocation,
     scope: &str,
     plan: &dx_adopt::InspectPlan,
     workspace: &std::path::Path,
@@ -123,7 +130,8 @@ fn run_inspect_query_json(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<(), i32> {
-    let argv = vec!["bazel".to_owned(), plan.verb.clone(), plan.expr.clone()];
+    let kind = invocation.command.name();
+    let argv = inspect_argv(invocation, &plan.verb, &plan.expr);
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -177,7 +185,7 @@ fn run_inspect_query(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let argv = vec!["bazel".to_owned(), verb.to_owned(), expr.to_owned()];
+    let argv = inspect_argv(invocation, verb, expr);
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -258,11 +266,7 @@ fn execute_why(
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let owner_argv = vec![
-        "bazel".to_owned(),
-        owner_plan.verb.clone(),
-        owner_plan.expr.clone(),
-    ];
+    let owner_argv = inspect_argv(invocation, &owner_plan.verb, &owner_plan.expr);
     let owner = match query_runner.run_query(&owner_argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -342,11 +346,7 @@ fn execute_why_json(
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let owner_argv = vec![
-        "bazel".to_owned(),
-        owner_plan.verb.clone(),
-        owner_plan.expr.clone(),
-    ];
+    let owner_argv = inspect_argv(invocation, &owner_plan.verb, &owner_plan.expr);
     let owner = match query_runner.run_query(&owner_argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -435,7 +435,7 @@ fn execute_why_json(
             return operational_code();
         }
     };
-    let argv = vec!["bazel".to_owned(), leg.verb.clone(), leg.expr.clone()];
+    let argv = inspect_argv(invocation, &leg.verb, &leg.expr);
     match query_runner.run_query(&argv, workspace) {
         Ok(result) => {
             if result.code != Some(0) {
@@ -751,6 +751,8 @@ mod tests {
             calls[0],
             vec![
                 "bazel".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
                 "query".to_owned(),
                 "kind('rule', rdeps(//..., //a:one, 1))".to_owned(),
             ]
@@ -768,8 +770,35 @@ mod tests {
         assert_eq!(code, 0);
         let calls = runner.calls.borrow();
         assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0][1], "cquery");
-        assert_eq!(calls[0][2], "deps(//a:one)");
+        assert_eq!(calls[0][3], "cquery");
+        assert_eq!(calls[0][4], "deps(//a:one)");
+    }
+
+    #[test]
+    fn inspect_carries_startup_options_before_the_verb() {
+        let runner = ScriptedQuery::with(&["//a:one\n"]);
+        let inv = invocation(&[
+            "owners",
+            "--bazel-startup-option=--output_base=/tmp/a",
+            "//a:one",
+        ]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-inspect-startup-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run_with_query(&inv, &root, &runner);
+        assert_eq!(code, 0, "{err}");
+        let calls = runner.calls.borrow();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(
+            calls[0],
+            vec![
+                "bazel".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
+                "--output_base=/tmp/a".to_owned(),
+                "query".to_owned(),
+                "kind('rule', rdeps(//..., //a:one, 1))".to_owned(),
+            ]
+        );
     }
 
     #[test]
@@ -782,11 +811,13 @@ mod tests {
         assert_eq!(code, 0);
         let calls = runner.calls.borrow();
         assert_eq!(calls.len(), 2);
-        assert_eq!(calls[0][2], "kind('rule', rdeps(//..., src/lib.rs, 1))");
+        assert_eq!(calls[0][4], "kind('rule', rdeps(//..., src/lib.rs, 1))");
         assert_eq!(
             calls[1],
             vec![
                 "bazel".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
                 "query".to_owned(),
                 "somepath(//owner:lib, //app:server)".to_owned(),
             ]

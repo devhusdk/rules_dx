@@ -333,6 +333,7 @@ fn workflow_argv_orders_startup_command_required_user_labels() {
         &["--keep_going".to_owned(), "--config=dx".to_owned()],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect("argv");
     assert_eq!(
@@ -359,6 +360,7 @@ fn workflow_argv_rejects_startup_options() {
         &[],
         &[],
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("startup");
     assert_eq!(
@@ -380,6 +382,7 @@ fn workflow_argv_rejects_test_binary_args_outside_test_commands() {
             &[],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect_err("binary args");
         assert_eq!(
@@ -407,6 +410,7 @@ fn workflow_argv_forwards_test_binary_args_on_test_commands() {
             &["--keep_going".to_owned()],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect("argv");
         assert_eq!(
@@ -436,6 +440,7 @@ fn workflow_argv_keeps_test_filter_unchanged_on_test_commands() {
         &[],
         &[],
         &["//...".to_owned()],
+        &[],
     )
     .expect("argv");
     assert_eq!(argv.last().map(String::as_str), Some("//..."));
@@ -463,6 +468,7 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("protected capture option");
     assert_eq!(
@@ -477,9 +483,118 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
         &[],
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("startup option");
     assert!(matches!(err, ForwardError::StartupOption { .. }));
+}
+
+#[test]
+fn qualified_startup_options_validate_as_single_tokens() {
+    for token in [
+        "--output_base=/tmp/x",
+        "--output_user_root=/tmp/y",
+        "--output_base=/tmp/a b/ünïcode",
+    ] {
+        assert_eq!(
+            validate_startup_option(token).expect("qualified"),
+            token.to_owned(),
+            "{token} must pass through as one token"
+        );
+    }
+    for token in ["--output_base", "--output_base=", "--output_user_root"] {
+        let err = validate_startup_option(token).expect_err("missing value");
+        assert_eq!(
+            err,
+            StartupOptionError::MissingValue {
+                flag: token
+                    .strip_prefix("--")
+                    .expect("flag")
+                    .split('=')
+                    .next()
+                    .expect("name")
+                    .to_owned(),
+            },
+            "{token}"
+        );
+        assert!(err.to_string().contains("missing value"), "{token}: {err}");
+    }
+    for (token, flag) in [
+        ("--jobs=4", "jobs"),
+        ("--home_rc", "home_rc"),
+        ("--nohome_rc", "nohome_rc"),
+        ("--bazelrc=/tmp/rc", "bazelrc"),
+        ("--host_jvm_args=-Xmx1g", "host_jvm_args"),
+        ("--server_jvm_out=/tmp/jvm.out", "server_jvm_out"),
+        ("--bogus=1", "bogus"),
+        ("plain", "plain"),
+        ("", ""),
+    ] {
+        let err = validate_startup_option(token).expect_err("unsupported");
+        assert_eq!(
+            err,
+            StartupOptionError::UnsupportedStartup {
+                flag: flag.to_owned(),
+            },
+            "{token:?}"
+        );
+        assert!(err.to_string().contains("unsupported"), "{token:?}: {err}");
+    }
+}
+
+#[test]
+fn startup_argv_prefixes_the_launcher_and_managed_policy() {
+    assert_eq!(
+        startup_argv(&[]),
+        vec![
+            "bazel".to_owned(),
+            "--nohome_rc".to_owned(),
+            "--nosystem_rc".to_owned(),
+        ]
+    );
+    assert_eq!(
+        startup_argv(&[
+            "--output_base=/tmp/a".to_owned(),
+            "--output_user_root=/tmp/b".to_owned(),
+        ]),
+        vec![
+            "bazel".to_owned(),
+            "--nohome_rc".to_owned(),
+            "--nosystem_rc".to_owned(),
+            "--output_base=/tmp/a".to_owned(),
+            "--output_user_root=/tmp/b".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn workflow_argv_inserts_startup_options_before_the_verb() {
+    let argv = build_workflow_argv(
+        "test",
+        &["--jobs=4".to_owned()],
+        &["--config=dx".to_owned()],
+        &[],
+        &["//...".to_owned()],
+        &[
+            "--output_base=/tmp/a b".to_owned(),
+            "--output_user_root=/tmp/ünïcode".to_owned(),
+        ],
+    )
+    .expect("argv");
+    assert_eq!(
+        argv,
+        vec![
+            "bazel",
+            "--nohome_rc",
+            "--nosystem_rc",
+            "--output_base=/tmp/a b",
+            "--output_user_root=/tmp/ünïcode",
+            "test",
+            "--config=dx",
+            "--jobs=4",
+            "//...",
+        ]
+    );
 }
 
 #[test]
@@ -505,6 +620,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             &[],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect_err("startup must fail");
         assert!(
@@ -524,6 +640,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             &[],
             &[],
             &["//...".to_owned()],
+            &[],
         )
         .expect_err("test-binary must fail outside test commands");
         assert!(
@@ -553,6 +670,7 @@ fn quality_workflows_reject_nokeep_going() {
         &["--keep_going".to_owned()],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("nokeep_going");
     assert_eq!(
@@ -576,6 +694,7 @@ fn workflow_argv_rejects_protected_conflicts() {
         &["--build_event_json_file=/tmp/required.json".to_owned()],
         &protected,
         &["//...".to_owned()],
+        &[],
     )
     .expect_err("conflict");
     assert!(matches!(err, ForwardError::ConflictingOption { .. }));

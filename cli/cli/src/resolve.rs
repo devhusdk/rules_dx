@@ -111,12 +111,12 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &FailIo).expect_err("io");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
-        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &FailIo).expect_err("io");
+        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
-        let err =
-            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &FailIo).expect_err("io");
+        let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &FailIo, &[])
+            .expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
     }
 
@@ -127,10 +127,10 @@ mod tests {
         write(&workspace, "pkg", "file, not dir\n");
         let query = NeverQuery;
         for err in [
-            resolve(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("resolve"),
-            resolve_for_test(&strings(&["pkg/a.py"]), &workspace, &query)
+            resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("resolve"),
+            resolve_for_test(&strings(&["pkg/a.py"]), &workspace, &query, &[])
                 .expect_err("resolve_for_test"),
-            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query).expect_err("resolve_run"),
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("resolve_run"),
         ] {
             assert_eq!(
                 err,
@@ -148,25 +148,25 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         assert_eq!(
-            resolve_for_test(&strings(&["@r//p"]), &workspace, &query).expect_err("ext"),
+            resolve_for_test(&strings(&["@r//p"]), &workspace, &query, &[]).expect_err("ext"),
             ResolveError::ExternalScope {
                 scope: "@r//p".to_owned(),
             }
         );
         assert_eq!(
-            resolve_for_test(&strings(&[":c"]), &workspace, &query).expect_err("rel"),
+            resolve_for_test(&strings(&[":c"]), &workspace, &query, &[]).expect_err("rel"),
             ResolveError::RelativeLabel {
                 scope: ":c".to_owned(),
             }
         );
         assert_eq!(
-            resolve_run(&strings(&["@r//p"]), &workspace, &query).expect_err("ext"),
+            resolve_run(&strings(&["@r//p"]), &workspace, &query, &[]).expect_err("ext"),
             ResolveError::ExternalScope {
                 scope: "@r//p".to_owned(),
             }
         );
         assert_eq!(
-            resolve_run(&strings(&[":c"]), &workspace, &query).expect_err("rel"),
+            resolve_run(&strings(&[":c"]), &workspace, &query, &[]).expect_err("rel"),
             ResolveError::RelativeLabel {
                 scope: ":c".to_owned(),
             }
@@ -179,13 +179,13 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
         assert_eq!(
-            resolve_for_test(&strings(&["nope.py"]), &workspace, &query).expect_err("missing"),
+            resolve_for_test(&strings(&["nope.py"]), &workspace, &query, &[]).expect_err("missing"),
             ResolveError::PathNotFound {
                 scope: "nope.py".to_owned(),
             }
         );
         assert_eq!(
-            resolve_run(&strings(&["nope.py"]), &workspace, &query).expect_err("missing"),
+            resolve_run(&strings(&["nope.py"]), &workspace, &query, &[]).expect_err("missing"),
             ResolveError::PathNotFound {
                 scope: "nope.py".to_owned(),
             }
@@ -199,21 +199,21 @@ mod tests {
         let query = NeverQuery;
         for scope in ["app\x01", "app\x01/main.py"] {
             assert_eq!(
-                resolve_run(&strings(&[scope]), &workspace, &query).expect_err("control"),
+                resolve_run(&strings(&[scope]), &workspace, &query, &[]).expect_err("control"),
                 ResolveError::UnsupportedName {
                     scope: scope.to_owned(),
                 },
                 "{scope:?}"
             );
             assert_eq!(
-                resolve(&strings(&[scope]), &workspace, &query).expect_err("control"),
+                resolve(&strings(&[scope]), &workspace, &query, &[]).expect_err("control"),
                 ResolveError::UnsupportedName {
                     scope: scope.to_owned(),
                 },
                 "{scope:?}"
             );
             assert_eq!(
-                resolve_for_test(&strings(&[scope]), &workspace, &query).expect_err("control"),
+                resolve_for_test(&strings(&[scope]), &workspace, &query, &[]).expect_err("control"),
                 ResolveError::UnsupportedName {
                     scope: scope.to_owned(),
                 },

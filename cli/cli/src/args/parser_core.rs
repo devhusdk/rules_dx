@@ -20,6 +20,7 @@ fn bare_command_parses_with_defaults() {
     assert_eq!(got.fail_on, Threshold::Warning);
     assert!(got.targets.is_empty());
     assert!(got.bazel_options.is_empty());
+    assert!(got.bazel_startup_options.is_empty());
     assert_eq!(got.mode(), "default");
 }
 
@@ -724,4 +725,90 @@ fn audit_update_parse_and_reject_unsupported_options() {
             scope: ":target".to_owned(),
         })
     );
+}
+
+#[test]
+fn startup_options_parse_repeatably_and_stay_ordered() {
+    let got = parse(&strings(&[
+        "build",
+        "--bazel-startup-option=--output_base=/tmp/a",
+        "--bazel-startup-option=--output_user_root=/tmp/b",
+        "//...",
+    ]))
+    .expect("parse");
+    assert_eq!(
+        got.bazel_startup_options,
+        vec![
+            "--output_base=/tmp/a".to_owned(),
+            "--output_user_root=/tmp/b".to_owned(),
+        ]
+    );
+    let owners = parse(&strings(&[
+        "owners",
+        "--bazel-startup-option=--output_base=/tmp/a",
+        "//:demo",
+    ]))
+    .expect("owners takes the global flag");
+    assert_eq!(
+        owners.bazel_startup_options,
+        vec!["--output_base=/tmp/a".to_owned()]
+    );
+}
+
+#[test]
+fn startup_options_keep_spaces_and_unicode_in_one_token() {
+    let got = parse(&strings(&[
+        "test",
+        "--bazel-startup-option=--output_base=/tmp/a b/ünïcode",
+        "//...",
+    ]))
+    .expect("parse");
+    assert_eq!(
+        got.bazel_startup_options,
+        vec!["--output_base=/tmp/a b/ünïcode".to_owned()]
+    );
+}
+
+#[test]
+fn startup_options_reject_missing_and_unqualified_tokens() {
+    for words in [
+        vec!["build", "--bazel-startup-option=--jobs=4"],
+        vec!["build", "--bazel-startup-option=--home_rc"],
+        vec!["build", "--bazel-startup-option=--nohome_rc"],
+        vec!["build", "--bazel-startup-option=--bazelrc=/tmp/rc"],
+        vec!["build", "--bazel-startup-option=--bogus=1"],
+        vec!["build", "--bazel-startup-option=plain"],
+    ] {
+        let err = parse(&strings(&words)).expect_err("unqualified must fail");
+        assert!(
+            matches!(err, ArgsError::BadStartupOption { .. }),
+            "{words:?} produced {err:?}"
+        );
+        assert!(
+            err.to_string().contains("--output_base"),
+            "{words:?}: {err}"
+        );
+    }
+    for (words, name) in [
+        (
+            vec!["build", "--bazel-startup-option=--output_base"],
+            "--output_base",
+        ),
+        (
+            vec!["build", "--bazel-startup-option=--output_base="],
+            "--output_base",
+        ),
+        (
+            vec!["test", "--bazel-startup-option=--output_user_root"],
+            "--output_user_root",
+        ),
+    ] {
+        assert_eq!(
+            parse(&strings(&words)),
+            Err(ArgsError::BadStartupOption {
+                value: name.to_owned(),
+            }),
+            "{words:?} names its missing value"
+        );
+    }
 }

@@ -39,6 +39,38 @@ genrule(
     testonly = True,
     visibility = ["//visibility:public"],
 )
+
+genrule(
+    name = "bundle_bare_js",
+    srcs = ["@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_bare"],
+    outs = ["bare.js"],
+    cmd = """
+        for f in $(locations @rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_bare); do
+          case "$$f" in
+            *_bg.js) ;;
+            *.js) cp "$$f" $@ ;;
+          esac
+        done
+    """,
+    testonly = True,
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "bundle_bare_no_ts",
+    srcs = ["@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_bare"],
+    outs = ["bare_no_ts.txt"],
+    cmd = """
+        for f in $(locations @rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web_bare); do
+          case "$$f" in
+            *.d.ts) echo "unexpected typescript output: $$f" >&2; exit 1 ;;
+          esac
+        done
+        echo ok > $@
+    """,
+    testonly = True,
+    visibility = ["//visibility:public"],
+)
 '''
 
 def _consumer_wasm_bindgen_repo_impl(ctx):

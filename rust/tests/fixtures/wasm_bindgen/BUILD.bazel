@@ -76,6 +76,7 @@ rust_wasm_bindgen(
         "--no-typescript",
     ],
     target = "web",
+    visibility = ["//visibility:public"],
     wasm_file = ":wasm_hello_bin_upstream",
 )
 
@@ -86,8 +87,87 @@ rust_wasm_bindgen_test(
 )
 
 rust_wasm_bindgen_toolchain(
-    name = "wasm_hello_cli_toolchain",
+    name = "wasm_hello_custom_toolchain",
+    browser = "@firefox//:firefox",
+    browser_type = "firefox",
     wasm_bindgen_cli = "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli",
+    wasm_bindgen_test = "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test",
+    wasm_bindgen_test_runner = "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test_runner",
+    webdriver = "@geckodriver//:geckodriver",
+    webdriver_json = "@rules_rust_wasm_bindgen//:webdriver.json",
+)
+
+toolchain(
+    name = "wasm_hello_custom_toolchain_def",
+    toolchain = ":wasm_hello_custom_toolchain",
+    toolchain_type = "@rules_rust_wasm_bindgen//:toolchain_type",
+)
+
+rust_wasm_bindgen_toolchain(
+    name = "wasm_hello_partial_toolchain",
+    browser_type = "firefox",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "wasm_hello_partial_toolchain_test",
+    expected_failure_substring = "Not all webdriver attributes provided",
+    target = ":wasm_hello_partial_toolchain",
+)
+
+filegroup(
+    name = "wasm_hello_empty_files",
+    tags = ["manual"],
+)
+
+rust_wasm_bindgen(
+    name = "wasm_hello_missing_bindgen",
+    tags = ["manual"],
+    wasm_file = ":wasm_hello_empty_files",
+)
+
+failure_test(
+    name = "wasm_hello_missing_output_test",
+    expected_failure_substring = "mandatory providers",
+    target = ":wasm_hello_missing_bindgen",
+)
+
+rust_wasm_bindgen_test(
+    name = "wasm_hello_raw_browser_test",
+    tags = ["manual"],
+    wasm = ":wasm_hello_bin_upstream",
+)
+
+failure_test(
+    name = "wasm_hello_raw_browser_rejected_test",
+    expected_failure_substring = "No attribute 'wasm_file' in attr",
+    target = ":wasm_hello_raw_browser_test",
+)
+
+rust_library(
+    name = "wasm_stale_lib",
+    srcs = ["src/stale_lib.rs"],
+    crate_name = "wasm_stale",
+    crate_root = "src/stale_lib.rs",
+    edition = "2021",
+    tags = ["manual"],
+    deps = ["@crates//:wasm-bindgen-0.2.128"],
+)
+
+rust_binary(
+    name = "wasm_stale_bin",
+    srcs = ["src/stale_main.rs"],
+    crate_name = "wasm_stale_bin",
+    crate_root = "src/stale_main.rs",
+    edition = "2021",
+    tags = ["manual"],
+    deps = [":wasm_stale_lib"],
+)
+
+rust_wasm_bindgen(
+    name = "wasm_stale_bindgen",
+    tags = ["manual"],
+    wasm_file = ":wasm_stale_bin_upstream",
 )
 
 upstream_rust_library(
@@ -115,11 +195,14 @@ rust_test(
     name = "wasm_hello_bundle_test",
     srcs = ["src/bundle_check.rs"],
     data = [
+        "@consumer_wasm_bindgen//:bundle_bare_js",
+        "@consumer_wasm_bindgen//:bundle_bare_no_ts",
         "@consumer_wasm_bindgen//:bundle_raw",
         "@consumer_wasm_bindgen//:bundle_web_js",
         "@consumer_wasm_bindgen//:bundle_web_wasm",
     ],
     env = {
+        "DX_WASM_BARE_JS": "$(rootpath @consumer_wasm_bindgen//:bundle_bare_js)",
         "DX_WASM_BOUND": "$(rootpath @consumer_wasm_bindgen//:bundle_web_wasm)",
         "DX_WASM_JS": "$(rootpath @consumer_wasm_bindgen//:bundle_web_js)",
         "DX_WASM_RAW": "$(rootpath @consumer_wasm_bindgen//:bundle_raw)",

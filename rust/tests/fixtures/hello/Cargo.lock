@@ -989,6 +989,7 @@ name = "hello"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "wasm-bindgen",
 ]
 
 [[package]]

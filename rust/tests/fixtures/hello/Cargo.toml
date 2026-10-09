@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+wasm-bindgen = "=0.2.128"
 
 [lib]
 name = "hello"

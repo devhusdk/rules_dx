@@ -36,3 +36,9 @@ fn web_js_exposes_greet() {
     let js = std::fs::read_to_string(bundle_path("DX_WASM_JS")).expect("web js is readable");
     assert!(js.contains("greet"), "web js does not expose greet");
 }
+
+#[test]
+fn bare_js_exposes_greet() {
+    let js = std::fs::read_to_string(bundle_path("DX_WASM_BARE_JS")).expect("bare js is readable");
+    assert!(js.contains("greet"), "bare js does not expose greet");
+}

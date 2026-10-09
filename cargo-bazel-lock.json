@@ -1,5 +1,5 @@
 {
-  "checksum": "8e8cc1ab26da43b54eebfe03394b17326a6a7b7bd81fafec33b2c8b23cfc3146",
+  "checksum": "e081fdb4048910833ee84d6aa9bf87938e3248e88c6a66f559b86e565ba66f4b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -4603,6 +4603,10 @@
           {
             "id": "anyhow 1.0.104",
             "target": "anyhow"
+          },
+          {
+            "id": "wasm-bindgen 0.2.128",
+            "target": "wasm_bindgen"
           }
         ],
         "edition": "2021"
@@ -13812,6 +13816,7 @@
     "tracing-subscriber 0.3.23",
     "url 2.5.8",
     "walkdir 2.5.0",
+    "wasm-bindgen 0.2.128",
     "yaml_serde 0.10.7",
     "yarn-lock-parser 0.14.0"
   ],

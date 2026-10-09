@@ -1,0 +1,52 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_testonly = True)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+rust_test(
+    name = "v1_acceptance_test",
+    testonly = True,
+    srcs = ["tests/v1_acceptance.rs"],
+    crate_name = "v1_acceptance",
+    crate_root = "tests/v1_acceptance.rs",
+    data = [
+        "//:MODULE.bazel",
+        "//.github:workflows/bump.yml",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/ghcr.yml",
+        "//.github:workflows/publish-dry-run.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+        "//acceptance:testdata/test_targets.txt",
+        "//acceptance:v1_inventory.bzl",
+        "//docs:command_docs",
+        "//docs:github-ci.md",
+        "//examples:example_readmes",
+        "//modules:versions.bzl",
+    ],
+    deps = [
+        "//cli/cli:dx_cli",
+        "//cli/process:dx_process",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "v1_acceptance_fmt_test",
+    size = "small",
+    targets = [":v1_acceptance_test"],
+)
+
+rust_clippy_test(
+    name = "v1_acceptance_clippy_test",
+    size = "small",
+    targets = [":v1_acceptance_test"],
+)

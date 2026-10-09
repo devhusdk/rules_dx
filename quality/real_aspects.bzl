@@ -14,6 +14,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//quality:upstream_ownership.bzl", "upstream_owned_sources")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
@@ -84,11 +85,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     policy_error = real_policy_error(policy, capability, what)
     if policy_error != "":
         fail(policy_error)
-    if QualitySourcesInfo not in target:
-        return []
+    if QualitySourcesInfo in target:
+        info = target[QualitySourcesInfo]
+    else:
+        info = upstream_owned_sources(target, ctx)
+        if info == None:
+            return []
     if aspect_capability_blocked(ctx.rule.attr, capability):
         return []
-    info = target[QualitySourcesInfo]
 
     (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(info.direct_sources, what)
     selections = aspect_family_selections(policy, capability)

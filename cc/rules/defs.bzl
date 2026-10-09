@@ -20,7 +20,7 @@ _DX_CC_EXEC_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_DX_CC_SOURCE_SPECS = [
+DX_CC_SOURCE_SPECS = [
     ("c", ["c", "h"]),
     ("cpp", ["cc", "cpp", "cxx", "hh", "hpp", "hxx"]),
     ("cuda", ["cu", "cuh"]),
@@ -29,7 +29,7 @@ _DX_CC_SOURCE_SPECS = [
 _cc_library_forward = dx_library_forward_rule(
     provides = _DX_CC_LIBRARY_PROVIDES,
     required_providers = [(CcInfo, "CcInfo")],
-    quality_specs = _DX_CC_SOURCE_SPECS,
+    quality_specs = DX_CC_SOURCE_SPECS,
     what = "cc_*",
     allow_files = _CC_SRCS,
     upstream_providers = [[CcInfo]],
@@ -45,7 +45,7 @@ _cc_binary_forward = dx_executable_forward_rule(
     kind = "executable",
     provides = _DX_CC_EXEC_PROVIDES,
     required_providers = [],
-    quality_specs = _DX_CC_SOURCE_SPECS,
+    quality_specs = DX_CC_SOURCE_SPECS,
     what = "cc_*",
     allow_files = _CC_SRCS,
     upstream_providers = [[CcInfo]],
@@ -57,7 +57,7 @@ _cc_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = _DX_CC_EXEC_PROVIDES,
     required_providers = [],
-    quality_specs = _DX_CC_SOURCE_SPECS,
+    quality_specs = DX_CC_SOURCE_SPECS,
     what = "cc_*",
     allow_files = _CC_SRCS,
     upstream_providers = [[CcInfo]],

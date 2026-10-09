@@ -14,14 +14,14 @@ _DX_FORWARD_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_DX_RUST_SOURCE_SPECS = [(RUST, "rs")]
+DX_RUST_SOURCE_SPECS = [(RUST, "rs")]
 _DX_RUST_SOURCE_EXTS = [".rs"]
 _DX_RUST_CRATE_PROVIDERS = [(_rust_common.crate_info, "CrateInfo"), (_rust_common.dep_info, "DepInfo")]
 
 _rust_forward = dx_library_forward_rule(
     provides = _DX_FORWARD_PROVIDES,
     required_providers = _DX_RUST_CRATE_PROVIDERS,
-    quality_specs = _DX_RUST_SOURCE_SPECS,
+    quality_specs = DX_RUST_SOURCE_SPECS,
     what = "rust_*",
     allow_files = _DX_RUST_SOURCE_EXTS,
     upstream_providers = [
@@ -42,7 +42,7 @@ _DX_CC_FORWARD_PROVIDES = [
 _rust_forward_cc = dx_library_forward_rule(
     provides = _DX_CC_FORWARD_PROVIDES,
     required_providers = [(_rust_common.test_crate_info, "TestCrateInfo"), (_rust_common.dep_info, "DepInfo"), (CcInfo, "CcInfo")],
-    quality_specs = _DX_RUST_SOURCE_SPECS,
+    quality_specs = DX_RUST_SOURCE_SPECS,
     what = "rust_*",
     allow_files = _DX_RUST_SOURCE_EXTS,
     upstream_providers = [[_rust_common.test_crate_info]],
@@ -52,7 +52,7 @@ _rust_forward_binary = dx_executable_forward_rule(
     kind = "executable",
     provides = _DX_FORWARD_PROVIDES,
     required_providers = _DX_RUST_CRATE_PROVIDERS,
-    quality_specs = _DX_RUST_SOURCE_SPECS,
+    quality_specs = DX_RUST_SOURCE_SPECS,
     what = "rust_*",
     allow_files = _DX_RUST_SOURCE_EXTS,
     upstream_providers = [
@@ -65,7 +65,7 @@ _rust_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = _DX_FORWARD_PROVIDES,
     required_providers = _DX_RUST_CRATE_PROVIDERS,
-    quality_specs = _DX_RUST_SOURCE_SPECS,
+    quality_specs = DX_RUST_SOURCE_SPECS,
     what = "rust_*",
     allow_files = _DX_RUST_SOURCE_EXTS,
     upstream_providers = [

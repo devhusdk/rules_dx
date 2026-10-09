@@ -245,6 +245,14 @@ consumer_policy_tests(
             "policy": "//quality/tests/fixtures/consumer_policy:json_biome_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_json",
         },
+        {
+            "case": "js_eslint",
+            "expected_dx_results": [
+                "clean_js-real-lint-js.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:js_eslint_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
+        },
     ],
 )
 
@@ -255,6 +263,7 @@ fixtures_unit_tests(name = "fixtures_unit")
 test_suite(
     name = "all",
     tests = [
+        ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
         ":consumer_policy_toml_format_off_test",

@@ -30,12 +30,21 @@ JS_CASES = [
     },
     {
         "name": "matrix_javascript_format_fail",
-        "srcs": [":real_dirty.js"],
+        "srcs": [":real_clean.js"],
         "capability": "format",
         "stages": ["biome;javascript;quality/testdata/real_dirty.js"],
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
         "expected_file": ":matrix/matrix_javascript_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_javascript_prettier_format_disagree",
+        "srcs": [":real_clean.js"],
+        "capability": "format",
+        "stages": ["prettier;javascript;quality/testdata/real_clean.js"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_javascript_prettier_format_disagree.expected.txt",
     },
     {
         "name": "matrix_javascript_biome_hinted",

@@ -11,6 +11,11 @@ label_flag(
     build_setting_default = "//quality:default_workspace_policy",
 )
 
+label_flag(
+    name = "tool_ruff",
+    build_setting_default = "@dx_tools//:ruff",
+)
+
 bool_flag(
     name = "validate",
     build_setting_default = False,

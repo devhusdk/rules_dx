@@ -72,3 +72,19 @@ workspace_policy(
 - A family that selects a tool with no wired executable fails with the wired
   tools listed for that capability.
 - `disabled = ["format"]` runs no formatter for that family.
+
+## Tool overrides
+
+The three commands run every wired tool from its managed executable. Pass
+another target after `--` to select your own build of one tool. The override
+keeps the tool ID, so findings read the same.
+
+```sh
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
+```
+
+- `ruff` is the tool with an override flag today.
+- The alternate must be a single executable file. Anything else fails the
+  analysis with the tool named.
+- An override that prints another diagnostic shape fails the run with the
+  tool named.

@@ -535,7 +535,7 @@ _REAL_TOOL_ATTR_DEFS = {
         executable = True,
     ),
     "ruff": attr.label(
-        default = "@dx_tools//:ruff",
+        default = "//config:tool_ruff",
         allow_single_file = True,
         cfg = "exec",
     ),

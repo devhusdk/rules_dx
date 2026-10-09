@@ -66,6 +66,11 @@ USER_BOOK = [
         "docs/cli/commands/status-version.md",
         "//docs:cli/commands/status-version.md",
     ),
+    mdbook_page(
+        "Capabilities",
+        "docs/cli/commands/capabilities.md",
+        "//docs:cli/commands/capabilities.md",
+    ),
     mdbook_page("Watch", "docs/cli/commands/watch.md", "//docs:cli/commands/watch.md"),
     mdbook_page(
         "Completion",

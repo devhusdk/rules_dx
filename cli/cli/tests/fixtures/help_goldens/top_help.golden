@@ -9,39 +9,40 @@ Exit codes: 0 success, 2 usage error, 1 failed check.
 Usage: dx [COMMAND]
 
 Commands:
-  security    run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
-  license     run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
-  lint        run lint analysis over resolved scopes (check by default; --apply writes fixes)
-  typecheck   run typecheck analysis over resolved scopes (check by default; --apply writes fixes)
-  format      check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)
-  generate    emit/sync BUILD files (Gazelle pipeline; check by default; --apply writes generated sources)
-  build       run Bazel build over resolved targets
-  test        run Bazel test over resolved targets
-  coverage    collect LCOV coverage with optional threshold
-  run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
-  deploy      build and run a single deployable target
-  check       run format+lint+typecheck+generate checks in order (non-mutating)
-  fix         apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
-  clean       prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
-  update      update dependencies per set through qualified resolvers (mutating without confirmation; --check validates selected sets without writing)
-  bump        widen one declared requirement to a new version (explicit; mutating without confirmation)
-  migrate     rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)
-  codegen     collect codegen outputs with atomic commit (check by default; --apply writes managed state)
-  env         collect the managed development environment (check by default; --apply writes managed state)
-  setup       collect setup outputs with atomic commit (check by default; --apply writes managed state)
-  init        scaffold dx into a foreign tree (absent-only; mutating by default)
-  new         scaffold a minimal qualified project for one language (absent-only; mutating by default)
-  upgrade     one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)
-  hooks       manage Git hooks via hermetic Git (mutating by default)
-  status      report workspace and target status
-  version     report version and pin drift
-  watch       watch for changes and rebuild (local only)
-  owners      query owners of files via Bazel query
-  deps        query dependencies of targets
-  why         explain why a target depends on another
-  completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)
-  docs        build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
-  bazel       forward raw arguments to the Bazel launcher
+  security      run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
+  license       run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
+  lint          run lint analysis over resolved scopes (check by default; --apply writes fixes)
+  typecheck     run typecheck analysis over resolved scopes (check by default; --apply writes fixes)
+  format        check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)
+  generate      emit/sync BUILD files (Gazelle pipeline; check by default; --apply writes generated sources)
+  build         run Bazel build over resolved targets
+  test          run Bazel test over resolved targets
+  coverage      collect LCOV coverage with optional threshold
+  run           build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
+  deploy        build and run a single deployable target
+  check         run format+lint+typecheck+generate checks in order (non-mutating)
+  fix           apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
+  clean         prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
+  update        update dependencies per set through qualified resolvers (mutating without confirmation; --check validates selected sets without writing)
+  bump          widen one declared requirement to a new version (explicit; mutating without confirmation)
+  migrate       rewrite breaking changes across releases (upgrade-only; mutating by default; --dry-run plans without writes)
+  codegen       collect codegen outputs with atomic commit (check by default; --apply writes managed state)
+  env           collect the managed development environment (check by default; --apply writes managed state)
+  setup         collect setup outputs with atomic commit (check by default; --apply writes managed state)
+  init          scaffold dx into a foreign tree (absent-only; mutating by default)
+  new           scaffold a minimal qualified project for one language (absent-only; mutating by default)
+  upgrade       one-shot pin+migrate+setup composition with recovery pointer (mutating by default; --dry-run plans without writes)
+  hooks         manage Git hooks via hermetic Git (mutating by default)
+  status        report workspace and target status
+  version       report version and pin drift
+  watch         watch for changes and rebuild (local only)
+  owners        query owners of files via Bazel query
+  deps          query dependencies of targets
+  why           explain why a target depends on another
+  completion    emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)
+  docs          build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
+  bazel         forward raw arguments to the Bazel launcher
+  capabilities  report CLI and workspace capabilities as machine-readable metadata (no downloads, no probes)
 
 Options:
   -h, --help

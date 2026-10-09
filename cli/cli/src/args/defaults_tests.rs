@@ -598,6 +598,56 @@ fn new_and_completion_run_without_a_workspace() {
 }
 
 #[test]
+fn capabilities_runs_without_a_workspace_but_the_workspace_stage_needs_one() {
+    let scratch = dx_test_scratch::scratch("dx-capabilities-outside-");
+    let root = scratch.path();
+    let (code, out, err) = run_dx(root, &["capabilities"], &[]);
+    assert_eq!(
+        code,
+        Some(0),
+        "standalone capabilities works outside a workspace: {err}"
+    );
+    assert!(out.contains("command lint:"), "{out}");
+    assert!(out.contains("with 34 commands"), "{out}");
+    let (code, out, err) = run_dx(root, &["capabilities", "--workspace-capabilities"], &[]);
+    assert_eq!(code, Some(1), "{out}");
+    assert!(err.contains("workspace_unresolved"), "{err}");
+    assert!(err.contains("--workspace-capabilities"), "{err}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn capabilities_reports_a_renamed_workspace_from_local_records() {
+    let scratch = dx_test_scratch::scratch("dx-capabilities-renamed-");
+    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
+    std::fs::write(scratch.path().join(".dx/version"), "0.0.0\n").expect("pin");
+    let root = scratch.path();
+    let (code, out, err) = run_dx(
+        root,
+        &["capabilities", "--workspace-capabilities", "--output=json"],
+        &[],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    let records: Vec<serde_json::Value> = out
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("event"))
+        .filter(|event: &serde_json::Value| event["event"] == "capability")
+        .collect();
+    let module = records
+        .iter()
+        .find(|record| record["kind"] == "workspace" && record["name"] == "module")
+        .expect("module record");
+    assert_eq!(module["data"]["name"], serde_json::json!("sample"));
+    let lint = records
+        .iter()
+        .find(|record| record["kind"] == "command" && record["name"] == "lint")
+        .expect("lint record");
+    assert_eq!(lint["state"], serde_json::json!("available"));
+    scratch.close().expect("cleanup");
+}
+
+#[test]
 fn config_directed_workspace_loads_the_target_defaults_once() {
     let b = workspace_with_output("dx-startup-redir-b-", "json");
     let b_dir = b.path().to_string_lossy().into_owned();

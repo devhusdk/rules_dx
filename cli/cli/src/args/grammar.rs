@@ -69,6 +69,7 @@ pub(crate) struct Flags {
     pub(crate) pin: Option<String>,
     pub(crate) rollback: bool,
     pub(crate) configured: bool,
+    pub(crate) workspace_capabilities: bool,
     pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
@@ -335,6 +336,14 @@ flag_group! {
     ConfiguredFlag, {
         #[arg(long, overrides_with = "configured")]
         configured: bool,
+    }
+}
+
+flag_group! {
+    /// Also report selected workspace facts from local records.
+    WorkspaceCapabilitiesFlag, {
+        #[arg(long, overrides_with = "workspace_capabilities")]
+        workspace_capabilities: bool,
     }
 }
 
@@ -709,6 +718,8 @@ command_args! {
     };
     /// The flags `dx bazel` accepts.
     Bazel => 32, NoScopeTail, {};
+    /// The flags `dx capabilities` accepts.
+    Capabilities => 33, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
 }
 
 #[derive(Parser)]

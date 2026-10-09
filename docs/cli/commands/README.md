@@ -19,6 +19,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx init`, `dx hooks`](hooks.md)
 - [`dx status`, `dx version`](status-version.md)
 - [`dx owners`, `dx deps`, `dx why`](inspect.md)
+- [`dx capabilities`](capabilities.md)
 - [`dx completion`](completion.md)
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`](new-upgrade.md)
@@ -96,6 +97,8 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
+- `capability`: one CLI or workspace capability, with `kind`, `name`, `state`,
+  `detail`, and structured `data`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, and optional
   `rule`, `path`, `range`, `snapshot`, `fixable`, and `resolution`.
 - `change`: a file the command would edit, with `path`, `kind`, and `edits`.

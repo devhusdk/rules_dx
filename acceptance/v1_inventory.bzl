@@ -623,6 +623,16 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
+        "id": "command.capabilities",
+        "native": True,
+        "owner": "//cli/cli:dx",
+        "page": "capabilities.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
         "id": "command.check",
         "native": True,
         "owner": "//cli/cli:dx",
@@ -1489,6 +1499,16 @@ PROMISES = [
         "native": False,
         "owner": "//docs:command_docs",
         "page": "build-test-coverage.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
+        "id": "doc.capabilities.md",
+        "native": False,
+        "owner": "//docs:command_docs",
+        "page": "capabilities.md",
         "state": "evidenced",
     },
     {

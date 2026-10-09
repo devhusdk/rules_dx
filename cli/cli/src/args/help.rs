@@ -181,7 +181,8 @@ pub fn usage_banner() -> String {
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
 per-command flags: clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
-distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why --configured (cquery); \
+ distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why --configured (cquery); \
+capabilities --workspace-capabilities (also report selected workspace facts); \
 coverage --min-coverage; build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \

@@ -120,6 +120,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Owners
         | Command::Deps
         | Command::Why
+        | Command::Capabilities
         | Command::Completion => CommandSpec {
             command,
             aspects: &[],

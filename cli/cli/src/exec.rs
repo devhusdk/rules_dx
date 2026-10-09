@@ -98,6 +98,7 @@ fn family(command: Command) -> Family {
         | Command::Owners
         | Command::Deps
         | Command::Why
+        | Command::Capabilities
         | Command::Completion => Family::Adoption,
         Command::Docs => Family::Docs,
         Command::Bazel => Family::Bazel,
@@ -190,10 +191,10 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            33,
+            34,
             "every variant classified"
         );
-        assert_eq!(counts.get("adoption"), Some(&11));
+        assert_eq!(counts.get("adoption"), Some(&12));
         assert_eq!(counts.get("workflow"), Some(&5));
         assert_eq!(counts.get("quality"), Some(&3));
         assert_eq!(counts.get("managed"), Some(&3));

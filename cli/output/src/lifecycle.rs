@@ -5,6 +5,7 @@ pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
 pub const EVENTS: &[&str] = &[
+    "capability",
     "change",
     "command_finished",
     "command_started",
@@ -149,6 +150,45 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     map.insert("status".to_owned(), Value::String(check.status.clone()));
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
+    Ok(Value::Object(map))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapabilityEvent {
+    pub kind: String,
+    pub name: String,
+    pub state: String,
+    pub detail: String,
+    pub data: Value,
+}
+
+pub fn capability_event(record: &CapabilityEvent) -> Result<Value, OutputError> {
+    if record.kind != "cli" && record.kind != "command" && record.kind != "workspace" {
+        return Err(OutputError::BadCapability {
+            field: "kind",
+            value: record.kind.clone(),
+        });
+    }
+    nonempty("name", &record.name)?;
+    if record.state != "available" && record.state != "declared" && record.state != "unresolved" {
+        return Err(OutputError::BadCapability {
+            field: "state",
+            value: record.state.clone(),
+        });
+    }
+    nonempty("detail", &record.detail)?;
+    if !record.data.is_object() {
+        return Err(OutputError::BadCapability {
+            field: "data",
+            value: "want an object".to_owned(),
+        });
+    }
+    let mut map = base("capability");
+    map.insert("kind".to_owned(), Value::String(record.kind.clone()));
+    map.insert("name".to_owned(), Value::String(record.name.clone()));
+    map.insert("state".to_owned(), Value::String(record.state.clone()));
+    map.insert("detail".to_owned(), Value::String(record.detail.clone()));
+    map.insert("data".to_owned(), record.data.clone());
     Ok(Value::Object(map))
 }
 
@@ -469,6 +509,56 @@ mod tests {
         let mut buf = Vec::new();
         write_event(&mut buf, &event).expect("write");
         assert!(buf.ends_with(b"\n"));
+    }
+
+    #[test]
+    fn capability_event_shape() {
+        let record = CapabilityEvent {
+            kind: "command".to_owned(),
+            name: "lint".to_owned(),
+            state: "available".to_owned(),
+            detail: "lint over resolved scopes".to_owned(),
+            data: serde_json::json!({"scope_policy": "default-//..."}),
+        };
+        let event = capability_event(&record).expect("capability");
+        assert_eq!(event["event"], Value::String("capability".to_owned()));
+        assert_eq!(event["schema"], schema());
+        assert_eq!(event["kind"], Value::String("command".to_owned()));
+        assert_eq!(event["state"], Value::String("available".to_owned()));
+        assert_eq!(
+            event["data"]["scope_policy"],
+            Value::String("default-//...".to_owned())
+        );
+        let mut buf = Vec::new();
+        write_event(&mut buf, &event).expect("write");
+        assert!(buf.ends_with(b"\n"));
+        let mut bad = record.clone();
+        bad.kind = "tool".to_owned();
+        assert!(capability_event(&bad).is_err());
+        let mut bad = record.clone();
+        bad.state = "maybe".to_owned();
+        assert!(capability_event(&bad).is_err());
+        let mut bad = record.clone();
+        bad.name = String::new();
+        assert!(capability_event(&bad).is_err());
+        let mut bad = record.clone();
+        bad.detail = String::new();
+        assert!(capability_event(&bad).is_err());
+        let mut bad = record.clone();
+        bad.data = Value::String("flat".to_owned());
+        assert!(capability_event(&bad).is_err());
+        for (kind, state) in [
+            ("cli", "available"),
+            ("command", "available"),
+            ("workspace", "available"),
+            ("workspace", "declared"),
+            ("workspace", "unresolved"),
+        ] {
+            let mut ok = record.clone();
+            ok.kind = kind.to_owned();
+            ok.state = state.to_owned();
+            assert!(capability_event(&ok).is_ok(), "{kind}/{state}");
+        }
     }
 
     #[test]

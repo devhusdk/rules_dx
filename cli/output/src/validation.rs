@@ -42,6 +42,8 @@ pub enum OutputError {
     Io(String),
     #[error("invalid correlation {value:?}: want 1-128 chars of [A-Za-z0-9/_:.-]")]
     BadCorrelation { value: String },
+    #[error("invalid capability {field} {value:?}")]
+    BadCapability { field: &'static str, value: String },
 }
 
 impl OutputError {

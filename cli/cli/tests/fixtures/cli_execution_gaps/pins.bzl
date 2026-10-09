@@ -15,6 +15,7 @@ WATCHABLE_COUNT = 8
 NOT_WATCHABLE_COMMANDS = [
     "bazel",
     "bump",
+    "capabilities",
     "clean",
     "codegen",
     "completion",
@@ -39,7 +40,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 25
+NOT_WATCHABLE_COUNT = 26
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -77,6 +78,7 @@ REPORT_NONE = [
     "run",
     "deploy",
     "docs",
+    "capabilities",
     "format",
     "generate",
     "clean",

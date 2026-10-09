@@ -11,6 +11,7 @@ rust_library(
     name = "dx_cli",
     srcs = [
         "src/adopt.rs",
+        "src/adopt/capabilities.rs",
         "src/adopt/completion.rs",
         "src/adopt/hooks.rs",
         "src/adopt/init.rs",
@@ -325,6 +326,7 @@ rust_test(
         "//cli/output:dx_output",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
+        "//cli/schema:dx_schema",
         "//cli/setup:dx_setup",
         "//cli/test_scratch:dx_test_scratch",
         "//cli/update:dx_update",

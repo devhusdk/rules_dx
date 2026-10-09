@@ -62,7 +62,12 @@ mod tests {
     const SKEWED: bool = true;
     const CLEAN: bool = false;
 
-    const PROCEED: &[Command] = &[Command::Version, Command::Status, Command::Completion];
+    const PROCEED: &[Command] = &[
+        Command::Version,
+        Command::Status,
+        Command::Completion,
+        Command::Capabilities,
+    ];
 
     const WARN: &[Command] = &[
         Command::Check,

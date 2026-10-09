@@ -675,6 +675,7 @@ mod tests {
             pin: None,
             rollback: false,
             configured: false,
+            workspace_capabilities: false,
             from: None,
             to: None,
             here: false,

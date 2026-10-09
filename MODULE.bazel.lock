@@ -1000,6 +1000,74 @@
         }
       }
     },
+    "//wasi/runtime:repos.bzl%wasmtime": {
+      "general": {
+        "bzlTransitiveDigest": "vRDl6v65KGSj552p4vj80PzT+eHobm4k/i447jCczJ4=",
+        "usagesDigest": "u2by8yZ22Xs8W9YzwrgvD4aMnJU0Upk/yjwI0Mhd7G0=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_wasmtime_linux_arm64": {
+            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "wasmtime-v49.0.2-aarch64-linux.tar.xz",
+              "directory": "wasmtime-v49.0.2-aarch64-linux",
+              "executable": "wasmtime",
+              "sha256": "ca14988c6da3d92512bd9c3bad6cbd06b1f5743b6911a9e709f1a6fa30637d7f",
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-linux.tar.xz"
+            }
+          },
+          "dx_wasmtime_linux_x86_64": {
+            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "wasmtime-v49.0.2-x86_64-linux.tar.xz",
+              "directory": "wasmtime-v49.0.2-x86_64-linux",
+              "executable": "wasmtime",
+              "sha256": "a4d6e9e3a5a60f527cf7793d674c48930c80c2e8977995b8a275cad3254b9322",
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-linux.tar.xz"
+            }
+          },
+          "dx_wasmtime_macos_arm64": {
+            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "wasmtime-v49.0.2-aarch64-macos.tar.xz",
+              "directory": "wasmtime-v49.0.2-aarch64-macos",
+              "executable": "wasmtime",
+              "sha256": "ea5a79261caa39819b863fd850879428cf90548353e1e5cf9bcbcc4e7addf2c1",
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-macos.tar.xz"
+            }
+          },
+          "dx_wasmtime_macos_x86_64": {
+            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "wasmtime-v49.0.2-x86_64-macos.tar.xz",
+              "directory": "wasmtime-v49.0.2-x86_64-macos",
+              "executable": "wasmtime",
+              "sha256": "b24513efff6a5dbeb196e2a01097ba632a8b0ea1563ba297ada26ceb3aa067d9",
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-macos.tar.xz"
+            }
+          },
+          "dx_wasmtime_windows_x86_64": {
+            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
+            "attributes": {
+              "archive_format": "zip",
+              "asset": "wasmtime-v49.0.2-x86_64-windows.zip",
+              "directory": "wasmtime-v49.0.2-x86_64-windows",
+              "executable": "wasmtime.exe",
+              "sha256": "c95a3925acde6398808baabe5ad13d0b1df02b004bc256c00cf8e2a36daccea8",
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-windows.zip"
+            }
+          },
+          "dx_wasmtime": {
+            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_hub_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "zFgbaCUuPzH6bIE7CBHBVCqjWSJ78/WNXisdzXaKSnU=",

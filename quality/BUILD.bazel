@@ -245,6 +245,42 @@ consumer_policy_tests(
             "policy": "//quality/tests/fixtures/consumer_policy:json_biome_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_json",
         },
+        {
+            "case": "javascript_biome",
+            "expected_dx_results": [
+                "clean_js-real-format.pb",
+                "clean_js-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:javascript_biome_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
+        },
+        {
+            "case": "javascript_alt",
+            "expected_dx_results": [
+                "clean_js-real-format-js.pb",
+                "clean_js-real-lint-js.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:javascript_alt_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
+        },
+        {
+            "case": "typescript_biome",
+            "expected_dx_results": [
+                "clean_ts-real-format.pb",
+                "clean_ts-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:typescript_biome_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_ts",
+        },
+        {
+            "case": "typescript_prettier",
+            "expected_dx_results": [
+                "clean_ts-real-format-js.pb",
+                "clean_ts-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:typescript_prettier_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_ts",
+        },
     ],
 )
 
@@ -255,10 +291,14 @@ fixtures_unit_tests(name = "fixtures_unit")
 test_suite(
     name = "all",
     tests = [
+        ":consumer_policy_javascript_alt_test",
+        ":consumer_policy_javascript_biome_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
+        ":consumer_policy_typescript_biome_test",
+        ":consumer_policy_typescript_prettier_test",
         ":curated_defaults_unit",
         ":execution_requirements_unit",
         ":fixtures_unit",

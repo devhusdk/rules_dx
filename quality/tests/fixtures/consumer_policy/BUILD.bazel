@@ -1,11 +1,19 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality:__pkg__"])
 
+eslint_config(
+    name = "eslint_cfg",
+    src = "eslint.config.js",
+)
+
 exports_files([
+    "clean.js",
     "clean.json",
     "clean.toml",
+    "clean.ts",
 ])
 
 quality_family(
@@ -84,6 +92,75 @@ quality_family(
 workspace_policy(
     name = "json_biome_policy",
     families = [":biome_json_family"],
+)
+
+quality_family(
+    name = "biome_javascript_family",
+    disabled = ["typecheck"],
+    family_id = "javascript",
+    format = ["biome"],
+    lint = ["biome"],
+)
+
+workspace_policy(
+    name = "javascript_biome_policy",
+    families = [":biome_javascript_family"],
+)
+
+quality_family(
+    name = "alt_javascript_family",
+    disabled = ["typecheck"],
+    family_id = "javascript",
+    format = ["prettier"],
+    lint = ["eslint"],
+)
+
+workspace_policy(
+    name = "javascript_alt_policy",
+    families = [":alt_javascript_family"],
+)
+
+quality_family(
+    name = "biome_typescript_family",
+    disabled = ["typecheck"],
+    family_id = "typescript",
+    format = ["biome"],
+    lint = ["biome"],
+)
+
+workspace_policy(
+    name = "typescript_biome_policy",
+    families = [":biome_typescript_family"],
+)
+
+quality_family(
+    name = "prettier_typescript_family",
+    disabled = ["typecheck"],
+    family_id = "typescript",
+    format = ["prettier"],
+    lint = ["biome"],
+)
+
+workspace_policy(
+    name = "typescript_prettier_policy",
+    families = [":prettier_typescript_family"],
+)
+
+real_source_target(
+    name = "clean_js",
+    aspect_hints = [
+        "//:biome_config",
+        ":eslint_cfg",
+    ],
+    javascript_srcs = ["clean.js"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "clean_ts",
+    aspect_hints = ["//:biome_config"],
+    tags = ["corpus"],
+    typescript_srcs = ["clean.ts"],
 )
 
 real_source_target(

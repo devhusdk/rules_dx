@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_typescript_prettier_biome_clean_fail
+capability FORMAT
+stages 1
+stage prettier classes=typescript sources=quality/testdata/real_clean.ts
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - quality/testdata/real_clean.ts 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement quality/testdata/real_clean.ts 61 62 "  "

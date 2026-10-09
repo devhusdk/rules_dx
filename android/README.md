@@ -65,3 +65,63 @@ Point it at an SDK with `local_path` or the `ANDROID_SDK_ROOT` and
 repository stays empty: host tests and metadata still run, while tuple
 links and the readelf architecture inspection stay manual until an SDK
 host runs them.
+
+## Application packaging
+
+`//android/packaging` builds one installable APK from static native
+deps through the qualified upstream backend (`rules_android` 0.6.6):
+
+```python
+load("@rules_dx//android/packaging:defs.bzl", "rust_android_apk")
+
+rust_android_apk(
+    name = "app_apk",
+    app_id = "com.example.app",
+    deps = [":app_jni"],
+    permissions = ["android.permission.INTERNET"],
+    resource_files = glob(["res/**"]),
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+)
+```
+
+The upstream `android_binary` links one `lib/<name>.so` per ABI from
+the static native deps and signs the APK with the debug key. The
+default manifest launches a `NativeActivity` loading that library;
+pass `manifest` to package a custom one. `app_id`, `permissions`,
+`abis`, `api_level`, `version_code`, and `version_name` stay with the
+consumer; unknown ABIs, malformed app IDs, and downgraded API levels
+fail at analysis. Package outputs are explicit-label only. Custom
+release signing and AAB distribution are later stages.
+
+Device operations are explicit launchers that never run at build time:
+
+```python
+load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start")
+
+android_adb_install(name = "install", apk = ":app_apk", serial = "emulator-5554")
+android_adb_start(name = "start", app_id = "com.example.app", serial = "emulator-5554")
+android_adb_log(name = "log", serial = "emulator-5554")
+```
+
+Run one with `bazel run //path:install`. `serial` names the target
+device or emulator; `ADB` selects the adb binary and defaults to
+`PATH`.
+
+## Qualified SDK for packaging builds
+
+Packaging builds read the installed SDK through the upstream
+`androidsdk` repository, which stays empty without `ANDROID_HOME`.
+Build one APK for both tuples on a qualified host:
+
+```sh
+export ANDROID_HOME="$HOME/Android/Sdk" ANDROID_SDK_ROOT="$HOME/Android/Sdk" ANDROID_NDK_REVISION="27.2.12479018"
+bazel build //android/tests/fixtures/rust_apk:app_apk \
+    --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator \
+    --android_platforms=//android/platforms:android_device,//android/platforms:android_emulator
+```
+
+Inspect the artifact with the SDK `aapt`, or run the manual
+`inspect_apk_test` in `//android/tests/fixtures/rust_apk`, which
+asserts the package ID, SDK floors, label, activity, permission, both
+native libraries, the asset bundle, and the debug signature.

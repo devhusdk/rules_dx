@@ -1,0 +1,100 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
+load(":metadata_tests.bzl", "android_packaging_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "adb_ops.sh",
+    "defs.bzl",
+    "metadata_tests.bzl",
+    "repos.bzl",
+])
+
+android_packaging_tests(name = "metadata")
+
+rust_android_apk(
+    name = "bad_app_id",
+    app_id = "app",
+    deps = [],
+)
+
+failure_test(
+    name = "bad_app_id_test",
+    expected_failure_substring = "needs at least two dot-separated parts",
+    target = ":bad_app_id_manifest",
+)
+
+rust_android_apk(
+    name = "bad_abi",
+    abis = ["mips"],
+    app_id = "com.example.app",
+    deps = [],
+)
+
+failure_test(
+    name = "bad_abi_test",
+    expected_failure_substring = "abi 'mips' is unknown",
+    target = ":bad_abi_validation",
+)
+
+rust_android_apk(
+    name = "bad_api",
+    api_level = 29,
+    app_id = "com.example.app",
+    deps = [],
+)
+
+failure_test(
+    name = "bad_api_test",
+    expected_failure_substring = "api_level 29 is below 31",
+    target = ":bad_api_manifest",
+)
+
+android_adb_install(
+    name = "no_serial_install",
+    apk = ":bad_app_id",
+    serial = "",
+)
+
+failure_test(
+    name = "no_serial_install_test",
+    expected_failure_substring = "serial names the target device",
+    target = ":no_serial_install_selection",
+)
+
+android_adb_start(
+    name = "bad_start_app",
+    app_id = "app",
+    serial = "emulator-5554",
+)
+
+failure_test(
+    name = "bad_start_app_test",
+    expected_failure_substring = "needs at least two dot-separated parts",
+    target = ":bad_start_app_selection",
+)
+
+android_adb_log(
+    name = "no_serial_log",
+    serial = "",
+)
+
+failure_test(
+    name = "no_serial_log_test",
+    expected_failure_substring = "serial names the target device",
+    target = ":no_serial_log_selection",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "metadata_tests.bzl",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

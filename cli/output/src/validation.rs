@@ -14,6 +14,8 @@ pub enum OutputError {
     BadSeverity { value: String },
     #[error("invalid threshold {value:?}")]
     BadThreshold { value: String },
+    #[error("invalid skew {value:?}: want proceed|warn|refuse")]
+    BadSkew { value: String },
     #[error("invalid log level {value:?}: want error|warn|info|debug|trace")]
     BadLogLevel { value: String },
     #[error("invalid color {value:?}: want auto|always|never")]

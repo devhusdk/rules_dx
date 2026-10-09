@@ -5,6 +5,7 @@ pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
 pub const EVENTS: &[&str] = &[
+    "capabilities",
     "change",
     "command_finished",
     "command_started",
@@ -149,6 +150,75 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     map.insert("status".to_owned(), Value::String(check.status.clone()));
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
+    Ok(Value::Object(map))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapabilitiesEntry {
+    pub name: String,
+    pub describe: String,
+    pub usage: String,
+    pub scope_policy: String,
+    pub flags: Vec<String>,
+    pub outputs: Vec<String>,
+    pub reports: Vec<String>,
+    pub supports_check: bool,
+    pub supports_apply: bool,
+    pub mutating_by_default: bool,
+    pub workspace_free: bool,
+    pub skew: String,
+    pub labels: String,
+}
+
+pub fn capabilities_event(entry: &CapabilitiesEntry) -> Result<Value, OutputError> {
+    nonempty("name", &entry.name)?;
+    nonempty("describe", &entry.describe)?;
+    nonempty("usage", &entry.usage)?;
+    nonempty("scope_policy", &entry.scope_policy)?;
+    nonempty("skew", &entry.skew)?;
+    nonempty("labels", &entry.labels)?;
+    if entry.skew != "proceed" && entry.skew != "warn" && entry.skew != "refuse" {
+        return Err(OutputError::BadSkew {
+            value: entry.skew.clone(),
+        });
+    }
+    let strings = |values: &[String]| {
+        Value::Array(
+            values
+                .iter()
+                .map(|flag| Value::String(flag.clone()))
+                .collect(),
+        )
+    };
+    let mut map = base("capabilities");
+    map.insert("name".to_owned(), Value::String(entry.name.clone()));
+    map.insert("describe".to_owned(), Value::String(entry.describe.clone()));
+    map.insert("usage".to_owned(), Value::String(entry.usage.clone()));
+    map.insert(
+        "scope_policy".to_owned(),
+        Value::String(entry.scope_policy.clone()),
+    );
+    map.insert("flags".to_owned(), strings(&entry.flags));
+    map.insert("outputs".to_owned(), strings(&entry.outputs));
+    map.insert("reports".to_owned(), strings(&entry.reports));
+    map.insert(
+        "supports_check".to_owned(),
+        Value::Bool(entry.supports_check),
+    );
+    map.insert(
+        "supports_apply".to_owned(),
+        Value::Bool(entry.supports_apply),
+    );
+    map.insert(
+        "mutating_by_default".to_owned(),
+        Value::Bool(entry.mutating_by_default),
+    );
+    map.insert(
+        "workspace_free".to_owned(),
+        Value::Bool(entry.workspace_free),
+    );
+    map.insert("skew".to_owned(), Value::String(entry.skew.clone()));
+    map.insert("labels".to_owned(), Value::String(entry.labels.clone()));
     Ok(Value::Object(map))
 }
 
@@ -579,6 +649,55 @@ mod tests {
         write_event(&mut buf, &event).expect("write");
         let parsed: Value = serde_json::from_slice(&buf).expect("parse");
         assert_eq!(parsed["outcome"], Value::String("passed".to_owned()));
+    }
+
+    fn capabilities_entry() -> CapabilitiesEntry {
+        CapabilitiesEntry {
+            name: "lint".to_owned(),
+            describe: "run lint".to_owned(),
+            usage: "Usage: dx lint".to_owned(),
+            scope_policy: "default-//...".to_owned(),
+            flags: vec!["--check".to_owned()],
+            outputs: vec!["text".to_owned(), "diff".to_owned(), "json".to_owned()],
+            reports: vec!["sarif".to_owned()],
+            supports_check: true,
+            supports_apply: true,
+            mutating_by_default: false,
+            workspace_free: false,
+            skew: "refuse".to_owned(),
+            labels: "always".to_owned(),
+        }
+    }
+
+    #[test]
+    fn capabilities_event_shape() {
+        let event = capabilities_event(&capabilities_entry()).expect("capabilities");
+        assert_eq!(event["event"], Value::String("capabilities".to_owned()));
+        assert_eq!(event["schema"], schema());
+        assert_eq!(event["name"], Value::String("lint".to_owned()));
+        assert_eq!(event["flags"], serde_json::json!(["--check"]));
+        assert_eq!(
+            event["outputs"],
+            serde_json::json!(["text", "diff", "json"])
+        );
+        assert_eq!(event["reports"], serde_json::json!(["sarif"]));
+        assert_eq!(event["supports_check"], Value::Bool(true));
+        assert_eq!(event["workspace_free"], Value::Bool(false));
+        assert_eq!(event["skew"], Value::String("refuse".to_owned()));
+        let mut buf = Vec::new();
+        write_event(&mut buf, &event).expect("write");
+        assert!(buf.ends_with(b"\n"));
+        let mut bad = capabilities_entry();
+        bad.skew = "sometimes".to_owned();
+        assert_eq!(
+            capabilities_event(&bad).expect_err("unknown skew"),
+            OutputError::BadSkew {
+                value: "sometimes".to_owned()
+            }
+        );
+        bad = capabilities_entry();
+        bad.name = String::new();
+        assert!(capabilities_event(&bad).is_err());
     }
 
     #[test]

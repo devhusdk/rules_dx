@@ -72,6 +72,7 @@ pub(crate) struct Flags {
     pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
+    pub(crate) workspace_capabilities: bool,
     pub(crate) serve: bool,
     pub(crate) port: Option<u16>,
     pub(crate) host: Option<String>,
@@ -359,6 +360,14 @@ flag_group! {
     HereFlag, {
         #[arg(long, visible_alias = "cwd", overrides_with = "here")]
         here: bool,
+    }
+}
+
+flag_group! {
+    /// Also emit workspace facts.
+    WorkspaceCapabilitiesFlag, {
+        #[arg(long = "workspace-capabilities", overrides_with = "workspace_capabilities")]
+        workspace_capabilities: bool,
     }
 }
 
@@ -700,15 +709,17 @@ command_args! {
     Why => 29, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx completion` accepts.
     Completion => 30, NoPassthroughTail, { own: CheckFlag, };
+    /// The flags `dx capabilities` accepts.
+    Capabilities => 31, NoPassthroughTail, { workspace_capabilities: WorkspaceCapabilitiesFlag, };
     /// The flags `dx docs` accepts.
-    Docs => 31, BazelTail, {
+    Docs => 32, BazelTail, {
         check: CheckFlag,
         apply: ApplyFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx bazel` accepts.
-    Bazel => 32, NoScopeTail, {};
+    Bazel => 33, NoScopeTail, {};
 }
 
 #[derive(Parser)]

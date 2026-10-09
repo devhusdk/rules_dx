@@ -73,7 +73,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
     ("--pin", &["--pin=1.0.0"], &["version"]),
     ("--rollback", &["--rollback"], &["version"]),
     (
@@ -88,6 +88,11 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
     ("--open", &["--serve", "--open"], &["docs"]),
     ("--bazel", &["--bazel"], &["clean"]),
     ("--prune-unobserved", &["--prune-unobserved"], &["clean"]),
+    (
+        "--workspace-capabilities",
+        &["--workspace-capabilities"],
+        &["capabilities"],
+    ),
 ];
 
 fn required_words(name: &str) -> &'static [&'static str] {
@@ -1367,6 +1372,40 @@ fn completion_check_verifies_without_writing() {
         parse(&strings(&["status", "--check"])),
         Err(ArgsError::UnsupportedOption { .. })
     ));
+}
+
+#[test]
+fn capabilities_exports_metadata_with_an_explicit_workspace_stage() {
+    let bare = parse(&strings(&["capabilities"])).expect("bare exports CLI metadata");
+    assert_eq!(bare.command, Command::Capabilities);
+    assert!(!bare.workspace_capabilities);
+    assert!(bare.targets.is_empty());
+    let staged = parse(&strings(&["capabilities", "--workspace-capabilities"]))
+        .expect("explicit workspace stage");
+    assert_eq!(staged.command, Command::Capabilities);
+    assert!(staged.workspace_capabilities);
+    let json = parse(&strings(&["capabilities", "--output=json"])).expect("json renders");
+    assert_eq!(json.command, Command::Capabilities);
+    for words in [
+        vec!["capabilities", "--check"],
+        vec!["capabilities", "--apply"],
+        vec!["capabilities", "--fail-on=error"],
+        vec!["capabilities", "--report=sarif=out.sarif"],
+        vec!["capabilities", "--output=diff"],
+        vec!["capabilities", "--here"],
+        vec!["capabilities", "//:demo"],
+        vec!["capabilities", "--", "--jobs=1"],
+        vec!["lint", "--workspace-capabilities"],
+        vec!["build", "--workspace-capabilities"],
+    ] {
+        assert!(
+            matches!(
+                parse(&strings(&words)),
+                Err(ArgsError::UnsupportedOption { .. })
+            ),
+            "words: {words:?} must fail as unsupported"
+        );
+    }
 }
 
 #[test]

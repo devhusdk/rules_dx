@@ -183,6 +183,7 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--from", Some("2.0.0")),
     ("--to", Some("2.0.0")),
     ("--here", None),
+    ("--workspace-capabilities", None),
     ("--serve", None),
     ("--port", Some("1")),
     ("--host", Some("example.test")),

@@ -678,6 +678,7 @@ mod tests {
             from: None,
             to: None,
             here: false,
+            workspace_capabilities: false,
             serve: false,
             port: None,
             host: None,

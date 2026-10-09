@@ -1,3 +1,4 @@
+mod capabilities;
 mod completion;
 mod hooks;
 mod init;
@@ -51,6 +52,9 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
             inspect::execute_inspect(invocation, workspace, query_runner, out, err)
         }
         Command::Completion => completion::execute_completion(invocation, out, err),
+        Command::Capabilities => {
+            capabilities::execute_capabilities(invocation, workspace, out, err)
+        }
         _ => pre_exec(err, "not an adoption command"),
     }
 }

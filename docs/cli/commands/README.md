@@ -20,6 +20,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx status`, `dx version`](status-version.md)
 - [`dx owners`, `dx deps`, `dx why`](inspect.md)
 - [`dx completion`](completion.md)
+- [`dx capabilities`](capabilities.md)
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`](new-upgrade.md)
 - [`dx watch`](watch.md)
@@ -92,6 +93,9 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 ```
 
 - `command_started`: the command, whether it is a dry run, and its mode.
+- `capabilities`: one command's machine-readable metadata, with `name`,
+  `describe`, `usage`, `scope_policy`, `flags`, `outputs`, `reports`,
+  effect authorization, and availability source.
 - `operation`: a phase, with the scopes it resolved to.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
@@ -167,5 +171,5 @@ The command line wins over the environment, and the environment wins over
 the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
 file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
-`--version` print without reading a broken config. `dx new` and
-`dx completion` run outside a workspace.
+`--version` print without reading a broken config. `dx new`,
+`dx completion`, and `dx capabilities` run outside a workspace.

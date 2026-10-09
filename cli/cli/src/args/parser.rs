@@ -162,7 +162,10 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
 
 /// Whether the command runs without MODULE.bazel discovery.
 pub fn is_discovery_exempt(command: Command) -> bool {
-    matches!(command, Command::Init | Command::New | Command::Completion)
+    matches!(
+        command,
+        Command::Init | Command::New | Command::Completion | Command::Capabilities
+    )
 }
 
 /// Loads defaults from the selected workspace: the flag, the environment, else
@@ -235,6 +238,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         from,
         to,
         here,
+        workspace_capabilities,
         serve,
         port,
         host,
@@ -454,6 +458,11 @@ pub fn parse_with<S: AsRef<OsStr>>(
                     return Err(missing_positional(command));
                 }
             }
+            Command::Capabilities => {
+                if let Some(scope) = targets.first() {
+                    return Err(extra_positional(command, scope));
+                }
+            }
             Command::Hooks if targets.is_empty() => {
                 return Err(missing_positional(command));
             }
@@ -540,6 +549,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
         from,
         to,
         here,
+        workspace_capabilities,
         serve,
         port,
         host,
@@ -652,7 +662,12 @@ mod startup_tests {
 
     #[test]
     fn discovery_runs_without_a_module_only_for_init_new_and_completion() {
-        for command in [Command::Init, Command::New, Command::Completion] {
+        for command in [
+            Command::Init,
+            Command::New,
+            Command::Completion,
+            Command::Capabilities,
+        ] {
             assert!(is_discovery_exempt(command), "{command:?} is exempt");
         }
         for command in [

@@ -598,6 +598,83 @@ fn new_and_completion_run_without_a_workspace() {
 }
 
 #[test]
+fn capabilities_runs_outside_a_workspace_without_downloads() {
+    let scratch = dx_test_scratch::scratch("dx-startup-capabilities-outside-");
+    let root = scratch.path();
+    let (code, out, err) = run_dx(
+        root,
+        &["capabilities"],
+        &[("DX_PROBE_SECRET", "topsecret-marker")],
+    );
+    assert_eq!(
+        code,
+        Some(0),
+        "capabilities works outside a workspace: {err}"
+    );
+    assert!(out.contains("dx capabilities - "), "{out}");
+    assert!(
+        !out.contains("topsecret-marker") && !err.contains("topsecret-marker"),
+        "capabilities never dumps the environment: {out} {err}"
+    );
+    let (code, out, err) = run_dx(root, &["capabilities", "--output=json"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(err.is_empty(), "{err}");
+    let events: Vec<serde_json::Value> = out
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("event"))
+        .collect();
+    assert_eq!(events[0]["event"], serde_json::json!("command_started"));
+    assert_eq!(
+        events.last().expect("finished")["exit_code"],
+        serde_json::json!(0)
+    );
+    let entries = events
+        .iter()
+        .filter(|event| event["event"] == serde_json::json!("capabilities"))
+        .count();
+    assert_eq!(entries, 34, "every command is machine-readable: {out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn capabilities_workspace_stage_reports_a_renamed_workspace() {
+    let scratch = dx_test_scratch::scratch("dx-startup-capabilities-ws-");
+    let root = scratch.path();
+    std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(root.join(".dx")).expect("dx");
+    std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+    let (code, out, err) = run_dx(root, &["capabilities", "--workspace-capabilities"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("pin: ok"), "{out}");
+    assert!(out.contains("availability: warn"), "{out}");
+    let (code, out, err) = run_dx(
+        root,
+        &["capabilities", "--workspace-capabilities", "--output=json"],
+        &[],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("\"name\":\"pin\""), "{out}");
+    assert!(out.contains("\"name\":\"availability\""), "{out}");
+    std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("mismatch");
+    let (code, _out, err) = run_dx(root, &["capabilities", "--workspace-capabilities"], &[]);
+    assert_eq!(code, Some(1), "a mismatched pin fails closed: {err}");
+    assert!(err.contains("workspace_unavailable"), "{err}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn capabilities_rejects_a_broken_config_closed() {
+    let scratch = dx_test_scratch::scratch("dx-startup-capabilities-broken-");
+    let root = scratch.path();
+    std::fs::create_dir(root.join(".dx")).expect("dx");
+    std::fs::write(root.join(".dx/config.toml"), "not toml = [").expect("broken config");
+    let (code, _out, err) = run_dx(root, &["capabilities"], &[]);
+    assert_eq!(code, Some(2), "broken defaults are a usage error: {err}");
+    assert!(err.contains("config.toml"), "{err}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
 fn config_directed_workspace_loads_the_target_defaults_once() {
     let b = workspace_with_output("dx-startup-redir-b-", "json");
     let b_dir = b.path().to_string_lossy().into_owned();

@@ -31,6 +31,7 @@ impl OperationMode {
 pub struct Invocation {
     pub command: Command,
     pub check: bool,
+    pub strict_evidence: bool,
     pub apply: bool,
     pub debug: bool,
     pub release: bool,
@@ -188,6 +189,7 @@ mod tests {
         Invocation {
             command,
             check: false,
+            strict_evidence: false,
             apply: false,
             debug: false,
             release: false,

@@ -19,6 +19,46 @@ pub struct TestOutputFile {
     pub attempt: u32,
 }
 
+/// One named artifact of one test result, resolved to its local path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TestResultFile {
+    pub name: String,
+    pub exec_path: PathBuf,
+}
+
+/// One `testResult` event: Bazel's authoritative status for one run, shard, and attempt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TestResultRecord {
+    pub label: String,
+    pub configuration: Option<String>,
+    pub run: u32,
+    pub shard: u32,
+    pub attempt: u32,
+    pub status: Option<String>,
+    pub cached_locally: Option<bool>,
+    pub duration_millis: Option<u64>,
+    pub strategy: Option<String>,
+    pub files: Vec<TestResultFile>,
+}
+
+/// One `testSummary` event: Bazel's rolled-up status for one target.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TestSummaryRecord {
+    pub label: String,
+    pub configuration: Option<String>,
+    pub overall_status: Option<String>,
+    pub total_num_cached: Option<u64>,
+    pub run_count: Option<u64>,
+    pub attempt_count: Option<u64>,
+}
+
+/// The test result and summary events of one build event stream.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct TestEvents {
+    pub results: Vec<TestResultRecord>,
+    pub summaries: Vec<TestSummaryRecord>,
+}
+
 struct TestResultId<'a> {
     label: &'a str,
     run: u32,
@@ -108,17 +148,92 @@ struct PendingFile {
 
 struct PendingResult {
     label: String,
+    configuration: Option<String>,
     run: u32,
     shard: u32,
     attempt: u32,
+    status: Option<String>,
+    cached_locally: Option<bool>,
+    duration_millis: Option<u64>,
+    strategy: Option<String>,
     files: Vec<PendingFile>,
+}
+
+struct PendingSummary {
+    label: String,
+    configuration: Option<String>,
+    overall_status: Option<String>,
+    total_num_cached: Option<u64>,
+    run_count: Option<u64>,
+    attempt_count: Option<u64>,
+}
+
+/// One string field of a JSON object, when it is present and a string.
+fn opt_string(object: &serde_json::Map<String, Value>, field: &str) -> Option<String> {
+    object.get(field).and_then(Value::as_str).map(str::to_owned)
+}
+
+/// One boolean field of a JSON object, when it is present and a boolean.
+fn opt_bool(object: &serde_json::Map<String, Value>, field: &str) -> Option<bool> {
+    object.get(field).and_then(Value::as_bool)
+}
+
+/// One count field of a JSON object, spelled as a number or a digits string.
+///
+/// Bazel renders 64-bit integers as JSON strings, so both spellings count.
+/// Anything else is unknown, not zero.
+fn opt_count(object: &serde_json::Map<String, Value>, field: &str) -> Option<u64> {
+    match object.get(field) {
+        Some(Value::Number(raw)) => raw.as_u64(),
+        Some(Value::String(raw)) => raw.parse::<u64>().ok(),
+        _ => None,
+    }
+}
+
+/// The configuration id Bazel ran one result or summary under, when reported.
+fn opt_configuration(id: &serde_json::Map<String, Value>) -> Option<String> {
+    id.get("configuration")
+        .and_then(Value::as_object)
+        .and_then(|configuration| configuration.get("id"))
+        .and_then(Value::as_str)
+        .map(str::to_owned)
 }
 
 pub fn collect_test_outputs(
     reader: impl BufRead,
     locations: Option<&OutputLocations>,
 ) -> Result<Vec<TestOutputFile>, BepError> {
+    let events = collect_test_events(reader, locations)?;
+    let mut outputs = Vec::new();
+    for result in &events.results {
+        for file in &result.files {
+            outputs.push(TestOutputFile {
+                label: result.label.clone(),
+                name: file.name.clone(),
+                exec_path: file.exec_path.clone(),
+                run: result.run,
+                shard: result.shard,
+                attempt: result.attempt,
+            });
+        }
+    }
+    outputs.sort_by(|a, b| {
+        a.label
+            .as_bytes()
+            .cmp(b.label.as_bytes())
+            .then(a.name.as_bytes().cmp(b.name.as_bytes()))
+            .then(a.run.cmp(&b.run))
+            .then(a.shard.cmp(&b.shard))
+            .then(a.attempt.cmp(&b.attempt))
+    });
+    Ok(outputs)
+}
+pub fn collect_test_events(
+    reader: impl BufRead,
+    locations: Option<&OutputLocations>,
+) -> Result<TestEvents, BepError> {
     let mut pending: Vec<PendingResult> = Vec::new();
+    let mut summaries: Vec<PendingSummary> = Vec::new();
     let mut shard_counts: HashMap<String, u32> = HashMap::new();
     for (index, line) in reader.lines().enumerate() {
         let line_no = (index + 1) as u64;
@@ -142,6 +257,7 @@ pub fn collect_test_outputs(
         })?;
         if let Some(summary_id) = id.get("testSummary").and_then(Value::as_object) {
             record_shard_count(summary_id, object, line_no, &mut shard_counts)?;
+            summaries.push(parse_summary(summary_id, object));
             continue;
         }
         let result_id = id.get("testResult").and_then(Value::as_object);
@@ -150,36 +266,49 @@ pub fn collect_test_outputs(
         };
         let label = TestResultId::parse(result_id, line_no)?;
         let result = object.get("testResult").and_then(Value::as_object);
-        let Some(files) = result.and_then(|result| result.get("testActionOutput")) else {
-            continue;
-        };
-        let files = files.as_array().ok_or_else(|| {
-            malformed(
-                line_no,
-                "testResult.testActionOutput",
-                "testActionOutput must be an array",
-            )
-        })?;
-        let mut pending_files = Vec::with_capacity(files.len());
-        for (index, file) in files.iter().enumerate() {
-            let entry = TestActionOutput::parse(file, index, line_no)?;
-            pending_files.push(PendingFile {
-                name: entry.name.to_owned(),
-                uri: entry.uri.to_owned(),
-                path_prefix: entry.path_prefix,
-            });
+        let reported = result.and_then(|result| result.get("testActionOutput"));
+        let mut pending_files = Vec::new();
+        if let Some(reported) = reported {
+            let files = reported.as_array().ok_or_else(|| {
+                malformed(
+                    line_no,
+                    "testResult.testActionOutput",
+                    "testActionOutput must be an array",
+                )
+            })?;
+            pending_files.reserve(files.len());
+            for (index, file) in files.iter().enumerate() {
+                let entry = TestActionOutput::parse(file, index, line_no)?;
+                pending_files.push(PendingFile {
+                    name: entry.name.to_owned(),
+                    uri: entry.uri.to_owned(),
+                    path_prefix: entry.path_prefix,
+                });
+            }
         }
+        let status = result.and_then(|body| opt_string(body, "status"));
+        let cached_locally = result.and_then(|body| opt_bool(body, "cachedLocally"));
+        let duration_millis = result.and_then(|body| opt_count(body, "testAttemptDurationMillis"));
+        let strategy = result
+            .and_then(|body| body.get("executionInfo"))
+            .and_then(Value::as_object)
+            .and_then(|info| opt_string(info, "strategy"));
         pending.push(PendingResult {
             label: label.label.to_owned(),
+            configuration: opt_configuration(result_id),
             run: label.run,
             shard: label.shard,
             attempt: label.attempt,
+            status,
+            cached_locally,
+            duration_millis,
+            strategy,
             files: pending_files,
         });
     }
     let run_totals = run_totals(&pending);
     let attempt_totals = attempt_totals(&pending);
-    let mut outputs = Vec::new();
+    let mut results = Vec::new();
     for result in &pending {
         let run_total = run_totals.get(result.label.as_str()).copied().unwrap_or(1);
         let shard_total = shard_counts
@@ -200,32 +329,76 @@ pub fn collect_test_outputs(
             shard_total,
             attempt_total,
         };
+        let mut files = Vec::with_capacity(result.files.len());
         for file in &result.files {
             let exec_path = if is_bytestream_uri(&file.uri) {
                 resolve_bytestream(locations, &result.label, file, identity)?
             } else {
                 file_uri_to_path(&file.uri)?
             };
-            outputs.push(TestOutputFile {
-                label: result.label.clone(),
+            files.push(TestResultFile {
                 name: file.name.clone(),
                 exec_path,
-                run: result.run,
-                shard: result.shard,
-                attempt: result.attempt,
             });
         }
+        results.push(TestResultRecord {
+            label: result.label.clone(),
+            configuration: result.configuration.clone(),
+            run: result.run,
+            shard: result.shard,
+            attempt: result.attempt,
+            status: result.status.clone(),
+            cached_locally: result.cached_locally,
+            duration_millis: result.duration_millis,
+            strategy: result.strategy.clone(),
+            files,
+        });
     }
-    outputs.sort_by(|a, b| {
+    results.sort_by(|a, b| {
         a.label
             .as_bytes()
             .cmp(b.label.as_bytes())
-            .then(a.name.as_bytes().cmp(b.name.as_bytes()))
             .then(a.run.cmp(&b.run))
             .then(a.shard.cmp(&b.shard))
             .then(a.attempt.cmp(&b.attempt))
     });
-    Ok(outputs)
+    let mut summary_records = Vec::with_capacity(summaries.len());
+    for summary in &summaries {
+        summary_records.push(TestSummaryRecord {
+            label: summary.label.clone(),
+            configuration: summary.configuration.clone(),
+            overall_status: summary.overall_status.clone(),
+            total_num_cached: summary.total_num_cached,
+            run_count: summary.run_count,
+            attempt_count: summary.attempt_count,
+        });
+    }
+    summary_records.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
+    Ok(TestEvents {
+        results,
+        summaries: summary_records,
+    })
+}
+
+/// One `testSummary` body beside its id, with unknown fields left unknown.
+fn parse_summary(
+    summary_id: &serde_json::Map<String, Value>,
+    object: &serde_json::Map<String, Value>,
+) -> PendingSummary {
+    let label = summary_id
+        .get("label")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    let body = object.get("testSummary").and_then(Value::as_object);
+    PendingSummary {
+        label,
+        configuration: opt_configuration(summary_id),
+        overall_status: body.and_then(|body| opt_string(body, "overallStatus")),
+        total_num_cached: body.and_then(|body| opt_count(body, "totalNumCached")),
+        run_count: body.and_then(|body| opt_count(body, "runCount")),
+        attempt_count: body.and_then(|body| opt_count(body, "attemptCount")),
+    }
 }
 
 fn resolve_bytestream(
@@ -293,6 +466,9 @@ fn record_shard_count(
 fn run_totals(pending: &[PendingResult]) -> HashMap<&str, u32> {
     let mut totals: HashMap<&str, u32> = HashMap::new();
     for result in pending {
+        if result.files.is_empty() {
+            continue;
+        }
         let seen = totals.entry(result.label.as_str()).or_insert(0);
         *seen = (*seen).max(result.run);
     }
@@ -302,6 +478,9 @@ fn run_totals(pending: &[PendingResult]) -> HashMap<&str, u32> {
 fn attempt_totals(pending: &[PendingResult]) -> HashMap<(&str, u32, u32), u32> {
     let mut totals: HashMap<(&str, u32, u32), u32> = HashMap::new();
     for result in pending {
+        if result.files.is_empty() {
+            continue;
+        }
         let key = (result.label.as_str(), result.run, result.shard);
         let seen = totals.entry(key).or_insert(0);
         *seen = (*seen).max(result.attempt);
@@ -312,7 +491,7 @@ fn attempt_totals(pending: &[PendingResult]) -> HashMap<(&str, u32, u32), u32> {
 fn shard_max(pending: &[PendingResult], label: &str) -> u32 {
     pending
         .iter()
-        .filter(|result| result.label == label)
+        .filter(|result| result.label == label && !result.files.is_empty())
         .map(|result| result.shard)
         .max()
         .unwrap_or(0)
@@ -837,5 +1016,114 @@ mod tests {
             want_path("/out/testlogs", &["a", "t", "run_3_of_3", "test.xml"]),
             "the highest reported run is the run total"
         );
+    }
+
+    #[test]
+    fn test_events_capture_result_metadata() {
+        let stream = format!(
+            r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":2,"configuration":{{"id":"cfg1"}}}}}},"testResult":{{"status":"FAILED","cachedLocally":true,"testAttemptDurationMillis":"29","executionInfo":{{"strategy":"remote"}},"testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
+            out_uri("a.xml")
+        );
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        let result = &events.results[0];
+        assert_eq!(result.label, "//a:t");
+        assert_eq!(result.configuration.as_deref(), Some("cfg1"));
+        assert_eq!((result.run, result.shard, result.attempt), (1, 1, 2));
+        assert_eq!(result.status.as_deref(), Some("FAILED"));
+        assert_eq!(result.cached_locally, Some(true));
+        assert_eq!(result.duration_millis, Some(29));
+        assert_eq!(result.strategy.as_deref(), Some("remote"));
+        assert!(events.summaries.is_empty());
+    }
+
+    #[test]
+    fn test_events_capture_executed_result_without_cache_facts() {
+        let stream = format!(
+            r#"{{"id":{{"testResult":{{"label":"//a:t"}}}},"testResult":{{"status":"PASSED","testAttemptDurationMillis":23,"executionInfo":{{"strategy":"linux-sandbox"}},"testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
+            out_uri("a.xml")
+        );
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        let result = &events.results[0];
+        assert_eq!(result.status.as_deref(), Some("PASSED"));
+        assert_eq!(
+            result.cached_locally, None,
+            "an executed run without cachedLocally stays unknown, not false"
+        );
+        assert_eq!(result.duration_millis, Some(23));
+        assert_eq!(result.strategy.as_deref(), Some("linux-sandbox"));
+        assert_eq!(result.configuration, None);
+    }
+
+    #[test]
+    fn test_events_capture_summary_metadata() {
+        let stream = [
+            test_summary("//a:t", Some(2)),
+            r#"{"id":{"testSummary":{"label":"//a:t"}},"testSummary":{"overallStatus":"FLAKY","totalNumCached":1,"runCount":2,"attemptCount":3}}"#.to_owned(),
+        ]
+        .join("\n");
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.summaries.len(), 2);
+        let summary = &events.summaries[1];
+        assert_eq!(summary.label, "//a:t");
+        assert_eq!(summary.overall_status.as_deref(), Some("FLAKY"));
+        assert_eq!(summary.total_num_cached, Some(1));
+        assert_eq!(summary.run_count, Some(2));
+        assert_eq!(summary.attempt_count, Some(3));
+    }
+
+    #[test]
+    fn test_events_leave_garbage_leaf_metadata_unknown() {
+        let stream = format!(
+            r#"{{"id":{{"testResult":{{"label":"//a:t"}}}},"testResult":{{"status":"PASSED","cachedLocally":"yes","testAttemptDurationMillis":"soon","executionInfo":{{"strategy":7}},"testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
+            out_uri("a.xml")
+        );
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        let result = &events.results[0];
+        assert_eq!(result.cached_locally, None);
+        assert_eq!(result.duration_millis, None);
+        assert_eq!(result.strategy, None);
+    }
+
+    #[test]
+    fn test_outputs_stay_a_projection_of_events() {
+        let stream = [
+            test_result(
+                "//z:t",
+                &[
+                    ("test.xml", out_uri("z/test.xml").as_str()),
+                    ("test.log", out_uri("z/test.log").as_str()),
+                ],
+            ),
+            test_result("//a:t", &[("test.xml", out_uri("a/test.xml").as_str())]),
+        ]
+        .join("\n");
+        let events = collect_test_events(Cursor::new(stream.clone()), None).expect("events");
+        let outputs = collect_test_outputs(Cursor::new(stream), None).expect("outputs");
+        let mut flattened = Vec::new();
+        for result in &events.results {
+            for file in &result.files {
+                flattened.push(TestOutputFile {
+                    label: result.label.clone(),
+                    name: file.name.clone(),
+                    exec_path: file.exec_path.clone(),
+                    run: result.run,
+                    shard: result.shard,
+                    attempt: result.attempt,
+                });
+            }
+        }
+        flattened.sort_by(|a, b| {
+            a.label
+                .as_bytes()
+                .cmp(b.label.as_bytes())
+                .then(a.name.as_bytes().cmp(b.name.as_bytes()))
+                .then(a.run.cmp(&b.run))
+                .then(a.shard.cmp(&b.shard))
+                .then(a.attempt.cmp(&b.attempt))
+        });
+        assert_eq!(outputs, flattened);
     }
 }

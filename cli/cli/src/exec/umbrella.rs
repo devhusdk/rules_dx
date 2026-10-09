@@ -339,6 +339,7 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
         let verify_invocation = Invocation {
             command: *phase,
             check: true,
+            strict_evidence: invocation.strict_evidence,
             apply: false,
             debug: false,
             release: false,
@@ -536,6 +537,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         let phase_invocation = Invocation {
             command: *phase,
             check: phase_check,
+            strict_evidence: invocation.strict_evidence,
             apply: invocation.apply,
             debug: false,
             release: false,

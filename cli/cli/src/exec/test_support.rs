@@ -543,6 +543,37 @@ pub(crate) fn test_result_identity_line(
     .to_string()
 }
 
+/// A BEP `testResult` line carrying the status, cache, and timing facts dx reports.
+pub(crate) fn test_result_full_line(
+    label: &str,
+    run: u32,
+    shard: u32,
+    attempt: u32,
+    status: &str,
+    configuration: Option<&str>,
+    cached: Option<bool>,
+    duration_millis: Option<u64>,
+    entries: &[(String, String)],
+) -> String {
+    let outputs: Vec<serde_json::Value> = entries
+        .iter()
+        .map(|(name, uri)| serde_json::json!({"name": name, "uri": uri}))
+        .collect();
+    let mut id =
+        serde_json::json!({"label": label, "run": run, "shard": shard, "attempt": attempt});
+    if let Some(configuration) = configuration {
+        id["configuration"] = serde_json::json!({"id": configuration});
+    }
+    let mut body = serde_json::json!({"status": status, "testActionOutput": outputs});
+    if let Some(cached) = cached {
+        body["cachedLocally"] = serde_json::json!(cached);
+    }
+    if let Some(duration) = duration_millis {
+        body["testAttemptDurationMillis"] = serde_json::json!(duration);
+    }
+    serde_json::json!({"id": {"testResult": id}, "testResult": body}).to_string()
+}
+
 pub(crate) fn test_summary_line(label: &str, shard_count: u32) -> String {
     serde_json::json!({
         "id": {"testSummary": {"label": label}},

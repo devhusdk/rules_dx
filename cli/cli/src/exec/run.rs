@@ -625,6 +625,7 @@ mod tests {
         Invocation {
             command,
             check: false,
+            strict_evidence: false,
             apply: false,
             debug: false,
             release: false,

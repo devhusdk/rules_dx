@@ -6,8 +6,13 @@ use crate::reports::{
     JunitCase, PlannedReport,
 };
 use crate::resolve::QueryRunner;
-use dx_bep::{collect_test_outputs, ArtifactReader, OutputLocations};
-use dx_output::{command_finished, report_event, write_event, FinishedCounts, OutputMode};
+use dx_bep::{
+    collect_test_events, ArtifactReader, OutputLocations, TestResultFile, TestResultRecord,
+};
+use dx_output::{
+    command_finished, report_event, test_outcome_event, write_event, FinishedCounts, OutputMode,
+    TestOutcome,
+};
 use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
 use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
@@ -56,23 +61,28 @@ fn is_coverage_output(name: &str) -> bool {
     name == "coverage.dat" || name == "test.lcov"
 }
 
+/// True for result files that carry coverage evidence.
+fn is_coverage_file(file: &TestResultFile) -> bool {
+    is_coverage_output(&file.name)
+}
+
 /// The latest attempt Bazel reported for each result's named coverage output.
-fn final_coverage_attempts(
-    outputs: &[dx_bep::TestOutputFile],
-) -> BTreeMap<(&str, u32, u32, &str), u32> {
+fn final_coverage_attempts(results: &[TestResultRecord]) -> BTreeMap<(&str, u32, u32, &str), u32> {
     let mut finals = BTreeMap::new();
-    for output in outputs {
-        if !is_coverage_output(&output.name) {
-            continue;
+    for result in results {
+        for file in &result.files {
+            if !is_coverage_output(&file.name) {
+                continue;
+            }
+            let key = (
+                result.label.as_str(),
+                result.run,
+                result.shard,
+                file.name.as_str(),
+            );
+            let seen = finals.entry(key).or_insert(0);
+            *seen = (*seen).max(result.attempt);
         }
-        let key = (
-            output.label.as_str(),
-            output.run,
-            output.shard,
-            output.name.as_str(),
-        );
-        let seen = finals.entry(key).or_insert(0);
-        *seen = (*seen).max(output.attempt);
     }
     finals
 }
@@ -115,12 +125,23 @@ fn output_locations(
     locations
 }
 
+/// The machine outcome for one BEP test status: Bazel stays authoritative.
+///
+/// Passing after retry is distinct from a clean pass, and any other reported
+/// status keeps its own lowercased token so new Bazel statuses stay distinct.
+/// A missing status is unknown, never a fabricated zero value.
+fn status_outcome(status: Option<&str>) -> String {
+    match status {
+        None => "unknown".to_owned(),
+        Some("PASSED") => "passed".to_owned(),
+        Some("FLAKY") => "passed_after_retry".to_owned(),
+        Some(other) => other.to_lowercase(),
+    }
+}
+
 /// Names one test result's file so a missing artifact is traceable to its run, shard, and attempt.
-fn result_where(output: &dx_bep::TestOutputFile) -> String {
-    format!(
-        "{} for {} (run {}, shard {}, attempt {})",
-        output.name, output.label, output.run, output.shard, output.attempt
-    )
+fn result_where(label: &str, name: &str, run: u32, shard: u32, attempt: u32) -> String {
+    format!("{name} for {label} (run {run}, shard {shard}, attempt {attempt})")
 }
 
 pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
@@ -136,7 +157,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         bazel_code,
         query_runner,
     } = request;
-    let outputs = match std::fs::File::open(bep).map_err(|err| {
+    let events = match std::fs::File::open(bep).map_err(|err| {
         (
             CODE_UNREADABLE_BEP.to_owned(),
             format!("failed to read build events: {err}"),
@@ -144,8 +165,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     }) {
         Ok(file) => {
             let locations = output_locations(invocation, workspace, verb, query_runner);
-            match collect_test_outputs(BufReader::new(file), Some(&locations)) {
-                Ok(outputs) => outputs,
+            match collect_test_events(BufReader::new(file), Some(&locations)) {
+                Ok(events) => events,
                 Err(error) => {
                     let _ = std::fs::remove_file(bep);
                     return operational(
@@ -167,52 +188,94 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let reader = FsArtifacts;
     let mut complete = bazel_code == 0;
     let mut detail = String::new();
+    let mut strict_detail = String::new();
     let mut suites: Vec<(String, Vec<JunitCase>)> = Vec::new();
     let mut lcov_documents: Vec<String> = Vec::new();
+    let mut outcomes: Vec<TestOutcome> = Vec::new();
     if verb == WorkflowVerb::Test {
         let mut grouped: BTreeMap<String, Vec<JunitCase>> = BTreeMap::new();
         let mut first_error = String::new();
         let mut error_count = 0usize;
         let mut usable_count = 0usize;
-        for output in &outputs {
-            if output.name != "test.xml" {
-                continue;
-            }
-            let bytes = match reader.read_artifact(&output.exec_path) {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    error_count += 1;
-                    if first_error.is_empty() {
-                        first_error = format!(
-                            "unreadable {} at {}: {error}",
-                            result_where(output),
-                            stable_exec_path(&output.exec_path)
-                        );
-                    }
+        for result in &events.results {
+            let mut outcome = TestOutcome {
+                target: result.label.clone(),
+                configuration: result.configuration.clone(),
+                outcome: status_outcome(result.status.as_deref()),
+                status: result.status.clone(),
+                cached: result.cached_locally,
+                run: Some(result.run),
+                shard: Some(result.shard),
+                attempt: Some(result.attempt),
+                duration_millis: result.duration_millis,
+                ..TestOutcome::default()
+            };
+            for file in &result.files {
+                if file.name != "test.xml" {
                     continue;
                 }
-            };
-            let shard = output.shard.saturating_sub(1);
-            let attempt = output.attempt.saturating_sub(1);
-            match parse_test_xml(&bytes, shard, attempt) {
-                Ok(cases) => {
-                    usable_count += 1;
-                    grouped
-                        .entry(output.label.clone())
-                        .or_default()
-                        .extend(cases);
-                }
-                Err(error) => {
-                    error_count += 1;
-                    if first_error.is_empty() {
-                        first_error = format!(
-                            "invalid {} at {}: {error}",
-                            result_where(output),
-                            stable_exec_path(&output.exec_path)
-                        );
+                let where_ = result_where(
+                    &result.label,
+                    &file.name,
+                    result.run,
+                    result.shard,
+                    result.attempt,
+                );
+                let bytes = match reader.read_artifact(&file.exec_path) {
+                    Ok(bytes) => bytes,
+                    Err(error) => {
+                        error_count += 1;
+                        outcome.artifacts_missing += 1;
+                        if first_error.is_empty() {
+                            first_error = format!(
+                                "unreadable {where_} at {}: {error}",
+                                stable_exec_path(&file.exec_path)
+                            );
+                        }
+                        continue;
+                    }
+                };
+                let shard = result.shard.saturating_sub(1);
+                let attempt = result.attempt.saturating_sub(1);
+                match parse_test_xml(&bytes, shard, attempt) {
+                    Ok(cases) => {
+                        usable_count += 1;
+                        outcome.artifacts_collected += 1;
+                        outcome.cases_total =
+                            Some(outcome.cases_total.unwrap_or(0) + cases.len() as u64);
+                        for case in &cases {
+                            if case.failure.is_some() {
+                                outcome.cases_failed = Some(outcome.cases_failed.unwrap_or(0) + 1);
+                            }
+                            if case.error.is_some() {
+                                outcome.cases_error = Some(outcome.cases_error.unwrap_or(0) + 1);
+                            }
+                            if case.skipped.is_some() {
+                                outcome.cases_skipped =
+                                    Some(outcome.cases_skipped.unwrap_or(0) + 1);
+                            }
+                        }
+                        grouped
+                            .entry(result.label.clone())
+                            .or_default()
+                            .extend(cases);
+                    }
+                    Err(error) => {
+                        error_count += 1;
+                        outcome.artifacts_invalid += 1;
+                        if first_error.is_empty() {
+                            first_error = format!(
+                                "invalid {where_} at {}: {error}",
+                                stable_exec_path(&file.exec_path)
+                            );
+                        }
                     }
                 }
             }
+            outcome.evidence_complete = outcome.artifacts_collected > 0
+                && outcome.artifacts_missing == 0
+                && outcome.artifacts_invalid == 0;
+            outcomes.push(outcome);
         }
         if grouped.is_empty() {
             complete = false;
@@ -225,11 +288,15 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         } else if !first_error.is_empty() {
             if partial_results_tolerated(bazel_code, usable_count, error_count) {
-                let _ = writeln!(
-                    err,
-                    "dx: incomplete_results (tolerated): {}",
-                    unusable_detail(error_count, &first_error)
-                );
+                if invocation.strict_evidence {
+                    strict_detail = unusable_detail(error_count, &first_error);
+                } else {
+                    let _ = writeln!(
+                        err,
+                        "dx: incomplete_results (tolerated): {}",
+                        unusable_detail(error_count, &first_error)
+                    );
+                }
             } else {
                 complete = false;
                 if detail.is_empty() {
@@ -238,59 +305,92 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         }
         suites = grouped.into_iter().collect();
-        if !complete {
-            suites.push(junit_infrastructure_case(&detail));
-        }
     } else {
         let mut first_error = String::new();
         let mut error_count = 0usize;
-        let finals = final_coverage_attempts(&outputs);
-        for output in &outputs {
-            if !is_coverage_output(&output.name) {
-                continue;
-            }
-            let key = (
-                output.label.as_str(),
-                output.run,
-                output.shard,
-                output.name.as_str(),
-            );
-            let Some(final_attempt) = finals.get(&key) else {
-                continue;
-            };
-            if output.attempt < *final_attempt {
-                continue;
-            }
-            let bytes = match reader.read_artifact(&output.exec_path) {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    error_count += 1;
-                    if first_error.is_empty() {
-                        first_error = format!(
-                            "unreadable {} at {}: {error}",
-                            result_where(output),
-                            stable_exec_path(&output.exec_path)
-                        );
-                    }
+        let finals = final_coverage_attempts(&events.results);
+        for result in &events.results {
+            let mut required = Vec::new();
+            for file in &result.files {
+                if !is_coverage_output(&file.name) {
                     continue;
                 }
+                let key = (
+                    result.label.as_str(),
+                    result.run,
+                    result.shard,
+                    file.name.as_str(),
+                );
+                let Some(final_attempt) = finals.get(&key) else {
+                    continue;
+                };
+                if result.attempt < *final_attempt {
+                    continue;
+                }
+                required.push(file);
+            }
+            if result.files.iter().any(is_coverage_file) && required.is_empty() {
+                continue;
+            }
+            let mut outcome = TestOutcome {
+                target: result.label.clone(),
+                configuration: result.configuration.clone(),
+                outcome: status_outcome(result.status.as_deref()),
+                status: result.status.clone(),
+                cached: result.cached_locally,
+                run: Some(result.run),
+                shard: Some(result.shard),
+                attempt: Some(result.attempt),
+                duration_millis: result.duration_millis,
+                ..TestOutcome::default()
             };
-            match validate_lcov(&bytes) {
-                Ok(()) => lcov_documents.push(String::from_utf8_lossy(&bytes).into_owned()),
-                Err(error) => {
-                    if bytes.iter().all(|b| b.is_ascii_whitespace()) {
+            for file in required {
+                let where_ = result_where(
+                    &result.label,
+                    &file.name,
+                    result.run,
+                    result.shard,
+                    result.attempt,
+                );
+                let bytes = match reader.read_artifact(&file.exec_path) {
+                    Ok(bytes) => bytes,
+                    Err(error) => {
+                        error_count += 1;
+                        outcome.artifacts_missing += 1;
+                        if first_error.is_empty() {
+                            first_error = format!(
+                                "unreadable {where_} at {}: {error}",
+                                stable_exec_path(&file.exec_path)
+                            );
+                        }
                         continue;
                     }
-                    error_count += 1;
-                    if first_error.is_empty() {
-                        first_error = format!(
-                            "invalid {} at {}: {error}",
-                            result_where(output),
-                            stable_exec_path(&output.exec_path)
-                        );
+                };
+                match validate_lcov(&bytes) {
+                    Ok(()) => {
+                        outcome.artifacts_collected += 1;
+                        lcov_documents.push(String::from_utf8_lossy(&bytes).into_owned());
+                    }
+                    Err(error) => {
+                        if bytes.iter().all(|b| b.is_ascii_whitespace()) {
+                            continue;
+                        }
+                        error_count += 1;
+                        outcome.artifacts_invalid += 1;
+                        if first_error.is_empty() {
+                            first_error = format!(
+                                "invalid {where_} at {}: {error}",
+                                stable_exec_path(&file.exec_path)
+                            );
+                        }
                     }
                 }
             }
+            outcome.evidence_complete = (outcome.artifacts_collected > 0
+                && outcome.artifacts_missing == 0
+                && outcome.artifacts_invalid == 0)
+                || !result.files.iter().any(is_coverage_file);
+            outcomes.push(outcome);
         }
         if lcov_documents.is_empty() {
             complete = false;
@@ -305,6 +405,27 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             complete = false;
             if detail.is_empty() {
                 detail = unusable_detail(error_count, &first_error);
+            }
+        }
+    }
+    let evidence_complete =
+        !events.results.is_empty() && outcomes.iter().all(|outcome| outcome.evidence_complete);
+    let strict_fail = invocation.strict_evidence && bazel_code == 0 && !evidence_complete;
+    if verb == WorkflowVerb::Test && (!complete || strict_fail) {
+        let reason = if detail.is_empty() {
+            &strict_detail
+        } else {
+            &detail
+        };
+        suites.push(junit_infrastructure_case(reason));
+    }
+    if invocation.strict_evidence && strict_fail && !strict_detail.is_empty() {
+        let _ = writeln!(err, "dx: incomplete_results (strict): {strict_detail}");
+    }
+    if invocation.output == OutputMode::Json {
+        for outcome in &outcomes {
+            if let Ok(event) = test_outcome_event(outcome) {
+                let _ = write_event(out, &event);
             }
         }
     }
@@ -369,7 +490,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             if let Ok(event) = report_event(
                 planned.format.name(),
                 planned.destination.display(),
-                complete && reports_ok,
+                complete && reports_ok && !strict_fail,
             ) {
                 let _ = write_event(out, &event);
             }
@@ -382,18 +503,23 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             );
         }
     }
-    if !complete
-        && !detail.is_empty()
+    let evidence_detail = if detail.is_empty() {
+        strict_detail.as_str()
+    } else {
+        detail.as_str()
+    };
+    if (!complete || strict_fail)
+        && !evidence_detail.is_empty()
         && (verb == WorkflowVerb::Coverage || planned_reports.is_empty())
     {
         if invocation.output == OutputMode::Json {
             if let Ok(event) =
-                dx_output::error_event("incomplete_results", &detail, None, None, None)
+                dx_output::error_event("incomplete_results", evidence_detail, None, None, None)
             {
                 let _ = write_event(out, &event);
             }
-        } else {
-            let _ = writeln!(err, "dx: incomplete_results: {detail}");
+        } else if !complete {
+            let _ = writeln!(err, "dx: incomplete_results: {evidence_detail}");
         }
     }
     let mut threshold_ok = true;
@@ -449,6 +575,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     }
     let code = if bazel_code != 0 {
         bazel_code
+    } else if strict_fail {
+        1
     } else if complete && reports_ok && threshold_ok {
         0
     } else {
@@ -474,7 +602,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             &command_finished(
                 code,
                 &FinishedCounts {
-                    results_complete: Some(complete && reports_ok),
+                    results_complete: Some(complete && reports_ok && !strict_fail),
                     ..FinishedCounts::default()
                 },
             ),
@@ -1666,5 +1794,435 @@ mod tests {
         let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(harness.query.info_calls.borrow().len(), 1);
+    }
+
+    const MIXED_TEST_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="s"><testcase name="passes" classname="c" time="0.1"/><testcase name="fails" classname="c" time="0.2"><failure message="m">t</failure></testcase><testcase name="errors" classname="c" time="0.3"><error message="e">t</error></testcase><testcase name="skips" classname="c" time="0"><skipped message="s"/></testcase></testsuite></testsuites>"#;
+
+    const EMPTY_TEST_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="s"></testsuite></testsuites>"#;
+
+    #[test]
+    fn test_outcomes_carry_bep_status_cache_and_timing() {
+        let harness = Harness::new("test-outcome-meta");
+        let ok_uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let cached_uri = write_bep_artifact(&harness, "cached.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_full_line(
+                    "//a:ok",
+                    1,
+                    1,
+                    1,
+                    "PASSED",
+                    Some("cfg-one"),
+                    Some(false),
+                    Some(12),
+                    &[(String::from("test.xml"), ok_uri)],
+                ),
+                test_result_full_line(
+                    "//a:cached",
+                    2,
+                    3,
+                    1,
+                    "FAILED",
+                    None,
+                    Some(true),
+                    None,
+                    &[(String::from("test.xml"), cached_uri)],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 2, "{out}");
+        assert_eq!(outcomes[0]["target"], serde_json::json!("//a:cached"));
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("failed"));
+        assert_eq!(outcomes[0]["cached"], serde_json::json!(true));
+        assert_eq!(outcomes[0]["run"], serde_json::json!(2));
+        assert_eq!(outcomes[0]["shard"], serde_json::json!(3));
+        assert!(outcomes[0].get("configuration").is_none(), "{out}");
+        assert!(outcomes[0].get("duration_millis").is_none(), "{out}");
+        assert_eq!(outcomes[1]["target"], serde_json::json!("//a:ok"));
+        assert_eq!(outcomes[1]["outcome"], serde_json::json!("passed"));
+        assert_eq!(outcomes[1]["status"], serde_json::json!("PASSED"));
+        assert_eq!(outcomes[1]["configuration"], serde_json::json!("cfg-one"));
+        assert_eq!(outcomes[1]["cached"], serde_json::json!(false));
+        assert_eq!(outcomes[1]["run"], serde_json::json!(1));
+        assert_eq!(outcomes[1]["shard"], serde_json::json!(1));
+        assert_eq!(outcomes[1]["attempt"], serde_json::json!(1));
+        assert_eq!(outcomes[1]["duration_millis"], serde_json::json!(12));
+        assert_eq!(outcomes[1]["evidence_complete"], serde_json::json!(true));
+        let kinds = event_kinds(&events);
+        let last_outcome = kinds
+            .iter()
+            .rposition(|kind| *kind == "test_outcome")
+            .expect("outcome");
+        let finished = kinds
+            .iter()
+            .position(|kind| *kind == "command_finished")
+            .expect("finished");
+        assert!(
+            last_outcome < finished,
+            "outcomes precede command_finished: {kinds:?}"
+        );
+        let finished_event = event(&events, "command_finished");
+        assert_eq!(finished_event["exit_code"], serde_json::json!(0));
+        assert_eq!(finished_event["results_complete"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_outcome_counts_cases_by_severity() {
+        let harness = Harness::new("test-outcome-cases");
+        let uri = write_bep_artifact(&harness, "mixed.xml", MIXED_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 1, "{out}");
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("passed"));
+        assert_eq!(outcomes[0]["cases_total"], serde_json::json!(4));
+        assert_eq!(outcomes[0]["cases_failed"], serde_json::json!(1));
+        assert_eq!(outcomes[0]["cases_error"], serde_json::json!(1));
+        assert_eq!(outcomes[0]["cases_skipped"], serde_json::json!(1));
+        assert_eq!(outcomes[0]["artifacts"]["collected"], serde_json::json!(1));
+        assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_flaky_result_reports_passed_after_retry() {
+        let harness = Harness::new("test-outcome-flaky");
+        let first_uri = write_bep_artifact(&harness, "first.xml", MINIMAL_TEST_XML.as_bytes());
+        let retry_uri = write_bep_artifact(&harness, "retry.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_full_line(
+                    "//a:t",
+                    1,
+                    1,
+                    1,
+                    "FAILED",
+                    None,
+                    Some(false),
+                    None,
+                    &[(String::from("test.xml"), first_uri)],
+                ),
+                test_result_full_line(
+                    "//a:t",
+                    1,
+                    1,
+                    2,
+                    "FLAKY",
+                    None,
+                    Some(false),
+                    None,
+                    &[(String::from("test.xml"), retry_uri)],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 2, "{out}");
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("failed"));
+        assert_eq!(outcomes[0]["attempt"], serde_json::json!(1));
+        assert_eq!(
+            outcomes[1]["outcome"],
+            serde_json::json!("passed_after_retry")
+        );
+        assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
+    }
+
+    #[test]
+    fn test_timeout_and_failure_outcomes_stay_distinct() {
+        let harness = Harness::new("test-outcome-statuses");
+        let timeout_uri = write_bep_artifact(&harness, "timeout.xml", MINIMAL_TEST_XML.as_bytes());
+        let failed_uri = write_bep_artifact(&harness, "failed.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_full_line(
+                    "//a:slow",
+                    1,
+                    1,
+                    1,
+                    "TIMEOUT",
+                    None,
+                    None,
+                    None,
+                    &[(String::from("test.xml"), timeout_uri)],
+                ),
+                test_result_full_line(
+                    "//a:bad",
+                    1,
+                    1,
+                    1,
+                    "FAILED",
+                    None,
+                    None,
+                    None,
+                    &[(String::from("test.xml"), failed_uri)],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 2, "{out}");
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("failed"));
+        assert_eq!(outcomes[1]["outcome"], serde_json::json!("timeout"));
+        assert_eq!(outcomes[1]["status"], serde_json::json!("TIMEOUT"));
+    }
+
+    #[test]
+    fn test_missing_status_reports_unknown_outcome() {
+        let harness = Harness::new("test-outcome-unknown");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let line = serde_json::json!({
+            "id": {"testResult": {"label": "//a:t", "run": 1, "shard": 1, "attempt": 1}},
+            "testResult": {"testActionOutput": [{"name": "test.xml", "uri": uri}]},
+        })
+        .to_string();
+        let harness = Harness {
+            raw_bep: Some(vec![line]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 1, "{out}");
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("unknown"));
+        assert!(outcomes[0].get("status").is_none(), "{out}");
+        assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_zero_case_xml_reports_zero_counts() {
+        let harness = Harness::new("test-outcome-zero");
+        let uri = write_bep_artifact(&harness, "empty.xml", EMPTY_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 1, "{out}");
+        assert_eq!(outcomes[0]["cases_total"], serde_json::json!(0));
+        assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_status_only_result_is_incomplete_evidence() {
+        let harness = Harness {
+            raw_bep: Some(vec![String::from(
+                "{\"id\": {\"testResult\": {\"label\": \"//a:t\"}}, \"testResult\": {\"status\": \"PASSED\"}}",
+            )]),
+            ..Harness::new("test-outcome-nofile")
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 1, "{out}");
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("passed"));
+        assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(false));
+        assert_eq!(outcomes[0]["artifacts"]["collected"], serde_json::json!(0));
+        let finished = event(&events, "command_finished");
+        assert_eq!(finished["results_complete"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn test_strict_evidence_fails_tolerated_gaps() {
+        let harness = Harness::new("test-strict-tolerated");
+        let raw = (0..4)
+            .map(|index| {
+                test_result_line(
+                    &format!("//a:ok{index}"),
+                    &[(
+                        String::from("test.xml"),
+                        write_bep_artifact(
+                            &harness,
+                            &format!("strict-ok-{index}.xml"),
+                            MINIMAL_TEST_XML.as_bytes(),
+                        ),
+                    )],
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut lines = raw;
+        lines.push(test_result_line(
+            "//a:missing",
+            &[(String::from("test.xml"), missing_uri("strict-missing.xml"))],
+        ));
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json", "--strict-evidence"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 5, "{out}");
+        let missing = outcomes
+            .iter()
+            .find(|outcome| outcome["target"] == serde_json::json!("//a:missing"))
+            .expect("missing target outcome");
+        assert_eq!(missing["evidence_complete"], serde_json::json!(false));
+        assert_eq!(missing["artifacts"]["missing"], serde_json::json!(1));
+        let incomplete: Vec<_> = events_of_kind(&events, "error")
+            .into_iter()
+            .filter(|error| error["code"] == serde_json::json!("incomplete_results"))
+            .collect();
+        assert_eq!(incomplete.len(), 1, "{out}");
+        let finished = event(&events, "command_finished");
+        assert_eq!(finished["exit_code"], serde_json::json!(1));
+        assert_eq!(finished["results_complete"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn test_strict_evidence_reports_text_failure() {
+        let harness = Harness::new("test-strict-text");
+        let raw = (0..4)
+            .map(|index| {
+                test_result_line(
+                    &format!("//a:ok{index}"),
+                    &[(
+                        String::from("test.xml"),
+                        write_bep_artifact(
+                            &harness,
+                            &format!("strict-text-ok-{index}.xml"),
+                            MINIMAL_TEST_XML.as_bytes(),
+                        ),
+                    )],
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut lines = raw;
+        lines.push(test_result_line(
+            "//a:missing",
+            &[(
+                String::from("test.xml"),
+                missing_uri("strict-text-missing.xml"),
+            )],
+        ));
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text", "--strict-evidence"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("incomplete_results (strict)"), "{err}");
+        assert!(!err.contains("tolerated"), "{err}");
+    }
+
+    #[test]
+    fn test_strict_evidence_passes_complete_run() {
+        let harness = Harness::new("test-strict-complete");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&[
+            "test",
+            "--output=text",
+            "--strict-evidence",
+            "--report=junit=out.xml",
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("incomplete_results"), "{err}");
+        let document = std::fs::read(harness.workspace.join("out.xml")).expect("junit");
+        let text = String::from_utf8(document).expect("utf8");
+        assert!(text.contains("<testsuite name=\"//a:t\""), "{text}");
+    }
+
+    #[test]
+    fn test_failed_build_preserves_code_and_reports_outcomes() {
+        let harness = Harness::new("test-outcome-bazelfail");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            bazel_code: 4,
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 4, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 1, "{out}");
+        assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
+        let failed: Vec<_> = events_of_kind(&events, "error")
+            .into_iter()
+            .filter(|error| error["code"] == serde_json::json!("bazel_failed"))
+            .collect();
+        assert_eq!(failed.len(), 1, "{out}");
+        let finished = event(&events, "command_finished");
+        assert_eq!(finished["exit_code"], serde_json::json!(4));
+        assert_eq!(finished["results_complete"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn test_signalled_run_emits_no_test_outcome() {
+        let mut harness = Harness::new("test-outcome-signalled");
+        harness.signalled = true;
+        let (code, out, err) = harness.run(&["test", "--output=json"]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(!out.contains("test_outcome"), "{out}");
+    }
+
+    #[test]
+    fn test_coverage_outcomes_mark_only_final_attempt_evidence() {
+        let harness = Harness::new("cov-outcome-retry");
+        let final_uri = write_bep_artifact(&harness, "final.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_identity_line(
+                    "//a:t",
+                    1,
+                    1,
+                    1,
+                    &[(String::from("test.lcov"), missing_uri("cov-attempt1.dat"))],
+                ),
+                test_result_identity_line(
+                    "//a:t",
+                    1,
+                    1,
+                    2,
+                    &[(String::from("test.lcov"), final_uri)],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["coverage", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 1, "{out}");
+        assert_eq!(outcomes[0]["attempt"], serde_json::json!(2));
+        assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
+        assert_eq!(outcomes[0]["artifacts"]["collected"], serde_json::json!(1));
     }
 }

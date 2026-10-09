@@ -12,7 +12,10 @@ pub mod outputs;
 pub mod test_outputs;
 
 pub use outputs::{collect, collect_with_workspace};
-pub use test_outputs::{collect_test_outputs, TestOutputFile};
+pub use test_outputs::{
+    collect_test_events, collect_test_outputs, TestEvents, TestOutputFile, TestResultFile,
+    TestResultRecord, TestSummaryRecord,
+};
 
 use std::path::{Path, PathBuf};
 

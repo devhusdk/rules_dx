@@ -13,7 +13,6 @@ use dx_output::{
     command_finished, report_event, test_outcome_event, write_event, FinishedCounts, OutputMode,
     TestOutcome,
 };
-use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
 use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
 use std::path::Path;
@@ -108,8 +107,7 @@ fn output_locations(
     query_runner: &dyn QueryRunner,
 ) -> OutputLocations {
     let mut locations = OutputLocations::new(workspace);
-    let mut argv = vec![launcher_argv0().to_owned()];
-    argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    let mut argv = dx_process::startup_argv(&invocation.bazel_startup_options);
     argv.push("info".to_owned());
     if verb != WorkflowVerb::Coverage {
         argv.push(invocation.profile().config_flag());
@@ -1701,6 +1699,49 @@ mod tests {
         assert!(
             harness.query.calls.borrow().is_empty(),
             "info must not consume query outputs"
+        );
+    }
+
+    #[test]
+    fn test_info_carries_startup_options_before_the_verb() {
+        let harness = Harness::new("test-info-startup");
+        let testlogs = harness.temp.join("testlogs");
+        harness.query.script_info(&format!(
+            "bazel-testlogs: {}\nexecution_root: {}\n",
+            testlogs.display(),
+            harness.temp.join("execroot").display(),
+        ));
+        let root = testlogs.join("a").join("t");
+        std::fs::create_dir_all(&root).expect("testlogs dir");
+        std::fs::write(root.join("test.xml"), MINIMAL_TEST_XML).expect("test.xml");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(
+                    String::from("test.xml"),
+                    "bytestream://remote.buildbuddy.io/blobs/abc/10".to_owned(),
+                )],
+            )]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&[
+            "test",
+            "--bazel-startup-option=--output_base=/tmp/a",
+            "--output=text",
+        ]);
+        assert_eq!(code, 0, "{err}");
+        let calls = harness.query.info_calls.borrow();
+        assert_eq!(calls.len(), 1, "one bazel info run per report run");
+        let argv = &calls[0];
+        let verb = argv.iter().position(|arg| arg == "info").expect("info");
+        assert_eq!(
+            &argv[..verb],
+            &[
+                "bazel".to_owned(),
+                "--nohome_rc".to_owned(),
+                "--nosystem_rc".to_owned(),
+                "--output_base=/tmp/a".to_owned(),
+            ]
         );
     }
 

@@ -81,7 +81,12 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         };
         (vec![target.to_owned()], target.to_owned())
     } else {
-        match resolve(&invocation.targets, workspace, query_runner) {
+        match resolve(
+            &invocation.targets,
+            workspace,
+            query_runner,
+            &invocation.bazel_startup_options,
+        ) {
             Ok(resolved) => {
                 let scope_text = if resolved.targets.is_empty() {
                     "//...".to_owned()
@@ -104,7 +109,14 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             format!("Running docs build for {scope_text} (mdBook render)"),
         )
     };
-    let argv = match build_workflow_argv("build", &invocation.bazel_options, &[], &[], &labels) {
+    let argv = match build_workflow_argv(
+        "build",
+        &invocation.bazel_options,
+        &[],
+        &[],
+        &labels,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(argv) => argv,
         Err(error) => return pre_exec(err, &format!("{error}")),
     };

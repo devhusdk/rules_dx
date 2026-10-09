@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use dx_process::{launcher_argv0, WORKFLOW_STARTUP_OPTS};
-
 use super::{first_line, parse_owners, quote_set, QueryRunner, ResolveError};
 
 fn tests_expression(owners: &[String]) -> String {
@@ -15,14 +13,13 @@ pub fn map_owners_to_tests(
     owners: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,
+    startup_options: &[String],
 ) -> Result<Vec<String>, ResolveError> {
     if owners.is_empty() {
         return Ok(Vec::new());
     }
     let expression = tests_expression(owners);
-    let mut argv = Vec::with_capacity(WORKFLOW_STARTUP_OPTS.len() + 4);
-    argv.push(launcher_argv0().to_owned());
-    argv.extend(WORKFLOW_STARTUP_OPTS.iter().map(ToString::to_string));
+    let mut argv = dx_process::startup_argv(startup_options);
     argv.push("query".to_owned());
     argv.push("--".to_owned());
     argv.push(expression.clone());
@@ -104,7 +101,8 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:unit\n//pkg:e2e\n//pkg:unit\n")]);
-        let got = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query).expect("map");
+        let got =
+            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
         assert_eq!(got, strings(&["//pkg:e2e", "//pkg:unit"]));
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
@@ -127,7 +125,8 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-order-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("//t:t\n")]);
-        map_owners_to_tests(&strings(&["//z:lib", "//a:lib"]), &workspace, &query).expect("map");
+        map_owners_to_tests(&strings(&["//z:lib", "//a:lib"]), &workspace, &query, &[])
+            .expect("map");
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(
@@ -141,7 +140,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-empty-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
-        let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query)
+        let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[])
             .expect_err("empty mapping");
         assert_eq!(
             err,
@@ -160,8 +159,8 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-fail-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
-        let err =
-            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query).expect_err("failed");
+        let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[])
+            .expect_err("failed");
         assert_eq!(
             err,
             ResolveError::QueryFailed {
@@ -172,11 +171,36 @@ mod tests {
     }
 
     #[test]
+    fn test_mapping_carries_startup_options_before_the_verb() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-startup-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:unit\n")]);
+        let startup = vec!["--output_base=/tmp/a".to_owned()];
+        let got = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &startup)
+            .expect("map");
+        assert_eq!(got, strings(&["//pkg:unit"]));
+        let calls = query.calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(
+            calls[0].0,
+            strings(&[
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "--output_base=/tmp/a",
+                "query",
+                "--",
+                "kind('.*_test rule', rdeps(//..., set(\"//pkg:lib\")))",
+            ])
+        );
+    }
+
+    #[test]
     fn empty_owners_map_to_no_tests_without_query() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-query-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let got = map_owners_to_tests(&[], &workspace, &query).expect("map");
+        let got = map_owners_to_tests(&[], &workspace, &query, &[]).expect("map");
         assert!(got.is_empty());
     }
 

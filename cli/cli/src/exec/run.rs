@@ -45,7 +45,12 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(err, &error.to_string()),
     };
     debug_assert!(planned_reports.is_empty(), "dx run takes no --report");
-    let targets = match resolve_run(&invocation.targets, workspace, query_runner) {
+    let targets = match resolve_run(
+        &invocation.targets,
+        workspace,
+        query_runner,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(targets) => targets,
         Err(error) => {
             let code = resolve_code(&error);
@@ -101,7 +106,11 @@ fn execute_run_check(
     err: &mut dyn Write,
     targets: &[String],
 ) -> i32 {
-    let plan = plan_run_build(targets, invocation.profile());
+    let plan = plan_run_build(
+        targets,
+        invocation.profile(),
+        &invocation.bazel_startup_options,
+    );
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "check") {
             let _ = write_event(out, &event);
@@ -169,7 +178,12 @@ fn execute_run_single(
     err: &mut dyn Write,
     target: &str,
 ) -> i32 {
-    let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+    let plan = plan_run(
+        target,
+        &invocation.bazel_options,
+        invocation.profile(),
+        &invocation.bazel_startup_options,
+    );
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
@@ -241,7 +255,12 @@ fn execute_run_multi(
             let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
         } else if !invocation.quiet {
             for target in targets {
-                let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+                let plan = plan_run(
+                    target,
+                    &invocation.bazel_options,
+                    invocation.profile(),
+                    &invocation.bazel_startup_options,
+                );
                 let _ = writeln!(err, "{}", plan.summary);
             }
         }
@@ -256,7 +275,12 @@ fn execute_run_multi(
         }
         emit_run_operations(out, invocation.command.name(), targets);
         for target in targets {
-            let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+            let plan = plan_run(
+                target,
+                &invocation.bazel_options,
+                invocation.profile(),
+                &invocation.bazel_startup_options,
+            );
             let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
                 Ok(code) => code,
                 Err(exit) => return exit,
@@ -281,7 +305,12 @@ fn execute_run_multi(
         return 0;
     }
     for target in targets {
-        let plan = plan_run(target, &invocation.bazel_options, invocation.profile());
+        let plan = plan_run(
+            target,
+            &invocation.bazel_options,
+            invocation.profile(),
+            &invocation.bazel_startup_options,
+        );
         if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
@@ -654,6 +683,7 @@ mod tests {
             host: None,
             open: false,
             offline: false,
+            bazel_startup_options: Vec::new(),
         }
     }
 

@@ -67,6 +67,7 @@ pub fn plan_generate(
     resolved: &ResolvedScope,
     bazel_options: &[String],
     check: bool,
+    startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let required = Vec::new();
     let protected = Vec::new();
@@ -81,6 +82,7 @@ pub fn plan_generate(
         &required,
         &protected,
         &[target.to_owned()],
+        startup_options,
     )?;
     let dirs = generate_traversal_dirs(resolved);
     let root_only = dirs.len() == 1 && dirs.first().is_some_and(String::is_empty);
@@ -114,7 +116,8 @@ mod tests {
     fn generate_plan_runs_canonical_runner_repo_wide() {
         assert_eq!(GENERATE_TARGET, "//dx:generate");
         assert_eq!(GENERATE_CHECK_TARGET, "//dx:generate_check");
-        let plan = plan_generate(&resolved(&[]), &strings(&["--jobs=4"]), false).expect("plan");
+        let plan =
+            plan_generate(&resolved(&[]), &strings(&["--jobs=4"]), false, &[]).expect("plan");
         assert_eq!(
             plan.argv,
             strings(&[
@@ -127,7 +130,7 @@ mod tests {
             ])
         );
         assert_eq!(plan.summary, "Running generate for //...");
-        let bare = plan_generate(&resolved(&[]), &[], false).expect("plan");
+        let bare = plan_generate(&resolved(&[]), &[], false, &[]).expect("plan");
         assert_eq!(
             bare.argv.last(),
             Some(&GENERATE_TARGET.to_owned()),
@@ -137,7 +140,7 @@ mod tests {
 
     #[test]
     fn generate_plan_check_selects_non_mutating_runner() {
-        let plan = plan_generate(&resolved(&[]), &[], true).expect("plan");
+        let plan = plan_generate(&resolved(&[]), &[], true, &[]).expect("plan");
         assert_eq!(
             plan.argv,
             strings(&[
@@ -149,7 +152,7 @@ mod tests {
             ])
         );
         assert_eq!(plan.summary, "Running generate for //...");
-        let scoped = plan_generate(&resolved(&["//a:one"]), &[], true).expect("plan");
+        let scoped = plan_generate(&resolved(&["//a:one"]), &[], true, &[]).expect("plan");
         assert_eq!(
             scoped.argv.last(),
             Some(&"a".to_owned()),
@@ -164,7 +167,7 @@ mod tests {
     #[test]
     fn generate_plan_forwards_the_consumer_policy_selection() {
         let selection = "--@rules_dx//config:workspace=//consumer:policy";
-        let plan = plan_generate(&resolved(&[]), &strings(&[selection]), false).expect("plan");
+        let plan = plan_generate(&resolved(&[]), &strings(&[selection]), false, &[]).expect("plan");
         assert!(
             plan.argv.contains(&selection.to_owned()),
             "the consumer policy selection reaches bazel: {plan:?}"
@@ -173,14 +176,15 @@ mod tests {
 
     #[test]
     fn generate_plan_rejects_startup_options() {
-        let err = plan_generate(&resolved(&[]), &strings(&["--home_rc"]), false)
+        let err = plan_generate(&resolved(&[]), &strings(&["--home_rc"]), false, &[])
             .expect_err("startup option must fail");
         assert!(matches!(err, ForwardError::StartupOption { .. }));
     }
 
     #[test]
     fn generate_plan_forwards_scoped_traversal_dirs() {
-        let plan = plan_generate(&resolved(&["//b/...", "//a:one"]), &[], false).expect("plan");
+        let plan =
+            plan_generate(&resolved(&["//b/...", "//a:one"]), &[], false, &[]).expect("plan");
         assert_eq!(
             plan.argv,
             strings(&[
@@ -199,7 +203,7 @@ mod tests {
 
     #[test]
     fn generate_plan_root_package_label_stays_repo_wide() {
-        let plan = plan_generate(&resolved(&["//:foo"]), &[], false).expect("plan");
+        let plan = plan_generate(&resolved(&["//:foo"]), &[], false, &[]).expect("plan");
         assert!(
             !plan.argv.contains(&"--".to_owned()),
             "root traversal needs no positional arguments: {plan:?}"

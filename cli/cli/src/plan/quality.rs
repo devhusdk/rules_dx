@@ -108,12 +108,20 @@ pub fn plan_build(
     resolved: &ResolvedScope,
     bazel_options: &[String],
     bep_path: &str,
+    startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
     let required = required_options(&entry, bep_path);
     let protected = protected_flags(&required, entry.settings)?;
     let (scope, labels) = workflow_scope_labels(resolved);
-    let argv = build_workflow_argv("build", bazel_options, &required, &protected, &labels)?;
+    let argv = build_workflow_argv(
+        "build",
+        bazel_options,
+        &required,
+        &protected,
+        &labels,
+        startup_options,
+    )?;
     let summary = operation_summary(command.name(), "analysis", &scope);
     Ok(BuildPlan { argv, summary })
 }
@@ -179,6 +187,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--jobs=4"]),
             "/tmp/bep.json",
+            &[],
         )
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
@@ -210,13 +219,15 @@ mod tests {
 
     #[test]
     fn lint_plan_enables_upstream_clippy_diagnostics() {
-        let plan = plan_build(Command::Lint, &resolved(&[]), &[], "/tmp/bep.json").expect("plan");
+        let plan =
+            plan_build(Command::Lint, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
         assert!(
             plan.argv.iter().any(|arg| arg == CLIPPY_DIAGNOSTICS_FLAG),
             "lint sets the upstream diagnostics setting: {plan:?}"
         );
         for command in [Command::Typecheck, Command::Format] {
-            let plan = plan_build(command, &resolved(&[]), &[], "/tmp/bep.json").expect("plan");
+            let plan =
+                plan_build(command, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
             assert!(
                 plan.argv.iter().all(|arg| arg != CLIPPY_DIAGNOSTICS_FLAG),
                 "{command:?} leaves the clippy setting off: {plan:?}"
@@ -226,14 +237,21 @@ mod tests {
 
     #[test]
     fn typecheck_plan_enables_upstream_rustc_diagnostics() {
-        let plan =
-            plan_build(Command::Typecheck, &resolved(&[]), &[], "/tmp/bep.json").expect("plan");
+        let plan = plan_build(
+            Command::Typecheck,
+            &resolved(&[]),
+            &[],
+            "/tmp/bep.json",
+            &[],
+        )
+        .expect("plan");
         assert!(
             plan.argv.iter().any(|arg| arg == RUSTC_DIAGNOSTICS_FLAG),
             "typecheck sets the upstream diagnostics setting: {plan:?}"
         );
         for command in [Command::Lint, Command::Format] {
-            let plan = plan_build(command, &resolved(&[]), &[], "/tmp/bep.json").expect("plan");
+            let plan =
+                plan_build(command, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
             assert!(
                 plan.argv.iter().all(|arg| arg != RUSTC_DIAGNOSTICS_FLAG),
                 "{command:?} leaves the rustc setting off: {plan:?}"
@@ -248,6 +266,7 @@ mod tests {
             &resolved(&["//a:one", "//b/..."]),
             &[],
             "/tmp/bep.json",
+            &[],
         )
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
@@ -261,7 +280,7 @@ mod tests {
             scope: Scope::ResolvedOwners(strings(&["//a:a", "//b:b"])),
             targets: strings(&["//a:a", "//b:b"]),
         };
-        let plan = plan_build(Command::Lint, &scope, &[], "/tmp/bep.json").expect("plan");
+        let plan = plan_build(Command::Lint, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(argv[argv.len() - 2..], ["//a:a", "//b:b"]);
         assert_eq!(plan.summary, "Running lint analysis for //a:a //b:b");
@@ -302,21 +321,27 @@ mod tests {
         std::fs::write(root.join("pkg/a.py"), "x = 1\n").expect("source file");
         let forward = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:extra\n")]);
         let reversed = FakeQuery::new(vec![FakeQuery::ok("//pkg:extra\n//pkg:lib\n")]);
-        let first = resolve(&strings(&["pkg/a.py"]), &root, &forward).expect("forward");
-        let second = resolve(&strings(&["pkg/a.py"]), &root, &reversed).expect("reversed");
+        let first = resolve(&strings(&["pkg/a.py"]), &root, &forward, &[]).expect("forward");
+        let second = resolve(&strings(&["pkg/a.py"]), &root, &reversed, &[]).expect("reversed");
         assert_eq!(first.targets, second.targets);
         assert_eq!(first.targets, strings(&["//pkg:extra", "//pkg:lib"]));
         let first_plan =
-            plan_build(Command::Lint, &first, &[], "/tmp/bep.json").expect("forward plan");
+            plan_build(Command::Lint, &first, &[], "/tmp/bep.json", &[]).expect("forward plan");
         let second_plan =
-            plan_build(Command::Lint, &second, &[], "/tmp/bep.json").expect("reversed plan");
+            plan_build(Command::Lint, &second, &[], "/tmp/bep.json", &[]).expect("reversed plan");
         assert_eq!(first_plan.argv, second_plan.argv);
     }
 
     #[test]
     fn typecheck_plan_carries_typecheck_aspect_and_format_summary() {
-        let plan =
-            plan_build(Command::Typecheck, &resolved(&[]), &[], "/tmp/bep.json").expect("plan");
+        let plan = plan_build(
+            Command::Typecheck,
+            &resolved(&[]),
+            &[],
+            "/tmp/bep.json",
+            &[],
+        )
+        .expect("plan");
         assert!(
             plan.argv.iter().any(|arg| arg
                 .contains("//quality:real_aspects.bzl%real_typecheck_aspect")
@@ -324,7 +349,8 @@ mod tests {
             "typecheck selects the real typecheck aspects: {plan:?}"
         );
         assert_eq!(plan.summary, "Running typecheck analysis for //...");
-        let plan = plan_build(Command::Format, &resolved(&[]), &[], "/tmp/bep.json").expect("plan");
+        let plan =
+            plan_build(Command::Format, &resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
         assert_eq!(plan.summary, "Running format analysis for //...");
     }
 
@@ -335,6 +361,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--keep_going"]),
             "/tmp/bep.json",
+            &[],
         )
         .expect("plan");
         assert!(plan.argv.iter().any(|arg| arg == "--keep_going"));
@@ -348,6 +375,7 @@ mod tests {
             &resolved(&[]),
             &strings(&[selection]),
             "/tmp/bep.json",
+            &[],
         )
         .expect("plan");
         assert_eq!(
@@ -373,6 +401,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[conflicting]),
                 "/tmp/bep.json",
+                &[],
             )
             .expect_err("conflict must fail");
             assert!(
@@ -389,6 +418,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[conflicting]),
                 "/tmp/bep.json",
+                &[],
             )
             .expect_err("conflict must fail");
             assert!(
@@ -405,6 +435,7 @@ mod tests {
             &resolved(&[]),
             &strings(&["--home_rc"]),
             "/tmp/bep.json",
+            &[],
         )
         .expect_err("startup option must fail");
         assert!(matches!(err, ForwardError::StartupOption { .. }));

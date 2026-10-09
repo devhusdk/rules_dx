@@ -368,6 +368,7 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
             host: None,
             open: false,
             offline: false,
+            bazel_startup_options: invocation.bazel_startup_options.clone(),
         };
         let code = {
             let phase_env = Env {
@@ -566,6 +567,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             host: None,
             open: false,
             offline: false,
+            bazel_startup_options: invocation.bazel_startup_options.clone(),
         };
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();

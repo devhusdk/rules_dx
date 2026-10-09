@@ -40,12 +40,22 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(_) => {}
         Err(error) => return pre_exec(env.err, &error.to_string()),
     }
-    let resolved = match resolve(&invocation.targets, env.workspace, env.query_runner) {
+    let resolved = match resolve(
+        &invocation.targets,
+        env.workspace,
+        env.query_runner,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(env.err, &error.to_string()),
     };
     let apply = invocation.applies();
-    let plan = match plan_generate(&resolved, &invocation.bazel_options, !apply) {
+    let plan = match plan_generate(
+        &resolved,
+        &invocation.bazel_options,
+        !apply,
+        &invocation.bazel_startup_options,
+    ) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(env.err, &format!("{error}")),
     };

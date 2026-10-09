@@ -1,0 +1,65 @@
+load("//cc/rules:defs.bzl", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_library(
+    name = "consumer_abi",
+    srcs = ["src/lib.rs"],
+    crate_name = "consumer_abi",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    link_deps = ["@consumer_abi//:abi"],
+)
+
+rust_test(
+    name = "consumer_abi_test",
+    crate = ":consumer_abi",
+    link_deps = ["@consumer_abi//:abi"],
+)
+
+rustfmt_test(
+    name = "consumer_abi_fmt_test",
+    size = "small",
+    targets = [":consumer_abi"],
+)
+
+rust_clippy_test(
+    name = "consumer_abi_clippy_test",
+    size = "small",
+    targets = [":consumer_abi"],
+)
+
+cc_test(
+    name = "consumer_abi_shared_test",
+    srcs = ["shared_test.cc"],
+    data = [":abi_digest"],
+    deps = ["@consumer_abi//:abi_shared"],
+)
+
+cc_test(
+    name = "consumer_abi_mismatch_test",
+    srcs = ["mismatch_test.cc"],
+    deps = ["@consumer_abi//:abi_mismatch"],
+)
+
+genrule(
+    name = "abi_digest",
+    srcs = ["@consumer_abi//:abi_shared_bin"],
+    outs = ["abi.digest"],
+    cmd = "sha256sum $(SRCS) | cut -d' ' -f1 | tr -d '\\n' > $@",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

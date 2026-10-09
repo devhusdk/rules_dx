@@ -100,6 +100,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         return 0;
     }
     let mut argv = vec!["bazel".to_owned()];
+    argv.extend(invocation.bazel_startup_options.iter().cloned());
     argv.extend(bazel_forward_argv());
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
         Ok(code) => code,
@@ -463,6 +464,43 @@ mod tests {
         assert!(
             dry.seen_env.borrow().is_empty(),
             "dry-run lists the forward without launching"
+        );
+    }
+
+    #[test]
+    fn clean_bazel_forward_uses_selected_startup_options() {
+        let harness = Harness::new("clean-bazel-startup");
+        let inv = invocation(&[
+            "clean",
+            "--apply",
+            "--bazel",
+            "--bazel-startup-option=--output_base=/tmp/isolated-base",
+            "--bazel-startup-option=--output_user_root=/tmp/isolated-root",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert_eq!(
+            run.argv[0],
+            vec![
+                "bazel".to_owned(),
+                "--output_base=/tmp/isolated-base".to_owned(),
+                "--output_user_root=/tmp/isolated-root".to_owned(),
+                "clean".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn clean_bazel_forward_without_startup_options_stays_bare() {
+        let harness = Harness::new("clean-bazel-bare");
+        let inv = invocation(&["clean", "--apply", "--bazel"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(
+            run.argv,
+            vec![vec!["bazel".to_owned(), "clean".to_owned()]],
+            "{run:?}"
         );
     }
 

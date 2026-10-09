@@ -40,4 +40,6 @@ common:ci-pr --noremote_upload_local_results
 # Fixture for consumer --config passthrough checks.
 build:dx_consumer_probe --copt=-DDX_CONSUMER_PROBE
 
+build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
+
 try-import %workspace%/user.bazelrc

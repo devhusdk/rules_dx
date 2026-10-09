@@ -1,4 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_cc_tests", "thin_compare_subject")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -42,6 +43,15 @@ dx_hello_output_test(
     binary = ":hello",
     expected = "hello 42",
 )
+
+thin_compare_subject(
+    name = "thin_cc_subject",
+    kind = "cc_library",
+    thin = ":hello_lib_upstream",
+    wrapper = ":hello_lib",
+)
+
+thin_compare_cc_tests(name = "thin_cc_test")
 
 real_source_target(
     name = "corpus_starlark",

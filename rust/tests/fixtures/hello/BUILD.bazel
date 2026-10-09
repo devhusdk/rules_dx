@@ -1,5 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//deploy/rules:archive.bzl", "archive_deploy")
+load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
 load("//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
@@ -217,6 +218,15 @@ dx_hello_output_test(
     binary = ":hello",
     expected = "Hello, world!",
 )
+
+thin_compare_subject(
+    name = "thin_rust_subject",
+    kind = "rust_library",
+    thin = ":hello_lib_upstream",
+    wrapper = ":hello_lib",
+)
+
+thin_compare_rust_tests(name = "thin_rust_test")
 
 archive_deploy(
     name = "release",

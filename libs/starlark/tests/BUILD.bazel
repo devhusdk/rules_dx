@@ -1,3 +1,4 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/starlark/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
 load("//libs/starlark/tests/fixtures/starlark_futures:config_subjects.bzl", "config_group", "config_leaf")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -11,6 +12,7 @@ load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":output_group_tests.bzl", "output_group_unit_tests")
 load(":subject.bzl", "example_subject")
+load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
 load(":wrapper_tests.bzl", "wrapper_optional_forward_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
 
@@ -82,6 +84,36 @@ wrapper_shape_kwargs_tests(name = "wrapper_shape_kwargs")
 
 wrapper_symlink_naming_tests(name = "wrapper_symlink_naming")
 
+genrule(
+    name = "thin_demo_plain",
+    outs = ["thin_demo_plain.txt"],
+    cmd = "echo demo > $@",
+)
+
+thin_demo_library_forward(
+    name = "thin_demo_missing_provider",
+    tags = ["manual"],
+    upstream = ":thin_demo_plain",
+)
+
+thin_demo_executable_forward(
+    name = "thin_demo_missing_executable",
+    tags = ["manual"],
+    upstream = ":thin_demo_plain",
+)
+
+failure_test(
+    name = "thin_demo_missing_provider_test",
+    expected_failure_substring = "upstream target has no QualitySourcesInfo",
+    target = ":thin_demo_missing_provider",
+)
+
+failure_test(
+    name = "thin_demo_missing_executable_test",
+    expected_failure_substring = "upstream target has no executable",
+    target = ":thin_demo_missing_executable",
+)
+
 test_suite(
     name = "all",
     tests = [
@@ -95,6 +127,8 @@ test_suite(
         ":matrix_validation",
         ":output_group_unit",
         ":subject_analysis",
+        ":thin_demo_missing_executable_test",
+        ":thin_demo_missing_provider_test",
         ":toolchain_unit",
         ":wrapper_optional_forward",
         ":wrapper_shape_kwargs",
@@ -119,6 +153,7 @@ real_source_target(
         "matrix_tests.bzl",
         "output_group_tests.bzl",
         "subject.bzl",
+        "thin_compare.bzl",
         "toolchain_tests.bzl",
         "wrapper_tests.bzl",
     ],

@@ -40,6 +40,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude quality/testdata
+# gazelle:exclude quality/tests/fixtures/consumer_tool
 # gazelle:exclude cli/entrypoint
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/process_probe

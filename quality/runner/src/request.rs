@@ -13,6 +13,7 @@ pub struct RequestTool {
     pub binary: Option<PathBuf>,
     pub config_rel: Option<String>,
     pub edition: Option<String>,
+    pub version: Option<String>,
     pub files: Vec<(String, String)>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
@@ -112,6 +113,8 @@ struct ToolDoc {
     config: Option<String>,
     #[serde(default)]
     edition: Option<String>,
+    #[serde(default)]
+    version: Option<String>,
     #[serde(default)]
     files: Vec<ToolFileDoc>,
     #[serde(default)]
@@ -214,6 +217,14 @@ fn check_tool(
             });
         }
     }
+    if let Some(version) = &doc.version {
+        if version.is_empty() {
+            return Err(RequestError::EmptyExec {
+                role: "tool version".to_owned(),
+                workspace: tool_id.to_owned(),
+            });
+        }
+    }
     let mut files = Vec::with_capacity(doc.files.len());
     for file in &doc.files {
         check_workspace("tool file", &file.mirror_rel)?;
@@ -254,6 +265,7 @@ fn check_tool(
         binary,
         config_rel: doc.config.clone(),
         edition: doc.edition.clone(),
+        version: doc.version.clone(),
         files,
         env,
         upstream,
@@ -728,6 +740,49 @@ mod tests {
         let tool = &request.tools["clippy"];
         assert_eq!(tool.binary, None);
         assert_eq!(tool.upstream, [PathBuf::from("out/clippy.diag")]);
+    }
+
+    #[test]
+    fn tool_version_is_carried_and_empty_versions_fail() {
+        let (stages, sources, _tools) = one_source();
+        let request = parse_skeleton(
+            stages,
+            sources,
+            json!({"ruff": {
+                "binary": "bin/ruff",
+                "version": "0.16.7-dx-override",
+                "files": [],
+                "env": [],
+                "upstream": [],
+            }}),
+        )
+        .expect("versioned tool parses");
+        assert_eq!(
+            request.tools["ruff"].version.as_deref(),
+            Some("0.16.7-dx-override")
+        );
+        let (stages, sources, _tools) = one_source();
+        assert!(
+            matches!(
+                parse_skeleton(
+                    stages,
+                    sources,
+                    json!({"ruff": {
+                        "binary": "bin/ruff",
+                        "version": "",
+                        "files": [],
+                        "env": [],
+                        "upstream": [],
+                    }}),
+                ),
+                Err(RequestError::EmptyExec { role, .. }) if role == "tool version"
+            ),
+            "an empty version must fail"
+        );
+        let (stages, sources, tools) = one_source();
+        let request =
+            parse_skeleton(stages, sources, tools).expect("unversioned tool still parses");
+        assert_eq!(request.tools["ruff"].version, None);
     }
 
     #[test]

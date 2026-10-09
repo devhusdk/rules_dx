@@ -4,6 +4,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
 load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "vale_config")
+load("//quality:tool_override.bzl", "quality_tool_override")
 load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
@@ -369,6 +370,100 @@ real_source_target(
     python_srcs = ["real_clean.py"],
 )
 
+genrule(
+    name = "ruff_override_bin",
+    srcs = ["@dx_tools//:ruff"],
+    outs = ["ruff_override_copy"],
+    cmd = "cp $(SRCS) $@",
+    executable = True,
+)
+
+quality_tool_override(
+    name = "ruff_override",
+    data = [":override_note.txt"],
+    tool = ":ruff_override_bin",
+    tool_id = "ruff",
+    version = "0.16.7-dx-override",
+)
+
+quality_tool_override(
+    name = "ruff_override_alt",
+    tags = ["manual"],
+    tool = ":ruff_override_bin",
+    tool_id = "ruff",
+    version = "0.16.7-dx-override-alt",
+)
+
+quality_tool_override(
+    name = "tool_override_bad_tool",
+    tags = ["manual"],
+    tool = ":ruff_override_bin",
+    tool_id = "frobnicate",
+    version = "1.0",
+)
+
+failure_test(
+    name = "tool_override_bad_tool_test",
+    expected_failure_substring = "unknown tool 'frobnicate'",
+    target = ":tool_override_bad_tool",
+)
+
+quality_tool_override(
+    name = "tool_override_empty_version",
+    tags = ["manual"],
+    tool = ":ruff_override_bin",
+    tool_id = "ruff",
+    version = "",
+)
+
+failure_test(
+    name = "tool_override_empty_version_test",
+    expected_failure_substring = "version is required",
+    target = ":tool_override_empty_version",
+)
+
+real_source_target(
+    name = "fixture_real_python_override",
+    aspect_hints = [
+        ":ruff_cfg",
+        ":ruff_override",
+    ],
+    python_srcs = ["real_clean.py"],
+)
+
+real_source_target(
+    name = "fixture_real_python_override_no_lint",
+    aspect_hints = [
+        ":ruff_cfg",
+        ":ruff_override",
+    ],
+    python_srcs = ["real_clean.py"],
+    tags = ["no-lint"],
+)
+
+real_source_target(
+    name = "fixture_real_python_dup_override",
+    aspect_hints = [
+        ":ruff_cfg",
+        ":ruff_override",
+        ":ruff_override_alt",
+    ],
+    python_srcs = ["real_clean.py"],
+    tags = ["manual"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_dup_override_subject",
+    tags = ["manual"],
+    target = ":fixture_real_python_dup_override",
+)
+
+failure_test(
+    name = "fixture_real_python_dup_override_test",
+    expected_failure_substring = "duplicate aspect_hints for tool 'ruff'",
+    target = ":fixture_real_python_dup_override_subject",
+)
+
 real_source_target(
     name = "fixture_real_python_generated_config",
     aspect_hints = [":ruff_cfg_generated"],
@@ -584,6 +679,16 @@ real_aspect_subject(
 real_aspect_subject(
     name = "fixture_real_python_subject",
     target = ":fixture_real_python",
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_override_subject",
+    target = ":fixture_real_python_override",
+)
+
+real_aspect_subject(
+    name = "fixture_real_python_override_no_lint_subject",
+    target = ":fixture_real_python_override_no_lint",
 )
 
 real_aspect_subject(
@@ -833,6 +938,8 @@ real_aspect_fixture_tests(
         ":fixture_real_python_foreign_hint_subject",
         ":fixture_real_python_generated_config_subject",
         ":fixture_real_python_hinted_subject",
+        ":fixture_real_python_override_no_lint_subject",
+        ":fixture_real_python_override_subject",
         ":fixture_real_python_subject",
         ":fixture_real_rust_subject",
         ":fixture_real_rust_generated_shape_subject",

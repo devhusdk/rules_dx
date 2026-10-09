@@ -15,6 +15,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "upstream_source_class")
+load("//quality:tool_override.bzl", "DxQualityToolInfo", "collect_tool_overrides")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
@@ -212,12 +213,23 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     rustc_delegated = len(rustc_diagnostics) > 0
 
     hints = []
+    override_hints = []
     if hasattr(ctx.rule.attr, "aspect_hints"):
         for hint_target in ctx.rule.attr.aspect_hints:
             if DxNativeConfigInfo in hint_target:
                 hints.append(hint_target[DxNativeConfigInfo])
+            if DxQualityToolInfo in hint_target:
+                override_hints.append((hint_target, hint_target[DxQualityToolInfo]))
     stage_tools = [stage["tool"] for stage in resolved]
     configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label))
+    overrides_by_tool = collect_tool_overrides(
+        [info for (_, info) in override_hints],
+        stage_tools,
+        str(target.label),
+    )
+    override_targets = {}
+    for (hint_target, info) in override_hints:
+        override_targets[info.tool_id] = hint_target
 
     for stage in resolved:
         config_error = missing_required_config_error(stage["tool"], configs_by_tool, str(target.label))
@@ -272,6 +284,20 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             tool_binaries["rustfmt"] = rustfmt
         if "rustc" in stage_tools and not rustc_delegated:
             tool_binaries["rustc"] = rust_toolchain_rustc(ctx)
+
+    override_versions = {}
+    override_runfiles = {}
+    for tool in stage_tools:
+        if tool not in overrides_by_tool:
+            continue
+        hint_target = override_targets[tool]
+        info = hint_target[DxQualityToolInfo]
+        if info.tool == None:
+            fail(what + ": tool_override (" + tool + "): replacement has no executable")
+        tool_binaries[tool] = info.tool
+        tool_extra.pop(tool, None)
+        override_versions[tool] = info.version
+        override_runfiles[tool] = hint_target[DefaultInfo].default_runfiles.files.to_list()
 
     out = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + ".pb")
 
@@ -366,6 +392,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             inputs.append(binary)
             inputs.extend(tool_extra.get(tool, []))
         tool_files = []
+        if tool in override_runfiles:
+            replacement = override_targets[tool][DxQualityToolInfo].tool
+            for runfile in sorted(override_runfiles[tool], key = lambda f: f.short_path):
+                inputs.append(runfile)
+                if runfile.path == replacement.path:
+                    continue
+                if ".." in runfile.short_path.split("/"):
+                    continue
+                tool_files.append(real_request_tool_file(runfile.short_path, runfile.path))
         if tool == "spotbugs":
             for jar in spotbugs_jars:
                 tool_files.append(real_request_tool_file(jar.short_path, jar.path))
@@ -396,6 +431,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             files = tool_files,
             env = tool_env_entries.get(tool, []),
             upstream = upstream,
+            version = override_versions.get(tool, None),
         )
 
     doc = real_request_doc(

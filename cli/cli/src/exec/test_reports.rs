@@ -97,6 +97,199 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
+    pub(crate) pid: u32,
+    pub(crate) nonce: u64,
+}
+
+pub(crate) const CODE_RUN_OUTPUT_FAILED: &str = "run_output_failed";
+
+fn sanitize_component(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        out.push('_');
+    }
+    if out.len() > 120 {
+        out.truncate(120);
+    }
+    out
+}
+
+fn is_safe_artifact_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    if name == "." || name == ".." {
+        return false;
+    }
+    if name.contains('/') || name.contains('\\') {
+        return false;
+    }
+    if name.starts_with('/') {
+        return false;
+    }
+    if name.contains("..") {
+        return false;
+    }
+    if name.as_bytes().contains(&0) {
+        return false;
+    }
+    true
+}
+
+fn resolve_run_output_parent(workspace: &Path, raw: &str) -> std::path::PathBuf {
+    let rel = Path::new(raw);
+    if rel.is_absolute() {
+        rel.to_path_buf()
+    } else {
+        workspace.join(rel)
+    }
+}
+
+fn export_run_outputs(
+    workspace: &Path,
+    verb: WorkflowVerb,
+    parent_raw: &str,
+    pid: u32,
+    nonce: u64,
+    events: &dx_bep::TestEvents,
+    reader: &FsArtifacts,
+) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+    let parent = resolve_run_output_parent(workspace, parent_raw);
+    std::fs::create_dir_all(&parent).map_err(|err| {
+        format!(
+            "cannot create run-output parent {}: {err}",
+            parent.display()
+        )
+    })?;
+    let mut child: Option<std::path::PathBuf> = None;
+    let mut last_err = String::new();
+    for attempt in 0..100 {
+        let name = if attempt == 0 {
+            format!("dx-run-{pid}-{nonce}")
+        } else {
+            format!("dx-run-{pid}-{nonce}-{attempt}")
+        };
+        let candidate = parent.join(name);
+        match std::fs::create_dir(&candidate) {
+            Ok(()) => {
+                child = Some(candidate);
+                break;
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                last_err = err.to_string();
+                continue;
+            }
+            Err(err) => {
+                return Err(format!(
+                    "cannot create run-output directory {}: {err}",
+                    candidate.display()
+                ));
+            }
+        }
+    }
+    let child = child.ok_or_else(|| {
+        format!(
+            "cannot claim a unique run-output directory under {}: {last_err}",
+            parent.display()
+        )
+    })?;
+    let mut used: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    for result in &events.results {
+        for file in &result.files {
+            if !is_safe_artifact_name(&file.name) {
+                entries.push(serde_json::json!({
+                    "target": result.label,
+                    "run": result.run,
+                    "shard": result.shard,
+                    "attempt": result.attempt,
+                    "status": result.status,
+                    "name": file.name,
+                    "available": false,
+                    "reason": "unsafe artifact name",
+                }));
+                continue;
+            }
+            let bytes = match reader.read_artifact(&file.exec_path) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    entries.push(serde_json::json!({
+                        "target": result.label,
+                        "run": result.run,
+                        "shard": result.shard,
+                        "attempt": result.attempt,
+                        "status": result.status,
+                        "name": file.name,
+                        "available": false,
+                        "reason": format!("unreadable artifact: {err}"),
+                    }));
+                    continue;
+                }
+            };
+            let stem = format!(
+                "{}__run{}_shard{}_attempt{}__{}",
+                sanitize_component(&result.label),
+                result.run,
+                result.shard,
+                result.attempt,
+                sanitize_component(&file.name),
+            );
+            let mut retained = stem.clone();
+            let mut dup = 0;
+            while !used.insert(retained.clone()) {
+                dup += 1;
+                retained = format!("{stem}__dup{dup}");
+            }
+            let dest = child.join(&retained);
+            if let Err(err) = std::fs::write(&dest, &bytes) {
+                return Err(format!(
+                    "cannot retain {} for {}: {err}",
+                    file.name, result.label
+                ));
+            }
+            entries.push(serde_json::json!({
+                "target": result.label,
+                "run": result.run,
+                "shard": result.shard,
+                "attempt": result.attempt,
+                "status": result.status,
+                "name": file.name,
+                "path": retained,
+                "available": true,
+                "bytes": bytes.len(),
+            }));
+        }
+    }
+    entries.sort_by(|a, b| {
+        let key = |v: &serde_json::Value| {
+            (
+                v["target"].as_str().unwrap_or_default().to_owned(),
+                v["run"].as_u64().unwrap_or(0),
+                v["shard"].as_u64().unwrap_or(0),
+                v["attempt"].as_u64().unwrap_or(0),
+                v["name"].as_str().unwrap_or_default().to_owned(),
+            )
+        };
+        key(a).cmp(&key(b))
+    });
+    let manifest = serde_json::json!({
+        "version": 1,
+        "command": verb.name(),
+        "artifacts": entries,
+    });
+    let text = serde_json::to_string_pretty(&manifest)
+        .map_err(|err| format!("cannot encode run-output manifest: {err}"))?;
+    let manifest_path = child.join("manifest.json");
+    std::fs::write(&manifest_path, format!("{text}\n"))
+        .map_err(|err| format!("cannot write {}: {err}", manifest_path.display()))?;
+    Ok((child, manifest_path))
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
@@ -154,6 +347,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         stdout_report,
         bazel_code,
         query_runner,
+        pid,
+        nonce,
     } = request;
     let events = match std::fs::File::open(bep).map_err(|err| {
         (
@@ -427,6 +622,19 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         }
     }
+    let mut run_output_dir: Option<std::path::PathBuf> = None;
+    let mut run_output_manifest: Option<std::path::PathBuf> = None;
+    if let Some(parent) = invocation.run_output.as_deref() {
+        match export_run_outputs(workspace, verb, parent, pid, nonce, &events, &reader) {
+            Ok((child, manifest)) => {
+                run_output_dir = Some(child);
+                run_output_manifest = Some(manifest);
+            }
+            Err(message) => {
+                return operational(invocation, out, err, CODE_RUN_OUTPUT_FAILED, &message);
+            }
+        }
+    }
     let mut reports_ok = true;
     for planned in planned_reports {
         let document: Option<String> = match verb {
@@ -499,6 +707,19 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 planned.format.name(),
                 planned.destination.display()
             );
+        }
+    }
+    if let (Some(dir), Some(manifest)) = (run_output_dir.as_ref(), run_output_manifest.as_ref()) {
+        if invocation.output == OutputMode::Json {
+            if let Ok(event) = report_event(
+                "run-output",
+                &manifest.display().to_string(),
+                complete && reports_ok && !strict_fail,
+            ) {
+                let _ = write_event(out, &event);
+            }
+        } else if matches!(invocation.output, OutputMode::Text { .. }) && !stdout_report {
+            let _ = writeln!(out, "Wrote run outputs to {}.", dir.display());
         }
     }
     let evidence_detail = if detail.is_empty() {
@@ -2265,5 +2486,210 @@ mod tests {
         assert_eq!(outcomes[0]["attempt"], serde_json::json!(2));
         assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(true));
         assert_eq!(outcomes[0]["artifacts"]["collected"], serde_json::json!(1));
+    }
+
+    fn run_output_child(harness: &Harness, parent: &str) -> std::path::PathBuf {
+        let dir = harness.workspace.join(parent);
+        let mut children: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+            .expect("run-output parent")
+            .map(|entry| entry.expect("entry").path())
+            .filter(|path| path.is_dir())
+            .collect();
+        assert_eq!(children.len(), 1, "{children:?}");
+        children.pop().expect("child")
+    }
+
+    fn read_manifest(child: &std::path::Path) -> serde_json::Value {
+        let text = std::fs::read_to_string(child.join("manifest.json")).expect("manifest");
+        serde_json::from_str(&text).expect("manifest json")
+    }
+
+    #[test]
+    fn test_run_output_retains_logs_and_writes_manifest() {
+        let harness = Harness::new("test-runout-ok");
+        let xml = write_bep_artifact(&harness, "r.xml", MINIMAL_TEST_XML.as_bytes());
+        let log_uri = write_bep_artifact(&harness, "r.log", b"hello log");
+        let shot_uri = write_bep_artifact(&harness, "shot.png", b"fake-png");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (String::from("test.log"), log_uri),
+                    (String::from("screenshot.png"), shot_uri),
+                ],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=text", "--run-output=out"]);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("Wrote run outputs to"), "{out}");
+        let child = run_output_child(&harness, "out");
+        let manifest = read_manifest(&child);
+        assert_eq!(manifest["version"], serde_json::json!(1));
+        assert_eq!(manifest["command"], serde_json::json!("test"));
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 3, "{manifest}");
+        for entry in artifacts {
+            assert_eq!(entry["target"], serde_json::json!("//a:t"));
+            assert_eq!(entry["available"], serde_json::json!(true));
+            let rel = entry["path"].as_str().expect("path");
+            assert!(!rel.contains('/'), "{rel}");
+            assert!(!rel.contains('\\'), "{rel}");
+            let bytes = std::fs::read(child.join(rel)).expect("retained");
+            assert!(!bytes.is_empty(), "{rel}");
+        }
+        let names: Vec<&str> = artifacts
+            .iter()
+            .map(|entry| entry["name"].as_str().expect("name"))
+            .collect();
+        assert!(names.contains(&"test.xml"));
+        assert!(names.contains(&"test.log"));
+        assert!(names.contains(&"screenshot.png"));
+    }
+
+    #[test]
+    fn test_run_output_json_stays_ndjson_with_report_event() {
+        let harness = Harness::new("test-runout-json");
+        let uri = write_bep_artifact(&harness, "j2.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json", "--run-output=out"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        assert!(!events.is_empty(), "{out}");
+        let reports = events_of_kind(&events, "report");
+        let manifest = reports
+            .iter()
+            .find(|report| report["format"] == serde_json::json!("run-output"))
+            .expect("run-output report");
+        let path = manifest["path"].as_str().expect("path");
+        assert!(path.ends_with("manifest.json"), "{path}");
+        assert!(std::path::Path::new(path).is_file(), "{path}");
+    }
+
+    #[test]
+    fn test_run_output_marks_missing_and_unsafe_names() {
+        let harness = Harness::new("test-runout-neg");
+        let xml = write_bep_artifact(&harness, "ok3.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("test.xml"), xml)]),
+                test_result_line(
+                    "//a:missing",
+                    &[(String::from("test.log"), missing_uri("gone.log"))],
+                ),
+                test_result_line(
+                    "//a:evil",
+                    &[(String::from("../evil"), missing_uri("evil"))],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=text", "--run-output=out"]);
+        assert_eq!(code, 0, "{out}");
+        let child = run_output_child(&harness, "out");
+        let manifest = read_manifest(&child);
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 3, "{manifest}");
+        let ok = artifacts
+            .iter()
+            .find(|entry| entry["target"] == serde_json::json!("//a:ok"))
+            .expect("ok");
+        assert_eq!(ok["available"], serde_json::json!(true));
+        let missing = artifacts
+            .iter()
+            .find(|entry| entry["target"] == serde_json::json!("//a:missing"))
+            .expect("missing");
+        assert_eq!(missing["available"], serde_json::json!(false));
+        assert!(missing.get("path").is_none(), "{missing}");
+        let evil = artifacts
+            .iter()
+            .find(|entry| entry["target"] == serde_json::json!("//a:evil"))
+            .expect("evil");
+        assert_eq!(evil["available"], serde_json::json!(false));
+        assert!(
+            evil["reason"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("unsafe"),
+            "{evil}"
+        );
+        assert!(child.join("manifest.json").is_file());
+        for entry in std::fs::read_dir(&child).expect("read child") {
+            let path = entry.expect("entry").path();
+            if path.is_file() && path.file_name().unwrap_or_default() != "manifest.json" {
+                let name = path
+                    .file_name()
+                    .expect("name")
+                    .to_string_lossy()
+                    .into_owned();
+                assert!(!name.contains('/'), "{name}");
+                assert!(!name.contains(".."), "{name}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_run_output_is_unique_across_runs() {
+        let harness = Harness::new("test-runout-twice");
+        let xml = write_bep_artifact(&harness, "twice.xml", MINIMAL_TEST_XML.as_bytes());
+        let shot = write_bep_artifact(&harness, "twice.png", b"fake-png");
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[
+                    (String::from("test.xml"), xml),
+                    (String::from("shot.png"), shot),
+                ],
+            )]),
+            ..harness
+        };
+        let (first_code, _, _) = harness.run(&["test", "--output=text", "--run-output=out"]);
+        assert_eq!(first_code, 0);
+        let (second_code, _, _) = harness.run(&["test", "--output=text", "--run-output=out"]);
+        assert_eq!(second_code, 0);
+        let dir = harness.workspace.join("out");
+        let children: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+            .expect("parent")
+            .map(|entry| entry.expect("entry").path())
+            .filter(|path| path.is_dir())
+            .collect();
+        assert_eq!(children.len(), 2, "{children:?}");
+        for child in &children {
+            let manifest = read_manifest(child);
+            let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+            assert_eq!(artifacts.len(), 2, "{manifest}");
+            assert!(artifacts
+                .iter()
+                .any(|entry| entry["name"] == serde_json::json!("shot.png")));
+        }
+        assert_ne!(children[0], children[1]);
+    }
+
+    #[test]
+    fn coverage_run_output_retains_lcov() {
+        let harness = Harness::new("cov-runout-ok");
+        let uri = write_bep_artifact(&harness, "c.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.lcov"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["coverage", "--output=text", "--run-output=out"]);
+        assert_eq!(code, 0, "{out}");
+        let child = run_output_child(&harness, "out");
+        let manifest = read_manifest(&child);
+        assert_eq!(manifest["command"], serde_json::json!("coverage"));
+        let artifacts = manifest["artifacts"].as_array().expect("artifacts");
+        assert_eq!(artifacts.len(), 1, "{manifest}");
+        assert_eq!(artifacts[0]["available"], serde_json::json!(true));
     }
 }

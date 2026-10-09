@@ -14,7 +14,7 @@ targets. Args after `--` go to Bazel unchanged.
 
 ```text
 dx build [--here] [--debug|--release] [scope...] [-- bazel-options...]
-dx test [--here] [--debug|--release] [--strict-evidence] [--report junit=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--debug|--release] [--strict-evidence] [--run-output <dir>] [--report junit=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -28,7 +28,11 @@ Output: `--output text|json`. Reports: `dx test` writes
 for stdout. `dx build` has no report format. `dx test --output=json` adds one
 `test_outcome` event per test result, with its Bazel status, run, shard,
 attempt, cached state, duration, case counts, artifact counts, and whether its
-evidence is complete.
+evidence is complete. `--run-output <dir>` copies every reported test output
+into a unique child directory and writes `manifest.json` there. The manifest
+lists target, run, shard, attempt, name, and retained path for each artifact.
+Missing artifacts stay explicit. `--output=json` stays NDJSON on stdout and
+adds one `report` event with format `run-output` for the manifest.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. Missing or invalid `test.xml`
@@ -93,7 +97,7 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--min-coverage <percent>] [--strict-evidence] [--report lcov=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--min-coverage <percent>] [--strict-evidence] [--run-output <dir>] [--report lcov=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that
@@ -105,7 +109,12 @@ Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout.
 `dx coverage --output=json` adds one `test_outcome` event per test result,
 with its Bazel status, run, shard, attempt, cached state, duration, artifact
-counts, and whether its evidence is complete.
+counts, and whether its evidence is complete. `--run-output <dir>` copies
+every reported coverage output into a unique child directory and writes
+`manifest.json` there. The manifest lists target, run, shard, attempt, name,
+and retained path for each artifact. Missing artifacts stay explicit.
+`--output=json` stays NDJSON on stdout and adds one `report` event with
+format `run-output` for the manifest.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures

@@ -60,6 +60,7 @@ pub(crate) struct Flags {
     pub(crate) fail_on: Option<String>,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) strict_evidence: bool,
+    pub(crate) run_output: Option<String>,
     pub(crate) check: bool,
     pub(crate) apply: bool,
     pub(crate) debug: bool,
@@ -264,6 +265,14 @@ flag_group! {
     StrictEvidenceFlag, {
         #[arg(long = "strict-evidence", overrides_with = "strict_evidence")]
         strict_evidence: bool,
+    }
+}
+
+flag_group! {
+    /// Retain test logs under this directory.
+    RunOutputFlag, {
+        #[arg(long = "run-output", value_name = "DIR", allow_negative_numbers = true, overrides_with = "run_output", value_parser = non_empty)]
+        run_output: Option<String>,
     }
 }
 
@@ -636,6 +645,7 @@ command_args! {
         own: ProfileArgs,
         report: ReportFlag,
         strict_evidence: StrictEvidenceFlag,
+        run_output: RunOutputFlag,
         here: HereFlag,
     };
     /// The flags `dx coverage` accepts.
@@ -643,6 +653,7 @@ command_args! {
         min_coverage: MinCoverageFlag,
         strict_evidence: StrictEvidenceFlag,
         report: ReportFlag,
+        run_output: RunOutputFlag,
         here: HereFlag,
     };
     /// The flags `dx run` accepts.
@@ -755,6 +766,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--host",
     "--color",
     "--log-level",
+    "--run-output",
     "--bazel-startup-option",
 ];
 

@@ -1,6 +1,7 @@
 # Adopt polyglot example
 
-Mixed tree with a Python package, a Rust crate, a JavaScript package, and a TypeScript package.
+Mixed tree with a Python package, a Rust crate, a JavaScript package, a TypeScript package,
+and a C++ library with a handwritten binary in its own child package.
 
 ```sh
 bazel run @rules_dx//:dx -- init //examples/adopt-polyglot/...

@@ -1,0 +1,61 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files([
+    "src/lib.rs",
+    "src/main.rs",
+])
+
+rust_library(
+    name = "zzprobe_z_lib",
+    srcs = ["src/lib.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    crate_name = "zzprobe_z",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_binary(
+    name = "zzprobe_z_bin",
+    srcs = ["src/main.rs"],
+    crate_name = "zzprobe_z",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":zzprobe_z_lib"],
+)
+
+rust_test(
+    name = "zzprobe_z_test",
+    crate = ":zzprobe_z_lib",
+)
+
+rustfmt_test(
+    name = "zzprobe_z_fmt_test",
+    size = "small",
+    targets = [
+        ":zzprobe_z_lib",
+        ":zzprobe_z_bin",
+    ],
+)
+
+rust_clippy_test(
+    name = "zzprobe_z_clippy_test",
+    size = "small",
+    targets = [
+        ":zzprobe_z_lib",
+        ":zzprobe_z_bin",
+    ],
+)
+
+dx_hello_output_test(
+    name = "zzprobe_z_output_test",
+    binary = ":zzprobe_z_bin",
+    expected = "Hello from a probe",
+)
+

@@ -1,0 +1,28 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_library(
+    name = "zzprobe_y_lib",
+    srcs = ["src/lib.rs"],
+    crate_name = "zzprobe_y",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_binary(
+    name = "zzprobe_y_native",
+    srcs = ["src/main.rs"],
+    crate_name = "zzprobe_y",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":zzprobe_y_lib"],
+)
+
+rust_test(
+    name = "zzprobe_y_test",
+    crate = ":zzprobe_y_lib",
+)

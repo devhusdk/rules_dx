@@ -1,0 +1,37 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_library(
+    name = "zzprobe_x",
+    srcs = ["src/lib.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    crate_name = "zzprobe_x",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_binary(
+    name = "zzprobe_x_bin",
+    srcs = ["src/main.rs"],
+    crate_name = "zzprobe_x",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":zzprobe_x"],
+)
+
+rust_test(
+    name = "zzprobe_x_test",
+    crate = ":zzprobe_x",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

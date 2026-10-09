@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dx shared app</title>
+</head>
+<body>
+<main>
+<h1>dx shared app</h1>
+<p id="proof">loading</p>
+<p id="count">loading</p>
+<p id="asset">loading</p>
+</main>
+<script type="module">
+import init, { greet, Counter } from "./shared_web.js";
+await init();
+document.getElementById("proof").textContent = greet("browser");
+const counter = new Counter();
+counter.add(40);
+counter.add(2);
+document.getElementById("count").textContent = counter.render();
+const asset = await (await fetch("./assets/greeting.txt")).text();
+document.getElementById("asset").textContent = asset.trim();
+</script>
+</body>
+</html>

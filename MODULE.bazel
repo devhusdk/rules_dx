@@ -422,6 +422,12 @@ _web_consumer_repo(
     name = "web_consumer",
 )
 
+_shared_app_consumer_repo = use_repo_rule("//rust/tests/fixtures/shared_app:repos.bzl", "shared_app_consumer_repo")
+
+_shared_app_consumer_repo(
+    name = "shared_app_consumer",
+)
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

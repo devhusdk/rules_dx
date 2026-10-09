@@ -1,0 +1,182 @@
+load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasm_bindgen", "rust_wasm_bindgen_test", "rustfmt_test")
+load("//rust/tests/fixtures/wasm_bindgen:js_parity.bzl", "synthetic_bindgen")
+load("//rust/tests/fixtures/wasm_bindgen:raw_transition.bzl", "raw_wasm_proxy")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen
+# gazelle:resolve rust wasm_bindgen_test @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_library(
+    name = "shared_core",
+    srcs = ["src/lib.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    crate_name = "shared_app",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
+)
+
+rust_binary(
+    name = "shared_native",
+    srcs = ["src/main.rs"],
+    crate_name = "shared_app",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":shared_core"],
+)
+
+rust_test(
+    name = "shared_core_test",
+    crate = ":shared_core",
+)
+
+dx_hello_output_test(
+    name = "shared_native_output_test",
+    binary = ":shared_native",
+    expected = "Hello from shared core, native!\nshared core count is 42",
+)
+
+dx_hello_output_test(
+    name = "consumer_native_output_test",
+    binary = "@shared_app_consumer//:consumer_native",
+    expected = "Hello from shared core, consumer!",
+)
+
+rustfmt_test(
+    name = "shared_core_fmt_test",
+    size = "small",
+    targets = [
+        ":shared_native",
+        ":shared_core",
+    ],
+)
+
+rust_clippy_test(
+    name = "shared_core_clippy_test",
+    size = "small",
+    targets = [":shared_core"],
+)
+
+raw_wasm_proxy(
+    name = "shared_raw",
+    target = ":shared_native",
+)
+
+rust_wasm_bindgen(
+    name = "shared_web",
+    target = "web",
+    visibility = ["//visibility:public"],
+    wasm_file = ":shared_native_upstream",
+)
+
+rust_wasm_bindgen_test(
+    name = "shared_wasm_test",
+    tags = ["manual"],
+    wasm = ":shared_web",
+)
+
+javascript_web_app(
+    name = "shared_browser",
+    assets = {"assets/greeting.txt": "assets/greeting.txt"},
+    bindgen = ":shared_web",
+    html = ":index.html",
+    visibility = ["//visibility:public"],
+)
+
+javascript_web_server(
+    name = "shared_serve",
+    app = ":shared_browser",
+    aspect_hints = ["//:ruff_config"],
+    headers = {"X-App": "shared"},
+    visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "shared_app_test",
+    srcs = ["src/shared_app_test.rs"],
+    data = [":shared_browser"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "shared_consumer_test",
+    srcs = ["src/shared_consumer_test.rs"],
+    data = ["@shared_app_consumer//:consumer_serve"],
+    env = {
+        "DX_CONSUMER_SERVE": "$(rootpath @shared_app_consumer//:consumer_serve)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "shared_browser_test",
+    size = "large",
+    srcs = ["src/shared_browser_test.rs"],
+    data = [
+        ":shared_browser",
+        ":shared_serve",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_WEB_SERVE": "$(rootpath :shared_serve)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+javascript_web_app(
+    name = "shared_app_raw",
+    bindgen = ":shared_raw",
+    html = ":index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "shared_bindgen_shape_test",
+    expected_failure_substring = "requires bindgen to provide RustWasmBindgenInfo",
+    target = ":shared_app_raw",
+)
+
+synthetic_bindgen(
+    name = "shared_missing_wasm_bindgen",
+    flavor = "missing_wasm",
+    tags = ["manual"],
+)
+
+javascript_web_app(
+    name = "shared_app_missing_wasm",
+    bindgen = ":shared_missing_wasm_bindgen",
+    html = ":index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "shared_missing_wasm_test",
+    expected_failure_substring = "produces no Wasm output",
+    target = ":shared_app_missing_wasm",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

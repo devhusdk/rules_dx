@@ -243,6 +243,17 @@ func (*rustLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve
 func (*rustLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	if args.Rel == "rust/tests/fixtures/consumer_wasm" || args.Rel == "rust/tests/fixtures/zzprobe_x" || args.Rel == "rust/tests/fixtures/shared_app" {
+		println("DEBUG GenerateRules rel=" + args.Rel + " dir=" + args.Dir)
+		for _, f := range args.RegularFiles {
+			println("DEBUG   regular " + f)
+		}
+		if args.File == nil {
+			println("DEBUG   file NIL")
+		} else {
+			println("DEBUG   file has rules")
+		}
+	}
 	res := l.generateRules(args)
 	if l.manifest != nil {
 		l.manifest.Record(args, res)
@@ -342,6 +353,19 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 }
 
 func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {
+	if args.Rel == "rust/tests/fixtures/consumer_wasm" || args.Rel == "rust/tests/fixtures/zzprobe_x" || args.Rel == "rust/tests/fixtures/shared_app" {
+		println("DEBUG attachNative rel=" + args.Rel)
+		for _, r := range result.Gen {
+			println("DEBUG   gen " + r.Kind() + " " + r.Name())
+		}
+		if args.File != nil {
+			for _, r := range args.File.Rules {
+				println("DEBUG   existing " + r.Kind() + " " + r.Name())
+			}
+		} else {
+			println("DEBUG   existing NIL FILE")
+		}
+	}
 	result = filterDxCrateCovered(args.File, result)
 	for _, r := range result.Gen {
 		applyNativeHints(args.Rel, r, plan)

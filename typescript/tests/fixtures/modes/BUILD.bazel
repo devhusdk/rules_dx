@@ -1,0 +1,77 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//typescript/rules:defs.bzl", "typescript_project")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_project(
+    name = "ok",
+    testonly = True,
+    srcs = ["ok.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "base.tsconfig.json",
+)
+
+typescript_project(
+    name = "isolated",
+    testonly = True,
+    srcs = ["isolated.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    isolated_typecheck = True,
+    transpiler = "tsc",
+    tsconfig = "base.tsconfig.json",
+)
+
+typescript_project(
+    name = "coupled",
+    testonly = True,
+    srcs = ["coupled.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    isolated_typecheck = False,
+    transpiler = "tsc",
+    tsconfig = "base.tsconfig.json",
+)
+
+typescript_project(
+    name = "loose",
+    testonly = True,
+    srcs = ["loose.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = ":lax_config",
+)
+
+typescript_project(
+    name = "chosen",
+    testonly = True,
+    srcs = ["chosen.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = select({
+        "//conditions:default": "base.tsconfig.json",
+    }),
+)
+
+ts_config(
+    name = "lax_config",
+    testonly = True,
+    src = "lax.tsconfig.json",
+    deps = ["base.tsconfig.json"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

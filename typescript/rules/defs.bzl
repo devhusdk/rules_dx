@@ -128,11 +128,46 @@ def _dx_write_tsconfig(name, files, out, extends, **kwargs):
         **kwargs
     )
 
-def _dx_scoped_tsconfig(name, srcs, kwargs):
-    """Returns kwargs with a tsconfig that lists only this target's own sources."""
+def typescript_scoped_tsconfig_rejection(kwargs):
+    """Returns the rejection for unsupported scoped-tsconfig kwargs, or None."""
     tsconfig = kwargs.get("tsconfig", None)
     if tsconfig == None:
-        return kwargs
+        return None
+    if type(tsconfig) == "dict":
+        return ("typescript_project scopes its own sources through a generated " +
+                "tsconfig; a dictionary tsconfig is not supported: pass a " +
+                "tsconfig file instead.")
+    isolated = kwargs.get("isolated_typecheck", None)
+    if isolated != None and type(isolated) != "bool" and type(isolated) != "select":
+        return ("typescript_project isolated_typecheck must be True or False; " +
+                "got a value that is neither.")
+    extends = kwargs.get("extends", None)
+    if extends != None and extends != tsconfig:
+        return ("typescript_project derives extends from tsconfig; omit extends " +
+                "or name the same file as tsconfig.")
+    return None
+
+def dx_scoped_tsconfig_out(name, kwargs):
+    """Returns scoped-tsconfig kwargs with the documented typecheck default."""
+    tsconfig = kwargs.get("tsconfig", None)
+    if tsconfig == None:
+        return dict(kwargs)
+    generated = "tsconfig_" + name + ".json"
+    out = dict(kwargs)
+    out["tsconfig"] = generated
+    out["extends"] = tsconfig
+    if out.get("isolated_typecheck", None) == None:
+        out["isolated_typecheck"] = True
+    return out
+
+def _dx_scoped_tsconfig(name, srcs, kwargs):
+    """Returns kwargs with a tsconfig that lists only this target's own sources."""
+    rejection = typescript_scoped_tsconfig_rejection(kwargs)
+    if rejection != None:
+        fail(rejection)
+    tsconfig = kwargs.get("tsconfig", None)
+    if tsconfig == None:
+        return dict(kwargs)
 
     generated = "tsconfig_" + name
     _dx_write_tsconfig(
@@ -143,11 +178,7 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
         visibility = ["//visibility:private"],
     )
 
-    out = dict(kwargs)
-    out["tsconfig"] = generated + ".json"
-    out["extends"] = tsconfig
-    out["isolated_typecheck"] = True
-    return out
+    return dx_scoped_tsconfig_out(name, kwargs)
 
 def _typescript_wrap_project(name, srcs, visibility = None, **kwargs):
     rejection = typescript_srcs_rejection(srcs)
@@ -157,7 +188,7 @@ def _typescript_wrap_project(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _ts_project, _typescript_project_forward, srcs, visibility = visibility, **_dx_scoped_tsconfig(name, srcs, kwargs))
 
 def typescript_project(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over ts_project."""
+    """Experimental minimal wrapper over ts_project, isolated typecheck on by default."""
     _typescript_wrap_project(name, srcs, visibility = visibility, **kwargs)
 
 def _typescript_test_forward_impl(ctx):

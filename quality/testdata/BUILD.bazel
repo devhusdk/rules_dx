@@ -15,6 +15,7 @@ load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
+load(":tool_override_tests.bzl", "tool_override_subject", "tool_override_tests")
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
@@ -841,6 +842,37 @@ real_aspect_fixture_tests(
         ":fixture_upstream_rust_subject",
         ":real_plain_subject",
     ],
+)
+
+genrule(
+    name = "alternate_ruff",
+    srcs = ["@dx_tools//:ruff"],
+    outs = ["alternate_ruff_bin"],
+    cmd = "cp $(location @dx_tools//:ruff) $@",
+    executable = True,
+)
+
+filegroup(
+    name = "two_ruffs",
+    srcs = [
+        ":alternate_ruff",
+        "@dx_tools//:ruff",
+    ],
+)
+
+filegroup(
+    name = "no_ruff",
+    srcs = [],
+)
+
+tool_override_subject(
+    name = "tool_override_default_subject",
+    target = ":fixture_real_python",
+)
+
+tool_override_tests(
+    name = "tool_override",
+    subject = ":tool_override_default_subject",
 )
 
 real_source_target(

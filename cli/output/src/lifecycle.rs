@@ -5,6 +5,7 @@ pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
 pub const EVENTS: &[&str] = &[
+    "capabilities",
     "change",
     "command_finished",
     "command_started",
@@ -69,6 +70,21 @@ pub fn command_started(command: &str, dry_run: bool, mode: &str) -> Result<Value
     map.insert("command".to_owned(), Value::String(command.to_owned()));
     map.insert("dry_run".to_owned(), Value::Bool(dry_run));
     map.insert("mode".to_owned(), Value::String(mode.to_owned()));
+    Ok(Value::Object(map))
+}
+
+pub fn capabilities_event(scope: &str, document: Value) -> Result<Value, OutputError> {
+    if scope != "cli" && scope != "cli+workspace" {
+        return Err(OutputError::BadCommandMode {
+            value: scope.to_owned(),
+        });
+    }
+    let Value::Object(document) = document else {
+        return Err(OutputError::NotAnEvent);
+    };
+    let mut map = base("capabilities");
+    map.insert("scope".to_owned(), Value::String(scope.to_owned()));
+    map.insert("document".to_owned(), Value::Object(document));
     Ok(Value::Object(map))
 }
 
@@ -319,6 +335,24 @@ mod tests {
         assert_eq!(event["schema"], schema());
         assert_eq!(event["mode"], Value::String("default".to_owned()));
         assert!(command_started("lint", false, "fancy").is_err());
+    }
+
+    #[test]
+    fn capabilities_event_shape() {
+        let document = serde_json::json!({"dx_version": "0.0.0"});
+        let event = capabilities_event("cli", document).expect("capabilities");
+        assert_eq!(event["event"], Value::String("capabilities".to_owned()));
+        assert_eq!(event["schema"], schema());
+        assert_eq!(event["scope"], Value::String("cli".to_owned()));
+        assert_eq!(
+            event["document"]["dx_version"],
+            Value::String("0.0.0".to_owned())
+        );
+        assert!(capabilities_event("workspace", serde_json::json!({})).is_err());
+        assert!(capabilities_event("cli", Value::String("nope".to_owned())).is_err());
+        let mut buf = Vec::new();
+        write_event(&mut buf, &event).expect("write");
+        assert!(buf.ends_with(b"\n"));
     }
 
     #[test]

@@ -1,0 +1,73 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//android/rules:defs.bzl", "android_native_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+android_native_library(
+    name = "native_lib",
+    c_srcs = ["native.c"],
+    copts = ["-DNATIVE_OFFSET=7"],
+    crate_features = ["neon"],
+    crate_name = "native_lib",
+    hdrs = ["native.h"],
+    rust_srcs = ["src/lib.rs"],
+)
+
+android_native_library(
+    name = "bad_api",
+    c_srcs = ["native.c"],
+    copts = ["-DNATIVE_OFFSET=7"],
+    crate_name = "bad_api",
+    hdrs = ["native.h"],
+    rust_srcs = ["src/lib.rs"],
+    api_level = 29,
+)
+
+failure_test(
+    name = "bad_api_test",
+    target = ":bad_api_device",
+    expected_failure_substring = "api_level 29 is below 31",
+    tags = ["manual"],
+)
+
+rust_test(
+    name = "native_lib_host_test",
+    crate = ":native_lib_rust",
+    link_deps = [":native_lib_cc"],
+)
+
+rustfmt_test(
+    name = "native_lib_fmt_test",
+    size = "small",
+    targets = [":native_lib_rust"],
+)
+
+sh_test(
+    name = "native_lib_arch_test",
+    srcs = ["arch_test.sh"],
+    args = [
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "$(location :native_lib_device)",
+        "$(location :native_lib_emulator)",
+    ],
+    data = [
+        ":native_lib_device",
+        ":native_lib_emulator",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

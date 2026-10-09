@@ -86,14 +86,85 @@ fn member_mode(path: &Path) -> io::Result<u32> {
     }
 }
 
-pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
-    let data = std::fs::read(src)?;
-    let name = basename(src)?;
-    let mode = member_mode(src)?;
-    let tar = tar_archive([(name.as_str(), data.as_slice(), mode)].into_iter())?;
+pub fn member_name_error(name: &str) -> Option<String> {
+    if name.is_empty() {
+        return Some("archive member name must not be empty".to_owned());
+    }
+    if name.len() > 100 {
+        return Some(format!(
+            "archive member name {name:?} must be 1-100 bytes with no NUL"
+        ));
+    }
+    if name.contains('\0') {
+        return Some(format!(
+            "archive member name {name:?} must be 1-100 bytes with no NUL"
+        ));
+    }
+    if name.starts_with('/') {
+        return Some(format!("archive member name {name:?} must be relative"));
+    }
+    if name.contains('\\') {
+        return Some(format!(
+            "archive member name {name:?} must use '/' separators"
+        ));
+    }
+    if name.contains('=') {
+        return Some(format!("archive member name {name:?} must not contain '='"));
+    }
+    for segment in name.split('/') {
+        if segment.is_empty() {
+            return Some(format!(
+                "archive member name {name:?} must not contain empty segments"
+            ));
+        }
+        if segment == "." || segment == ".." {
+            return Some(format!(
+                "archive member name {name:?} must not contain '.' or '..'"
+            ));
+        }
+    }
+    None
+}
+
+pub fn archive_members(members: &[(&str, &Path)], dst: &Path) -> io::Result<()> {
+    if members.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "archive members: need at least one member",
+        ));
+    }
+    let mut ordered: Vec<(&str, &Path)> = members.to_vec();
+    ordered.sort_by(|left, right| left.0.cmp(right.0));
+    let mut seen = std::collections::HashSet::new();
+    let mut staged: Vec<(String, Vec<u8>, u32)> = Vec::with_capacity(ordered.len());
+    for member in &ordered {
+        let (name, src) = *member;
+        if let Some(reason) = member_name_error(name) {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, reason));
+        }
+        if !seen.insert(name) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("archive members: duplicate name {name:?}"),
+            ));
+        }
+        let data = std::fs::read(src)?;
+        let mode = member_mode(src)?;
+        staged.push((name.to_owned(), data, mode));
+    }
+    let refs: Vec<(&str, &[u8], u32)> = staged
+        .iter()
+        .map(|staged| (staged.0.as_str(), staged.1.as_slice(), staged.2))
+        .collect();
+    let tar = tar_archive(refs.into_iter())?;
     let gz = gzip_compress(&tar)?;
     std::fs::write(dst, gz)?;
     Ok(())
+}
+
+pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
+    let name = basename(src)?;
+    archive_members(&[(name.as_str(), src)], dst)
 }
 
 pub fn archive_bytes(data: &[u8], name: &str, executable: bool) -> io::Result<Vec<u8>> {
@@ -4565,5 +4636,132 @@ mod tests {
             .join("npm_demo.feed.json")
             .is_file());
         std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    #[test]
+    fn member_name_error_accepts_layout_names() {
+        for name in [
+            "consumer_app",
+            "NOTICE",
+            "IDENTITY.txt",
+            "resources/banner.txt",
+        ] {
+            assert!(member_name_error(name).is_none(), "{name} must be accepted");
+        }
+    }
+
+    #[test]
+    fn member_name_error_rejects_escapes() {
+        for name in [
+            "",
+            "/absolute",
+            "../escape",
+            "a/../escape",
+            "a//empty",
+            "a/./dot",
+            "back\\slash",
+            "a=b",
+            "nul\0byte",
+        ] {
+            assert!(
+                member_name_error(name).is_some(),
+                "{name:?} must be rejected"
+            );
+        }
+        assert!(member_name_error(&"n".repeat(101)).is_some());
+    }
+
+    #[test]
+    fn archive_members_orders_deterministically() {
+        let scratch = scratch_dir();
+        let first = scratch.path().join("first.txt");
+        std::fs::write(&first, b"first\n").expect("write first");
+        let second = scratch.path().join("second.txt");
+        std::fs::write(&second, b"second\n").expect("write second");
+        let forward = scratch.path().join("forward.tar.gz");
+        archive_members(
+            &[
+                ("b/second.txt", second.as_path()),
+                ("a/first.txt", first.as_path()),
+            ],
+            &forward,
+        )
+        .expect("archive forward");
+        let reverse = scratch.path().join("reverse.tar.gz");
+        archive_members(
+            &[
+                ("a/first.txt", first.as_path()),
+                ("b/second.txt", second.as_path()),
+            ],
+            &reverse,
+        )
+        .expect("archive reverse");
+        assert_eq!(
+            std::fs::read(&forward).expect("read forward"),
+            std::fs::read(&reverse).expect("read reverse")
+        );
+    }
+
+    #[test]
+    fn archive_members_round_trips_named_modes() {
+        let scratch = scratch_dir();
+        let executable = scratch.path().join("app.bin");
+        std::fs::write(&executable, b"app\n").expect("write app");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
+                .expect("chmod");
+        }
+        let plain = scratch.path().join("banner.txt");
+        std::fs::write(&plain, b"banner\n").expect("write banner");
+        let out = scratch.path().join("members.tar.gz");
+        archive_members(
+            &[
+                ("consumer_app", executable.as_path()),
+                ("resources/banner.txt", plain.as_path()),
+            ],
+            &out,
+        )
+        .expect("archive members");
+        let gz = std::fs::read(&out).expect("read gz");
+        let mut decoder = flate2::read::GzDecoder::new(&gz[..]);
+        let mut archive = tar::Archive::new(&mut decoder);
+        let mut entries = archive.entries().expect("entries");
+        let first = entries.next().expect("first entry").expect("read first");
+        assert_eq!(
+            first.path().expect("first path").to_str(),
+            Some("consumer_app")
+        );
+        let want_mode = if cfg!(unix) { 0o755 } else { 0o644 };
+        assert_eq!(first.header().mode().expect("first mode"), want_mode);
+        let second = entries.next().expect("second entry").expect("read second");
+        assert_eq!(
+            second.path().expect("second path").to_str(),
+            Some("resources/banner.txt")
+        );
+        assert_eq!(second.header().mode().expect("second mode"), 0o644);
+        assert!(entries.next().is_none(), "want exactly two members");
+    }
+
+    #[test]
+    fn archive_members_rejects_bad_inputs() {
+        let scratch = scratch_dir();
+        let plain = scratch.path().join("plain.txt");
+        std::fs::write(&plain, b"plain\n").expect("write plain");
+        let out = scratch.path().join("out.tar.gz");
+        assert!(archive_members(&[], &out).is_err());
+        assert!(archive_members(
+            &[
+                ("plain.txt", plain.as_path()),
+                ("plain.txt", plain.as_path())
+            ],
+            &out
+        )
+        .is_err());
+        assert!(archive_members(&[("/absolute", plain.as_path())], &out).is_err());
+        assert!(archive_members(&[("../escape", plain.as_path())], &out).is_err());
+        let missing = scratch.path().join("does-not-exist");
+        assert!(archive_members(&[("missing.txt", missing.as_path())], &out).is_err());
     }
 }

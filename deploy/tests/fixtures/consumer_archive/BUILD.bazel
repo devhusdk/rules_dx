@@ -1,0 +1,169 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//deploy/rules:archive.bzl", "consumer_archive")
+load("//deploy/rules:resources.bzl", "dx_resources")
+load("//libs/starlark:defs.bzl", "starlark_test")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "greet",
+    srcs = ["greet.cc"],
+    hdrs = ["greet.h"],
+    copts = ["-std=c++17"],
+)
+
+# keep
+rust_binary(
+    name = "consumer_app",
+    srcs = ["app.rs"],
+    crate_name = "consumer_app",
+    edition = "2021",
+    link_deps = [":greet"],
+)
+
+dx_resources(
+    name = "consumer_res",
+    mappings = {"@consumer_resources//:banner.txt": "banner.txt"},
+)
+
+filegroup(
+    name = "consumer_notice_files",
+    srcs = ["NOTICE.txt"],
+)
+
+filegroup(
+    name = "consumer_empty_files",
+    srcs = [],
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_release",
+    app = ":consumer_app",
+    arch = select({
+        "@platforms//cpu:arm64": "aarch64",
+        "@platforms//cpu:x86_64": "x86_64",
+    }),
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    resources = [":consumer_res"],
+)
+
+# keep
+rust_test(
+    name = "consumer_release_verify",
+    srcs = ["verify.rs"],
+    data = [
+        ":consumer_release_archive",
+        ":consumer_release_checksum",
+    ],
+    env = {
+        "DX_CONSUMER_CHECKSUM": "$(rootpath :consumer_release_checksum)",
+        "DX_CONSUMER_TARBALL": "$(rootpath :consumer_release_archive)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+starlark_test(
+    name = "consumer_notice_reads",
+    testonly = True,
+    file_checks = {":consumer_notice_files": "consumer-release NOTICE"},
+    mode = "execution",
+)
+
+consumer_archive(
+    name = "consumer_bad_arch",
+    app = ":consumer_app",
+    arch = "sparc",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_bad_os",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "solaris",
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_bad_linkage",
+    app = ":consumer_app",
+    arch = "x86_64",
+    linkage = "shared",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_no_notice",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    os = "linux",
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_empty_resources",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    resources = [":consumer_empty_files"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "consumer_bad_arch_fails",
+    expected_failure_substring = "unsupported arch",
+    target = ":consumer_bad_arch_stage",
+)
+
+failure_test(
+    name = "consumer_bad_os_fails",
+    expected_failure_substring = "unsupported os",
+    target = ":consumer_bad_os_stage",
+)
+
+failure_test(
+    name = "consumer_bad_linkage_fails",
+    expected_failure_substring = "unsupported linkage",
+    target = ":consumer_bad_linkage_stage",
+)
+
+failure_test(
+    name = "consumer_no_notice_fails",
+    expected_failure_substring = "need a license-words file",
+    target = ":consumer_no_notice_stage",
+)
+
+failure_test(
+    name = "consumer_empty_resources_fails",
+    expected_failure_substring = "provides no files",
+    target = ":consumer_empty_resources_stage",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

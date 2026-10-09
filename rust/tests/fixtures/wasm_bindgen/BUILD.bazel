@@ -1,0 +1,221 @@
+load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen", "rust_wasm_bindgen_test", "rust_wasm_bindgen_toolchain")
+load("//javascript/rules:defs.bzl", "javascript_js_test")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_shared_library", "rust_test", "rustfmt_test")
+load(":versions.bzl", "bindgen_shape_tests", "bindgen_subject", "bindgen_target_check", "wasm_file")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files([
+    "src/lib.rs",
+    "src/mismatch_test.rs",
+    "src/raw.rs",
+])
+
+rust_library(
+    name = "raw_host",
+    srcs = ["src/raw.rs"],
+    crate_name = "wasm_raw",
+    crate_root = "src/raw.rs",
+    edition = "2021",
+)
+
+rust_test(
+    name = "raw_host_test",
+    crate = ":raw_host",
+)
+
+rust_shared_library(
+    name = "raw_wasm",
+    srcs = ["src/raw.rs"],
+    crate_name = "wasm_raw",
+    crate_root = "src/raw.rs",
+    edition = "2021",
+    target_compatible_with = ["@platforms//cpu:wasm32"],
+)
+
+wasm_file(
+    name = "raw_wasm_file",
+    target = ":raw_wasm",
+)
+
+javascript_js_test(
+    name = "raw_check",
+    srcs = ["raw_check.mjs"],
+    aspect_hints = ["//:biome_config"],
+    data = [":raw_wasm_file"],
+    entry_point = "raw_check.mjs",
+    env = {
+        "DX_WASM_RAW": "$(rootpath :raw_wasm_file)",
+    },
+)
+
+rust_library(
+    name = "greet_host",
+    srcs = ["src/lib.rs"],
+    crate_name = "wasm_greet",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = [
+        "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen",
+        "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test",
+    ],
+)
+
+rust_test(
+    name = "greet_host_test",
+    crate = ":greet_host",
+    deps = [
+        "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen",
+        "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test",
+    ],
+)
+
+rust_shared_library(
+    name = "greet_wasm",
+    srcs = ["src/lib.rs"],
+    crate_name = "wasm_greet",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    target_compatible_with = ["@platforms//cpu:wasm32"],
+    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
+)
+
+wasm_file(
+    name = "greet_wasm_file",
+    target = ":greet_wasm",
+)
+
+rust_wasm_bindgen(
+    name = "greet_web",
+    target = "web",
+    wasm_file = ":greet_wasm",
+)
+
+rust_wasm_bindgen_test(
+    name = "greet_web_test",
+    wasm = ":greet_web",
+)
+
+rust_wasm_bindgen(
+    name = "greet_bundler",
+    bindgen_flags = ["--no-typescript"],
+    target = "bundler",
+    wasm_file = ":greet_wasm",
+)
+
+rust_wasm_bindgen_toolchain(
+    name = "firefox_toolchain_impl",
+    browser = "@firefox",
+    browser_type = "firefox",
+    visibility = ["//visibility:private"],
+    wasm_bindgen_cli = "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_cli",
+    wasm_bindgen_test = "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test",
+    wasm_bindgen_test_runner = "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test_runner",
+    webdriver = "@geckodriver",
+    webdriver_json = "@rules_rust_wasm_bindgen//:webdriver.json",
+)
+
+toolchain(
+    name = "firefox_toolchain",
+    toolchain = ":firefox_toolchain_impl",
+    toolchain_type = "@rules_rust_wasm_bindgen//:toolchain_type",
+    visibility = ["//visibility:private"],
+)
+
+bindgen_subject(
+    name = "greet_web_subject",
+    target = ":greet_web",
+)
+
+bindgen_subject(
+    name = "greet_bundler_subject",
+    target = ":greet_bundler",
+)
+
+bindgen_subject(
+    name = "consumer_subject",
+    target = "@wasm_consumer//:consumer_bindings",
+)
+
+rust_test(
+    name = "mismatch_test",
+    srcs = ["src/mismatch_test.rs"],
+    crate_name = "wasm_mismatch_test",
+    crate_root = "src/mismatch_test.rs",
+    data = [
+        ":greet_wasm_file",
+        ":mismatch_cli",
+    ],
+    edition = "2021",
+    env = {
+        "DX_WASM_GREET": "$(rootpath :greet_wasm_file)",
+        "DX_WASM_MISMATCH_CLI": "$(rootpath :mismatch_cli)",
+    },
+)
+
+genrule(
+    name = "mismatch_cli",
+    srcs = ["@wasm_mismatch//:wasm-bindgen"],
+    outs = ["mismatch_cli.bin"],
+    cmd = "cp $(location @wasm_mismatch//:wasm-bindgen) $@ && chmod +x $@",
+    executable = True,
+)
+
+bindgen_target_check(
+    name = "bad_target",
+    tags = ["manual"],
+    target = "esm",
+)
+
+failure_test(
+    name = "bindgen_rejects_unsupported_target",
+    expected_failure_substring = "unsupported wasm-bindgen target 'esm'",
+    target = ":bad_target",
+)
+
+bindgen_shape_tests(
+    name = "bindgen_shapes",
+    package = "//rust/tests/fixtures/wasm_bindgen",
+    cases = [
+        ("consumer_subject", "consumer.js", "(none)", "consumer_bg.wasm"),
+        ("greet_bundler_subject", "greet_bundler.js,greet_bundler_bg.js", "(none)", "greet_bundler_bg.wasm"),
+        ("greet_web_subject", "greet_web.js", "greet_web.d.ts,greet_web_bg.wasm.d.ts", "greet_web_bg.wasm"),
+    ],
+)
+
+rustfmt_test(
+    name = "wasm_bindgen_fmt_test",
+    size = "small",
+    targets = [
+        ":greet_host",
+        ":greet_wasm",
+        ":raw_host",
+        ":raw_wasm",
+    ],
+)
+
+rust_clippy_test(
+    name = "wasm_bindgen_clippy_test",
+    size = "small",
+    targets = [
+        ":greet_host",
+        ":raw_host",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+        "versions.bzl",
+    ],
+    tags = ["corpus"],
+    testonly = True,
+)

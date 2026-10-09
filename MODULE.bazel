@@ -4,6 +4,7 @@ module(
 )
 
 bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.74.0")
 bazel_dep(name = "rules_cc", version = "0.2.22")
 bazel_dep(name = "llvm", version = "0.8.19")
 bazel_dep(name = "googletest", version = "1.18.0")
@@ -331,6 +332,21 @@ _consumer_native_repo = use_repo_rule("//rust/tests/fixtures/consumer_native:rep
 _consumer_native_repo(
     name = "consumer_native",
 )
+
+_consumer_wasm_repo = use_repo_rule("//rust/tests/fixtures/wasm_bindgen:repos.bzl", "wasm_consumer_repo")
+
+_consumer_wasm_repo(
+    name = "wasm_consumer",
+)
+
+_mismatch_repo = use_repo_rule("//rust/tests/fixtures/wasm_bindgen:repos.bzl", "wasm_mismatch_repo")
+
+_mismatch_repo(
+    name = "wasm_mismatch",
+)
+
+wbg = use_extension("@rules_rust_wasm_bindgen//:extensions.bzl", "rust_ext")
+use_repo(wbg, "firefox", "geckodriver")
 
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(

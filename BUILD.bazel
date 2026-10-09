@@ -103,6 +103,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude rust/tests/fixtures/consumer_wasm
 # gazelle:exclude rust/tests/fixtures/native_call
 # gazelle:exclude rust/tests/fixtures/consumer_native
+# gazelle:exclude rust/tests/fixtures/wasm_bindgen
 
 package(default_visibility = ["//:__subpackages__"])
 

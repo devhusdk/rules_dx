@@ -1,0 +1,114 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rustfmt_test")
+load("@rules_dx//wasi/rules:defs.bzl", "wasi_binary", "wasi_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load(":acquisition.bzl", "consumer_wasi_acquisition_tests")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files([
+    "data/input.txt",
+    "data/secret.txt",
+    "src/main.rs",
+])
+
+wasi_binary(
+    name = "consumer_wasi",
+    srcs = ["src/main.rs"],
+    crate_name = "consumer_wasi",
+    crate_root = "src/main.rs",
+    edition = "2021",
+)
+
+rustfmt_test(
+    name = "consumer_wasi_fmt_test",
+    size = "small",
+    targets = [":consumer_wasi_module"],
+)
+
+sh_binary(
+    name = "injecting_runtime",
+    srcs = ["injecting_runtime.sh"],
+)
+
+_DEFAULT_OUTPUT = "\n".join([
+    "argv=[]",
+    "declared=<unset>",
+    "wrapped=<unset>",
+    "hostile=hidden",
+    "data=no-access",
+    "probe=no-access",
+])
+
+wasi_test(
+    name = "default_run",
+    ambient = {"DX_WASI_HOSTILE": "1"},
+    data = [":data/secret.txt"],
+    expected_stdout = _DEFAULT_OUTPUT,
+    module = ":consumer_wasi",
+)
+
+wasi_test(
+    name = "declared_capabilities",
+    ambient = {"DX_WASI_HOSTILE": "1"},
+    args = [
+        "one",
+        "two",
+    ],
+    env = {
+        "DX_WASI_DECLARED": "declared-value",
+        "DX_WASI_PROBE": "/data/input.txt",
+    },
+    expected_stdout = "\n".join([
+        'argv=["one", "two"]',
+        "declared=declared-value",
+        "wrapped=<unset>",
+        "hostile=hidden",
+        "data=staged input",
+        "probe=staged input",
+    ]),
+    module = ":consumer_wasi",
+    preopens = {"/data": ":data/input.txt"},
+)
+
+wasi_test(
+    name = "custom_exit",
+    env = {"DX_WASI_EXIT": "3"},
+    expected_code = 3,
+    expected_stdout = _DEFAULT_OUTPUT,
+    module = ":consumer_wasi",
+)
+
+wasi_test(
+    name = "custom_runtime",
+    ambient = {"DX_WASI_HOSTILE": "1"},
+    expected_stdout = "\n".join([
+        "argv=[]",
+        "declared=<unset>",
+        "wrapped=wrapped-value",
+        "hostile=hidden",
+        "data=no-access",
+        "probe=no-access",
+    ]),
+    module = ":consumer_wasi",
+    runtime = ":injecting_runtime",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "acquisition.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+consumer_wasi_acquisition_tests(
+    name = "acquisition",
+    module = ":consumer_wasi",
+)

@@ -14,7 +14,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dx_cli::args::{
-    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request, parse_with,
+    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request, parse_with_ci,
     select_startup_defaults, DX_WORKSPACE_ENV,
 };
 use dx_cli::exec::common::{emit_event, flush_out};
@@ -194,7 +194,7 @@ fn run() -> i32 {
         }
     };
     let env_get = |name: &str| std::env::var(name).ok();
-    let mut invocation = match parse_with(&args, &env_get, &file_defaults) {
+    let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, dx_process::is_ci()) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {
             let stdout = io::stdout();

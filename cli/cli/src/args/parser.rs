@@ -84,6 +84,10 @@ pub fn load_file_defaults(start: &std::path::Path) -> Result<super::FileDefaults
     }
 }
 
+pub fn config_sources(start: &std::path::Path) -> dx_adopt::defaults::ConfigSources {
+    dx_adopt::defaults::find_config_sources(start)
+}
+
 /// The startup defaults and a file-directed workspace hop for one more load.
 #[derive(Debug)]
 pub struct StartupDefaults {
@@ -91,6 +95,8 @@ pub struct StartupDefaults {
     pub defaults: super::FileDefaults,
     /// The config-directed workspace when no flag or environment value set one.
     pub file_workspace: Option<String>,
+    /// The committed or local file that supplied the defaults, when one did.
+    pub config_source: Option<std::path::PathBuf>,
 }
 
 /// Reads the `--workspace` value off the raw command line, if one is spelled.
@@ -176,13 +182,22 @@ pub fn select_startup_defaults(
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
 ) -> Result<StartupDefaults, String> {
+    select_startup_defaults_with_ci(start, flag_workspace, env_workspace, dx_process::is_ci())
+}
+
+pub fn select_startup_defaults_with_ci(
+    start: &std::path::Path,
+    flag_workspace: Option<String>,
+    env_workspace: Option<String>,
+    is_ci: bool,
+) -> Result<StartupDefaults, String> {
     let preliminary = flag_workspace.or(env_workspace);
     let dir = match &preliminary {
         Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
         None => start.to_path_buf(),
     };
-    match dx_adopt::defaults::load_defaults(&dir) {
-        Ok((defaults, _)) => {
+    match dx_adopt::defaults::load_defaults_with_mode(&dir, is_ci) {
+        Ok((defaults, source)) => {
             let file_workspace = match preliminary {
                 Some(_) => None,
                 None => defaults.workspace.clone(),
@@ -190,6 +205,7 @@ pub fn select_startup_defaults(
             Ok(StartupDefaults {
                 defaults,
                 file_workspace,
+                config_source: source,
             })
         }
         Err(error) => Err(error.to_string()),
@@ -205,6 +221,36 @@ pub fn freeze_workspace(defaults: &super::FileDefaults, workspace: &str) -> supe
 }
 
 pub fn parse_with<S: AsRef<OsStr>>(
+    args: &[S],
+    env_get: &dyn Fn(&str) -> Option<String>,
+    file: &super::FileDefaults,
+) -> Result<Invocation, ArgsError> {
+    parse_with_ci(args, env_get, file, false)
+}
+
+pub fn parse_with_ci<S: AsRef<OsStr>>(
+    args: &[S],
+    env_get: &dyn Fn(&str) -> Option<String>,
+    file: &super::FileDefaults,
+    is_ci: bool,
+) -> Result<Invocation, ArgsError> {
+    if is_ci {
+        let filtered = |name: &str| match name {
+            dx_adopt::defaults::DX_WORKSPACE_ENV
+            | dx_adopt::defaults::DX_OUTPUT_ENV
+            | dx_adopt::defaults::DX_VERBOSE_ENV
+            | dx_adopt::defaults::DX_COLOR_ENV
+            | dx_adopt::defaults::DX_QUIET_ENV
+            | dx_adopt::defaults::DX_DRY_RUN_ENV
+            | dx_adopt::defaults::DX_FAIL_ON_ENV => None,
+            _ => env_get(name),
+        };
+        return parse_inner(args, &filtered, file);
+    }
+    parse_inner(args, env_get, file)
+}
+
+fn parse_inner<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
     file: &super::FileDefaults,
@@ -758,5 +804,29 @@ mod startup_tests {
         let error =
             select_startup_defaults(scratch.path(), None, None).expect_err("malformed fails");
         assert!(error.contains("config.toml"), "{error}");
+    }
+
+    #[test]
+    fn startup_ci_skips_the_local_file_but_keeps_committed() {
+        let scratch = dx_test_scratch::scratch("startup-ci-local-");
+        std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx dir");
+        std::fs::write(scratch.path().join("dx.toml"), "[dx]\noutput = \"json\"\n")
+            .expect("committed");
+        std::fs::write(
+            scratch.path().join("dx.local.toml"),
+            "[dx]\noutput = \"text\"\n",
+        )
+        .expect("local");
+        let selected =
+            select_startup_defaults_with_ci(scratch.path(), None, None, false).expect("local wins");
+        assert_eq!(selected.defaults.output, Some("text".to_owned()));
+        assert_eq!(
+            selected.config_source,
+            Some(scratch.path().join("dx.local.toml"))
+        );
+        let selected = select_startup_defaults_with_ci(scratch.path(), None, None, true)
+            .expect("ci skips local");
+        assert_eq!(selected.defaults.output, Some("json".to_owned()));
+        assert_eq!(selected.config_source, Some(scratch.path().join("dx.toml")));
     }
 }

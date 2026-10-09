@@ -663,3 +663,26 @@ fn no_default_source_selects_apply() {
         })
     );
 }
+
+#[test]
+fn ci_ignores_preference_env_but_keeps_flags() {
+    use super::parse_with_ci;
+    let env = env_of(&[("DX_OUTPUT", "json"), ("DX_VERBOSE", "1")]);
+    let got = parse_with_ci(&strings(&["lint"]), &env, &FileDefaults::default(), true)
+        .expect("ci parses");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    assert!(!got.verbose);
+    let got = parse_with_ci(
+        &strings(&["lint", "--output=json", "--verbose"]),
+        &env,
+        &FileDefaults::default(),
+        true,
+    )
+    .expect("flags win in ci");
+    assert_eq!(got.output, OutputMode::Json);
+    assert!(got.verbose);
+    let got =
+        parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).expect("non-ci reads env");
+    assert_eq!(got.output, OutputMode::Json);
+    assert!(got.verbose);
+}

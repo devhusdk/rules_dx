@@ -157,9 +157,10 @@ fn render_env_help() -> String {
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
     out.push_str(&format!(
-        "  {}\n  {}\n      Same defaults as the DX_ variables, below the environment.\n      An unknown key is a usage error.\n",
+        "  {} (committed) and {} (local-only, gitignored) carry the same defaults as the DX_ variables, below the environment.\n      Local beats committed. In CI the local file and DX_ variables are ignored; flags still win.\n      A legacy {} with a new file present is a usage error naming both files.\n      An unknown key is a usage error.\n",
+        dx_adopt::defaults::DX_TOML_REL,
+        dx_adopt::defaults::DX_LOCAL_TOML_REL,
         dx_adopt::defaults::CONFIG_TOML_REL,
-        dx_adopt::defaults::CONFIG_REL
     ));
     out
 }

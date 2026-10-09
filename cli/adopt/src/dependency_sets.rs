@@ -193,6 +193,24 @@ struct DxToml {
     schema_version: Option<u32>,
     #[serde(default)]
     dependency_set: Vec<RawSet>,
+    #[serde(default)]
+    dx: Option<toml::Value>,
+    #[serde(default)]
+    hooks: Option<toml::Value>,
+    #[serde(default)]
+    workspace: Option<toml::Value>,
+    #[serde(default)]
+    output: Option<toml::Value>,
+    #[serde(default)]
+    verbose: Option<toml::Value>,
+    #[serde(default)]
+    color: Option<toml::Value>,
+    #[serde(default)]
+    quiet: Option<toml::Value>,
+    #[serde(default, alias = "dry-run")]
+    dry_run: Option<toml::Value>,
+    #[serde(default, alias = "fail-on")]
+    fail_on: Option<toml::Value>,
 }
 
 #[derive(serde::Deserialize)]
@@ -252,6 +270,18 @@ pub fn parse(text: &str, rel: &str) -> Result<Option<Registry>, DependencySetsEr
         Some(_) => {}
     }
     if document.dependency_set.is_empty() {
+        if document.dx.is_some()
+            || document.hooks.is_some()
+            || document.workspace.is_some()
+            || document.output.is_some()
+            || document.verbose.is_some()
+            || document.color.is_some()
+            || document.quiet.is_some()
+            || document.dry_run.is_some()
+            || document.fail_on.is_some()
+        {
+            return Ok(None);
+        }
         return Err(DependencySetsError::NoSets {
             rel: rel.to_owned(),
         });
@@ -753,6 +783,19 @@ scopes = ["services/worker"]
     fn missing_file_is_not_a_registry() {
         let workspace = std::env::temp_dir().join("dx-dependency-sets-absent");
         assert_eq!(load(&workspace).expect("absent"), None);
+    }
+
+    #[test]
+    fn invocation_defaults_alone_are_not_a_registry() {
+        let rel = DX_TOML_REL;
+        let registry = parse("schema_version = 1\n[dx]\noutput = \"json\"\n", rel)
+            .expect("defaults-only parses")
+            .is_none();
+        assert!(registry, "defaults without sets mean no registry");
+        let registry = parse("output = \"json\"\nschema_version = 1\n", rel)
+            .expect("top-level order parses")
+            .is_none();
+        assert!(registry, "key order never matters");
     }
 
     #[test]

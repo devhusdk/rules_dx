@@ -39,6 +39,11 @@ pub fn config_key(env: &str) -> Option<&'static str> {
 pub const CONFIG_TOML_REL: &str = ".dx/config.toml";
 pub const CONFIG_REL: &str = ".dx/config";
 
+pub const DX_TOML_REL: &str = "dx.toml";
+pub const DX_LOCAL_TOML_REL: &str = "dx.local.toml";
+
+pub const CONSUMER_SCHEMA_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FileDefaults {
     pub workspace: Option<String>,
@@ -147,6 +152,19 @@ struct ConfigFile {
     dry_run: Option<bool>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default)]
+    schema_version: Option<u32>,
+    #[serde(default)]
+    dependency_set: Option<Vec<toml::Value>>,
+    #[serde(default)]
+    hooks: Option<toml::Value>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ConfigSources {
+    pub committed: Option<PathBuf>,
+    pub local: Option<PathBuf>,
+    pub legacy: Option<PathBuf>,
 }
 
 fn non_empty(value: Option<String>) -> Option<String> {
@@ -158,6 +176,7 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         toml::from_str(text).map_err(|e| super::AdoptError::InvalidDefaults {
             detail: e.to_string(),
         })?;
+    check_consumer_schema(parsed.schema_version)?;
     let table = parsed.dx.unwrap_or_default();
     Ok(FileDefaults {
         workspace: non_empty(table.workspace.or(parsed.workspace)),
@@ -168,6 +187,122 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         dry_run: table.dry_run.or(parsed.dry_run),
         fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
     })
+}
+
+fn check_consumer_schema(version: Option<u32>) -> Result<(), super::AdoptError> {
+    match version {
+        None => Ok(()),
+        Some(CONSUMER_SCHEMA_VERSION) => Ok(()),
+        Some(other) => Err(super::AdoptError::InvalidDefaults {
+            detail: format!("unsupported schema_version {other} (want {CONSUMER_SCHEMA_VERSION})"),
+        }),
+    }
+}
+
+pub fn shares_file_with_other_tables(text: &str) -> bool {
+    let parsed: ConfigFile = toml::from_str(text).unwrap_or_default();
+    parsed.dependency_set.is_some() || parsed.hooks.is_some()
+}
+
+pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefaults {
+    FileDefaults {
+        workspace: local.workspace.or(committed.workspace),
+        output: local.output.or(committed.output),
+        verbose: local.verbose.or(committed.verbose),
+        color: local.color.or(committed.color),
+        quiet: local.quiet.or(committed.quiet),
+        dry_run: local.dry_run.or(committed.dry_run),
+        fail_on: local.fail_on.or(committed.fail_on),
+    }
+}
+
+pub fn find_new_configs(start: &Path) -> (Option<PathBuf>, Option<PathBuf>) {
+    let mut committed = None;
+    let mut local = None;
+    for dir in start.ancestors() {
+        if committed.is_none() {
+            let candidate = dir.join(DX_TOML_REL);
+            if candidate.is_file() {
+                committed = Some(candidate);
+            }
+        }
+        if local.is_none() {
+            let candidate = dir.join(DX_LOCAL_TOML_REL);
+            if candidate.is_file() {
+                local = Some(candidate);
+            }
+        }
+        if committed.is_some() && local.is_some() {
+            break;
+        }
+    }
+    (committed, local)
+}
+
+pub fn find_config_sources(start: &Path) -> ConfigSources {
+    let (committed, local) = find_new_configs(start);
+    let legacy = find_config(start);
+    ConfigSources {
+        committed,
+        local,
+        legacy,
+    }
+}
+
+fn read_defaults_file(path: &Path) -> Result<FileDefaults, super::AdoptError> {
+    let text = std::fs::read_to_string(path).map_err(|e| super::AdoptError::InvalidDefaults {
+        detail: format!("cannot read {}: {e}", path.display()),
+    })?;
+    parse_file_text(&text).map_err(|e| match e {
+        super::AdoptError::InvalidDefaults { detail } => super::AdoptError::InvalidDefaults {
+            detail: format!("{}: {detail}", path.display()),
+        },
+        other => other,
+    })
+}
+
+pub fn load_defaults_with_mode(
+    start: &Path,
+    ignore_local: bool,
+) -> Result<(FileDefaults, Option<PathBuf>), super::AdoptError> {
+    let sources = find_config_sources(start);
+    let committed = sources.committed.clone();
+    let local = if ignore_local {
+        None
+    } else {
+        sources.local.clone()
+    };
+    let legacy = sources.legacy.clone();
+    if (committed.is_some() || local.is_some()) && legacy.is_some() {
+        return Err(super::AdoptError::InvalidDefaults {
+            detail: format!(
+                "legacy {} and new {} both present; move [dx] keys into dx.toml (committed) or dx.local.toml (local-only), then remove {}; no automatic edits",
+                legacy.as_ref().map(|p| p.display().to_string()).unwrap_or_default(),
+                [committed.as_ref(), local.as_ref()]
+                    .into_iter()
+                    .flatten()
+                    .map(|p| p.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(" and "),
+                legacy.as_ref().map(|p| p.display().to_string()).unwrap_or_default(),
+            ),
+        });
+    }
+    if committed.is_some() || local.is_some() {
+        let mut merged = FileDefaults::default();
+        if let Some(path) = &committed {
+            merged = merge_defaults(merged, read_defaults_file(path)?);
+        }
+        if let Some(path) = &local {
+            merged = merge_defaults(merged, read_defaults_file(path)?);
+        }
+        let primary = local.or(committed);
+        return Ok((merged, primary));
+    }
+    let Some(path) = legacy else {
+        return Ok((FileDefaults::default(), None));
+    };
+    Ok((read_defaults_file(&path)?, Some(path)))
 }
 
 /// The nearest config file at or above `start`, `.dx/config.toml` before `.dx/config`.
@@ -189,19 +324,7 @@ pub fn find_config(start: &Path) -> Option<PathBuf> {
 }
 
 pub fn load_defaults(start: &Path) -> Result<(FileDefaults, Option<PathBuf>), super::AdoptError> {
-    let Some(path) = find_config(start) else {
-        return Ok((FileDefaults::default(), None));
-    };
-    let text = std::fs::read_to_string(&path).map_err(|e| super::AdoptError::InvalidDefaults {
-        detail: format!("cannot read {}: {e}", path.display()),
-    })?;
-    let defaults = parse_file_text(&text).map_err(|e| match e {
-        super::AdoptError::InvalidDefaults { detail } => super::AdoptError::InvalidDefaults {
-            detail: format!("{}: {detail}", path.display()),
-        },
-        other => other,
-    })?;
-    Ok((defaults, Some(path)))
+    load_defaults_with_mode(start, false)
 }
 
 #[cfg(test)]
@@ -564,6 +687,105 @@ mod tests {
             rendered.contains(&root.join(".dx/config.toml").display().to_string()),
             "the diagnostic names the file: {rendered}"
         );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn committed_and_local_merge_with_local_winning() {
+        let committed =
+            parse_file_text("[dx]\noutput = \"json\"\nquiet = true\n").expect("committed");
+        let local = parse_file_text("[dx]\noutput = \"text\"\n").expect("local");
+        let merged = merge_defaults(committed, local);
+        assert_eq!(merged.output, Some("text".to_owned()));
+        assert_eq!(merged.quiet, Some(true));
+        let empty = FileDefaults::default();
+        let merged = merge_defaults(empty.clone(), empty.clone());
+        assert_eq!(merged, FileDefaults::default());
+    }
+
+    #[test]
+    fn new_files_ignore_sets_and_hooks_tables() {
+        let text = "schema_version = 1\n[dx]\noutput = \"json\"\n[hooks]\npre_commit = []\n";
+        let parsed = parse_file_text(text).expect("hooks ignored");
+        assert_eq!(parsed.output, Some("json".to_owned()));
+        assert!(shares_file_with_other_tables(text));
+        assert!(!shares_file_with_other_tables("[dx]\nquiet = true\n"));
+        let text = "schema_version = 1\n[dx]\nquiet = true\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
+        let parsed = parse_file_text(text).expect("sets ignored");
+        assert_eq!(parsed.quiet, Some(true));
+        assert!(shares_file_with_other_tables(text));
+    }
+
+    #[test]
+    fn new_files_reject_unknown_keys_and_bad_schema() {
+        assert!(parse_file_text("[dx]\nqiet = true\n").is_err());
+        assert!(parse_file_text("[extra]\nquiet = true\n").is_err());
+        assert!(parse_file_text("schema_version = 2\n[dx]\nquiet = true\n").is_err());
+        let ok = parse_file_text("schema_version = 1\n[dx]\nquiet = true\n").expect("versioned");
+        assert_eq!(ok.quiet, Some(true));
+    }
+
+    #[test]
+    fn local_beats_committed_below_nothing_else() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-new-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(
+            root.join("dx.toml"),
+            "schema_version = 1\n[dx]\noutput = \"json\"\nquiet = true\n",
+        )
+        .expect("committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"text\"\n").expect("local");
+        let sources = find_config_sources(&root);
+        assert_eq!(sources.committed, Some(root.join("dx.toml")));
+        assert_eq!(sources.local, Some(root.join("dx.local.toml")));
+        let (defaults, primary) = load_defaults(&root).expect("merges");
+        assert_eq!(defaults.output, Some("text".to_owned()));
+        assert_eq!(defaults.quiet, Some(true));
+        assert_eq!(primary, Some(root.join("dx.local.toml")));
+        let (defaults, _) = load_defaults_with_mode(&root, true).expect("ci skips local");
+        assert_eq!(defaults.output, Some("json".to_owned()));
+        assert_eq!(defaults.quiet, Some(true));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn committed_without_local_reports_committed_origin() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-committed-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+        let (defaults, primary) = load_defaults(&root).expect("loads");
+        assert_eq!(defaults.output, Some("json".to_owned()));
+        assert_eq!(primary, Some(root.join("dx.toml")));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn legacy_and_new_together_fail_with_both_paths() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-conflict-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n").expect("legacy");
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("new");
+        let error = load_defaults(&root).expect_err("conflict fails");
+        let rendered = error.to_string();
+        assert!(rendered.contains(".dx/config.toml"), "{rendered}");
+        assert!(rendered.contains("dx.toml"), "{rendered}");
+        assert!(rendered.contains("dx.local.toml"), "{rendered}");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn deleting_dx_keeps_committed_behavior() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-nodelete-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        let (before, _) = load_defaults(&root).expect("before");
+        assert_eq!(before.output, Some("json".to_owned()));
+        std::fs::remove_dir_all(root.join(".dx")).expect("remove dx");
+        let (after, primary) = load_defaults(&root).expect("after");
+        assert_eq!(after, before);
+        assert_eq!(primary, Some(root.join("dx.toml")));
         scratch.close().expect("cleanup");
     }
 }

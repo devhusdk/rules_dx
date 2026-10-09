@@ -24,10 +24,12 @@ pub mod version;
 pub mod watch;
 
 pub use defaults::{
-    env_bool, env_string, find_config, is_truthy, load_defaults, parse_bool, parse_file_text,
-    resolve_bool, resolve_string, resolve_workspace, FileDefaults, BOOL_SPELLINGS, CONFIG_REL,
-    CONFIG_TOML_REL, DX_DRY_RUN_ENV, DX_FAIL_ON_ENV, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV,
-    DX_WORKSPACE_ENV, FALSEY,
+    env_bool, env_string, find_config, find_config_sources, find_new_configs, is_truthy,
+    load_defaults, load_defaults_with_mode, merge_defaults, parse_bool, parse_file_text,
+    resolve_bool, resolve_string, resolve_workspace, shares_file_with_other_tables, ConfigSources,
+    FileDefaults, BOOL_SPELLINGS, CONFIG_REL, CONFIG_TOML_REL, CONSUMER_SCHEMA_VERSION,
+    DX_DRY_RUN_ENV, DX_FAIL_ON_ENV, DX_LOCAL_TOML_REL, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_TOML_REL,
+    DX_VERBOSE_ENV, DX_WORKSPACE_ENV, FALSEY,
 };
 pub use error::AdoptError;
 pub use hooks::{
@@ -64,7 +66,7 @@ pub use scaffold::{
 };
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{
-    plan_upgrade, upgrade_recovery_message, upgrade_restore_command, upgrade_retry_command,
+    plan_upgrade, upgrade_recovery_message, upgrade_restore_command_for, upgrade_retry_command,
     UpgradePlan,
 };
 pub use version::{

@@ -53,6 +53,14 @@ bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_rust_prost", version = "0.74.0")
 bazel_dep(name = "rules_java", version = "9.7.0")
+bazel_dep(name = "rules_android", version = "0.6.6")
+single_version_override(
+    module_name = "rules_android",
+    patch_strip = 1,
+    patches = ["//patches:rules_android_cc_loads.patch"],
+    version = "0.6.6",
+)
+
 bazel_dep(name = "rules_kotlin", version = "2.4.10")
 bazel_dep(name = "rules_scala", version = "7.3.0")
 
@@ -404,6 +412,9 @@ _android_ndk_toolchain_repo(
     api_level = 31,
     cxx_runtime = "shared",
 )
+
+_android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
+use_repo(_android_sdk_extension, "androidsdk")
 
 _web_consumer_repo = use_repo_rule("//javascript/tests/fixtures/web_app:repos.bzl", "web_consumer_repo")
 

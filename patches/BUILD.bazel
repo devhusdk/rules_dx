@@ -3,6 +3,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 exports_files([
     "aspect_rules_py_site_packages.patch",
     "aspect_rules_py_venv_interpreter.patch",
+    "rules_android_cc_loads.patch",
 ])
 
 real_source_target(

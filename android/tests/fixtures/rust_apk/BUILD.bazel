@@ -1,0 +1,169 @@
+# gazelle:ignore hand-written fixture owns every source in this package.
+
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
+load("//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_static_library(
+    name = "app_rust",
+    srcs = ["src/lib.rs"],
+    crate_name = "rust_apk",
+)
+
+rust_test(
+    name = "app_rust_test",
+    crate = ":app_rust",
+)
+
+rustfmt_test(
+    name = "app_rust_fmt_test",
+    size = "small",
+    targets = [":app_rust"],
+)
+
+cc_library(
+    name = "app_jni",
+    srcs = ["activity.c"],
+    linkopts = ["-Wl,--as-needed"],
+    tags = ["manual"],
+    deps = [":app_rust"],
+)
+
+rust_android_apk(
+    name = "app_apk",
+    app_id = "com.example.dxrustapk",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = ["android.permission.INTERNET"],
+    resource_files = glob(["res/**"]),
+    visibility = ["//visibility:public"],
+    deps = [":app_jni"],
+)
+
+android_adb_install(
+    name = "install",
+    apk = ":app_apk",
+    serial = "emulator-5554",
+)
+
+android_adb_install(
+    name = "install_probe",
+    apk = ":dummy.apk",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "start",
+    app_id = "com.example.dxrustapk",
+    serial = "emulator-5554",
+)
+
+android_adb_log(
+    name = "log",
+    serial = "emulator-5554",
+)
+
+sh_test(
+    name = "inspect_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :app_apk)",
+        "com.example.dxrustapk",
+        "app_apk",
+        "arm64-v8a,x86_64",
+    ],
+    data = [":app_apk"],
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "install_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install",
+        "$(location :install_probe)",
+        "$(location :fake_adb.sh)",
+        "$(location :dummy.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":fake_adb.sh",
+        ":install_probe",
+    ],
+)
+
+sh_test(
+    name = "install_exit_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install",
+        "$(location :install_probe)",
+        "$(location :fake_adb.sh)",
+        "$(location :dummy.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":fake_adb.sh",
+        ":install_probe",
+    ],
+    env = {"ADB_EXIT": "3"},
+)
+
+sh_test(
+    name = "install_missing_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "missing",
+        "$(location :install_probe)",
+        "$(location :fake_adb.sh)",
+        "$(location :dummy.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":fake_adb.sh",
+        ":install_probe",
+    ],
+)
+
+sh_test(
+    name = "start_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "start",
+        "$(location :start)",
+        "$(location :fake_adb.sh)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":start",
+    ],
+)
+
+sh_test(
+    name = "log_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "log",
+        "$(location :log)",
+        "$(location :fake_adb.sh)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":log",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

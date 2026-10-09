@@ -70,6 +70,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude javascript/tests/fixtures/hello
 # gazelle:exclude typescript/tests/fixtures/hello
 # gazelle:exclude javascript/tests/fixtures/entries
+# gazelle:exclude javascript/tests/fixtures/web_app
 # gazelle:exclude python/tests/fixtures/entries
 # gazelle:exclude mdx/tests/fixtures/hello
 # gazelle:exclude svelte/tests/fixtures/hello

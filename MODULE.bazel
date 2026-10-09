@@ -395,6 +395,12 @@ _consumer_wasm_bindgen_repo(
     name = "consumer_wasm_bindgen",
 )
 
+_web_consumer_repo = use_repo_rule("//javascript/tests/fixtures/web_app:repos.bzl", "web_consumer_repo")
+
+_web_consumer_repo(
+    name = "web_consumer",
+)
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

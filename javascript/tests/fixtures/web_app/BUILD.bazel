@@ -1,0 +1,259 @@
+load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_bundle", "javascript_web_server", "javascript_web_server_launcher")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//python/rules:defs.bzl", "python_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/tests/fixtures/wasm_bindgen:js_parity.bzl", "synthetic_bindgen")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_web_app(
+    name = "app",
+    assets = {"assets/data.txt": "assets/data.txt"},
+    bindgen = "//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
+    html = ":index.html",
+    visibility = ["//visibility:public"],
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":app",
+    aspect_hints = ["//:ruff_config"],
+    headers = {"X-App": "web"},
+    visibility = ["//visibility:public"],
+)
+
+javascript_web_server(
+    name = "serve_isolated",
+    app = ":app",
+    aspect_hints = ["//:ruff_config"],
+    cross_origin_isolated = True,
+)
+
+python_binary(
+    name = "stub_bundler",
+    srcs = ["stub_bundler.py"],
+    aspect_hints = ["//:ruff_config"],
+    main = "stub_bundler.py",
+)
+
+javascript_web_bundle(
+    name = "bundle",
+    app = ":app",
+    bundler = ":stub_bundler",
+    bundler_args = [
+        "--entry={ENTRY}",
+        "--index={INDEX}",
+        "--wasm={WASM}",
+        "--config={CONFIG}",
+        "--out={OUT}",
+        "--define=MODE=release",
+        "--minify",
+    ],
+    config = ":bundle.config.json",
+)
+
+rust_test(
+    name = "web_app_test",
+    srcs = ["src/web_app_test.rs"],
+    data = [":app"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "web_server_test",
+    srcs = ["src/web_server_test.rs"],
+    data = [
+        ":serve",
+        ":serve_isolated",
+        "@web_consumer//:consumer_serve",
+    ],
+    env = {
+        "DX_WEB_CONSUMER_SERVE": "$(rootpath @web_consumer//:consumer_serve)",
+        "DX_WEB_SERVE": "$(rootpath :serve)",
+        "DX_WEB_SERVE_ISOLATED": "$(rootpath :serve_isolated)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "web_bundle_test",
+    srcs = ["src/web_bundle_test.rs"],
+    data = [
+        ":bundle",
+        ":serve",
+        ":stub_bundler",
+    ],
+    env = {
+        "DX_STUB_BUNDLER": "$(rootpath :stub_bundler)",
+        "DX_WEB_SERVE": "$(rootpath :serve)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "web_browser_test",
+    size = "large",
+    srcs = ["src/web_browser_test.rs"],
+    data = [
+        ":app",
+        ":serve",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_WEB_SERVE": "$(rootpath :serve)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+javascript_web_app(
+    name = "app_threads",
+    bindgen = "//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
+    html = ":index.html",
+    tags = ["manual"],
+    threads = True,
+)
+
+javascript_web_server_launcher(
+    name = "serve_threads_plain",
+    app = ":app_threads",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "threads_require_isolation_test",
+    expected_failure_substring = "requires cross_origin_isolated = True",
+    target = ":serve_threads_plain",
+)
+
+javascript_web_app(
+    name = "app_raw",
+    bindgen = "//rust/tests/fixtures/wasm_bindgen:wasm_hello_raw",
+    html = ":index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bindgen_shape_test",
+    expected_failure_substring = "requires bindgen to provide RustWasmBindgenInfo",
+    target = ":app_raw",
+)
+
+synthetic_bindgen(
+    name = "app_missing_wasm_bindgen",
+    flavor = "missing_wasm",
+    tags = ["manual"],
+)
+
+javascript_web_app(
+    name = "app_missing_wasm",
+    bindgen = ":app_missing_wasm_bindgen",
+    html = ":index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "missing_wasm_test",
+    expected_failure_substring = "produces no Wasm output",
+    target = ":app_missing_wasm",
+)
+
+javascript_web_app(
+    name = "app_collision",
+    assets = {
+        "assets/data.txt": "dup.txt",
+        "index.html": "dup.txt",
+    },
+    bindgen = "//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
+    html = ":index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "asset_collision_test",
+    expected_failure_substring = "duplicate path",
+    target = ":app_collision",
+)
+
+javascript_web_server_launcher(
+    name = "serve_bad_header",
+    app = ":app",
+    headers = {"Bad:Name": "value"},
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "header_name_test",
+    expected_failure_substring = "invalid header name",
+    target = ":serve_bad_header",
+)
+
+genrule(
+    name = "not_executable",
+    outs = ["not_executable.txt"],
+    cmd = "echo tool > $@",
+    tags = ["manual"],
+)
+
+javascript_web_bundle(
+    name = "bundle_no_executable",
+    app = ":app",
+    bundler = ":not_executable",
+    bundler_args = ["--out={OUT}"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bundler_executable_test",
+    expected_failure_substring = "has no executable",
+    target = ":bundle_no_executable",
+)
+
+javascript_web_bundle(
+    name = "bundle_rebundle",
+    app = ":bundle",
+    bundler = ":stub_bundler",
+    bundler_args = ["--out={OUT}"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "rebundle_test",
+    expected_failure_substring = "is already bundled",
+    target = ":bundle_rebundle",
+)
+
+javascript_web_bundle(
+    name = "bundle_no_out",
+    app = ":app",
+    bundler = ":stub_bundler",
+    bundler_args = ["--entry={ENTRY}"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bundle_out_test",
+    expected_failure_substring = "must stage {OUT}",
+    target = ":bundle_no_out",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

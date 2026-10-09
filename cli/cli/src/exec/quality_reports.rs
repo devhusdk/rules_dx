@@ -80,18 +80,17 @@ pub(crate) fn write_standard_reports(
         };
         match document {
             Ok(document) => {
-                let written =
-                    write_report_document(out, workspace, &planned.destination, &document);
-                if !written {
+                if let Err(error) =
+                    write_report_document(out, workspace, &planned.destination, &document)
+                {
                     reports_ok = false;
                     report_failed(
                         out,
                         err,
                         *output,
                         &format!(
-                            "failed to write {} report to {}",
+                            "failed to write {} report to {error}",
                             planned.format.name(),
-                            planned.destination.display()
                         ),
                     );
                     continue;

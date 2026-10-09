@@ -175,6 +175,9 @@ the `set` ecosystem.
 Output: `--output text|json`. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+A relative destination anchors at the workspace root; an absolute one writes as
+given. Colliding destinations fail before anything runs, parents must exist, and
+a failed write keeps the previous file bytes.
 
 ```sh
 bazel run @rules_dx//:dx -- security //...

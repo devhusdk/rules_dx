@@ -701,6 +701,30 @@ fn audit_reports_sarif_and_spdx_to_files() {
 }
 
 #[test]
+fn audit_reports_reject_cross_format_collisions_before_execution() {
+    use crate::args::parse;
+    let runner = AuditRunner::clean();
+    let harness = Harness::new("audit-report-collision");
+    write_cargo_license_set(&harness);
+    let invocation = parse(&[
+        "license".to_owned(),
+        "//rust/tests/fixtures/hello:hello".to_owned(),
+        "--report=sarif=out.json".to_owned(),
+        "--report=spdx=out.json".to_owned(),
+    ])
+    .expect("parse");
+    let (code, _, err_text) = harness.execute_with(&invocation, &runner);
+    assert_eq!(code, 2, "{err_text}");
+    assert!(err_text.contains("same file"), "{err_text}");
+    assert_eq!(
+        runner.calls.borrow().len(),
+        0,
+        "a colliding plan must not run any audit"
+    );
+    assert!(!harness.workspace.join("out.json").exists());
+}
+
+#[test]
 fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     use crate::args::parse;
     let runner = AuditRunner::clean();

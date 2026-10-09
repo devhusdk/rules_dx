@@ -109,7 +109,14 @@ fn json_report_write_failure_emits_error() {
         "--report=sarif=nodir/out.sarif",
     ]);
     assert_eq!(code, 1);
-    assert!(err.contains("dx: report_failed: failed to write sarif report to nodir/out.sarif"));
+    assert!(
+        err.contains("dx: report_failed: failed to write sarif report to "),
+        "{err}"
+    );
+    assert!(err.contains("nodir"), "{err}");
+    assert!(err.contains("out.sarif"), "{err}");
+    assert!(err.contains("parent directory"), "{err}");
+    assert!(err.contains("does not exist"), "{err}");
     let events = json_events(&out);
     assert_eq!(
         event(&events, "error")["code"],
@@ -596,5 +603,96 @@ fn invalid_edits_in_one_file_do_not_block_valid_sibling() {
         harness.seen_env.borrow().len(),
         1,
         "invalid sibling must launch Bazel exactly once, no rerun"
+    );
+}
+
+#[test]
+fn alias_reports_are_rejected_before_any_write() {
+    let mut harness = Harness::new("report-alias-collision");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=out.sarif",
+        "--report=sarif=./out.sarif",
+    ]);
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("same file"), "{err}");
+    assert!(!harness.workspace.join("out.sarif").exists());
+    assert_eq!(
+        harness.seen_env.borrow().len(),
+        0,
+        "a colliding plan must not launch Bazel"
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn unwritable_report_destination_fails_with_cause() {
+    let mut harness = Harness::new("report-unwritable");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let locked = harness.workspace.join("locked");
+    std::fs::create_dir(&locked).expect("mkdir");
+    let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(&locked, permissions).expect("readonly");
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=locked/out.sarif",
+    ]);
+    let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
+    permissions.set_readonly(false);
+    std::fs::set_permissions(&locked, permissions).expect("writable");
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains("dx: report_failed: failed to write sarif report to "),
+        "{err}"
+    );
+    assert!(err.contains("locked"), "{err}");
+    assert!(!locked.join("out.sarif").exists());
+}
+
+#[test]
+#[cfg(unix)]
+fn failed_report_write_keeps_stale_report_bytes() {
+    let mut harness = Harness::new("report-stale-kept");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    harness.write_source("reports/out.sarif", "stale\n");
+    let reports = harness.workspace.join("reports");
+    let mut permissions = std::fs::metadata(&reports).expect("metadata").permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(&reports, permissions).expect("readonly");
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--check",
+        "--output=text",
+        "--report=sarif=reports/out.sarif",
+    ]);
+    let mut permissions = std::fs::metadata(&reports).expect("metadata").permissions();
+    permissions.set_readonly(false);
+    std::fs::set_permissions(&reports, permissions).expect("writable");
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains("dx: report_failed: failed to write sarif report to "),
+        "{err}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(harness.workspace.join("reports/out.sarif")).expect("stale kept"),
+        "stale\n"
     );
 }

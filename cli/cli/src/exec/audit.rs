@@ -1006,6 +1006,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         scopes: invocation.targets.clone(),
     };
     let planned_reports = match plan_reports(
+        workspace,
         invocation.command,
         &invocation.reports,
         &invocation.output,
@@ -1155,16 +1156,13 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 }
             };
             let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) = written {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
                     invocation.output,
-                    &format!(
-                        "failed to write sarif report to {}",
-                        planned.destination.display()
-                    ),
+                    &format!("failed to write sarif report to {error}"),
                 );
                 continue;
             }
@@ -1188,16 +1186,13 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             let document =
                 dx_audit::spdx::render_spdx(&effective, &spdx_packages, &contains, &namespace);
             let written = write_report_document(out, workspace, &planned.destination, &document);
-            if !written {
+            if let Err(error) = written {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
                     invocation.output,
-                    &format!(
-                        "failed to write spdx report to {}",
-                        planned.destination.display()
-                    ),
+                    &format!("failed to write spdx report to {error}"),
                 );
                 continue;
             }

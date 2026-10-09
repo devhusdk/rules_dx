@@ -14,6 +14,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         "update dispatch guards commands"
     );
     match plan_reports(
+        env.workspace,
         invocation.command,
         &invocation.reports,
         &invocation.output,

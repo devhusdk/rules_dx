@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::path::{Component, Path, PathBuf};
 
 use super::ReportError;
 use crate::args::{Command, ReportRequest};
@@ -57,6 +58,67 @@ impl Destination {
 pub struct PlannedReport {
     pub format: StandardFormat,
     pub destination: Destination,
+    pub path: Option<PathBuf>,
+}
+
+pub fn resolve_destination(workspace: &Path, raw: &str) -> PathBuf {
+    let candidate = Path::new(raw);
+    let joined = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        workspace.join(candidate)
+    };
+    normalize_lexical(&joined)
+}
+
+fn normalize_lexical(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if out
+                    .components()
+                    .next_back()
+                    .is_some_and(|last| matches!(last, Component::Normal(_)))
+                {
+                    out.pop();
+                } else if !out.has_root() {
+                    out.push("..");
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    if out.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        out
+    }
+}
+
+fn identity_key(resolved: &Path) -> PathBuf {
+    let anchored = if let Ok(canonical) = std::fs::canonicalize(resolved) {
+        canonical
+    } else if let Some(parent) = resolved.parent() {
+        match std::fs::canonicalize(parent) {
+            Ok(canonical_parent) => match resolved.file_name() {
+                Some(name) => canonical_parent.join(name),
+                None => resolved.to_path_buf(),
+            },
+            Err(_) => resolved.to_path_buf(),
+        }
+    } else {
+        resolved.to_path_buf()
+    };
+    #[cfg(windows)]
+    {
+        PathBuf::from(anchored.to_string_lossy().to_lowercase())
+    }
+    #[cfg(not(windows))]
+    {
+        anchored
+    }
 }
 
 fn stdout_conflict(error: OutputError) -> ReportError {
@@ -72,6 +134,7 @@ fn stdout_conflict(error: OutputError) -> ReportError {
 }
 
 pub fn plan_reports(
+    workspace: &Path,
     command: Command,
     requests: &[ReportRequest],
     mode: &OutputMode,
@@ -83,6 +146,7 @@ pub fn plan_reports(
     let entry = spec(command);
     let mut planned = Vec::with_capacity(requests.len());
     let mut seen = BTreeSet::new();
+    let mut claimed: Vec<(PathBuf, String)> = Vec::new();
     for request in requests {
         let format = StandardFormat::parse(&request.format).ok_or_else(|| {
             ReportError::UnsupportedFormat {
@@ -109,9 +173,26 @@ pub fn plan_reports(
                 destination: destination.display().to_owned(),
             });
         }
+        let path = match &destination {
+            Destination::Stdout => None,
+            Destination::File(raw) => {
+                let resolved = resolve_destination(workspace, raw);
+                let key = identity_key(&resolved);
+                if let Some((_, first)) = claimed.iter().find(|(claimed, _)| *claimed == key) {
+                    return Err(ReportError::ConflictingReports {
+                        first: first.clone(),
+                        second: format!("{}={}", request.format, request.destination),
+                        destination: resolved.display().to_string(),
+                    });
+                }
+                claimed.push((key, format!("{}={}", request.format, request.destination)));
+                Some(resolved)
+            }
+        };
         planned.push(PlannedReport {
             format,
             destination,
+            path,
         });
     }
     let stdout_reports = planned
@@ -143,9 +224,15 @@ mod tests {
         OutputMode::Text { quiet: false }
     }
 
+    fn workspace() -> tempfile::TempDir {
+        tempfile::tempdir().expect("tempdir")
+    }
+
     #[test]
     fn file_reports_plan_in_destination_order() {
+        let workspace = workspace();
         let got = plan_reports(
+            workspace.path(),
             Command::Lint,
             &requests(&[("sarif", "b.sarif"), ("sarif", "a.sarif")]),
             &text_mode(),
@@ -158,11 +245,22 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["a.sarif".to_owned(), "b.sarif".to_owned()]
         );
+        assert_eq!(
+            got.iter()
+                .map(|report| report.path.clone().expect("resolved"))
+                .collect::<Vec<_>>(),
+            vec![
+                workspace.path().join("a.sarif"),
+                workspace.path().join("b.sarif"),
+            ]
+        );
     }
 
     #[test]
     fn stdout_report_plans_with_text_mode() {
+        let workspace = workspace();
         let got = plan_reports(
+            workspace.path(),
             Command::Typecheck,
             &requests(&[("sarif", "-")]),
             &text_mode(),
@@ -174,20 +272,29 @@ mod tests {
             vec![PlannedReport {
                 format: StandardFormat::Sarif,
                 destination: Destination::Stdout,
+                path: None,
             }]
         );
     }
 
     #[test]
     fn stdout_report_conflicts_with_diff_and_json_modes() {
+        let workspace = workspace();
         for mode in [OutputMode::Diff, OutputMode::Json] {
             assert_eq!(
-                plan_reports(Command::Lint, &requests(&[("sarif", "-")]), &mode, false),
+                plan_reports(
+                    workspace.path(),
+                    Command::Lint,
+                    &requests(&[("sarif", "-")]),
+                    &mode,
+                    false
+                ),
                 Err(ReportError::StdoutReportConflictsMode { mode: mode.name() })
             );
         }
         assert_eq!(
             plan_reports(
+                workspace.path(),
                 Command::Lint,
                 &requests(&[("sarif", "-"), ("sarif", "second.sarif".into())]),
                 &text_mode(),
@@ -197,10 +304,12 @@ mod tests {
                 PlannedReport {
                     format: StandardFormat::Sarif,
                     destination: Destination::Stdout,
+                    path: None,
                 },
                 PlannedReport {
                     format: StandardFormat::Sarif,
                     destination: Destination::File("second.sarif".to_owned()),
+                    path: Some(workspace.path().join("second.sarif")),
                 },
             ])
         );
@@ -208,8 +317,10 @@ mod tests {
 
     #[test]
     fn planning_rejects_duplicates_and_second_stdout() {
+        let workspace = workspace();
         assert_eq!(
             plan_reports(
+                workspace.path(),
                 Command::Lint,
                 &requests(&[("sarif", "a.sarif"), ("sarif", "a.sarif")]),
                 &text_mode(),
@@ -222,6 +333,7 @@ mod tests {
         );
         assert_eq!(
             plan_reports(
+                workspace.path(),
                 Command::Lint,
                 &requests(&[("sarif", "-"), ("sarif", "-")]),
                 &text_mode(),
@@ -236,8 +348,10 @@ mod tests {
 
     #[test]
     fn planning_rejects_dry_run_and_unsupported_formats() {
+        let workspace = workspace();
         assert_eq!(
             plan_reports(
+                workspace.path(),
                 Command::Lint,
                 &requests(&[("sarif", "a.sarif")]),
                 &text_mode(),
@@ -247,6 +361,7 @@ mod tests {
         );
         assert_eq!(
             plan_reports(
+                workspace.path(),
                 Command::Lint,
                 &requests(&[("junit", "a.xml")]),
                 &text_mode(),
@@ -260,6 +375,7 @@ mod tests {
         );
         assert_eq!(
             plan_reports(
+                workspace.path(),
                 Command::Format,
                 &requests(&[("sarif", "a.sarif")]),
                 &text_mode(),
@@ -271,9 +387,11 @@ mod tests {
                 supported: vec![],
             })
         );
-        assert!(plan_reports(Command::Format, &[], &text_mode(), false)
-            .expect("plan")
-            .is_empty());
+        assert!(
+            plan_reports(workspace.path(), Command::Format, &[], &text_mode(), false)
+                .expect("plan")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -309,6 +427,15 @@ mod tests {
             }
         )
         .contains("duplicate"));
+        assert!(format!(
+            "{}",
+            ReportError::ConflictingReports {
+                first: "sarif=out.json".to_owned(),
+                second: "spdx=out.json".to_owned(),
+                destination: "out.json".to_owned(),
+            }
+        )
+        .contains("same file"));
         assert!(format!("{}", ReportError::MultipleStdoutReports).contains("stdout"));
         assert!(format!(
             "{}",
@@ -406,7 +533,9 @@ mod tests {
 
     #[test]
     fn unknown_format_is_unsupported_before_registry() {
+        let workspace = workspace();
         let err = plan_reports(
+            workspace.path(),
             Command::Lint,
             &requests(&[("bogus", "a.xml")]),
             &text_mode(),
@@ -425,6 +554,7 @@ mod tests {
 
     #[test]
     fn execution_gaps_report_matrix_is_wont_fix() {
+        let workspace = workspace();
         for (command, format) in [
             (Command::Lint, "sarif"),
             (Command::Typecheck, "sarif"),
@@ -437,6 +567,7 @@ mod tests {
             (Command::License, "spdx"),
         ] {
             plan_reports(
+                workspace.path(),
                 command,
                 &requests(&[(format, "out.dat")]),
                 &text_mode(),
@@ -456,6 +587,7 @@ mod tests {
             (Command::Security, "spdx"),
         ] {
             let err = plan_reports(
+                workspace.path(),
                 command,
                 &requests(&[(format, "out.dat")]),
                 &text_mode(),
@@ -474,5 +606,171 @@ mod tests {
             );
         }
         assert!(spec(Command::Format).reports.is_empty());
+    }
+
+    #[test]
+    fn planning_rejects_cross_format_collisions() {
+        let workspace = workspace();
+        let err = plan_reports(
+            workspace.path(),
+            Command::License,
+            &requests(&[("sarif", "out.json"), ("spdx", "out.json")]),
+            &text_mode(),
+            false,
+        )
+        .expect_err("cross-format collision");
+        assert_eq!(
+            err,
+            ReportError::ConflictingReports {
+                first: "sarif=out.json".to_owned(),
+                second: "spdx=out.json".to_owned(),
+                destination: workspace.path().join("out.json").display().to_string(),
+            }
+        );
+        assert!(format!("{err}").contains("same file"), "{err}");
+    }
+
+    #[test]
+    fn planning_rejects_relative_alias_collisions() {
+        let workspace = workspace();
+        for alias in ["./a.sarif", "sub/../a.sarif", "sub//../a.sarif"] {
+            let err = plan_reports(
+                workspace.path(),
+                Command::Lint,
+                &requests(&[("sarif", "a.sarif"), ("sarif", alias)]),
+                &text_mode(),
+                false,
+            )
+            .expect_err("alias collision");
+            assert_eq!(
+                err,
+                ReportError::ConflictingReports {
+                    first: "sarif=a.sarif".to_owned(),
+                    second: format!("sarif={alias}"),
+                    destination: workspace.path().join("a.sarif").display().to_string(),
+                },
+                "alias {alias} must collide"
+            );
+        }
+    }
+
+    #[test]
+    fn planning_rejects_absolute_and_relative_aliases() {
+        let workspace = workspace();
+        let absolute = workspace.path().join("out.sarif").display().to_string();
+        let err = plan_reports(
+            workspace.path(),
+            Command::Lint,
+            &requests(&[("sarif", "out.sarif"), ("sarif", &absolute)]),
+            &text_mode(),
+            false,
+        )
+        .expect_err("absolute alias collision");
+        assert_eq!(
+            err,
+            ReportError::ConflictingReports {
+                first: "sarif=out.sarif".to_owned(),
+                second: format!("sarif={absolute}"),
+                destination: absolute,
+            }
+        );
+    }
+
+    #[test]
+    fn planning_accepts_distinct_files_with_resolved_paths() {
+        let workspace = workspace();
+        let got = plan_reports(
+            workspace.path(),
+            Command::License,
+            &requests(&[("sarif", "a.sarif"), ("spdx", "b.json")]),
+            &text_mode(),
+            false,
+        )
+        .expect("distinct files plan");
+        assert_eq!(
+            got.iter()
+                .map(|report| report.path.clone().expect("resolved"))
+                .collect::<Vec<_>>(),
+            vec![
+                workspace.path().join("a.sarif"),
+                workspace.path().join("b.json"),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_destination_anchors_relative_paths_to_the_workspace() {
+        let workspace = workspace();
+        assert_eq!(
+            resolve_destination(workspace.path(), "out.sarif"),
+            workspace.path().join("out.sarif")
+        );
+        assert_eq!(
+            resolve_destination(workspace.path(), "./sub/../out.sarif"),
+            workspace.path().join("out.sarif")
+        );
+        let absolute = workspace.path().join("out.sarif").display().to_string();
+        assert_eq!(
+            resolve_destination(workspace.path(), &absolute),
+            workspace.path().join("out.sarif")
+        );
+        let outside = workspace
+            .path()
+            .parent()
+            .expect("workspace parent")
+            .join("shared-out.sarif")
+            .display()
+            .to_string();
+        assert_eq!(
+            resolve_destination(workspace.path(), "../shared-out.sarif")
+                .display()
+                .to_string(),
+            outside
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn planning_rejects_symlink_alias_collisions() {
+        use std::os::unix::fs::symlink;
+        let workspace = workspace();
+        std::fs::write(workspace.path().join("real.sarif"), "{}\n").expect("real");
+        symlink(
+            workspace.path().join("real.sarif"),
+            workspace.path().join("link.sarif"),
+        )
+        .expect("symlink");
+        let err = plan_reports(
+            workspace.path(),
+            Command::Lint,
+            &requests(&[("sarif", "real.sarif"), ("sarif", "link.sarif")]),
+            &text_mode(),
+            false,
+        )
+        .expect_err("symlink collision");
+        assert!(
+            matches!(err, ReportError::ConflictingReports { .. }),
+            "symlink alias must collide: {err}"
+        );
+    }
+
+    #[test]
+    fn planning_treats_case_variants_per_platform() {
+        let workspace = workspace();
+        let result = plan_reports(
+            workspace.path(),
+            Command::Lint,
+            &requests(&[("sarif", "out.sarif"), ("sarif", "OUT.sarif")]),
+            &text_mode(),
+            false,
+        );
+        if cfg!(windows) {
+            assert!(
+                matches!(result, Err(ReportError::ConflictingReports { .. })),
+                "case variants collide on Windows"
+            );
+        } else {
+            assert!(result.is_ok(), "case variants stay distinct here");
+        }
     }
 }

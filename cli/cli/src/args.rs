@@ -108,10 +108,12 @@ pub use grammar::cli_command;
 pub use invocation::{apply_here, here_scope, Invocation, OperationMode, ReportRequest};
 pub use parser::{
     early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request,
-    load_file_defaults, parse, parse_with, select_startup_defaults, StartupDefaults,
+    load_file_defaults, parse, parse_with, select_startup_defaults, select_startup_defaults_with,
+    StartupDefaults,
 };
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 
+pub use dx_adopt::defaults::local_config_applies;
 pub use dx_adopt::defaults::FileDefaults;
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
 

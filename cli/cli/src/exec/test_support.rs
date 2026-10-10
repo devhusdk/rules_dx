@@ -41,6 +41,7 @@ pub(crate) struct Harness {
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    pub(crate) allow_local: bool,
 }
 
 pub(crate) struct ScriptQuery {
@@ -112,6 +113,7 @@ impl Harness {
             },
             intended: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
+            allow_local: true,
         }
     }
 
@@ -342,6 +344,7 @@ impl Harness {
             out,
             err,
             ci: false,
+            allow_local: self.allow_local,
         }
     }
 

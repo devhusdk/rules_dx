@@ -322,6 +322,7 @@ struct VerifyContext<'a> {
     pid: u32,
     nonce: u64,
     ci: bool,
+    allow_local: bool,
 }
 
 fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verification {
@@ -386,6 +387,7 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
                 out: &mut outcome.out,
                 err: &mut outcome.err,
                 ci: context.ci,
+                allow_local: context.allow_local,
             };
             if *phase == Command::Generate {
                 execute_generate(&verify_invocation, phase_env)
@@ -468,6 +470,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci,
+        allow_local,
     } = env;
     let fix_apply = invocation.command == Command::Fix && invocation.applies();
     let phase_check = !fix_apply;
@@ -587,6 +590,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
                 out: &mut phase_out,
                 err: &mut phase_err,
                 ci,
+                allow_local,
             };
             if *phase == Command::Generate {
                 execute_generate(&phase_invocation, phase_env)
@@ -658,6 +662,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             pid,
             nonce,
             ci,
+            allow_local,
         };
         let verification = verify_fix(invocation, &context);
         if let Some(failed) = verification.failed_phase {

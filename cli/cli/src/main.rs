@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use dx_cli::args::{
     early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request, parse_with,
-    select_startup_defaults, DX_WORKSPACE_ENV,
+    select_startup_defaults_with, DX_WORKSPACE_ENV,
 };
 use dx_cli::exec::common::{emit_event, flush_out};
 use dx_cli::plan::create_run_temp_dir;
@@ -169,20 +169,29 @@ fn run() -> i32 {
     let env_workspace = std::env::var(DX_WORKSPACE_ENV)
         .ok()
         .filter(|value| !value.is_empty());
-    let (mut file_defaults, file_redirect) =
-        match select_startup_defaults(&initial_start, flag_workspace, env_workspace) {
-            Ok(selected) => (selected.defaults, selected.file_workspace),
-            Err(detail) => {
-                if is_help_request(&args) {
-                    (dx_cli::args::FileDefaults::default(), None)
-                } else {
-                    return usage_error(&detail);
-                }
+    let env_get = |name: &str| std::env::var(name).ok();
+    let allow_local = match dx_cli::args::local_config_applies(&env_get) {
+        Ok(allow) => allow,
+        Err(detail) => return usage_error(&detail.to_string()),
+    };
+    let (mut file_defaults, file_redirect) = match select_startup_defaults_with(
+        &initial_start,
+        flag_workspace,
+        env_workspace,
+        allow_local,
+    ) {
+        Ok(selected) => (selected.defaults, selected.file_workspace),
+        Err(detail) => {
+            if is_help_request(&args) {
+                (dx_cli::args::FileDefaults::default(), None)
+            } else {
+                return usage_error(&detail);
             }
-        };
+        }
+    };
     if let Some(target) = file_redirect {
         let dir = dx_process::resolve_override_display(Path::new(&target), &initial_start);
-        match select_startup_defaults(&dir, Some(target.clone()), None) {
+        match select_startup_defaults_with(&dir, Some(target.clone()), None, allow_local) {
             Ok(selected) => {
                 file_defaults = freeze_workspace(&selected.defaults, &target);
             }
@@ -193,7 +202,6 @@ fn run() -> i32 {
             }
         }
     };
-    let env_get = |name: &str| std::env::var(name).ok();
     let mut invocation = match parse_with(&args, &env_get, &file_defaults) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {
@@ -360,6 +368,7 @@ fn run() -> i32 {
             out: &mut out,
             err: &mut err,
             ci: dx_process::is_ci(),
+            allow_local,
         },
     );
     if let Err(exit) = flush_out(&mut out) {

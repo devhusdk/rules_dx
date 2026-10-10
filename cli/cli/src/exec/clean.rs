@@ -418,7 +418,37 @@ mod tests {
     }
 
     #[test]
-    fn clean_apply_preserves_generations_shared_with_current() {
+    fn clean_apply_preserves_config_pin_and_recovery_state() {
+        let harness = Harness::new("clean-preserve-config");
+        harness.write_source("dx.toml", "[dx]\noutput = \"json\"\n");
+        harness.write_source("dx.local.toml", "[dx]\nquiet = true\n");
+        harness.write_source(".dx/version", "0.0.0\n");
+        harness.write_source(".dx/config.toml", "[dx]\noutput = \"text\"\n");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let _current = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains(&format!("prune setup record: .dx/setups/{stale}")) || out.contains("pruned 1 setup records"), "{out}");
+        for path in [
+            "dx.toml",
+            "dx.local.toml",
+            ".dx/version",
+            ".dx/config.toml",
+        ] {
+            assert!(
+                harness.workspace.join(path).exists(),
+                "clean preserves {path}"
+            );
+        }
+        assert_eq!(
+            std::fs::read_to_string(harness.workspace.join("dx.toml")).expect("committed"),
+            "[dx]\noutput = \"json\"\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(harness.workspace.join(".dx/version")).expect("pin"),
+            "0.0.0\n"
+        );
+    }
         let harness = Harness::new("clean-apply-shared");
         commit_clean_pair(&harness, '3', '2');
         commit_clean_pair(&harness, '1', '2');

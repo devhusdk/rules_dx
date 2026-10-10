@@ -23,6 +23,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         out,
         err,
         ci: _,
+        allow_local: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,

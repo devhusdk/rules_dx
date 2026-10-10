@@ -15,6 +15,8 @@ pub(crate) fn execute_status(
     workspace: &std::path::Path,
     out: &mut dyn Write,
     err: &mut dyn Write,
+    ci: bool,
+    allow_local: bool,
 ) -> i32 {
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
@@ -45,7 +47,10 @@ pub(crate) fn execute_status(
             return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
     };
-    let checks = dx_adopt::default_status_checks(&pinned);
+    let mut checks = dx_adopt::default_status_checks(&pinned);
+    if let Ok(loaded) = dx_adopt::defaults::load_defaults_with(workspace, !ci || allow_local) {
+        checks.push(dx_adopt::config_status_check(&loaded));
+    }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -112,6 +117,142 @@ mod tests {
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(out.contains("pin: ok"));
+    }
+
+    fn seed_pin(root: &std::path::Path) {
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+    }
+
+    #[test]
+    fn status_discloses_committed_and_local_config_origin() {
+        let inv = invocation(&["status"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-config-");
+        let root = scratch.path().to_path_buf();
+        seed_pin(&root);
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\nquiet = true\n").expect("local");
+        let before = std::fs::read(root.join("dx.toml")).expect("read committed");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(
+            out.contains("config: ok (defaults from dx.toml + dx.local.toml)"),
+            "{out}"
+        );
+        assert_eq!(
+            std::fs::read(root.join("dx.toml")).expect("reread committed"),
+            before,
+            "status never rewrites config"
+        );
+        assert!(
+            !root.join(".dx/config.toml").exists(),
+            "status creates no legacy config"
+        );
+    }
+
+    #[test]
+    fn status_config_row_covers_legacy_and_builtin_origins() {
+        let inv = invocation(&["status"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-legacy-");
+        let root = scratch.path().to_path_buf();
+        seed_pin(&root);
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n")
+            .expect("legacy");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(
+            out.contains("legacy defaults from"),
+            "{out}"
+        );
+        assert!(out.contains(".dx/config.toml"), "{out}");
+        let plain = dx_test_scratch::scratch("dx-adopt-status-builtin-");
+        let bare = plain.path().to_path_buf();
+        seed_pin(&bare);
+        let (code, out, _err) = run(&inv, &bare);
+        assert_eq!(code, 0);
+        assert!(out.contains("built-in defaults (no config file)"), "{out}");
+    }
+
+    #[test]
+    fn status_json_carries_the_config_check() {
+        let inv = invocation(&["status", "--output=json"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-config-json-");
+        let root = scratch.path().to_path_buf();
+        seed_pin(&root);
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let config = events
+            .iter()
+            .find(|event| {
+                event["event"] == serde_json::json!("status")
+                    && event["name"] == serde_json::json!("config")
+            })
+            .expect("config status event");
+        assert_eq!(config["status"], serde_json::json!("ok"));
+        assert!(
+            config["detail"].as_str().expect("detail").contains("dx.toml"),
+            "{config}"
+        );
+    }
+
+    #[test]
+    fn status_under_ci_ignores_the_local_file() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-ci-");
+        let root = scratch.path().to_path_buf();
+        seed_pin(&root);
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"text\"\n").expect("local");
+        let inv = invocation(&["status"]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = execute_status(&inv, &root, &mut out, &mut err, true, false);
+        assert_eq!(code, 0, "{}", String::from_utf8_lossy(&err));
+        let text = String::from_utf8(out).expect("stdout");
+        assert!(text.contains("defaults from dx.toml"), "{text}");
+        assert!(text.contains("dx.local.toml ignored"), "{text}");
+        assert!(text.contains("DX_ALLOW_LOCAL_CONFIG=1"), "{text}");
+    }
+
+    #[test]
+    fn disposable_state_rebuild_keeps_config_behavior() {
+        let status = invocation(&["status"]);
+        let pin = invocation(&["version", "--pin=0.0.0"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-rebuild-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(
+            root.join("dx.toml"),
+            "[dx]\noutput = \"json\"\nquiet = true\n",
+        )
+        .expect("committed");
+        let (code, _, _) = run(&pin, &root);
+        assert_eq!(code, 0);
+        let (code, before, _) = run(&status, &root);
+        assert_eq!(code, 0);
+        assert!(before.contains("defaults from dx.toml"), "{before}");
+        let loaded_before =
+            dx_adopt::defaults::load_defaults(&root).expect("defaults before deletion");
+        assert_eq!(loaded_before.defaults.quiet, Some(true));
+        std::fs::remove_dir_all(root.join(".dx")).expect("delete disposable state");
+        assert!(!root.join(".dx").exists());
+        let loaded_after =
+            dx_adopt::defaults::load_defaults(&root).expect("defaults without .dx");
+        assert_eq!(
+            loaded_after.defaults, loaded_before.defaults,
+            "deleting .dx keeps the effective defaults"
+        );
+        let (code, _, _) = run(&pin, &root);
+        assert_eq!(code, 0, "the pin rebuilds with an explicit apply");
+        let (code, after, _) = run(&status, &root);
+        assert_eq!(code, 0);
+        assert!(after.contains("defaults from dx.toml"), "{after}");
+        for line in before.lines() {
+            if line.starts_with("config:") {
+                assert!(after.contains(line), "the config row survives: {after}");
+            }
+        }
     }
 
     #[test]
@@ -289,7 +430,7 @@ mod tests {
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
             let mut err = Vec::new();
-            let code = execute_status(&inv, &root, &mut BrokenPipeWriter, &mut err);
+            let code = execute_status(&inv, &root, &mut BrokenPipeWriter, &mut err, false, true);
             assert_eq!(code, 128 + 13, "words: {words:?}");
         }
     }

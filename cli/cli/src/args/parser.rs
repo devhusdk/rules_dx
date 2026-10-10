@@ -79,7 +79,7 @@ pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
 
 pub fn load_file_defaults(start: &std::path::Path) -> Result<super::FileDefaults, String> {
     match dx_adopt::defaults::load_defaults(start) {
-        Ok((defaults, _)) => Ok(defaults),
+        Ok(loaded) => Ok(loaded.defaults),
         Err(error) => Err(error.to_string()),
     }
 }
@@ -176,19 +176,35 @@ pub fn select_startup_defaults(
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
 ) -> Result<StartupDefaults, String> {
+    let allow_local =
+        match dx_adopt::defaults::local_config_applies(&|name| std::env::var(name).ok()) {
+            Ok(allow) => allow,
+            Err(error) => return Err(error.to_string()),
+        };
+    select_startup_defaults_with(start, flag_workspace, env_workspace, allow_local)
+}
+
+/// The same load with an explicit local-preference gate, so tests and the
+/// binary share one path without reading the process environment twice.
+pub fn select_startup_defaults_with(
+    start: &std::path::Path,
+    flag_workspace: Option<String>,
+    env_workspace: Option<String>,
+    allow_local: bool,
+) -> Result<StartupDefaults, String> {
     let preliminary = flag_workspace.or(env_workspace);
     let dir = match &preliminary {
         Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
         None => start.to_path_buf(),
     };
-    match dx_adopt::defaults::load_defaults(&dir) {
-        Ok((defaults, _)) => {
+    match dx_adopt::defaults::load_defaults_with(&dir, allow_local) {
+        Ok(loaded) => {
             let file_workspace = match preliminary {
                 Some(_) => None,
-                None => defaults.workspace.clone(),
+                None => loaded.defaults.workspace.clone(),
             };
             Ok(StartupDefaults {
-                defaults,
+                defaults: loaded.defaults,
                 file_workspace,
             })
         }
@@ -263,6 +279,21 @@ pub fn parse_with<S: AsRef<OsStr>>(
         });
     }
     use dx_adopt::defaults as invocation_defaults;
+    let local_applies = invocation_defaults::local_config_applies(env_get).map_err(bad_default)?;
+    let pref_string = |name: &str| {
+        if local_applies {
+            invocation_defaults::env_string(env_get, name)
+        } else {
+            None
+        }
+    };
+    let pref_bool = |name: &'static str| {
+        if local_applies {
+            invocation_defaults::env_bool(env_get, name).map_err(bad_default)
+        } else {
+            Ok(None)
+        }
+    };
     let workspace = invocation_defaults::resolve_workspace(
         flag_workspace,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_WORKSPACE_ENV),
@@ -270,8 +301,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     );
     let dry_run = invocation_defaults::resolve_bool(
         dry_run,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_DRY_RUN_ENV)
-            .map_err(bad_default)?,
+        pref_bool(invocation_defaults::DX_DRY_RUN_ENV)?,
         file.dry_run,
     );
     if dry_run && apply {
@@ -282,26 +312,24 @@ pub fn parse_with<S: AsRef<OsStr>>(
     }
     let quiet = invocation_defaults::resolve_bool(
         quiet,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
-            .map_err(bad_default)?,
+        pref_bool(invocation_defaults::DX_QUIET_ENV)?,
         file.quiet,
     );
     let verbose = invocation_defaults::resolve_bool(
         verbose,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV)
-            .map_err(bad_default)?,
+        pref_bool(invocation_defaults::DX_VERBOSE_ENV)?,
         file.verbose,
     );
     let output_name = invocation_defaults::resolve_string(
         output,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
+        pref_string(invocation_defaults::DX_OUTPUT_ENV),
         file.output.clone(),
         "text",
     );
     let fail_on_given = fail_on.is_some();
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_FAIL_ON_ENV),
+        pref_string(invocation_defaults::DX_FAIL_ON_ENV),
         file.fail_on.clone(),
         "warning",
     );
@@ -326,7 +354,7 @@ pub fn parse_with<S: AsRef<OsStr>>(
     }
     let color_name = invocation_defaults::resolve_string(
         color_name,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_COLOR_ENV),
+        pref_string(invocation_defaults::DX_COLOR_ENV),
         file.color.clone(),
         "auto",
     );
@@ -758,5 +786,50 @@ mod startup_tests {
         let error =
             select_startup_defaults(scratch.path(), None, None).expect_err("malformed fails");
         assert!(error.contains("config.toml"), "{error}");
+    }
+
+    #[test]
+    fn startup_prefers_new_files_and_merges_local_over_committed() {
+        let scratch = dx_test_scratch::scratch("startup-new-files-");
+        std::fs::write(
+            scratch.path().join("dx.toml"),
+            "[dx]\noutput = \"json\"\nquiet = true\n",
+        )
+        .expect("committed");
+        std::fs::write(
+            scratch.path().join("dx.local.toml"),
+            "[dx]\nquiet = false\n",
+        )
+        .expect("local");
+        let selected =
+            select_startup_defaults_with(scratch.path(), None, None, true).expect("merges");
+        assert_eq!(selected.defaults.output, Some("json".to_owned()));
+        assert_eq!(selected.defaults.quiet, Some(false));
+        assert_eq!(selected.file_workspace, None);
+        let gated =
+            select_startup_defaults_with(scratch.path(), None, None, false).expect("gates");
+        assert_eq!(gated.defaults.output, Some("json".to_owned()));
+        assert_eq!(
+            gated.defaults.quiet, None,
+            "a gated local file contributes nothing"
+        );
+    }
+
+    #[test]
+    fn startup_reports_legacy_conflict_with_migration() {
+        let scratch = dx_test_scratch::scratch("startup-conflict-");
+        std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx dir");
+        std::fs::write(
+            scratch.path().join(".dx/config.toml"),
+            "[dx]\noutput = \"json\"\n",
+        )
+        .expect("legacy");
+        std::fs::write(scratch.path().join("dx.toml"), "[dx]\noutput = \"text\"\n")
+            .expect("committed");
+        let error =
+            select_startup_defaults_with(scratch.path(), None, None, true).expect_err("conflicts");
+        assert!(error.contains("config.toml"), "{error}");
+        assert!(error.contains("dx.toml"), "{error}");
+        assert!(error.contains("dx.local.toml"), "{error}");
     }
 }

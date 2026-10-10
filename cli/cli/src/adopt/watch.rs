@@ -34,6 +34,7 @@ fn watch(
         mut out,
         mut err,
         ci,
+        allow_local,
     } = env;
     let wrapped = invocation
         .targets
@@ -84,6 +85,7 @@ fn watch(
                 out: &mut out,
                 err: &mut err,
                 ci,
+                allow_local,
             },
         );
         if max_iterations == Some(round) {
@@ -245,6 +247,7 @@ mod tests {
                     out: &mut self.out,
                     err: &mut self.err,
                     ci: self.ci,
+                    allow_local: true,
                 },
                 max_iterations,
                 |root| wait(root),
@@ -272,6 +275,7 @@ mod tests {
                     out: &mut out,
                     err: &mut err,
                     ci: self.ci,
+                    allow_local: true,
                 },
                 max_iterations,
                 |_| Ok(Vec::new()),

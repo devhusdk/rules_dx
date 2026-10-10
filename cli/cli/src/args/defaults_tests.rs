@@ -663,3 +663,62 @@ fn no_default_source_selects_apply() {
         })
     );
 }
+
+#[test]
+fn ci_ignores_preference_env_but_keeps_workspace_and_flags() {
+    use dx_adopt::defaults::DX_OUTPUT_ENV;
+    let file = file_with(Some("/file"), Some("json"), None, None, None, None);
+    let env = owned_env(&[
+        ("CI", "true"),
+        ("DX_WORKSPACE", "/env"),
+        (DX_OUTPUT_ENV, "json"),
+        (DX_VERBOSE_ENV, "1"),
+        (DX_QUIET_ENV, "1"),
+        (DX_DRY_RUN_ENV, "1"),
+    ]);
+    let got = parse_with(&strings(&["lint"]), &env, &file).expect("CI parses");
+    assert_eq!(got.workspace, Some("/env".to_owned()));
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    assert!(!got.verbose);
+    assert!(!got.quiet);
+    assert!(!got.dry_run);
+    let got = parse_with(&strings(&["lint", "--output=json"]), &env, &file).expect("flag stays");
+    assert_eq!(got.output, OutputMode::Json);
+}
+
+#[test]
+fn ci_opt_in_restores_local_preferences() {
+    use dx_adopt::defaults::{DX_ALLOW_LOCAL_CONFIG_ENV, DX_OUTPUT_ENV};
+    let file = FileDefaults::default();
+    let env = owned_env(&[
+        ("CI", "true"),
+        (DX_ALLOW_LOCAL_CONFIG_ENV, "1"),
+        (DX_OUTPUT_ENV, "json"),
+    ]);
+    let got = parse_with(&strings(&["lint"]), &env, &file).expect("opt-in parses");
+    assert_eq!(got.output, OutputMode::Json);
+}
+
+#[test]
+fn ci_opt_out_and_bad_spelling_behave() {
+    use dx_adopt::defaults::{DX_ALLOW_LOCAL_CONFIG_ENV, DX_OUTPUT_ENV};
+    let off = owned_env(&[
+        ("CI", "true"),
+        (DX_ALLOW_LOCAL_CONFIG_ENV, "0"),
+        (DX_OUTPUT_ENV, "json"),
+    ]);
+    let got = parse_with(&strings(&["lint"]), &off, &FileDefaults::default()).expect("parses");
+    assert_eq!(got.output, OutputMode::Text { quiet: false });
+    let bad = owned_env(&[
+        ("CI", "true"),
+        (DX_ALLOW_LOCAL_CONFIG_ENV, "maybe"),
+        (DX_OUTPUT_ENV, "json"),
+    ]);
+    assert!(
+        matches!(
+            parse_with(&strings(&["lint"]), &bad, &FileDefaults::default()),
+            Err(ArgsError::BadDefault { .. })
+        ),
+        "a misspelled opt-in is a usage error"
+    );
+}

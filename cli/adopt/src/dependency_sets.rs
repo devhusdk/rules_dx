@@ -193,6 +193,8 @@ struct DxToml {
     schema_version: Option<u32>,
     #[serde(default)]
     dependency_set: Vec<RawSet>,
+    #[serde(default, rename = "dx")]
+    _dx: Option<toml::Table>,
 }
 
 #[derive(serde::Deserialize)]
@@ -762,6 +764,19 @@ scopes = ["services/worker"]
             error.to_string(),
             format!("invalid {}: missing schema_version (want 1)", DX_TOML_REL)
         );
+    }
+
+    #[test]
+    fn dx_table_belongs_to_invocation_defaults_not_dependency_sets() {
+        let rel = DX_TOML_REL;
+        let registry = parse(
+            "schema_version = 1\n[dx]\noutput = \"json\"\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n",
+            rel,
+        )
+        .expect("a [dx] table never disturbs dependency sets")
+        .expect("registry");
+        assert_eq!(registry.sets.len(), 1);
+        assert_eq!(registry.sets[0].name, "a");
     }
 
     #[test]

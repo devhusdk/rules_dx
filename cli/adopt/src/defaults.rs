@@ -39,6 +39,11 @@ pub fn config_key(env: &str) -> Option<&'static str> {
 pub const CONFIG_TOML_REL: &str = ".dx/config.toml";
 pub const CONFIG_REL: &str = ".dx/config";
 
+pub const COMMITTED_CONFIG_REL: &str = "dx.toml";
+pub const LOCAL_CONFIG_REL: &str = "dx.local.toml";
+
+pub const DX_ALLOW_LOCAL_CONFIG_ENV: &str = "DX_ALLOW_LOCAL_CONFIG";
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FileDefaults {
     pub workspace: Option<String>,
@@ -128,6 +133,15 @@ struct DxTable {
     fail_on: Option<String>,
 }
 
+/// A committed or local configuration file: only the `[dx]` table carries
+/// invocation defaults. Every other table belongs to the family that owns
+/// it, so the loader tolerates what it does not read.
+#[derive(Debug, Default, serde::Deserialize)]
+struct NewConfigFile {
+    #[serde(default)]
+    dx: Option<DxTable>,
+}
+
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ConfigFile {
@@ -153,6 +167,18 @@ fn non_empty(value: Option<String>) -> Option<String> {
     value.filter(|text| !text.is_empty())
 }
 
+fn table_defaults(table: DxTable) -> FileDefaults {
+    FileDefaults {
+        workspace: non_empty(table.workspace),
+        output: non_empty(table.output),
+        verbose: table.verbose,
+        color: non_empty(table.color),
+        quiet: table.quiet,
+        dry_run: table.dry_run,
+        fail_on: non_empty(table.fail_on),
+    }
+}
+
 pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
     let parsed: ConfigFile =
         toml::from_str(text).map_err(|e| super::AdoptError::InvalidDefaults {
@@ -168,6 +194,30 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         dry_run: table.dry_run.or(parsed.dry_run),
         fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
     })
+}
+
+/// Read the `[dx]` table out of a committed or local configuration file.
+/// Top-level keys stay owned by their families, so only `[dx]` applies here
+/// while a misspelled `[dx]` key still fails.
+pub fn parse_new_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
+    let parsed: NewConfigFile =
+        toml::from_str(text).map_err(|e| super::AdoptError::InvalidDefaults {
+            detail: e.to_string(),
+        })?;
+    Ok(table_defaults(parsed.dx.unwrap_or_default()))
+}
+
+/// Overlay local defaults over committed ones, one scalar at a time.
+pub fn merge_committed_local(committed: FileDefaults, local: FileDefaults) -> FileDefaults {
+    FileDefaults {
+        workspace: local.workspace.or(committed.workspace),
+        output: local.output.or(committed.output),
+        verbose: local.verbose.or(committed.verbose),
+        color: local.color.or(committed.color),
+        quiet: local.quiet.or(committed.quiet),
+        dry_run: local.dry_run.or(committed.dry_run),
+        fail_on: local.fail_on.or(committed.fail_on),
+    }
 }
 
 /// The nearest config file at or above `start`, `.dx/config.toml` before `.dx/config`.
@@ -188,20 +238,130 @@ pub fn find_config(start: &Path) -> Option<PathBuf> {
     None
 }
 
-pub fn load_defaults(start: &Path) -> Result<(FileDefaults, Option<PathBuf>), super::AdoptError> {
-    let Some(path) = find_config(start) else {
-        return Ok((FileDefaults::default(), None));
-    };
-    let text = std::fs::read_to_string(&path).map_err(|e| super::AdoptError::InvalidDefaults {
+pub fn load_defaults(start: &Path) -> Result<LoadedDefaults, super::AdoptError> {
+    let allow_local = local_config_applies(&|name| std::env::var(name).ok())?;
+    load_defaults_with(start, allow_local)
+}
+
+/// Whether local preferences apply: the local file plus the DX_* preference
+/// environment. Outside CI they always apply; under CI they apply only when
+/// the explicit opt-in is a documented on spelling.
+pub fn local_config_applies(
+    get: &dyn Fn(&str) -> Option<String>,
+) -> Result<bool, super::AdoptError> {
+    if !dx_process::is_ci_value(env_string(get, "CI").as_deref()) {
+        return Ok(true);
+    }
+    Ok(env_bool(get, DX_ALLOW_LOCAL_CONFIG_ENV)?.unwrap_or(false))
+}
+
+/// The configuration files one defaults load read, and where they came from.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LoadedDefaults {
+    pub defaults: FileDefaults,
+    pub committed: Option<PathBuf>,
+    pub local: Option<PathBuf>,
+    pub legacy: Option<PathBuf>,
+    pub local_ignored: bool,
+}
+
+/// The nearest directory at or above `start` holding a committed or local
+/// configuration file, with whichever of the two it holds.
+pub fn find_config_files(start: &Path) -> Option<(PathBuf, Option<PathBuf>, Option<PathBuf>)> {
+    for dir in start.ancestors() {
+        let committed = dir.join(COMMITTED_CONFIG_REL);
+        let local = dir.join(LOCAL_CONFIG_REL);
+        let has_committed = committed.is_file();
+        let has_local = local.is_file();
+        if has_committed || has_local {
+            return Some((
+                dir.to_path_buf(),
+                has_committed.then(|| committed.clone()),
+                has_local.then(|| local.clone()),
+            ));
+        }
+    }
+    None
+}
+
+fn read_new_file(path: &Path) -> Result<FileDefaults, super::AdoptError> {
+    let text = std::fs::read_to_string(path).map_err(|e| super::AdoptError::InvalidDefaults {
         detail: format!("cannot read {}: {e}", path.display()),
     })?;
-    let defaults = parse_file_text(&text).map_err(|e| match e {
+    parse_new_file_text(&text).map_err(|e| match e {
         super::AdoptError::InvalidDefaults { detail } => super::AdoptError::InvalidDefaults {
             detail: format!("{}: {detail}", path.display()),
         },
         other => other,
-    })?;
-    Ok((defaults, Some(path)))
+    })
+}
+
+/// Load invocation defaults with an explicit local-preference gate. The
+/// committed file and, unless gated off, the local file merge by scalar;
+/// legacy `.dx` files only apply when no new file exists, and a legacy file
+/// at or below the new configuration errors with its migration.
+pub fn load_defaults_with(
+    start: &Path,
+    allow_local: bool,
+) -> Result<LoadedDefaults, super::AdoptError> {
+    let legacy = find_config(start);
+    let found = find_config_files(start);
+    let Some((dir, committed, local)) = found else {
+        let (defaults, legacy) = match legacy {
+            Some(path) => {
+                let text = std::fs::read_to_string(&path).map_err(|e| {
+                    super::AdoptError::InvalidDefaults {
+                        detail: format!("cannot read {}: {e}", path.display()),
+                    }
+                })?;
+                let defaults = parse_file_text(&text).map_err(|e| match e {
+                    super::AdoptError::InvalidDefaults { detail } => {
+                        super::AdoptError::InvalidDefaults {
+                            detail: format!("{}: {detail}", path.display()),
+                        }
+                    }
+                    other => other,
+                })?;
+                (defaults, Some(path))
+            }
+            None => (FileDefaults::default(), None),
+        };
+        return Ok(LoadedDefaults {
+            defaults,
+            committed: None,
+            local: None,
+            legacy,
+            local_ignored: false,
+        });
+    };
+    if let Some(legacy_path) = &legacy {
+        let below = legacy_path
+            .parent()
+            .and_then(|parent| parent.parent())
+            .is_some_and(|legacy_dir| legacy_dir.starts_with(&dir));
+        if below {
+            return Err(super::AdoptError::ConfigConflict {
+                legacy: legacy_path.display().to_string(),
+                dir: dir.display().to_string(),
+            });
+        }
+    }
+    let committed_defaults = match committed.clone() {
+        Some(path) => read_new_file(&path)?,
+        None => FileDefaults::default(),
+    };
+    let (local_defaults, local_used, local_ignored) = match local.clone() {
+        Some(path) if allow_local => (read_new_file(&path)?, Some(path), false),
+        Some(_) => (FileDefaults::default(), None, true),
+        None => (FileDefaults::default(), None, false),
+    };
+    Ok(LoadedDefaults {
+        defaults: merge_committed_local(committed_defaults, local_defaults),
+        committed,
+        local: local_used,
+        legacy: None,
+        local_ignored,
+    })
 }
 
 #[cfg(test)]
@@ -492,12 +652,14 @@ mod tests {
             Some(sub.join(".dx/config.toml")),
             "nearest file wins"
         );
-        let (defaults, path) = load_defaults(&sub).expect("loads nearest");
-        assert_eq!(defaults.output, Some("diff".to_owned()));
-        assert_eq!(path, Some(sub.join(".dx/config.toml")));
+        let loaded = load_defaults(&sub).expect("loads nearest");
+        assert_eq!(loaded.defaults.output, Some("diff".to_owned()));
+        assert_eq!(loaded.legacy, Some(sub.join(".dx/config.toml")));
+        assert_eq!(loaded.committed, None);
+        assert_eq!(loaded.local, None);
         std::fs::remove_file(sub.join(".dx/config.toml")).expect("remove sub");
-        let (defaults, _) = load_defaults(&sub).expect("falls back upward");
-        assert_eq!(defaults.output, Some("json".to_owned()));
+        let loaded = load_defaults(&sub).expect("falls back upward");
+        assert_eq!(loaded.defaults.output, Some("json".to_owned()));
         scratch.close().expect("cleanup");
     }
 
@@ -537,9 +699,9 @@ mod tests {
             !found.starts_with(&neighbor),
             "a neighboring workspace never supplies the defaults: {found:?}"
         );
-        let (defaults, path) = load_defaults(&root.join("mine")).expect("loads the ancestor");
-        assert_eq!(defaults.output, Some("json".to_owned()));
-        assert_eq!(path, Some(root.join(".dx/config.toml")));
+        let loaded = load_defaults(&root.join("mine")).expect("loads the ancestor");
+        assert_eq!(loaded.defaults.output, Some("json".to_owned()));
+        assert_eq!(loaded.legacy, Some(root.join(".dx/config.toml")));
         scratch.close().expect("cleanup");
     }
 
@@ -547,9 +709,12 @@ mod tests {
     fn load_missing_is_empty_and_invalid_fails_closed() {
         let scratch = dx_test_scratch::scratch("dx-defaults-missing-");
         let root = scratch.path().to_path_buf();
-        let (defaults, path) = load_defaults(&root).expect("missing is empty");
-        assert_eq!(defaults, FileDefaults::default());
-        assert_eq!(path, None);
+        let loaded = load_defaults(&root).expect("missing is empty");
+        assert_eq!(loaded.defaults, FileDefaults::default());
+        assert_eq!(loaded.legacy, None);
+        assert_eq!(loaded.committed, None);
+        assert_eq!(loaded.local, None);
+        assert!(!loaded.local_ignored);
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/config.toml"), "not toml = [").expect("bad config");
         assert!(load_defaults(&root).is_err());
@@ -565,5 +730,197 @@ mod tests {
             "the diagnostic names the file: {rendered}"
         );
         scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn new_files_parse_dx_table_and_ignore_other_families() {
+        let parsed =
+            parse_new_file_text("schema_version = 1\n[dx]\noutput = \"json\"\nquiet = true\n")
+                .expect("committed parses");
+        assert_eq!(parsed.output, Some("json".to_owned()));
+        assert_eq!(parsed.quiet, Some(true));
+        assert_eq!(parsed.workspace, None);
+        let overlay = parse_new_file_text("[hooks]\nbudget_secs = 3\n[dx]\noutput = \"text\"\n")
+            .expect("overlay parses");
+        assert_eq!(overlay.output, Some("text".to_owned()));
+        let empty = parse_new_file_text("schema_version = 1\n").expect("no dx table");
+        assert_eq!(empty, FileDefaults::default());
+        assert!(parse_new_file_text("not toml = [").is_err());
+        let error = parse_new_file_text("[dx]\nqiet = true\n").expect_err("a misspelled key fails");
+        assert!(
+            error.to_string().contains("unknown field") && error.to_string().contains("qiet"),
+            "the diagnostic names the key: {error}"
+        );
+    }
+
+    #[test]
+    fn committed_and_local_merge_by_scalar_with_local_winning() {
+        let committed = parse_new_file_text("[dx]\noutput = \"json\"\nquiet = true\n").expect("c");
+        let local = parse_new_file_text("[dx]\nquiet = false\ncolor = \"never\"\n").expect("l");
+        let merged = merge_committed_local(committed, local);
+        assert_eq!(merged.output, Some("json".to_owned()));
+        assert_eq!(merged.quiet, Some(false));
+        assert_eq!(merged.color, Some("never".to_owned()));
+        assert_eq!(merged.verbose, None);
+    }
+
+    #[test]
+    fn new_files_load_from_the_nearest_directory_holding_either() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-new-");
+        let root = scratch.path().to_path_buf();
+        let sub = root.join("sub");
+        std::fs::create_dir_all(&sub).expect("sub");
+        std::fs::write(
+            root.join("dx.toml"),
+            "schema_version = 1\n[dx]\noutput = \"json\"\n",
+        )
+        .expect("committed");
+        std::fs::write(sub.join("dx.local.toml"), "[dx]\noutput = \"text\"\n").expect("local");
+        let loaded = load_defaults(&sub).expect("nearest directory wins");
+        assert_eq!(loaded.defaults.output, Some("text".to_owned()));
+        assert_eq!(loaded.committed, None);
+        assert_eq!(loaded.local, Some(sub.join("dx.local.toml")));
+        assert_eq!(loaded.legacy, None);
+        std::fs::remove_file(sub.join("dx.local.toml")).expect("remove local");
+        let loaded = load_defaults(&sub).expect("falls back upward");
+        assert_eq!(loaded.defaults.output, Some("json".to_owned()));
+        assert_eq!(loaded.committed, Some(root.join("dx.toml")));
+        assert_eq!(loaded.local, None);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn local_overrides_committed_key_by_key() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-merge-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(
+            root.join("dx.toml"),
+            "[dx]\noutput = \"json\"\nquiet = true\n",
+        )
+        .expect("committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\nquiet = false\n").expect("local");
+        let loaded = load_defaults(&root).expect("merges");
+        assert_eq!(loaded.defaults.output, Some("json".to_owned()));
+        assert_eq!(loaded.defaults.quiet, Some(false));
+        assert_eq!(loaded.committed, Some(root.join("dx.toml")));
+        assert_eq!(loaded.local, Some(root.join("dx.local.toml")));
+        assert!(!loaded.local_ignored);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn disallowed_local_is_ignored_but_recorded() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-gated-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"text\"\n").expect("local");
+        let loaded = load_defaults_with(&root, false).expect("loads");
+        assert_eq!(loaded.defaults.output, Some("json".to_owned()));
+        assert_eq!(loaded.local, None);
+        assert!(loaded.local_ignored);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn legacy_and_new_files_conflict_with_migration() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-conflict-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n").expect("legacy");
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("committed");
+        let error = load_defaults(&root).expect_err("overlap conflicts");
+        assert_eq!(
+            error,
+            super::super::AdoptError::ConfigConflict {
+                legacy: root.join(".dx/config.toml").display().to_string(),
+                dir: root.display().to_string(),
+            }
+        );
+        let rendered = error.to_string();
+        assert!(rendered.contains("dx.local.toml"), "{rendered}");
+        assert!(rendered.contains("never rewrites"), "{rendered}");
+        std::fs::remove_file(root.join("dx.toml")).expect("remove committed");
+        let loaded = load_defaults(&root).expect("legacy alone still reads");
+        assert_eq!(loaded.defaults.output, Some("json".to_owned()));
+        assert_eq!(loaded.legacy, Some(root.join(".dx/config.toml")));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn nested_legacy_below_new_configuration_conflicts() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-nested-");
+        let root = scratch.path().to_path_buf();
+        let sub = root.join("sub");
+        std::fs::create_dir_all(sub.join(".dx")).expect("sub dx");
+        std::fs::write(sub.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n").expect("legacy");
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("committed");
+        let error = load_defaults(&sub).expect_err("nested overlap conflicts");
+        assert!(
+            error
+                .to_string()
+                .contains(&sub.join(".dx/config.toml").display().to_string()),
+            "{error}"
+        );
+        let loaded = load_defaults(&root).expect("root never sees the nested legacy");
+        assert_eq!(loaded.defaults.output, Some("text".to_owned()));
+        assert_eq!(loaded.legacy, None);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn malformed_new_files_fail_naming_the_file() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-new-bad-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("dx.toml"), "not toml = [").expect("bad committed");
+        let error = load_defaults(&root).expect_err("malformed committed fails");
+        assert!(
+            error
+                .to_string()
+                .contains(&root.join("dx.toml").display().to_string()),
+            "{error}"
+        );
+        std::fs::remove_file(root.join("dx.toml")).expect("remove committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\nqiet = true\n").expect("typo");
+        let error = load_defaults(&root).expect_err("misspelled local key fails");
+        let rendered = error.to_string();
+        assert!(rendered.contains("qiet"), "{rendered}");
+        assert!(
+            rendered.contains(&root.join("dx.local.toml").display().to_string()),
+            "{rendered}"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn local_applies_outside_ci_and_needs_opt_in_under_ci() {
+        let outside = |_: &str| None;
+        assert!(local_config_applies(&outside).expect("outside CI applies"));
+        let ci = |name: &str| match name {
+            "CI" => Some("true".to_owned()),
+            _ => None,
+        };
+        assert!(!local_config_applies(&ci).expect("CI ignores local by default"));
+        let opted = |name: &str| match name {
+            "CI" => Some("true".to_owned()),
+            "DX_ALLOW_LOCAL_CONFIG" => Some("1".to_owned()),
+            _ => None,
+        };
+        assert!(local_config_applies(&opted).expect("opt-in applies"));
+        let refused = |name: &str| match name {
+            "CI" => Some("true".to_owned()),
+            "DX_ALLOW_LOCAL_CONFIG" => Some("0".to_owned()),
+            _ => None,
+        };
+        assert!(!local_config_applies(&refused).expect("explicit off ignores"));
+        let bad = |name: &str| match name {
+            "CI" => Some("true".to_owned()),
+            "DX_ALLOW_LOCAL_CONFIG" => Some("maybe".to_owned()),
+            _ => None,
+        };
+        let error = local_config_applies(&bad).expect_err("a typo is not a boolean");
+        assert!(
+            error.to_string().contains(DX_ALLOW_LOCAL_CONFIG_ENV),
+            "{error}"
+        );
     }
 }

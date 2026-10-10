@@ -74,6 +74,8 @@ pub enum AdoptError {
     RenderTimings { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
+    #[error("configuration conflict: legacy defaults {legacy} overlap the new configuration in {dir}; move the [dx] keys into dx.toml (committed) or dx.local.toml (local-only), delete {legacy}, and rerun (dx never rewrites config files)")]
+    ConfigConflict { legacy: String, dir: String },
     /// A boolean environment default is neither a documented on nor a documented off.
     #[error("invalid invocation default {name}={value:?}: want one of {spellings}")]
     InvalidEnvBool {
@@ -210,6 +212,14 @@ mod tests {
         assert_eq!(
             plan_watch("docs", false).unwrap_err().to_string(),
             "not watchable: docs"
+        );
+        assert_eq!(
+            AdoptError::ConfigConflict {
+                legacy: "/repo/.dx/config.toml".to_owned(),
+                dir: "/repo".to_owned(),
+            }
+            .to_string(),
+            "configuration conflict: legacy defaults /repo/.dx/config.toml overlap the new configuration in /repo; move the [dx] keys into dx.toml (committed) or dx.local.toml (local-only), delete /repo/.dx/config.toml, and rerun (dx never rewrites config files)"
         );
         assert_eq!(
             AdoptError::UnknownShell {

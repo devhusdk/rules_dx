@@ -65,6 +65,45 @@ pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
     ]
 }
 
+/// The `config` check names the files that supplied the invocation defaults.
+pub fn config_status_check(loaded: &super::LoadedDefaults) -> StatusCheck {
+    let mut sources = Vec::new();
+    if loaded.committed.is_some() {
+        sources.push("dx.toml");
+    }
+    if loaded.local.is_some() {
+        sources.push("dx.local.toml");
+    }
+    let detail = if sources.is_empty() {
+        match &loaded.legacy {
+            Some(path) => format!(
+                "legacy defaults from {} (move the [dx] keys to dx.toml to migrate)",
+                path.display()
+            ),
+            None => {
+                if loaded.local_ignored {
+                    "defaults from dx.toml (dx.local.toml ignored: set DX_ALLOW_LOCAL_CONFIG=1 to apply local preferences under CI)".to_owned()
+                } else {
+                    "built-in defaults (no config file)".to_owned()
+                }
+            }
+        }
+    } else if loaded.local_ignored {
+        format!(
+            "defaults from {} (dx.local.toml ignored: set DX_ALLOW_LOCAL_CONFIG=1 to apply local preferences under CI)",
+            sources.join(" + ")
+        )
+    } else {
+        format!("defaults from {}", sources.join(" + "))
+    };
+    StatusCheck {
+        name: "config".to_owned(),
+        status: "ok".to_owned(),
+        detail,
+        hint: "docs/cli/commands/README.md#config-file".to_owned(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::{default_status_checks, StatusCheck, MODULE_VERSION};

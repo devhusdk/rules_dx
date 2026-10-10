@@ -41,6 +41,8 @@ pub(crate) fn env<'a>(
         runner: &NullRunner,
         out,
         err,
+        ci: false,
+        allow_local: true,
     }
 }
 
@@ -57,6 +59,8 @@ pub(crate) fn env_with_query<'a>(
         runner: &NullRunner,
         out,
         err,
+        ci: false,
+        allow_local: true,
     }
 }
 
@@ -74,6 +78,8 @@ pub(crate) fn env_with<'a>(
         runner,
         out,
         err,
+        ci: false,
+        allow_local: true,
     }
 }
 

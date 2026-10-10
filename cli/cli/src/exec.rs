@@ -127,6 +127,8 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                 query_runner,
                 out,
                 err,
+                ci,
+                allow_local,
                 ..
             } = env;
             crate::adopt::execute_adoption(
@@ -137,6 +139,8 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                     runner,
                     out,
                     err,
+                    ci,
+                    allow_local,
                 },
             )
         }

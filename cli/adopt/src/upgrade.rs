@@ -15,7 +15,7 @@ pub fn upgrade_retry_command(from: &str, to: &str) -> String {
 }
 
 pub fn upgrade_restore_command() -> Option<String> {
-    Some("git checkout -- .dx/version".to_owned())
+    Some("dx version --rollback".to_owned())
 }
 
 pub fn upgrade_recovery_message(plan: &UpgradePlan) -> String {
@@ -60,7 +60,7 @@ mod tests {
         assert_eq!(plan.retry_command, "dx upgrade --from 1.2.3 --to 2.0.0");
         assert_eq!(
             plan.restore_command,
-            Some("git checkout -- .dx/version".to_owned())
+            Some("dx version --rollback".to_owned())
         );
         assert!(plan.message.contains("dx upgrade --from 1.2.3 --to 2.0.0"));
         assert!(plan.message.contains("idempotent"));
@@ -87,10 +87,18 @@ mod tests {
         );
         assert_eq!(
             upgrade_restore_command(),
-            Some("git checkout -- .dx/version".to_owned())
+            Some("dx version --rollback".to_owned())
         );
         let message = upgrade_recovery_message(&plan);
         assert!(message.contains("rerun"));
-        assert!(message.contains("git checkout -- .dx/version"));
+        assert!(message.contains("dx version --rollback"));
+        assert!(
+            !message.contains("git checkout"),
+            "recovery never assumes gitignored state is tracked: {message}"
+        );
+        assert!(
+            !message.contains(".dx/version"),
+            "recovery points at the rollback command, not the pin path: {message}"
+        );
     }
 }

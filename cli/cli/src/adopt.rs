@@ -25,6 +25,8 @@ pub struct AdoptEnv<'a> {
     pub runner: &'a dyn dx_process::Runner,
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
+    pub ci: bool,
+    pub allow_local: bool,
 }
 
 fn summaries_suppressed(invocation: &Invocation) -> bool {
@@ -38,6 +40,8 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         runner,
         out,
         err,
+        ci,
+        allow_local,
     } = env;
     match invocation.command {
         Command::Init => init::execute_init(invocation, workspace, out, err),
@@ -46,7 +50,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::Hooks => {
             hooks::execute_hooks(invocation, workspace, query_runner, runner, None, out, err)
         }
-        Command::Status => status::execute_status(invocation, workspace, out, err),
+        Command::Status => status::execute_status(invocation, workspace, out, err, ci, allow_local),
         Command::Capabilities => {
             capabilities::execute_capabilities(invocation, workspace, out, err)
         }

@@ -98,6 +98,7 @@ pub struct Env<'a> {
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
     pub ci: bool,
+    pub allow_local: bool,
 }
 
 pub(crate) struct FsArtifacts;

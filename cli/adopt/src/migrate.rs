@@ -35,6 +35,10 @@ pub fn migrate_manifest_name_full(from: &str, to: &str) -> String {
     format!("migrate-v{from}-to-v{to}.json")
 }
 
+pub fn migrate_manifest_available(_from: &str, _to: &str) -> bool {
+    false
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MigratePlan {
     pub from: String,
@@ -178,5 +182,11 @@ mod tests {
         assert!(!migrate_is_upgrade("2.0.0-alpha.1", "1.9.9"));
         let skip = plan_migrate("1.0.0", "3.0.0").expect("multi-hop plans single");
         assert_eq!(skip.manifest, "migrate-v1-to-v3.json");
+    }
+
+    #[test]
+    fn migrate_manifests_are_unavailable_before_the_first_release() {
+        assert!(!migrate_manifest_available("1.2.3", "2.0.0"));
+        assert!(!migrate_manifest_available("1.2.3", "1.3.0"));
     }
 }

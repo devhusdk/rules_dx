@@ -6,10 +6,10 @@ dx migrate [--apply] --from <version> --to <version> [scope...] [--dry-run]
 
 Rewrites breaking changes between releases. Checks by default; `--apply`
 migrates. Both versions are Cargo semver.
-Target must be newer than source. `--dry-run` prints the plan without
-writing files.
+Target must be newer than source. `--dry-run` validates the manifest
+without writing files.
 
-No manifests exist yet, so check and apply fail closed. Scopes default to `//...`.
+No manifests exist yet, so dry-run, check, and apply fail closed. Scopes default to `//...`.
 Flags: `--from <version> --to <version>`, `--apply`, `--dry-run`.
 Scopes: explicit Bazel labels/patterns or workspace-relative files/dirs.
 

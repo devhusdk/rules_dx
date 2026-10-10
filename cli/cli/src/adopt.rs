@@ -145,7 +145,6 @@ mod tests {
             vec!["status", "--dry-run", "--output=json"],
             vec!["upgrade", "--from=1.0.0", "--to=2.0.0"],
             vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--output=json"],
-            vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--dry-run"],
             vec![
                 "upgrade",
                 "--from=1.0.0",

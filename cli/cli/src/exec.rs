@@ -232,7 +232,6 @@ mod tests {
             vec!["license", "--dry-run"],
             vec!["update", "--dry-run"],
             vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
-            vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
         ] {
             let name = format!("exec-dispatch-{}", argv[0].trim_start_matches('-'));
             let harness = Harness::new(&name);
@@ -244,6 +243,15 @@ mod tests {
                 "{argv:?} launches nothing"
             );
         }
+        let harness = Harness::new("exec-dispatch-migrate");
+        let (code, _out, err) =
+            harness.run(&["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"]);
+        assert_eq!(code, 1);
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(
+            harness.seen_env.borrow().is_empty(),
+            "migrate dry-run launches nothing"
+        );
     }
 
     #[test]

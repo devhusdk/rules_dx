@@ -31,6 +31,22 @@ pub fn upgrade_recovery_message(plan: &UpgradePlan) -> String {
     }
 }
 
+pub fn upgrade_manifest_available(_from: &str, _to: &str) -> bool {
+    false
+}
+
+pub fn upgrade_route_is_major(from: &str, to: &str) -> bool {
+    super::migrate_is_major_bump(from, to)
+}
+
+pub fn upgrade_unavailable_reason(from: &str, to: &str, manifest: &str) -> String {
+    if upgrade_route_is_major(from, to) {
+        format!("no supported major migration route {from} -> {to} yet (manifest {manifest} is not cut; module at 0.0.0, no releases cut)")
+    } else {
+        format!("no upgrade manifest {manifest} yet (module at 0.0.0, no releases cut)")
+    }
+}
+
 pub fn plan_upgrade(from: &str, to: &str) -> Result<UpgradePlan, AdoptError> {
     let migrate = super::plan_migrate(from, to)?;
     let retry_command = upgrade_retry_command(from, to);
@@ -94,5 +110,20 @@ mod tests {
         assert!(message.contains("rerun"));
         assert!(message.contains("dx version --pin 1.2.3"));
         assert!(!message.contains("git checkout"));
+    }
+
+    #[test]
+    fn upgrade_manifests_are_unavailable_before_the_first_release() {
+        assert!(!upgrade_manifest_available("1.2.3", "2.0.0"));
+        assert!(!upgrade_manifest_available("1.2.3", "1.3.0"));
+        assert!(upgrade_route_is_major("1.2.3", "2.0.0"));
+        assert!(!upgrade_route_is_major("1.2.3", "1.3.0"));
+        let major = upgrade_unavailable_reason("1.2.3", "2.0.0", "migrate-v1-to-v2.json");
+        assert!(major.contains("migrate-v1-to-v2.json"), "{major}");
+        assert!(major.contains("major"), "{major}");
+        assert!(major.contains("no releases cut"), "{major}");
+        let minor = upgrade_unavailable_reason("1.2.3", "1.3.0", "migrate-v1.2.3-to-v1.3.0.json");
+        assert!(minor.contains("migrate-v1.2.3-to-v1.3.0.json"), "{minor}");
+        assert!(minor.contains("no releases cut"), "{minor}");
     }
 }

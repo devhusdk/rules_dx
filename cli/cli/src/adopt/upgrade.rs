@@ -26,6 +26,60 @@ pub(crate) fn execute_upgrade(
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
+    if let Some(incompatible) = dx_adopt::module_incompatible_with_binary(_workspace) {
+        let mode = if invocation.applies() {
+            "default"
+        } else {
+            "check"
+        };
+        if invocation.output == OutputMode::Json {
+            if let Ok(event) = command_started(invocation.command.name(), false, mode) {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+        }
+        return operational(invocation, out, err, CODE_UPGRADE_FAILED, &incompatible);
+    }
+    if !dx_adopt::upgrade_manifest_available(from, to) {
+        let reason = dx_adopt::upgrade_unavailable_reason(from, to, &plan.manifest);
+        let message = format!("{reason}; {}", plan.message);
+        if invocation.dry_run {
+            if invocation.output == OutputMode::Json {
+                if let Ok(event) = command_started(invocation.command.name(), true, "default") {
+                    if let Err(exit) = emit_event(out, &event) {
+                        return exit;
+                    }
+                }
+                return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
+            }
+            return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
+        }
+        let verbose = invocation.chatty();
+        let mode = if invocation.applies() {
+            "default"
+        } else {
+            "check"
+        };
+        if invocation.output == OutputMode::Json {
+            if let Ok(event) = command_started(invocation.command.name(), false, mode) {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
+        }
+        if verbose {
+            let live_summary = format!(
+                "Upgrade {} -> {} via {} (pin {}, migrate, setup)",
+                plan.from, plan.to, plan.manifest, plan.to
+            );
+            if let Err(exit) = check_stdout_write(writeln!(out, "{live_summary}")) {
+                return exit;
+            }
+        }
+        return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
+    }
     let summary = format!(
         "Would upgrade {} -> {} via {} (pin {}, migrate, setup)",
         plan.from, plan.to, plan.manifest, plan.to
@@ -99,21 +153,24 @@ mod tests {
     use dx_process::pre_exec_code;
 
     #[test]
-    fn upgrade_dry_run_plans_composition_without_writing() {
+    fn upgrade_dry_run_validates_the_manifest_before_planning() {
         let inv = invocation(&["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-dry-");
         let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        let text = out;
-        assert!(text.contains("1.2.3 -> 2.0.0"), "{text}");
-        assert!(text.contains("migrate-v1-to-v2.json"), "{text}");
-        assert!(text.contains("pin 2.0.0"), "{text}");
-        assert!(text.contains("setup"), "{text}");
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
+        assert!(err.contains("migrate-v1-to-v2.json"), "{err}");
+        assert!(err.contains("major"), "{err}");
+        assert!(err.contains("dx upgrade --from 1.2.3 --to 2.0.0"), "{err}");
+        let minor = invocation(&["upgrade", "--from=1.2.3", "--to=1.3.0", "--dry-run"]);
+        let (code, _out, err) = run(&minor, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("migrate-v1.2.3-to-v1.3.0.json"), "{err}");
     }
 
     #[test]
-    fn upgrade_dry_run_json_emits_planned_and_finished() {
+    fn upgrade_dry_run_json_fails_closed_with_error_and_finished() {
         let inv = invocation(&[
             "upgrade",
             "--from=1.2.3",
@@ -123,20 +180,38 @@ mod tests {
         ]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-dry-json-");
         let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
         let text = out;
         let events = json_events(&text);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        assert!(kinds.contains(&"notice"), "{kinds:?}");
-        let notice = event(&events, "notice");
-        assert_eq!(notice["code"], serde_json::json!(NOTICE_UPGRADE_PLANNED));
+        assert!(kinds.contains(&"error"), "{kinds:?}");
+        assert!(!kinds.contains(&"notice"), "{kinds:?}");
+        let error = event(&events, "error");
+        assert_eq!(error["code"], serde_json::json!(CODE_UPGRADE_FAILED));
         assert_eq!(
             events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
+            serde_json::json!(1)
         );
+    }
+
+    #[test]
+    fn upgrade_refuses_incompatible_modules_before_manifest_checks() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-skew-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\n",
+        )
+        .expect("module");
+        let inv = invocation(&["upgrade", "--from=9.9.9", "--to=9.9.10", "--dry-run"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
+        assert!(err.contains("incompatible"), "{err}");
     }
 
     #[test]

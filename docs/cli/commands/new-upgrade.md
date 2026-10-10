@@ -93,12 +93,18 @@ dx upgrade [--apply] --from <version> --to <version> [--dry-run]
 
 Runs pin, migrate, and setup in one go with a recovery pointer. Checks by
 default; `--apply` upgrades. Both
-versions are required. `--dry-run` prints the plan without writing files.
-No manifests exist yet, so check and apply fail closed.
+versions are required. `--dry-run` validates the manifest without writing
+files.
+No manifests exist yet, so dry-run, check, and apply fail closed. A module
+that disagrees with the binary fails before any write. Same-major pairs use
+their full-version manifest; major pairs need an explicit qualified route.
+A successful upgrade records the previous pin. Restore it with `dx version
+--rollback --apply`.
 Flags: `--from <version> --to <version>`, `--apply`, `--dry-run`.
 Scopes: none.
 
 Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including missing versions or a
-target that is not newer, `1` a step failed.
+target that is not newer, `1` a step failed, the manifest is missing, or the
+module is incompatible.

@@ -43,19 +43,32 @@ or empty `.dx/version` fails the same way.
 dx version [--check] [--apply] [--pin <version>|--rollback]
 ```
 
-Prints the version. Checks by default; `--apply` authorizes `--pin` and
-`--rollback`.
+Prints the delivered binary version, the resolved module version with its
+source, and the observed pin. Checks by default; `--apply` authorizes `--pin`
+and `--rollback`.
 
 - `--check`: verify the pin without changing it.
-- `--pin <version>` with `--apply`: re-pin to this version.
-- `--rollback` with `--apply`: restore the last pin. Conflicts with `--pin`.
+- `--pin <version>` with `--apply`: re-pin to this version. The pin must
+  equal the resolved module version. A successful re-pin records the previous
+  pin for rollback.
+- `--rollback` with `--apply`: restore the recorded previous pin. Conflicts
+  with `--pin`. Refuses without a record, after intervening edits, or after
+  the record is deleted.
 Flags: `--check`, `--apply`, `--pin`, `--rollback`, `--dry-run`.
 Scopes: none.
+
+The module version resolves from the workspace MODULE.bazel dependency and
+overrides, falling back to the binary when no MODULE.bazel entry exists.
+Overrides are disclosed as their source and never reported as registry
+releases. A module that disagrees with the binary refuses `--apply` before
+writing. The pin in `.dx/version` is observed rebuildable state; the
+MODULE.bazel entry stays authoritative. Deleting
+`.dx/version-recovery.json` removes rollback availability.
 
 Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including conflicting flags, `1`
-pin drift or a refused pin.
+pin drift, a refused pin, a missing record, or module incompatibility.
 
 ```sh
 bazel run @rules_dx//:dx -- version --check

@@ -45,6 +45,23 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         "check"
     };
     if invocation.dry_run {
+        if !dx_adopt::migrate_manifest_available(from, to) {
+            if invocation.output == OutputMode::Json {
+                if let Ok(event) = command_started(invocation.command.name(), true, "default") {
+                    let _ = write_event(out, &event);
+                }
+            }
+            return operational(
+                invocation,
+                out,
+                err,
+                CODE_MIGRATE_FAILED,
+                &format!(
+                    "no migrate manifest {} yet (module at 0.0.0, no releases cut)",
+                    plan.manifest
+                ),
+            );
+        }
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
                 let _ = write_event(out, &event);
@@ -93,17 +110,17 @@ mod tests {
     use crate::test_support::strings;
 
     #[test]
-    fn dry_run_plans_major_bump_without_writing() {
+    fn dry_run_validates_the_manifest_before_planning() {
         let harness = Harness::new("migrate-dryrun");
         let (code, out, err) = harness.run(&["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("migrate-v1-to-v2.json"), "{out}");
-        assert!(out.contains("1.2.3 -> 2.0.0"), "{out}");
-        assert_eq!(err, "", "{err}");
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("Would migrate"), "{out}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1-to-v2.json"), "{err}");
     }
 
     #[test]
-    fn dry_run_json_emits_planned_and_finished() {
+    fn dry_run_json_fails_closed_with_error_and_finished() {
         let harness = Harness::new("migrate-dryrun-json");
         let (code, out, err) = harness.run(&[
             "migrate",
@@ -112,17 +129,18 @@ mod tests {
             "--dry-run",
             "--output=json",
         ]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        assert!(kinds.contains(&"notice"), "{kinds:?}");
+        assert!(kinds.contains(&"error"), "{kinds:?}");
+        assert!(!kinds.contains(&"notice"), "{kinds:?}");
         assert_eq!(
             events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
+            serde_json::json!(1)
         );
-        assert_eq!(err, "", "{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
     }
 
     #[test]
@@ -166,8 +184,10 @@ mod tests {
         ));
         let harness = Harness::new("migrate-minor");
         let (code, out, err) = harness.run(&["migrate", "--from=1.2.3", "--to=1.3.0", "--dry-run"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(out.contains("migrate-v1.2.3-to-v1.3.0.json"), "{out}");
+        assert_eq!(code, 1, "{err}");
+        assert!(!out.contains("Would migrate"), "{out}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1.2.3-to-v1.3.0.json"), "{err}");
         let harness = Harness::new("migrate-downgrade");
         let (code, _, err) = harness.run(&["migrate", "--from=2.0.0", "--to=1.0.0", "--dry-run"]);
         assert_eq!(code, 2, "{err}");

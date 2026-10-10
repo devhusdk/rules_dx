@@ -32,6 +32,12 @@ pub enum AdoptError {
     CreateDxDir { detail: String },
     #[error("write version pin: {detail}")]
     WriteVersionPin { detail: String },
+    #[error("read version recovery: {detail}")]
+    ReadVersionRecovery { detail: String },
+    #[error("write version recovery: {detail}")]
+    WriteVersionRecovery { detail: String },
+    #[error("invalid version recovery: {detail}")]
+    MalformedVersionRecovery { detail: String },
     #[error("dx watch refuses CI (local-only)")]
     WatchRefusesCi,
     #[error("not watchable: {command}")]
@@ -206,6 +212,27 @@ mod tests {
             }
             .to_string(),
             "read version pin: denied"
+        );
+        assert_eq!(
+            AdoptError::ReadVersionRecovery {
+                detail: "denied".to_owned()
+            }
+            .to_string(),
+            "read version recovery: denied"
+        );
+        assert_eq!(
+            AdoptError::WriteVersionRecovery {
+                detail: "denied".to_owned()
+            }
+            .to_string(),
+            "write version recovery: denied"
+        );
+        assert_eq!(
+            AdoptError::MalformedVersionRecovery {
+                detail: ".dx/version-recovery.json".to_owned()
+            }
+            .to_string(),
+            "invalid version recovery: .dx/version-recovery.json"
         );
         assert_eq!(
             plan_watch("docs", false).unwrap_err().to_string(),

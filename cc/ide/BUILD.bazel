@@ -15,6 +15,13 @@ ide_acquisition_test(
     expected = ".",
 )
 
+ide_acquisition_test(
+    name = "clangd_acquisition_test",
+    binary = "@llvm//tools:clangd",
+    expected = "clangd",
+    version_args = ["--version"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

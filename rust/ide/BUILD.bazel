@@ -1,4 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -11,6 +12,38 @@ ide_acquisition_test(
     expected_two = "rust-analyzer flycheck wrapper backed by `bazel build`",
     version_args = ["--help"],
     version_args_two = ["--help"],
+)
+
+# buildifier: disable=canonical-repository
+ide_acquisition_test(
+    name = "rust_analyzer_acquisition_test",
+    binary = "@@rules_rust++rust+rust_analyzer_1.98.0_tools//:rust_analyzer",
+    expected = "rust-analyzer",
+    version_args = ["--version"],
+)
+
+# buildifier: disable=canonical-repository
+# keep
+rust_test(
+    name = "headless_rust_analyzer_test",
+    size = "medium",
+    srcs = ["tests/headless_rust_analyzer.rs"],
+    data = [
+        "@@rules_rust++rust+rust_analyzer_1.98.0_tools//:rust_analyzer",
+        "@@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:cargo",
+        "@@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc",
+    ],
+    edition = "2021",
+    env = {
+        "DX_CARGO": "$(rootpath @@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:cargo)",
+        "DX_RUST_ANALYZER": "$(rootpath @@rules_rust++rust+rust_analyzer_1.98.0_tools//:rust_analyzer)",
+        "DX_RUSTC": "$(rootpath @@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

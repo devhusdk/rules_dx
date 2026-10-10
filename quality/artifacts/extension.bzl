@@ -18,6 +18,7 @@ load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "decode_artifacts", "encode_artifacts", "hub_build")
+load("//quality/artifacts:platforms.bzl", "artifact_platform_key")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
@@ -81,7 +82,7 @@ _ARTIFACTS = [
 TOOL_ARTIFACTS = _ARTIFACTS
 
 def _repo_name(artifact):
-    return "dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"])
+    return "dx_%s_%s" % (artifact["tool"], artifact_platform_key(artifact))
 
 def _standalone_tool_repo_impl(ctx):
     acquire_tool(ctx)
@@ -146,7 +147,7 @@ def _dx_tools_impl(ctx):
             executable = artifact["executable"],
             executable_sha256 = artifact["executable_sha256"],
         )
-        platform = artifact["os"] + "_" + artifact["cpu"]
+        platform = artifact_platform_key(artifact)
         by_tool.setdefault(artifact["tool"], {})[platform] = name
     _hub_repo(
         name = "dx_tools",

@@ -267,7 +267,7 @@ fn run() -> i32 {
         quiet = invocation.quiet,
         "dx invocation parsed"
     );
-    if let Some(message) = dx_cli::platform::refusal(std::env::consts::OS, std::env::consts::ARCH) {
+    if let Some(message) = dx_cli::platform::host_refusal() {
         return startup_failure(
             &format!("dx: {message}"),
             "unsupported_platform",

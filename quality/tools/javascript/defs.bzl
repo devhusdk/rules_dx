@@ -11,14 +11,13 @@ generated launcher cannot be used at all.
 """
 
 load("@bazel_lib//lib:directory_path.bzl", "DirectoryPathInfo")
+load("//quality/artifacts:platforms.bzl", "execution_is_windows")
 
 _NODE_OPTIONS = ["--preserve-symlinks-main"]
 
-def _windows_os(ctx):
-    """Returns whether this tool runs on a Windows host."""
-    return ctx.target_platform_has_constraint(
-        ctx.attr._windows_os[platform_common.ConstraintValueInfo],
-    )
+def _execution_is_windows(ctx):
+    """Reports whether the wrapped tool executes on Windows."""
+    return execution_is_windows(ctx, ctx.attr._windows_os[platform_common.ConstraintValueInfo])
 
 def _generated_script(executable):
     """Returns the script the generated launcher runs.
@@ -81,7 +80,7 @@ def _wrapper_key(ctx, target):
 def _js_tool_binary_impl(ctx):
     target = ctx.attr.js_binary[DefaultInfo]
     generated = target.files_to_run
-    if not _windows_os(ctx):
+    if not _execution_is_windows(ctx):
         script = _generated_script(generated.executable)
         link = ctx.actions.declare_symlink(ctx.label.name + ".sh")
         ctx.actions.symlink(

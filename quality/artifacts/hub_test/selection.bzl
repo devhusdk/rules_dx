@@ -146,6 +146,79 @@ def _selection_fixture(fixture, tool_map):
         visibility = ["//visibility:public"],
     )
 
+def _hub_exec_middle_impl(ctx):
+    """Exposes the execution-resolved tool files behind a target transition."""
+    files = _dep_files(ctx.attr.tool)
+    return [
+        DefaultInfo(files = depset(files)),
+        DxSubjectInfo(fields = {
+            "exec": ",".join(sorted([f.short_path for f in files])),
+            "role": "execution",
+        }),
+    ]
+
+hub_exec_middle = rule(
+    doc = "Resolves one tool in the execution configuration behind a target transition.",
+    implementation = _hub_exec_middle_impl,
+    attrs = {
+        "tool": attr.label(
+            cfg = "exec",
+            doc = "Tool alias resolved for the execution platform.",
+            mandatory = True,
+        ),
+    },
+)
+
+def _hub_exec_probe_impl(ctx):
+    """Fails unless the execution tool ignores the Windows target transition."""
+    target = sorted([f.short_path for f in _dep_files(ctx.attr.target)])
+    expected = sorted([f.short_path for f in _dep_files(ctx.attr.expected)])
+    if target != expected:
+        fail("hub execution selection: " + ctx.attr.platform + " target selected " + str(target) + ", want " + str(expected))
+    middle = sorted([f.short_path for f in _dep_files(ctx.attr.middle)])
+    control = sorted([f.short_path for f in _dep_files(ctx.attr.control)])
+    if middle != control:
+        fail("hub execution selection: execution tool followed the " + ctx.attr.platform + " target (" + str(middle) + "), want execution selection " + str(control))
+    return [DxSubjectInfo(fields = {
+        "exec": ",".join(middle),
+        "platform": ctx.attr.platform,
+        "target": ",".join(target),
+    })]
+
+hub_exec_probe = rule(
+    doc = "Checks execution tool selection stays off the user target platform.",
+    implementation = _hub_exec_probe_impl,
+    attrs = {
+        "control": attr.label(
+            cfg = "exec",
+            doc = "Tool alias resolved for the execution platform without a transition.",
+            mandatory = True,
+        ),
+        "expected": attr.label(
+            doc = "Tool repository files the transitioned target must select.",
+            mandatory = True,
+        ),
+        "middle": attr.label(
+            cfg = _platform_transition,
+            doc = "Middle rule resolving the tool for the execution platform.",
+            mandatory = True,
+        ),
+        "platform": attr.string(
+            doc = "Transitioned target platform key under test.",
+            mandatory = True,
+        ),
+        "platform_target": attr.label(
+            doc = "Platform the target transition selects.",
+            mandatory = True,
+        ),
+        "target": attr.label(
+            cfg = _platform_transition,
+            doc = "Tool alias resolved for the transitioned target platform.",
+            mandatory = True,
+        ),
+    },
+)
+
 def hub_selection_tests(name):
     """Declares the standalone tool artifact selection tests."""
     for platform in TOOL_PLATFORMS:
@@ -173,6 +246,20 @@ def hub_selection_tests(name):
                 platform_target = ":platform_" + platform,
             )
             subjects.append(":" + probe)
+    hub_exec_middle(
+        name = "exec_middle",
+        tool = ":complete_" + _FIXTURE_TOOL,
+    )
+    hub_exec_probe(
+        name = "complete_" + _FIXTURE_TOOL + "_exec_windows",
+        control = ":complete_" + _FIXTURE_TOOL,
+        expected = "@" + _COMPLETE[_FIXTURE_TOOL]["windows_x86_64"] + "//:tool",
+        middle = ":exec_middle",
+        platform = "windows_x86_64",
+        platform_target = ":platform_windows_x86_64",
+        target = ":complete_" + _FIXTURE_TOOL,
+    )
+    subjects.append(":complete_" + _FIXTURE_TOOL + "_exec_windows")
     starlark_test(
         name = name + "_analysis",
         mode = "analysis",

@@ -3,8 +3,8 @@ use std::path::Path;
 use dx_process::Scope;
 
 use super::{
-    classify_scopes, map_owners_to_tests, resolve_file_owners, PackageCache, QueryRunner,
-    ResolveError, ResolvedScope,
+    classify_scopes, map_owners_to_tests_with_selection, resolve_file_owners, PackageCache,
+    QueryRunner, ResolveError, ResolvedScope, SelectionContext,
 };
 
 pub fn resolve(
@@ -51,6 +51,22 @@ pub fn resolve_for_test(
     runner: &dyn QueryRunner,
     startup_options: &[String],
 ) -> Result<ResolvedScope, ResolveError> {
+    resolve_for_test_with_selection(
+        scopes,
+        workspace,
+        runner,
+        startup_options,
+        &SelectionContext::unconfigured(startup_options),
+    )
+}
+
+pub fn resolve_for_test_with_selection(
+    scopes: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+    selection: &SelectionContext,
+) -> Result<ResolvedScope, ResolveError> {
     if scopes.is_empty() {
         return Ok(ResolvedScope {
             scope: Scope::Repository,
@@ -76,7 +92,7 @@ pub fn resolve_for_test(
         });
     }
     let file_owners = resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
-    let tests = map_owners_to_tests(&file_owners, workspace, runner, startup_options)?;
+    let tests = map_owners_to_tests_with_selection(&file_owners, workspace, runner, selection)?;
     let mut targets = classified.labels;
     targets.extend(classified.patterns);
     targets.extend(tests);

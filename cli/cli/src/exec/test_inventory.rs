@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::args::{Command, Invocation};
 use crate::exec::common::{check_stdout_write, emit_event, operational, pre_exec};
-use crate::resolve::{first_line, resolve_for_test, QueryRunner};
+use crate::resolve::{first_line, resolve_for_test_with_selection, QueryRunner, SelectionContext};
 use dx_output::{
     command_finished, command_started, error_event, status_event, FinishedCounts, OutputMode,
     StatusEvent,
@@ -23,6 +23,7 @@ const MAX_CASES_TOTAL: usize = 5000;
 struct Ctx<'a> {
     invocation: &'a Invocation,
     verb: &'a str,
+    selection: SelectionContext,
     workspace: &'a std::path::Path,
     query_runner: &'a dyn QueryRunner,
     out: &'a mut dyn Write,
@@ -30,34 +31,43 @@ struct Ctx<'a> {
     is_json: bool,
 }
 
+fn selection_for(invocation: &Invocation) -> SelectionContext {
+    if invocation.configured {
+        SelectionContext::for_tests_configured(
+            &invocation.bazel_options,
+            &invocation.bazel_startup_options,
+        )
+    } else {
+        SelectionContext::unconfigured_with_options(
+            &invocation.bazel_options,
+            &invocation.bazel_startup_options,
+        )
+    }
+}
+
 fn inventory_expression(scope: &str) -> String {
     format!("tests({scope})")
 }
 
-fn query_argv(invocation: &Invocation, verb: &str, expr: &str) -> Result<Vec<String>, String> {
-    let mut argv = dx_process::build_workflow_argv(
-        verb,
-        &invocation.bazel_options,
-        &["--output=label_kind".to_owned()],
-        &[],
-        &[],
-        &invocation.bazel_startup_options,
-    )
-    .map_err(|error| error.to_string())?;
-    argv.push("--".to_owned());
-    argv.push(expr.to_owned());
-    Ok(argv)
+fn query_argv(selection: &SelectionContext, verb: &str, expr: &str) -> Result<Vec<String>, String> {
+    selection
+        .selection_argv(verb, &["--output=label_kind".to_owned()], expr)
+        .map_err(|error| error.to_string())
 }
 
-fn list_argv(invocation: &Invocation, label: &str) -> Result<Vec<String>, String> {
+fn list_argv(ctx: &Ctx, label: &str) -> Result<Vec<String>, String> {
     let protected = crate::plan::workflow_protected(crate::plan::WorkflowVerb::Run);
+    let filtered = ctx
+        .selection
+        .filtered_options()
+        .map_err(|error| error.to_string())?;
     let mut argv = dx_process::build_workflow_argv(
         "run",
-        &invocation.bazel_options,
+        &filtered,
         &[],
         &protected,
         &[label.to_owned()],
-        &invocation.bazel_startup_options,
+        &ctx.invocation.bazel_startup_options,
     )
     .map_err(|error| error.to_string())?;
     argv.push("--".to_owned());
@@ -108,7 +118,7 @@ fn parse_cases(stdout: &[u8]) -> Vec<String> {
 }
 
 fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, (String, String)> {
-    let argv = query_argv(ctx.invocation, ctx.verb, expr)
+    let argv = query_argv(&ctx.selection, ctx.verb, expr)
         .map_err(|detail| (CODE_QUERY_FAILED.to_owned(), detail))?;
     let result = ctx
         .query_runner
@@ -144,9 +154,11 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
     } else {
         "query"
     };
+    let selection = selection_for(invocation);
     let mut ctx = Ctx {
         invocation,
         verb,
+        selection,
         workspace,
         query_runner,
         out,
@@ -156,11 +168,12 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
     if invocation.dry_run {
         return dry_run_tests(&mut ctx);
     }
-    let resolved = match resolve_for_test(
+    let resolved = match resolve_for_test_with_selection(
         &invocation.targets,
         ctx.workspace,
         ctx.query_runner,
         &invocation.bazel_startup_options,
+        &ctx.selection,
     ) {
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(ctx.err, &error.to_string()),
@@ -269,14 +282,6 @@ fn dry_run_tests(ctx: &mut Ctx) -> i32 {
     0
 }
 
-fn provenance(verb: &str) -> &str {
-    if verb == "cquery" {
-        "configured"
-    } else {
-        "unconfigured"
-    }
-}
-
 fn emit_inventory_text(
     ctx: &mut Ctx,
     pairs: &[(String, String, String)],
@@ -318,7 +323,11 @@ fn emit_inventory_json(
             name: "tests".to_owned(),
             status: "ok".to_owned(),
             detail: label.clone(),
-            hint: format!("{scope} via {} ({})", ctx.verb, provenance(ctx.verb)),
+            hint: format!(
+                "{scope} via {} ({})",
+                ctx.verb,
+                ctx.selection.redacted_detail()
+            ),
         }) {
             if let Err(exit) = emit_event(ctx.out, &event) {
                 return exit;
@@ -354,7 +363,7 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
             ));
             continue;
         }
-        let argv = match list_argv(ctx.invocation, label) {
+        let argv = match list_argv(ctx, label) {
             Ok(argv) => argv,
             Err(detail) => {
                 problems.push((CODE_QUERY_FAILED.to_owned(), detail));
@@ -451,7 +460,11 @@ fn emit_cases_json(
             name: "tests".to_owned(),
             status: "ok".to_owned(),
             detail: case.clone(),
-            hint: format!("{label} via {} ({})", ctx.verb, provenance(ctx.verb)),
+            hint: format!(
+                "{label} via {} ({})",
+                ctx.verb,
+                ctx.selection.redacted_detail()
+            ),
         }) {
             if let Err(exit) = emit_event(ctx.out, &event) {
                 return exit;
@@ -753,5 +766,152 @@ mod tests {
                 "run".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn configured_file_scope_shares_options_across_mapping_and_inventory() {
+        let harness = Harness::new("tests-configured-file");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        script_output(&harness.query, "//pkg:lib\n");
+        script_output(&harness.query, "//pkg:unit\n");
+        script_output(&harness.query, "rust_test rule //pkg:unit\n");
+        let (code, out, err) = harness.run(&[
+            "tests",
+            "--configured",
+            "pkg/a.py",
+            "--",
+            "--platforms=//:x",
+            "--config=ci",
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "//pkg:unit\n");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 3, "{calls:?}");
+        assert_eq!(
+            calls[0][3], "query",
+            "ownership stays unconfigured: {calls:?}"
+        );
+        assert_eq!(
+            calls[1][3], "cquery",
+            "mapping uses execution options: {calls:?}"
+        );
+        assert_eq!(
+            calls[2][3], "cquery",
+            "inventory uses execution options: {calls:?}"
+        );
+        for call in calls.iter().skip(1) {
+            assert!(
+                call.contains(&"--platforms=//:x".to_owned()),
+                "mapping and inventory share platforms: {call:?}"
+            );
+            assert!(
+                call.contains(&"--config=ci".to_owned()),
+                "mapping and inventory share configs: {call:?}"
+            );
+        }
+        assert!(
+            !calls[0].contains(&"--platforms=//:x".to_owned()),
+            "ownership ignores configuration: {:?}",
+            calls[0]
+        );
+    }
+
+    #[test]
+    fn configured_inventory_hint_names_provenance_and_options() {
+        let harness = Harness::new("tests-configured-hint");
+        script_output(&harness.query, "rust_test rule //a:one\n");
+        let (code, out, _) = harness.run(&[
+            "tests",
+            "--configured",
+            "//a:one",
+            "--output=json",
+            "--",
+            "--platforms=//:x",
+        ]);
+        assert_eq!(code, 0);
+        let events = json_events(&out);
+        let hints: Vec<&str> = events_of_kind(&events, "status")
+            .into_iter()
+            .map(|event| event["hint"].as_str().expect("hint"))
+            .collect();
+        assert_eq!(hints.len(), 1);
+        assert!(hints[0].contains("cquery"), "{hints:?}");
+        assert!(hints[0].contains("configured"), "{hints:?}");
+        assert!(hints[0].contains("--platforms=//:x"), "{hints:?}");
+    }
+
+    #[test]
+    fn configured_mapping_failure_is_not_empty_success() {
+        let harness = Harness::new("tests-configured-fail");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        script_output(&harness.query, "//pkg:lib\n");
+        harness.query.outputs.borrow_mut().push(QueryResult {
+            code: Some(6),
+            stdout: Vec::new(),
+            stderr: b"analysis failed\n".to_vec(),
+        });
+        script_output(&harness.query, "rust_test rule //pkg:unit\n");
+        let (code, _, err) = harness.run(&["tests", "--configured", "pkg/a.py"]);
+        assert_ne!(code, 0, "configured analysis failure must fail: {err}");
+        assert!(err.contains("analysis failed"), "{err}");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 2, "{calls:?}");
+        assert_eq!(calls[1][3], "cquery", "{calls:?}");
+    }
+
+    #[test]
+    fn selection_drops_test_binary_args_without_rejecting() {
+        let harness = Harness::new("tests-selection-args");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        script_output(&harness.query, "//pkg:lib\n");
+        script_output(&harness.query, "//pkg:unit\n");
+        script_output(&harness.query, "rust_test rule //pkg:unit\n");
+        let (code, out, err) = harness.run(&[
+            "tests",
+            "--configured",
+            "pkg/a.py",
+            "--",
+            "--test_arg=--exact",
+            "--config=ci",
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "//pkg:unit\n");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 3, "{calls:?}");
+        for call in calls.iter() {
+            assert!(
+                !call.iter().any(|arg| arg.contains("test_arg")),
+                "selection never forwards test binary args: {call:?}"
+            );
+        }
+        assert!(calls[1].contains(&"--config=ci".to_owned()), "{calls:?}");
+    }
+
+    #[test]
+    fn selection_hint_withholds_secrets() {
+        let harness = Harness::new("tests-selection-secret");
+        script_output(&harness.query, "rust_test rule //a:one\n");
+        let (code, out, _) = harness.run(&[
+            "tests",
+            "--configured",
+            "//a:one",
+            "--output=json",
+            "--",
+            "--token=abc",
+        ]);
+        assert_eq!(code, 0);
+        let events = json_events(&out);
+        let hints: Vec<&str> = events_of_kind(&events, "status")
+            .into_iter()
+            .map(|event| event["hint"].as_str().expect("hint"))
+            .collect();
+        assert_eq!(hints.len(), 1);
+        assert!(hints[0].contains("--token"), "{hints:?}");
+        assert!(!hints[0].contains("abc"), "{hints:?}");
+        let calls = harness.query.calls.borrow();
+        assert!(calls[0].contains(&"--token=abc".to_owned()), "{calls:?}");
     }
 }

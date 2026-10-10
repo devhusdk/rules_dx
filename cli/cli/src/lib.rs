@@ -36,7 +36,8 @@ pub use generate::{
 pub use plan::{BuildPlan, CommandSpec};
 pub use reports::{Destination, PlannedReport, ReportError, StandardFormat};
 pub use resolve::{
-    expand_codegen_roots, map_owners_to_tests, resolve, resolve_for_test, resolve_run,
-    ProcessQueryRunner, QueryResult, QueryRunner, ResolveError, ResolvedScope,
+    expand_codegen_roots, map_owners_to_tests, map_owners_to_tests_with_selection, resolve,
+    resolve_for_test, resolve_for_test_with_selection, resolve_run, ProcessQueryRunner,
+    QueryResult, QueryRunner, ResolveError, ResolvedScope, SelectionContext,
 };
 // LCOV_EXCL_STOP - reason: end re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

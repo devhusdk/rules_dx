@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{first_line, parse_owners, quote_set, QueryRunner, ResolveError};
+use super::{first_line, parse_owners, quote_set, QueryRunner, ResolveError, SelectionContext};
 
 fn tests_expression(owners: &[String]) -> String {
     format!(
@@ -15,14 +15,31 @@ pub fn map_owners_to_tests(
     runner: &dyn QueryRunner,
     startup_options: &[String],
 ) -> Result<Vec<String>, ResolveError> {
+    map_owners_to_tests_with_selection(
+        owners,
+        workspace,
+        runner,
+        &SelectionContext::unconfigured(startup_options),
+    )
+}
+
+pub fn map_owners_to_tests_with_selection(
+    owners: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    selection: &SelectionContext,
+) -> Result<Vec<String>, ResolveError> {
     if owners.is_empty() {
         return Ok(Vec::new());
     }
     let expression = tests_expression(owners);
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.push("query".to_owned());
-    argv.push("--".to_owned());
-    argv.push(expression.clone());
+    let verb = selection.query_verb();
+    let argv = selection
+        .selection_argv(verb, &[], &expression)
+        .map_err(|error| ResolveError::QueryFailed {
+            label: expression.clone(),
+            detail: error.to_string(),
+        })?;
     let result = runner
         .run_query(&argv, workspace)
         .map_err(|error| ResolveError::QueryFailed {

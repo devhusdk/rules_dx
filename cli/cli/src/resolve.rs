@@ -4,18 +4,20 @@ pub mod entry;
 pub mod packages;
 pub mod query;
 pub mod run_deploy;
+pub mod selection;
 pub mod test_map;
 pub mod types;
 
 pub(crate) use classify::{classify_scopes, first_line, parse_owners, resolve_file_owners};
 pub use codegen_expand::expand_codegen_roots;
-pub use entry::{resolve, resolve_for_test};
+pub use entry::{resolve, resolve_for_test, resolve_for_test_with_selection};
 pub(crate) use packages::PackageCache;
 pub(crate) use query::{
     owned_sources_expression, ownership_set_expression, quote_set, run_label_query,
 };
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
-pub use test_map::map_owners_to_tests;
+pub use selection::SelectionContext;
+pub use test_map::{map_owners_to_tests, map_owners_to_tests_with_selection};
 #[cfg(test)]
 pub(crate) use types::NeverQuery;
 pub use types::{ProcessQueryRunner, QueryResult, QueryRunner, ResolveError, ResolvedScope};

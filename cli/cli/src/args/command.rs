@@ -689,7 +689,7 @@ pub static COMMANDS: [CommandMeta; 34] = [
         scope_policy: "require",
         describe: "scaffold a minimal qualified project for one language (absent-only; mutating by default)",
         usage: "Usage: dx new [--apply] <language> [name]",
-        flags: "Per-command flags: --apply (authorizes scaffolding; <language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cc|cpp; c# and f# also scaffold csharp and fsharp; absent-only, no --force).",
+        flags: "Per-command flags: --apply (authorizes scaffolding; <language> [name]; rust|python|javascript|typescript|go|java|kotlin|scala|csharp|fsharp|c|cc|cpp|rust-web; c# and f# also scaffold csharp and fsharp; rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force).",
         scopes: "Scopes: <language> plus optional project name (defaults to my_project); unknown languages fail with the supported list; extra positionals are usage failures.",
         is_audit_update: false,
         is_managed: false,

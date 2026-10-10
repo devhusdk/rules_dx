@@ -122,6 +122,36 @@ rust_test(
     ) + [":cc_context"],
 )
 
+rust_test(
+    name = "headless_clangd_test",
+    size = "medium",
+    srcs = ["tests/headless_clangd.rs"],
+    aliases = aliases(
+        package_name = "cc/cc_context",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "headless_clangd_test",
+    crate_root = "tests/headless_clangd.rs",
+    data = ["@llvm//tools:clangd"],
+    edition = "2021",
+    env = {
+        "DX_CLANGD": "$(rootpath @llvm//tools:clangd)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "cc/cc_context",
+    ) + [":cc_context"],
+)
+
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],

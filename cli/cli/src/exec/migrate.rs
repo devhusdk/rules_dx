@@ -30,20 +30,46 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
     let (Some(from), Some(to)) = (invocation.from.as_deref(), invocation.to.as_deref()) else {
         return pre_exec(err, "migrate needs --from <version> --to <version>");
     };
-    let plan = match dx_adopt::plan_migrate(from, to) {
+    let syntax = match dx_adopt::plan_migrate(from, to) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let summary = format!(
-        "Would migrate {} -> {} via {}",
-        plan.from, plan.to, plan.manifest
-    );
     let verbose = invocation.chatty();
     let mode = if invocation.applies() {
         "default"
     } else {
         "check"
     };
+    let plan = match dx_adopt::plan_released_migrate(from, to) {
+        Ok(plan) => plan,
+        Err(error) => {
+            let message = error.to_string();
+            if invocation.dry_run {
+                if invocation.output == OutputMode::Json {
+                    if let Ok(event) = command_started(invocation.command.name(), true, "default") {
+                        let _ = write_event(out, &event);
+                    }
+                }
+                return operational(invocation, out, err, CODE_MIGRATE_FAILED, &message);
+            }
+            if invocation.output == OutputMode::Json {
+                if let Ok(event) = command_started(invocation.command.name(), false, mode) {
+                    let _ = write_event(out, &event);
+                }
+            } else if verbose {
+                let _ = writeln!(
+                    out,
+                    "Would migrate {} -> {} via {}",
+                    syntax.from, syntax.to, syntax.manifest
+                );
+            }
+            return operational(invocation, out, err, CODE_MIGRATE_FAILED, &message);
+        }
+    };
+    let summary = format!(
+        "Would migrate {} -> {} via {}",
+        plan.from, plan.to, plan.manifest
+    );
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
@@ -81,8 +107,8 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         CODE_MIGRATE_FAILED,
         &format!(
-            "no migrate manifest {} yet (module at 0.0.0, no releases cut)",
-            plan.manifest
+            "no live migrate path {} -> {} yet (manifest {} qualifies the plan only)",
+            plan.from, plan.to, plan.manifest
         ),
     )
 }
@@ -93,17 +119,18 @@ mod tests {
     use crate::test_support::strings;
 
     #[test]
-    fn dry_run_plans_major_bump_without_writing() {
+    fn dry_run_fails_closed_without_a_shipped_manifest() {
         let harness = Harness::new("migrate-dryrun");
         let (code, out, err) = harness.run(&["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("migrate-v1-to-v2.json"), "{out}");
-        assert!(out.contains("1.2.3 -> 2.0.0"), "{out}");
-        assert_eq!(err, "", "{err}");
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1-to-v2.json"), "{err}");
+        assert!(err.contains("not shipped"), "{err}");
+        assert!(!out.contains("Would migrate"), "{out}");
     }
 
     #[test]
-    fn dry_run_json_emits_planned_and_finished() {
+    fn dry_run_json_fails_closed_with_error_and_finished() {
         let harness = Harness::new("migrate-dryrun-json");
         let (code, out, err) = harness.run(&[
             "migrate",
@@ -112,17 +139,18 @@ mod tests {
             "--dry-run",
             "--output=json",
         ]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
+        assert!(kinds.contains(&"error"), "{kinds:?}");
+        assert!(!kinds.contains(&"notice"), "{kinds:?}");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        assert!(kinds.contains(&"notice"), "{kinds:?}");
         assert_eq!(
             events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
+            serde_json::json!(1)
         );
-        assert_eq!(err, "", "{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
     }
 
     #[test]
@@ -165,9 +193,10 @@ mod tests {
             Err(crate::args::ArgsError::MissingValue { .. })
         ));
         let harness = Harness::new("migrate-minor");
-        let (code, out, err) = harness.run(&["migrate", "--from=1.2.3", "--to=1.3.0", "--dry-run"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(out.contains("migrate-v1.2.3-to-v1.3.0.json"), "{out}");
+        let (code, _, err) = harness.run(&["migrate", "--from=1.2.3", "--to=1.3.0", "--dry-run"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1.2.3-to-v1.3.0.json"), "{err}");
         let harness = Harness::new("migrate-downgrade");
         let (code, _, err) = harness.run(&["migrate", "--from=2.0.0", "--to=1.0.0", "--dry-run"]);
         assert_eq!(code, 2, "{err}");

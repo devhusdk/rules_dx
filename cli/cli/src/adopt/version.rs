@@ -56,9 +56,8 @@ pub(crate) fn execute_version(
     }
     let is_json = invocation.output == OutputMode::Json;
     if invocation.rollback {
-        let previous = dx_adopt::PREVIOUS_VERSION;
-        let current = match dx_adopt::read_version_pin(workspace) {
-            Ok(pin) => pin,
+        let record = match dx_adopt::read_pin_record(workspace) {
+            Ok(record) => record,
             Err(error) => {
                 let message = error.to_string();
                 if is_json {
@@ -69,10 +68,31 @@ pub(crate) fn execute_version(
                 return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
             }
         };
-        if current.is_empty() || !dx_adopt::rollback_re_pins_previous(&current, previous, previous)
-        {
+        let current: Option<String> = match dx_adopt::read_version_pin(workspace) {
+            Ok(pin) => {
+                if pin.is_empty() {
+                    None
+                } else {
+                    Some(pin)
+                }
+            }
+            Err(_) if !workspace.join(".dx/version").is_file() => None,
+            Err(error) => {
+                let message = error.to_string();
+                if is_json {
+                    if let Err(exit) = emit_started(invocation, out) {
+                        return exit;
+                    }
+                }
+                return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+            }
+        };
+        let recorded = record.current.as_deref().filter(|pin| !pin.is_empty());
+        if current.as_deref() != recorded {
             let message = format!(
-                "rollback refused: pin {current:?} is not newer than previous release {previous:?}"
+                "rollback refused: pin {:?} does not match recorded {:?} (re-pin explicitly to repair history)",
+                current.as_deref().unwrap_or("no pin"),
+                recorded.unwrap_or("no pin"),
             );
             if is_json {
                 if let Err(exit) = emit_started(invocation, out) {
@@ -81,21 +101,46 @@ pub(crate) fn execute_version(
             }
             return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
+        let target = record
+            .previous
+            .clone()
+            .filter(|previous| !previous.is_empty());
         if invocation.dry_run {
             if is_json {
                 return json_dry_run(invocation, out);
             }
             if !summaries_suppressed(invocation) {
-                if let Err(exit) =
-                    check_stdout_write(writeln!(out, "would pin {previous} (rollback)"))
-                {
-                    return exit;
+                match &target {
+                    Some(previous) => {
+                        if let Err(exit) =
+                            check_stdout_write(writeln!(out, "would pin {previous} (rollback)"))
+                        {
+                            return exit;
+                        }
+                    }
+                    None => {
+                        if let Err(exit) =
+                            check_stdout_write(writeln!(out, "would remove the pin (rollback)"))
+                        {
+                            return exit;
+                        }
+                    }
                 }
             }
             return 0;
         }
         if !invocation.applies() {
-            if current == previous {
+            if target == current {
+                if target.is_none() {
+                    let message = "rollback refused: no earlier pin recorded";
+                    if is_json {
+                        if let Err(exit) = emit_started(invocation, out) {
+                            return exit;
+                        }
+                    }
+                    return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, message);
+                }
+                let at = target.as_deref().unwrap_or_default();
                 if is_json {
                     if let Ok(event) = command_started(invocation.command.name(), false, "check") {
                         if let Err(exit) = emit_event(out, &event) {
@@ -106,7 +151,7 @@ pub(crate) fn execute_version(
                         out,
                         "pin",
                         "ok",
-                        previous,
+                        at,
                         &format!("dx version --pin {}", dx_adopt::MODULE_VERSION),
                     ) {
                         return exit;
@@ -120,7 +165,7 @@ pub(crate) fn execute_version(
                 }
                 if !summaries_suppressed(invocation) {
                     if let Err(exit) =
-                        check_stdout_write(writeln!(out, "version current: rollback {previous}"))
+                        check_stdout_write(writeln!(out, "version current: rollback {at}"))
                     {
                         return exit;
                     }
@@ -132,57 +177,87 @@ pub(crate) fn execute_version(
                     return exit;
                 }
             }
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_STATUS_PIN_MISMATCH,
-                &format!(
-                    "version drift: pin {current:?} needs rollback to {previous:?} (run `dx version --rollback --apply`)"
+            let at = current.as_deref().unwrap_or("no pin");
+            let message = match &target {
+                Some(previous) => format!(
+                    "version drift: pin {at:?} can roll back to {previous:?} (run `dx version --rollback --apply`)"
                 ),
-            );
+                None => format!(
+                    "version drift: pin {at:?} has no earlier pin (run `dx version --rollback --apply` to remove it)"
+                ),
+            };
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
-        return match dx_adopt::write_version_pin(workspace, previous) {
-            Ok(()) => {
-                if is_json {
-                    if let Ok(event) = command_started(invocation.command.name(), false, "default")
-                    {
-                        if let Err(exit) = emit_event(out, &event) {
-                            return exit;
-                        }
-                    }
-                    if let Err(exit) = json_status(
-                        out,
-                        "pin",
-                        "ok",
-                        previous,
-                        &format!("dx version --pin {}", dx_adopt::MODULE_VERSION),
-                    ) {
-                        return exit;
-                    }
-                    if let Err(exit) =
-                        emit_event(out, &command_finished(0, &FinishedCounts::default()))
-                    {
-                        return exit;
-                    }
-                    return 0;
+        let landed: Result<(), String> = match &target {
+            Some(previous) => {
+                dx_adopt::write_version_pin(workspace, previous).map_err(|e| e.to_string())
+            }
+            None => std::fs::remove_file(workspace.join(".dx/version")).map_err(|e| e.to_string()),
+        };
+        if let Err(detail) = landed {
+            if is_json {
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
                 }
+            }
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &detail);
+        }
+        if let Err(error) =
+            dx_adopt::record_pin_operation(workspace, current.as_deref(), target.as_deref())
+        {
+            let at = current.as_deref().unwrap_or("no pin");
+            let message = match &target {
+                Some(previous) => {
+                    format!("pinned {previous} (rollback) but history unavailable: {error}")
+                }
+                None => {
+                    format!("removed pin {at} (rollback) but history unavailable: {error}")
+                }
+            };
+            if is_json {
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
+                }
+            }
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+        }
+        if is_json {
+            if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            let detail = target.as_deref().unwrap_or("");
+            if let Err(exit) = json_status(
+                out,
+                "pin",
+                "ok",
+                detail,
+                &format!("dx version --pin {}", dx_adopt::MODULE_VERSION),
+            ) {
+                return exit;
+            }
+            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+                return exit;
+            }
+            return 0;
+        }
+        match &target {
+            Some(previous) => {
                 if let Err(exit) = check_stdout_write(writeln!(out, "pinned {previous} (rollback)"))
                 {
                     return exit;
                 }
-                0
             }
-            Err(error) => {
-                let message = error.to_string();
-                if is_json {
-                    if let Err(exit) = emit_started(invocation, out) {
-                        return exit;
-                    }
+            None => {
+                let at = current.as_deref().unwrap_or("no pin");
+                if let Err(exit) = check_stdout_write(writeln!(out, "removed pin {at} (rollback)"))
+                {
+                    return exit;
                 }
-                operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message)
             }
-        };
+        }
+        return 0;
     }
     if let Some(pin) = &invocation.pin {
         if !dx_adopt::version_pin_matches_module(pin, dx_adopt::MODULE_VERSION) {
@@ -254,8 +329,20 @@ pub(crate) fn execute_version(
                 ),
             );
         }
+        let before = dx_adopt::read_version_pin(workspace).ok();
         return match dx_adopt::write_version_pin(workspace, pin) {
             Ok(()) => {
+                if let Err(error) =
+                    dx_adopt::record_pin_operation(workspace, before.as_deref(), Some(pin))
+                {
+                    let message = format!("pinned {pin} but history unavailable: {error}");
+                    if is_json {
+                        if let Err(exit) = emit_started(invocation, out) {
+                            return exit;
+                        }
+                    }
+                    return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+                }
                 if is_json {
                     if let Ok(event) = command_started(invocation.command.name(), false, "default")
                     {
@@ -360,6 +447,8 @@ pub(crate) fn execute_version(
             operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message)
         }
     } else {
+        let dependency =
+            dx_adopt::render_module_dependency(&dx_adopt::read_module_dependency(workspace));
         if is_json {
             if let Ok(event) = command_started(invocation.command.name(), false, "default") {
                 if let Err(exit) = emit_event(out, &event) {
@@ -384,6 +473,9 @@ pub(crate) fn execute_version(
             ) {
                 return exit;
             }
+            if let Err(exit) = json_status(out, "dependency", "ok", &dependency, "dx version") {
+                return exit;
+            }
             if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
                 return exit;
             }
@@ -400,6 +492,9 @@ pub(crate) fn execute_version(
         if let Err(exit) = check_stdout_write(writeln!(out, "pin {current}")) {
             return exit;
         }
+        if let Err(exit) = check_stdout_write(writeln!(out, "dependency {dependency}")) {
+            return exit;
+        }
         0
     }
 }
@@ -414,7 +509,7 @@ mod tests {
     #[test]
     fn version_output_boundaries_propagate_broken_pipes() {
         for (words, pin, json_lines, text_lines) in [
-            (vec!["version"], Some("0.0.0"), 5, 3),
+            (vec!["version"], Some("0.0.0"), 6, 4),
             (vec!["version", "--check"], Some("0.0.0"), 3, 1),
             (vec!["version", "--check"], Some("9.9.9"), 4, 0),
             (vec!["version", "--apply", "--pin=0.0.0"], None, 3, 1),
@@ -435,6 +530,14 @@ mod tests {
                     if let Some(pin) = pin {
                         std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
                         std::fs::write(scratch.path().join(".dx/version"), pin).expect("seed pin");
+                        if words.iter().any(|word| *word == "--rollback") {
+                            dx_adopt::record_pin_operation(
+                                scratch.path(),
+                                Some("0.0.0"),
+                                Some(pin),
+                            )
+                            .expect("seed record");
+                        }
                     }
                     let mut inv = invocation(&words);
                     if json {
@@ -463,6 +566,14 @@ mod tests {
                 for lines in 0..if json { 2 } else { 1 } {
                     let scratch = dx_test_scratch::scratch("version-dry-pipe-");
                     dx_adopt::write_version_pin(scratch.path(), "9.9.9").expect("seed pin");
+                    if words.iter().any(|word| *word == "--rollback") {
+                        dx_adopt::record_pin_operation(
+                            scratch.path(),
+                            Some("0.0.0"),
+                            Some("9.9.9"),
+                        )
+                        .expect("seed record");
+                    }
                     let mut inv = invocation(&words);
                     inv.dry_run = true;
                     if json {
@@ -547,29 +658,84 @@ mod tests {
     }
 
     #[test]
-    fn version_rollback_pins_previous_release() {
+    fn version_rollback_restores_the_recorded_pin() {
         let scratch = dx_test_scratch::scratch("dx-adopt-version-rollback-");
         let root = scratch.path().to_path_buf();
         let inv = invocation(&["version", "--rollback"]);
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
-        assert!(err.contains("read version pin"));
+        assert!(err.contains("no recorded pin operation"), "{err}");
         assert!(!root.join(".dx/version").exists());
-        std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "\n").expect("empty pin");
-        let (code, _out, err) = run(&inv, &root);
-        assert_eq!(code, 1);
-        assert!(err.contains("rollback refused"));
+        let pin = invocation(&["version", "--apply", "--pin=0.0.0"]);
+        let (code, _out, _err) = run(&pin, &root);
+        assert_eq!(code, 0);
         std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
         let apply = invocation(&["version", "--apply", "--rollback"]);
-        let (code, out, _err) = run(&apply, &root);
-        assert_eq!(code, 0);
-        assert!(out.contains("rollback"));
-        let pinned = std::fs::read_to_string(root.join(".dx/version")).expect("pin");
-        assert_eq!(pinned.trim(), dx_adopt::PREVIOUS_VERSION);
         let (code, _out, err) = run(&apply, &root);
-        assert_eq!(code, 1);
-        assert!(err.contains("rollback refused"));
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("does not match recorded"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".dx/version")).expect("pin"),
+            "9.9.9\n"
+        );
+        let repair = invocation(&["version", "--apply", "--pin=0.0.0"]);
+        let (code, _out, _err) = run(&repair, &root);
+        assert_eq!(code, 0);
+        dx_adopt::record_pin_operation(&root, Some("0.0.0"), Some("9.9.9")).expect("record");
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("recorded pin");
+        let (code, out, _err) = run(&apply, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("rollback"), "{out}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".dx/version")).expect("pin"),
+            "0.0.0\n"
+        );
+        let (code, out, _err) = run(&apply, &root);
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".dx/version")).expect("pin"),
+            "9.9.9\n",
+            "rollback chains back through the new record"
+        );
+    }
+
+    #[test]
+    fn version_rollback_without_a_previous_pin_removes_the_pin() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-rollback-bare-");
+        let root = scratch.path().to_path_buf();
+        dx_adopt::record_pin_operation(&root, None, Some("0.0.0")).expect("record");
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        let apply = invocation(&["version", "--apply", "--rollback"]);
+        let (code, out, _err) = run(&apply, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("removed pin"), "{out}");
+        assert!(!root.join(".dx/version").exists());
+    }
+
+    #[test]
+    fn version_rollback_restores_a_removed_pin_from_the_record() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-rollback-restore-");
+        let root = scratch.path().to_path_buf();
+        dx_adopt::record_pin_operation(&root, Some("0.0.0"), None).expect("record");
+        assert!(!root.join(".dx/version").exists());
+        let check = invocation(&["version", "--rollback"]);
+        let (code, _out, err) = run(&check, &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("drift"), "{err}");
+        assert!(err.contains("0.0.0"), "{err}");
+        assert!(!root.join(".dx/version").exists(), "check must not write");
+        let apply = invocation(&["version", "--apply", "--rollback"]);
+        let (code, out, _err) = run(&apply, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("pinned 0.0.0 (rollback)"), "{out}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".dx/version")).expect("pin"),
+            "0.0.0\n"
+        );
+        let record = dx_adopt::read_pin_record(&root).expect("record");
+        assert_eq!(record.previous, None);
+        assert_eq!(record.current.as_deref(), Some("0.0.0"));
     }
 
     #[test]
@@ -578,6 +744,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
+        dx_adopt::record_pin_operation(&root, Some("0.0.0"), Some("9.9.9")).expect("record");
         let inv = invocation(&["version", "--rollback"]);
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
@@ -588,6 +755,27 @@ mod tests {
             "9.9.9\n",
             "check must not write"
         );
+        let record = dx_adopt::read_pin_record(&root).expect("record intact");
+        assert_eq!(record.current.as_deref(), Some("9.9.9"));
+    }
+
+    #[test]
+    fn version_pin_apply_records_history_for_rollback() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-pin-history-");
+        let root = scratch.path().to_path_buf();
+        let first = invocation(&["version", "--apply", "--pin=0.0.0"]);
+        let (code, _out, _err) = run(&first, &root);
+        assert_eq!(code, 0);
+        let record = dx_adopt::read_pin_record(&root).expect("record");
+        assert_eq!(record.previous, None);
+        assert_eq!(record.current.as_deref(), Some("0.0.0"));
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
+        let repair = invocation(&["version", "--apply", "--pin=0.0.0"]);
+        let (code, _out, _err) = run(&repair, &root);
+        assert_eq!(code, 0);
+        let record = dx_adopt::read_pin_record(&root).expect("record");
+        assert_eq!(record.previous.as_deref(), Some("9.9.9"));
+        assert_eq!(record.current.as_deref(), Some("0.0.0"));
     }
 
     #[test]
@@ -676,8 +864,44 @@ mod tests {
             .into_iter()
             .map(|event| event["name"].as_str().expect("name"))
             .collect();
-        assert_eq!(names, vec!["binary", "module", "pin"], "{names:?}");
+        assert_eq!(
+            names,
+            vec!["binary", "module", "pin", "dependency"],
+            "{names:?}"
+        );
         assert!(err.is_empty());
+    }
+
+    #[test]
+    fn version_reports_the_module_dependency() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-dependency-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        )
+        .expect("module");
+        let inv = invocation(&["version"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("dependency rules_dx 0.0.0"), "{out}");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"../rules_dx\")\n",
+        )
+        .expect("override");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(
+            out.contains("dependency rules_dx 0.0.0 via local_path_override ../rules_dx"),
+            "{out}"
+        );
+        std::fs::remove_file(root.join("MODULE.bazel")).expect("remove module");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("dependency unknown"), "{out}");
     }
 
     #[test]

@@ -52,6 +52,18 @@ pub enum AdoptError {
     MigrateVersions { detail: String },
     #[error("migrate is upgrade-only: {from} -> {to}")]
     MigrateNotUpgrade { from: String, to: String },
+    #[error("no qualified migration {from} -> {to}: manifest {manifest} is not shipped")]
+    NoQualifiedManifest {
+        from: String,
+        to: String,
+        manifest: String,
+    },
+    #[error("no recorded pin operation: nothing to roll back")]
+    PinRecordMissing,
+    #[error("unreadable pin record: {detail}")]
+    PinRecordUnreadable { detail: String },
+    #[error("write pin record: {detail}")]
+    WritePinRecord { detail: String },
     #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web)")]
     NewUnknownLanguage { language: String },
     #[error("invalid destination for dx new: {name:?}: {reason}")]

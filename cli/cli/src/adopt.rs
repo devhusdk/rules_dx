@@ -186,7 +186,10 @@ mod tests {
             let mut baseline = Vec::new();
             let code = run(&mut baseline);
             assert!(code == 0 || words[0] == "upgrade", "{words:?}: {code}");
-            assert!(!baseline.is_empty(), "{words:?}");
+            if baseline.is_empty() {
+                assert_eq!(words[0], "upgrade", "{words:?}");
+                continue;
+            }
             let mut boundaries = vec![0, baseline.len() - 1];
             if words[0] != "completion" {
                 boundaries.extend(

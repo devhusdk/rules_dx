@@ -49,7 +49,7 @@ pub use hooks::{
 pub use inspect::{inspect_scope_allowed, plan_inspect, plan_somepath, InspectPlan};
 pub use migrate::{
     migrate_is_major_bump, migrate_is_upgrade, migrate_manifest_name, migrate_manifest_name_full,
-    plan_migrate, MigratePlan,
+    plan_migrate, plan_qualified_migrate, plan_released_migrate, MigratePlan, QUALIFIED_MIGRATIONS,
 };
 pub use new::{
     apply_new, default_new_name, derive_new_identity, new_is_known_language,
@@ -68,16 +68,18 @@ pub use scaffold::{
 };
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{
-    plan_upgrade, upgrade_recovery_message, upgrade_restore_command_for, upgrade_retry_command,
-    UpgradePlan,
+    plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,
+    upgrade_restore_command_for, upgrade_retry_command, UpgradePlan,
 };
 pub use verify_sets::{
     load_verify_set, ResolvedSet, ResolvedStep, VerifySetError, VERIFY_SCHEMA_VERSION,
     VERIFY_STEP_COMMANDS, VERIFY_TOML_REL,
 };
 pub use version::{
-    read_version_pin, rollback_re_pins_previous, version_pin_matches_module, write_version_pin,
-    DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION,
+    parse_module_dependency, parse_pin_record, read_module_dependency, read_pin_record,
+    read_version_pin, record_pin_operation, render_module_dependency, render_pin_record,
+    rollback_re_pins_previous, version_pin_matches_module, write_version_pin, ModuleDependency,
+    PinRecord, DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION, VERSION_HISTORY_REL,
 };
 pub use watch::{
     coalesce_watch_paths, plan_watch, should_watch_path, watch_for_change, WATCHABLE_COMMANDS,

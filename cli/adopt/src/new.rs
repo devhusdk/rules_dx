@@ -16,6 +16,50 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "c",
     "cc",
     "cpp",
+    "rust-web",
+];
+
+pub const RUST_WEB_EDITION: &str = "2021";
+pub const RUST_WEB_WASM_BINDGEN_CRATE_VERSION: &str = "0.2.121";
+pub const RULES_RUST_WASM_BINDGEN_VERSION: &str = "0.74.0";
+pub const RUST_WEB_PLATFORMS_VERSION: &str = "1.1.0";
+pub const RUST_WEB_BAZEL_VERSION: &str = "9.2.0";
+pub const RUST_WEB_WASM_REPOS: &[&str] = &[
+    "chrome",
+    "chrome_headless_shell",
+    "chrome_headless_shell_linux64",
+    "chrome_headless_shell_mac_arm64",
+    "chrome_headless_shell_mac_x64",
+    "chrome_headless_shell_win32",
+    "chrome_headless_shell_win64",
+    "chrome_linux64",
+    "chrome_mac_arm64",
+    "chrome_mac_x64",
+    "chrome_win32",
+    "chrome_win64",
+    "chromedriver",
+    "chromedriver_linux64",
+    "chromedriver_mac_arm64",
+    "chromedriver_mac_x64",
+    "chromedriver_win32",
+    "chromedriver_win64",
+    "firefox",
+    "firefox_linux_aarch64",
+    "firefox_linux_x86_64",
+    "firefox_local",
+    "firefox_mac",
+    "geckodriver",
+    "geckodriver_linux64",
+    "geckodriver_linux_aarch64",
+    "geckodriver_macos",
+    "geckodriver_macos_aarch64",
+    "geckodriver_win64",
+    "rrwbd",
+    "rrwbd__serde_json-1.0.145",
+    "rrwbd__wasm-bindgen-0.2.121",
+    "rrwbd__wasm-bindgen-cli-0.2.121",
+    "rrwbd__wasm-bindgen-test-0.3.71",
+    "safaridriver",
 ];
 
 pub const NEW_LANGUAGE_ALIASES: &[(&str, &str)] = &[
@@ -155,7 +199,7 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
     let stem = destination.rsplit('/').next().unwrap_or(destination);
     let identity = fold_identity_text(stem);
     let check = match canonical {
-        "rust" => dx_identity::validate_cargo(&identity),
+        "rust" | "rust-web" => dx_identity::validate_cargo(&identity),
         "python" => {
             dx_identity::validate_dotted(&identity, "python project names use [A-Za-z0-9_.-] only")
         }
@@ -240,6 +284,89 @@ fn cargo_manifest(identity: &str) -> Result<String, AdoptError> {
     })
 }
 
+fn rust_web_cargo_manifest(identity: &str) -> Result<String, AdoptError> {
+    let mut package = toml::Table::new();
+    package.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
+    package.insert(
+        "version".to_owned(),
+        toml::Value::String("0.1.0".to_owned()),
+    );
+    package.insert(
+        "edition".to_owned(),
+        toml::Value::String(RUST_WEB_EDITION.to_owned()),
+    );
+    let mut dependencies = toml::Table::new();
+    dependencies.insert(
+        "wasm-bindgen".to_owned(),
+        toml::Value::String(format!("={RUST_WEB_WASM_BINDGEN_CRATE_VERSION}")),
+    );
+    let mut root = toml::Table::new();
+    root.insert("package".to_owned(), toml::Value::Table(package));
+    root.insert("dependencies".to_owned(), toml::Value::Table(dependencies));
+    toml::to_string(&root).map_err(|e| AdoptError::NewInvalidIdentity {
+        language: "rust-web".to_owned(),
+        name: identity.to_owned(),
+        reason: e.to_string(),
+    })
+}
+
+fn rust_web_crate_ident(identity: &str) -> String {
+    identity.replace('-', "_")
+}
+
+fn rust_web_lib_rs() -> String {
+    "use wasm_bindgen::prelude::*;\n\npub fn greeting(name: &str) -> String {\n    format!(\"Hello from {name}!\")\n}\n\n#[wasm_bindgen]\npub fn greet(name: &str) -> String {\n    greeting(name)\n}\n\n#[wasm_bindgen]\npub fn add(left: u32, right: u32) -> u32 {\n    left + right\n}\n\n#[cfg(test)]\nmod tests {\n    use super::{add, greeting};\n\n    #[test]\n    fn greeting_mentions_name() {\n        assert!(greeting(\"dx\").contains(\"dx\"));\n    }\n\n    #[test]\n    fn add_sums() {\n        assert_eq!(add(40, 2), 42);\n    }\n}\n".to_owned()
+}
+
+fn rust_web_main_rs(identity: &str) -> String {
+    format!(
+        "fn main() {{\n    println!(\"{{}}\", {}::greeting(\"native\"));\n}}\n",
+        rust_web_crate_ident(identity)
+    )
+}
+
+fn rust_web_build_bazel(identity: &str) -> String {
+    let crate_ident = rust_web_crate_ident(identity);
+    format!(
+        "# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\nload(\"@rules_dx//rust/rules:defs.bzl\", \"rust_binary\", \"rust_clippy_test\", \"rust_library\", \"rust_test\", \"rust_wasm_bindgen\", \"rust_wasm_bindgen_test\", \"rustfmt_test\")\n\nrust_library(\n    name = \"{identity}\",\n    srcs = [\"src/lib.rs\"],\n    crate_name = \"{crate_ident}\",\n    crate_root = \"src/lib.rs\",\n    edition = \"{edition}\",\n    deps = [\"@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\"],\n)\n\nrust_binary(\n    name = \"{identity}_bin\",\n    srcs = [\"src/main.rs\"],\n    crate_name = \"{crate_ident}_bin\",\n    crate_root = \"src/main.rs\",\n    edition = \"{edition}\",\n    deps = [\":{identity}\"],\n)\n\nrust_test(\n    name = \"{identity}_test\",\n    crate = \":{identity}\",\n)\n\nrustfmt_test(\n    name = \"{identity}_fmt_test\",\n    size = \"small\",\n    targets = [\n        \":{identity}\",\n        \":{identity}_bin\",\n    ],\n)\n\nrust_clippy_test(\n    name = \"{identity}_clippy_test\",\n    size = \"small\",\n    targets = [\n        \":{identity}\",\n        \":{identity}_bin\",\n    ],\n)\n\nrust_wasm_bindgen(\n    name = \"{identity}_web\",\n    target = \"web\",\n    wasm_file = \":{identity}_bin_upstream\",\n)\n\nrust_wasm_bindgen_test(\n    name = \"{identity}_browser_test\",\n    tags = [\"manual\"],\n    wasm = \":{identity}_web\",\n)\n",
+        edition = RUST_WEB_EDITION,
+    )
+}
+
+fn rust_web_module_bazel(identity: &str) -> String {
+    let mut repos = String::new();
+    for repo in RUST_WEB_WASM_REPOS {
+        repos.push_str(&format!("    \"{repo}\",\n"));
+    }
+    format!(
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"{bindgen}\")\nbazel_dep(name = \"platforms\", version = \"{platforms}\")\n\nwasm_bindgen = use_extension(\"@rules_rust_wasm_bindgen//:extensions.bzl\", \"rust_ext\")\nuse_repo(\n    wasm_bindgen,\n{repos})\n",
+        dx = super::DX_VERSION,
+        bindgen = RULES_RUST_WASM_BINDGEN_VERSION,
+        platforms = RUST_WEB_PLATFORMS_VERSION,
+    )
+}
+
+fn rust_web_readme(identity: &str) -> String {
+    format!(
+        "# {identity}\n\nShared Rust core with a native binary and a browser build.\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nRun the browser test with a local driver:\n\n```sh\ngeckodriver --port 4444 &\nbazel test :{identity}_browser_test --test_env=GECKODRIVER_REMOTE=http://127.0.0.1:4444\n```\n\nThe browser test is manual: it needs Firefox and geckodriver on a\nqualified host. Mobile templates are not included.\n"
+    )
+}
+
+fn rust_web_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    Ok(vec![
+        ("Cargo.toml".to_owned(), rust_web_cargo_manifest(identity)?),
+        ("src/lib.rs".to_owned(), rust_web_lib_rs()),
+        ("src/main.rs".to_owned(), rust_web_main_rs(identity)),
+        ("BUILD.bazel".to_owned(), rust_web_build_bazel(identity)),
+        ("MODULE.bazel".to_owned(), rust_web_module_bazel(identity)),
+        (
+            ".bazelversion".to_owned(),
+            format!("{}\n", RUST_WEB_BAZEL_VERSION),
+        ),
+        ("README.md".to_owned(), rust_web_readme(identity)),
+    ])
+}
+
 fn python_manifest(identity: &str) -> Result<String, AdoptError> {
     let mut project = toml::Table::new();
     project.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
@@ -276,6 +403,7 @@ fn new_language_files(
                 "fn main() {\n    println!(\"hello world\");\n}\n".to_owned(),
             ),
         ],
+        "rust-web" => rust_web_files(identity)?,
         "python" => vec![
             ("pyproject.toml".to_owned(), python_manifest(identity)?),
             (
@@ -449,8 +577,9 @@ mod tests {
         assert_eq!(normalize_new_language("f#"), Some("fsharp"));
         assert_eq!(normalize_new_language("ruby"), None);
         assert!(new_is_known_language("go"));
+        assert!(new_is_known_language("rust-web"));
         assert!(!new_is_known_language("swift"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 13);
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 14);
     }
 
     #[test]
@@ -516,8 +645,126 @@ mod tests {
         assert!(plan_new_files("ruby", "demo").is_err());
         assert_eq!(
             plan_new_files("ruby", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: ruby (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp)"
+            "unknown language for dx new: ruby (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web)"
         );
+    }
+
+    #[test]
+    fn rust_web_template_carries_shared_native_and_browser_files() {
+        let files = plan_new_files("rust-web", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        for wanted in [
+            "demo/Cargo.toml",
+            "demo/src/lib.rs",
+            "demo/src/main.rs",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+            "demo/.dx/version",
+        ] {
+            assert!(paths.contains(&wanted.to_owned()), "{paths:?}");
+        }
+        let main = files
+            .iter()
+            .find(|f| f.path == "demo/src/main.rs")
+            .expect("main");
+        assert!(main.content.contains("demo::greeting"), "{main:?}");
+        assert!(!main.content.contains("hello world"), "{main:?}");
+        let cargo = files
+            .iter()
+            .find(|f| f.path == "demo/Cargo.toml")
+            .expect("cargo");
+        assert_eq!(
+            cargo.content,
+            "[dependencies]\nwasm-bindgen = \"=0.2.121\"\n\n[package]\nedition = \"2021\"\nname = \"demo\"\nversion = \"0.1.0\"\n"
+        );
+        let build = files
+            .iter()
+            .find(|f| f.path == "demo/BUILD.bazel")
+            .expect("build");
+        for wanted in [
+            "rust_library(",
+            "rust_binary(",
+            "rust_test(",
+            "rustfmt_test(",
+            "rust_clippy_test(",
+            "rust_wasm_bindgen(",
+            "rust_wasm_bindgen_test(",
+            "name = \"demo\"",
+            "name = \"demo_bin\"",
+            "name = \"demo_web\"",
+            "name = \"demo_browser_test\"",
+            ":demo_bin_upstream",
+            "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen",
+            "tags = [\"manual\"]",
+        ] {
+            assert!(build.content.contains(wanted), "{wanted}");
+        }
+        let module = files
+            .iter()
+            .find(|f| f.path == "demo/MODULE.bazel")
+            .expect("module");
+        assert!(
+            module.content.contains("module(name = \"demo\")"),
+            "{module:?}"
+        );
+        assert!(
+            module
+                .content
+                .contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"),
+            "{module:?}"
+        );
+        assert!(
+            module
+                .content
+                .contains("bazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"0.74.0\")"),
+            "{module:?}"
+        );
+        assert!(
+            module
+                .content
+                .contains("bazel_dep(name = \"platforms\", version = \"1.1.0\")"),
+            "{module:?}"
+        );
+        let version = files
+            .iter()
+            .find(|f| f.path == "demo/.bazelversion")
+            .expect("bazelversion");
+        assert_eq!(version.content, "9.2.0\n");
+        let readme = files
+            .iter()
+            .find(|f| f.path == "demo/README.md")
+            .expect("readme");
+        assert!(readme.content.contains("bazel test //..."), "{readme:?}");
+        assert!(readme.content.contains("demo_browser_test"), "{readme:?}");
+    }
+
+    #[test]
+    fn rust_web_template_folds_hyphenated_identities_to_crate_idents() {
+        let files = plan_new_files("rust-web", "teams/My App").expect("plans");
+        let cargo = files
+            .iter()
+            .find(|f| f.path == "teams/My App/Cargo.toml")
+            .expect("cargo");
+        assert!(cargo.content.contains("name = \"my-app\""), "{cargo:?}");
+        let main = files
+            .iter()
+            .find(|f| f.path == "teams/My App/src/main.rs")
+            .expect("main");
+        assert!(main.content.contains("my_app::greeting"), "{main:?}");
+        let build = files
+            .iter()
+            .find(|f| f.path == "teams/My App/BUILD.bazel")
+            .expect("build");
+        assert!(
+            build.content.contains("crate_name = \"my_app\""),
+            "{build:?}"
+        );
+        assert!(plan_new_files("rust-web", "+").is_err());
     }
 
     #[test]

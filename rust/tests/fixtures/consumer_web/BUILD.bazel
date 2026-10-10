@@ -1,0 +1,60 @@
+# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rust_wasm_bindgen", "rust_wasm_bindgen_test", "rustfmt_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_library(
+    name = "consumer_web",
+    srcs = ["src/lib.rs"],
+    crate_name = "consumer_web",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
+)
+
+rust_binary(
+    name = "consumer_web_bin",
+    srcs = ["src/main.rs"],
+    crate_name = "consumer_web_bin",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":consumer_web"],
+)
+
+rust_test(
+    name = "consumer_web_test",
+    crate = ":consumer_web",
+)
+
+rustfmt_test(
+    name = "consumer_web_fmt_test",
+    size = "small",
+    targets = [
+        ":consumer_web",
+        ":consumer_web_bin",
+    ],
+)
+
+rust_clippy_test(
+    name = "consumer_web_clippy_test",
+    size = "small",
+    targets = [
+        ":consumer_web",
+        ":consumer_web_bin",
+    ],
+)
+
+rust_wasm_bindgen(
+    name = "consumer_web_web",
+    target = "web",
+    wasm_file = ":consumer_web_bin_upstream",
+)
+
+rust_wasm_bindgen_test(
+    name = "consumer_web_browser_test",
+    tags = ["manual"],
+    wasm = ":consumer_web_web",
+)

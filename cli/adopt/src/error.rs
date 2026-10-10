@@ -52,7 +52,7 @@ pub enum AdoptError {
     MigrateVersions { detail: String },
     #[error("migrate is upgrade-only: {from} -> {to}")]
     MigrateNotUpgrade { from: String, to: String },
-    #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp)")]
+    #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web)")]
     NewUnknownLanguage { language: String },
     #[error("invalid destination for dx new: {name:?}: {reason}")]
     NewInvalidDestination { name: String, reason: String },

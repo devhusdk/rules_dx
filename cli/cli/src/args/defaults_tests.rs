@@ -2,8 +2,8 @@ use super::super::{ArgsError, Command, FileDefaults, OperationMode};
 use super::parse_with;
 use crate::test_support::strings;
 use dx_adopt::defaults::{
-    config_key, parse_bool, parse_file_text, BOOL_SPELLINGS, DX_DRY_RUN_ENV, DX_QUIET_ENV,
-    DX_VERBOSE_ENV, DX_WORKSPACE_ENV, ENV_DEFAULTS,
+    config_key, parse_bool, parse_file_text, BOOL_SPELLINGS, DX_DRY_RUN_ENV, DX_OUTPUT_ENV,
+    DX_QUIET_ENV, DX_VERBOSE_ENV, DX_WORKSPACE_ENV, ENV_DEFAULTS,
 };
 use dx_output::{ColorMode, OutputMode, Threshold};
 
@@ -419,7 +419,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     );
     let (code, out, err) = run(&["version", "--output=json"], &[(DX_DRY_RUN_ENV, "tru")]);
     assert_eq!(code, Some(2), "a typo is a usage error: {err}");
-    assert!(out.is_empty(), "no events for a usage error: {out}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
     assert!(
         err.contains("DX_DRY_RUN=\"tru\"") && err.contains(BOOL_SPELLINGS),
         "the diagnostic names the variable and the spellings: {err}"
@@ -428,7 +428,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     std::fs::write(&config, "[dx]\ndry_run = true\nqiet = true\n").expect("typo");
     let (code, out, err) = run(&["version", "--output=json"], &[]);
     assert_eq!(code, Some(2), "a misspelled key is a usage error: {err}");
-    assert!(out.is_empty(), "no events for a usage error: {out}");
+    assert_startup_outcome(&out, "invalid_defaults", 2);
     assert!(
         err.contains("unknown field `qiet`") && err.contains("config.toml"),
         "the diagnostic names the file and the key: {err}"
@@ -479,6 +479,30 @@ fn run_dx(
     )
 }
 
+/// Checks one pre-execution failure stream: an `error` event naming the
+/// machine-readable code, then the terminal `command_finished` with the
+/// process exit and incomplete results, and nothing else on stdout.
+fn assert_startup_outcome(out: &str, code: &str, exit: i32) {
+    let mut lines = out.lines();
+    let first: serde_json::Value = serde_json::from_str(lines.next().expect("an error event"))
+        .expect("every stdout line is json");
+    assert_eq!(first["event"], "error", "{out}");
+    assert_eq!(first["code"], code, "{out}");
+    assert!(
+        !first["message"].as_str().unwrap_or_default().is_empty(),
+        "{out}"
+    );
+    let second: serde_json::Value = serde_json::from_str(lines.next().expect("a finished event"))
+        .expect("every stdout line is json");
+    assert_eq!(second["event"], "command_finished", "{out}");
+    assert_eq!(second["exit_code"], exit, "{out}");
+    assert_eq!(second["results_complete"], false, "{out}");
+    assert!(
+        lines.next().is_none(),
+        "the terminal event ends the stream: {out}"
+    );
+}
+
 fn workspace_with_output(name: &str, output: &str) -> dx_test_scratch::TempDir {
     let scratch = dx_test_scratch::scratch(name);
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
@@ -515,6 +539,47 @@ fn help_works_with_a_malformed_config_but_operations_fail_closed() {
         "the diagnostic names the file: {err}"
     );
     scratch.close().expect("cleanup");
+}
+
+#[test]
+fn startup_argument_failures_report_structured_json() {
+    let scratch = dx_test_scratch::scratch("dx-startup-json-usage-");
+    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    let root = scratch.path();
+    let (code, out, err) = run_dx(root, &["lint", ":oops", "--output=json"], &[]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
+    assert!(
+        err.contains("usage: dx"),
+        "stderr keeps the usage line: {err}"
+    );
+    let (code, out, err) = run_dx(root, &["lint", ":oops"], &[(DX_OUTPUT_ENV, "json")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
+    let (code, out, _) = run_dx(root, &["lint", ":oops"], &[]);
+    assert_eq!(code, Some(2));
+    assert!(out.is_empty(), "text mode stays event-free: {out}");
+    let (code, out, _) = run_dx(root, &["lint", ":oops", "--output=xml"], &[]);
+    assert_eq!(code, Some(2));
+    assert!(out.is_empty(), "a junk output value stays text-only: {out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn startup_file_and_workspace_failures_report_structured_json() {
+    let scratch = workspace_with_output("dx-startup-json-file-", "json");
+    let (code, out, err) = run_dx(scratch.path(), &["lint", ":oops"], &[]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "invalid_arguments", 2);
+    let missing = scratch
+        .path()
+        .join("no-such-dir")
+        .to_string_lossy()
+        .into_owned();
+    let (code, out, err) = run_dx(scratch.path(), &["version", "--workspace", &missing], &[]);
+    assert_eq!(code, Some(2), "{err}");
+    assert_startup_outcome(&out, "unresolved_workspace", 2);
+    assert!(err.contains("cannot resolve workspace"), "{err}");
 }
 
 #[test]

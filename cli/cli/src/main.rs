@@ -14,13 +14,13 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dx_cli::args::{
-    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request, parse_with_ci,
-    select_startup_defaults, DX_WORKSPACE_ENV,
+    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request,
+    json_output_intent, parse_with_ci, select_startup_defaults, DX_WORKSPACE_ENV,
 };
-use dx_cli::exec::common::{emit_event, flush_out};
+use dx_cli::exec::common::flush_out;
 use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
-use dx_output::{command_finished, error_event, FinishedCounts, OutputMode};
+use dx_output::OutputMode;
 use dx_process::{
     discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
 };
@@ -140,13 +140,28 @@ impl Runner for BinaryRunner {
     }
 }
 
-fn usage_error(message: &str) -> i32 {
-    let _ = writeln!(
-        io::stderr(),
-        "dx: {message}\n{}",
-        dx_cli::args::help::usage_banner()
-    );
-    pre_exec_code()
+fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json: bool) -> i32 {
+    let _ = writeln!(io::stderr(), "{stderr_text}");
+    if !json {
+        return exit;
+    }
+    let stdout = io::stdout();
+    let mut out = stdout.lock();
+    if let Err(io_exit) = dx_cli::exec::common::emit_startup_outcome(&mut out, code, message, exit)
+    {
+        return io_exit;
+    }
+    exit
+}
+
+fn usage_error(message: &str, json: bool) -> i32 {
+    startup_failure(
+        &format!("dx: {message}\n{}", dx_cli::args::help::usage_banner()),
+        "invalid_arguments",
+        message,
+        pre_exec_code(),
+        json,
+    )
 }
 
 fn main() {
@@ -158,10 +173,26 @@ fn main() {
 fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    let env_get = |name: &str| std::env::var(name).ok();
+    let is_ci = dx_process::is_ci();
+    let bare_intent = json_output_intent(
+        &args,
+        &env_get,
+        &dx_cli::args::FileDefaults::default(),
+        is_ci,
+    );
     match dx_cli::args::try_complete() {
         Ok(true) => return 0,
         Ok(false) => {}
-        Err(message) => return usage_error(&message),
+        Err(message) => {
+            return startup_failure(
+                &format!("dx: {message}\n{}", dx_cli::args::help::usage_banner()),
+                "completion_failed",
+                &message,
+                pre_exec_code(),
+                bare_intent,
+            );
+        }
     }
     let initial_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
     let initial_start = dx_process::workspace_start(&initial_cwd);
@@ -176,7 +207,13 @@ fn run() -> i32 {
                 if is_help_request(&args) {
                     (dx_cli::args::FileDefaults::default(), None)
                 } else {
-                    return usage_error(&detail);
+                    return startup_failure(
+                        &format!("dx: {detail}\n{}", dx_cli::args::help::usage_banner()),
+                        "invalid_defaults",
+                        &detail,
+                        pre_exec_code(),
+                        bare_intent,
+                    );
                 }
             }
         };
@@ -188,13 +225,19 @@ fn run() -> i32 {
             }
             Err(detail) => {
                 if !is_help_request(&args) {
-                    return usage_error(&detail);
+                    let json = json_output_intent(&args, &env_get, &file_defaults, is_ci);
+                    return startup_failure(
+                        &format!("dx: {detail}\n{}", dx_cli::args::help::usage_banner()),
+                        "invalid_defaults",
+                        &detail,
+                        pre_exec_code(),
+                        json,
+                    );
                 }
             }
         }
     };
-    let env_get = |name: &str| std::env::var(name).ok();
-    let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, dx_process::is_ci()) {
+    let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, is_ci) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {
             let stdout = io::stdout();
@@ -207,7 +250,10 @@ fn run() -> i32 {
             }
             return 0;
         }
-        Err(error) => return usage_error(&error.to_string()),
+        Err(error) => {
+            let json = json_output_intent(&args, &env_get, &file_defaults, is_ci);
+            return usage_error(&error.to_string(), json);
+        }
     };
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     dx_output::init_diagnostics_with_color(
@@ -222,39 +268,25 @@ fn run() -> i32 {
         "dx invocation parsed"
     );
     if let Some(message) = dx_cli::platform::refusal(std::env::consts::OS, std::env::consts::ARCH) {
-        let stdout = io::stdout();
-        let mut out = stdout.lock();
-        let mut err = io::stderr();
-        let _ = writeln!(err, "dx: {message}");
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = error_event("unsupported_platform", &message, None, None, None) {
-                if let Err(exit) = emit_event(&mut out, &event) {
-                    return exit;
-                }
-            }
-            if let Err(exit) = emit_event(
-                &mut out,
-                &command_finished(
-                    operational_code(),
-                    &FinishedCounts {
-                        results_complete: Some(false),
-                        ..FinishedCounts::default()
-                    },
-                ),
-            ) {
-                return exit;
-            }
-        }
-        if let Err(exit) = flush_out(&mut out) {
-            return exit;
-        }
-        return operational_code();
+        return startup_failure(
+            &format!("dx: {message}"),
+            "unsupported_platform",
+            &message,
+            operational_code(),
+            invocation.output == OutputMode::Json,
+        );
     }
     let cwd = match std::env::current_dir() {
         Ok(cwd) => cwd,
         Err(error) => {
-            let _ = writeln!(io::stderr(), "dx: cannot read working directory: {error}");
-            return pre_exec_code();
+            let message = format!("cannot read working directory: {error}");
+            return startup_failure(
+                &format!("dx: {message}"),
+                "unreadable_working_directory",
+                &message,
+                pre_exec_code(),
+                invocation.output == OutputMode::Json,
+            );
         }
     };
     let start = dx_process::workspace_start(&cwd);
@@ -272,8 +304,14 @@ fn run() -> i32 {
                     })
                     .unwrap_or(start)
             } else {
-                let _ = writeln!(io::stderr(), "dx: cannot resolve workspace: {error}");
-                return pre_exec_code();
+                let message = format!("cannot resolve workspace: {error}");
+                return startup_failure(
+                    &format!("dx: {message}"),
+                    "unresolved_workspace",
+                    &message,
+                    pre_exec_code(),
+                    invocation.output == OutputMode::Json,
+                );
             }
         }
     };
@@ -281,8 +319,13 @@ fn run() -> i32 {
         match dx_cli::args::apply_here(&invocation, &workspace, &cwd) {
             Ok(resolved) => invocation = resolved,
             Err(detail) => {
-                let _ = writeln!(io::stderr(), "dx: {detail}");
-                return pre_exec_code();
+                return startup_failure(
+                    &format!("dx: {detail}"),
+                    "invalid_scope",
+                    &detail,
+                    pre_exec_code(),
+                    invocation.output == OutputMode::Json,
+                );
             }
         }
     }
@@ -298,44 +341,27 @@ fn run() -> i32 {
         }
         dx_cli::skew::SkewDisposition::Refuse => {
             let message = dx_cli::skew::diagnostic(&pin);
-            let stdout = io::stdout();
-            let mut out = stdout.lock();
-            let mut err = io::stderr();
-            let _ = writeln!(err, "dx: {message}");
-            if invocation.output == OutputMode::Json {
-                if let Ok(event) = error_event("version_skew", &message, None, None, None) {
-                    if let Err(exit) = emit_event(&mut out, &event) {
-                        return exit;
-                    }
-                }
-                if let Err(exit) = emit_event(
-                    &mut out,
-                    &command_finished(
-                        operational_code(),
-                        &FinishedCounts {
-                            results_complete: Some(false),
-                            ..FinishedCounts::default()
-                        },
-                    ),
-                ) {
-                    return exit;
-                }
-            }
-            if let Err(exit) = flush_out(&mut out) {
-                return exit;
-            }
-            return operational_code();
+            return startup_failure(
+                &format!("dx: {message}"),
+                "version_skew",
+                &message,
+                operational_code(),
+                invocation.output == OutputMode::Json,
+            );
         }
     }
     let pid = std::process::id();
     let (temp_dir, nonce) = match create_run_temp_dir(&std::env::temp_dir()) {
         Ok(run) => run,
         Err(error) => {
-            let _ = writeln!(
-                io::stderr(),
-                "dx: cannot create temporary directory: {error}"
+            let message = format!("cannot create temporary directory: {error}");
+            return startup_failure(
+                &format!("dx: {message}"),
+                "unwritable_temporary_directory",
+                &message,
+                pre_exec_code(),
+                invocation.output == OutputMode::Json,
             );
-            return pre_exec_code();
         }
     };
     let inherit_stdout = matches!(invocation.output, OutputMode::Text { .. })

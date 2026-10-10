@@ -136,6 +136,9 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
         }
     };
+    if !invocation.applies() {
+        return emit_bump_check(invocation, out, err, workspace, &request, &planned);
+    }
     for (manifest, widened) in &planned {
         if dx_atomic_fs::write_atomic(&workspace.join(manifest), widened.as_bytes()).is_err() {
             return operational(
@@ -360,6 +363,133 @@ fn widen_targets(
         .collect();
     manifests.sort();
     Ok(manifests)
+}
+
+fn emit_bump_check(
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    workspace: &std::path::Path,
+    request: &dx_bump::BumpRequest,
+    planned: &[(String, String)],
+) -> i32 {
+    let mut drifted: Vec<&str> = Vec::new();
+    for (manifest, widened) in planned {
+        let current = std::fs::read(workspace.join(manifest)).ok();
+        if current.as_deref() != Some(widened.as_bytes()) {
+            drifted.push(manifest.as_str());
+        }
+    }
+    if !drifted.is_empty() {
+        let manifests = drifted.join(", ");
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_BUMP_FAILED,
+            &format!(
+                "bump check: {} would widen {} in {manifests} (run `dx bump {} {} --apply` to apply; no files written)",
+                request.selector,
+                request.version.display(),
+                request.selector,
+                request.version.display(),
+            ),
+        );
+    }
+    if !request.needs_update_refresh() {
+        if invocation.output == OutputMode::Json {
+            if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+                let _ = write_event(out, &event);
+            }
+            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+        } else if invocation.chatty() {
+            let _ = writeln!(
+                out,
+                "bump check: {} already at {} (no files written)",
+                request.selector,
+                request.version.display(),
+            );
+        }
+        return 0;
+    }
+    let Some((set, req)) = refresh_target(request) else {
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_BUMP_FAILED,
+            &format!(
+                "bump check: failed to refresh {}: no refresh for file-only set",
+                request.selector
+            ),
+        );
+    };
+    match dx_update::backend::plan(workspace, set, &req, invocation.offline, invocation.frozen) {
+        Ok(dx_update::backend::BackendPlan::Noop) => {
+            if invocation.output == OutputMode::Json {
+                if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+                    let _ = write_event(out, &event);
+                }
+                let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+            } else if invocation.chatty() {
+                let _ = writeln!(
+                    out,
+                    "bump check: {} already at {} and refresh is current (no files written)",
+                    request.selector,
+                    request.version.display(),
+                );
+            }
+            0
+        }
+        Ok(dx_update::backend::BackendPlan::Run { .. }) => operational(
+            invocation,
+            out,
+            err,
+            CODE_BUMP_FAILED,
+            &format!(
+                "bump check: {} needs refresh of {} (run `dx bump {} {} --apply` to apply; no files written)",
+                request.selector,
+                request.refresh_selector(),
+                request.selector,
+                request.version.display(),
+            ),
+        ),
+        Err(error) => match error {
+            dx_update::backend::BackendError::Unsupported { reason, .. }
+            | dx_update::backend::BackendError::UnsupportedOwned { reason, .. } => operational(
+                invocation,
+                out,
+                err,
+                CODE_BUMP_FAILED,
+                &format!(
+                    "bump check: unsupported refresh for {}: {reason}",
+                    request.selector
+                ),
+            ),
+            dx_update::backend::BackendError::OfflineRequired { .. }
+            | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => operational(
+                invocation,
+                out,
+                err,
+                CODE_OFFLINE_REQUIRED,
+                &format!(
+                    "bump check: cannot refresh {} without network (no files written)",
+                    request.selector
+                ),
+            ),
+            dx_update::backend::BackendError::FrozenLocked { .. }
+            | dx_update::backend::BackendError::FrozenLockedOwned { .. } => operational(
+                invocation,
+                out,
+                err,
+                CODE_FROZEN_LOCKED,
+                &format!(
+                    "bump check: cannot refresh {} while frozen (no files written)",
+                    request.selector
+                ),
+            ),
+        },
+    }
 }
 
 fn plan_widens(

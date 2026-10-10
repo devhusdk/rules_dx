@@ -10,10 +10,10 @@ pub(super) fn execute_configured(
     registry: &dependency_sets::Registry,
     verbose: bool,
 ) -> i32 {
-    let mode = if invocation.check {
-        RunMode::Check
-    } else {
+    let mode = if invocation.applies() {
         RunMode::Update
+    } else {
+        RunMode::Check
     };
     let mode_text = match mode {
         RunMode::Update => "default",

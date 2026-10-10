@@ -19,6 +19,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx init`, `dx hooks`](hooks.md)
 - [`dx status`, `dx version`](status-version.md)
 - [`dx owners`, `dx deps`, `dx why`](inspect.md)
+- [`dx tests`](tests.md)
 - [`dx completion`](completion.md)
 - [`dx capabilities`](capabilities.md)
 - [`dx verify`](verify.md)

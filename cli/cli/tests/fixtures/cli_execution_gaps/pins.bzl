@@ -35,6 +35,7 @@ NOT_WATCHABLE_COMMANDS = [
     "security",
     "setup",
     "status",
+    "tests",
     "update",
     "upgrade",
     "verify",
@@ -42,7 +43,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 28
+NOT_WATCHABLE_COUNT = 29
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -104,6 +105,7 @@ REPORT_NONE = [
     "capabilities",
     "verify",
     "rerun",
+    "tests",
 ]
 REPORT_DISPOSITION = "wont-fix"
 

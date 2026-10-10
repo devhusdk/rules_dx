@@ -62,6 +62,7 @@ pub struct Invocation {
     pub open: bool,
     pub offline: bool,
     pub workspace_capabilities: bool,
+    pub cases: bool,
     pub bazel_startup_options: Vec<String>,
 }
 
@@ -223,6 +224,7 @@ mod tests {
             open: false,
             offline: false,
             workspace_capabilities: false,
+            cases: false,
             bazel_startup_options: Vec::new(),
         }
     }

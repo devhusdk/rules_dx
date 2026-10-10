@@ -36,6 +36,7 @@ pub enum Command {
     Capabilities,
     Verify,
     Rerun,
+    Tests,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,7 +118,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 36] = [
+pub static COMMANDS: [CommandMeta; 37] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -1090,6 +1091,33 @@ pub static COMMANDS: [CommandMeta; 36] = [
         labels: LabelsPolicy::Never,
         hook_triggers_on_run: false,
     },
+    CommandMeta {
+        command: Command::Tests,
+        name: "tests",
+        scope_policy: "default-//...",
+        describe: "list configured test targets with optional Rust case enumeration (non-mutating; --cases builds and lists without running bodies)",
+        usage: "Usage: dx tests [--cases] [--configured] [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --cases (enumerate supported test cases via the test runtime; Rust libtest first; other frameworks report unsupported). --configured (use `bazel cquery` instead of `bazel query`; distinct from `dx clean --bazel`, which forwards `bazel clean`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label or case).",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: true,
+        supports_check: false,
+        supports_fail_on: false,
+        supports_min_coverage: false,
+        supports_profile: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Always,
+        hook_triggers_on_run: false,
+    },
 ];
 
 impl Command {
@@ -1200,6 +1228,10 @@ impl Command {
 
     pub fn supports_run_output(self) -> bool {
         matches!(self, Command::Test | Command::Coverage)
+    }
+
+    pub fn supports_cases(self) -> bool {
+        matches!(self, Command::Tests)
     }
 
     pub fn supports_profile(self) -> bool {
@@ -1361,6 +1393,7 @@ mod tests {
             Command::Capabilities,
             Command::Verify,
             Command::Rerun,
+            Command::Tests,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1413,6 +1446,7 @@ mod tests {
             "setup",
             "status",
             "test",
+            "tests",
             "typecheck",
             "update",
             "upgrade",
@@ -1422,8 +1456,8 @@ mod tests {
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 36");
-        assert_eq!(Command::value_variants().len(), 36);
+        assert_eq!(got, want, "Command registry drifted from the final 37");
+        assert_eq!(Command::value_variants().len(), 37);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1484,6 +1518,7 @@ mod tests {
             Command::Capabilities,
             Command::Verify,
             Command::Rerun,
+            Command::Tests,
         ] {
             assert!(
                 !command.is_mutating_by_default(),
@@ -1570,7 +1605,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            36,
+            37,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1588,7 +1623,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun|tests",
             "pipe_list order must match declaration order"
         );
     }
@@ -1596,7 +1631,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 36);
+        assert_eq!(Command::value_variants().len(), 37);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1815,7 +1850,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 36);
+        assert_eq!(COMMANDS.len(), 37);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

@@ -86,14 +86,15 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 12] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 13] = [
     ("--pin", &["--pin=1.0.0"], &["version"]),
     ("--rollback", &["--rollback"], &["version"]),
     (
         "--configured",
         &["--configured"],
-        &["owners", "deps", "why"],
+        &["owners", "deps", "why", "tests"],
     ),
+    ("--cases", &["--cases"], &["tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
     ("--run-output", &["--run-output=out"], &["test", "coverage"]),
     ("--serve", &["--serve"], &["docs"]),

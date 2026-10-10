@@ -1,0 +1,151 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "apple_ios_lib")
+load(":metadata_tests.bzl", "apple_ios_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "metadata_tests.bzl",
+])
+
+apple_ios_tests(name = "metadata")
+
+apple_ios_lib(
+    name = "no_environment",
+    arch = "arm64",
+)
+
+failure_test(
+    name = "no_environment_test",
+    expected_failure_substring = "select one environment",
+    target = ":no_environment_selection",
+)
+
+apple_ios_lib(
+    name = "bad_environment",
+    arch = "arm64",
+    environment = "watch",
+)
+
+failure_test(
+    name = "bad_environment_test",
+    expected_failure_substring = "unknown environment 'watch'",
+    target = ":bad_environment_selection",
+)
+
+apple_ios_lib(
+    name = "no_arch",
+    environment = "simulator",
+)
+
+failure_test(
+    name = "no_arch_test",
+    expected_failure_substring = "select one arch for 'simulator'",
+    target = ":no_arch_selection",
+)
+
+apple_ios_lib(
+    name = "device_x86",
+    arch = "x86_64",
+    environment = "device",
+)
+
+failure_test(
+    name = "device_x86_test",
+    expected_failure_substring = "device builds need arch 'arm64'",
+    target = ":device_x86_selection",
+)
+
+apple_ios_lib(
+    name = "device_triple_on_simulator",
+    arch = "arm64",
+    environment = "simulator",
+    triple = "aarch64-apple-ios",
+)
+
+failure_test(
+    name = "device_triple_on_simulator_test",
+    expected_failure_substring = "disagrees with simulator/arm64",
+    target = ":device_triple_on_simulator_selection",
+)
+
+apple_ios_lib(
+    name = "simulator_sdk_on_device",
+    arch = "arm64",
+    environment = "device",
+    sdk = "iphonesimulator",
+)
+
+failure_test(
+    name = "simulator_sdk_on_device_test",
+    expected_failure_substring = "disagrees with 'device'",
+    target = ":simulator_sdk_on_device_selection",
+)
+
+apple_ios_lib(
+    name = "old_deployment",
+    arch = "arm64",
+    deployment = "16.0",
+    environment = "device",
+)
+
+failure_test(
+    name = "old_deployment_test",
+    expected_failure_substring = "is below 17.0",
+    target = ":old_deployment_selection",
+)
+
+apple_ios_lib(
+    name = "new_deployment",
+    arch = "arm64",
+    deployment = "19.0",
+    environment = "simulator",
+)
+
+failure_test(
+    name = "new_deployment_test",
+    expected_failure_substring = "is above the Xcode 16",
+    target = ":new_deployment_selection",
+)
+
+apple_ios_lib(
+    name = "old_xcode",
+    arch = "arm64",
+    environment = "simulator",
+    xcode_version = "15.4",
+)
+
+failure_test(
+    name = "old_xcode_test",
+    expected_failure_substring = "is outside 16",
+    target = ":old_xcode_selection",
+)
+
+apple_ios_lib(
+    name = "empty_framework",
+    arch = "arm64",
+    environment = "simulator",
+    frameworks = [
+        "Foundation",
+        "",
+    ],
+)
+
+failure_test(
+    name = "empty_framework_test",
+    expected_failure_substring = "framework names must not be empty",
+    target = ":empty_framework_selection",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "metadata_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

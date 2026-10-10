@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, emit_event, emit_started};
+use crate::exec::common::{check_stdout_write, emit_event};
 
 use dx_output::{
     command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
@@ -31,6 +31,11 @@ pub(crate) fn execute_upgrade(
         plan.from, plan.to, plan.manifest, plan.to
     );
     let verbose = invocation.chatty();
+    let mode = if invocation.applies() {
+        "default"
+    } else {
+        "check"
+    };
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
@@ -72,8 +77,10 @@ pub(crate) fn execute_upgrade(
         plan.manifest, plan.message
     );
     if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_started(invocation, out) {
-            return exit;
+        if let Ok(event) = command_started(invocation.command.name(), false, mode) {
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
         return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
     }
@@ -147,6 +154,16 @@ mod tests {
             "{err_text}"
         );
         assert!(err_text.contains("dx setup"), "{err_text}");
+    }
+
+    #[test]
+    fn upgrade_apply_fails_closed_like_default() {
+        let inv = invocation(&["upgrade", "--apply", "--from=1.2.3", "--to=2.0.0"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-apply-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
     }
 
     #[test]

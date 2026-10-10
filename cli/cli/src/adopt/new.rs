@@ -63,6 +63,9 @@ pub(crate) fn execute_new(
         }
         return 0;
     }
+    if !invocation.applies() {
+        return check_new(invocation, workspace, language, name, out, err);
+    }
     match dx_adopt::apply_new(workspace, language, name) {
         Ok(entries) => {
             for entry in entries {
@@ -81,6 +84,44 @@ pub(crate) fn execute_new(
         }
         Err(error) => invalid_name_code(invocation, out, err, &error),
     }
+}
+
+fn check_new(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    language: &str,
+    name: &str,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let files = match dx_adopt::plan_new_files(language, name) {
+        Ok(files) => files,
+        Err(error) => return invalid_name_code(invocation, out, err, &error),
+    };
+    let mut missing: Vec<String> = Vec::new();
+    for file in &files {
+        if !workspace.join(&file.path).exists() {
+            missing.push(file.path.clone());
+        }
+    }
+    if missing.is_empty() {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) = check_stdout_write(writeln!(out, "new current: {language} {name}")) {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_NEW_FAILED,
+        &format!(
+            "new drift: missing {} (run `dx new {language} {name} --apply`)",
+            missing.join(", ")
+        ),
+    )
 }
 
 #[cfg(test)]
@@ -104,13 +145,34 @@ mod tests {
 
     #[test]
     fn new_applies_absent_only() {
-        let inv = invocation(&["new", "go", "demo"]);
+        let inv = invocation(&["new", "--apply", "go", "demo"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-new-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(root.join("demo/go.mod").exists());
         assert!(root.join("demo/.dx/version").exists());
+    }
+
+    #[test]
+    fn new_default_checks_without_writing_and_apply_writes() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-check-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "go", "demo"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("new_failed"), "{err}");
+        assert!(err.contains("new drift"), "{err}");
+        assert!(err.contains("--apply"), "{err}");
+        assert!(!root.join("demo/go.mod").exists(), "check must not write");
+        let inv = invocation(&["new", "--apply", "go", "demo"]);
+        let (code, _out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(root.join("demo/go.mod").exists());
+        let inv = invocation(&["new", "go", "demo"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("current"), "{out}");
     }
 
     #[test]
@@ -172,7 +234,7 @@ mod tests {
     fn new_scaffolds_nested_destinations_with_folded_identities() {
         let scratch = dx_test_scratch::scratch("dx-adopt-new-nested-");
         let root = scratch.path().to_path_buf();
-        let inv = invocation(&["new", "rust", "teams/My App"]);
+        let inv = invocation(&["new", "--apply", "rust", "teams/My App"]);
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         let cargo = std::fs::read_to_string(root.join("teams/My App/Cargo.toml")).expect("cargo");
@@ -205,7 +267,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-new-web-apply-");
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("custom.txt"), "user content").expect("user file");
-        let inv = invocation(&["new", "rust-web", "demo"]);
+        let inv = invocation(&["new", "--apply", "rust-web", "demo"]);
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(root.join("demo/src/lib.rs").exists());
@@ -230,7 +292,7 @@ mod tests {
         std::fs::create_dir_all(&existing).expect("existing dir");
         std::fs::write(existing.join("Cargo.toml"), "[custom]\nkeep = true\n").expect("cargo");
         std::fs::write(existing.join("notes.txt"), "do not touch").expect("notes");
-        let inv = invocation(&["new", "rust-web", "shop"]);
+        let inv = invocation(&["new", "--apply", "rust-web", "shop"]);
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert_eq!(

@@ -132,7 +132,7 @@ pub(super) fn dry_run_rejects_unknown_and_unowned() {
 #[test]
 pub(super) fn live_all_success_reports_per_set_and_exits_zero() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("Running update for all dependency sets"),
@@ -159,7 +159,7 @@ pub(super) fn live_all_success_reports_per_set_and_exits_zero() {
 #[test]
 pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("updated cargo ("), "{out}");
     assert!(out.contains("updated npm ("), "{out}");
@@ -177,7 +177,7 @@ pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
 #[test]
 pub(super) fn live_selective_npm_runs_once_with_packages() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "npm:jest", "npm:react"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "npm:jest", "npm:react"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("Running update for npm:jest, npm:react"),
@@ -195,7 +195,7 @@ pub(super) fn live_selective_npm_runs_once_with_packages() {
 #[test]
 pub(super) fn live_unsupported_selective_fails_without_launch() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "cargo:anyhow"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "cargo:anyhow"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
@@ -205,7 +205,7 @@ pub(super) fn live_unsupported_selective_fails_without_launch() {
 #[test]
 pub(super) fn live_unsupported_nuget_selective_fails_without_launch() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "nuget:FSharp.Core"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "nuget:FSharp.Core"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
@@ -216,7 +216,10 @@ pub(super) fn live_unsupported_nuget_selective_fails_without_launch() {
 #[test]
 pub(super) fn live_unsupported_go_selective_fails_without_launch() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "go:github.com/google/go-cmp/cmp"], &runner);
+    let (code, out, err) = run_with(
+        &["update", "--apply", "go:github.com/google/go-cmp/cmp"],
+        &runner,
+    );
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
@@ -227,7 +230,10 @@ pub(super) fn live_unsupported_go_selective_fails_without_launch() {
 #[test]
 pub(super) fn live_target_resolves_to_owning_set_only() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "//go/tests/fixtures/hello:hello"], &runner);
+    let (code, out, err) = run_with(
+        &["update", "--apply", "//go/tests/fixtures/hello:hello"],
+        &runner,
+    );
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running update for go"), "{out}");
     assert!(out.contains("go pins are manual"), "{out}");
@@ -237,7 +243,7 @@ pub(super) fn live_target_resolves_to_owning_set_only() {
 #[test]
 pub(super) fn live_json_emits_per_set_notices_and_finished() {
     let runner = ScriptRunner::new(&[("npm", Some(2))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let kinds = event_kinds(&events);
@@ -311,4 +317,31 @@ pub(super) fn live_dry_run_json_still_plans_without_per_set() {
     let events = json_events(&out);
     let kinds = event_kinds(&events);
     assert_eq!(kinds, vec!["command_started", "command_finished"]);
+}
+
+#[test]
+pub(super) fn default_checks_like_explicit_check_and_apply_updates() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "uv"], &runner);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(runner.calls.borrow().len(), 1);
+    assert!(
+        runner.calls.borrow()[0].contains(&"--check".to_owned()),
+        "default must run check backend: {:?}",
+        runner.calls.borrow()[0]
+    );
+    let runner_check = ScriptRunner::new(&[]);
+    let (code_check, out_check, err_check) = run_with(&["update", "--check", "uv"], &runner_check);
+    assert_eq!(code, code_check);
+    assert_eq!(out, out_check);
+    assert_eq!(err, err_check);
+    let runner_apply = ScriptRunner::new(&[]);
+    let (code_apply, _, _) = run_with(&["update", "--apply", "uv"], &runner_apply);
+    assert_eq!(code_apply, 0);
+    assert_eq!(runner_apply.calls.borrow().len(), 1);
+    assert!(
+        !runner_apply.calls.borrow()[0].contains(&"--check".to_owned()),
+        "apply must run update backend: {:?}",
+        runner_apply.calls.borrow()[0]
+    );
 }

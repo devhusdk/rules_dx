@@ -648,7 +648,7 @@ fn bazel_run_start_selects_the_workspace_root() {
 fn new_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();
-    let (code, out, err) = run_dx(root, &["new", "rust", "demo"], &[]);
+    let (code, out, err) = run_dx(root, &["new", "--apply", "rust", "demo"], &[]);
     assert_eq!(
         code,
         Some(0),

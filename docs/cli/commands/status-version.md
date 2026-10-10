@@ -43,11 +43,14 @@ or empty `.dx/version` fails the same way.
 dx version [--check] [--apply] [--pin <version>|--rollback]
 ```
 
-Prints the version.
+Prints the version. Checks by default; `--apply` authorizes `--pin` and
+`--rollback`.
 
 - `--check`: verify the pin without changing it.
-- `--pin <version>`: re-pin to this version.
-- `--rollback`: restore the last pin. Conflicts with `--pin`.
+- `--pin <version>` with `--apply`: re-pin to this version.
+- `--rollback` with `--apply`: restore the last pin. Conflicts with `--pin`.
+Flags: `--check`, `--apply`, `--pin`, `--rollback`, `--dry-run`.
+Scopes: none.
 
 Output: `--output text|json`.
 
@@ -56,8 +59,8 @@ pin drift or a refused pin.
 
 ```sh
 bazel run @rules_dx//:dx -- version --check
-bazel run @rules_dx//:dx -- version --pin 0.0.0
-bazel run @rules_dx//:dx -- version --rollback
+bazel run @rules_dx//:dx -- version --apply --pin 0.0.0
+bazel run @rules_dx//:dx -- version --apply --rollback
 ```
 
 ## Version Skew
@@ -80,6 +83,6 @@ error event, then `command_finished` with `exit_code` `1` and
 
 ```sh
 bazel run @rules_dx//:dx -- version --check
-bazel run @rules_dx//:dx -- version --pin 0.0.0
+bazel run @rules_dx//:dx -- version --apply --pin 0.0.0
 bazel run @rules_dx//:dx -- build //...
 ```

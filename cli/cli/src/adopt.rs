@@ -116,7 +116,7 @@ mod tests {
             if verb == "uninstall" {
                 dx_adopt::install_hooks(scratch.path()).expect("install");
             }
-            let inv = invocation(&["hooks", verb]);
+            let inv = invocation(&["hooks", "--apply", verb]);
             assert_eq!(
                 execute_adoption(
                     &inv,

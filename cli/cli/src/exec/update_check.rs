@@ -44,7 +44,10 @@ fn updater_spawn_and_signal_failures_keep_other_sets_independent() {
     for spawn_error in [false, true] {
         let mut runner = ScriptRunner::new(&[("cargo", None)]);
         runner.io_error = spawn_error;
-        let (code, out, err) = run_with(&["update", "cargo", "go", "--output=json"], &runner);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "cargo", "go", "--output=json"],
+            &runner,
+        );
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains(if spawn_error {
             "failed to launch updater"
@@ -270,7 +273,7 @@ fn default_update_leaves_preset_alone() {
         "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
     );
     harness.write_source("tools/bazelrc/preset.bazelrc", "# dirty\n");
-    let (code, out, err) = harness.run(&["update", "go"]);
+    let (code, out, err) = harness.run(&["update", "--apply", "go"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("preset"), "{out}");
     assert!(out.contains("go pins are manual"), "{out}");
@@ -285,7 +288,7 @@ fn default_update_leaves_preset_alone() {
 #[test]
 fn update_json_never_emits_change_or_mutation() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         !out.contains("\"event\":\"change\""),
@@ -318,7 +321,7 @@ fn update_json_never_emits_change_or_mutation() {
 #[test]
 fn update_json_completeness_is_per_set_plus_finished() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let kinds = event_kinds(&events);
@@ -411,7 +414,7 @@ fn update_json_check_current_and_dryrun_emit_no_file_events_or_counts() {
 #[test]
 fn update_failure_reports_recovery_in_text_and_json() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_recovery"), "{err}");
     assert!(err.contains("dx update maven"), "{err}");
@@ -419,7 +422,7 @@ fn update_failure_reports_recovery_in_text_and_json() {
     assert!(err.contains("git checkout --"), "{err}");
 
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("\"code\":\"update_recovery\""), "{out}");
     assert!(out.contains("dx update maven"), "{out}");
@@ -429,13 +432,13 @@ fn update_failure_reports_recovery_in_text_and_json() {
 #[test]
 fn update_success_emits_no_recovery() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!err.contains("update_recovery"), "{err}");
     assert!(!out.contains("update_recovery"), "{out}");
 
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("update_recovery"), "{out}");
 }
@@ -557,18 +560,21 @@ fn frozen_dry_run_locks_resolution_without_launching() {
 #[test]
 fn frozen_live_fails_with_frozen_locked_without_launching() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "cargo", "--frozen"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "cargo", "--frozen"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("frozen_locked"), "{err}");
     assert!(err.contains("cannot change cargo resolution"), "{err}");
     assert!(runner.calls.borrow().is_empty(), "frozen launches nothing");
-    let (code, out, err) = run_with(&["update", "cargo", "--frozen", "--output=json"], &runner);
+    let (code, out, err) = run_with(
+        &["update", "--apply", "cargo", "--frozen", "--output=json"],
+        &runner,
+    );
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("\"code\":\"frozen_locked\""), "{out}");
     assert!(!out.contains("\"code\":\"update_failed\""), "{out}");
     assert!(!out.contains("\"code\":\"offline_required\""), "{out}");
     let go_runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "go", "--frozen"], &go_runner);
+    let (code, out, err) = run_with(&["update", "--apply", "go", "--frozen"], &go_runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("go pins are manual"), "{out}");
     assert!(out.contains("nothing to resolve"), "{out}");
@@ -586,17 +592,20 @@ fn frozen_locked_code_is_stable_single_source() {
 #[test]
 fn offline_live_fails_with_offline_required_without_launching() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "cargo", "--offline"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "cargo", "--offline"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("offline_required"), "{err}");
     assert!(err.contains("cannot update cargo without network"), "{err}");
     assert!(runner.calls.borrow().is_empty(), "offline launches nothing");
-    let (code, out, err) = run_with(&["update", "cargo", "--offline", "--output=json"], &runner);
+    let (code, out, err) = run_with(
+        &["update", "--apply", "cargo", "--offline", "--output=json"],
+        &runner,
+    );
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("\"code\":\"offline_required\""), "{out}");
     assert!(!out.contains("\"code\":\"update_failed\""), "{out}");
     let go_runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "go", "--offline"], &go_runner);
+    let (code, out, err) = run_with(&["update", "--apply", "go", "--offline"], &go_runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("go pins are manual"), "{out}");
     assert!(out.contains("nothing to resolve"), "{out}");

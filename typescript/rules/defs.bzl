@@ -340,13 +340,14 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
     upstream_kwargs = dict(kwargs)
     upstream_kwargs.pop("aspect_hints", None)
     if tags != None:
-        kept = [t for t in tags if t != "manual"]
-        if len(kept) > 0:
-            upstream_kwargs["tags"] = kept
-        elif "tags" in upstream_kwargs:
-            upstream_kwargs.pop("tags")
-    elif "tags" in upstream_kwargs:
-        upstream_kwargs.pop("tags")
+        upstream_tags = list(tags)
+        if "manual" not in upstream_tags:
+            upstream_tags.append("manual")
+        upstream_kwargs["tags"] = upstream_tags
+    elif upstream_kwargs.get("tags", None) == None:
+        upstream_kwargs["tags"] = ["manual"]
+    elif "manual" not in upstream_kwargs["tags"]:
+        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
 
     _jest_test(
         name = name + "_upstream",
@@ -363,7 +364,7 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
         srcs = srcs,
         env_inherit = effective_env,
         visibility = visibility,
-        tags = [t for t in tags if t != "manual"] if tags != None else forward_kwargs.pop("tags", None),
+        tags = list(tags) if tags != None else forward_kwargs.pop("tags", None),
         **forward_kwargs
     )
 
@@ -405,13 +406,14 @@ def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconf
     upstream_kwargs = dict(kwargs)
     upstream_kwargs.pop("aspect_hints", None)
     if tags != None:
-        kept = [t for t in tags if t != "manual"]
-        if len(kept) > 0:
-            upstream_kwargs["tags"] = kept
-        elif "tags" in upstream_kwargs:
-            upstream_kwargs.pop("tags")
-    elif "tags" in upstream_kwargs:
-        upstream_kwargs.pop("tags")
+        upstream_tags = list(tags)
+        if "manual" not in upstream_tags:
+            upstream_tags.append("manual")
+        upstream_kwargs["tags"] = upstream_tags
+    elif upstream_kwargs.get("tags", None) == None:
+        upstream_kwargs["tags"] = ["manual"]
+    elif "manual" not in upstream_kwargs["tags"]:
+        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
 
     _js_test(
         name = name + "_upstream",
@@ -428,6 +430,6 @@ def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconf
         srcs = srcs,
         env_inherit = effective_env,
         visibility = visibility,
-        tags = [t for t in tags if t != "manual"] if tags != None else forward_kwargs.pop("tags", None),
+        tags = list(tags) if tags != None else forward_kwargs.pop("tags", None),
         **forward_kwargs
     )

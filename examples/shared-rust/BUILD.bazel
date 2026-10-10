@@ -1,0 +1,199 @@
+load("//android/packaging:defs.bzl", "rust_android_apk")
+load("//cc/rules:defs.bzl", "cc_library")
+load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test", "rust_wasm_bindgen")
+
+package(default_visibility = ["//:__subpackages__"])
+
+rust_library(
+    name = "core",
+    srcs = ["core.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    crate_name = "shared_core",
+    crate_root = "core.rs",
+    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
+)
+
+rust_test(
+    name = "core_test",
+    aspect_hints = ["//:rustfmt_config"],
+    crate = ":core",
+)
+
+rust_binary(
+    name = "core_bin",
+    srcs = ["main.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    crate_name = "shared_core_bin",
+    crate_root = "main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":core"],
+)
+
+rust_wasm_bindgen(
+    name = "shared_core",
+    target = "web",
+    visibility = ["//visibility:public"],
+    wasm_file = ":core_bin_upstream",
+)
+
+rust_static_library(
+    name = "core_static",
+    srcs = ["core.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    crate_name = "shared_core",
+    crate_root = "core.rs",
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "core_jni",
+    srcs = ["jni.c"],
+    tags = ["manual"],
+    deps = [":core_static"],
+)
+
+rust_android_apk(
+    name = "core_apk",
+    app_id = "com.example.dxsharedcore",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = ["android.permission.INTERNET"],
+    resource_files = glob(["res/**"]),
+    version_name = "1.0",
+    deps = [":core_jni"],
+)
+
+javascript_web_app(
+    name = "app",
+    assets = {"assets/queries.txt": "assets/queries.txt"},
+    bindgen = ":shared_core",
+    html = ":index.html",
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":app",
+    aspect_hints = ["//:ruff_config"],
+    headers = {"X-App": "shared"},
+)
+
+rust_test(
+    name = "asset_test",
+    srcs = ["src/asset_test.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    data = [":app"],
+    deps = [
+        ":core",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "browser_test",
+    size = "large",
+    srcs = ["src/browser_test.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    data = [
+        ":app",
+        ":serve",
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_SHARED_SERVE": "$(rootpath :serve)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "consumer_browser_test",
+    size = "large",
+    srcs = ["src/consumer_browser_test.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    data = [
+        "//docs/site/browser:firefox",
+        "//docs/site/browser:firefox_tree",
+        "@shared_consumer//:consumer_app",
+        "@shared_consumer//:consumer_serve",
+    ],
+    env = {
+        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_SHARED_CONSUMER_SERVE": "$(rootpath @shared_consumer//:consumer_serve)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//docs/site/browser:dx_site_browser",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "consumer_native_test",
+    srcs = ["src/consumer_native_test.rs"],
+    aspect_hints = ["//:rustfmt_config"],
+    data = ["@shared_consumer//:consumer_probe"],
+    env = {
+        "DX_SHARED_CONSUMER_PROBE": "$(rootpath @shared_consumer//:consumer_probe)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+filegroup(
+    name = "empty_asset",
+    tags = ["manual"],
+)
+
+javascript_web_app(
+    name = "app_missing_asset",
+    assets = {":empty_asset": "assets/queries.txt"},
+    bindgen = ":shared_core",
+    html = ":index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "missing_asset_test",
+    expected_failure_substring = "provides no files",
+    target = ":app_missing_asset",
+)
+
+javascript_web_app(
+    name = "app_bad_asset_path",
+    assets = {"assets/queries.txt": "assets/../escape.txt"},
+    bindgen = ":shared_core",
+    html = ":index.html",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_asset_path_test",
+    expected_failure_substring = "must not contain '.' or '..'",
+    target = ":app_bad_asset_path",
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

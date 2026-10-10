@@ -28,3 +28,7 @@ workspace below records exact commands and expected evidence in its own
 ## Mix Frameworks
 
 - [mixed](mixed/hello/) Vue, Svelte, Astro, and MDX containers over one shared JavaScript helper.
+
+## Share One Core
+
+- [shared-rust](shared-rust/) one dependency-free Rust core driving native, browser, and Android outputs.

@@ -24,10 +24,10 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(env.err, &error.to_string()),
     }
     let verbose = invocation.chatty();
-    if invocation.check {
-        execute_update_check(invocation, env, verbose)
-    } else {
+    if invocation.applies() {
         execute_update_default(invocation, env, verbose)
+    } else {
+        execute_update_check(invocation, env, verbose)
     }
 }
 
@@ -354,7 +354,7 @@ pub(super) fn record_named(
 
 fn unavailable_message(set: dx_update::sets::SetId) -> String {
     format!(
-        "cannot check {}: no qualified check backend; refresh with `dx update {}`",
+        "cannot check {}: no qualified check backend; refresh with `dx update --apply {}`",
         set.name(),
         set.name()
     )

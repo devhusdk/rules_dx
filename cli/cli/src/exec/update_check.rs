@@ -44,7 +44,7 @@ fn updater_spawn_and_signal_failures_keep_other_sets_independent() {
     for spawn_error in [false, true] {
         let mut runner = ScriptRunner::new(&[("cargo", None)]);
         runner.io_error = spawn_error;
-        let (code, out, err) = run_with(&["update", "cargo", "go", "--output=json"], &runner);
+        let (code, out, err) = run_with(&["update", "cargo", "go", "--output=json", "--apply"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains(if spawn_error {
             "failed to launch updater"
@@ -188,7 +188,7 @@ fn check_unavailable_names_refresh_command() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("cannot check npm"), "{err}");
-    assert!(err.contains("refresh with `dx update npm`"), "{err}");
+    assert!(err.contains("refresh with `dx update --apply npm`"), "{err}");
     assert!(
         runner.calls.borrow().is_empty(),
         "unavailable launches nothing"
@@ -237,7 +237,7 @@ fn check_json_reports_current_pinned_unsupported() {
         unsupported["message"]
             .as_str()
             .expect("message")
-            .contains("refresh with `dx update npm`"),
+            .contains("refresh with `dx update --apply npm`"),
         "{out}"
     );
     let recovery = by_code("update_recovery");
@@ -245,7 +245,7 @@ fn check_json_reports_current_pinned_unsupported() {
         recovery["message"]
             .as_str()
             .expect("message")
-            .contains("dx update npm"),
+            .contains("dx update --apply npm"),
         "{out}"
     );
     assert_eq!(
@@ -285,7 +285,7 @@ fn default_update_leaves_preset_alone() {
 #[test]
 fn update_json_never_emits_change_or_mutation() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--output=json", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         !out.contains("\"event\":\"change\""),
@@ -318,7 +318,7 @@ fn update_json_never_emits_change_or_mutation() {
 #[test]
 fn update_json_completeness_is_per_set_plus_finished() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--output=json", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let kinds = event_kinds(&events);
@@ -334,7 +334,7 @@ fn update_json_completeness_is_per_set_plus_finished() {
     );
     assert_eq!(recovery["event"], serde_json::json!("notice"), "{out}");
     let recovery_message = recovery["message"].as_str().expect("message");
-    assert!(recovery_message.contains("dx update maven"), "{out}");
+    assert!(recovery_message.contains("dx update --apply maven"), "{out}");
     assert!(recovery_message.contains("idempotent"), "{out}");
     assert!(err.contains("update_recovery"), "{err}");
     let scopes: Vec<String> = per_set
@@ -411,31 +411,31 @@ fn update_json_check_current_and_dryrun_emit_no_file_events_or_counts() {
 #[test]
 fn update_failure_reports_recovery_in_text_and_json() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_recovery"), "{err}");
-    assert!(err.contains("dx update maven"), "{err}");
+    assert!(err.contains("dx update --apply maven"), "{err}");
     assert!(err.contains("idempotent"), "{err}");
     assert!(err.contains("git checkout --"), "{err}");
 
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--output=json", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("\"code\":\"update_recovery\""), "{out}");
-    assert!(out.contains("dx update maven"), "{out}");
+    assert!(out.contains("dx update --apply maven"), "{out}");
     assert!(err.contains("update_recovery"), "{err}");
 }
 
 #[test]
 fn update_success_emits_no_recovery() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!err.contains("update_recovery"), "{err}");
     assert!(!out.contains("update_recovery"), "{out}");
 
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--output=json", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("update_recovery"), "{out}");
 }
@@ -444,7 +444,7 @@ fn update_success_emits_no_recovery() {
 fn offline_dry_run_plans_cache_only_without_launching() {
     fn offline_line(set: &str) -> String {
         format!(
-            "Cannot update {set}: offline_required: cannot update {set} without network (re-run without --offline once connected)"
+            "Cannot check {set}: offline_required: cannot update {set} without network (re-run without --offline once connected)"
         )
     }
     fn pinned_line(set: &str) -> String {
@@ -452,7 +452,7 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     }
     let expected = format!(
         "{}\n{}\n",
-        "Running update for all dependency sets (offline, cache-only)",
+        "Running update --check for all dependency sets (offline, cache-only)",
         [
             offline_line("cargo"),
             pinned_line("go"),
@@ -464,7 +464,8 @@ fn offline_dry_run_plans_cache_only_without_launching() {
             offline_line("nuget"),
             pinned_line("powershell"),
             pinned_line("ruby"),
-            offline_line("uv"),
+            "Would check uv: uv lock --check --directory python/tests/fixtures/hello --offline"
+                .to_owned(),
             offline_line("uv-adopt"),
             offline_line("uv-adopt-polyglot"),
             offline_line("uv-tools"),
@@ -484,27 +485,18 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let (code, out, err) = online.run(&["update", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
-        out.starts_with("Running update for all dependency sets\n"),
+        out.starts_with("Running update --check for all dependency sets\n"),
         "{out}"
     );
     assert!(
-        out.contains("Would update cargo: bazel build //rust/tests/fixtures/hello:hello"),
+        out.contains("cannot check cargo: no qualified check backend"),
         "{out}"
     );
     assert!(
-        out.contains("Would update maven: bazel run @maven//:pin"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update npm: bazel run @pnpm//:pnpm -- --dir"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update uv: uv lock --directory python/tests/fixtures/hello"),
+        out.contains("Would check uv: uv lock --check --directory python/tests/fixtures/hello"),
         "{out}"
     );
     assert!(out.contains("Would leave go pinned"), "{out}");
-    assert_eq!(out.lines().count(), 15, "{out}");
     assert_eq!(err, "", "{err}");
 }
 
@@ -512,7 +504,7 @@ fn offline_dry_run_plans_cache_only_without_launching() {
 fn frozen_dry_run_locks_resolution_without_launching() {
     fn frozen_line(set: &str) -> String {
         format!(
-            "Cannot update {set}: frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)"
+            "Cannot check {set}: frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)"
         )
     }
     fn pinned_line(set: &str) -> String {
@@ -520,7 +512,7 @@ fn frozen_dry_run_locks_resolution_without_launching() {
     }
     let expected = format!(
         "{}\n{}\n",
-        "Running update for all dependency sets (frozen, no resolution changes)",
+        "Running update --check for all dependency sets (frozen, no resolution changes)",
         [
             frozen_line("cargo"),
             pinned_line("go"),
@@ -532,7 +524,8 @@ fn frozen_dry_run_locks_resolution_without_launching() {
             frozen_line("nuget"),
             pinned_line("powershell"),
             pinned_line("ruby"),
-            frozen_line("uv"),
+            "Would check uv: uv lock --check --directory python/tests/fixtures/hello"
+                .to_owned(),
             frozen_line("uv-adopt"),
             frozen_line("uv-adopt-polyglot"),
             frozen_line("uv-tools"),

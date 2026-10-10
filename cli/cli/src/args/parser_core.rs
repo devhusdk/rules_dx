@@ -196,6 +196,12 @@ fn check_and_apply_conflict() {
         vec!["update", "--check", "--apply"],
         vec!["version", "--check", "--apply"],
         vec!["docs", "--check", "--apply"],
+        vec!["bump", "cargo:anyhow", "1.2.3", "--check", "--apply"],
+        vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--check", "--apply"],
+        vec!["init", "--check", "--apply"],
+        vec!["new", "rust", "demo", "--check", "--apply"],
+        vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--check", "--apply"],
+        vec!["hooks", "install", "--check", "--apply"],
     ] {
         assert_eq!(
             parse(&strings(&words)),

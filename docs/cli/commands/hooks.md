@@ -1,17 +1,18 @@
 # `dx init` And `dx hooks`
 
 ```sh
-bazel run @rules_dx//:dx -- init
-bazel run @rules_dx//:dx -- hooks install
+bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//:dx -- hooks install --apply
 ```
 
 ## `dx init`
 
 ```text
-dx init [--apply] [module-name]
+dx init [--check] [--apply] [module-name]
 ```
 
-Scaffolds `dx` into a foreign tree. Takes an optional module name, which
+Scaffolds `dx` into a foreign tree. Checks by default and writes nothing.
+`--apply` writes absent files. Takes an optional module name, which
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Never overwrites existing files.
@@ -24,10 +25,11 @@ invalid module name, `1` scaffolding failed.
 ## `dx hooks`
 
 ```text
-dx hooks [--apply] <install|uninstall|status|run> [pre-commit|pre-push]
+dx hooks [--check] [--apply] <install|uninstall|status|run> [pre-commit|pre-push]
 ```
 
-Manages Git hooks through hermetic Git.
+Manages Git hooks through hermetic Git. Checks by default and writes
+nothing. `--apply` writes hooks.
 
 - `install`: install `pre-commit` and `pre-push` shims.
 - `uninstall`: remove them.
@@ -62,4 +64,5 @@ trigger, `1` a hook install, status, or check failed. A failing check reports
 ```sh
 bazel run @rules_dx//:dx -- hooks status
 bazel run @rules_dx//:dx -- hooks run pre-commit
+bazel run @rules_dx//:dx -- hooks install --apply
 ```

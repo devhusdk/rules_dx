@@ -1,10 +1,11 @@
 # `dx migrate`
 
 ```text
-dx migrate [--apply] --from <version> --to <version> [scope...] [--dry-run]
+dx migrate [--check] [--apply] --from <version> --to <version> [scope...] [--dry-run]
 ```
 
-Rewrites breaking changes between releases. Both versions are Cargo semver.
+Rewrites breaking changes between releases. Checks by default and writes
+nothing. `--apply` writes the migration. Both versions are Cargo semver.
 Target must be newer than source. `--dry-run` prints the plan without
 writing files.
 

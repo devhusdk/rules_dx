@@ -187,13 +187,13 @@ distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no o
 coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
---check is per-command only (quality/codegen/env/setup/clean/version/update/docs/completion/check|fix; status rejects --check; \
+--check is per-command only (quality/codegen/env/setup/clean/version/update/bump/migrate/init/new/upgrade/hooks/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
 where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env/setup selection, run/deploy launch, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \
 version --pin/--rollback, docs rendering/serving); \
 every other command rejects it, and --apply never combines with --check or --dry-run. \
-by default lint, typecheck, format, fix, generate, codegen, env, setup, and clean only check, while --apply writes \
+by default lint, typecheck, format, fix, generate, codegen, env, setup, clean, update, bump, migrate, init, new, upgrade, hooks, and version only check, while --apply writes \
 (fix then verifies with a read-only check). \
 no dx doctor; use `dx status` for diagnostics. \
 see `dx help <command>` or `dx <command> --help`."

@@ -71,7 +71,7 @@ commands. See [Version Skew](status-version.md#version-skew).
   `manifest.json`. Taken by `test`, `coverage`. Every other command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `codegen`, `env`, `setup`, `clean`, `check`, `fix`, `update`,
-  `version`, `completion`, and `docs`.
+  `bump`, `migrate`, `init`, `new`, `upgrade`, `hooks`, `version`, `completion`, and `docs`.
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,

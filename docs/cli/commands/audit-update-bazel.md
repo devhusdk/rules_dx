@@ -197,8 +197,9 @@ codes: 0 success, 2 usage or scope errors, 1 operational failures.
 dx update [--check] [--apply] [--offline] [--frozen] [set...]
 ```
 
-Updates dependencies per set through the qualified resolvers. No selector
-updates all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
+Updates dependencies per set through the qualified resolvers. Checks by
+default and writes nothing. `--apply` writes updates. No selector
+checks all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
 `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
 `uv-adopt`, `uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`,
 or a label/path. `go`, `powershell`, and `ruby` pins are manual: `update`
@@ -206,10 +207,11 @@ reports them pinned and changes nothing. `ruby` pins come from `bundle lock`
 on the seed host, `powershell` pins are hand-written in
 `third_party/powershell/PSGallery.lock.json`, and `go` pins track Gazelle and
 widen through `dx bump` with a `go` selector.
-`--check` validates the selected sets without writing. The `uv` set runs a
+`--check` validates the selected sets without writing and is the default.
+The `uv` set runs a
 read-only lockfile check and reports current or stale. Every other resolvable
 set reports unavailable until its check backend lands, so refresh those with
-`dx update`. No selector checks all sets. `update` never touches the Bazelrc
+`dx update --apply`. No selector checks all sets. `update` never touches the Bazelrc
 preset fragment: verify it with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate it
 with `bazel run //tools/bazelrc:preset_update`.
@@ -226,22 +228,23 @@ Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check
-bazel run @rules_dx//:dx -- update go
-bazel run @rules_dx//:dx -- update ruby
-bazel run @rules_dx//:dx -- update powershell
-bazel run @rules_dx//:dx -- update uv uv-tools
-bazel run @rules_dx//:dx -- update npm-tools
-bazel run @rules_dx//:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
+bazel run @rules_dx//:dx -- update go --apply
+bazel run @rules_dx//:dx -- update ruby --apply
+bazel run @rules_dx//:dx -- update powershell --apply
+bazel run @rules_dx//:dx -- update uv uv-tools --apply
+bazel run @rules_dx//:dx -- update npm-tools --apply
+bazel run @rules_dx//:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot --apply
 bazel run @rules_dx//:dx -- update --dry-run
 ```
 
 ## `dx bump`
 
 ```text
-dx bump [--apply] [--offline] [--frozen] <set:package> <version>
+dx bump [--check] [--apply] [--offline] [--frozen] <set:package> <version>
 ```
 
-Widens one declared requirement to a new version. Takes exactly one
+Widens one declared requirement to a new version. Checks by default and
+writes nothing. `--apply` writes the widen. Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. The package must already be declared in the
 manifest, or the run fails without writing. A `github-actions` version is
@@ -258,13 +261,14 @@ A set that needs a refresh under `--offline` fails before widening with
 `frozen_locked`, because a bump changes resolution by definition. A major
 bump also needs `dx migrate --from <old> --to <new>`.
 
-`--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+`--check` validates the widen without writing and is the default.
+`--fail-on`, `--report`, and Bazel options do not apply.
 Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 1 operational failures.
 
 ```sh
-bazel run @rules_dx//:dx -- bump cargo:anyhow 1.0.100
-bazel run @rules_dx//:dx -- bump go:github.com/google/go-cmp 0.7.0
+bazel run @rules_dx//:dx -- bump cargo:anyhow 1.0.100 --apply
+bazel run @rules_dx//:dx -- bump go:github.com/google/go-cmp 0.7.0 --apply
 ```
 
 ## Consumer dependency sets (`dx.toml`)
@@ -300,7 +304,7 @@ selects every configured set. A scope selects every set whose scope covers
 it; overlapping scopes select every owner and the run names them all.
 Unknown names and unowned paths fail with exit `2`.
 
-`dx update` runs `uv lock --directory <dir>` per set and `dx update --check`
+`dx update --apply` runs `uv lock --directory <dir>` per set and `dx update --check`
 runs `uv lock --check --directory <dir>`, with `--offline` added when
 `dx` runs offline.
 Selective `set:package` updates are unsupported for `uv`: the set refreshes
@@ -312,7 +316,7 @@ to refuse it: widening is unsupported for configured ecosystems.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check frontend
-bazel run @rules_dx//:dx -- update worker
+bazel run @rules_dx//:dx -- update worker --apply
 bazel run @rules_dx//:dx -- security apps/frontend
 bazel run @rules_dx//:dx -- license --output=json
 ```

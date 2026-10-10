@@ -503,8 +503,8 @@ fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
     for command in Command::value_variants() {
         let command = *command;
         let usage = command.usage();
-        let words = vec![command.name(), "--check"];
         if command == Command::Bazel {
+            let words = vec![command.name(), "--check"];
             let got = parse(&strings(&words)).expect("dx bazel forwards every later word");
             assert_eq!(got.bazel_options, strings(&["--check"]), "words: {words:?}");
             assert!(
@@ -513,7 +513,10 @@ fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
             );
             continue;
         }
-        let accepted = parse(&strings(&words)).is_ok();
+        let mut words = vec![command.name().to_owned()];
+        words.extend(required_words(command));
+        words.push("--check".to_owned());
+        let accepted = parse(&words).is_ok();
         let advertised = usage.contains("[--check]");
         assert_eq!(
             accepted,

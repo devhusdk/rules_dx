@@ -43,7 +43,18 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
                 "--pin=1.0.0" => command == "version",
                 "--fail-on=error" => command == "security" || command == "license",
                 "--report=junit=report.xml" => command == "security" || command == "license",
-                "--check" => matches!(command, "generate" | "update" | "docs" | "version"),
+                "--check" => matches!(
+                    command,
+                    "update"
+                        | "bump"
+                        | "migrate"
+                        | "upgrade"
+                        | "docs"
+                        | "version"
+                        | "hooks"
+                        | "init"
+                        | "new"
+                ),
                 _ => false,
             };
             if supported {
@@ -518,13 +529,10 @@ fn bump_needs_exactly_one_selector_plus_version() {
             option: "npm:react".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--check"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "--check".to_owned(),
-        })
-    );
+    let check = parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--check"]))
+        .expect("bump check parses");
+    assert!(check.check);
+    assert_eq!(check.operation(), OperationMode::Check);
     assert_eq!(
         parse(&strings(&[
             "bump",
@@ -594,7 +602,7 @@ fn migrate_needs_from_and_to_versions() {
     assert!(!migrate.command.is_audit_update());
     assert!(!migrate.command.is_adoption());
     assert!(!migrate.command.is_managed());
-    assert!(migrate.command.is_mutating_by_default());
+    assert!(!migrate.command.is_mutating_by_default());
     assert_eq!(migrate.from, Some("1.2.3".to_owned()));
     assert_eq!(migrate.to, Some("2.0.0".to_owned()));
     let spaced =
@@ -626,18 +634,15 @@ fn migrate_needs_from_and_to_versions() {
         parse(&strings(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
         &["--from"],
     );
-    assert_eq!(
-        parse(&strings(&[
-            "migrate",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--check"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "migrate",
-            option: "--check".to_owned(),
-        })
-    );
+    let migrate_check = parse(&strings(&[
+        "migrate",
+        "--from=1.2.3",
+        "--to=2.0.0",
+        "--check",
+    ]))
+    .expect("migrate check parses");
+    assert!(migrate_check.check);
+    assert_eq!(migrate_check.operation(), OperationMode::Check);
     assert_eq!(
         parse(&strings(&[
             "migrate",
@@ -701,7 +706,7 @@ fn new_takes_language_plus_optional_name() {
     let got = parse(&strings(&["new", "rust", "demo"])).expect("parse new");
     assert_eq!(got.command, Command::New);
     assert!(got.command.is_adoption());
-    assert!(got.command.is_mutating_by_default());
+    assert!(!got.command.is_mutating_by_default());
     assert!(!got.command.supports_json());
     assert_eq!(got.targets, vec!["rust".to_owned(), "demo".to_owned()]);
     let bare_lang = parse(&strings(&["new", "go"])).expect("language only");
@@ -733,7 +738,7 @@ fn upgrade_needs_from_and_to_with_no_scopes() {
     let got = parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("parse upgrade");
     assert_eq!(got.command, Command::Upgrade);
     assert!(got.command.is_adoption());
-    assert!(got.command.is_mutating_by_default());
+    assert!(!got.command.is_mutating_by_default());
     assert!(got.command.supports_json());
     assert_eq!(
         parse(&strings(&["upgrade", "--from=1.2.3"])),

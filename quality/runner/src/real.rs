@@ -71,6 +71,7 @@ pub const KEEP_SORTED_SUPPORT_STATE: &str = "known";
 pub const KEEP_SORTED_EXECUTION: &str = "direct";
 pub const KEEP_SORTED_FIX: &str = "supported";
 pub const KEEP_SORTED_CONTEXT: &str = "owned";
+pub const KEEP_SORTED_TRANSPORT: &str = "batched";
 
 pub fn keep_sorted_runner_present() -> bool {
     REAL_TOOLS.contains(&"keep_sorted")
@@ -318,7 +319,7 @@ mod tests {
     use super::{
         absolute_argv, javascript_manifest, keep_sorted_runner_present, keep_sorted_support_gap,
         own_runfiles_manifest, reads_own_manifest, ALWAYS_OWN_MANIFEST, KEEP_SORTED_CONTEXT,
-        KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE,
+        KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE, KEEP_SORTED_TRANSPORT,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
@@ -447,6 +448,7 @@ mod tests {
         assert_eq!(KEEP_SORTED_EXECUTION, "direct");
         assert_eq!(KEEP_SORTED_FIX, "supported");
         assert_eq!(KEEP_SORTED_CONTEXT, "owned");
+        assert_eq!(KEEP_SORTED_TRANSPORT, "batched");
         assert_eq!(keep_sorted_support_gap(), None);
     }
 }

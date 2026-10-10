@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::Path;
 
 use super::launch::{LaunchError, ResolvedTool};
@@ -866,6 +866,91 @@ pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_FIX_ARGS, files, "")
+}
+
+/// Maximum argv length one tool spawn may carry, in bytes and UTF-16 code units.
+///
+/// Windows refuses command lines past 32,767 characters while Linux allows megabytes, so
+/// one conservative budget keeps every platform below its native limit.
+pub const ARGV_BATCH_BUDGET: usize = 24_000;
+
+/// How a tool carries its input files across the process boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArgTransport {
+    Single,
+    Batched,
+}
+
+/// Names the argument transport one tool proved.
+///
+/// keep_sorted documents no response-file dialect and checks each file on its own, so
+/// semantics-preserving file batches carry large selections. Every other tool stays on one
+/// spawn until it records its own dialect or batching proof.
+pub fn transport_for(tool_id: &str) -> ArgTransport {
+    match tool_id {
+        "keep_sorted" => ArgTransport::Batched,
+        _ => ArgTransport::Single,
+    }
+}
+
+/// The argv cost of one argument in bytes and UTF-16 code units.
+///
+/// Byte length bounds Unix argv while UTF-16 units bound the Windows command line. Lossy
+/// text keeps the estimate on the safe side for names outside Unicode.
+pub fn argv_sizes(arg: &OsStr) -> (usize, usize) {
+    let bytes = arg.as_encoded_bytes().len();
+    let units = arg.to_string_lossy().encode_utf16().count();
+    (bytes, units)
+}
+
+fn argv_cost(argv: &[OsString]) -> (usize, usize) {
+    let mut bytes = 0usize;
+    let mut units = 0usize;
+    for arg in argv {
+        let (argument_bytes, argument_units) = argv_sizes(arg.as_os_str());
+        bytes += argument_bytes + 1;
+        units += argument_units + 1;
+    }
+    (bytes, units)
+}
+
+/// Splits input files into spawns that each fit the batch budget.
+///
+/// Batches keep input order, pass files as separate argv entries with no shell, and put an
+/// oversized single file in a batch of its own. An empty selection keeps one empty batch so
+/// callers spawn exactly as before.
+pub fn plan_batches<'a>(head: &[OsString], files: &[&'a Path]) -> Vec<Vec<&'a Path>> {
+    plan_batches_with_budget(head, files, ARGV_BATCH_BUDGET)
+}
+
+/// Splits input files against an explicit budget for tests.
+pub fn plan_batches_with_budget<'a>(
+    head: &[OsString],
+    files: &[&'a Path],
+    budget: usize,
+) -> Vec<Vec<&'a Path>> {
+    let (head_bytes, head_units) = argv_cost(head);
+    let mut batches: Vec<Vec<&Path>> = Vec::new();
+    let mut current: Vec<&Path> = Vec::new();
+    let mut current_bytes = head_bytes;
+    let mut current_units = head_units;
+    for file in files.iter().copied() {
+        let (file_bytes, file_units) = argv_sizes(file.as_os_str());
+        let fits = current.is_empty()
+            || (current_bytes + file_bytes < budget && current_units + file_units < budget);
+        if !fits {
+            batches.push(std::mem::take(&mut current));
+            current_bytes = head_bytes;
+            current_units = head_units;
+        }
+        current.push(file);
+        current_bytes += file_bytes + 1;
+        current_units += file_units + 1;
+    }
+    if !current.is_empty() || batches.is_empty() {
+        batches.push(current);
+    }
+    batches
 }
 
 #[path = "commands_tests.rs"]

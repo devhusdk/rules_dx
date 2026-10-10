@@ -56,48 +56,63 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "unknown tool is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "not_a_tool"}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "not_a_tool", "transport": "single"}),
                 "support: unknown tool 'not_a_tool': not in the real adapter registry",
             ),
             expect_equal(
                 "unknown capability is rejected",
-                support_record_error({"artifact": "missing", "capability": "audit", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted"}),
+                support_record_error({"artifact": "missing", "capability": "audit", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single"}),
                 "support: tool 'keep_sorted' has no 'audit' capability",
             ),
             expect_equal(
                 "unclassified class is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["not_a_class"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted"}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["not_a_class"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single"}),
                 "support: tool 'keep_sorted' names unclassified class 'not_a_class'",
             ),
             expect_equal(
                 "wrong family is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "python", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted"}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "python", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single"}),
                 "support: class 'text' belongs to family 'text', not 'python'",
             ),
             expect_equal(
                 "class outside adapter support is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["python"], "context": "owned", "execution": "direct", "family": "python", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted"}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["python"], "context": "owned", "execution": "direct", "family": "python", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single"}),
                 "support: class 'python' is outside 'keep_sorted lint' adapter support",
             ),
             expect_equal(
                 "bad execution is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "fork", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted"}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "fork", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single"}),
                 "support: tool 'keep_sorted' needs execution 'direct' or 'delegated', got 'fork'",
             ),
             expect_equal(
                 "bad fix is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "rewrite", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted"}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "rewrite", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single"}),
                 "support: tool 'keep_sorted' needs fix 'supported' or 'check_only', got 'rewrite'",
             ),
             expect_equal(
                 "bad state is rejected",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "maybe", "tool": "keep_sorted"}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "maybe", "tool": "keep_sorted", "transport": "single"}),
                 "support: tool 'keep_sorted' needs state 'known', 'supported' or 'qualified', got 'maybe'",
+            ),
+            expect_equal(
+                "missing transport is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted"}),
+                "support: record is missing field 'transport'",
+            ),
+            expect_equal(
+                "bad transport is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "parcel"}),
+                "support: tool 'keep_sorted' needs transport 'batched' or 'single', got 'parcel'",
             ),
             expect_equal(
                 "record keeps the migrated platforms and fix",
                 [TEXT_KEEP_SORTED_SUPPORT["platforms"], TEXT_KEEP_SORTED_SUPPORT["fix"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "supported"],
+            ),
+            expect_equal(
+                "record keeps the batched transport",
+                TEXT_KEEP_SORTED_SUPPORT["transport"],
+                "batched",
             ),
         ],
     )

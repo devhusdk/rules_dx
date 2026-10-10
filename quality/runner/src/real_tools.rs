@@ -1131,3 +1131,155 @@ fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
         assert_eq!(findings[0].file, want, "{tool} lost the path");
     }
 }
+
+fn oversized_selection(count: usize) -> BTreeMap<String, String> {
+    padded_selection(count, 96)
+}
+
+fn padded_selection(count: usize, pad: usize) -> BTreeMap<String, String> {
+    let mut files = BTreeMap::new();
+    for index in 0..count {
+        let name = format!("notes-{index:04}-{}.txt", "n".repeat(pad));
+        let body = if index % 2 == 0 {
+            KEEP_SORTED_DIRTY
+        } else {
+            KEEP_SORTED_CLEAN
+        };
+        files.insert(name, body.to_owned());
+    }
+    files
+}
+
+fn batched_keep_sorted_spawns() -> usize {
+    BATCHED_SPAWNS.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+static BATCHED_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_keep_sorted(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    BATCHED_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let mut bytes = 0usize;
+    for arg in argv {
+        bytes += arg.to_string_lossy().len() + 1;
+    }
+    assert!(
+        bytes <= quality_adapter::commands::ARGV_BATCH_BUDGET,
+        "spawn carries {bytes} argv bytes"
+    );
+    keep_sorted_multi_behavior(argv, cwd, env)
+}
+
+static FLAKY_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn flaky_keep_sorted(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let at = FLAKY_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    if at == 1 {
+        return Err(io::Error::new(io::ErrorKind::Other, "terminal gone"));
+    }
+    keep_sorted_multi_behavior(argv, cwd, env)
+}
+
+static POISONED_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn poisoned_keep_sorted(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let at = POISONED_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    if at == 1 {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: b"{<error".to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+    keep_sorted_multi_behavior(argv, cwd, env)
+}
+
+#[test]
+fn keep_sorted_large_selection_runs_batched_with_a_stable_merge() {
+    BATCHED_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = oversized_selection(300);
+    let backend = backend_for("keep_sorted", plain_tool(), batched_keep_sorted);
+    let first = backend
+        .diagnose("keep_sorted", "lint", &files)
+        .expect("batched check runs");
+    let spawns = batched_keep_sorted_spawns();
+    assert!(
+        spawns > 1,
+        "oversized selection splits into {spawns} spawns"
+    );
+    assert_eq!(first.len(), 150, "every other file is dirty");
+    let paths: Vec<&str> = first.iter().map(|found| found.path.as_str()).collect();
+    let mut ordered = paths.clone();
+    ordered.sort();
+    assert_eq!(paths, ordered, "merged findings stay ordered");
+    let second = backend
+        .diagnose("keep_sorted", "lint", &files)
+        .expect("batched check reruns");
+    assert_eq!(first, second, "rerun merges identically");
+}
+
+#[test]
+fn keep_sorted_batches_match_single_file_results() {
+    let files = padded_selection(120, 200);
+    BATCHED_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let batched = backend_for("keep_sorted", plain_tool(), batched_keep_sorted);
+    let merged = batched
+        .diagnose("keep_sorted", "lint", &files)
+        .expect("batched check runs");
+    assert!(
+        batched_keep_sorted_spawns() > 1,
+        "equivalence input spans batches"
+    );
+    let mut singles = Vec::new();
+    for (path, body) in &files {
+        let alone = backend_for("keep_sorted", plain_tool(), keep_sorted_multi_behavior);
+        let mut one = BTreeMap::new();
+        one.insert(path.clone(), body.clone());
+        singles.extend(
+            alone
+                .diagnose("keep_sorted", "lint", &one)
+                .expect("single runs"),
+        );
+    }
+    let mut merged_paths: Vec<&str> = merged.iter().map(|found| found.path.as_str()).collect();
+    let mut single_paths: Vec<&str> = singles.iter().map(|found| found.path.as_str()).collect();
+    merged_paths.sort();
+    single_paths.sort();
+    assert_eq!(merged_paths, single_paths);
+    assert_eq!(merged.len(), 60);
+}
+
+#[test]
+fn keep_sorted_middle_batch_spawn_failure_aborts() {
+    FLAKY_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = oversized_selection(300);
+    let backend = backend_for("keep_sorted", plain_tool(), flaky_keep_sorted);
+    let err = backend
+        .diagnose("keep_sorted", "lint", &files)
+        .expect_err("middle batch fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("batch 2/"), "{err}");
+}
+
+#[test]
+fn keep_sorted_middle_batch_garbage_aborts() {
+    POISONED_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = oversized_selection(300);
+    let backend = backend_for("keep_sorted", plain_tool(), poisoned_keep_sorted);
+    let err = backend
+        .diagnose("keep_sorted", "lint", &files)
+        .expect_err("middle batch fails");
+    assert!(matches!(err, RunnerError::ToolOutput { .. }));
+    assert!(err.to_string().contains("batch 2/"), "{err}");
+}

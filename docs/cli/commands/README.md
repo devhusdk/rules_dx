@@ -112,7 +112,9 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `capability`: one declared capability, with `name`, `source`,
   `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
   `effect`, and `passthrough`.
-- `operation`: a phase, with the scopes it resolved to.
+- `operation`: a phase, with the scopes it resolved to. Quality dry runs add a
+  `provenance` object with the command, mode, scope, policy origin, aspects,
+  settings, reports, redacted inputs, and unknown execution facts.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.

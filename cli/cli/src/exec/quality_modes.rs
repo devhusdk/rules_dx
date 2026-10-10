@@ -352,6 +352,12 @@ fn dry_run_prints_summary_without_executing() {
     let (code, out, _) = harness.run(&["lint", "--dry-run", "--", "--jobs=99"]);
     assert_eq!(code, 0);
     assert!(out.contains("Running lint analysis for //..."));
+    assert!(out.contains("Policy: default"), "{out}");
+    assert!(out.contains("Aspects:"), "{out}");
+    assert!(
+        out.contains("Execution: platform unknown, toolchain unknown"),
+        "{out}"
+    );
 }
 
 #[test]
@@ -581,11 +587,151 @@ fn dry_run_json_emits_lifecycle() {
     assert_eq!(code, 0);
     let events = json_events(&out);
     let kinds = event_kinds(&events);
-    assert_eq!(kinds, vec!["command_started", "command_finished"]);
+    assert_eq!(
+        kinds,
+        vec!["command_started", "operation", "command_finished"]
+    );
     assert_eq!(
         events.last().expect("finished")["exit_code"],
         serde_json::json!(0)
     );
+    let started = &events[0];
+    assert_eq!(started["dry_run"], serde_json::json!(true));
+    assert_eq!(started["mode"], serde_json::json!("check"));
+    let plan = &events[1];
+    assert_eq!(plan["phase"], serde_json::json!("plan"));
+    assert_eq!(plan["scope"], serde_json::json!(["//..."]));
+    let provenance = &plan["provenance"];
+    assert_eq!(provenance["command"], serde_json::json!("lint"));
+    assert_eq!(provenance["operation"], serde_json::json!("plan"));
+    assert_eq!(provenance["dry_run"], serde_json::json!(true));
+    assert_eq!(provenance["validation_performed"], serde_json::json!(false));
+    assert_eq!(provenance["policy"]["origin"], serde_json::json!("default"));
+    assert_eq!(
+        provenance["execution"]["platform"],
+        serde_json::json!("unknown")
+    );
+    assert_eq!(
+        provenance["execution"]["toolchain"],
+        serde_json::json!("unknown")
+    );
+    let aspects = provenance["aspects"].as_array().expect("aspects");
+    assert!(aspects.iter().any(|aspect| aspect
+        .as_str()
+        .expect("aspect")
+        .contains("real_lint_aspect")));
+    let argv = provenance["inputs"]["bazel_argv"].as_array().expect("argv");
+    assert!(argv
+        .iter()
+        .any(|arg| arg.as_str().expect("arg").contains("real_lint_aspect")));
+}
+
+#[test]
+fn dry_run_json_reports_explicit_policy_origin() {
+    let harness = Harness::new("dry-policy");
+    let (code, out, _) = harness.run(&[
+        "lint",
+        "--dry-run",
+        "--output=json",
+        "--",
+        "--@rules_dx//config:workspace=//consumer:policy",
+    ]);
+    assert_eq!(code, 0);
+    let events = json_events(&out);
+    let plan = event(&events, "operation");
+    assert_eq!(
+        plan["provenance"]["policy"]["origin"],
+        serde_json::json!("//consumer:policy")
+    );
+    assert_eq!(
+        plan["provenance"]["policy"]["source"],
+        serde_json::json!("bazel-option")
+    );
+}
+
+#[test]
+fn dry_run_json_sorts_explicit_targets_deterministically() {
+    let harness = Harness::new("dry-order");
+    let (code, out, _) = harness.run(&["lint", "--dry-run", "--output=json", "//b:b", "//a:a"]);
+    assert_eq!(code, 0);
+    let events = json_events(&out);
+    let plan = event(&events, "operation");
+    assert_eq!(
+        plan["provenance"]["scope"]["targets"],
+        serde_json::json!(["//a:a", "//b:b"])
+    );
+    assert_eq!(plan["scope"], serde_json::json!(["//a:a", "//b:b"]));
+}
+
+#[test]
+fn dry_run_json_redacts_secret_bazel_options() {
+    let harness = Harness::new("dry-redact");
+    let (code, out, _) = harness.run(&[
+        "lint",
+        "--dry-run",
+        "--output=json",
+        "--",
+        "--token=secret123",
+        "--jobs=4",
+    ]);
+    assert_eq!(code, 0);
+    assert!(!out.contains("secret123"), "secrets never reach stdout");
+    let events = json_events(&out);
+    let plan = event(&events, "operation");
+    let argv = plan["provenance"]["inputs"]["bazel_argv"]
+        .as_array()
+        .expect("argv");
+    assert!(argv.iter().any(|arg| arg == "--jobs=4"));
+    assert!(argv
+        .iter()
+        .all(|arg| arg.as_str().expect("arg") != "--token=secret123"));
+    let withheld = plan["provenance"]["inputs"]["withheld_options"]
+        .as_array()
+        .expect("withheld");
+    assert!(withheld.contains(&serde_json::json!("--token")));
+}
+
+#[test]
+fn dry_run_json_marks_execution_unknown_with_platforms() {
+    let harness = Harness::new("dry-platform");
+    let (code, out, _) = harness.run(&[
+        "lint",
+        "--dry-run",
+        "--output=json",
+        "--",
+        "--platforms=//foo:bar",
+    ]);
+    assert_eq!(code, 0);
+    let events = json_events(&out);
+    let plan = event(&events, "operation");
+    assert_eq!(
+        plan["provenance"]["execution"]["platform"],
+        serde_json::json!("unknown")
+    );
+    assert_eq!(
+        plan["provenance"]["execution"]["reason"],
+        serde_json::json!("requires Bazel analysis")
+    );
+    let argv = plan["provenance"]["inputs"]["bazel_argv"]
+        .as_array()
+        .expect("argv");
+    assert!(argv
+        .iter()
+        .any(|arg| arg.as_str().expect("arg").contains("--platforms=//foo:bar")));
+}
+
+#[test]
+fn dry_run_operation_carries_schema_for_forward_compat() {
+    let harness = Harness::new("dry-schema");
+    let (code, out, _) = harness.run(&["lint", "--dry-run", "--output=json"]);
+    assert_eq!(code, 0);
+    let events = json_events(&out);
+    let plan = event(&events, "operation");
+    assert_eq!(plan["schema"], serde_json::json!({"major": 1, "minor": 1}));
+    let mut future = plan.clone();
+    future["reader_future"] = serde_json::json!("ignored");
+    assert_eq!(future["phase"], serde_json::json!("plan"));
+    assert_eq!(future["provenance"]["command"], serde_json::json!("lint"));
 }
 
 #[test]

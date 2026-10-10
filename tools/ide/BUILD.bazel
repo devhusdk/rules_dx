@@ -1,4 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -6,6 +7,33 @@ exports_files([
     "ide_acquisition.bzl",
     "ide_acquisition_test.rs",
 ])
+
+# keep
+rust_test(
+    name = "lsp_headless_test",
+    size = "medium",
+    timeout = "long",
+    srcs = ["lsp_headless_test.rs"],
+    data = [
+        "@llvm//tools:clang",
+        "@llvm//tools:clangd",
+        "@rules_rust//rust/toolchain:current_rust_analyzer_toolchain",
+    ],
+    env = {
+        "DX_LSP_CLANG": "$(rootpath @llvm//tools:clang)",
+        "DX_LSP_CLANGD": "$(rootpath @llvm//tools:clangd)",
+        "DX_LSP_TOOLCHAIN_FILES": "$(rootpaths @rules_rust//rust/toolchain:current_rust_analyzer_toolchain)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = [
+        "//cc/context:cc_context",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
 
 real_source_target(
     name = "corpus_starlark",

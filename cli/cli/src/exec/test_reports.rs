@@ -152,15 +152,35 @@ fn resolve_run_output_parent(workspace: &Path, raw: &str) -> std::path::PathBuf 
     }
 }
 
-fn export_run_outputs(
-    workspace: &Path,
+struct RunOutputRequest<'a> {
+    workspace: &'a Path,
     verb: WorkflowVerb,
-    parent_raw: &str,
+    parent_raw: &'a str,
     pid: u32,
     nonce: u64,
-    events: &dx_bep::TestEvents,
-    reader: &FsArtifacts,
+    events: &'a dx_bep::TestEvents,
+    invocation: &'a Invocation,
+    bazel_code: i32,
+    results_complete: bool,
+    outcomes: &'a [TestOutcome],
+}
+
+fn export_run_outputs(
+    request: &RunOutputRequest<'_>,
 ) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+    let RunOutputRequest {
+        workspace,
+        verb,
+        parent_raw,
+        pid,
+        nonce,
+        events,
+        invocation,
+        bazel_code,
+        results_complete,
+        outcomes,
+    } = request;
+    let reader = FsArtifacts;
     let parent = resolve_run_output_parent(workspace, parent_raw);
     std::fs::create_dir_all(&parent).map_err(|err| {
         format!(
@@ -289,6 +309,15 @@ fn export_run_outputs(
     let manifest_path = child.join("manifest.json");
     std::fs::write(&manifest_path, format!("{text}\n"))
         .map_err(|err| format!("cannot write {}: {err}", manifest_path.display()))?;
+    super::rerun::write_receipt(
+        &child,
+        invocation,
+        workspace,
+        *verb,
+        *bazel_code,
+        *results_complete,
+        outcomes,
+    )?;
     Ok((child, manifest_path))
 }
 
@@ -682,7 +711,19 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut run_output_dir: Option<std::path::PathBuf> = None;
     let mut run_output_manifest: Option<std::path::PathBuf> = None;
     if let Some(parent) = invocation.run_output.as_deref() {
-        match export_run_outputs(workspace, verb, parent, pid, nonce, &events, &reader) {
+        let request = RunOutputRequest {
+            workspace,
+            verb,
+            parent_raw: parent,
+            pid,
+            nonce,
+            events: &events,
+            invocation,
+            bazel_code,
+            results_complete: complete,
+            outcomes: &outcomes,
+        };
+        match export_run_outputs(&request) {
             Ok((child, manifest)) => {
                 run_output_dir = Some(child);
                 run_output_manifest = Some(manifest);
@@ -2851,5 +2892,148 @@ mod tests {
         let artifacts = manifest["artifacts"].as_array().expect("artifacts");
         assert_eq!(artifacts.len(), 1, "{manifest}");
         assert_eq!(artifacts[0]["available"], serde_json::json!(true));
+    }
+}
+
+#[cfg(test)]
+mod receipt_tests {
+    use super::super::test_support::*;
+
+    const RECEIPT_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="s"><testcase name="passes" classname="c" time="0.1"/></testsuite></testsuites>"#;
+    const RECEIPT_LCOV: &str = "SF:src/a.py\nDA:1,1\nend_of_record\n";
+
+    fn read_receipt(child: &std::path::Path) -> serde_json::Value {
+        let text = std::fs::read_to_string(child.join("receipt.json")).expect("receipt");
+        serde_json::from_str(&text).expect("receipt json")
+    }
+
+    fn receipt_child(harness: &Harness, parent: &str) -> std::path::PathBuf {
+        let dir = harness.workspace.join(parent);
+        let mut children: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+            .expect("run-output parent")
+            .map(|entry| entry.expect("entry").path())
+            .filter(|path| path.is_dir())
+            .collect();
+        assert_eq!(children.len(), 1, "{children:?}");
+        children.pop().expect("child")
+    }
+
+    #[test]
+    fn test_run_output_writes_receipt_with_failed_targets() {
+        let harness = Harness::new("test-receipt-ok");
+        let xml = write_bep_artifact(&harness, "ok.xml", RECEIPT_XML.as_bytes());
+        let bad = write_bep_artifact(&harness, "bad.xml", RECEIPT_XML.as_bytes());
+        let harness = Harness {
+            bazel_code: 1,
+            raw_bep: Some(vec![
+                test_result_line("//a:ok", &[(String::from("test.xml"), xml)]),
+                test_result_full_line(
+                    "//a:bad",
+                    1,
+                    1,
+                    1,
+                    "FAILED",
+                    None,
+                    None,
+                    None,
+                    &[(String::from("test.xml"), bad)],
+                ),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&[
+            "test",
+            "//a:ok",
+            "//a:bad",
+            "--output=text",
+            "--run-output=out",
+        ]);
+        assert_eq!(code, 1, "{out}");
+        let child = receipt_child(&harness, "out");
+        let receipt = read_receipt(&child);
+        assert_eq!(receipt["version"], serde_json::json!(1));
+        assert_eq!(receipt["command"], serde_json::json!("test"));
+        assert_eq!(
+            receipt["scopes"],
+            serde_json::json!(["//a:ok", "//a:bad"]),
+            "{receipt}"
+        );
+        assert_eq!(receipt["profile"], serde_json::json!("dx_dev"), "{receipt}");
+        assert_eq!(
+            receipt["failed_targets"],
+            serde_json::json!(["//a:bad"]),
+            "{receipt}"
+        );
+        assert_eq!(receipt["validation_performed"], serde_json::json!(true));
+        assert_eq!(receipt["manifest"], serde_json::json!("manifest.json"));
+        let outcomes = receipt["outcomes"].as_array().expect("outcomes");
+        assert_eq!(outcomes.len(), 2, "{receipt}");
+        assert_eq!(
+            receipt["workspace"]["identity"],
+            serde_json::json!("partial"),
+            "{receipt}"
+        );
+    }
+
+    #[test]
+    fn test_receipt_redacts_secret_options() {
+        let harness = Harness::new("test-receipt-redact");
+        let xml = write_bep_artifact(&harness, "redact.xml", RECEIPT_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), xml)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&[
+            "test",
+            "--output=text",
+            "--run-output=out",
+            "--",
+            "--jobs=2",
+            "--token=abc",
+        ]);
+        assert_eq!(code, 0, "{out}");
+        let child = receipt_child(&harness, "out");
+        let receipt = read_receipt(&child);
+        assert_eq!(
+            receipt["bazel_options"],
+            serde_json::json!(["--jobs=2"]),
+            "{receipt}"
+        );
+        assert_eq!(
+            receipt["withheld_options"],
+            serde_json::json!(["--token"]),
+            "{receipt}"
+        );
+        assert_eq!(
+            receipt["failed_targets"],
+            serde_json::json!([]),
+            "{receipt}"
+        );
+    }
+
+    #[test]
+    fn test_coverage_receipt_records_no_profile() {
+        let harness = Harness::new("test-receipt-coverage");
+        let trace = write_bep_artifact(&harness, "trace.dat", RECEIPT_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("coverage.dat"), trace)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["coverage", "--output=text", "--run-output=out"]);
+        assert_eq!(code, 0, "{out}");
+        let child = receipt_child(&harness, "out");
+        let receipt = read_receipt(&child);
+        assert_eq!(
+            receipt["command"],
+            serde_json::json!("coverage"),
+            "{receipt}"
+        );
+        assert!(receipt["profile"].is_null(), "{receipt}");
     }
 }

@@ -148,6 +148,7 @@ fn plain_words(command: Command) -> Vec<String> {
         Command::Watch => words.push("build".to_owned()),
         Command::Completion => words.push("bash".to_owned()),
         Command::Verify => words.push("pre-pr".to_owned()),
+        Command::Rerun => words.push("receipt.json".to_owned()),
         _ => {}
     }
     words

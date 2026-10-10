@@ -37,6 +37,7 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx init`: optional module name.
 - `dx completion`: exactly one shell, or none with `--check`.
 - `dx verify`: exactly one verification set name from `dx.verify.toml`.
+- `dx rerun`: exactly one run-output receipt path (`receipt.json`).
 
 ## No Scopes
 

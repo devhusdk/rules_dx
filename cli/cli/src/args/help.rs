@@ -627,6 +627,7 @@ mod tests {
             Command::Owners | Command::Deps => owned(&["//:all"]),
             Command::New => owned(&["rust"]),
             Command::Verify => owned(&["pre-pr"]),
+            Command::Rerun => owned(&["receipt.json"]),
             _ => Vec::new(),
         }
     }

@@ -120,6 +120,12 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
             settings: &[],
         },
+        Command::Rerun => CommandSpec {
+            command,
+            aspects: &[],
+            reports: &[],
+            settings: &[],
+        },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],

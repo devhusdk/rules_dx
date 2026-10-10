@@ -733,6 +733,8 @@ command_args! {
     Capabilities => 33, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
     /// The flags `dx verify` accepts.
     Verify => 34, BazelTail, {};
+    /// The flags `dx rerun` accepts.
+    Rerun => 35, BazelTail, {};
 }
 
 #[derive(Parser)]

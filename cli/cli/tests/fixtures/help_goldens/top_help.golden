@@ -44,6 +44,7 @@ Commands:
   bazel         forward raw arguments to the Bazel launcher
   capabilities  print machine-readable CLI and workspace capabilities (no downloads; --workspace-capabilities adds workspace facts)
   verify        run one committed verification set from dx.verify.toml in order (non-mutating; stops after the first required failure)
+  rerun         rerun the failed test targets recorded in a run-output receipt on the current workspace (never a historical reproduction)
 
 Options:
   -h, --help

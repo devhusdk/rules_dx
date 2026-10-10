@@ -35,6 +35,7 @@ pub enum Command {
     Bazel,
     Capabilities,
     Verify,
+    Rerun,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,7 +117,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 35] = [
+pub static COMMANDS: [CommandMeta; 36] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -1062,6 +1063,33 @@ pub static COMMANDS: [CommandMeta; 35] = [
         labels: LabelsPolicy::Never,
         hook_triggers_on_run: false,
     },
+    CommandMeta {
+        command: Command::Rerun,
+        name: "rerun",
+        scope_policy: "require",
+        describe: "rerun the failed test targets recorded in a run-output receipt on the current workspace (never a historical reproduction)",
+        usage: "Usage: dx rerun <receipt> [-- bazel-options ...]",
+        flags: "Per-command flags: none (rerun only; selection and options come from the receipt, then trail the invocation `--`; --output text|json only, diff has no patch).",
+        scopes: "Scopes: exactly one run-output receipt path (receipt.json); the rerun executes on the current workspace only and never restores sources.",
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_check: false,
+        supports_fail_on: false,
+        supports_min_coverage: false,
+        supports_profile: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
 ];
 
 impl Command {
@@ -1332,6 +1360,7 @@ mod tests {
             Command::Bazel,
             Command::Capabilities,
             Command::Verify,
+            Command::Rerun,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1378,6 +1407,7 @@ mod tests {
             "migrate",
             "new",
             "owners",
+            "rerun",
             "run",
             "security",
             "setup",
@@ -1392,8 +1422,8 @@ mod tests {
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 35");
-        assert_eq!(Command::value_variants().len(), 35);
+        assert_eq!(got, want, "Command registry drifted from the final 36");
+        assert_eq!(Command::value_variants().len(), 36);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1453,6 +1483,7 @@ mod tests {
             Command::Bazel,
             Command::Capabilities,
             Command::Verify,
+            Command::Rerun,
         ] {
             assert!(
                 !command.is_mutating_by_default(),
@@ -1539,7 +1570,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            35,
+            36,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1557,7 +1588,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun",
             "pipe_list order must match declaration order"
         );
     }
@@ -1565,7 +1596,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 35);
+        assert_eq!(Command::value_variants().len(), 36);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1784,7 +1815,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 35);
+        assert_eq!(COMMANDS.len(), 36);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

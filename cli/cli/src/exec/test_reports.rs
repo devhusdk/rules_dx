@@ -330,6 +330,33 @@ fn status_outcome(status: Option<&str>) -> String {
     }
 }
 
+/// The machine outcome for one test result beside its target summary.
+///
+/// Bazel reports per-attempt `testResult` statuses, so a retried attempt that
+/// passes reads `PASSED` on its own line; only the `testSummary`
+/// `overallStatus` says the target passed after retry. A passed attempt under
+/// a `FLAKY` summary is `passed_after_retry`, never an ordinary pass.
+fn result_outcome(status: Option<&str>, summary: Option<&str>) -> String {
+    if status == Some("PASSED") && summary == Some("FLAKY") {
+        return "passed_after_retry".to_owned();
+    }
+    status_outcome(status)
+}
+
+/// Indexes `testSummary` overall statuses by target and configuration.
+fn summary_statuses(events: &dx_bep::TestEvents) -> BTreeMap<(&str, Option<&str>), &str> {
+    let mut statuses = BTreeMap::new();
+    for summary in &events.summaries {
+        if let Some(status) = summary.overall_status.as_deref() {
+            statuses.insert(
+                (summary.label.as_str(), summary.configuration.as_deref()),
+                status,
+            );
+        }
+    }
+    statuses
+}
+
 /// Names one test result's file so a missing artifact is traceable to its run, shard, and attempt.
 fn result_where(label: &str, name: &str, run: u32, shard: u32, attempt: u32) -> String {
     format!("{name} for {label} (run {run}, shard {shard}, attempt {attempt})")
@@ -385,16 +412,20 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let mut suites: Vec<(String, Vec<JunitCase>)> = Vec::new();
     let mut lcov_documents: Vec<String> = Vec::new();
     let mut outcomes: Vec<TestOutcome> = Vec::new();
+    let summaries = summary_statuses(&events);
     if verb == WorkflowVerb::Test {
         let mut grouped: BTreeMap<String, Vec<JunitCase>> = BTreeMap::new();
         let mut first_error = String::new();
         let mut error_count = 0usize;
         let mut usable_count = 0usize;
         for result in &events.results {
+            let summary = summaries
+                .get(&(result.label.as_str(), result.configuration.as_deref()))
+                .copied();
             let mut outcome = TestOutcome {
                 target: result.label.clone(),
                 configuration: result.configuration.clone(),
-                outcome: status_outcome(result.status.as_deref()),
+                outcome: result_outcome(result.status.as_deref(), summary),
                 status: result.status.clone(),
                 cached: result.cached_locally,
                 run: Some(result.run),
@@ -528,7 +559,12 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             let mut outcome = TestOutcome {
                 target: result.label.clone(),
                 configuration: result.configuration.clone(),
-                outcome: status_outcome(result.status.as_deref()),
+                outcome: result_outcome(
+                    result.status.as_deref(),
+                    summaries
+                        .get(&(result.label.as_str(), result.configuration.as_deref()))
+                        .copied(),
+                ),
                 status: result.status.clone(),
                 cached: result.cached_locally,
                 run: Some(result.run),
@@ -619,6 +655,27 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         for outcome in &outcomes {
             if let Ok(event) = test_outcome_event(outcome) {
                 let _ = write_event(out, &event);
+            }
+        }
+    } else if matches!(invocation.output, OutputMode::Text { .. }) {
+        for outcome in &outcomes {
+            if outcome.outcome == "passed_after_retry" {
+                match outcome.attempt {
+                    Some(attempt) => {
+                        let _ = writeln!(
+                            err,
+                            "dx: flaky success (passed after retry): {} (attempt {})",
+                            outcome.target, attempt
+                        );
+                    }
+                    None => {
+                        let _ = writeln!(
+                            err,
+                            "dx: flaky success (passed after retry): {}",
+                            outcome.target
+                        );
+                    }
+                }
             }
         }
     }
@@ -2202,6 +2259,110 @@ mod tests {
             serde_json::json!("passed_after_retry")
         );
         assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
+    }
+
+    #[test]
+    fn test_flaky_summary_marks_retried_pass_distinctly() {
+        let harness = Harness::new("test-summary-flaky");
+        let first_uri = write_bep_artifact(&harness, "first.xml", MINIMAL_TEST_XML.as_bytes());
+        let retry_uri = write_bep_artifact(&harness, "retry.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_full_line(
+                    "//a:t",
+                    1,
+                    1,
+                    1,
+                    "FAILED",
+                    None,
+                    Some(false),
+                    None,
+                    &[(String::from("test.xml"), first_uri)],
+                ),
+                test_result_full_line(
+                    "//a:t",
+                    1,
+                    1,
+                    2,
+                    "PASSED",
+                    None,
+                    Some(false),
+                    None,
+                    &[(String::from("test.xml"), retry_uri)],
+                ),
+                test_flaky_summary_line("//a:t"),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 2, "{out}");
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("failed"));
+        assert_eq!(outcomes[0]["attempt"], serde_json::json!(1));
+        assert_eq!(
+            outcomes[1]["outcome"],
+            serde_json::json!("passed_after_retry")
+        );
+        assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
+    }
+
+    #[test]
+    fn test_flaky_success_is_visible_in_text_summary() {
+        let harness = Harness::new("test-flaky-text");
+        let first_uri = write_bep_artifact(&harness, "first.xml", MINIMAL_TEST_XML.as_bytes());
+        let retry_uri = write_bep_artifact(&harness, "retry.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                test_result_full_line(
+                    "//a:t",
+                    1,
+                    1,
+                    1,
+                    "FAILED",
+                    None,
+                    Some(false),
+                    None,
+                    &[(String::from("test.xml"), first_uri)],
+                ),
+                test_result_full_line(
+                    "//a:t",
+                    1,
+                    1,
+                    2,
+                    "PASSED",
+                    None,
+                    Some(false),
+                    None,
+                    &[(String::from("test.xml"), retry_uri)],
+                ),
+                test_flaky_summary_line("//a:t"),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("dx: flaky success (passed after retry): //a:t (attempt 2)"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn test_clean_pass_prints_no_flaky_summary() {
+        let harness = Harness::new("test-clean-text");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("flaky success"), "{err}");
     }
 
     #[test]

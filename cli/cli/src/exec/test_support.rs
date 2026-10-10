@@ -577,7 +577,15 @@ pub(crate) fn test_result_full_line(
 pub(crate) fn test_summary_line(label: &str, shard_count: u32) -> String {
     serde_json::json!({
         "id": {"testSummary": {"label": label}},
-        "testSummary": {"status": "PASSED", "shardCount": shard_count},
+        "testSummary": {"overallStatus": "PASSED", "shardCount": shard_count},
+    })
+    .to_string()
+}
+
+pub(crate) fn test_flaky_summary_line(label: &str) -> String {
+    serde_json::json!({
+        "id": {"testSummary": {"label": label}},
+        "testSummary": {"overallStatus": "FLAKY", "attemptCount": 2},
     })
     .to_string()
 }

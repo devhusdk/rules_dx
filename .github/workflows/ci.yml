@@ -63,7 +63,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
+          bazel test --noshow_progress --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
       - name: Validate devcontainer definition shape
         run: |
           python3 --version
@@ -99,7 +99,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //tools/ci:actionlint_test "$@"
+          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test "$@"
       - name: Write job summary
         if: always()
         run: |

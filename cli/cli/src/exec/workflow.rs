@@ -5,7 +5,7 @@ use super::test_reports::{execute_test_reports, TestReportsRequest};
 use crate::args::{Command, Invocation};
 use crate::plan::{bep_path, plan_workflow, WorkflowVerb};
 use crate::reports::{plan_reports, Destination};
-use crate::resolve::{resolve, resolve_for_test};
+use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
 use dx_output::{
     command_finished, command_started, error_event, write_event, FinishedCounts, OutputMode,
 };
@@ -49,12 +49,27 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
             query_runner,
             &invocation.bazel_startup_options,
         ),
-        Command::Test | Command::Coverage => resolve_for_test(
-            &invocation.targets,
-            workspace,
-            query_runner,
-            &invocation.bazel_startup_options,
-        ),
+        Command::Test | Command::Coverage => {
+            let selection = if invocation.command == Command::Test {
+                SelectionContext::for_test_execution(
+                    invocation.profile(),
+                    &invocation.bazel_options,
+                    &invocation.bazel_startup_options,
+                )
+            } else {
+                SelectionContext::unconfigured_with_options(
+                    &invocation.bazel_options,
+                    &invocation.bazel_startup_options,
+                )
+            };
+            resolve_for_test_with_selection(
+                &invocation.targets,
+                workspace,
+                query_runner,
+                &invocation.bazel_startup_options,
+                &selection,
+            )
+        }
         _ => {
             return pre_exec(
                 err,
@@ -395,5 +410,54 @@ mod tests {
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("\"jobs\""), "{err}");
         assert!(harness.query.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn test_file_scope_selection_shares_execution_configuration() {
+        let harness = Harness::new("wf-test-selection");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:lib\n");
+        harness.query.script_owners("//pkg:unit\n");
+        let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 2, "ownership plus mapping: {queries:?}");
+        assert_eq!(
+            queries[0][3], "query",
+            "ownership stays unconfigured: {queries:?}"
+        );
+        assert_eq!(
+            queries[1][3], "cquery",
+            "test mapping uses execution configuration: {queries:?}"
+        );
+        assert!(
+            queries[1].contains(&"--platforms=//:x".to_owned()),
+            "mapping shares platforms with execution: {queries:?}"
+        );
+        assert!(
+            queries[1].contains(&"--config=dx_dev".to_owned()),
+            "mapping shares profile with execution: {queries:?}"
+        );
+        assert!(
+            !queries[0].contains(&"--platforms=//:x".to_owned()),
+            "ownership ignores configuration: {:?}",
+            queries[0]
+        );
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        let argv = &run.argv[0];
+        assert!(argv.contains(&"--platforms=//:x".to_owned()), "{argv:?}");
+        assert!(argv.contains(&"--config=dx_dev".to_owned()), "{argv:?}");
+    }
+
+    #[test]
+    fn test_file_scope_conflicting_profile_is_pre_exec() {
+        let harness = Harness::new("wf-test-conflict");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:lib\n");
+        let (code, _, err) = harness.run(&["test", "pkg/a.py", "--", "--config=dx_release"]);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("config"), "{err}");
     }
 }

@@ -78,7 +78,7 @@ commands. See [Version Skew](status-version.md#version-skew).
   `codegen`, `env`, `setup`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, and `docs`.
   Every other command rejects it. It never combines with `--check` or `--dry-run`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
-  `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means
+  `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means
   release. Every other command rejects them.
 - `--offline`: no network; use pinned cached snapshots or fail. Taken by
   `security`, `license`, `update`, and `bump`. Every other command rejects it.

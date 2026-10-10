@@ -552,7 +552,9 @@ fn parse_inner<S: AsRef<OsStr>>(
     })?;
     if command.is_adoption() {
         reject_report(command, &reports)?;
-        reject_passthrough(command, &bazel_options)?;
+        if command != Command::Watch {
+            reject_passthrough(command, &bazel_options)?;
+        }
         match command {
             Command::Status | Command::Capabilities => {
                 if !targets.is_empty() {

@@ -732,7 +732,7 @@ command_args! {
         rollback: RollbackFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 26, NoPassthroughTail, { apply: ApplyFlag, };
+    Watch => 26, BazelTail, { apply: ApplyFlag, own: ProfileArgs, };
     /// The flags `dx owners` accepts.
     Owners => 27, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx deps` accepts.

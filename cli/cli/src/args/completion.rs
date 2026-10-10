@@ -754,6 +754,7 @@ mod tests {
             "--host",
             "--open",
             "--offline",
+            "--frozen",
         ] {
             assert!(
                 !flags.iter().any(|value| value == flag),

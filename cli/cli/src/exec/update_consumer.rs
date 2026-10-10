@@ -1,4 +1,4 @@
-use super::super::common::{offline_summary, pre_exec, Env};
+use super::super::common::{frozen_summary, offline_summary, pre_exec, Env};
 use super::{emit_dry_run, record_named, RunMode};
 use crate::args::Invocation;
 use dx_adopt::dependency_sets::{self, ResolvedSet, ResolvedTarget, Selection};
@@ -30,7 +30,10 @@ pub(super) fn execute_configured(
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let summary = offline_summary(display_summary(&resolved, mode), invocation.offline);
+    let summary = frozen_summary(
+        offline_summary(display_summary(&resolved, mode), invocation.offline),
+        invocation.frozen,
+    );
     if invocation.dry_run {
         return emit_dry_run(
             invocation,
@@ -38,7 +41,7 @@ pub(super) fn execute_configured(
             &summary,
             verbose,
             mode_text,
-            plans(&resolved, mode, invocation.offline),
+            plans(&resolved, mode, invocation.offline, invocation.frozen),
         );
     }
     if invocation.output == dx_output::OutputMode::Json {
@@ -58,7 +61,7 @@ pub(super) fn execute_configured(
             runner,
             workspace,
             mode,
-            invocation.offline,
+            invocation,
         );
     }
     let selected: Vec<String> = resolved
@@ -84,7 +87,7 @@ fn run_configured_target(
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
     mode: RunMode,
-    offline: bool,
+    invocation: &Invocation,
 ) {
     let set = &target.set;
     let verb = mode.verb();
@@ -119,20 +122,29 @@ fn run_configured_target(
         );
         return;
     }
-    let planned =
-        match mode {
-            RunMode::Update => dx_update::backend::plan_configured(set, &target.request, offline)
-                .map(|plan| match plan {
-                    dx_update::backend::BackendPlan::Run { argv, env } => (argv, env),
-                    dx_update::backend::BackendPlan::Noop => (Vec::new(), Vec::new()),
-                }),
-            RunMode::Check => dx_update::backend::check_configured(set, &target.request, offline)
-                .map(|plan| match plan {
-                    dx_update::backend::CheckPlan::Run { argv, env } => (argv, env),
-                    dx_update::backend::CheckPlan::Pinned => (Vec::new(), Vec::new()),
-                    dx_update::backend::CheckPlan::Unavailable => (Vec::new(), Vec::new()),
-                }),
-        };
+    let planned = match mode {
+        RunMode::Update => dx_update::backend::plan_configured(
+            set,
+            &target.request,
+            invocation.offline,
+            invocation.frozen,
+        )
+        .map(|plan| match plan {
+            dx_update::backend::BackendPlan::Run { argv, env } => (argv, env),
+            dx_update::backend::BackendPlan::Noop => (Vec::new(), Vec::new()),
+        }),
+        RunMode::Check => dx_update::backend::check_configured(
+            set,
+            &target.request,
+            invocation.offline,
+            invocation.frozen,
+        )
+        .map(|plan| match plan {
+            dx_update::backend::CheckPlan::Run { argv, env } => (argv, env),
+            dx_update::backend::CheckPlan::Pinned => (Vec::new(), Vec::new()),
+            dx_update::backend::CheckPlan::Unavailable => (Vec::new(), Vec::new()),
+        }),
+    };
     let (argv, extra) = match planned {
         Err(error) => {
             let message = format!("cannot {verb} {}: {error}", set.name);
@@ -143,6 +155,10 @@ fn run_configured_target(
                 }
                 dx_update::backend::BackendError::OfflineRequired { .. }
                 | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => {
+                    dx_update::outcome::SetStatus::Failed
+                }
+                dx_update::backend::BackendError::FrozenLocked { .. }
+                | dx_update::backend::BackendError::FrozenLockedOwned { .. } => {
                     dx_update::outcome::SetStatus::Failed
                 }
             };
@@ -220,33 +236,38 @@ fn run_configured_target(
     }
 }
 
-fn plans(resolved: &[ResolvedTarget], mode: RunMode, offline: bool) -> Vec<String> {
+fn plans(resolved: &[ResolvedTarget], mode: RunMode, offline: bool, frozen: bool) -> Vec<String> {
     resolved
         .iter()
-        .map(|target| describe_plan(&target.set, &target.request, mode, offline))
+        .map(|target| describe_plan(&target.set, &target.request, mode, offline, frozen))
         .collect()
 }
 
-fn describe_plan(set: &ResolvedSet, request: &Selection, mode: RunMode, offline: bool) -> String {
+fn describe_plan(
+    set: &ResolvedSet,
+    request: &Selection,
+    mode: RunMode,
+    offline: bool,
+    frozen: bool,
+) -> String {
     let verb = match mode {
         RunMode::Update => "update",
         RunMode::Check => "check",
     };
-    let planned = match mode {
-        RunMode::Update => {
-            dx_update::backend::plan_configured(set, request, offline).map(|plan| match plan {
-                dx_update::backend::BackendPlan::Run { argv, .. } => Some(argv.join(" ")),
-                dx_update::backend::BackendPlan::Noop => None,
-            })
-        }
-        RunMode::Check => {
-            dx_update::backend::check_configured(set, request, offline).map(|plan| match plan {
-                dx_update::backend::CheckPlan::Run { argv, .. } => Some(argv.join(" ")),
-                dx_update::backend::CheckPlan::Pinned => None,
-                dx_update::backend::CheckPlan::Unavailable => None,
-            })
-        }
-    };
+    let planned =
+        match mode {
+            RunMode::Update => dx_update::backend::plan_configured(set, request, offline, frozen)
+                .map(|plan| match plan {
+                    dx_update::backend::BackendPlan::Run { argv, .. } => Some(argv.join(" ")),
+                    dx_update::backend::BackendPlan::Noop => None,
+                }),
+            RunMode::Check => dx_update::backend::check_configured(set, request, offline, frozen)
+                .map(|plan| match plan {
+                    dx_update::backend::CheckPlan::Run { argv, .. } => Some(argv.join(" ")),
+                    dx_update::backend::CheckPlan::Pinned => None,
+                    dx_update::backend::CheckPlan::Unavailable => None,
+                }),
+        };
     match planned {
         Ok(Some(argv)) => format!("Would {verb} {}: {argv}", set.name),
         Ok(None) => format!(
@@ -578,6 +599,24 @@ writable = false
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
+    }
+
+    #[test]
+    fn consumer_frozen_update_locks_resolution() {
+        let runner = ScriptRunner::new(&[]);
+        let (code, _, err, _) = run_consumer(&["update", "--frozen", "worker"], &runner);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        assert!(!err.contains("offline_required"), "{err}");
+        assert_eq!(runner.calls.borrow().len(), 0);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err, _) =
+            run_consumer(&["update", "--check", "--frozen", "worker"], &runner);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("worker lockfile current (services/worker/uv.lock)"),
+            "{out}{err}"
+        );
     }
 
     #[test]

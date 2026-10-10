@@ -685,6 +685,7 @@ mod tests {
             host: None,
             open: false,
             offline: false,
+            frozen: false,
             workspace_capabilities: false,
             cases: false,
             bazel_startup_options: Vec::new(),

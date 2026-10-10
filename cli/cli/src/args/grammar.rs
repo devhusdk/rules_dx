@@ -78,6 +78,7 @@ pub(crate) struct Flags {
     pub(crate) host: Option<String>,
     pub(crate) open: bool,
     pub(crate) offline: bool,
+    pub(crate) frozen: bool,
     pub(crate) workspace_capabilities: bool,
     pub(crate) cases: bool,
     pub(crate) bazel_startup_options: Vec<String>,
@@ -413,8 +414,16 @@ flag_group! {
 flag_group! {
     /// Run without network.
     OfflineFlag, {
-        #[arg(long, visible_alias = "frozen", overrides_with = "offline")]
+        #[arg(long, overrides_with = "offline")]
         offline: bool,
+    }
+}
+
+flag_group! {
+    /// Keep manifest and lock resolution unchanged.
+    FrozenFlag, {
+        #[arg(long, overrides_with = "frozen")]
+        frozen: bool,
     }
 }
 
@@ -604,6 +613,7 @@ command_args! {
     /// The flags `dx security` accepts.
     Security => 0, NoPassthroughTail, {
         offline: OfflineFlag,
+        frozen: FrozenFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -611,6 +621,7 @@ command_args! {
     /// The flags `dx license` accepts.
     License => 1, NoPassthroughTail, {
         offline: OfflineFlag,
+        frozen: FrozenFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -689,11 +700,12 @@ command_args! {
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         offline: OfflineFlag,
+        frozen: FrozenFlag,
         check: CheckFlag,
         apply: ApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 15, NoPassthroughTail, { apply: ApplyFlag, own: OfflineFlag, };
+    Bump => 15, NoPassthroughTail, { apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
     /// The flags `dx migrate` accepts.
     Migrate => 16, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.

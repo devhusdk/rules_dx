@@ -59,6 +59,6 @@ Per-command flags: --check (report prune candidates without deleting; default). 
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json; --report has no standard format for this command.
-Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --debug, --release, --pin, --rollback, --configured, --cases, --from, --to, --here, --serve, --port, --host, --open, --offline, --workspace-capabilities, -- <bazel-options>.
+Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --debug, --release, --pin, --rollback, --configured, --cases, --from, --to, --here, --serve, --port, --host, --open, --offline, --frozen, --workspace-capabilities, -- <bazel-options>.
 Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 

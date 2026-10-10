@@ -20,8 +20,8 @@ bazel run @rules_dx//:dx -- bazel query //...
 ## `dx security` And `dx license`
 
 ```text
-dx security [--here] [--offline|--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx license [--here] [--offline|--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>] [scope...]
+dx security [--here] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
+dx license [--here] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>] [scope...]
 ```
 
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
@@ -184,13 +184,17 @@ bazel run @rules_dx//:dx -- security //...
 bazel run @rules_dx//:dx -- license --fail-on error //...
 ```
 
-`--offline` and `--frozen` run cache-only with no network fetches. Exit
+`--offline` forbids network: the run uses pinned cached snapshots and fails
+with `offline_required` when they are missing. `--frozen` forbids manifest
+and lock resolution changes while still allowing already pinned fetches.
+Combine both flags for both policies. Older dx versions spelled offline as
+`--frozen`: pass `--offline` for that behavior. Exit
 codes: 0 success, 2 usage or scope errors, 1 operational failures.
 
 ## `dx update`
 
 ```text
-dx update [--check] [--apply] [--offline|--frozen] [set...]
+dx update [--check] [--apply] [--offline] [--frozen] [set...]
 ```
 
 Updates dependencies per set through the qualified resolvers. No selector
@@ -209,8 +213,12 @@ set reports unavailable until its check backend lands, so refresh those with
 preset fragment: verify it with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate it
 with `bazel run //tools/bazelrc:preset_update`.
-`--offline` and `--frozen` run cache-only with no network
-fetches. `--fail-on`, `--report`, and Bazel options do not apply.
+`--offline` forbids network: the run uses pinned cached snapshots and fails
+with `offline_required` when they are missing. `--frozen` forbids manifest
+and lock resolution changes and fails with `frozen_locked` when a resolver
+would rewrite them; checks still run because they write nothing. Combine both
+flags for both policies.
+`--fail-on`, `--report`, and Bazel options do not apply.
 Output: `--output text|json`. `json` reports one event per set plus
 `command_finished`. Text prints a per-set line for every failure plus a summary
 count of updated, current, pinned, unsupported, failed, and blocked sets.
@@ -230,7 +238,7 @@ bazel run @rules_dx//:dx -- update --dry-run
 ## `dx bump`
 
 ```text
-dx bump [--apply] [--offline|--frozen] <set:package> <version>
+dx bump [--apply] [--offline] [--frozen] <set:package> <version>
 ```
 
 Widens one declared requirement to a new version. Takes exactly one
@@ -245,9 +253,10 @@ the resolved commit SHA, never a tag, and the pin is rewritten in every
 and `github-actions` are file-only and refresh nothing. Review the pin diff
 and run `bazel build //...`.
 
-`--offline` and `--frozen` run cache-only. A set that needs a refresh then
-fails before widening with `offline_required`. A major bump also needs
-`dx migrate --from <old> --to <new>`.
+A set that needs a refresh under `--offline` fails before widening with
+`offline_required`. `--frozen` always fails before widening with
+`frozen_locked`, because a bump changes resolution by definition. A major
+bump also needs `dx migrate --from <old> --to <new>`.
 
 `--check`, `--fail-on`, `--report`, and Bazel options do not apply.
 Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,

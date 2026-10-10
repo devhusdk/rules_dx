@@ -360,6 +360,7 @@ pub struct FinishedCounts {
     pub diagnostics: Option<[u64; 3]>,
     pub changes: Option<[u64; 2]>,
     pub mutations: Option<[u64; 2]>,
+    pub baseline: Option<[u64; 3]>,
 }
 
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
@@ -384,6 +385,12 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
         map.insert(
             "mutations".to_owned(),
             json!({"applied": applied, "not_applied": not_applied}),
+        );
+    }
+    if let Some([total, new, suppressed]) = counts.baseline {
+        map.insert(
+            "baseline".to_owned(),
+            json!({"total": total, "new": new, "suppressed": suppressed}),
         );
     }
     Value::Object(map)
@@ -495,11 +502,13 @@ mod tests {
             diagnostics: Some([0, 3, 1]),
             changes: None,
             mutations: Some([0, 2]),
+            baseline: None,
         };
         let event = command_finished(1, &counts);
         assert_eq!(event["exit_code"], Value::from(1));
         assert_eq!(event["diagnostics"]["warning"], Value::from(3));
         assert!(event.get("changes").is_none());
+        assert!(event.get("baseline").is_none());
     }
 
     #[test]
@@ -509,11 +518,15 @@ mod tests {
             diagnostics: None,
             changes: Some([1, 2]),
             mutations: None,
+            baseline: Some([5, 1, 4]),
         };
         let event = command_finished(0, &counts);
         assert_eq!(event["changes"]["create"], Value::from(1));
         assert_eq!(event["changes"]["modify"], Value::from(2));
         assert!(event.get("diagnostics").is_none());
+        assert_eq!(event["baseline"]["total"], Value::from(5));
+        assert_eq!(event["baseline"]["new"], Value::from(1));
+        assert_eq!(event["baseline"]["suppressed"], Value::from(4));
     }
 
     #[test]

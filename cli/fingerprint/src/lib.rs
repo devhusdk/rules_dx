@@ -8,6 +8,8 @@
     )
 )]
 
+pub mod baseline;
+
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum FingerprintError {
     #[error("fingerprint JSON serializes: {detail}")]

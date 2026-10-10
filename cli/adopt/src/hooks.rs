@@ -303,9 +303,87 @@ pub fn render_hook_shim(trigger: &str) -> String {
     )
 }
 
-pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
-    let hooks_dir = root.join(".git/hooks");
-    std::fs::create_dir_all(&hooks_dir).map_err(|e| AdoptError::CreateHooksDir {
+/// Parses `git rev-parse --git-path hooks` output into the one effective hooks path.
+pub fn parse_git_path_output(output: &[u8]) -> Result<String, String> {
+    let text =
+        std::str::from_utf8(output).map_err(|_| "hook git path output is not UTF-8".to_owned())?;
+    if text.contains('\0') {
+        return Err("hook git path output contains a NUL byte".to_owned());
+    }
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    if lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
+    if lines.is_empty() {
+        return Err("hook git path output is empty".to_owned());
+    }
+    if lines.len() != 1 {
+        return Err("hook git path output names more than one path".to_owned());
+    }
+    if lines[0].is_empty() {
+        return Err("hook git path output is empty".to_owned());
+    }
+    Ok(lines[0].to_owned())
+}
+
+fn clean_hooks_path(path: std::path::PathBuf) -> std::path::PathBuf {
+    use std::path::Component;
+    let mut out = std::path::PathBuf::new();
+    for part in path.components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if out
+                    .components()
+                    .next_back()
+                    .is_some_and(|last| matches!(last, Component::Normal(_)))
+                {
+                    out.pop();
+                } else if !out.has_root() {
+                    out.push("..");
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    if out.as_os_str().is_empty() {
+        std::path::PathBuf::from(".")
+    } else {
+        out
+    }
+}
+
+/// Resolves a `git rev-parse --git-path hooks` answer against the workspace Git runs in.
+pub fn join_hooks_path(workspace: &Path, git_path: &str) -> std::path::PathBuf {
+    let candidate = Path::new(git_path);
+    if candidate.is_absolute() {
+        clean_hooks_path(candidate.to_path_buf())
+    } else {
+        clean_hooks_path(workspace.join(candidate))
+    }
+}
+
+/// Spells a hooks file the way hook summaries print it.
+pub fn display_hooks_path(workspace: &Path, path: &Path) -> String {
+    if let Ok(rel) = path.strip_prefix(workspace) {
+        let mut spelling = String::new();
+        for part in rel.components() {
+            if !spelling.is_empty() {
+                spelling.push('/');
+            }
+            spelling.push_str(&part.as_os_str().to_string_lossy());
+        }
+        spelling
+    } else {
+        path.to_string_lossy().into_owned()
+    }
+}
+
+pub fn install_hooks_into(
+    hooks_dir: &Path,
+    workspace: &Path,
+) -> Result<Vec<std::path::PathBuf>, AdoptError> {
+    std::fs::create_dir_all(hooks_dir).map_err(|e| AdoptError::CreateHooksDir {
         detail: e.to_string(),
     })?;
     let mut installed = Vec::new();
@@ -343,9 +421,9 @@ pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
                 detail: e.to_string(),
             })?;
         }
-        installed.push(format!(".git/hooks/{trigger}"));
+        installed.push(dest);
     }
-    let overlay = root.join("dx.local.toml");
+    let overlay = workspace.join("dx.local.toml");
     if !overlay.exists() {
         let content = render_local_overlay()?;
         dx_atomic_fs::write_atomic(&overlay, content.as_bytes()).map_err(|e| {
@@ -353,15 +431,24 @@ pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
                 detail: e.to_string(),
             }
         })?;
-        installed.push("dx.local.toml".to_owned());
+        installed.push(overlay);
     }
     Ok(installed)
 }
 
-pub fn uninstall_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
+pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
+    install_hooks_into(&root.join(".git/hooks"), root).map(|installed| {
+        installed
+            .iter()
+            .map(|path| display_hooks_path(root, path))
+            .collect()
+    })
+}
+
+pub fn uninstall_hooks_from(hooks_dir: &Path) -> Result<Vec<std::path::PathBuf>, AdoptError> {
     let mut removed = Vec::new();
     for trigger in ["pre-commit", "pre-push"] {
-        let dest = root.join(".git/hooks").join(trigger);
+        let dest = hooks_dir.join(trigger);
         if !dest.exists() {
             continue;
         }
@@ -378,9 +465,18 @@ pub fn uninstall_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
             trigger: trigger.to_owned(),
             detail: e.to_string(),
         })?;
-        removed.push(format!(".git/hooks/{trigger}"));
+        removed.push(dest);
     }
     Ok(removed)
+}
+
+pub fn uninstall_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
+    uninstall_hooks_from(&root.join(".git/hooks")).map(|removed| {
+        removed
+            .iter()
+            .map(|path| display_hooks_path(root, path))
+            .collect()
+    })
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -564,11 +660,12 @@ pub fn render_hooks_status(baseline: &str, overlay: &str, timings: &str) -> Stri
 #[cfg(test)]
 mod tests {
     use super::super::{
-        checks_for_trigger, default_hooks_config, hook_check_timed_out, hook_git_is_hermetic,
-        hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks, is_hook_trigger,
-        load_hook_timings, load_hooks_config, render_hook_timings, render_hooks_status_merged,
-        render_local_overlay, uninstall_hooks, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER,
-        HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
+        checks_for_trigger, default_hooks_config, display_hooks_path, hook_check_timed_out,
+        hook_git_is_hermetic, hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks,
+        install_hooks_into, is_hook_trigger, join_hooks_path, load_hook_timings, load_hooks_config,
+        parse_git_path_output, render_hook_timings, render_hooks_status_merged,
+        render_local_overlay, uninstall_hooks, uninstall_hooks_from, HOOK_BUDGET_SECS,
+        HOOK_MANAGED_MARKER, HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
     };
     use super::{render_hook_shim, render_hooks_status};
 
@@ -664,6 +761,197 @@ mod tests {
         std::fs::write(root.join(".git/hooks/pre-commit"), "# custom hook\n").expect("unmanaged");
         assert!(uninstall_hooks(&root).is_err());
         assert!(root.join(".git/hooks/pre-commit").exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn git_path_output_keeps_the_single_effective_path() {
+        assert_eq!(
+            parse_git_path_output(b".git/hooks\n").expect("relative"),
+            ".git/hooks"
+        );
+        assert_eq!(
+            parse_git_path_output(b"/tmp/main/.git/hooks\n").expect("absolute"),
+            "/tmp/main/.git/hooks"
+        );
+        assert_eq!(
+            parse_git_path_output(b"../shared hooks\n").expect("spaced"),
+            "../shared hooks"
+        );
+        assert_eq!(
+            parse_git_path_output(b".git/hooks").expect("no trailing newline"),
+            ".git/hooks"
+        );
+        assert!(parse_git_path_output(b"").is_err());
+        assert!(parse_git_path_output(b"\n").is_err());
+        assert!(parse_git_path_output(b"a\nb\n").is_err());
+        assert!(parse_git_path_output(b"\xff\n").is_err());
+        assert!(parse_git_path_output(b".git/hooks\x00\n").is_err());
+    }
+
+    #[test]
+    fn hooks_path_resolution_follows_git_relative_spelling() {
+        let workspace = std::path::Path::new("/tmp/main");
+        assert_eq!(
+            join_hooks_path(workspace, ".git/hooks"),
+            std::path::Path::new("/tmp/main/.git/hooks")
+        );
+        assert_eq!(
+            join_hooks_path(workspace, "./hooks"),
+            std::path::Path::new("/tmp/main/hooks")
+        );
+        assert_eq!(
+            join_hooks_path(workspace, "../shared-hooks"),
+            std::path::Path::new("/tmp/shared-hooks")
+        );
+        assert_eq!(
+            join_hooks_path(workspace, "/tmp/custom hooks"),
+            std::path::Path::new("/tmp/custom hooks")
+        );
+        assert_eq!(
+            join_hooks_path(workspace, "/../x"),
+            std::path::Path::new("/x")
+        );
+        assert_eq!(
+            join_hooks_path(std::path::Path::new(""), "../x"),
+            std::path::Path::new("../x")
+        );
+        assert_eq!(
+            join_hooks_path(std::path::Path::new(""), "."),
+            std::path::Path::new(".")
+        );
+    }
+
+    #[test]
+    fn hooks_path_display_prefers_workspace_relative_spelling() {
+        let workspace = std::path::Path::new("/tmp/main");
+        assert_eq!(
+            display_hooks_path(workspace, &workspace.join(".git/hooks/pre-commit")),
+            ".git/hooks/pre-commit"
+        );
+        assert_eq!(
+            display_hooks_path(workspace, &workspace.join("dx.local.toml")),
+            "dx.local.toml"
+        );
+        assert_eq!(
+            display_hooks_path(workspace, std::path::Path::new("/tmp/custom/pre-commit")),
+            "/tmp/custom/pre-commit"
+        );
+    }
+
+    #[test]
+    fn hooks_install_into_writes_shims_where_git_points() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-hook-into-");
+        let root = scratch.path().to_path_buf();
+        let hooks_dir = root.join("custom hooks");
+        let installed = install_hooks_into(&hooks_dir, &root).expect("install");
+        assert_eq!(installed.len(), 3);
+        for trigger in ["pre-commit", "pre-push"] {
+            let dest = hooks_dir.join(trigger);
+            assert!(installed.contains(&dest));
+            let body = std::fs::read_to_string(&dest).expect("shim");
+            assert_eq!(body, render_hook_shim(trigger));
+            assert_eq!(
+                display_hooks_path(&root, &dest),
+                format!("custom hooks/{trigger}")
+            );
+        }
+        assert!(installed.contains(&root.join("dx.local.toml")));
+        std::fs::write(hooks_dir.join("pre-commit"), "# custom hook\n").expect("unmanaged");
+        assert!(install_hooks_into(&hooks_dir, &root).is_err());
+        assert!(uninstall_hooks_from(&hooks_dir).is_err());
+        assert!(hooks_dir.join("pre-commit").exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn hooks_uninstall_from_removes_only_managed_shims() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-hook-uninstall-from-");
+        let root = scratch.path().to_path_buf();
+        let hooks_dir = root.join("hooks");
+        install_hooks_into(&hooks_dir, &root).expect("install");
+        let removed = uninstall_hooks_from(&hooks_dir).expect("uninstall");
+        assert_eq!(removed.len(), 2);
+        assert!(!hooks_dir.join("pre-commit").exists());
+        let again = uninstall_hooks_from(&hooks_dir).expect("uninstall again");
+        assert!(again.is_empty());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn hooks_legacy_wrappers_keep_workspace_relative_spelling() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-hook-legacy-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".git/hooks")).expect("tmp");
+        let installed = install_hooks(&root).expect("install");
+        assert!(installed.iter().any(|p| p == ".git/hooks/pre-commit"));
+        assert!(installed.iter().any(|p| p == ".git/hooks/pre-push"));
+        assert!(installed.iter().any(|p| p == "dx.local.toml"));
+        let removed = uninstall_hooks(&root).expect("uninstall");
+        assert!(removed.iter().any(|p| p == ".git/hooks/pre-commit"));
+        assert!(removed.iter().any(|p| p == ".git/hooks/pre-push"));
+        scratch.close().expect("cleanup");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn hook_shim_forwards_arguments_through_consumer_cli() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-hook-shim-exec-");
+        let root = scratch.path().to_path_buf();
+        let hooks_dir = root.join("hooks");
+        install_hooks_into(&hooks_dir, &root).expect("install");
+        let bin = root.join("bin");
+        std::fs::create_dir(&bin).expect("bin");
+        let log = root.join("argv.log");
+        std::fs::write(
+            bin.join("bazel"),
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" >> \"$HOOK_ARGV_LOG\"\n",
+        )
+        .expect("launcher");
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let launcher = bin.join("bazel");
+            let mut perms = std::fs::metadata(&launcher).expect("stat").permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&launcher, perms).expect("chmod");
+        }
+        let path_value = format!(
+            "{}:{}",
+            bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        let shim = hooks_dir.join("pre-commit");
+        let direct = std::process::Command::new(&shim)
+            .args(["--", "spaced arg", "--flag=x"])
+            .env("PATH", &path_value)
+            .env("HOOK_ARGV_LOG", &log)
+            .status()
+            .expect("shim runs");
+        assert!(direct.success());
+        let shell = std::process::Command::new("sh")
+            .arg(&shim)
+            .args(["--", "spaced arg", "--flag=x"])
+            .env("PATH", &path_value)
+            .env("HOOK_ARGV_LOG", &log)
+            .status()
+            .expect("sh runs the shim");
+        assert!(shell.success());
+        let logged = std::fs::read_to_string(&log).expect("argv log");
+        let run: Vec<&str> = vec![
+            "run",
+            "@rules_dx//:dx",
+            "--",
+            "hooks",
+            "run",
+            "pre-commit",
+            "--",
+            "--",
+            "spaced arg",
+            "--flag=x",
+        ];
+        let mut wanted = run.clone();
+        wanted.extend(run);
+        assert_eq!(logged.lines().collect::<Vec<_>>(), wanted);
         scratch.close().expect("cleanup");
     }
 

@@ -4,6 +4,7 @@ load(":adapters.bzl", "ADAPTER_REGISTRY_SCHEMA_VERSION", "REAL_ADAPTERS", "REAL_
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "CURATED_SCHEMA_VERSION", "FORMAT_FROZEN", "curated_schema_error")
 load(":parity_tests.bzl", "PARITY_DEFERRED", "PARITY_SCHEMA_VERSION", "parity_schema_error")
 load(":sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "SOURCES_REGISTRY_SCHEMA_VERSION", "sources_schema_error")
+load(":support.bzl", "SUPPORT_SCHEMA_VERSION", "support_schema_error")
 load(":wrapper_owners.bzl", "WRAPPER_OWNERS", "WRAPPER_SCHEMA_VERSION", "wrapper_schema_error")
 
 REGISTRY_SCHEMA_VERSION = 1
@@ -57,6 +58,8 @@ def registry_schema_error():
         return "registry: parity schema v" + str(PARITY_SCHEMA_VERSION) + " is unsupported (want v1)"
     if WRAPPER_SCHEMA_VERSION != 1:
         return "registry: wrapper schema v" + str(WRAPPER_SCHEMA_VERSION) + " is unsupported (want v1)"
+    if SUPPORT_SCHEMA_VERSION != 1:
+        return "registry: support schema v" + str(SUPPORT_SCHEMA_VERSION) + " is unsupported (want v1)"
     err = sources_schema_error()
     if err != "":
         return err
@@ -70,6 +73,9 @@ def registry_schema_error():
     if err != "":
         return err
     err = wrapper_schema_error()
+    if err != "":
+        return err
+    err = support_schema_error()
     if err != "":
         return err
 

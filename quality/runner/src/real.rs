@@ -67,6 +67,23 @@ pub const REAL_TOOLS: &[&str] = &[
 
 const RUSTFMT_DEFAULTS_REL: &str = "dx-rustfmt-default.toml";
 
+pub const KEEP_SORTED_SUPPORT_STATE: &str = "known";
+pub const KEEP_SORTED_EXECUTION: &str = "direct";
+pub const KEEP_SORTED_FIX: &str = "supported";
+pub const KEEP_SORTED_CONTEXT: &str = "owned";
+
+pub fn keep_sorted_runner_present() -> bool {
+    REAL_TOOLS.contains(&"keep_sorted")
+}
+
+pub fn keep_sorted_support_gap() -> Option<&'static str> {
+    if keep_sorted_runner_present() {
+        None
+    } else {
+        Some("support: keep_sorted lint is known but has no runner backend")
+    }
+}
+
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 
@@ -299,8 +316,9 @@ mod real_tools;
 #[cfg(test)]
 mod tests {
     use super::{
-        absolute_argv, javascript_manifest, own_runfiles_manifest, reads_own_manifest,
-        ALWAYS_OWN_MANIFEST,
+        absolute_argv, javascript_manifest, keep_sorted_runner_present, keep_sorted_support_gap,
+        own_runfiles_manifest, reads_own_manifest, ALWAYS_OWN_MANIFEST, KEEP_SORTED_CONTEXT,
+        KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
@@ -420,5 +438,15 @@ mod tests {
             assert!(!reads_own_manifest(tool_id));
             assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit);
         }
+    }
+
+    #[test]
+    fn keep_sorted_runner_edge_is_present() {
+        assert!(keep_sorted_runner_present());
+        assert_eq!(KEEP_SORTED_SUPPORT_STATE, "known");
+        assert_eq!(KEEP_SORTED_EXECUTION, "direct");
+        assert_eq!(KEEP_SORTED_FIX, "supported");
+        assert_eq!(KEEP_SORTED_CONTEXT, "owned");
+        assert_eq!(keep_sorted_support_gap(), None);
     }
 }

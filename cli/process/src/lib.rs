@@ -8,10 +8,11 @@
     )
 )]
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 pub mod lifecycle;
 
@@ -440,8 +441,41 @@ pub struct ChildStatus {
     pub code: Option<i32>,
 }
 
+/// Deadline and capture bound for one child run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TimeBound {
+    /// Monotonic bound for the child to exit on its own.
+    pub timeout: Duration,
+    /// Per-stream byte bound for captured output.
+    pub max_bytes: usize,
+}
+
+/// What one bounded child run produced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BoundedOutcome {
+    /// The child exited on its own inside the bound.
+    Finished { code: Option<i32> },
+    /// The child and its descendants were stopped at the deadline.
+    TimedOut,
+    /// A captured stream passed the caller limit.
+    OutputTooLarge { limit: usize },
+}
+
 pub trait Runner {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus>;
+
+    /// Runs one child that must exit inside `bound`, stopping its tree at the deadline.
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        bound: TimeBound,
+    ) -> io::Result<BoundedOutcome> {
+        let _ = bound;
+        self.run(argv, cwd, env)
+            .map(|status| BoundedOutcome::Finished { code: status.code })
+    }
 
     fn run_hermetic(
         &self,
@@ -532,6 +566,38 @@ impl Runner for SystemRunner {
         Ok(ChildStatus {
             code: output.status.code(),
         })
+    }
+
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        bound: TimeBound,
+    ) -> io::Result<BoundedOutcome> {
+        let spec = lifecycle::SpawnSpec {
+            argv: argv.iter().map(OsString::from).collect(),
+            cwd: cwd.to_path_buf(),
+            env: lifecycle::EnvPolicy::Inherited {
+                extra: env
+                    .iter()
+                    .map(|(key, value)| (OsString::from(key), OsString::from(value)))
+                    .collect(),
+            },
+            capture: lifecycle::CapturePolicy {
+                max_bytes: bound.max_bytes,
+            },
+            timeout: bound.timeout,
+        };
+        match lifecycle::run(&spec)? {
+            lifecycle::ChildOutcome::Finished { exit, .. } => {
+                Ok(BoundedOutcome::Finished { code: exit.code() })
+            }
+            lifecycle::ChildOutcome::TimedOut => Ok(BoundedOutcome::TimedOut),
+            lifecycle::ChildOutcome::OutputTooLarge { limit } => {
+                Ok(BoundedOutcome::OutputTooLarge { limit })
+            }
+        }
     }
 
     fn gitleaks_tool(&self) -> Option<PathBuf> {

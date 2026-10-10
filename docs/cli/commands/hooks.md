@@ -55,6 +55,22 @@ check mode, and only a check that names `--apply` applies. Measured timings
 are written only when the run applies, either through `dx hooks --apply run`
 or through a check that names `--apply`.
 
+A check is command words. A plain string splits on whitespace with no shell.
+A check that needs a space or quote inside one argument uses structured form.
+A plain string that quotes an argument fails with an error that names the
+structured spelling.
+
+```toml
+[hooks]
+pre_commit = ["format --check", { command = "lint", args = ["--scope", "my dir"] }]
+```
+
+One budget covers the whole run. Each check receives the time that remains,
+so a slow first check shortens the rest. A check that cannot start inside
+the budget never launches. A hanging check and its descendants stop at the
+deadline and the run reports a timeout. A check that prints past the capture
+bound fails.
+
 `run pre-commit` checks staged changes. `run pre-push` reads the pushed refs
 from stdin and checks the outgoing commits, even with an empty index.
 A deleted ref is skipped. A new remote ref diffs against the empty tree.

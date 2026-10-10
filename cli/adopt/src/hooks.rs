@@ -5,6 +5,9 @@ use super::AdoptError;
 
 pub const HOOK_BUDGET_SECS: u64 = 120;
 
+/// Per-stream byte bound for one hook check child.
+pub const HOOK_CHECK_CAPTURE_BYTES: usize = 64 * 1024 * 1024;
+
 pub const HOOK_GIT_ENV_VAR: &str = "DX_GIT_BIN";
 
 pub const HOOK_BASELINE_REL: &str = "dx.hooks.toml";
@@ -479,19 +482,91 @@ pub fn uninstall_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
     })
 }
 
+/// One hook check as command words delivered to the child with no shell.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HookCheck {
+    pub words: Vec<String>,
+}
+
+/// One configured check entry: a plain string or a structured command with arguments.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(untagged)]
+enum CheckEntry {
+    Text(String),
+    Structured(StructuredCheck),
+}
+
+/// Structured check spelling for arguments that carry spaces or quotes.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StructuredCheck {
+    command: String,
+    #[serde(default)]
+    args: Vec<String>,
+}
+
+impl HookCheck {
+    /// Splits a plain check on whitespace; quote-bearing strings name the structured migration.
+    pub fn legacy(text: &str) -> Result<HookCheck, AdoptError> {
+        if text.trim().is_empty() {
+            return Err(AdoptError::InvalidHooks {
+                detail: "hook check is empty; name the dx command to run".to_owned(),
+            });
+        }
+        if text.contains('"') || text.contains('\'') {
+            return Err(AdoptError::InvalidHooks {
+                detail: format!(
+                    "hook check {text:?} quotes an argument: plain checks split on whitespace with no shell, so quoted values cannot survive; move quoted arguments to structured form, e.g. {{ command = \"lint\", args = [\"--scope\", \"my dir\"] }}"
+                ),
+            });
+        }
+        Ok(HookCheck {
+            words: text.split_whitespace().map(ToOwned::to_owned).collect(),
+        })
+    }
+
+    /// Uses structured words verbatim so spaces and quotes reach the child exactly.
+    pub fn structured(command: &str, args: Vec<String>) -> Result<HookCheck, AdoptError> {
+        if command.trim().is_empty() {
+            return Err(AdoptError::InvalidHooks {
+                detail: "hook check command is empty; name the dx command to run".to_owned(),
+            });
+        }
+        let mut words = vec![command.to_owned()];
+        words.extend(args);
+        Ok(HookCheck { words })
+    }
+}
+
+/// Spells one check the way hook summaries, errors, and timings name it.
+pub fn display_hook_check(check: &HookCheck) -> String {
+    check.words.join(" ")
+}
+
+fn resolve_entry(entry: &CheckEntry) -> Result<HookCheck, AdoptError> {
+    match entry {
+        CheckEntry::Text(text) => HookCheck::legacy(text),
+        CheckEntry::Structured(check) => HookCheck::structured(&check.command, check.args.clone()),
+    }
+}
+
+fn resolve_entries(entries: &[CheckEntry]) -> Result<Vec<HookCheck>, AdoptError> {
+    entries.iter().map(resolve_entry).collect()
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HooksConfig {
-    pub pre_commit: Vec<String>,
-    pub pre_push: Vec<String>,
+    pub pre_commit: Vec<HookCheck>,
+    pub pre_push: Vec<HookCheck>,
     pub budget_secs: u64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]
 struct HooksTable {
     #[serde(default)]
-    pre_commit: Option<Vec<String>>,
+    pre_commit: Option<Vec<CheckEntry>>,
     #[serde(default)]
-    pre_push: Option<Vec<String>>,
+    pre_push: Option<Vec<CheckEntry>>,
     #[serde(default)]
     budget_secs: Option<u64>,
 }
@@ -502,12 +577,21 @@ struct HooksFile {
     hooks: Option<HooksTable>,
 }
 
+fn hook_check_words<const N: usize>(words: [&str; N]) -> HookCheck {
+    HookCheck {
+        words: words.into_iter().map(ToOwned::to_owned).collect(),
+    }
+}
+
 pub fn default_hooks_config() -> HooksConfig {
     HooksConfig {
-        pre_commit: vec!["format --check".to_owned(), "lint --check".to_owned()],
+        pre_commit: vec![
+            hook_check_words(["format", "--check"]),
+            hook_check_words(["lint", "--check"]),
+        ],
         pre_push: vec![
-            "typecheck --check".to_owned(),
-            "generate --check".to_owned(),
+            hook_check_words(["typecheck", "--check"]),
+            hook_check_words(["generate", "--check"]),
         ],
         budget_secs: HOOK_BUDGET_SECS,
     }
@@ -519,24 +603,32 @@ fn parse_hooks_file(text: &str) -> Result<HooksFile, AdoptError> {
     })
 }
 
-fn merge_hooks_config(baseline: &HooksFile, overlay: &HooksFile) -> HooksConfig {
+fn merge_hooks_config(
+    baseline: &HooksFile,
+    overlay: &HooksFile,
+) -> Result<HooksConfig, AdoptError> {
     let defaults = default_hooks_config();
     let base = baseline.hooks.as_ref();
     let over = overlay.hooks.as_ref();
-    HooksConfig {
-        pre_commit: over
-            .and_then(|t| t.pre_commit.clone())
-            .or_else(|| base.and_then(|t| t.pre_commit.clone()))
-            .unwrap_or(defaults.pre_commit),
-        pre_push: over
-            .and_then(|t| t.pre_push.clone())
-            .or_else(|| base.and_then(|t| t.pre_push.clone()))
-            .unwrap_or(defaults.pre_push),
+    let select = |pick: fn(&HooksTable) -> Option<&[CheckEntry]>,
+                  fallback: Vec<HookCheck>|
+     -> Result<Vec<HookCheck>, AdoptError> {
+        if let Some(entries) = over.and_then(pick) {
+            return resolve_entries(entries);
+        }
+        if let Some(entries) = base.and_then(pick) {
+            return resolve_entries(entries);
+        }
+        Ok(fallback)
+    };
+    Ok(HooksConfig {
+        pre_commit: select(|t| t.pre_commit.as_deref(), defaults.pre_commit)?,
+        pre_push: select(|t| t.pre_push.as_deref(), defaults.pre_push)?,
         budget_secs: over
             .and_then(|t| t.budget_secs)
             .or_else(|| base.and_then(|t| t.budget_secs))
             .unwrap_or(defaults.budget_secs),
-    }
+    })
 }
 
 pub fn load_hooks_config(
@@ -551,10 +643,10 @@ pub fn load_hooks_config(
         Some(text) => parse_hooks_file(text)?,
         None => HooksFile::default(),
     };
-    Ok(merge_hooks_config(&baseline, &overlay))
+    merge_hooks_config(&baseline, &overlay)
 }
 
-pub fn checks_for_trigger(config: &HooksConfig, trigger: &str) -> Vec<String> {
+pub fn checks_for_trigger(config: &HooksConfig, trigger: &str) -> Vec<HookCheck> {
     match trigger {
         "pre-commit" => config.pre_commit.clone(),
         "pre-push" => config.pre_push.clone(),
@@ -626,7 +718,12 @@ pub fn render_hooks_status_merged(
         if config.pre_commit.is_empty() {
             "(none)".to_owned()
         } else {
-            config.pre_commit.join(", ")
+            config
+                .pre_commit
+                .iter()
+                .map(display_hook_check)
+                .collect::<Vec<_>>()
+                .join(", ")
         }
     ));
     view.push_str(&format!(
@@ -634,7 +731,12 @@ pub fn render_hooks_status_merged(
         if config.pre_push.is_empty() {
             "(none)".to_owned()
         } else {
-            config.pre_push.join(", ")
+            config
+                .pre_push
+                .iter()
+                .map(display_hook_check)
+                .collect::<Vec<_>>()
+                .join(", ")
         }
     ));
     view.push_str(&format!("budget_secs: {}\n", config.budget_secs));
@@ -660,12 +762,13 @@ pub fn render_hooks_status(baseline: &str, overlay: &str, timings: &str) -> Stri
 #[cfg(test)]
 mod tests {
     use super::super::{
-        checks_for_trigger, default_hooks_config, display_hooks_path, hook_check_timed_out,
-        hook_git_is_hermetic, hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks,
-        install_hooks_into, is_hook_trigger, join_hooks_path, load_hook_timings, load_hooks_config,
-        parse_git_path_output, render_hook_timings, render_hooks_status_merged,
-        render_local_overlay, uninstall_hooks, uninstall_hooks_from, HOOK_BUDGET_SECS,
-        HOOK_MANAGED_MARKER, HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
+        checks_for_trigger, default_hooks_config, display_hook_check, display_hooks_path,
+        hook_check_timed_out, hook_git_is_hermetic, hook_git_path_is_hermetic,
+        hook_status_shows_merged, install_hooks, install_hooks_into, is_hook_trigger,
+        join_hooks_path, load_hook_timings, load_hooks_config, parse_git_path_output,
+        render_hook_timings, render_hooks_status_merged, render_local_overlay, uninstall_hooks,
+        uninstall_hooks_from, HookCheck, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER, HOOK_TRIGGERS,
+        LOCAL_OVERLAY_COMMENT,
     };
     use super::{render_hook_shim, render_hooks_status};
 
@@ -988,15 +1091,18 @@ mod tests {
 
     #[test]
     fn hooks_config_merges_overlay_over_baseline() {
+        fn displays(checks: &[HookCheck]) -> Vec<String> {
+            checks.iter().map(display_hook_check).collect()
+        }
         let baseline = "[hooks]\npre_commit = [\"format --check\", \"lint --check\"]\npre_push = [\"typecheck --check\", \"generate --check\"]\nbudget_secs = 120\n";
         let merged = load_hooks_config(Some(baseline), None).expect("baseline only");
         assert_eq!(merged, default_hooks_config());
         assert_eq!(
-            checks_for_trigger(&merged, "pre-commit"),
+            displays(&checks_for_trigger(&merged, "pre-commit")),
             vec!["format --check".to_owned(), "lint --check".to_owned()]
         );
         assert_eq!(
-            checks_for_trigger(&merged, "pre-push"),
+            displays(&checks_for_trigger(&merged, "pre-push")),
             vec![
                 "typecheck --check".to_owned(),
                 "generate --check".to_owned()
@@ -1005,7 +1111,10 @@ mod tests {
         assert!(checks_for_trigger(&merged, "bogus").is_empty());
         let overlay = "[hooks]\npre_commit = [\"format --check\"]\n";
         let merged = load_hooks_config(Some(baseline), Some(overlay)).expect("merged");
-        assert_eq!(merged.pre_commit, vec!["format --check".to_owned()]);
+        assert_eq!(
+            displays(&merged.pre_commit),
+            vec!["format --check".to_owned()]
+        );
         assert_eq!(merged.pre_push.len(), 2);
         assert_eq!(merged.budget_secs, HOOK_BUDGET_SECS);
         let missing = load_hooks_config(None, None).expect("defaults");
@@ -1019,6 +1128,52 @@ mod tests {
         assert!(!hook_check_timed_out(119.9, 120));
         assert!(!hook_check_timed_out(120.0, 120));
         assert!(hook_check_timed_out(120.01, 120));
+    }
+
+    #[test]
+    fn structured_checks_mix_with_plain_strings_and_stay_verbatim() {
+        let baseline = "[hooks]\npre_commit = [\"format --check\", { command = \"lint\", args = [\"--scope\", \"my dir\"] }, { command = \"fix\" }]\n";
+        let merged = load_hooks_config(Some(baseline), None).expect("mixed");
+        let checks = checks_for_trigger(&merged, "pre-commit");
+        assert_eq!(checks.len(), 3);
+        assert_eq!(
+            checks[0].words,
+            vec!["format".to_owned(), "--check".to_owned()]
+        );
+        assert_eq!(
+            checks[1].words,
+            vec!["lint".to_owned(), "--scope".to_owned(), "my dir".to_owned()]
+        );
+        assert_eq!(checks[2].words, vec!["fix".to_owned()]);
+        assert_eq!(display_hook_check(&checks[1]), "lint --scope my dir");
+        let view =
+            render_hooks_status_merged(&merged, &super::HookTimings::default(), "src", "absent");
+        assert!(view.contains("lint --scope my dir"));
+    }
+
+    #[test]
+    fn quote_bearing_plain_checks_name_the_structured_migration() {
+        for text in [
+            "lint --scope \"my dir\"",
+            "lint --scope 'my dir'",
+            "format \"--scope\"",
+        ] {
+            let error = super::HookCheck::legacy(text).expect_err("quotes must migrate");
+            let detail = error.to_string();
+            assert!(detail.contains("structured"), "{text}: {detail}");
+            assert!(detail.contains("command ="), "{text}: {detail}");
+        }
+        assert!(super::HookCheck::legacy("   ").is_err());
+        assert!(super::HookCheck::legacy("").is_err());
+        assert!(super::HookCheck::structured("  ", Vec::new()).is_err());
+        assert!(super::HookCheck::structured("lint", Vec::new()).is_ok());
+        let broken = "[hooks]\npre_commit = [\"lint --scope \\\"my dir\\\"\"]\n";
+        let error = load_hooks_config(Some(broken), None).expect_err("quoted config migrates");
+        assert!(error.to_string().contains("structured"));
+        let unknown = "[hooks]\npre_commit = [{ command = \"lint\", shell = \"never\" }]\n";
+        assert!(load_hooks_config(Some(unknown), None).is_err());
+        let empty = "[hooks]\npre_commit = [{ command = \"  \", args = [] }]\n";
+        assert!(load_hooks_config(Some(empty), None).is_err());
     }
 
     #[test]

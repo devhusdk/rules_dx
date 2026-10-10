@@ -1,6 +1,7 @@
 use super::*;
 
 use std::collections::{HashMap, HashSet};
+use std::time::{Duration, Instant};
 
 struct FakeFs {
     files: HashSet<PathBuf>,
@@ -756,6 +757,105 @@ fn fake_runner_substitutes_the_boundary() {
         )
         .expect("fake");
     assert_eq!(status.code, Some(3));
+}
+
+fn probe_strings(flags: &[&str]) -> Vec<String> {
+    let mut argv = vec![dx_testing::process_probe().to_string_lossy().into_owned()];
+    argv.extend(flags.iter().map(ToString::to_string));
+    argv
+}
+
+fn probe_bound(timeout: Duration) -> TimeBound {
+    TimeBound {
+        timeout,
+        max_bytes: 65536,
+    }
+}
+
+#[test]
+fn system_runner_bounded_run_reports_the_probe_code() {
+    let outcome = SystemRunner
+        .run_bounded(
+            &probe_strings(&["--exit-code=3"]),
+            &std::env::temp_dir(),
+            &[],
+            probe_bound(Duration::from_secs(10)),
+        )
+        .expect("probe runs");
+    assert_eq!(outcome, BoundedOutcome::Finished { code: Some(3) });
+}
+
+#[test]
+fn system_runner_bounded_run_kills_a_hanging_probe_within_a_bound() {
+    let started = Instant::now();
+    let outcome = SystemRunner
+        .run_bounded(
+            &probe_strings(&["--sleep-ms=30000"]),
+            &std::env::temp_dir(),
+            &[],
+            probe_bound(Duration::from_millis(200)),
+        )
+        .expect("timeout is an outcome");
+    assert_eq!(outcome, BoundedOutcome::TimedOut);
+    assert!(
+        started.elapsed() < Duration::from_secs(15),
+        "timed out after {:?}",
+        started.elapsed()
+    );
+}
+
+#[test]
+fn system_runner_bounded_run_reaps_a_hanging_descendant() {
+    let scratch = dx_testing::mkscratch("dx-bounded-descendant").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let started = Instant::now();
+    let outcome = SystemRunner
+        .run_bounded(
+            &probe_strings(&[
+                "--spawn-descendant",
+                "--descendant-sleep-ms=1500",
+                "--descendant-stdout-bytes=1048576",
+                &format!("--descendant-marker={}", marker.display()),
+            ]),
+            &std::env::temp_dir(),
+            &[],
+            probe_bound(Duration::from_millis(500)),
+        )
+        .expect("timeout is an outcome");
+    assert_eq!(outcome, BoundedOutcome::TimedOut);
+    assert!(
+        started.elapsed() < Duration::from_secs(20),
+        "descendant must not hold the run past {:?}",
+        started.elapsed()
+    );
+    let deadline = started + Duration::from_millis(1900);
+    loop {
+        assert!(
+            !marker.exists(),
+            "the descendant survived the run: {}",
+            marker.display()
+        );
+        if Instant::now() >= deadline {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[test]
+fn unbounded_fakes_keep_working_through_the_bounded_default() {
+    let runner = FakeRunner {
+        status: ChildStatus { code: Some(0) },
+    };
+    let outcome = runner
+        .run_bounded(
+            &["tool".to_owned()],
+            Path::new("."),
+            &[],
+            probe_bound(Duration::from_secs(1)),
+        )
+        .expect("default delegates");
+    assert_eq!(outcome, BoundedOutcome::Finished { code: Some(0) });
 }
 
 #[test]

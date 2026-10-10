@@ -152,6 +152,59 @@ pub fn render_sarif(
     snapshots: &BTreeMap<String, String>,
     complete: bool,
 ) -> Result<String, ReportError> {
+    render_sarif_with_baseline(tools, findings, snapshots, complete, None)
+}
+
+pub struct BaselineReport {
+    pub file: String,
+    pub total: u64,
+    pub new: u64,
+    pub suppressed: u64,
+}
+
+pub fn render_sarif_with_baseline(
+    tools: &[String],
+    findings: &[DiagnosticEvent],
+    snapshots: &BTreeMap<String, String>,
+    complete: bool,
+    baseline: Option<&BaselineReport>,
+) -> Result<String, ReportError> {
+    let rendered = render_inner(tools, findings, snapshots, complete)?;
+    let Some(baseline) = baseline else {
+        return Ok(rendered);
+    };
+    let mut document: serde_json::Value =
+        serde_json::from_str(&rendered).map_err(|_| ReportError::InvalidFinding {
+            detail: "sarif render is not JSON",
+        })?;
+    let properties = serde_json::json!({
+        "dxBaseline": {
+            "file": baseline.file,
+            "total": baseline.total,
+            "new": baseline.new,
+            "suppressed": baseline.suppressed,
+        }
+    });
+    let runs = document
+        .get_mut("runs")
+        .and_then(serde_json::Value::as_array_mut)
+        .ok_or(ReportError::InvalidFinding {
+            detail: "sarif render has no runs",
+        })?;
+    for run in runs.iter_mut() {
+        run["properties"] = properties.clone();
+    }
+    dx_fingerprint::to_json(&document).map_err(|_| ReportError::InvalidFinding {
+        detail: "sarif render failed to serialize",
+    })
+}
+
+fn render_inner(
+    tools: &[String],
+    findings: &[DiagnosticEvent],
+    snapshots: &BTreeMap<String, String>,
+    complete: bool,
+) -> Result<String, ReportError> {
     let ordered: BTreeSet<&str> = tools.iter().map(String::as_str).collect();
     let mut working = findings.to_vec();
     sort_diagnostics(&mut working);
@@ -378,6 +431,51 @@ mod tests {
             json!([{"executionSuccessful": false}])
         );
         assert_eq!(runs[0]["tool"]["driver"]["rules"], json!([]));
+    }
+
+    #[test]
+    fn sarif_marks_baseline_counts_on_every_run() {
+        let findings = vec![finding("lint-tool", Severity::Warning, None)];
+        let plain: Value = serde_json::from_str(
+            &render_sarif(&["lint-tool".to_owned()], &findings, &BTreeMap::new(), true)
+                .expect("render"),
+        )
+        .expect("valid JSON");
+        assert!(plain["runs"][0].get("properties").is_none());
+        let report = BaselineReport {
+            file: "quality/baseline.json".to_owned(),
+            total: 4,
+            new: 1,
+            suppressed: 3,
+        };
+        let marked: Value = serde_json::from_str(
+            &render_sarif_with_baseline(
+                &["lint-tool".to_owned()],
+                &findings,
+                &BTreeMap::new(),
+                true,
+                Some(&report),
+            )
+            .expect("render"),
+        )
+        .expect("valid JSON");
+        assert_eq!(
+            marked["runs"][0]["properties"]["dxBaseline"],
+            json!({
+                "file": "quality/baseline.json",
+                "total": 4,
+                "new": 1,
+                "suppressed": 3,
+            })
+        );
+        assert_eq!(
+            marked["runs"][0]["results"]
+                .as_array()
+                .expect("results")
+                .len(),
+            1,
+            "suppressed findings stay visible in SARIF"
+        );
     }
 
     #[test]

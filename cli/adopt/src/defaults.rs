@@ -53,6 +53,7 @@ pub struct FileDefaults {
     pub quiet: Option<bool>,
     pub dry_run: Option<bool>,
     pub fail_on: Option<String>,
+    pub baseline: Option<String>,
 }
 
 pub fn is_truthy(value: &str) -> bool {
@@ -135,6 +136,13 @@ struct DxTable {
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
+struct QualityTable {
+    #[serde(default)]
+    baseline: Option<String>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ConfigFile {
     #[serde(default)]
     dx: Option<DxTable>,
@@ -154,6 +162,8 @@ struct ConfigFile {
     fail_on: Option<String>,
     #[serde(default)]
     schema_version: Option<u32>,
+    #[serde(default)]
+    quality: Option<QualityTable>,
     #[serde(default)]
     dependency_set: Option<Vec<toml::Value>>,
     #[serde(default)]
@@ -178,6 +188,7 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         })?;
     check_consumer_schema(parsed.schema_version)?;
     let table = parsed.dx.unwrap_or_default();
+    let baseline = check_quality_baseline(parsed.quality.map(|quality| quality.baseline))?;
     Ok(FileDefaults {
         workspace: non_empty(table.workspace.or(parsed.workspace)),
         output: non_empty(table.output.or(parsed.output)),
@@ -186,7 +197,37 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         quiet: table.quiet.or(parsed.quiet),
         dry_run: table.dry_run.or(parsed.dry_run),
         fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
+        baseline,
     })
+}
+
+pub fn check_quality_baseline(
+    baseline: Option<Option<String>>,
+) -> Result<Option<String>, super::AdoptError> {
+    let Some(rel) = baseline.flatten() else {
+        return Ok(None);
+    };
+    if rel.is_empty() {
+        return Err(super::AdoptError::InvalidDefaults {
+            detail: "invalid quality baseline: want a non-empty workspace-relative JSON path"
+                .to_owned(),
+        });
+    }
+    if let Some(reason) = dx_path::reject_reason(&rel) {
+        return Err(super::AdoptError::InvalidDefaults {
+            detail: format!("invalid quality baseline {rel:?}: {reason}"),
+        });
+    }
+    if !rel.ends_with(".json") {
+        return Err(super::AdoptError::InvalidDefaults {
+            detail: format!("invalid quality baseline {rel:?}: want a .json file"),
+        });
+    }
+    Ok(Some(rel))
+}
+
+pub fn join_quality_baseline(workspace: &Path, rel: &str) -> PathBuf {
+    workspace.join(rel)
 }
 
 fn check_consumer_schema(version: Option<u32>) -> Result<(), super::AdoptError> {
@@ -213,6 +254,7 @@ pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefau
         quiet: local.quiet.or(committed.quiet),
         dry_run: local.dry_run.or(committed.dry_run),
         fail_on: local.fail_on.or(committed.fail_on),
+        baseline: local.baseline.or(committed.baseline),
     }
 }
 
@@ -576,6 +618,47 @@ mod tests {
             assert_eq!(parsed, both, "{key} in both layers");
             assert_eq!(parsed, top, "{key} at the top level");
         }
+    }
+
+    #[test]
+    fn quality_baseline_selection_parses_and_validates() {
+        let parsed = parse_file_text("[quality]\nbaseline = \"quality/baseline.json\"\n")
+            .expect("baseline parses");
+        assert_eq!(parsed.baseline.as_deref(), Some("quality/baseline.json"));
+        let absent = parse_file_text("[dx]\noutput = \"json\"\n").expect("no baseline");
+        assert_eq!(absent.baseline, None);
+        for text in [
+            "[quality]\nbaseline = \"\"\n",
+            "[quality]\nbaseline = \"/abs.json\"\n",
+            "[quality]\nbaseline = \"../escape.json\"\n",
+            "[quality]\nbaseline = \"a\\\\b.json\"\n",
+            "[quality]\nbaseline = \"quality/baseline.toml\"\n",
+            "[quality]\nbaseline = 7\n",
+            "[quality]\nunknown = true\n",
+        ] {
+            let error = parse_file_text(text).expect_err(text);
+            assert!(
+                error.to_string().contains("baseline") || error.to_string().contains("unknown"),
+                "{text:?} must fail on the baseline selection: {error}"
+            );
+        }
+        let committed = parse_file_text("[quality]\nbaseline = \"a.json\"\n").expect("committed");
+        let local = parse_file_text("[quality]\nbaseline = \"b.json\"\n").expect("local");
+        assert_eq!(
+            merge_defaults(committed.clone(), local).baseline.as_deref(),
+            Some("b.json")
+        );
+        assert_eq!(
+            merge_defaults(committed, FileDefaults::default())
+                .baseline
+                .as_deref(),
+            Some("a.json")
+        );
+        let root = std::path::Path::new("/ws");
+        assert_eq!(
+            join_quality_baseline(root, "quality/baseline.json"),
+            root.join("quality/baseline.json")
+        );
     }
 
     #[test]

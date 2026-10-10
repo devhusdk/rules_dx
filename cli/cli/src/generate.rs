@@ -93,6 +93,7 @@ impl ProjectedManifest {
             } else {
                 Some([self.applied(), self.not_applied()])
             },
+            baseline: None,
         }
     }
 
@@ -553,6 +554,7 @@ mod tests {
                 diagnostics: None,
                 changes: Some([0, 0]),
                 mutations: None,
+                baseline: None,
             }
         );
         assert_eq!(projected.exit_code(0), 0);

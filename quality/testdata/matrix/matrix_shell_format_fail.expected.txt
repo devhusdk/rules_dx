@@ -8,4 +8,4 @@ initial 1
 initial WARNING shfmt - matrix/shfmt_dirty.sh 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/shfmt_dirty.sh 31 37 "fixed"
+replacement matrix/shfmt_dirty.sh 25 26 ""

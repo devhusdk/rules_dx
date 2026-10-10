@@ -381,6 +381,12 @@ real_source_target(
 )
 
 real_source_target(
+    name = "fixture_real_shell_format_dirty",
+    shell_srcs = ["real_format_dirty.sh"],
+    tags = ["manual"],
+)
+
+real_source_target(
     name = "fixture_real_text",
     text_srcs = ["real_clean.txt"],
 )
@@ -617,6 +623,12 @@ real_aspect_subject(
     name = "fixture_real_shell_dirty_subject",
     tags = ["manual"],
     target = ":fixture_real_shell_dirty",
+)
+
+real_aspect_subject(
+    name = "fixture_real_shell_format_dirty_subject",
+    tags = ["manual"],
+    target = ":fixture_real_shell_format_dirty",
 )
 
 real_aspect_subject(
@@ -984,7 +996,6 @@ _FAKE_FORMAT_TOOLS = [
     "prettier_file_family",
     "qmlformat",
     "scalafmt",
-    "shfmt",
     "standardrb",
     "terraform",
     "yamlfmt",

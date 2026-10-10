@@ -47,7 +47,7 @@ CURATED_DEFAULTS = {
     },
     "shell": {
         "audit": [],
-        "format": [],
+        "format": ["shfmt"],
         "lint": ["shellcheck"],
         "typecheck": [],
     },
@@ -85,7 +85,7 @@ FORMAT_FROZEN = {
     "markdown": [],
     "python": ["ruff"],
     "rust": ["rustfmt"],
-    "shell": [],
+    "shell": ["shfmt"],
     "starlark": ["buildifier"],
     "text": [],
     "toml": ["taplo"],

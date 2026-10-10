@@ -63,6 +63,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "//quality:real_aspects.bzl%real_js_format_aspect",
                 "//quality:real_aspects.bzl%real_jvm_format_aspect",
                 "//quality:real_aspects.bzl%real_rust_format_aspect",
+                "//quality:real_aspects.bzl%real_shell_format_aspect",
             ],
             reports: &[],
             settings: &[],
@@ -246,6 +247,7 @@ mod tests {
                 "//quality:real_aspects.bzl%real_js_format_aspect",
                 "//quality:real_aspects.bzl%real_jvm_format_aspect",
                 "//quality:real_aspects.bzl%real_rust_format_aspect",
+                "//quality:real_aspects.bzl%real_shell_format_aspect",
             ]
         );
         assert!(format.reports.is_empty());

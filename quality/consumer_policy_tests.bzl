@@ -11,6 +11,7 @@ load(
     "real_python_lint_aspect",
     "real_rust_format_aspect",
     "real_rust_lint_aspect",
+    "real_shell_format_aspect",
     "real_shell_lint_aspect",
     "real_text_lint_aspect",
 )
@@ -35,6 +36,7 @@ _ASPECTS = [
     real_python_lint_aspect,
     real_rust_format_aspect,
     real_rust_lint_aspect,
+    real_shell_format_aspect,
     real_shell_lint_aspect,
     real_text_lint_aspect,
 ]

@@ -31,6 +31,10 @@ load("//quality/artifacts:shellcheck.linux_arm64.bzl", _shellcheck_linux_arm64 =
 load("//quality/artifacts:shellcheck.linux_x86_64.bzl", _shellcheck_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:shellcheck.macos_arm64.bzl", _shellcheck_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:shellcheck.windows_x86_64.bzl", _shellcheck_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.linux_arm64.bzl", _shfmt_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.linux_x86_64.bzl", _shfmt_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.macos_arm64.bzl", _shfmt_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:shfmt.windows_x86_64.bzl", _shfmt_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
@@ -73,6 +77,10 @@ _ARTIFACTS = [
     _shellcheck_linux_arm64,
     _shellcheck_macos_arm64,
     _shellcheck_windows_x86_64,
+    _shfmt_linux_x86_64,
+    _shfmt_linux_arm64,
+    _shfmt_macos_arm64,
+    _shfmt_windows_x86_64,
     _taplo_linux_x86_64,
     _taplo_linux_arm64,
     _taplo_macos_arm64,

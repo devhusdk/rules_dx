@@ -141,18 +141,18 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["shfmt;shell;matrix/shfmt_clean.sh"],
         "tool_names": ["shfmt"],
-        "tool_binaries": ["//quality/testdata:fake_shfmt"],
+        "tool_binaries": ["@dx_tools//:shfmt"],
         "expected_file": ":matrix/matrix_shell_format_pass.expected.txt",
     },
     {
         "name": "matrix_shell_format_fail",
         "generated": {
-            "matrix/shfmt_dirty.sh": "#!/usr/bin/env bash\necho\"hello\"BADFMT\n",
+            "matrix/shfmt_dirty.sh": "#!/usr/bin/env bash\necho  \"hello\"\n",
         },
         "capability": "format",
         "stages": ["shfmt;shell;matrix/shfmt_dirty.sh"],
         "tool_names": ["shfmt"],
-        "tool_binaries": ["//quality/testdata:fake_shfmt"],
+        "tool_binaries": ["@dx_tools//:shfmt"],
         "expected_file": ":matrix/matrix_shell_format_fail.expected.txt",
     },
     {

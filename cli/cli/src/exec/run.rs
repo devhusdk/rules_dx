@@ -434,8 +434,8 @@ mod tests {
         let harness = Harness::new("run-norunnable");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("");
         harness.query.script_owners("//pkg:lib\n");
+        harness.query.script_owners("@@//pkg:lib|False\n");
         let (code, _, err) = harness.run(&["run", "pkg/a.py"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("no_runnable"), "{err}");
@@ -469,6 +469,9 @@ mod tests {
         let harness = Harness::new("run-amb");
         std::fs::create_dir_all(harness.workspace.join("app")).expect("dir");
         harness.query.script_owners("//app:two\n//app:one\n");
+        harness
+            .query
+            .script_owners("@@//app:two|True\n@@//app:one|True\n");
         let (code, _, err) = harness.run(&["run", "app"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("ambiguous_runnable"), "{err}");
@@ -614,6 +617,9 @@ mod tests {
         harness
             .query
             .script_owners("//demo:backend\n//demo:frontend\n");
+        harness
+            .query
+            .script_owners("@@//demo:backend|True\n@@//demo:frontend|True\n");
         let inv = invocation(&["run", "--apply", "//demo/..."]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0, "{run:?}");
@@ -814,8 +820,8 @@ mod tests {
         let harness = Harness::new("run-ci-norunnable");
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
-        harness.query.script_owners("");
         harness.query.script_owners("//pkg:lib\n");
+        harness.query.script_owners("@@//pkg:lib|False\n");
         let (code, _, err) = harness.run_with_ci(&["run", "pkg/a.py"], true);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("no_runnable"), "{err}");

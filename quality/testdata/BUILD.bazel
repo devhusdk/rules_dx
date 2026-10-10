@@ -381,6 +381,17 @@ real_source_target(
 )
 
 real_source_target(
+    name = "fixture_real_text",
+    text_srcs = ["real_clean.txt"],
+)
+
+real_source_target(
+    name = "fixture_real_text_dirty",
+    tags = ["manual"],
+    text_srcs = ["real_dirty.txt"],
+)
+
+real_source_target(
     name = "fixture_real_python_generated_config",
     aspect_hints = [":ruff_cfg_generated"],
     python_srcs = ["real_clean.py"],
@@ -606,6 +617,17 @@ real_aspect_subject(
     name = "fixture_real_shell_dirty_subject",
     tags = ["manual"],
     target = ":fixture_real_shell_dirty",
+)
+
+real_aspect_subject(
+    name = "fixture_real_text_subject",
+    target = ":fixture_real_text",
+)
+
+real_aspect_subject(
+    name = "fixture_real_text_dirty_subject",
+    tags = ["manual"],
+    target = ":fixture_real_text_dirty",
 )
 
 real_aspect_subject(
@@ -860,6 +882,7 @@ real_aspect_fixture_tests(
         ":fixture_real_rust_generated_shape_subject",
         ":fixture_real_shell_subject",
         ":fixture_real_starlark_subject",
+        ":fixture_real_text_subject",
         ":fixture_real_toml_subject",
         ":fixture_upstream_cc_subject",
         ":fixture_upstream_rust_subject",

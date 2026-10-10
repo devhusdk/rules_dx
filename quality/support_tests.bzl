@@ -20,9 +20,9 @@ def support_unit_tests(name):
                 ["text"],
             ),
             expect_equal(
-                "keep_sorted is a support tool with known state",
+                "keep_sorted is a support tool with qualified state",
                 [is_support_tool("keep_sorted"), support_state("keep_sorted")],
-                [True, "known"],
+                [True, "qualified"],
             ),
             expect_equal(
                 "unknown tools stay outside support",
@@ -32,7 +32,7 @@ def support_unit_tests(name):
             expect_equal(
                 "missing aspect wiring is an actionable failure",
                 support_wiring_error([]),
-                "support: keep_sorted lint is known but has no wired aspect (missing real_text_lint_aspect; not silently clean)",
+                "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)",
             ),
             expect_equal(
                 "wired keep_sorted clears the aspect gap",
@@ -42,7 +42,7 @@ def support_unit_tests(name):
             expect_equal(
                 "missing CLI aspect is an actionable failure",
                 support_cli_error(["//quality:real_aspects.bzl%real_lint_aspect"]),
-                "support: keep_sorted lint is known but has no CLI lint aspect (missing real_text_lint_aspect)",
+                "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)",
             ),
             expect_equal(
                 "CLI text aspect clears the CLI gap",
@@ -50,9 +50,9 @@ def support_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "missing artifact is an actionable failure",
+                "pinned artifact clears the artifact gap",
                 support_artifact_error(),
-                "support: keep_sorted lint is known but has no pinned artifact (quality/artifacts/keep_sorted.*.bzl is missing)",
+                "",
             ),
             expect_equal(
                 "unknown tool is rejected",

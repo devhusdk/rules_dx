@@ -5,7 +5,7 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 SUPPORT_SCHEMA_VERSION = 1
 
 TEXT_KEEP_SORTED_SUPPORT = {
-    "artifact": "missing",
+    "artifact": "pinned",
     "capability": "lint",
     "classes": ["text"],
     "context": "owned",
@@ -13,7 +13,7 @@ TEXT_KEEP_SORTED_SUPPORT = {
     "family": "text",
     "fix": "supported",
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
-    "state": "known",
+    "state": "qualified",
     "tool": "keep_sorted",
     "transport": "batched",
 }
@@ -87,20 +87,20 @@ def support_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the migrated family."""
     if TEXT_KEEP_SORTED_SUPPORT["tool"] in wired_tools:
         return ""
-    return "support: keep_sorted lint is known but has no wired aspect (missing real_text_lint_aspect; not silently clean)"
+    return "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)"
 
 def support_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the migrated family."""
     for aspect in cli_aspects:
         if "real_text_lint" in aspect:
             return ""
-    return "support: keep_sorted lint is known but has no CLI lint aspect (missing real_text_lint_aspect)"
+    return "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)"
 
 def support_artifact_error():
     """Reports the actionable artifact gap for the migrated family."""
     if TEXT_KEEP_SORTED_SUPPORT["artifact"] == "pinned":
         return ""
-    return "support: keep_sorted lint is known but has no pinned artifact (quality/artifacts/keep_sorted.*.bzl is missing)"
+    return "support: keep_sorted lint is qualified but has no pinned artifact (quality/artifacts/keep_sorted.*.bzl is missing)"
 
 def is_support_tool(tool_id):
     """Reports whether a tool carries an explicit support record."""

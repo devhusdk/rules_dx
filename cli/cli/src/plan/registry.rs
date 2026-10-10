@@ -17,7 +17,7 @@ impl CommandSpec {
 }
 
 pub fn keep_sorted_support_state() -> &'static str {
-    "known"
+    "qualified"
 }
 
 pub fn keep_sorted_cli_gap(aspects: &[&str]) -> Option<&'static str> {
@@ -27,7 +27,7 @@ pub fn keep_sorted_cli_gap(aspects: &[&str]) -> Option<&'static str> {
     {
         None
     } else {
-        Some("support: keep_sorted lint is known but has no CLI lint aspect (missing real_text_lint_aspect)")
+        Some("support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)")
     }
 }
 
@@ -42,6 +42,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "//quality:real_aspects.bzl%real_jvm_lint_aspect",
                 "//quality:real_aspects.bzl%real_rust_lint_aspect",
                 "//quality:real_aspects.bzl%real_shell_lint_aspect",
+                "//quality:real_aspects.bzl%real_text_lint_aspect",
             ],
             reports: &[StandardFormat::Sarif],
             settings: &[CLIPPY_DIAGNOSTICS_FLAG],
@@ -222,6 +223,7 @@ mod tests {
                 "//quality:real_aspects.bzl%real_jvm_lint_aspect",
                 "//quality:real_aspects.bzl%real_rust_lint_aspect",
                 "//quality:real_aspects.bzl%real_shell_lint_aspect",
+                "//quality:real_aspects.bzl%real_text_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
@@ -331,18 +333,14 @@ mod tests {
 
     #[test]
     fn keep_sorted_cli_gap_is_explicit() {
-        assert_eq!(keep_sorted_support_state(), "known");
+        assert_eq!(keep_sorted_support_state(), "qualified");
         let lint = spec(Command::Lint);
-        assert_eq!(
-            keep_sorted_cli_gap(lint.aspects),
-            Some("support: keep_sorted lint is known but has no CLI lint aspect (missing real_text_lint_aspect)")
-        );
+        assert_eq!(keep_sorted_cli_gap(lint.aspects), None);
         assert!(
-            !lint
-                .aspects
+            lint.aspects
                 .iter()
                 .any(|aspect| aspect.contains("real_text_lint")),
-            "lint keeps existing aspects without silent text wiring"
+            "lint wires the text aspect"
         );
         assert_eq!(
             keep_sorted_cli_gap(&["//quality:real_aspects.bzl%real_text_lint_aspect"]),

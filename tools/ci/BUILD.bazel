@@ -32,6 +32,11 @@ filegroup(
     ],
 )
 
+filegroup(
+    name = "bump_auth_fixtures",
+    srcs = glob(["bump_auth_fixtures/**"]),
+)
+
 # keep
 python_library(
     name = "input_validation",
@@ -186,6 +191,22 @@ rust_test(
         "//.github:workflows/reusable-docs.yml",
     ],
     deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "bump_auth_test",
+    size = "small",
+    srcs = ["bump_auth_test.rs"],
+    data = [
+        ":bump_auth_fixtures",
+        "//.github:workflows/bump.yml",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
 )
 
 # keep

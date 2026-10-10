@@ -190,6 +190,31 @@ page URL and checks routes, assets, and search before the clean-checkout
 proof. Enable Pages with source GitHub Actions before the first publishing
 run.
 
+## Bump Workflow
+
+`.github/workflows/bump.yml` opens one dependency PR per run.
+
+Create a GitHub App with `contents: write` and `pull-requests: write`.
+Install it on the repository. Set two secrets:
+
+- `BUMP_APP_ID`: the App ID.
+- `BUMP_APP_PRIVATE_KEY`: the App private key.
+
+Dispatch the workflow with `selector` and `version`:
+
+```sh
+gh workflow run bump.yml -f selector=cargo:anyhow -f version=1.2.3
+```
+
+A run without both inputs lists outdated dependencies and changes nothing.
+
+A dispatched run fails before changing files when the secrets are missing.
+It pushes the branch and opens the PR as the App, so the PR runs the
+required checks. Only the manifest, lock and pin files for the selected set
+are staged. Other changed files fail the run. One run never batches two
+dependencies. Set `automerge` to `true` to merge on the full required-check
+set.
+
 ## Repository Settings
 
 Set these once in the repository. Each caller already grants its job

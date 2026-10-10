@@ -1,0 +1,7 @@
+docs/github-ci.md
+cli/cli/src/main.rs
+tools/ci/input_validation.py
+BUILD.bazel
+.bazelrc
+examples/README.md
+cli/bump/src/lib.rs

@@ -161,6 +161,15 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
         ],
+        "id": "aspect.real_shell_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+        ],
         "id": "aspect.real_typecheck_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
@@ -988,6 +997,15 @@ PROMISES = [
             "//quality:curated_defaults_unit",
         ],
         "id": "curated.rust",
+        "native": False,
+        "owner": "//quality:curated_defaults.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:curated_defaults_unit",
+        ],
+        "id": "curated.shell",
         "native": False,
         "owner": "//quality:curated_defaults.bzl",
         "state": "evidenced",
@@ -2651,12 +2669,13 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
         ],
         "id": "tool.shellcheck",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:shellcheck",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3168,7 +3187,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 342
+PROMISE_COUNT = 344
 
 PROMISE_FAMILIES = [
     "artifact",

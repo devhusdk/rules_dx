@@ -45,6 +45,12 @@ CURATED_DEFAULTS = {
         "lint": ["clippy"],
         "typecheck": ["rustc"],
     },
+    "shell": {
+        "audit": [],
+        "format": [],
+        "lint": ["shellcheck"],
+        "typecheck": [],
+    },
     "starlark": {
         "audit": [],
         "format": ["buildifier"],
@@ -73,6 +79,7 @@ FORMAT_FROZEN = {
     "markdown": [],
     "python": ["ruff"],
     "rust": ["rustfmt"],
+    "shell": [],
     "starlark": ["buildifier"],
     "toml": ["taplo"],
     "typescript": ["biome"],

@@ -11,6 +11,7 @@ load(
     "real_python_lint_aspect",
     "real_rust_format_aspect",
     "real_rust_lint_aspect",
+    "real_shell_lint_aspect",
 )
 
 def _policy_transition_impl(_settings, attr):
@@ -33,6 +34,7 @@ _ASPECTS = [
     real_python_lint_aspect,
     real_rust_format_aspect,
     real_rust_lint_aspect,
+    real_shell_lint_aspect,
 ]
 
 def _dx_result_names(target):

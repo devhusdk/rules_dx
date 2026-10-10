@@ -115,6 +115,8 @@ const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
 const RUBOCOP_ARGS: &[&str] = &["--format", "json"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
+const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
+const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
@@ -859,7 +861,11 @@ pub fn shellcheck_check(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, EMPTY_ARGS, files, "")
+    fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
+}
+
+pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, KEEP_SORTED_FIX_ARGS, files, "")
 }
 
 #[path = "commands_tests.rs"]

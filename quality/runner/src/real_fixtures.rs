@@ -267,6 +267,87 @@ pub(super) const BIOME_LINT_CLEAN: &str =
 pub(super) const BIOME_FMT_DIRTY: &str = r#"{"summary":{"changed":0,"unchanged":1},"diagnostics":[{"severity":"error","message":"Formatter would have printed the following content:","category":"format","location":{"path":"FILE","start":{"line":0,"column":0},"end":{"line":0,"column":0}},"advices":[]}],"command":"format"}"#;
 pub(super) const BIOME_FMT_CLEAN: &str = r#"{"summary":{},"diagnostics":[],"command":"format"}"#;
 pub(super) const ESLINT_DIRTY: &str = r#"[{"filePath":"FILE","messages":[{"ruleId":"no-unused-vars","severity":2,"message":"'unusedVar' is assigned a value but never used.","line":1,"column":7,"endLine":1,"endColumn":16}],"errorCount":1,"warningCount":0}]"#;
+pub(super) const KEEP_SORTED_DIRTY: &str = "# keep-sorted start\nc\nb\na\n# keep-sorted end\n";
+pub(super) const KEEP_SORTED_CLEAN: &str = "# keep-sorted start\na\nb\nc\n# keep-sorted end\n";
+pub(super) const KEEP_SORTED_MESSAGE: &str = "These lines are out of order.";
+
+fn keep_sorted_block(text: &str) -> Option<(usize, usize, Vec<&str>)> {
+    let lines: Vec<&str> = text.lines().collect();
+    let start = lines
+        .iter()
+        .position(|line| *line == "# keep-sorted start")?;
+    let end = lines.iter().position(|line| *line == "# keep-sorted end")?;
+    if end <= start + 1 {
+        return None;
+    }
+    Some((start, end, lines[start + 1..end].to_vec()))
+}
+
+pub(super) fn keep_sorted_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let mode = argv
+        .windows(2)
+        .find(|pair| pair[0] == "--mode")
+        .map(|pair| pair[1].to_string_lossy().into_owned())
+        .expect("keep-sorted always takes --mode");
+    let file = last_file(argv);
+    let bytes = std::fs::read(&file).expect("checked file is materialized");
+    let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+    if mode == "fix" {
+        if let Some((start, end, mut block)) = keep_sorted_block(&text) {
+            block.sort();
+            let mut lines: Vec<&str> = text.lines().collect();
+            lines.splice(start + 1..end, block);
+            let mut fixed = lines.join("\n");
+            if text.ends_with('\n') {
+                fixed.push('\n');
+            }
+            std::fs::write(&file, fixed).expect("fix writes back");
+        }
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    assert_eq!(mode, "lint", "check stays a check");
+    let Some((start, end, block)) = keep_sorted_block(&text) else {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    };
+    let mut sorted = block.clone();
+    sorted.sort();
+    if sorted == block {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    let replacement = sorted.join("\n") + "\n";
+    let stdout = format!(
+        "[{{\"path\":\"{}\",\"lines\":{{\"start\":{},\"end\":{}}},\"message\":\"{}\",\"fixes\":[{{\"replacements\":[{{\"lines\":{{\"start\":{},\"end\":{}}},\"new_content\":\"{}\"}}]}}]}}]",
+        json_escape(&file),
+        start + 2,
+        end,
+        KEEP_SORTED_MESSAGE,
+        start + 2,
+        end,
+        json_escape(&replacement),
+    );
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
 
 pub(super) fn biome_config_dir_arg(argv: &[OsString]) -> String {
     argv.windows(2)

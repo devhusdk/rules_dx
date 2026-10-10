@@ -604,7 +604,7 @@ impl RealBackend {
                         }
                         "yamllint" => parsers::parse_yamllint(&out.stdout, out.code, &strs),
                         "shellcheck" => parsers::parse_shellcheck(&out.stdout, out.code, &strs),
-                        _ => parsers::parse_keep_sorted(&out.stdout, out.code, &strs),
+                        _ => parsers::parse_keep_sorted_lint(&out.stdout, out.code, &strs),
                     };
                     parsed(tool_id, report)
                 }

@@ -73,7 +73,7 @@ pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
 pub use jsonnetfmt::parse_jsonnetfmt;
-pub use keep_sorted::parse_keep_sorted;
+pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
 pub use markdown::parse_markdown_findings;
@@ -1491,6 +1491,14 @@ mod tests {
         super::keep_sorted::parse_keep_sorted(input, code, files)
     }
 
+    fn fuzz_keep_sorted_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::keep_sorted::parse_keep_sorted_lint(input, code, files)
+    }
+
     fn fuzz_ktfmt(
         input: &[u8],
         code: Option<i32>,
@@ -1811,6 +1819,7 @@ mod tests {
         ("govet", fuzz_govet),
         ("jsonnetfmt", fuzz_jsonnetfmt),
         ("keep_sorted", fuzz_keep_sorted),
+        ("keep_sorted_lint", fuzz_keep_sorted_lint),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("parse_markdown_findings", fuzz_markdown_findings),

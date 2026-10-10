@@ -172,10 +172,10 @@ quality_family(
 quality_family(
     name = "default_shell_family",
     disabled = [
-        "format",
         "typecheck",
     ],
     family_id = "shell",
+    format = ["shfmt"],
     lint = ["shellcheck"],
 )
 

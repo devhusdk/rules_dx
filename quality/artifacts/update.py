@@ -486,6 +486,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "shfmt": {
+        "upstream_version": "3.12.0",
+        "release_page": "https://github.com/mvdan/sh/releases/tag/v3.12.0",
+        "licenses": [
+            {
+                "name": "BSD-3-Clause",
+                "source": "https://github.com/mvdan/sh/blob/v3.12.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "shfmt_v3.12.0_linux_amd64",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_amd64",
+                "kind": "raw",
+                "executable": "shfmt_v3.12.0_linux_amd64",
+                "checksums_url": "https://github.com/mvdan/sh/releases/download/v3.12.0/sha256sums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "shfmt_v3.12.0_linux_arm64",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_arm64",
+                "kind": "raw",
+                "executable": "shfmt_v3.12.0_linux_arm64",
+                "checksums_url": "https://github.com/mvdan/sh/releases/download/v3.12.0/sha256sums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "shfmt_v3.12.0_darwin_arm64",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_darwin_arm64",
+                "kind": "raw",
+                "executable": "shfmt_v3.12.0_darwin_arm64",
+                "checksums_url": "https://github.com/mvdan/sh/releases/download/v3.12.0/sha256sums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "shfmt_v3.12.0_windows_amd64.exe",
+                "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_windows_amd64.exe",
+                "kind": "raw",
+                "executable": "shfmt_v3.12.0_windows_amd64.exe",
+                "checksums_url": "https://github.com/mvdan/sh/releases/download/v3.12.0/sha256sums.txt",
+            },
+        },
+    },
 }
 
 
@@ -584,7 +632,7 @@ def _abi_floor(path):
 
 
 def _native_bounds(tool, spec):
-    if tool in ("buildifier", "keep_sorted"):
+    if tool in ("buildifier", "keep_sorted", "shfmt"):
         linkage = "static"
     else:
         linkage = "dynamic"

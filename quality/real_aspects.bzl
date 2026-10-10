@@ -38,6 +38,7 @@ _REAL_TOOL_TABLE = {
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
     "shellcheck": {"capabilities": ["lint"], "shard": "shell"},
+    "shfmt": {"capabilities": ["format"], "shard": "shell"},
     "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
     "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
     "ty": {"capabilities": ["typecheck"], "shard": "core"},
@@ -58,12 +59,13 @@ _RUST_LINT_TOOLS = _shard_tools("rust", "lint")
 _RUST_FORMAT_TOOLS = _shard_tools("rust", "format")
 _RUST_TYPECHECK_TOOLS = _shard_tools("rust", "typecheck")
 _SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
+_SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS)),
+    "format": sorted(set(_CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS)),
     "lint": sorted(set(_CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
@@ -252,6 +254,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["ruff"] = ctx.file._ruff
     if "shellcheck" in stage_tools:
         tool_binaries["shellcheck"] = ctx.file._shellcheck
+    if "shfmt" in stage_tools:
+        tool_binaries["shfmt"] = ctx.file._shfmt
     if "keep_sorted" in stage_tools:
         tool_binaries["keep_sorted"] = ctx.file._keep_sorted
     if "taplo" in stage_tools:
@@ -454,7 +458,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS +
+        _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS
     )
     for tool in allowed:
@@ -557,6 +561,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "shfmt": attr.label(
+        default = "@dx_tools//:shfmt",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
     "keep_sorted": attr.label(
         default = "@dx_tools//:keep_sorted",
         allow_single_file = True,
@@ -596,6 +605,7 @@ _REAL_JVM_FORMAT_ATTRS = _real_attrs_for(_JVM_FORMAT_TOOLS)
 _REAL_PY_LINT_ATTRS = _real_attrs_for(_PY_LINT_TOOLS)
 _REAL_RUST_ATTRS = _REAL_BASE_ATTRS
 _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
+_REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 
 _REAL_SHARDS = {
@@ -610,6 +620,7 @@ _REAL_SHARDS = {
     "real_rust_lint": {"attrs": _REAL_RUST_ATTRS, "capability": "lint", "doc": "Additive Rust lint family aspect (delegated Clippy).", "has_rust": True, "suffix": "-rust", "tools": _RUST_LINT_TOOLS},
     "real_rust_typecheck": {"attrs": _REAL_RUST_ATTRS, "capability": "typecheck", "doc": "Additive Rust typecheck family aspect (delegated rustc).", "has_rust": True, "suffix": "-rust", "tools": _RUST_TYPECHECK_TOOLS},
     "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint family aspect (ShellCheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
+    "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format family aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
     "real_text_lint": {"attrs": _REAL_TEXT_LINT_ATTRS, "capability": "lint", "doc": "Additive text lint family aspect (keep-sorted).", "has_rust": False, "suffix": "-text", "tools": _TEXT_LINT_TOOLS},
     "real_typecheck": {"attrs": _REAL_CORE_ATTRS, "capability": "typecheck", "doc": "Registers the exact-input real typecheck pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_TYPECHECK_TOOLS},
 }
@@ -661,5 +672,7 @@ real_rust_format_aspect = _make_real_aspect("real_rust_format")
 real_rust_typecheck_aspect = _make_real_aspect("real_rust_typecheck")
 
 real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
+
+real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_text_lint_aspect = _make_real_aspect("real_text_lint")

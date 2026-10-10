@@ -161,6 +161,15 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
         ],
+        "id": "aspect.real_shell_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+        ],
         "id": "aspect.real_shell_lint_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
@@ -2758,12 +2767,13 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
         ],
         "id": "tool.shfmt",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:shfmt",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3266,7 +3276,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 352
+PROMISE_COUNT = 353
 
 PROMISE_FAMILIES = [
     "artifact",

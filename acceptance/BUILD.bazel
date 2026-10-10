@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load(":inventory_tests.bzl", "v1_inventory_registry_tests")
+load(":workflow_capability_tests.bzl", "workflow_capability_unit_tests")
 
 package(
     default_testonly = True,
@@ -10,13 +11,20 @@ exports_files([
     "inventory_tests.bzl",
     "testdata/test_targets.txt",
     "v1_inventory.bzl",
+    "workflow_capabilities.bzl",
+    "workflow_capability_tests.bzl",
 ])
 
 v1_inventory_registry_tests(name = "inventory_registry")
 
+workflow_capability_unit_tests(name = "workflow_capability_unit")
+
 test_suite(
     name = "all",
-    tests = [":inventory_registry"],
+    tests = [
+        ":inventory_registry",
+        ":workflow_capability_unit",
+    ],
 )
 
 real_source_target(
@@ -26,6 +34,8 @@ real_source_target(
         "BUILD.bazel",
         "inventory_tests.bzl",
         "v1_inventory.bzl",
+        "workflow_capabilities.bzl",
+        "workflow_capability_tests.bzl",
     ],
     tags = ["corpus"],
 )

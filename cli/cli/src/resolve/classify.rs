@@ -182,7 +182,7 @@ pub(crate) fn resolve_file_owners(
 mod tests {
     use super::*;
     use crate::resolve::query::quote_label;
-    use crate::resolve::{resolve, resolve_for_test, resolve_run};
+    use crate::resolve::{resolve, resolve_for_test, resolve_run, SelectionContext};
     use dx_process::Scope;
     use std::cell::RefCell;
     use std::path::PathBuf;
@@ -816,7 +816,13 @@ mod tests {
                 ResolveError::NotFileOrDir { .. }
             ));
             assert!(matches!(
-                resolve_run(&strings(&["link"]), &workspace, &query, &[]).expect_err("link"),
+                resolve_run(
+                    &strings(&["link"]),
+                    &workspace,
+                    &query,
+                    &SelectionContext::unconfigured(&[]),
+                )
+                .expect_err("link"),
                 ResolveError::NotFileOrDir { .. }
             ));
         }

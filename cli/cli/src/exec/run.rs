@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use crate::plan::{plan_run, plan_run_build, shell_join};
 use crate::reports::plan_reports;
-use crate::resolve::{resolve_run, ResolveError};
+use crate::resolve::{resolve_run, ResolveError, SelectionContext};
 use dx_output::{
     command_finished, command_started, error_event, operation_event, write_event, FinishedCounts,
     OutputMode,
@@ -46,11 +46,12 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(err, &error.to_string()),
     };
     debug_assert!(planned_reports.is_empty(), "dx run takes no --report");
+    let selection = SelectionContext::for_run(invocation.profile(), &invocation.bazel_startup_options);
     let targets = match resolve_run(
         &invocation.targets,
         workspace,
         query_runner,
-        &invocation.bazel_startup_options,
+        &selection,
     ) {
         Ok(targets) => targets,
         Err(error) => {
@@ -66,9 +67,9 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     };
     if targets.len() == 1 {
-        return execute_run_single(invocation, workspace, runner, out, err, &targets[0]);
+        return execute_run_single(invocation, workspace, runner, out, err, &targets[0], &selection);
     }
-    execute_run_multi(invocation, workspace, runner, out, err, &targets)
+    execute_run_multi(invocation, workspace, runner, out, err, &targets, &selection)
 }
 
 fn apply_hint(invocation: &Invocation, targets: &[String]) -> String {
@@ -87,13 +88,31 @@ fn apply_hint(invocation: &Invocation, targets: &[String]) -> String {
     shell_join(&words)
 }
 
-fn emit_build_operations(out: &mut dyn Write, command: &str, targets: &[String]) {
+fn selection_detail(selection: &SelectionContext) -> serde_json::Value {
+    serde_json::json!({
+        "provenance": selection.provenance().name(),
+        "tool": "cquery",
+        "config": selection.config_options(),
+        "ownership": crate::resolve::SelectionProvenance::Unconfigured.name(),
+    })
+}
+
+fn emit_build_operations(
+    out: &mut dyn Write,
+    command: &str,
+    targets: &[String],
+    selection: &SelectionContext,
+) {
     use dx_output::with_correlation;
     for target in targets {
         let scope = [target.clone()];
         if let Ok(event) = operation_event(command, "build", Some(&scope)) {
             let correlation = format!("run:{target}");
             let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
+            let mut event = event;
+            if let Some(map) = event.as_object_mut() {
+                map.insert("selection".to_owned(), selection_detail(selection));
+            }
             let _ = write_event(out, &event);
         }
     }
@@ -106,6 +125,7 @@ fn execute_run_check(
     out: &mut dyn Write,
     err: &mut dyn Write,
     targets: &[String],
+    selection: &SelectionContext,
 ) -> i32 {
     let plan = plan_run_build(
         targets,
@@ -116,7 +136,7 @@ fn execute_run_check(
         if let Ok(event) = command_started(invocation.command.name(), false, "check") {
             let _ = write_event(out, &event);
         }
-        emit_build_operations(out, invocation.command.name(), targets);
+        emit_build_operations(out, invocation.command.name(), targets, selection);
         let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
             Ok(code) => code,
             Err(exit) => return exit,
@@ -159,13 +179,22 @@ fn execute_run_check(
     0
 }
 
-fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) {
+fn emit_run_operations(
+    out: &mut dyn Write,
+    command: &str,
+    targets: &[String],
+    selection: &SelectionContext,
+) {
     use dx_output::with_correlation;
     for target in targets {
         let scope = [target.clone()];
         if let Ok(event) = operation_event(command, "execute", Some(&scope)) {
             let correlation = format!("run:{target}");
             let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
+            let mut event = event;
+            if let Some(map) = event.as_object_mut() {
+                map.insert("selection".to_owned(), selection_detail(selection));
+            }
             let _ = write_event(out, &event);
         }
     }
@@ -178,6 +207,7 @@ fn execute_run_single(
     out: &mut dyn Write,
     err: &mut dyn Write,
     target: &str,
+    selection: &SelectionContext,
 ) -> i32 {
     let plan = plan_run(
         target,
@@ -190,7 +220,7 @@ fn execute_run_single(
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
                 let _ = write_event(out, &event);
             }
-            emit_run_operations(out, invocation.command.name(), &[target.to_owned()]);
+            emit_run_operations(out, invocation.command.name(), &[target.to_owned()], selection);
             let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
         } else if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
@@ -205,13 +235,14 @@ fn execute_run_single(
             out,
             err,
             &[target.to_owned()],
+            selection,
         );
     }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
             let _ = write_event(out, &event);
         }
-        emit_run_operations(out, invocation.command.name(), &[target.to_owned()]);
+        emit_run_operations(out, invocation.command.name(), &[target.to_owned()], selection);
         let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
             Ok(code) => code,
             Err(exit) => return exit,
@@ -246,13 +277,14 @@ fn execute_run_multi(
     out: &mut dyn Write,
     err: &mut dyn Write,
     targets: &[String],
+    selection: &SelectionContext,
 ) -> i32 {
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
                 let _ = write_event(out, &event);
             }
-            emit_run_operations(out, invocation.command.name(), targets);
+            emit_run_operations(out, invocation.command.name(), targets, selection);
             let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
         } else if !invocation.quiet {
             for target in targets {
@@ -268,13 +300,13 @@ fn execute_run_multi(
         return 0;
     }
     if !invocation.applies() {
-        return execute_run_check(invocation, workspace, runner, out, err, targets);
+        return execute_run_check(invocation, workspace, runner, out, err, targets, selection);
     }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), false, "default") {
             let _ = write_event(out, &event);
         }
-        emit_run_operations(out, invocation.command.name(), targets);
+        emit_run_operations(out, invocation.command.name(), targets, selection);
         for target in targets {
             let plan = plan_run(
                 target,
@@ -713,6 +745,130 @@ mod tests {
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("command_started"), "{out}");
         assert!(out.contains("command_finished"), "{out}");
+    }
+
+    #[test]
+    fn run_selection_shares_the_execution_config() {
+        let harness = Harness::new("run-selection-config");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:bin (62a8b64)\n");
+        let inv = invocation(&["run", "--apply", "pkg/a.py"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 1, "{queries:?}");
+        assert!(
+            queries[0].contains(&"cquery".to_owned()),
+            "discovery evaluates configuration: {queries:?}"
+        );
+        assert!(
+            queries[0].contains(&"--config=dx_dev".to_owned()),
+            "discovery shares the execution config: {queries:?}"
+        );
+        assert_eq!(run.argv.len(), 1, "{run:?}");
+        assert!(
+            run.argv[0].contains(&"--config=dx_dev".to_owned()),
+            "execution runs under the selected config: {run:?}"
+        );
+    }
+
+    #[test]
+    fn run_selection_never_forwards_app_args() {
+        let harness = Harness::new("run-selection-apps");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:bin\n");
+        let inv = invocation(&[
+            "run",
+            "--apply",
+            "pkg/a.py",
+            "--",
+            "--config=evil",
+            "--platforms=//evil:platform",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 1, "{queries:?}");
+        for argv in queries.iter() {
+            assert!(
+                !argv.iter().any(|arg| arg.contains("evil")),
+                "app args stay out of selection: {argv:?}"
+            );
+        }
+        assert!(
+            run.argv[0].contains(&"--config=evil".to_owned()),
+            "app args still reach the application: {run:?}"
+        );
+    }
+
+    #[test]
+    fn run_selection_follows_the_profile_flag() {
+        let harness = Harness::new("run-selection-profile");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:bin\n");
+        let inv = invocation(&["run", "--apply", "--debug", "pkg/a.py"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 1, "{queries:?}");
+        assert!(
+            queries[0].contains(&"--config=dx_debug".to_owned()),
+            "{queries:?}"
+        );
+        assert!(
+            run.argv[0].contains(&"--config=dx_debug".to_owned()),
+            "{run:?}"
+        );
+    }
+
+    #[test]
+    fn run_json_operations_carry_selection_provenance() {
+        let harness = Harness::new("run-json-selection");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness.query.script_owners("//pkg:bin\n");
+        let inv = invocation(&["run", "--apply", "pkg/a.py", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        let events = json_events(&run.out);
+        let op = event(&events, "operation");
+        assert_eq!(
+            op["selection"]["provenance"],
+            serde_json::json!("configured"),
+            "{op}"
+        );
+        assert_eq!(op["selection"]["tool"], serde_json::json!("cquery"), "{op}");
+        assert_eq!(
+            op["selection"]["config"],
+            serde_json::json!(["--config=dx_dev"]),
+            "{op}"
+        );
+        assert_eq!(
+            op["selection"]["ownership"],
+            serde_json::json!("unconfigured"),
+            "{op}"
+        );
+    }
+
+    #[test]
+    fn run_summaries_name_the_execution_config() {
+        let harness = Harness::new("run-summary-config");
+        let (code, _, err) = harness.run(&["run", "//app:bin", "--dry-run"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("Running run for //app:bin (--config=dx_dev)"),
+            "{err}"
+        );
+        let harness = Harness::new("run-summary-check");
+        let (code, _, err) = harness.run(&["run", "--debug", "//app:bin"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("Running run build for //app:bin (--config=dx_debug)"),
+            "{err}"
+        );
     }
 
     #[test]

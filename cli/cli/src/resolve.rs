@@ -4,6 +4,7 @@ pub mod entry;
 pub mod packages;
 pub mod query;
 pub mod run_deploy;
+pub mod selection;
 pub mod test_map;
 pub mod types;
 
@@ -15,6 +16,7 @@ pub(crate) use query::{
     owned_sources_expression, ownership_set_expression, quote_set, run_label_query,
 };
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
+pub use selection::{SelectionContext, SelectionProvenance};
 pub use test_map::map_owners_to_tests;
 #[cfg(test)]
 pub(crate) use types::NeverQuery;
@@ -115,7 +117,7 @@ mod tests {
         write(&workspace, "pkg/a.py", "x = 1\n");
         let err = resolve(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
-        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
+        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &FailIo, &SelectionContext::unconfigured(&[])).expect_err("io");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
         let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &FailIo, &[])
             .expect_err("io");
@@ -132,7 +134,7 @@ mod tests {
             resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("resolve"),
             resolve_for_test(&strings(&["pkg/a.py"]), &workspace, &query, &[])
                 .expect_err("resolve_for_test"),
-            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("resolve_run"),
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &SelectionContext::unconfigured(&[])).expect_err("resolve_run"),
         ] {
             assert_eq!(
                 err,
@@ -162,13 +164,13 @@ mod tests {
             }
         );
         assert_eq!(
-            resolve_run(&strings(&["@r//p"]), &workspace, &query, &[]).expect_err("ext"),
+            resolve_run(&strings(&["@r//p"]), &workspace, &query, &SelectionContext::unconfigured(&[])).expect_err("ext"),
             ResolveError::ExternalScope {
                 scope: "@r//p".to_owned(),
             }
         );
         assert_eq!(
-            resolve_run(&strings(&[":c"]), &workspace, &query, &[]).expect_err("rel"),
+            resolve_run(&strings(&[":c"]), &workspace, &query, &SelectionContext::unconfigured(&[])).expect_err("rel"),
             ResolveError::RelativeLabel {
                 scope: ":c".to_owned(),
             }
@@ -187,7 +189,7 @@ mod tests {
             }
         );
         assert_eq!(
-            resolve_run(&strings(&["nope.py"]), &workspace, &query, &[]).expect_err("missing"),
+            resolve_run(&strings(&["nope.py"]), &workspace, &query, &SelectionContext::unconfigured(&[])).expect_err("missing"),
             ResolveError::PathNotFound {
                 scope: "nope.py".to_owned(),
             }
@@ -201,7 +203,7 @@ mod tests {
         let query = NeverQuery;
         for scope in ["app\x01", "app\x01/main.py"] {
             assert_eq!(
-                resolve_run(&strings(&[scope]), &workspace, &query, &[]).expect_err("control"),
+                resolve_run(&strings(&[scope]), &workspace, &query, &SelectionContext::unconfigured(&[])).expect_err("control"),
                 ResolveError::UnsupportedName {
                     scope: scope.to_owned(),
                 },

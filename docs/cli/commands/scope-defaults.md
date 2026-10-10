@@ -53,6 +53,9 @@ Patterns, paths, and multiple labels are usage errors.
 - Labels and patterns: `//...`, `//pkg:target`, `@repo//...`.
 - Files and dirs: workspace-relative paths resolved through `bazel query`
   to the owning targets.
+- Runnable file and dir scopes resolve through `bazel cquery` under the
+  execution profile config, so the selected target matches the build. App
+  arguments after `--` never enter selection.
 - Paths with control characters in a file or directory name are refused.
 - `--here` (`--cwd` alias): the current directory tree (`//path/...`,
   `//...` at the root). Never combines with explicit scopes. Accepted by

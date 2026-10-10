@@ -106,6 +106,7 @@ rust_library(
         "src/resolve/packages.rs",
         "src/resolve/query.rs",
         "src/resolve/run_deploy.rs",
+        "src/resolve/selection.rs",
         "src/resolve/test_map.rs",
         "src/resolve/types.rs",
         "src/skew.rs",

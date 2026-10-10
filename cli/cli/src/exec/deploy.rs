@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::{resolve_profile, Command, Invocation, Profile, DX_PROFILE_ENV};
 use crate::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use crate::reports::plan_reports;
-use crate::resolve::{check_deployable, resolve_deploy};
+use crate::resolve::{check_deployable, resolve_deploy, SelectionContext};
 use dx_output::{command_finished, command_started, write_event, FinishedCounts, OutputMode};
 
 pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -32,12 +32,9 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(label) => label,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let info = match check_deployable(
-        &label,
-        workspace,
-        query_runner,
-        &invocation.bazel_startup_options,
-    ) {
+    let inspection =
+        SelectionContext::for_run(invocation.profile(), &invocation.bazel_startup_options);
+    let mut info = match check_deployable(&label, workspace, query_runner, &inspection) {
         Ok(info) => info,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
@@ -51,6 +48,14 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         attr,
         Profile::default_for(Command::Deploy),
     );
+    if profile != invocation.profile() {
+        let execution =
+            SelectionContext::for_run(profile, &invocation.bazel_startup_options);
+        info = match check_deployable(&label, workspace, query_runner, &execution) {
+            Ok(info) => info,
+            Err(error) => return pre_exec(err, &error.to_string()),
+        };
+    }
     let build_plan = plan_deploy_build(&label, profile, &invocation.bazel_startup_options);
     let run_plan = plan_deploy_run(
         &label,
@@ -123,8 +128,9 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     if !invocation.quiet {
         let _ = writeln!(
             err,
-            "Running deploy for {label} (profile {})",
-            profile.name()
+            "Running deploy for {label} (profile {}, {})",
+            profile.name(),
+            profile.config_flag()
         );
     }
     let build_code = match run_bazel(
@@ -273,6 +279,11 @@ mod tests {
         assert!(err.contains("run:"), "{err}");
         assert!(err.contains("--config=dx_release"), "{err}");
         assert_eq!(harness.query.calls.borrow().len(), 1, "one cquery");
+        assert!(
+            harness.query.calls.borrow()[0].contains(&"--config=dx_release".to_owned()),
+            "inspection shares the execution config: {:?}",
+            harness.query.calls.borrow()
+        );
     }
 
     #[test]
@@ -296,13 +307,33 @@ mod tests {
             seen_env[1].contains(&("DX_PROFILE".to_owned(), "release".to_owned())),
             "{seen_env:?}"
         );
-        let harness = harness_with_deploy("deploy-attr", "True|debug|None|True");
+        let harness = Harness::new("deploy-attr");
+        harness
+            .query
+            .outputs
+            .borrow_mut()
+            .push(deploy_query_output("True|debug|None|True"));
+        harness
+            .query
+            .outputs
+            .borrow_mut()
+            .push(deploy_query_output("True|debug|None|True"));
         let inv = invocation(&["deploy", "--apply", "//deploy:prod"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert!(
             run.argv[0].contains(&"--config=dx_debug".to_owned()),
             "{run:?}"
+        );
+        let queries = harness.query.calls.borrow();
+        assert_eq!(queries.len(), 2, "re-inspect under the resolved profile");
+        assert!(
+            queries[0].contains(&"--config=dx_release".to_owned()),
+            "first inspection uses the invocation profile: {queries:?}"
+        );
+        assert!(
+            queries[1].contains(&"--config=dx_debug".to_owned()),
+            "second inspection uses the execution profile: {queries:?}"
         );
     }
 

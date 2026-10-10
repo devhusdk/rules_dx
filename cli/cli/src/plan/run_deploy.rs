@@ -15,7 +15,11 @@ pub fn plan_run_targets(
         argv.push("--".to_owned());
         argv.extend(app_args.iter().cloned());
     }
-    let summary = format!("Running run for {}", targets.join(" "));
+    let summary = format!(
+        "Running run for {} ({})",
+        targets.join(" "),
+        profile.config_flag()
+    );
     BuildPlan { argv, summary }
 }
 
@@ -38,7 +42,11 @@ pub fn plan_run_build(
     argv.push("build".to_owned());
     argv.push(profile.config_flag());
     argv.extend(targets.iter().cloned());
-    let summary = format!("Running run build for {}", targets.join(" "));
+    let summary = format!(
+        "Running run build for {} ({})",
+        targets.join(" "),
+        profile.config_flag()
+    );
     BuildPlan { argv, summary }
 }
 
@@ -70,7 +78,10 @@ pub fn plan_deploy_build(
     argv.push("build".to_owned());
     argv.push(profile.config_flag());
     argv.push(label.to_owned());
-    let summary = format!("Running deploy build for {label}");
+    let summary = format!(
+        "Running deploy build for {label} ({})",
+        profile.config_flag()
+    );
     BuildPlan { argv, summary }
 }
 
@@ -81,7 +92,7 @@ pub fn plan_deploy_run(
     startup_options: &[String],
 ) -> BuildPlan {
     let plan = plan_run(label, app_args, profile, startup_options);
-    let summary = format!("Running deploy run for {label}");
+    let summary = format!("Running deploy run for {label} ({})", profile.config_flag());
     BuildPlan {
         argv: plan.argv,
         summary,

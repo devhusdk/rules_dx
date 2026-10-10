@@ -3,7 +3,8 @@ use std::path::Path;
 use super::classify::classify_scopes;
 use super::classify::resolve_file_owners;
 use super::packages::PackageCache;
-use super::{first_line, quote_set, run_label_query, QueryRunner, ResolveError};
+use super::selection::{parse_configured_labels, SelectionContext};
+use super::{first_line, quote_set, QueryRunner, ResolveError};
 
 fn runnable_set_expression(labels: &[String]) -> String {
     format!(
@@ -20,15 +21,38 @@ fn is_run_pattern(label: &str) -> bool {
     label.contains("...") || label.contains('*')
 }
 
+fn run_configured_query(
+    expression: &str,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    selection: &SelectionContext,
+) -> Result<Vec<String>, ResolveError> {
+    let argv = selection.cquery_argv(expression);
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| ResolveError::QueryFailed {
+            label: expression.to_owned(),
+            detail: error.to_string(),
+        })?;
+    if result.code != Some(0) {
+        return Err(ResolveError::QueryFailed {
+            label: expression.to_owned(),
+            detail: first_line(&result.stderr),
+        });
+    }
+    parse_configured_labels(&result.stdout, expression)
+}
+
 pub fn resolve_run(
     scopes: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,
-    startup_options: &[String],
+    selection: &SelectionContext,
 ) -> Result<Vec<String>, ResolveError> {
     if scopes.is_empty() {
         return Err(ResolveError::EmptyScope);
     }
+    let startup_options = selection.startup_options();
     let mut cache = PackageCache::default();
     let classified = classify_scopes(scopes, workspace, &mut cache)?;
     if classified.files.is_empty() && classified.patterns.is_empty() {
@@ -38,11 +62,11 @@ pub fn resolve_run(
         let mut targets: Vec<String> = Vec::new();
         for label in &classified.labels {
             if is_run_pattern(label) {
-                targets.extend(run_label_query(
+                targets.extend(run_configured_query(
                     &dir_runnable_expression(label),
                     workspace,
                     runner,
-                    startup_options,
+                    selection,
                 )?);
             } else {
                 targets.push(label.clone());
@@ -64,11 +88,11 @@ pub fn resolve_run(
             .iter()
             .map(|file| file.label.clone())
             .collect();
-        let found = run_label_query(
+        let found = run_configured_query(
             &runnable_set_expression(&labels),
             workspace,
             runner,
-            startup_options,
+            selection,
         )?;
         if found.is_empty() {
             resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
@@ -80,11 +104,11 @@ pub fn resolve_run(
         }
     }
     for pattern in &classified.patterns {
-        let found = run_label_query(
+        let found = run_configured_query(
             &dir_runnable_expression(pattern),
             workspace,
             runner,
-            startup_options,
+            selection,
         )?;
         candidates.extend(found);
     }
@@ -141,9 +165,10 @@ fn deploy_starlark_expr() -> String {
     )
 }
 
-fn deploy_query_argv(label: &str, startup_options: &[String]) -> Vec<String> {
-    let mut argv = dx_process::startup_argv(startup_options);
+fn deploy_query_argv(label: &str, selection: &SelectionContext) -> Vec<String> {
+    let mut argv = dx_process::startup_argv(selection.startup_options());
     argv.push("cquery".to_owned());
+    argv.extend(selection.config_options().iter().cloned());
     argv.push(label.to_owned());
     argv.push("--output=starlark".to_owned());
     argv.push(format!("--starlark:expr={}", deploy_starlark_expr()));
@@ -154,9 +179,9 @@ pub fn check_deployable(
     label: &str,
     workspace: &Path,
     runner: &dyn QueryRunner,
-    startup_options: &[String],
+    selection: &SelectionContext,
 ) -> Result<DeployInfo, ResolveError> {
-    let argv = deploy_query_argv(label, startup_options);
+    let argv = deploy_query_argv(label, selection);
     let result = runner
         .run_query(&argv, workspace)
         .map_err(|error| ResolveError::QueryFailed {
@@ -234,12 +259,18 @@ pub fn check_deployable(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::args::Profile;
     use crate::resolve::NeverQuery;
     use crate::resolve::QueryResult;
+    use crate::resolve::SelectionContext;
     use crate::test_support::strings;
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;
+
+    fn dev_selection() -> SelectionContext {
+        SelectionContext::for_run(Profile::Dev, &[])
+    }
 
     struct FakeQuery {
         calls: RefCell<Vec<(Vec<String>, PathBuf)>>,
@@ -294,7 +325,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-labels-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let got = resolve_run(&strings(&["//app:bin"]), &workspace, &query, &[]).expect("resolve");
+        let got = resolve_run(&strings(&["//app:bin"]), &workspace, &query, &dev_selection()).expect("resolve");
         assert_eq!(got, strings(&["//app:bin"]));
     }
 
@@ -303,7 +334,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let err = resolve_run(&[], &workspace, &query, &[]).expect_err("empty");
+        let err = resolve_run(&[], &workspace, &query, &dev_selection()).expect_err("empty");
         assert_eq!(err, ResolveError::EmptyScope);
     }
 
@@ -315,14 +346,49 @@ mod tests {
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("//app:bin\n")]);
         let got =
-            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &[]).expect("resolve");
+            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &dev_selection()).expect("resolve");
         assert_eq!(got, strings(&["//app:bin"]));
         let calls = query.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(
-            calls[0].0.last().expect("expression"),
-            "kind('.*_binary rule', rdeps(//..., set(\"//app:main.py\"), 1))"
+            calls[0].0,
+            strings(&[
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "cquery",
+                "--config=dx_dev",
+                "--",
+                "kind('.*_binary rule', rdeps(//..., set(\"//app:main.py\"), 1))",
+            ])
         );
+    }
+
+    #[test]
+    fn run_discovery_strips_configuration_suffixes() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-configured-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "app/BUILD.bazel", "");
+        write(&workspace, "app/main.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::ok("//app:bin (62a8b64)\n")]);
+        let got =
+            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &dev_selection()).expect("resolve");
+        assert_eq!(got, strings(&["//app:bin"]));
+    }
+
+    #[test]
+    fn run_discovery_failure_is_not_empty_success() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-config-fail-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "app/BUILD.bazel", "");
+        write(&workspace, "app/main.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::failed(
+            "ERROR: configurable attribute \"srcs\" doesn't match this configuration",
+        )]);
+        let err =
+            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &dev_selection()).expect_err("fail");
+        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
+        assert!(err.to_string().contains("doesn't match"), "{err}");
     }
 
     #[test]
@@ -333,7 +399,7 @@ mod tests {
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("//pkg:lib\n")]);
         let err =
-            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("no runnable");
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &dev_selection()).expect_err("no runnable");
         assert_eq!(
             err,
             ResolveError::NoRunnable {
@@ -351,7 +417,7 @@ mod tests {
         write(&workspace, "pkg/a.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("\n")]);
         let err =
-            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("no owner");
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &dev_selection()).expect_err("no owner");
         assert_eq!(
             err,
             ResolveError::NoOwner {
@@ -377,7 +443,7 @@ mod tests {
             &strings(&["pkg/run.py", "pkg/orphan.py"]),
             &workspace,
             &query,
-            &[],
+            &dev_selection(),
         )
         .expect_err("partial ownership must fail");
         assert_eq!(
@@ -406,7 +472,7 @@ mod tests {
             &strings(&["pkg/run.py", "pkg/helper.py"]),
             &workspace,
             &query,
-            &[],
+            &dev_selection(),
         )
         .expect("resolve");
         assert_eq!(got, strings(&["//pkg:bin"]));
@@ -419,7 +485,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = FakeQuery::new(vec![FakeQuery::ok("//app:two\n//app:one\n")]);
-        let err = resolve_run(&strings(&["app"]), &workspace, &query, &[]).expect_err("ambiguous");
+        let err = resolve_run(&strings(&["app"]), &workspace, &query, &dev_selection()).expect_err("ambiguous");
         assert_eq!(
             err,
             ResolveError::AmbiguousRunnable {
@@ -446,7 +512,7 @@ mod tests {
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::failed("nope\n")]);
         let err =
-            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &[]).expect_err("fail");
+            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &dev_selection()).expect_err("fail");
         assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
     }
 
@@ -461,7 +527,7 @@ mod tests {
             &strings(&["//app:bin", "app/main.py"]),
             &workspace,
             &query,
-            &[],
+            &dev_selection(),
         )
         .expect("mixed");
         assert_eq!(got, strings(&["//app:bin"]));
@@ -476,7 +542,7 @@ mod tests {
             FakeQuery::ok("//b:two\n//b:one\n"),
             FakeQuery::ok("//a:two\n//a:one\n"),
         ]);
-        let got = resolve_run(&strings(&["//b/...", "//a/..."]), &workspace, &query, &[])
+        let got = resolve_run(&strings(&["//b/...", "//a/..."]), &workspace, &query, &dev_selection())
             .expect("cross-pattern");
         assert_eq!(
             got,
@@ -487,7 +553,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok("//a:bin\n//a:other\n")]);
         let got =
-            resolve_run(&strings(&["//a:bin", "//a/..."]), &workspace, &query, &[]).expect("dedup");
+            resolve_run(&strings(&["//a:bin", "//a/..."]), &workspace, &query, &dev_selection()).expect("dedup");
         assert_eq!(got, strings(&["//a:bin", "//a:other"]));
     }
 
@@ -499,7 +565,7 @@ mod tests {
         write(&workspace, "app/main.py", "x = 1\n");
         let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("//app:lib\n")]);
         let err =
-            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &[]).expect_err("alias");
+            resolve_run(&strings(&["app/main.py"]), &workspace, &query, &dev_selection()).expect_err("alias");
         assert_eq!(
             err,
             ResolveError::NoRunnable {
@@ -509,6 +575,33 @@ mod tests {
         assert!(
             err.to_string().contains("explicit runnable label"),
             "alias fail-closed must hint explicit label: {err}"
+        );
+    }
+
+    #[test]
+    fn deploy_inspection_runs_under_the_execution_config() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-deploy-config-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![FakeQuery::ok("True|release|my_app|True\n")]);
+        let selection = SelectionContext::for_run(Profile::Release, &[]);
+        let info =
+            check_deployable("//deploy:prod", &workspace, &query, &selection).expect("inspect");
+        assert_eq!(info.label, "//deploy:prod");
+        assert!(info.has_provider);
+        assert_eq!(info.profile_raw, "release");
+        assert_eq!(info.app_raw, "my_app");
+        assert!(info.executable);
+        let calls = query.calls();
+        assert_eq!(calls.len(), 1);
+        let argv = &calls[0].0;
+        assert_eq!(argv[3], "cquery", "{argv:?}");
+        assert!(
+            argv.contains(&"--config=dx_release".to_owned()),
+            "inspection shares the execution config: {argv:?}"
+        );
+        assert!(
+            !argv.contains(&"--".to_owned()),
+            "label queries keep the established shape: {argv:?}"
         );
     }
 }

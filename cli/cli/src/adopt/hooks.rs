@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use crate::args::{Command, Invocation};
 use crate::exec::common::check_stdout_write;
 
-use crate::resolve::{QueryResult, QueryRunner};
+use crate::resolve::QueryRunner;
 
 use super::{operational, pre_exec, summaries_suppressed};
 
@@ -397,9 +397,9 @@ fn execute_run(
         }
         return 0;
     }
-    let (changes, source) = match trigger {
+    let (changes, source, bases) = match trigger {
         "pre-commit" => match staged_changes(&git, workspace, query_runner) {
-            Ok(changes) => (changes, dx_adopt::ChangeSource::Staged),
+            Ok(changes) => (changes, dx_adopt::ChangeSource::Staged, Vec::new()),
             Err(detail) => {
                 return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
             }
@@ -428,8 +428,9 @@ fn execute_run(
                 }
                 return 0;
             }
+            let bases = push_bases(&refs);
             match pushed_changes(&git, workspace, query_runner, &refs) {
-                Ok(changes) => (changes, dx_adopt::ChangeSource::Pushed),
+                Ok(changes) => (changes, dx_adopt::ChangeSource::Pushed, bases),
                 Err(detail) => {
                     return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
                 }
@@ -448,19 +449,28 @@ fn execute_run(
         }
         return 0;
     }
-    let targets = match change_targets(
+    let selection = match crate::resolve::changed::resolve_affected(
         &changes,
         workspace,
         query_runner,
         &invocation.bazel_startup_options,
     ) {
-        Ok(targets) => targets,
-        Err(detail) => {
-            return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
+        Ok(selection) => selection,
+        Err(error) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string());
         }
     };
     if !summaries_suppressed(invocation) {
-        let line = dx_adopt::render_selection_line(trigger, &source, changes.len(), targets.len());
+        let mut line = dx_adopt::render_selection_line(
+            trigger,
+            &source,
+            changes.len(),
+            selection.targets.len(),
+        );
+        if !bases.is_empty() {
+            line.push_str(&format!("; base {}", bases.join(", ")));
+        }
+        line.push_str(&selection.explain_suffix());
         if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
             return exit;
         }
@@ -481,7 +491,7 @@ fn execute_run(
     let hook_start = Instant::now();
     for check in &checks {
         let display = dx_adopt::display_hook_check(check);
-        let argv = check_argv(&dx_exe, &check.words, &targets);
+        let argv = check_argv(&dx_exe, &check.words, &selection.targets);
         let spent = hook_start.elapsed().as_secs_f64();
         if dx_adopt::hook_check_timed_out(spent, config.budget_secs) {
             return operational(
@@ -593,30 +603,12 @@ fn read_push_stdin(injected: Option<&[u8]>) -> Result<Vec<u8>, String> {
     }
 }
 
-fn run_git_name_status(
-    git: &std::path::Path,
-    workspace: &std::path::Path,
-    query_runner: &dyn QueryRunner,
-    extra: &[String],
-) -> Result<Vec<dx_adopt::GitChange>, String> {
-    let mut argv = vec![git.to_string_lossy().into_owned()];
-    argv.extend(extra.iter().cloned());
-    let result: QueryResult = query_runner
-        .run_query(&argv, workspace)
-        .map_err(|error| format!("hook git diff failed: {error}"))?;
-    if result.code != Some(0) {
-        let detail = first_line(&result.stderr);
-        return Err(format!("hook git diff failed: {detail}"));
-    }
-    dx_adopt::parse_name_status_nul(&result.stdout)
-}
-
 fn staged_changes(
     git: &std::path::Path,
     workspace: &std::path::Path,
     query_runner: &dyn QueryRunner,
 ) -> Result<Vec<dx_adopt::GitChange>, String> {
-    run_git_name_status(
+    crate::resolve::changed::diff_name_status(
         git,
         workspace,
         query_runner,
@@ -641,7 +633,7 @@ fn pushed_changes(
         let Some(base) = dx_adopt::push_diff_base(push_ref) else {
             continue;
         };
-        changes.extend(run_git_name_status(
+        changes.extend(crate::resolve::changed::diff_name_status(
             git,
             workspace,
             query_runner,
@@ -657,42 +649,21 @@ fn pushed_changes(
     Ok(dx_adopt::dedupe_changes(changes))
 }
 
-fn change_targets(
-    changes: &[dx_adopt::GitChange],
-    workspace: &std::path::Path,
-    query_runner: &dyn QueryRunner,
-    startup_options: &[String],
-) -> Result<Vec<String>, String> {
-    let mut existing = Vec::new();
-    let mut missing = Vec::new();
-    for change in changes {
-        for path in change.from.iter().chain(std::iter::once(&change.path)) {
-            if workspace.join(path).is_file() || workspace.join(path).is_dir() {
-                existing.push(path.clone());
+fn push_bases(refs: &[dx_adopt::PushRef]) -> Vec<String> {
+    let mut bases: Vec<String> = refs
+        .iter()
+        .filter_map(dx_adopt::push_diff_base)
+        .map(|base| {
+            if base == dx_adopt::EMPTY_TREE_SHA {
+                "empty-tree".to_owned()
             } else {
-                missing.push(path.clone());
+                base.chars().take(12).collect()
             }
-        }
-    }
-    existing.sort();
-    existing.dedup();
-    missing.sort();
-    missing.dedup();
-    let mut targets = if existing.is_empty() {
-        Vec::new()
-    } else {
-        crate::resolve::resolve(&existing, workspace, query_runner, startup_options)
-            .map(|resolved| resolved.targets)
-            .map_err(|error| error.to_string())?
-    };
-    for path in &missing {
-        if !existing.iter().any(|kept| path == kept) {
-            targets.push(dx_adopt::nearest_package_pattern(workspace, path));
-        }
-    }
-    targets.sort();
-    targets.dedup();
-    Ok(targets)
+        })
+        .collect();
+    bases.sort();
+    bases.dedup();
+    bases
 }
 
 fn check_argv(dx_exe: &str, words: &[String], targets: &[String]) -> Vec<String> {
@@ -746,6 +717,7 @@ mod tests {
     use crate::adopt::test_support::{
         invocation, run, run_with, run_with_query, NullQuery, NullRunner, RepeatQuery,
     };
+    use crate::resolve::QueryResult;
     use std::cell::RefCell;
     use std::io;
     use std::path::{Path, PathBuf};
@@ -2148,6 +2120,34 @@ mod tests {
     }
 
     #[test]
+    fn hooks_run_precommit_widens_workspace_inputs_to_repository() {
+        let inv = invocation(&["hooks", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-workspace-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        std::fs::write(root.join("MODULE.bazel"), "module(name = \"demo\")\n").expect("module");
+        let query = ScriptQuery::staged_then_owners("M\0MODULE.bazel\0", "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
+        let (code, out, err) = run_with_stdin(&inv, &root, &query, &runner, None);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("staged 1 file(s) as 1 target(s)"), "{out}");
+        assert!(
+            out.contains("widened //... (workspace input MODULE.bazel)"),
+            "{out}"
+        );
+        assert!(
+            runner.seen.borrow()[0].contains(&"//...".to_owned()),
+            "{:?}",
+            runner.seen.borrow()
+        );
+        assert_eq!(
+            query.seen.borrow().len(),
+            1,
+            "workspace inputs skip queries"
+        );
+    }
+
+    #[test]
     fn hooks_run_precommit_rejects_control_character_names_explicitly() {
         let inv = invocation(&["hooks", "run", "pre-commit"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-control-");
@@ -2288,9 +2288,23 @@ mod tests {
             .find(|change| change.path == "pkg/old.py")
             .expect("deleted change");
         assert_eq!(deleted.kind, dx_adopt::ChangeKind::Deleted);
-        let targets = change_targets(&staged, &root, &runner, &[]).expect("targets");
-        assert!(targets.contains(&"//pkg:lib".to_owned()), "{targets:?}");
-        assert!(targets.contains(&"//pkg/...".to_owned()), "{targets:?}");
+        let selection = crate::resolve::changed::resolve_affected(&staged, &root, &runner, &[])
+            .expect("targets");
+        assert!(
+            selection.targets.contains(&"//pkg:lib".to_owned()),
+            "{:?}",
+            selection.targets,
+        );
+        assert!(
+            selection.targets.contains(&"//pkg/...".to_owned()),
+            "{:?}",
+            selection.targets,
+        );
+        assert!(
+            selection.explain_suffix().contains("deleted pkg/old.py"),
+            "{:?}",
+            selection.targets,
+        );
 
         git_fixture(&git, &root, &["commit", "-qm", "staged work"]);
         std::fs::write(root.join("pkg/b.py"), "z = 3\n").expect("pushed file");

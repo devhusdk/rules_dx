@@ -71,6 +71,15 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
         ],
+        "id": "aspect.real_cpp_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+        ],
         "id": "aspect.real_format_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
@@ -984,6 +993,15 @@ PROMISES = [
         "native": True,
         "owner": "//cli/cli:dx",
         "page": "inspect.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:curated_defaults_unit",
+        ],
+        "id": "curated.cc",
+        "native": False,
+        "owner": "//quality:curated_defaults.bzl",
         "state": "evidenced",
     },
     {
@@ -2418,12 +2436,13 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
         ],
         "id": "tool.clang_format",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@llvm//tools:clang-format",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3276,7 +3295,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 353
+PROMISE_COUNT = 355
 
 PROMISE_FAMILIES = [
     "artifact",

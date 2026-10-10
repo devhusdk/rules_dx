@@ -170,6 +170,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_cc_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cc",
+    format = ["clang_format"],
+)
+
+quality_family(
     name = "default_shell_family",
     disabled = [
         "typecheck",
@@ -192,6 +202,7 @@ quality_family(
 workspace_policy(
     name = "default_workspace_policy",
     families = [
+        ":default_cc_family",
         ":default_java_family",
         ":default_javascript_family",
         ":default_kotlin_family",

@@ -2,6 +2,7 @@
 
 load(
     "//quality:real_aspects.bzl",
+    "real_cpp_format_aspect",
     "real_format_aspect",
     "real_js_format_aspect",
     "real_js_lint_aspect",
@@ -27,6 +28,7 @@ _policy_transition = transition(
 )
 
 _ASPECTS = [
+    real_cpp_format_aspect,
     real_format_aspect,
     real_js_format_aspect,
     real_js_lint_aspect,

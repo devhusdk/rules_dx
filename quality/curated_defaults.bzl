@@ -3,6 +3,12 @@
 CURATED_SCHEMA_VERSION = 1
 
 CURATED_DEFAULTS = {
+    "cc": {
+        "audit": [],
+        "format": ["clang_format"],
+        "lint": [],
+        "typecheck": [],
+    },
     "java": {
         "audit": [],
         "format": ["google_java_format"],
@@ -78,6 +84,7 @@ CURATED_DEFAULTS = {
 }
 
 FORMAT_FROZEN = {
+    "cc": ["clang_format"],
     "java": ["google_java_format"],
     "javascript": ["biome"],
     "json": ["prettier"],

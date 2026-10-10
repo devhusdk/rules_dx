@@ -39,7 +39,10 @@ def markdown_sibling_error(what, siblings, markdown_srcs):
 
 def _real_source_target_impl(ctx):
     direct_sources = {}
-    if len(ctx.files.javascript_srcs) > 0:
+    if len(ctx.files.c_srcs) > 0:
+        direct_sources["c"] = depset(ctx.files.c_srcs)
+    if len(ctx.files.cpp_srcs) > 0:
+        direct_sources["cpp"] = depset(ctx.files.cpp_srcs)    if len(ctx.files.javascript_srcs) > 0:
         direct_sources["javascript"] = depset(ctx.files.javascript_srcs)
     if len(ctx.files.jsx_srcs) > 0:
         direct_sources["jsx"] = depset(ctx.files.jsx_srcs)
@@ -77,7 +80,7 @@ def _real_source_target_impl(ctx):
     )
     if sibling_error != "":
         fail(sibling_error)
-    all_files = list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs)
+    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs)
     return [
         DefaultInfo(files = depset(all_files)),
         QualitySourcesInfo(direct_sources = direct_sources),
@@ -86,7 +89,14 @@ def _real_source_target_impl(ctx):
 real_source_target = rule(
     implementation = _real_source_target_impl,
     attrs = {
-        "java_srcs": attr.label_list(
+        "c_srcs": attr.label_list(
+            allow_files = [".c", ".h"],
+            default = [],
+        ),
+        "cpp_srcs": attr.label_list(
+            allow_files = [".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx"],
+            default = [],
+        ),        "java_srcs": attr.label_list(
             allow_files = [".java"],
             default = [],
         ),

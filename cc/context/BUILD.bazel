@@ -2,6 +2,8 @@ load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
+# gazelle:resolve rust dx_testing //tools/testing:dx_testing
+
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["Cargo.toml"])
@@ -120,9 +122,85 @@ rust_test(
     ) + [":cc_context"],
 )
 
+rust_test(
+    name = "headless_clangd_test",
+    size = "medium",
+    srcs = ["tests/headless_clangd.rs"],
+    aliases = aliases(
+        package_name = "cc/cc_context",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "headless_clangd_test",
+    crate_root = "tests/headless_clangd.rs",
+    data = ["@llvm//tools:clangd"],
+    edition = "2021",
+    env = {
+        "DX_CLANGD": "$(rootpath @llvm//tools:clangd)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "thiserror",
+        ],
+        package_name = "cc/cc_context",
+    ) + [":cc_context"],
+)
+
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
+)
+
+rust_test(
+    name = "headless_lsp_test",
+    size = "medium",
+    srcs = ["tests/headless_lsp.rs"],
+    aliases = aliases(
+        package_name = "cc/cc_context",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "headless_lsp_test",
+    crate_root = "tests/headless_lsp.rs",
+    data = [
+        "//cc/tests/fixtures/compilation_db:limits_h",
+        "//cc/tests/fixtures/compilation_db:probe.c",
+        "//cc/tests/fixtures/compilation_db:probe_legacy.aquery.json",
+        "@llvm//tools:clang",
+        "@llvm//tools:clangd",
+        "@@rules_rust++rust+rust_analyzer_1.98.0_tools//:rust_analyzer",
+        "@@rules_rust++rust+rust_analyzer_1.98.0_tools//:rustc",
+        "@@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc",
+    ],
+    edition = "2021",
+    env = {
+        "DX_LSP_AQUERY": "$(rootpath //cc/tests/fixtures/compilation_db:probe_legacy.aquery.json)",
+        "DX_LSP_CLANG": "$(rootpath @llvm//tools:clang)",
+        "DX_LSP_CLANGD": "$(rootpath @llvm//tools:clangd)",
+        "DX_LSP_LIMITS_H": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
+        "DX_LSP_PROBE_C": "$(rootpath //cc/tests/fixtures/compilation_db:probe.c)",
+        "DX_LSP_RUSTC_CHECK": "$(rootpath @@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc)",
+        "DX_LSP_RUSTC_PROJECT": "$(rootpath @@rules_rust++rust+rust_analyzer_1.98.0_tools//:rustc)",
+        "DX_LSP_RUST_ANALYZER": "$(rootpath @@rules_rust++rust+rust_analyzer_1.98.0_tools//:rust_analyzer)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    timeout = "long",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "cc/cc_context",
+    ) + [
+        ":cc_context",
+        "//tools/testing:dx_testing",
+    ],
 )

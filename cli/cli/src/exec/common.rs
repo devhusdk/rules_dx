@@ -39,6 +39,17 @@ pub(crate) fn offline_summary(summary: String, offline: bool) -> String {
     }
 }
 
+const FROZEN_MARKER: &str = " (frozen, no resolution changes)";
+
+/// Marks one summary line as resolution-locked when the invocation runs frozen.
+pub(crate) fn frozen_summary(summary: String, frozen: bool) -> String {
+    if frozen {
+        format!("{summary}{FROZEN_MARKER}")
+    } else {
+        summary
+    }
+}
+
 pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
     out.flush().map_err(|error| stdout_io_code(&error))
 }
@@ -87,6 +98,7 @@ pub(crate) const CODE_UPDATE_FAILED: &str = "update_failed";
 pub(crate) const CODE_BUMP_FAILED: &str = "bump_failed";
 pub(crate) const CODE_MIGRATE_FAILED: &str = "migrate_failed";
 pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
+pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
 
 pub struct Env<'a> {
     pub workspace: &'a Path,
@@ -814,6 +826,25 @@ mod tests {
         assert_eq!(
             offline_summary("Running audit security for //...".to_owned(), false),
             "Running audit security for //..."
+        );
+    }
+
+    #[test]
+    fn frozen_summary_marks_only_frozen_invocations() {
+        assert_eq!(
+            frozen_summary("Running update for //...".to_owned(), true),
+            "Running update for //... (frozen, no resolution changes)"
+        );
+        assert_eq!(
+            frozen_summary("Running update for //...".to_owned(), false),
+            "Running update for //..."
+        );
+        assert_eq!(
+            frozen_summary(
+                offline_summary("Running update for //...".to_owned(), true),
+                true
+            ),
+            "Running update for //... (offline, cache-only) (frozen, no resolution changes)"
         );
     }
 

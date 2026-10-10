@@ -480,10 +480,6 @@ fn offline_dry_run_plans_cache_only_without_launching() {
         harness.seen_env.borrow().is_empty(),
         "offline dry-run launches nothing"
     );
-    let alias = Harness::new("update-frozen-dryrun");
-    let (code, out, err) = alias.run(&["update", "--frozen", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(out, expected, "{out}");
     let online = Harness::new("update-online-dryrun");
     let (code, out, err) = online.run(&["update", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
@@ -513,7 +509,82 @@ fn offline_dry_run_plans_cache_only_without_launching() {
 }
 
 #[test]
-fn offline_live_fails_with_offline_required_without_launching() {
+fn frozen_dry_run_locks_resolution_without_launching() {
+    fn frozen_line(set: &str) -> String {
+        format!(
+            "Cannot update {set}: frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)"
+        )
+    }
+    fn pinned_line(set: &str) -> String {
+        format!("Would leave {set} pinned (manual pins; nothing to resolve)")
+    }
+    let expected = format!(
+        "{}\n{}\n",
+        "Running update for all dependency sets (frozen, no resolution changes)",
+        [
+            frozen_line("cargo"),
+            pinned_line("go"),
+            frozen_line("maven"),
+            frozen_line("npm"),
+            frozen_line("npm-adopt"),
+            frozen_line("npm-adopt-polyglot"),
+            frozen_line("npm-tools"),
+            frozen_line("nuget"),
+            pinned_line("powershell"),
+            pinned_line("ruby"),
+            frozen_line("uv"),
+            frozen_line("uv-adopt"),
+            frozen_line("uv-adopt-polyglot"),
+            frozen_line("uv-tools"),
+        ]
+        .join("\n")
+    );
+    let harness = Harness::new("update-frozen-dryrun");
+    let (code, out, err) = harness.run(&["update", "--frozen", "--dry-run"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(out, expected, "{out}");
+    assert_eq!(err, "", "{err}");
+    assert!(
+        harness.seen_env.borrow().is_empty(),
+        "frozen dry-run launches nothing"
+    );
+    assert!(
+        !out.contains("offline"),
+        "frozen no longer implies offline: {out}"
+    );
+}
+
+#[test]
+fn frozen_live_fails_with_frozen_locked_without_launching() {
+    let runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "cargo", "--frozen"], &runner);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(err.contains("frozen_locked"), "{err}");
+    assert!(err.contains("cannot change cargo resolution"), "{err}");
+    assert!(runner.calls.borrow().is_empty(), "frozen launches nothing");
+    let (code, out, err) = run_with(&["update", "cargo", "--frozen", "--output=json"], &runner);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(out.contains("\"code\":\"frozen_locked\""), "{out}");
+    assert!(!out.contains("\"code\":\"update_failed\""), "{out}");
+    assert!(!out.contains("\"code\":\"offline_required\""), "{out}");
+    let go_runner = ScriptRunner::new(&[]);
+    let (code, out, err) = run_with(&["update", "go", "--frozen"], &go_runner);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("go pins are manual"), "{out}");
+    assert!(out.contains("nothing to resolve"), "{out}");
+    assert!(
+        go_runner.calls.borrow().is_empty(),
+        "go pinned launches nothing"
+    );
+}
+
+#[test]
+fn frozen_locked_code_is_stable_single_source() {
+    assert_eq!(
+        crate::exec::common::CODE_FROZEN_LOCKED,
+        "frozen_locked"
+    );
+}
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "cargo", "--offline"], &runner);
     assert_eq!(code, 1, "{out}{err}");

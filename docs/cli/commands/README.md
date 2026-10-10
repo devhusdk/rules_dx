@@ -80,8 +80,12 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means
   release. Every other command rejects them.
-- `--offline`, `--frozen`: run cache-only, no network fetches. Taken by
+- `--offline`: no network; use pinned cached snapshots or fail. Taken by
   `security`, `license`, `update`, and `bump`. Every other command rejects it.
+- `--frozen`: no manifest or lock resolution changes; may fetch already pinned
+  content. Taken by `security`, `license`, `update`, and `bump`. Every other
+  command rejects it. Combine with `--offline` for both policies. Older dx
+  versions spelled offline as `--frozen`: pass `--offline` for that behavior.
 - `--here`: limit to the current directory tree.
 - `-h`, `--help`: print help for a command.
 - `-V`, `--version`: print the version.

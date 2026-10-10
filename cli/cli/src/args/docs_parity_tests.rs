@@ -191,6 +191,7 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--host", Some("example.test")),
     ("--open", None),
     ("--offline", None),
+    ("--frozen", None),
     ("--workspace-capabilities", None),
     ("-- <bazel-options>", None),
 ];
@@ -1015,6 +1016,15 @@ fn global_flags_page_names_every_offline_command() {
         global_flag_bullet_names("offline"),
         commands_where(Command::supports_offline),
         "docs/cli/commands/README.md --offline bullet must name every command that runs cache-only"
+    );
+}
+
+#[test]
+fn global_flags_page_names_every_frozen_command() {
+    assert_eq!(
+        global_flag_bullet_names("frozen"),
+        commands_where(Command::supports_frozen),
+        "docs/cli/commands/README.md --frozen bullet must name every command that keeps resolution unchanged"
     );
 }
 

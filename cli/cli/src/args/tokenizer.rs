@@ -64,7 +64,6 @@ fn reported_flag(token: &str) -> Option<String> {
     let name = token.split('=').next().unwrap_or(token);
     Some(match name {
         "--cwd" => "--here".to_owned(),
-        "--frozen" => "--offline".to_owned(),
         _ => name.to_owned(),
     })
 }
@@ -168,6 +167,8 @@ fn unsupported_option<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
         "--here".to_owned()
     } else if present("--offline") && !command.supports_offline() {
         "--offline".to_owned()
+    } else if present("--frozen") && !command.supports_frozen() {
+        "--frozen".to_owned()
     } else if present("--check") && !command.supports_check() {
         "--check".to_owned()
     } else if present("--fail-on") && !command.supports_fail_on() {

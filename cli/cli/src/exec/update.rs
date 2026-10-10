@@ -71,9 +71,12 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let summary = offline_summary(
-        display_summary(&resolved, RunMode::Check),
-        invocation.offline,
+    let summary = frozen_summary(
+        offline_summary(
+            display_summary(&resolved, RunMode::Check),
+            invocation.offline,
+        ),
+        invocation.frozen,
     );
     if invocation.dry_run {
         return emit_check_dry_run(invocation, out, workspace, &resolved, &summary, verbose);
@@ -85,8 +88,13 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
     } else if verbose {
         let _ = writeln!(out, "{summary}");
     }
-    let (attempted, details) =
-        run_update_check_backends(&resolved, runner, workspace, invocation.offline);
+    let (attempted, details) = run_update_check_backends(
+        &resolved,
+        runner,
+        workspace,
+        invocation.offline,
+        invocation.frozen,
+    );
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
     finish_update(FinishUpdate {
         invocation,
@@ -118,9 +126,12 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let summary = offline_summary(
-        display_summary(&resolved, RunMode::Update),
-        invocation.offline,
+    let summary = frozen_summary(
+        offline_summary(
+            display_summary(&resolved, RunMode::Update),
+            invocation.offline,
+        ),
+        invocation.frozen,
     );
     if invocation.dry_run {
         return emit_update_dry_run(invocation, out, workspace, &resolved, &summary, verbose);
@@ -132,8 +143,13 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
     } else if verbose {
         let _ = writeln!(out, "{summary}");
     }
-    let (attempted, details) =
-        run_update_backends(&resolved, runner, workspace, invocation.offline);
+    let (attempted, details) = run_update_backends(
+        &resolved,
+        runner,
+        workspace,
+        invocation.offline,
+        invocation.frozen,
+    );
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
     finish_update(FinishUpdate {
         invocation,
@@ -201,7 +217,13 @@ fn emit_update_dry_run(
         resolved
             .iter()
             .map(|(set, request)| {
-                describe_update_plan(workspace, *set, request, invocation.offline)
+                describe_update_plan(
+                    workspace,
+                    *set,
+                    request,
+                    invocation.offline,
+                    invocation.frozen,
+                )
             })
             .collect(),
     )
@@ -223,7 +245,15 @@ fn emit_check_dry_run(
         "check",
         resolved
             .iter()
-            .map(|(set, request)| describe_check_plan(workspace, *set, request, invocation.offline))
+            .map(|(set, request)| {
+                describe_check_plan(
+                    workspace,
+                    *set,
+                    request,
+                    invocation.offline,
+                    invocation.frozen,
+                )
+            })
             .collect(),
     )
 }
@@ -256,8 +286,9 @@ fn describe_update_plan(
     set: dx_update::sets::SetId,
     request: &dx_update::selector::SetRequest,
     offline: bool,
+    frozen: bool,
 ) -> String {
-    match dx_update::backend::plan(workspace, set, request, offline) {
+    match dx_update::backend::plan(workspace, set, request, offline, frozen) {
         Ok(dx_update::backend::BackendPlan::Run { argv, .. }) => {
             format!("Would update {}: {}", set.name(), argv.join(" "))
         }
@@ -276,8 +307,9 @@ fn describe_check_plan(
     set: dx_update::sets::SetId,
     request: &dx_update::selector::SetRequest,
     offline: bool,
+    frozen: bool,
 ) -> String {
-    match dx_update::backend::check(workspace, set, request, offline) {
+    match dx_update::backend::check(workspace, set, request, offline, frozen) {
         Ok(dx_update::backend::CheckPlan::Run { argv, .. }) => {
             format!("Would check {}: {}", set.name(), argv.join(" "))
         }
@@ -333,6 +365,7 @@ fn run_update_backends(
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
     offline: bool,
+    frozen: bool,
 ) -> (
     Vec<dx_update::outcome::SetOutcome>,
     BTreeMap<String, String>,
@@ -340,7 +373,7 @@ fn run_update_backends(
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();
     for (set, request) in resolved {
-        match dx_update::backend::plan(workspace, *set, request, offline) {
+        match dx_update::backend::plan(workspace, *set, request, offline, frozen) {
             Err(error) => {
                 let message = format!("cannot update {}: {error}", set.name());
                 match error {
@@ -354,6 +387,14 @@ fn run_update_backends(
                     ),
                     dx_update::backend::BackendError::OfflineRequired { .. }
                     | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => record(
+                        &mut attempted,
+                        &mut details,
+                        *set,
+                        dx_update::outcome::SetStatus::Failed,
+                        format!("failed to update {}: {error}", set.name()),
+                    ),
+                    dx_update::backend::BackendError::FrozenLocked { .. }
+                    | dx_update::backend::BackendError::FrozenLockedOwned { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,
@@ -395,6 +436,7 @@ fn run_update_check_backends(
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
     offline: bool,
+    frozen: bool,
 ) -> (
     Vec<dx_update::outcome::SetOutcome>,
     BTreeMap<String, String>,
@@ -402,7 +444,7 @@ fn run_update_check_backends(
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();
     for (set, request) in resolved {
-        match dx_update::backend::check(workspace, *set, request, offline) {
+        match dx_update::backend::check(workspace, *set, request, offline, frozen) {
             Err(error) => {
                 let message = format!("cannot check {}: {error}", set.name());
                 match error {
@@ -416,6 +458,14 @@ fn run_update_check_backends(
                     ),
                     dx_update::backend::BackendError::OfflineRequired { .. }
                     | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => record(
+                        &mut attempted,
+                        &mut details,
+                        *set,
+                        dx_update::outcome::SetStatus::Failed,
+                        format!("failed to check {}: {error}", set.name()),
+                    ),
+                    dx_update::backend::BackendError::FrozenLocked { .. }
+                    | dx_update::backend::BackendError::FrozenLockedOwned { .. } => record(
                         &mut attempted,
                         &mut details,
                         *set,
@@ -628,6 +678,8 @@ fn emit_update_json(
                     .unwrap_or_else(|| format!("failed to update {set_name}"));
                 let code = if message.contains(CODE_OFFLINE_REQUIRED) {
                     CODE_OFFLINE_REQUIRED
+                } else if message.contains(CODE_FROZEN_LOCKED) {
+                    CODE_FROZEN_LOCKED
                 } else {
                     CODE_UPDATE_FAILED
                 };

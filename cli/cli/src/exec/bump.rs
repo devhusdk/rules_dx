@@ -64,7 +64,10 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(request) => request,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let summary = offline_summary(request.summary(), invocation.offline);
+    let summary = frozen_summary(
+        offline_summary(request.summary(), invocation.offline),
+        invocation.frozen,
+    );
     let verbose = invocation.chatty();
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
@@ -97,10 +100,22 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else if verbose {
         let _ = writeln!(out, "{summary}");
     }
+    if invocation.frozen {
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_FROZEN_LOCKED,
+            &format!(
+                "frozen_locked: cannot widen {} while frozen: frozen forbids manifest and lock resolution changes (no manifest changes performed)",
+                request.selector,
+            ),
+        );
+    }
     if invocation.offline && request.needs_update_refresh() {
         if let Some((set, req)) = refresh_target(&request) {
             if let Err(dx_update::backend::BackendError::OfflineRequired { .. }) =
-                dx_update::backend::plan(workspace, set, &req, true)
+                dx_update::backend::plan(workspace, set, &req, true, invocation.frozen)
             {
                 return operational(
                     invocation,
@@ -199,6 +214,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         update_set,
         &update_request,
         invocation.offline,
+        invocation.frozen,
     ) {
         Ok(plan) => plan,
         Err(error) => match error {
@@ -216,6 +232,10 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             dx_update::backend::BackendError::OfflineRequired { .. }
             | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => {
                 return bump_offline_failed(invocation, out, err, &request, manifest);
+            }
+            dx_update::backend::BackendError::FrozenLocked { .. }
+            | dx_update::backend::BackendError::FrozenLockedOwned { .. } => {
+                return bump_frozen_failed(invocation, out, err, &request, manifest);
             }
         },
     };
@@ -454,6 +474,8 @@ fn bump_refresh_failed(
 ) -> i32 {
     let code = if message.contains(CODE_OFFLINE_REQUIRED) {
         CODE_OFFLINE_REQUIRED
+    } else if message.contains(CODE_FROZEN_LOCKED) {
+        CODE_FROZEN_LOCKED
     } else {
         CODE_UPDATE_FAILED
     };
@@ -536,6 +558,29 @@ fn bump_offline_failed(
             "failed to refresh {}: {} (widen kept in {manifest})",
             request.selector,
             dx_update::backend::BackendError::OfflineRequired {
+                set: request.set.name(),
+            }
+        ),
+    )
+}
+
+fn bump_frozen_failed(
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    request: &dx_bump::BumpRequest,
+    manifest: &str,
+) -> i32 {
+    bump_refresh_failed(
+        invocation,
+        out,
+        err,
+        request,
+        manifest,
+        &format!(
+            "failed to refresh {}: {} (widen kept in {manifest})",
+            request.selector,
+            dx_update::backend::BackendError::FrozenLocked {
                 set: request.set.name(),
             }
         ),
@@ -729,6 +774,57 @@ dependencies = ["anyio>=4"]
                 event(&events, "error")["code"],
                 super::CODE_OFFLINE_REQUIRED
             );
+            let finished = events.last().expect("finished");
+            assert_eq!(finished["event"], "command_finished");
+            assert_eq!(finished["exit_code"], 1);
+            assert_eq!(finished["results_complete"], false);
+        }
+    }
+
+    #[test]
+    fn frozen_widen_needed_fails_before_any_manifest_write() {
+        for (selector, version, path, before) in [
+            (
+                "cargo:demo",
+                "1.2.3",
+                "rust/tests/fixtures/hello/Cargo.toml",
+                "[dependencies]\ndemo = \"1\"\n",
+            ),
+            (
+                "npm:demo",
+                "1.2.3",
+                "package.json",
+                "{\n  \"dependencies\": {\n    \"demo\": \"1.0.0\"\n  }\n}\n",
+            ),
+        ] {
+            let harness = Harness::new("bump-frozen-widen");
+            harness.write_source(path, before);
+            let (code, out, err) =
+                harness.run(&["bump", selector, version, "--frozen", "--output=json"]);
+            assert_eq!(code, 1, "{selector}: {out}{err}");
+            assert!(
+                err.contains(&format!("dx: {}: ", super::CODE_FROZEN_LOCKED)),
+                "{selector}: {err}"
+            );
+            assert!(
+                err.contains("no manifest changes performed"),
+                "{selector}: {err}"
+            );
+            assert!(
+                !err.contains("offline_required"),
+                "{selector}: frozen stays independent: {err}"
+            );
+            assert_eq!(
+                std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
+                before,
+                "{selector}: frozen must not widen"
+            );
+            assert!(
+                harness.seen_env.borrow().is_empty(),
+                "{selector}: frozen launches nothing"
+            );
+            let events = json_events(&out);
+            assert_eq!(event(&events, "error")["code"], super::CODE_FROZEN_LOCKED);
             let finished = events.last().expect("finished");
             assert_eq!(finished["event"], "command_finished");
             assert_eq!(finished["exit_code"], 1);

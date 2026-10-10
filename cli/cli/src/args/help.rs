@@ -252,6 +252,7 @@ const COMMAND_FLAGS: &[&str] = &[
     "--host",
     "--open",
     "--offline",
+    "--frozen",
     "--workspace-capabilities",
 ];
 

@@ -1396,23 +1396,32 @@ fn completion_check_verifies_without_writing() {
 }
 
 #[test]
-fn offline_forces_cache_only_on_audit_update_bump() {
+fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
     for command in ["security", "license", "update"] {
         let got = parse(&strings(&[command, "--offline"])).expect("offline parses");
         assert!(got.offline, "command: {command}");
+        assert!(!got.frozen, "command: {command}");
         assert!(got.command.supports_offline(), "command: {command}");
-        let alias = parse(&strings(&[command, "--frozen"])).expect("frozen alias parses");
-        assert!(alias.offline, "command: {command}");
+        let frozen = parse(&strings(&[command, "--frozen"])).expect("frozen parses");
+        assert!(frozen.frozen, "command: {command}");
+        assert!(!frozen.offline, "command: {command}");
+        assert!(frozen.command.supports_frozen(), "command: {command}");
+        let both = parse(&strings(&[command, "--offline", "--frozen"])).expect("combined parses");
+        assert!(both.offline && both.frozen, "command: {command}");
         let bare = parse(&strings(&[command])).expect("bare parses");
         assert!(!bare.offline, "command: {command}");
+        assert!(!bare.frozen, "command: {command}");
     }
     let bump =
         parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--offline"])).expect("bump offline");
     assert!(bump.offline);
+    assert!(!bump.frozen);
     assert!(bump.command.supports_offline());
-    let bump_alias =
+    let bump_frozen =
         parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--frozen"])).expect("bump frozen");
-    assert!(bump_alias.offline);
+    assert!(bump_frozen.frozen);
+    assert!(!bump_frozen.offline);
+    assert!(bump_frozen.command.supports_frozen());
     let dry = parse(&strings(&["update", "--offline", "--dry-run"])).expect("offline dry-run");
     assert!(dry.offline);
     assert!(dry.dry_run);
@@ -1430,6 +1439,22 @@ fn offline_forces_cache_only_on_audit_update_bump() {
             Err(ArgsError::UnsupportedOption {
                 command: words[0],
                 option: "--offline".to_owned(),
+            }),
+            "words: {words:?}"
+        );
+    }
+    for words in [
+        vec!["lint", "--frozen"],
+        vec!["build", "//a:one", "--frozen"],
+        vec!["clean", "--frozen"],
+        vec!["status", "--frozen"],
+        vec!["docs", "--frozen"],
+    ] {
+        assert_eq!(
+            parse(&strings(&words)),
+            Err(ArgsError::UnsupportedOption {
+                command: words[0],
+                option: "--frozen".to_owned(),
             }),
             "words: {words:?}"
         );

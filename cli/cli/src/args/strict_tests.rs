@@ -152,6 +152,12 @@ fn strict_repeated_flags_are_last_wins() {
         let got =
             parse(&strings(&words)).unwrap_or_else(|error| panic!("words: {words:?}: {error}"));
         assert_eq!(got.command, command, "words: {words:?}");
+        if words == vec!["update", "--offline", "--frozen"] {
+            assert!(
+                got.offline && got.frozen,
+                "independent policies both stay set: {words:?}"
+            );
+        }
     }
     assert!(
         parse(&strings(&["build", "--here", "--cwd"]))

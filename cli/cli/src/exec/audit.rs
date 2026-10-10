@@ -1023,9 +1023,12 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         .join("+");
     let effective = request.effective_scopes();
     let scopes = effective.join(", ");
-    let summary = offline_summary(
-        format!("Running audit {families} for {scopes}"),
-        invocation.offline,
+    let summary = frozen_summary(
+        offline_summary(
+            format!("Running audit {families} for {scopes}"),
+            invocation.offline,
+        ),
+        invocation.frozen,
     );
     let stdout_report = planned_reports
         .iter()

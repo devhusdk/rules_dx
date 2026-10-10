@@ -25,6 +25,10 @@ pub enum BackendError {
     OfflineRequired { set: &'static str },
     #[error("offline_required: cannot update {set} without network (re-run without --offline once connected)")]
     OfflineRequiredOwned { set: String },
+    #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
+    FrozenLocked { set: &'static str },
+    #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
+    FrozenLockedOwned { set: String },
 }
 
 pub fn plan(
@@ -32,6 +36,7 @@ pub fn plan(
     set: SetId,
     request: &SetRequest,
     offline: bool,
+    frozen: bool,
 ) -> Result<BackendPlan, BackendError> {
     if offline {
         match (set, request) {
@@ -68,7 +73,7 @@ pub fn plan(
             }
         }
     }
-    match (set, request) {
+    let planned: Result<BackendPlan, BackendError> = match (set, request) {
         (SetId::Cargo, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["bazel", "build", "//rust/tests/fixtures/hello:hello"]),
             env: vec![("CARGO_BAZEL_REPIN".to_owned(), "1".to_owned())],
@@ -208,9 +213,13 @@ pub fn plan(
         (SetId::PowerShell, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::PowerShell, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
-            reason: "powershell pins are exact in third_party/powershell/PSGallery.requirements.psd1; widen the requirement there and hand-regenerate PSGallery.lock.json, because consumer builds never run Install-Module",
+            reason:                 "powershell pins are exact in third_party/powershell/PSGallery.requirements.psd1; widen the requirement there and hand-regenerate PSGallery.lock.json, because consumer builds never run Install-Module",
         }),
+    };
+    if frozen && matches!(planned, Ok(BackendPlan::Run { .. })) {
+        return Err(BackendError::FrozenLocked { set: set.name() });
     }
+    planned
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -228,6 +237,7 @@ pub fn check(
     set: SetId,
     request: &SetRequest,
     offline: bool,
+    frozen: bool,
 ) -> Result<CheckPlan, BackendError> {
     if matches!((set, request), (SetId::Uv, SetRequest::Full)) {
         let mut argv = strings(&["uv", "lock", "--check", "--directory"]);
@@ -249,7 +259,7 @@ pub fn check(
     ) {
         return Ok(CheckPlan::Pinned);
     }
-    match plan(workspace, set, request, offline) {
+    match plan(workspace, set, request, offline, frozen) {
         Ok(_) => Ok(CheckPlan::Unavailable),
         Err(error) => Err(error),
     }
@@ -259,11 +269,17 @@ pub fn plan_configured(
     set: &ResolvedSet,
     request: &Selection,
     offline: bool,
+    frozen: bool,
 ) -> Result<BackendPlan, BackendError> {
     match (set.ecosystem, request) {
         (Ecosystem::Uv, Selection::Full) => {
             if offline {
                 return Err(BackendError::OfflineRequiredOwned {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLockedOwned {
                     set: set.name.clone(),
                 });
             }
@@ -283,6 +299,7 @@ pub fn check_configured(
     set: &ResolvedSet,
     request: &Selection,
     offline: bool,
+    _frozen: bool,
 ) -> Result<CheckPlan, BackendError> {
     match (set.ecosystem, request) {
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
@@ -340,7 +357,7 @@ mod tests {
 
     #[test]
     fn full_plans_are_pinned_and_hermetic() {
-        let cargo = plan(ws(), SetId::Cargo, &SetRequest::Full, false).expect("cargo");
+        let cargo = plan(ws(), SetId::Cargo, &SetRequest::Full, false, false).expect("cargo");
         assert_eq!(
             cargo,
             BackendPlan::Run {
@@ -352,7 +369,7 @@ mod tests {
                 env: vec![("CARGO_BAZEL_REPIN".to_owned(), "1".to_owned())],
             }
         );
-        let npm = plan(ws(), SetId::Npm, &SetRequest::Full, false).expect("npm");
+        let npm = plan(ws(), SetId::Npm, &SetRequest::Full, false, false).expect("npm");
         assert_eq!(
             npm,
             BackendPlan::Run {
@@ -369,7 +386,7 @@ mod tests {
                 env: vec![],
             }
         );
-        let maven = plan(ws(), SetId::Maven, &SetRequest::Full, false).expect("maven");
+        let maven = plan(ws(), SetId::Maven, &SetRequest::Full, false, false).expect("maven");
         assert_eq!(
             maven,
             BackendPlan::Run {
@@ -381,7 +398,7 @@ mod tests {
                 env: vec![("REPIN".to_owned(), "1".to_owned())],
             }
         );
-        let nuget = plan(ws(), SetId::NuGet, &SetRequest::Full, false).expect("nuget");
+        let nuget = plan(ws(), SetId::NuGet, &SetRequest::Full, false, false).expect("nuget");
         match nuget {
             BackendPlan::Run { argv, env } => {
                 assert_eq!(argv[0], "bazel");
@@ -393,10 +410,11 @@ mod tests {
             BackendPlan::Noop => panic!("nuget runs paket2bazel"),
         }
         assert_eq!(
-            plan(ws(), SetId::Go, &SetRequest::Full, false).expect("go"),
+            plan(ws(), SetId::Go, &SetRequest::Full, false, false).expect("go"),
             BackendPlan::Noop
         );
-        let npm_tools = plan(ws(), SetId::NpmTools, &SetRequest::Full, false).expect("npm-tools");
+        let npm_tools =
+            plan(ws(), SetId::NpmTools, &SetRequest::Full, false, false).expect("npm-tools");
         match npm_tools {
             BackendPlan::Run { argv, env } => {
                 assert_eq!(
@@ -416,7 +434,7 @@ mod tests {
             }
             BackendPlan::Noop => panic!("npm-tools runs pnpm"),
         }
-        let uv = plan(ws(), SetId::Uv, &SetRequest::Full, false).expect("uv");
+        let uv = plan(ws(), SetId::Uv, &SetRequest::Full, false, false).expect("uv");
         assert_eq!(
             uv,
             BackendPlan::Run {
@@ -429,7 +447,8 @@ mod tests {
                 env: vec![],
             }
         );
-        let uv_tools = plan(ws(), SetId::UvTools, &SetRequest::Full, false).expect("uv-tools");
+        let uv_tools =
+            plan(ws(), SetId::UvTools, &SetRequest::Full, false, false).expect("uv-tools");
         assert_eq!(
             uv_tools,
             BackendPlan::Run {
@@ -442,7 +461,8 @@ mod tests {
                 env: vec![],
             }
         );
-        let npm_adopt = plan(ws(), SetId::NpmAdopt, &SetRequest::Full, false).expect("npm-adopt");
+        let npm_adopt =
+            plan(ws(), SetId::NpmAdopt, &SetRequest::Full, false, false).expect("npm-adopt");
         assert_eq!(
             npm_adopt,
             BackendPlan::Run {
@@ -456,7 +476,8 @@ mod tests {
                 env: vec![],
             }
         );
-        let uv_adopt = plan(ws(), SetId::UvAdopt, &SetRequest::Full, false).expect("uv-adopt");
+        let uv_adopt =
+            plan(ws(), SetId::UvAdopt, &SetRequest::Full, false, false).expect("uv-adopt");
         assert_eq!(
             uv_adopt,
             BackendPlan::Run {
@@ -477,6 +498,7 @@ mod tests {
             ws(),
             SetId::Npm,
             &SetRequest::Packages(vec!["jest".to_owned(), "react".to_owned()]),
+            false,
             false,
         )
         .expect("npm selective");
@@ -515,7 +537,7 @@ mod tests {
                 dir_arg("quality/tools/javascript"),
             ),
         ] {
-            let argv = match plan(ws(), set, &request, false).expect(set.name()) {
+            let argv = match plan(ws(), set, &request, false, false).expect(set.name()) {
                 BackendPlan::Run { argv, .. } => argv,
                 BackendPlan::Noop => panic!("{} runs pnpm", set.name()),
             };
@@ -538,6 +560,7 @@ mod tests {
             SetId::Cargo,
             &SetRequest::Packages(vec!["anyhow".to_owned()]),
             false,
+            false,
         )
         .expect_err("cargo selective is wont-fix");
         assert!(
@@ -556,6 +579,7 @@ mod tests {
             ws(),
             SetId::NuGet,
             &SetRequest::Packages(vec!["FSharp.Core".to_owned()]),
+            false,
             false,
         )
         .expect_err("nuget selective is wont-fix");
@@ -576,6 +600,7 @@ mod tests {
             SetId::Go,
             &SetRequest::Packages(vec!["github.com/google/go-cmp/cmp".to_owned()]),
             false,
+            false,
         )
         .expect_err("go selective is wont-fix");
         assert!(
@@ -589,7 +614,7 @@ mod tests {
     #[test]
     fn go_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(ws(), SetId::Go, &SetRequest::Full, false).expect("go full"),
+            plan(ws(), SetId::Go, &SetRequest::Full, false, false).expect("go full"),
             BackendPlan::Noop
         );
     }
@@ -597,13 +622,14 @@ mod tests {
     #[test]
     fn ruby_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(ws(), SetId::Ruby, &SetRequest::Full, false).expect("ruby full"),
+            plan(ws(), SetId::Ruby, &SetRequest::Full, false, false).expect("ruby full"),
             BackendPlan::Noop
         );
         let error = plan(
             ws(),
             SetId::Ruby,
             &SetRequest::Packages(vec!["rspec-core".to_owned()]),
+            false,
             false,
         )
         .expect_err("ruby selective is seed-host only");
@@ -617,13 +643,15 @@ mod tests {
     #[test]
     fn powershell_full_is_pinned_noop_success() {
         assert_eq!(
-            plan(ws(), SetId::PowerShell, &SetRequest::Full, false).expect("powershell full"),
+            plan(ws(), SetId::PowerShell, &SetRequest::Full, false, false)
+                .expect("powershell full"),
             BackendPlan::Noop
         );
         let error = plan(
             ws(),
             SetId::PowerShell,
             &SetRequest::Packages(vec!["Pester".to_owned()]),
+            false,
             false,
         )
         .expect_err("powershell selective is seed-host only");
@@ -687,7 +715,7 @@ mod tests {
                 SetRequest::Packages(vec!["pytest".to_owned()]),
             ),
         ] {
-            let error = plan(ws(), set, &packages, false).expect_err("unsupported");
+            let error = plan(ws(), set, &packages, false, false).expect_err("unsupported");
             assert!(matches!(error, BackendError::Unsupported { .. }), "{set:?}");
             assert!(error.to_string().contains(set.name()));
         }
@@ -703,6 +731,7 @@ mod tests {
                 ws(),
                 SetId::Maven,
                 &SetRequest::Packages(vec![artifact.clone()]),
+                false,
                 false,
             )
             .expect_err("maven selective unsupported");
@@ -722,7 +751,9 @@ mod tests {
     #[test]
     fn argv_never_names_a_dx_lockfile() {
         for set in SetId::ALL {
-            if let Ok(BackendPlan::Run { argv, .. }) = plan(ws(), set, &SetRequest::Full, false) {
+            if let Ok(BackendPlan::Run { argv, .. }) =
+                plan(ws(), set, &SetRequest::Full, false, false)
+            {
                 for arg in argv {
                     assert!(
                         !arg.contains("dx.lock"),
@@ -736,7 +767,7 @@ mod tests {
     #[test]
     fn uv_full_check_is_a_read_only_lock_check() {
         assert_eq!(
-            check(ws(), SetId::Uv, &SetRequest::Full, false).expect("uv check"),
+            check(ws(), SetId::Uv, &SetRequest::Full, false, false).expect("uv check"),
             CheckPlan::Run {
                 argv: vec![
                     "uv".to_owned(),
@@ -749,7 +780,7 @@ mod tests {
             }
         );
         assert_eq!(
-            check(ws(), SetId::Uv, &SetRequest::Full, true).expect("uv check offline"),
+            check(ws(), SetId::Uv, &SetRequest::Full, true, false).expect("uv check offline"),
             CheckPlan::Run {
                 argv: vec![
                     "uv".to_owned(),
@@ -779,7 +810,7 @@ mod tests {
     fn configured_uv_plans_use_the_set_directory() {
         let set = configured_set("apps/frontend");
         assert_eq!(
-            plan_configured(&set, &Selection::Full, false).expect("configured update"),
+            plan_configured(&set, &Selection::Full, false, false).expect("configured update"),
             BackendPlan::Run {
                 argv: vec![
                     "uv".to_owned(),
@@ -791,7 +822,7 @@ mod tests {
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, false).expect("configured check"),
+            check_configured(&set, &Selection::Full, false, false).expect("configured check"),
             CheckPlan::Run {
                 argv: vec![
                     "uv".to_owned(),
@@ -804,7 +835,8 @@ mod tests {
             }
         );
         assert_eq!(
-            check_configured(&set, &Selection::Full, true).expect("configured check offline"),
+            check_configured(&set, &Selection::Full, true, false)
+                .expect("configured check offline"),
             CheckPlan::Run {
                 argv: vec![
                     "uv".to_owned(),
@@ -822,20 +854,30 @@ mod tests {
     #[test]
     fn configured_uv_selective_and_offline_update_fail_closed() {
         let set = configured_set("apps/frontend");
-        let error = plan_configured(&set, &Selection::Packages(vec!["anyio".to_owned()]), false)
-            .expect_err("configured selective stays unsupported");
+        let error = plan_configured(
+            &set,
+            &Selection::Packages(vec!["anyio".to_owned()]),
+            false,
+            false,
+        )
+        .expect_err("configured selective stays unsupported");
         assert!(
             matches!(error, BackendError::UnsupportedOwned { .. }),
             "{error:?}"
         );
         assert!(error.to_string().contains("frontend"));
-        let error = check_configured(&set, &Selection::Packages(vec!["anyio".to_owned()]), false)
-            .expect_err("configured selective check stays unsupported");
+        let error = check_configured(
+            &set,
+            &Selection::Packages(vec!["anyio".to_owned()]),
+            false,
+            false,
+        )
+        .expect_err("configured selective check stays unsupported");
         assert!(
             matches!(error, BackendError::UnsupportedOwned { .. }),
             "{error:?}"
         );
-        let error = plan_configured(&set, &Selection::Full, true)
+        let error = plan_configured(&set, &Selection::Full, true, false)
             .expect_err("offline update needs network");
         assert!(
             matches!(error, BackendError::OfflineRequiredOwned { .. }),
@@ -848,12 +890,12 @@ mod tests {
     fn pinned_sets_check_without_launching() {
         for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
-                check(ws(), set, &SetRequest::Full, false).expect("pinned check"),
+                check(ws(), set, &SetRequest::Full, false, false).expect("pinned check"),
                 CheckPlan::Pinned,
                 "{set:?}"
             );
             assert_eq!(
-                check(ws(), set, &SetRequest::Full, true).expect("pinned check offline"),
+                check(ws(), set, &SetRequest::Full, true, false).expect("pinned check offline"),
                 CheckPlan::Pinned,
                 "{set:?}"
             );
@@ -867,6 +909,7 @@ mod tests {
             SetId::Uv,
             &SetRequest::Packages(vec!["pytest".to_owned()]),
             false,
+            false,
         )
         .expect_err("uv selective stays unsupported");
         assert!(
@@ -878,13 +921,14 @@ mod tests {
             SetId::Go,
             &SetRequest::Packages(vec!["example.com/mod".to_owned()]),
             false,
+            false,
         )
         .expect_err("go selective stays unsupported");
         assert!(
             matches!(error, BackendError::Unsupported { .. }),
             "{error:?}"
         );
-        let error = check(ws(), SetId::Cargo, &SetRequest::Full, true)
+        let error = check(ws(), SetId::Cargo, &SetRequest::Full, true, false)
             .expect_err("cargo check offline needs network");
         assert!(
             matches!(error, BackendError::OfflineRequired { .. }),
@@ -907,7 +951,7 @@ mod tests {
             SetId::UvAdoptPolyglot,
         ] {
             assert_eq!(
-                check(ws(), set, &SetRequest::Full, false).expect("check plans"),
+                check(ws(), set, &SetRequest::Full, false, false).expect("check plans"),
                 CheckPlan::Unavailable,
                 "{set:?}"
             );
@@ -917,6 +961,7 @@ mod tests {
                 ws(),
                 SetId::Npm,
                 &SetRequest::Packages(vec!["jest".to_owned()]),
+                false,
                 false,
             )
             .expect("npm selective check plans"),
@@ -940,7 +985,7 @@ mod tests {
             SetId::UvAdoptPolyglot,
         ] {
             let error =
-                plan(ws(), set, &SetRequest::Full, true).expect_err("offline needs network");
+                plan(ws(), set, &SetRequest::Full, true, false).expect_err("offline needs network");
             assert!(
                 matches!(error, BackendError::OfflineRequired { .. }),
                 "{set:?}: {error:?}"
@@ -953,6 +998,7 @@ mod tests {
             SetId::Npm,
             &SetRequest::Packages(vec!["jest".to_owned()]),
             true,
+            false,
         )
         .expect_err("npm selective offline needs network");
         assert!(
@@ -961,7 +1007,7 @@ mod tests {
         );
         for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
             assert_eq!(
-                plan(ws(), set, &SetRequest::Full, true).expect("pinned noop offline"),
+                plan(ws(), set, &SetRequest::Full, true, false).expect("pinned noop offline"),
                 BackendPlan::Noop,
                 "{set:?}"
             );
@@ -1018,11 +1064,91 @@ mod tests {
             ),
         ] {
             let error =
-                plan(ws(), set, &packages, true).expect_err("unsupported stays unsupported");
+                plan(ws(), set, &packages, true, false).expect_err("unsupported stays unsupported");
             assert!(
                 matches!(error, BackendError::Unsupported { .. }),
                 "{set:?}: {error:?}"
             );
         }
+    }
+
+    #[test]
+    fn frozen_forbids_resolution_changes_but_keeps_pinned_noops() {
+        for set in [
+            SetId::Cargo,
+            SetId::Npm,
+            SetId::Maven,
+            SetId::NuGet,
+            SetId::NpmTools,
+            SetId::Uv,
+            SetId::UvTools,
+            SetId::NpmAdopt,
+            SetId::NpmAdoptPolyglot,
+            SetId::UvAdopt,
+            SetId::UvAdoptPolyglot,
+        ] {
+            let error =
+                plan(ws(), set, &SetRequest::Full, false, true).expect_err("frozen keeps pins");
+            assert!(
+                matches!(error, BackendError::FrozenLocked { .. }),
+                "{set:?}: {error:?}"
+            );
+            assert!(error.to_string().contains("frozen_locked"), "{error}");
+            assert!(error.to_string().contains(set.name()), "{error}");
+        }
+        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+            assert_eq!(
+                plan(ws(), set, &SetRequest::Full, false, true).expect("pinned noop frozen"),
+                BackendPlan::Noop,
+                "{set:?}"
+            );
+        }
+        let both =
+            plan(ws(), SetId::Cargo, &SetRequest::Full, true, true).expect_err("offline wins");
+        assert!(
+            matches!(both, BackendError::OfflineRequired { .. }),
+            "{both:?}"
+        );
+    }
+
+    #[test]
+    fn frozen_check_passes_without_resolution_changes() {
+        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+            assert_eq!(
+                check(ws(), set, &SetRequest::Full, false, true).expect("pinned check frozen"),
+                CheckPlan::Pinned,
+                "{set:?}"
+            );
+        }
+        let uv = check(ws(), SetId::Uv, &SetRequest::Full, false, true).expect("uv check frozen");
+        assert!(
+            matches!(uv, CheckPlan::Run { .. }),
+            "uv lock --check verifies without resolving: {uv:?}"
+        );
+        let error =
+            check(ws(), SetId::Cargo, &SetRequest::Full, false, true).expect_err("cargo frozen");
+        assert!(
+            matches!(error, BackendError::FrozenLocked { .. }),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn frozen_configured_update_is_locked_while_check_passes_through() {
+        let set = configured_set("apps/frontend");
+        let error = plan_configured(&set, &Selection::Full, false, true)
+            .expect_err("configured update frozen");
+        assert!(
+            matches!(error, BackendError::FrozenLockedOwned { .. }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("frozen_locked"), "{error}");
+        assert!(error.to_string().contains("frontend"), "{error}");
+        let checked =
+            check_configured(&set, &Selection::Full, false, true).expect("configured check frozen");
+        assert!(
+            matches!(checked, CheckPlan::Run { .. }),
+            "uv lock --check verifies without resolving: {checked:?}"
+        );
     }
 }

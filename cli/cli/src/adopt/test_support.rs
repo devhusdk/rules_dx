@@ -1,8 +1,9 @@
 use super::{execute_adoption, AdoptEnv, Invocation};
 use crate::resolve::{QueryResult, QueryRunner};
 use dx_process::{ChildStatus, Runner};
+use std::cell::RefCell;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) use crate::args::parsed as invocation;
 pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, json_events};
@@ -16,6 +17,60 @@ impl QueryRunner for NullQuery {
             code: Some(0),
             stdout: b"//a:one\n".to_vec(),
             stderr: Vec::new(),
+        })
+    }
+}
+
+/// A runner that launches nothing, reports success, and selects a hermetic Git.
+pub(crate) struct HermeticRunner;
+
+impl Runner for HermeticRunner {
+    fn run(&self, _argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        Ok(ChildStatus { code: Some(0) })
+    }
+
+    fn git_tool(&self) -> Option<PathBuf> {
+        Some(PathBuf::from("/hermetic/git"))
+    }
+}
+
+/// A query runner that answers every call with the same recorded output.
+pub(crate) struct RepeatQuery {
+    code: Option<i32>,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    seen: RefCell<Vec<Vec<String>>>,
+}
+
+impl RepeatQuery {
+    /// Answers every call with one hooks dir discovery line.
+    pub(crate) fn hooks_dir(dir: &str) -> Self {
+        Self::result(Some(0), &format!("{dir}\n"), "")
+    }
+
+    /// Answers every call with the same code and streams.
+    pub(crate) fn result(code: Option<i32>, stdout: &str, stderr: &str) -> Self {
+        Self {
+            code,
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: stderr.as_bytes().to_vec(),
+            seen: RefCell::new(Vec::new()),
+        }
+    }
+
+    /// Reports every argv the runner received, in order.
+    pub(crate) fn calls(&self) -> Vec<Vec<String>> {
+        self.seen.borrow().clone()
+    }
+}
+
+impl QueryRunner for RepeatQuery {
+    fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        self.seen.borrow_mut().push(argv.to_vec());
+        Ok(QueryResult {
+            code: self.code,
+            stdout: self.stdout.clone(),
+            stderr: self.stderr.clone(),
         })
     }
 }

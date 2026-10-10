@@ -32,6 +32,12 @@ dx hooks [--apply] <install|uninstall|status|run> [pre-commit|pre-push]
 Manages Git hooks through hermetic Git. Checks by default; `--apply`
 installs, removes, or records timings.
 
+Install and uninstall ask the managed Git where hooks live, so linked
+worktrees and `core.hooksPath` work. A relative `core.hooksPath` resolves
+from the workspace. Reported hook paths are workspace-relative when inside
+the workspace, otherwise absolute. Hooks without the dx marker are never
+overwritten or removed; a foreign hook fails the command with exit `1`.
+
 - `install`: install `pre-commit` and `pre-push` shims.
 - `uninstall`: remove them.
 - `status`: show what would run.
@@ -39,9 +45,10 @@ installs, removes, or records timings.
 Flags: `--apply`, `--dry-run`.
 Scopes: verb `install|uninstall|status|run`.
 
-`run` needs a hermetic Git. Set `DX_GIT_BIN` to the absolute path of a managed
-Git binary. A relative path is rejected and `PATH` is never searched. Without
-it the run exits `1` with `hook git must be hermetic`.
+Install, uninstall, and run need a hermetic Git. Set `DX_GIT_BIN`
+to the absolute path of a managed Git binary. A relative path is rejected
+and `PATH` is never searched. Without it the command exits `1` with
+`hook git must be hermetic`. Outside a Git repository the command exits `1`.
 
 Checks run read-only: a check without an explicit mode runs its command in
 check mode, and only a check that names `--apply` applies. Measured timings
@@ -61,8 +68,8 @@ staged bytes.
 Output: `--output text`.
 
 Exit codes: `0` success, `2` usage errors including an unknown verb or
-trigger, `1` a hook install, status, or check failed. A failing check reports
-`1`, never the check's own code.
+trigger, `1` a hook install, status, discovery, or check failed. A failing
+check reports `1`, never the check's own code.
 
 ```sh
 bazel run @rules_dx//:dx -- hooks status

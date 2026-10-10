@@ -62,7 +62,9 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{env, invocation, run, Truncated};
+    use crate::adopt::test_support::{
+        env, env_with, invocation, run, HermeticRunner, RepeatQuery, Truncated,
+    };
 
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {
@@ -116,12 +118,15 @@ mod tests {
             if verb == "uninstall" {
                 dx_adopt::install_hooks(scratch.path()).expect("install");
             }
+            let query = RepeatQuery::hooks_dir(".git/hooks");
             let inv = invocation(&["hooks", "--apply", verb]);
             assert_eq!(
                 execute_adoption(
                     &inv,
-                    env(
+                    env_with(
                         scratch.path(),
+                        &query,
+                        &HermeticRunner,
                         &mut Truncated::after_bytes(0),
                         &mut Vec::new()
                     )
@@ -161,8 +166,22 @@ mod tests {
             let scratch = dx_test_scratch::scratch("adoption-pipe-");
             dx_adopt::write_version_pin(scratch.path(), "0.0.0").expect("pin");
             let inv = invocation(&words);
+            let git_query = RepeatQuery::hooks_dir(".git/hooks");
             let run = |out: &mut dyn Write| {
-                execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()))
+                if words[0] == "hooks" {
+                    execute_adoption(
+                        &inv,
+                        env_with(
+                            scratch.path(),
+                            &git_query,
+                            &HermeticRunner,
+                            out,
+                            &mut Vec::new(),
+                        ),
+                    )
+                } else {
+                    execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()))
+                }
             };
             let mut baseline = Vec::new();
             let code = run(&mut baseline);

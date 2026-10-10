@@ -95,7 +95,9 @@ a near match exists, then prints the usage line above.
 `--output=json` writes one JSON object per line to stdout. Every object has an
 `event` name and a `schema` with `major` and `minor`. The stream starts with
 `command_started` and ends with `command_finished`. Diagnostics and logs go to
-stderr.
+stderr. A failure before the command starts emits `error` and then
+`command_finished` with no `command_started`; that `command_finished` carries
+the process exit code and `results_complete: false`.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --check //... --output=json

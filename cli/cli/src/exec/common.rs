@@ -328,6 +328,32 @@ pub(crate) fn operational(
     operational_code()
 }
 
+/// Emits the terminal pair for a failure before the command starts: one
+/// `error` event carrying the machine-readable code, then `command_finished`
+/// with the process exit and `results_complete: false`. No `command_started`
+/// precedes them because the command never began execution.
+pub fn emit_startup_outcome(
+    out: &mut dyn Write,
+    code: &str,
+    message: &str,
+    exit: i32,
+) -> Result<(), i32> {
+    if let Ok(event) = dx_output::error_event(code, message, None, None, None) {
+        emit_event(out, &event)?;
+    }
+    emit_event(
+        out,
+        &command_finished(
+            exit,
+            &FinishedCounts {
+                results_complete: Some(false),
+                ..FinishedCounts::default()
+            },
+        ),
+    )?;
+    flush_out(out)
+}
+
 /// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
 pub(crate) fn run_bazel(
     invocation: &Invocation,
@@ -788,6 +814,45 @@ mod tests {
         assert_eq!(
             offline_summary("Running audit security for //...".to_owned(), false),
             "Running audit security for //..."
+        );
+    }
+
+    #[test]
+    fn startup_outcome_emits_error_then_finished_with_incomplete_results() {
+        let mut out = Vec::new();
+        emit_startup_outcome(&mut out, "invalid_arguments", "boom", 2).expect("events");
+        let text = String::from_utf8(out).expect("utf8");
+        let mut lines = text.lines();
+        let first: serde_json::Value =
+            serde_json::from_str(lines.next().expect("error")).expect("json");
+        assert_eq!(first["event"], "error");
+        assert_eq!(first["code"], "invalid_arguments");
+        assert_eq!(first["message"], "boom");
+        let second: serde_json::Value =
+            serde_json::from_str(lines.next().expect("finished")).expect("json");
+        assert_eq!(second["event"], "command_finished");
+        assert_eq!(second["exit_code"], 2);
+        assert_eq!(second["results_complete"], false);
+        assert!(lines.next().is_none(), "nothing follows the terminal event");
+    }
+
+    #[test]
+    fn startup_outcome_still_finishes_when_the_code_is_empty() {
+        let mut out = Vec::new();
+        emit_startup_outcome(&mut out, "", "boom", 2).expect("finished anyway");
+        let event: serde_json::Value = serde_json::from_slice(&out).expect("json");
+        assert_eq!(event["event"], "command_finished");
+    }
+
+    #[test]
+    fn startup_outcome_reports_a_broken_stdout() {
+        assert_eq!(
+            emit_startup_outcome(&mut BrokenPipeWriter, "invalid_arguments", "boom", 2),
+            Err(128 + 13)
+        );
+        assert_eq!(
+            emit_startup_outcome(&mut FailingWriter, "invalid_arguments", "boom", 2),
+            Err(1)
         );
     }
 

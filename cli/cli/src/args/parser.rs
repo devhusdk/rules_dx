@@ -129,6 +129,61 @@ pub fn early_workspace_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     None
 }
 
+/// Reads the last `--output` value off the raw command line, if one is spelled.
+/// An empty value counts as spelled so it keeps overriding lower layers, the
+/// same way the parsed grammar lets an explicit flag beat the environment.
+pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
+    let words: Vec<&str> = args
+        .iter()
+        .map(|word| word.as_ref().to_str())
+        .take_while(|word| word.is_some_and(|word| word != "--"))
+        .map(|word| word.unwrap_or(""))
+        .collect();
+    let mut seen: Option<String> = None;
+    let mut index = 0;
+    while index < words.len() {
+        let word = words[index];
+        if let Some(value) = word.strip_prefix("--output=") {
+            seen = Some(value.to_owned());
+        } else if word == "--output" {
+            if let Some(next) = words.get(index + 1) {
+                if !next.is_empty() && !next.starts_with('-') {
+                    seen = Some((*next).to_owned());
+                    index += 1;
+                }
+            }
+        } else if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+            index += 1;
+        }
+        index += 1;
+    }
+    seen
+}
+
+/// Whether a startup failure may report structured JSON events on stdout.
+/// The layers match the parsed grammar: an explicit flag beats the
+/// environment, which beats the file defaults. Only a well-formed `json`
+/// selection counts; a missing layer, a junk value, or an unreadable
+/// configuration stays text-only, so malformed argv never guesses a mode.
+pub fn json_output_intent<S: AsRef<OsStr>>(
+    args: &[S],
+    env_get: &dyn Fn(&str) -> Option<String>,
+    file: &super::FileDefaults,
+    is_ci: bool,
+) -> bool {
+    if let Some(flag) = early_output_flag(args) {
+        return flag == "json";
+    }
+    if !is_ci {
+        if let Some(env) =
+            dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
+        {
+            return env == "json";
+        }
+    }
+    file.output.as_deref() == Some("json")
+}
+
 /// Whether the raw command line asks for help or the delivered version.
 pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
     if super::help::help_verb_error_in(args).is_some() {
@@ -690,6 +745,120 @@ mod startup_tests {
             ])),
             Some("/repo".to_owned())
         );
+    }
+
+    #[test]
+    fn early_output_flag_reads_the_last_spelling_before_passthrough() {
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output=json"])),
+            Some("json".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output", "json"])),
+            Some("json".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output=text", "--output", "json"])),
+            Some("json".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output=json", "--output=text"])),
+            Some("text".to_owned())
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output="])),
+            Some(String::new())
+        );
+        assert_eq!(early_output_flag(&strings(&["lint"])), None);
+        assert_eq!(early_output_flag(&strings(&["lint", "--output"])), None);
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--output", "--quiet"])),
+            None
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--", "--output=json"])),
+            None
+        );
+        assert_eq!(
+            early_output_flag(&strings(&["lint", "--pin", "--output"])),
+            None,
+            "a value slot swallows the next word"
+        );
+    }
+
+    #[test]
+    fn json_intent_follows_flag_environment_and_file_layers() {
+        let file = crate::args::FileDefaults::default();
+        let empty_env = |_: &str| None;
+        assert!(!json_output_intent(
+            &strings(&["lint"]),
+            &empty_env,
+            &file,
+            false
+        ));
+        assert!(json_output_intent(
+            &strings(&["lint", "--output=json"]),
+            &empty_env,
+            &file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["lint", "--output=text"]),
+            &empty_env,
+            &file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["lint", "--output=xml"]),
+            &empty_env,
+            &file,
+            false
+        ));
+        let json_env = |name: &str| (name == "DX_OUTPUT").then(|| "json".to_owned());
+        assert!(json_output_intent(
+            &strings(&["lint"]),
+            &json_env,
+            &file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["lint"]),
+            &json_env,
+            &file,
+            true
+        ));
+        assert!(json_output_intent(
+            &strings(&["lint", "--output=json"]),
+            &json_env,
+            &file,
+            true
+        ));
+        assert!(!json_output_intent(
+            &strings(&["lint", "--output=text"]),
+            &json_env,
+            &file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["lint", "--output="]),
+            &json_env,
+            &file,
+            false
+        ));
+        let mut json_file = crate::args::FileDefaults::default();
+        json_file.output = Some("json".to_owned());
+        assert!(json_output_intent(
+            &strings(&["lint"]),
+            &empty_env,
+            &json_file,
+            false
+        ));
+        assert!(json_output_intent(
+            &strings(&["lint"]),
+            &json_env,
+            &json_file,
+            true
+        ));
     }
 
     #[test]

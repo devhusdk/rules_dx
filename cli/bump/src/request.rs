@@ -11,6 +11,12 @@ pub struct BumpRequest {
     pub raw_version: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BumpPlanOutcome {
+    Changed(String),
+    Unchanged,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum BumpError {
     #[error("empty bump selector or version; expected `dx bump <set:package> <version>`")]
@@ -166,6 +172,15 @@ impl BumpRequest {
             BumpSet::Maven => plan_maven_module_bazel(content, &self.package, &self.version),
             BumpSet::NuGet => plan_paket_dependencies(content, &self.package, &self.version),
             BumpSet::GithubActions => plan_github_workflow(content, &self.package, &self.version),
+        }
+    }
+
+    pub fn plan_edit_outcome(&self, content: &str) -> Result<BumpPlanOutcome, BumpError> {
+        let widened = self.plan_edit(content)?;
+        if widened == content {
+            Ok(BumpPlanOutcome::Unchanged)
+        } else {
+            Ok(BumpPlanOutcome::Changed(widened))
         }
     }
 }

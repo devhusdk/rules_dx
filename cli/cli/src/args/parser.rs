@@ -456,7 +456,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(missing_positional(command));
         }
     }
-    if command == Command::Verify {
+    if command == Command::Verify || command == Command::Rerun {
         if targets.len() > 1 {
             return Err(extra_positional(command, &targets[1]));
         }

@@ -65,6 +65,7 @@ rust_library(
         "src/exec/quality_patch.rs",
         "src/exec/quality_reporting.rs",
         "src/exec/quality_reports.rs",
+        "src/exec/rerun.rs",
         "src/exec/results.rs",
         "src/exec/run.rs",
         "src/exec/test_reports.rs",

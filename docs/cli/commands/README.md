@@ -22,6 +22,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx completion`](completion.md)
 - [`dx capabilities`](capabilities.md)
 - [`dx verify`](verify.md)
+- [`dx rerun`](rerun.md)
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`](new-upgrade.md)
 - [`dx watch`](watch.md)

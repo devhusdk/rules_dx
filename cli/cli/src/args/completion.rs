@@ -425,6 +425,7 @@ mod tests {
                 | Command::Version
                 | Command::Capabilities
                 | Command::Verify
+                | Command::Rerun
                 | Command::Bazel => {
                     assert!(fixed.is_empty(), "{command:?} takes no candidates");
                     assert!(!labels, "{command:?} takes no labels");
@@ -440,7 +441,7 @@ mod tests {
                 "{command:?} must be deterministic"
             );
         }
-        assert_eq!(Command::value_variants().len(), 35);
+        assert_eq!(Command::value_variants().len(), 36);
     }
 
     #[test]

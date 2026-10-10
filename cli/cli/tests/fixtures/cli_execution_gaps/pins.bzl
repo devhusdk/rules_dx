@@ -31,6 +31,7 @@ NOT_WATCHABLE_COMMANDS = [
     "migrate",
     "new",
     "owners",
+    "rerun",
     "security",
     "setup",
     "status",
@@ -41,7 +42,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 27
+NOT_WATCHABLE_COUNT = 28
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -102,6 +103,7 @@ REPORT_NONE = [
     "bazel",
     "capabilities",
     "verify",
+    "rerun",
 ]
 REPORT_DISPOSITION = "wont-fix"
 

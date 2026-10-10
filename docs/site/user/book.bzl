@@ -83,6 +83,11 @@ USER_BOOK = [
         "//docs:cli/commands/verify.md",
     ),
     mdbook_page(
+        "Rerun",
+        "docs/cli/commands/rerun.md",
+        "//docs:cli/commands/rerun.md",
+    ),
+    mdbook_page(
         "Scope Defaults",
         "docs/cli/commands/scope-defaults.md",
         "//docs:cli/commands/scope-defaults.md",

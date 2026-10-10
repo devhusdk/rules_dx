@@ -136,6 +136,7 @@ fn required_words(command: Command) -> Vec<String> {
         "completion" => &["bash"],
         "bazel" => &["info"],
         "verify" => &["pre-pr"],
+        "rerun" => &["receipt.json"],
         _ => &[],
     };
     strings(required)

@@ -121,6 +121,7 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "watch" => &["build"],
         "completion" => &["bash"],
         "verify" => &["pre-pr"],
+        "rerun" => &["receipt.json"],
         _ => &[],
     }
 }

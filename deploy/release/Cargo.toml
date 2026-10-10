@@ -24,6 +24,10 @@ name = "notice_gen"
 path = "src/bin_notice_gen.rs"
 
 [[bin]]
+name = "publish_dry_run_check"
+path = "src/bin_publish_dry_run_check.rs"
+
+[[bin]]
 name = "release_driver"
 path = "src/bin_release_driver.rs"
 

@@ -11,7 +11,12 @@
 use std::io;
 use std::path::Path;
 
+mod publish;
 mod spdx;
+
+pub use publish::{
+    publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
+};
 
 use spdx::SpdxDocument;
 
@@ -27,7 +32,7 @@ fn basename(path: &Path) -> io::Result<String> {
         })
 }
 
-fn render_pretty(value: &serde_json::Value) -> String {
+pub(crate) fn render_pretty(value: &serde_json::Value) -> String {
     dx_fingerprint::to_json_ascii_pretty(value).unwrap_or_default()
 }
 
@@ -593,7 +598,7 @@ fn read_text_map(
     Ok(map)
 }
 
-fn join_notice_entries(
+pub(crate) fn join_notice_entries(
     manifest_text: &str,
     text_files: &[std::path::PathBuf],
 ) -> Result<Vec<(NoticeEntry, String)>, String> {

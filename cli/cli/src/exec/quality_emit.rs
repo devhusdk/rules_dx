@@ -2,16 +2,22 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use dx_output::{
-    change_value, diagnostic_value, mutation_value, write_event, ChangeKind, DiagnosticEvent,
-    MutationOutcome, OutputMode, Resolution, Snapshot,
+    change_value, diagnostic_value, mutation_value, notice_event, write_event, ChangeKind,
+    DiagnosticEvent, MutationOutcome, NoticeEvent, OutputMode, Resolution, Snapshot,
 };
 
 use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
+use super::quality_baseline::{
+    notice_message, refreshed_message, stale_line, summary_message, BaselineReport,
+    SUPPRESSED_MARK,
+};
 use crate::args::Invocation;
 
 pub(crate) struct EmitInputs<'a> {
     pub(crate) invocation: &'a Invocation,
     pub(crate) status: &'a [DiagnosticEvent],
+    pub(crate) suppressed: &'a [bool],
+    pub(crate) baseline: Option<&'a BaselineReport>,
     pub(crate) changes: &'a [FileChange],
     pub(crate) applied: &'a BTreeMap<String, bool>,
     pub(crate) not_applied: &'a [(String, &'static str)],
@@ -32,12 +38,15 @@ pub(crate) fn emit_findings(
     let EmitInputs {
         invocation,
         status,
+        suppressed,
+        baseline,
         changes,
         applied,
         not_applied,
         patch,
         stdout_report,
     } = inputs;
+    let suppressed_flag = |index: usize| suppressed.get(index).copied().unwrap_or(false);
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
     if invocation.output == OutputMode::Json {
@@ -59,6 +68,21 @@ pub(crate) fn emit_findings(
         }
         for change in changes {
             let _ = write_event(out, &change_value(&change_event_for(change)));
+        }
+        if let Some(report) = baseline {
+            let notice = NoticeEvent {
+                level: "info".to_owned(),
+                code: "baseline".to_owned(),
+                message: notice_message(report),
+                related_command: None,
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            };
+            if let Ok(event) = notice_event(&notice) {
+                let _ = write_event(out, &event);
+            }
         }
         if mutating {
             for change in changes {
@@ -96,8 +120,21 @@ pub(crate) fn emit_findings(
         }
     } else if matches!(invocation.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
-        for diagnostic in status {
-            let _ = writeln!(human, "{}", text_diagnostic(diagnostic));
+        for (index, diagnostic) in status.iter().enumerate() {
+            let mut line = text_diagnostic(diagnostic);
+            if suppressed_flag(index) {
+                line.push_str(SUPPRESSED_MARK);
+            }
+            let _ = writeln!(human, "{line}");
+        }
+        if let Some(report) = baseline {
+            let _ = writeln!(human, "{}", summary_message(report));
+            if let Some(refreshed) = refreshed_message(report) {
+                let _ = writeln!(human, "{refreshed}");
+            }
+            for entry in &report.stale {
+                let _ = writeln!(human, "{}", stale_line(entry));
+            }
         }
         if invocation.applies() {
             applied_count = applied.values().filter(|applied| **applied).count() as u64;

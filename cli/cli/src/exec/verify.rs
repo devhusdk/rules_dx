@@ -229,6 +229,7 @@ fn step_invocation(invocation: &Invocation, command: Command, step: &ResolvedSte
         output: invocation.output,
         reports: Vec::new(),
         fail_on: invocation.fail_on,
+        baseline: None,
         min_coverage: invocation.min_coverage,
         targets: step.scopes.clone(),
         bazel_options,

@@ -46,6 +46,7 @@ fn file_with(
         quiet,
         dry_run,
         fail_on: fail_on.map(ToString::to_string),
+        baseline: None,
     }
 }
 
@@ -205,8 +206,18 @@ fn color_flag_env_file_precedence() {
 }
 
 #[test]
-fn quiet_flows_into_text_mode() {
-    let env = env_of(&[(DX_QUIET_ENV, "true")]);
+fn baseline_selection_flows_from_the_file() {
+    let mut file = FileDefaults::default();
+    file.baseline = Some("quality-baseline.json".to_owned());
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("file baseline");
+    assert_eq!(got.baseline, Some("quality-baseline.json".to_owned()));
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &FileDefaults::default())
+        .expect("no baseline");
+    assert_eq!(got.baseline, None);
+}
+
+#[test]
+fn quiet_flows_into_text_mode() {    let env = env_of(&[(DX_QUIET_ENV, "true")]);
     let got = parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).expect("quiet env");
     assert!(got.quiet);
     assert_eq!(got.output, OutputMode::Text { quiet: true });

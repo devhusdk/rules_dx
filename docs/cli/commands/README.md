@@ -171,11 +171,14 @@ verbose = true
 color = "never"
 output = "json"
 fail-on = "error"
+baseline = "quality-baseline.json"
 ```
 
 `dry_run` and `fail_on` also work. Values are TOML, so a boolean key takes
 `true` or `false`, not the `<bool>` spellings above. An empty value is unset.
 An unknown key is a usage error that names the key and the keys it accepts.
+`baseline` names a workspace-relative quality baseline file; the quality
+commands suppress its listed findings and report new ones.
 
 Keys go under `[dx]` or at the top level, and `[dx]` wins. Commit shared
 defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local

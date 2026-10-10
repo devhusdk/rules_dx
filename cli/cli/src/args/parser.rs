@@ -661,6 +661,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         reports,
         fail_on,
+        baseline: file.baseline.clone(),
         min_coverage,
         targets,
         bazel_options,

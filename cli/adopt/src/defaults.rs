@@ -53,6 +53,7 @@ pub struct FileDefaults {
     pub quiet: Option<bool>,
     pub dry_run: Option<bool>,
     pub fail_on: Option<String>,
+    pub baseline: Option<String>,
 }
 
 pub fn is_truthy(value: &str) -> bool {
@@ -131,6 +132,8 @@ struct DxTable {
     dry_run: Option<bool>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default)]
+    baseline: Option<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -152,6 +155,8 @@ struct ConfigFile {
     dry_run: Option<bool>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default)]
+    baseline: Option<String>,
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
@@ -186,6 +191,7 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         quiet: table.quiet.or(parsed.quiet),
         dry_run: table.dry_run.or(parsed.dry_run),
         fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
+        baseline: non_empty(table.baseline.or(parsed.baseline)),
     })
 }
 
@@ -213,6 +219,7 @@ pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefau
         quiet: local.quiet.or(committed.quiet),
         dry_run: local.dry_run.or(committed.dry_run),
         fail_on: local.fail_on.or(committed.fail_on),
+        baseline: local.baseline.or(committed.baseline),
     }
 }
 
@@ -492,7 +499,7 @@ mod tests {
     #[test]
     fn file_parses_dx_table_with_top_level_alias() {
         let parsed = parse_file_text(
-            "[dx]\nworkspace = \"/repo\"\noutput = \"json\"\nverbose = true\ncolor = \"never\"\nquiet = false\ndry_run = true\nfail_on = \"error\"\n",
+            "[dx]\nworkspace = \"/repo\"\noutput = \"json\"\nverbose = true\ncolor = \"never\"\nquiet = false\ndry_run = true\nfail_on = \"error\"\nbaseline = \"quality-baseline.json\"\n",
         )
         .expect("dx table parses");
         assert_eq!(parsed.workspace, Some("/repo".to_owned()));
@@ -502,6 +509,7 @@ mod tests {
         assert_eq!(parsed.quiet, Some(false));
         assert_eq!(parsed.dry_run, Some(true));
         assert_eq!(parsed.fail_on, Some("error".to_owned()));
+        assert_eq!(parsed.baseline, Some("quality-baseline.json".to_owned()));
         let top = parse_file_text("workspace = \"/top\"\nverbose = true\n").expect("top parses");
         assert_eq!(top.workspace, Some("/top".to_owned()));
         assert_eq!(top.verbose, Some(true));
@@ -528,6 +536,29 @@ mod tests {
         assert_eq!(parsed.workspace, None);
         assert_eq!(parsed.output, None);
         assert_eq!(parsed.color, None);
+    }
+
+    #[test]
+    fn file_baseline_lives_in_both_layers_with_local_precedence() {
+        let committed =
+            parse_file_text("[dx]\nbaseline = \"base.json\"\n").expect("committed baseline");
+        assert_eq!(committed.baseline, Some("base.json".to_owned()));
+        let top = parse_file_text("baseline = \"top.json\"\n").expect("top level parses");
+        assert_eq!(top.baseline, Some("top.json".to_owned()));
+        let both = parse_file_text("baseline = \"top.json\"\n[dx]\nbaseline = \"base.json\"\n")
+            .expect("both layers parse");
+        assert_eq!(both.baseline, Some("base.json".to_owned()));
+        let empty = parse_file_text("[dx]\nbaseline = \"\"\n").expect("empty parses");
+        assert_eq!(empty.baseline, None);
+        let local = parse_file_text("[dx]\nbaseline = \"local.json\"\n").expect("local baseline");
+        assert_eq!(
+            merge_defaults(committed.clone(), local).baseline,
+            Some("local.json".to_owned())
+        );
+        assert_eq!(
+            merge_defaults(committed, FileDefaults::default()).baseline,
+            Some("base.json".to_owned())
+        );
     }
 
     #[test]

@@ -45,6 +45,8 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
+    /// Workspace-relative quality baseline file from dx.toml, when selected.
+    pub baseline: Option<String>,
     pub min_coverage: Option<u32>,
     pub targets: Vec<String>,
     pub bazel_options: Vec<String>,
@@ -210,6 +212,7 @@ mod tests {
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),
             fail_on: Threshold::Warning,
+            baseline: None,
             min_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),
             bazel_options: Vec::new(),

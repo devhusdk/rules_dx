@@ -7,12 +7,13 @@ use dx_output::{report_event, write_event, DiagnosticEvent, OutputMode};
 
 use super::common::{report_failed, write_report_document};
 use super::results::Collected;
-use crate::reports::{render_sarif, PlannedReport, ReportError};
+use crate::reports::{render_sarif_with_baseline, PlannedReport, ReportError};
 
 pub(crate) struct StandardReports<'a> {
     pub(crate) workspace: &'a Path,
     pub(crate) collected: &'a Collected,
     pub(crate) status: &'a [DiagnosticEvent],
+    pub(crate) suppressed: &'a [bool],
     pub(crate) planned: &'a [PlannedReport],
     pub(crate) output: &'a OutputMode,
     pub(crate) stdout_report: bool,
@@ -27,6 +28,7 @@ pub(crate) fn write_standard_reports(
         workspace,
         collected,
         status,
+        suppressed,
         planned,
         output,
         stdout_report,
@@ -76,7 +78,13 @@ pub(crate) fn write_standard_reports(
         }
         let document = match snapshot_result {
             Err(error) => Err(error),
-            Ok(()) => render_sarif(&collected.tools, status, &snapshots, collected.complete),
+            Ok(()) => render_sarif_with_baseline(
+                &collected.tools,
+                status,
+                suppressed,
+                &snapshots,
+                collected.complete,
+            ),
         };
         match document {
             Ok(document) => {

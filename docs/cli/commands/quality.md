@@ -91,3 +91,32 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
   analysis with the tool named.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
+
+## Baselines
+
+Set `baseline` in `dx.toml` to a workspace-relative JSON file to adopt
+incrementally. Listed findings still print, marked `(suppressed)`, and new
+findings still fail. Counts print in text, ride a `baseline` notice event in
+JSON, and mark suppressed results in SARIF.
+
+```toml
+[dx]
+baseline = "quality-baseline.json"
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint --check //...
+bazel run @rules_dx//:dx -- lint --apply //...
+```
+
+- A finding matches by tool, rule, file, message, and source line. Moved
+  lines still match. Renames and tool or rule changes need a refresh.
+- A missing baseline file reads as empty. A malformed file fails the run
+  with `baseline_invalid`. Findings without a file never suppress.
+- A listed finding that no longer appears fails the run with
+  `baseline_stale`, but only when the analysis ran complete: entries for
+  files outside the run scope are left alone, and incomplete results never
+  prove staleness.
+- Ordinary checks never write the baseline file. Pass `--apply` to refresh
+  it: stale entries in the analyzed scope are pruned and new findings are
+  added. Other entries are preserved.

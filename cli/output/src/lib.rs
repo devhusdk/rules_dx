@@ -29,8 +29,8 @@ pub use diagnostics::{
     LogLevel, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
 };
 pub use findings::{
-    diagnostic_event, diagnostic_value, notice_event, notice_value, sort_diagnostics,
-    DiagnosticEvent, NoticeEvent, Resolution, Snapshot,
+    compare_diagnostics, diagnostic_event, diagnostic_value, notice_event, notice_value,
+    sort_diagnostics, DiagnosticEvent, NoticeEvent, Resolution, Snapshot,
 };
 pub use lifecycle::{
     capability_event, capability_value, command_finished, command_started, error_event,

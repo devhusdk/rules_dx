@@ -11,7 +11,7 @@ pub use lcov::{coverage_line_rate, validate_lcov};
 pub use planning::{
     format_names, plan_reports, resolve_destination, Destination, PlannedReport, StandardFormat,
 };
-pub use sarif::{byte_to_line, render_sarif};
+pub use sarif::{byte_to_line, render_sarif, render_sarif_with_baseline};
 
 fn unsupported_format_message(command: &str, format: &str, supported: &[&str]) -> String {
     if supported.is_empty() {
@@ -73,6 +73,8 @@ pub enum ReportError {
     UnexpectedOutputConflict { detail: String },
     #[error("{0}")]
     Fingerprint(#[from] dx_fingerprint::FingerprintError),
+    #[error("sarif report serialization failed: {detail}")]
+    SarifRender { detail: String },
     #[error("junit report serialization failed: {detail}")]
     JunitRender { detail: String },
 }

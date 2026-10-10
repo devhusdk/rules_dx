@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::ReportError;
-use dx_output::{sort_diagnostics, DiagnosticEvent, Severity};
+use dx_output::{compare_diagnostics, DiagnosticEvent, Severity};
 use line_index::{LineIndex, TextSize, WideEncoding};
 use serde_sarif::sarif::{
     ArtifactLocation, Invocation, Location, Message, PhysicalLocation, Region, ReportingDescriptor,
@@ -152,32 +152,52 @@ pub fn render_sarif(
     snapshots: &BTreeMap<String, String>,
     complete: bool,
 ) -> Result<String, ReportError> {
+    render_sarif_with_baseline(tools, findings, &[], snapshots, complete)
+}
+
+pub fn render_sarif_with_baseline(
+    tools: &[String],
+    findings: &[DiagnosticEvent],
+    suppressed: &[bool],
+    snapshots: &BTreeMap<String, String>,
+    complete: bool,
+) -> Result<String, ReportError> {
     let ordered: BTreeSet<&str> = tools.iter().map(String::as_str).collect();
-    let mut working = findings.to_vec();
-    sort_diagnostics(&mut working);
-    let mut by_tool: BTreeMap<&str, Vec<&DiagnosticEvent>> = BTreeMap::new();
-    for finding in &working {
-        check_shape(finding)?;
-        if !ordered.contains(finding.tool.as_str()) {
+    let flags: Vec<bool> = if suppressed.len() == findings.len() {
+        suppressed.to_vec()
+    } else {
+        vec![false; findings.len()]
+    };
+    let mut paired: Vec<(&DiagnosticEvent, bool)> = findings.iter().zip(flags).collect();
+    paired.sort_by(|a, b| compare_diagnostics(a.0, b.0).then_with(|| a.1.cmp(&b.1)));
+    let mut by_tool: BTreeMap<&str, Vec<(&DiagnosticEvent, bool)>> = BTreeMap::new();
+    for pair in &paired {
+        check_shape(pair.0)?;
+        if !ordered.contains(pair.0.tool.as_str()) {
             return Err(ReportError::UnknownTool {
-                tool: finding.tool.clone(),
+                tool: pair.0.tool.clone(),
             });
         }
         by_tool
-            .entry(finding.tool.as_str())
+            .entry(pair.0.tool.as_str())
             .or_default()
-            .push(finding);
+            .push(*pair);
     }
     let mut runs = Vec::with_capacity(ordered.len());
+    let mut suppressed_positions: Vec<Vec<usize>> = Vec::with_capacity(ordered.len());
     for tool in ordered {
-        let tool_findings = by_tool.get(tool).cloned().unwrap_or_default();
+        let tool_findings = by_tool.remove(tool).unwrap_or_default();
         let rules: BTreeSet<&str> = tool_findings
             .iter()
-            .filter_map(|finding| finding.rule.as_deref())
+            .filter_map(|(finding, _)| finding.rule.as_deref())
             .collect();
         let mut results = Vec::with_capacity(tool_findings.len());
-        for finding in tool_findings {
+        let mut positions = Vec::new();
+        for (finding, flag) in tool_findings {
             results.push(result(finding, snapshots)?);
+            if flag {
+                positions.push(results.len() - 1);
+            }
         }
         let descriptors = rules
             .into_iter()
@@ -200,13 +220,41 @@ pub fn render_sarif(
                     .build(),
             );
         }
+        suppressed_positions.push(positions);
     }
     let document = Sarif::builder()
         .schema("https://json.schemastore.org/sarif-2.1.0.json".to_owned())
         .runs(runs)
         .version(serde_json::Value::String("2.1.0".to_owned()))
         .build();
-    Ok(dx_fingerprint::to_json(&document)?)
+    if suppressed_positions.iter().all(Vec::is_empty) {
+        return Ok(dx_fingerprint::to_json(&document)?);
+    }
+    let mut value = serde_json::to_value(&document)
+        .map_err(|error| ReportError::SarifRender {
+            detail: error.to_string(),
+        })?;
+    for (run_index, positions) in suppressed_positions.iter().enumerate() {
+        for result_index in positions {
+            let slot = value
+                .get_mut("runs")
+                .and_then(|runs| runs.as_array_mut())
+                .and_then(|runs| runs.get_mut(run_index))
+                .and_then(|run| run.get_mut("results"))
+                .and_then(|results| results.as_array_mut())
+                .and_then(|results| results.get_mut(*result_index))
+                .ok_or_else(|| ReportError::SarifRender {
+                    detail: format!(
+                        "suppressed result {result_index} is missing from run {run_index}"
+                    ),
+                })?;
+            slot["suppressions"] = serde_json::json!([{
+                "kind": "external",
+                "justification": "accepted quality baseline",
+            }]);
+        }
+    }
+    Ok(dx_fingerprint::to_json(&value)?)
 }
 
 #[cfg(test)]
@@ -570,5 +618,35 @@ mod tests {
             assert_eq!(run.results.as_ref().expect("results").len(), 1);
             assert!(run.invocations.is_none());
         }
+    }
+
+    #[test]
+    fn sarif_marks_only_suppressed_results() {
+        let snapshots = BTreeMap::from([("src/a.py".to_owned(), "x = 1\n".to_owned())]);
+        let tools = ["lint-tool".to_owned()];
+        let findings = vec![
+            finding("lint-tool", Severity::Error, None),
+            ranged("src/a.py", 0, 1),
+        ];
+        let plain = render_sarif(&tools, &findings, &snapshots, true).expect("plain");
+        let unflagged =
+            render_sarif_with_baseline(&tools, &findings, &[], &snapshots, true).expect("unflagged");
+        assert_eq!(plain, unflagged);
+        let marked =
+            render_sarif_with_baseline(&tools, &findings, &[true, false], &snapshots, true)
+                .expect("marked");
+        let document: Value = serde_json::from_str(&marked).expect("valid JSON");
+        let results = document["runs"][0]["results"].as_array().expect("results");
+        assert_eq!(results.len(), 2);
+        assert!(results[0].get("suppressions").is_none());
+        assert_eq!(
+            results[1]["suppressions"],
+            json!([{"kind": "external", "justification": "accepted quality baseline"}])
+        );
+        let typed: Sarif = serde_json::from_str(&marked).expect("typed SARIF");
+        assert_eq!(typed.runs.len(), 1);
+        let short = render_sarif_with_baseline(&tools, &findings, &[true], &snapshots, true)
+            .expect("short flags");
+        assert_eq!(short, plain);
     }
 }

@@ -18,6 +18,18 @@ cc_test(
     deps = [":accounting"],
 )
 
+cc_library(
+    name = "partial",
+    srcs = ["partial.cc"],
+    hdrs = ["partial.h"],
+)
+
+cc_test(
+    name = "partial_test",
+    srcs = ["partial_test.cc"],
+    deps = [":partial"],
+)
+
 exports_files(["pins.bzl"])
 
 real_source_target(

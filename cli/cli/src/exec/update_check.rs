@@ -44,7 +44,10 @@ fn updater_spawn_and_signal_failures_keep_other_sets_independent() {
     for spawn_error in [false, true] {
         let mut runner = ScriptRunner::new(&[("cargo", None)]);
         runner.io_error = spawn_error;
-        let (code, out, err) = run_with(&["update", "cargo", "go", "--output=json"], &runner);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "cargo", "go", "--output=json"],
+            &runner,
+        );
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains(if spawn_error {
             "failed to launch updater"
@@ -270,7 +273,7 @@ fn default_update_leaves_preset_alone() {
         "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
     );
     harness.write_source("tools/bazelrc/preset.bazelrc", "# dirty\n");
-    let (code, out, err) = harness.run(&["update", "go"]);
+    let (code, out, err) = harness.run(&["update", "--apply", "go"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("preset"), "{out}");
     assert!(out.contains("go pins are manual"), "{out}");
@@ -286,7 +289,7 @@ fn default_update_leaves_preset_alone() {
 fn update_json_never_emits_change_or_mutation() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "--output=json"], &runner);
-    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(code, 1, "{out}{err}");
     assert!(
         !out.contains("\"event\":\"change\""),
         "update must not emit change events: {out}"
@@ -318,7 +321,7 @@ fn update_json_never_emits_change_or_mutation() {
 #[test]
 fn update_json_completeness_is_per_set_plus_finished() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let kinds = event_kinds(&events);
@@ -411,7 +414,7 @@ fn update_json_check_current_and_dryrun_emit_no_file_events_or_counts() {
 #[test]
 fn update_failure_reports_recovery_in_text_and_json() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_recovery"), "{err}");
     assert!(err.contains("dx update maven"), "{err}");
@@ -419,7 +422,7 @@ fn update_failure_reports_recovery_in_text_and_json() {
     assert!(err.contains("git checkout --"), "{err}");
 
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("\"code\":\"update_recovery\""), "{out}");
     assert!(out.contains("dx update maven"), "{out}");
@@ -429,13 +432,13 @@ fn update_failure_reports_recovery_in_text_and_json() {
 #[test]
 fn update_success_emits_no_recovery() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!err.contains("update_recovery"), "{err}");
     assert!(!out.contains("update_recovery"), "{out}");
 
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("update_recovery"), "{out}");
 }
@@ -444,15 +447,18 @@ fn update_success_emits_no_recovery() {
 fn offline_dry_run_plans_cache_only_without_launching() {
     fn offline_line(set: &str) -> String {
         format!(
-            "Cannot update {set}: offline_required: cannot update {set} without network (re-run without --offline once connected)"
+            "Cannot check {set}: offline_required: cannot update {set} without network (re-run without --offline once connected)"
         )
+    }
+    fn check_line(set: &str, argv: &str) -> String {
+        format!("Would check {set}: {argv}")
     }
     fn pinned_line(set: &str) -> String {
         format!("Would leave {set} pinned (manual pins; nothing to resolve)")
     }
     let expected = format!(
         "{}\n{}\n",
-        "Running update for all dependency sets (offline, cache-only)",
+        "Running update --check for all dependency sets (offline, cache-only)",
         [
             offline_line("cargo"),
             pinned_line("go"),
@@ -464,7 +470,10 @@ fn offline_dry_run_plans_cache_only_without_launching() {
             offline_line("nuget"),
             pinned_line("powershell"),
             pinned_line("ruby"),
-            offline_line("uv"),
+            check_line(
+                "uv",
+                "uv lock --check --directory python/tests/fixtures/hello --offline",
+            ),
             offline_line("uv-adopt"),
             offline_line("uv-adopt-polyglot"),
             offline_line("uv-tools"),
@@ -484,23 +493,17 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let (code, out, err) = online.run(&["update", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
-        out.starts_with("Running update for all dependency sets\n"),
+        out.starts_with("Running update --check for all dependency sets\n"),
         "{out}"
     );
     assert!(
-        out.contains("Would update cargo: bazel build //rust/tests/fixtures/hello:hello"),
+        out.contains(
+            "cannot check cargo: no qualified check backend; refresh with `dx update cargo`"
+        ),
         "{out}"
     );
     assert!(
-        out.contains("Would update maven: bazel run @maven//:pin"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update npm: bazel run @pnpm//:pnpm -- --dir"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update uv: uv lock --directory python/tests/fixtures/hello"),
+        out.contains("Would check uv: uv lock --check --directory python/tests/fixtures/hello"),
         "{out}"
     );
     assert!(out.contains("Would leave go pinned"), "{out}");
@@ -512,15 +515,18 @@ fn offline_dry_run_plans_cache_only_without_launching() {
 fn frozen_dry_run_locks_resolution_without_launching() {
     fn frozen_line(set: &str) -> String {
         format!(
-            "Cannot update {set}: frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)"
+            "Cannot check {set}: frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)"
         )
+    }
+    fn check_line(set: &str, argv: &str) -> String {
+        format!("Would check {set}: {argv}")
     }
     fn pinned_line(set: &str) -> String {
         format!("Would leave {set} pinned (manual pins; nothing to resolve)")
     }
     let expected = format!(
         "{}\n{}\n",
-        "Running update for all dependency sets (frozen, no resolution changes)",
+        "Running update --check for all dependency sets (frozen, no resolution changes)",
         [
             frozen_line("cargo"),
             pinned_line("go"),
@@ -532,7 +538,10 @@ fn frozen_dry_run_locks_resolution_without_launching() {
             frozen_line("nuget"),
             pinned_line("powershell"),
             pinned_line("ruby"),
-            frozen_line("uv"),
+            check_line(
+                "uv",
+                "uv lock --check --directory python/tests/fixtures/hello",
+            ),
             frozen_line("uv-adopt"),
             frozen_line("uv-adopt-polyglot"),
             frozen_line("uv-tools"),

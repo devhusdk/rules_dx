@@ -14,7 +14,7 @@ use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {
     let status = Command::new(bazel())
-        .args(["run", "//cli/cli:dx", "--", "update"])
+        .args(["run", "//cli/cli:dx", "--", "update", "--apply"])
         .args(std::env::args_os().skip(1))
         .status();
     let code = status.map_or(1, |done| done.code().unwrap_or(1));

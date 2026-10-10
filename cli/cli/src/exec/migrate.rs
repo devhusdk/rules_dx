@@ -1,10 +1,7 @@
 use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::plan_reports;
-use dx_output::{
-    command_finished, command_started, notice_event, write_event, FinishedCounts, NoticeEvent,
-    OutputMode,
-};
+use dx_output::{command_started, write_event, OutputMode};
 
 pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
@@ -34,41 +31,18 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
-    let summary = format!(
-        "Would migrate {} -> {} via {}",
-        plan.from, plan.to, plan.manifest
-    );
     let verbose = invocation.chatty();
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                let _ = write_event(out, &event);
-            }
-            if let Ok(event) = notice_event(&NoticeEvent {
-                level: "info".to_owned(),
-                code: "migrate_planned".to_owned(),
-                message: summary,
-                related_command: Some("migrate".to_owned()),
-                scope: Some(vec![plan.manifest.clone()]),
-                path: Some(plan.manifest.clone()),
-                language: None,
-                import: None,
-            }) {
-                let _ = write_event(out, &event);
-            }
-            let finished = command_finished(0, &FinishedCounts::default());
-            let _ = write_event(out, &finished);
-        } else if verbose {
-            let _ = writeln!(out, "{summary}");
-        }
-        return 0;
-    }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, "default")
+        {
             let _ = write_event(out, &event);
         }
-    } else if verbose {
-        let _ = writeln!(out, "{summary}");
+    } else if verbose && !invocation.dry_run {
+        let _ = writeln!(
+            out,
+            "Would migrate {} -> {} via {}",
+            plan.from, plan.to, plan.manifest
+        );
     }
     operational(
         invocation,
@@ -88,17 +62,17 @@ mod tests {
     use crate::test_support::strings;
 
     #[test]
-    fn dry_run_plans_major_bump_without_writing() {
+    fn dry_run_fails_closed_without_manufacturing_a_plan() {
         let harness = Harness::new("migrate-dryrun");
         let (code, out, err) = harness.run(&["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("migrate-v1-to-v2.json"), "{out}");
-        assert!(out.contains("1.2.3 -> 2.0.0"), "{out}");
-        assert_eq!(err, "", "{err}");
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1-to-v2.json"), "{err}");
+        assert!(!out.contains("Would migrate"), "{out}");
     }
 
     #[test]
-    fn dry_run_json_emits_planned_and_finished() {
+    fn dry_run_json_fails_closed_with_error_and_finished() {
         let harness = Harness::new("migrate-dryrun-json");
         let (code, out, err) = harness.run(&[
             "migrate",
@@ -107,17 +81,19 @@ mod tests {
             "--dry-run",
             "--output=json",
         ]);
-        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);
-        assert_eq!(kinds[0], "command_started");
-        assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        assert!(kinds.contains(&"notice"), "{kinds:?}");
+        assert_eq!(
+            kinds,
+            vec!["command_started", "error", "command_finished"],
+            "{kinds:?}"
+        );
         assert_eq!(
             events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
+            serde_json::json!(1)
         );
-        assert_eq!(err, "", "{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
     }
 
     #[test]
@@ -144,6 +120,15 @@ mod tests {
     }
 
     #[test]
+    fn explicit_check_matches_the_bare_default() {
+        let harness = Harness::new("migrate-check");
+        let (code, out, err) = harness.run(&["migrate", "--from=1.2.3", "--to=2.0.0", "--check"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1-to-v2.json"), "{err}");
+    }
+
+    #[test]
     fn missing_versions_and_non_upgrades_are_pre_exec() {
         use crate::args::parse;
         assert!(matches!(
@@ -151,9 +136,11 @@ mod tests {
             Err(crate::args::ArgsError::MissingValue { .. })
         ));
         let harness = Harness::new("migrate-minor");
-        let (code, out, err) = harness.run(&["migrate", "--from=1.2.3", "--to=1.3.0", "--dry-run"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(out.contains("migrate-v1.2.3-to-v1.3.0.json"), "{out}");
+        let (code, _out, err) =
+            harness.run(&["migrate", "--from=1.2.3", "--to=1.3.0", "--dry-run"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1.2.3-to-v1.3.0.json"), "{err}");
         let harness = Harness::new("migrate-downgrade");
         let (code, _, err) = harness.run(&["migrate", "--from=2.0.0", "--to=1.0.0", "--dry-run"]);
         assert_eq!(code, 2, "{err}");

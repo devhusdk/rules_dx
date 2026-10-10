@@ -37,7 +37,7 @@ fn governing_command(invocation: &Invocation) -> Command {
 
 pub fn diagnostic(pin: &str) -> String {
     format!(
-        "version skew: binary {} pin {pin} module {}; fix with `dx version --pin {}` or `dx version --rollback`",
+        "version skew: binary {} pin {pin} module {}; fix with `dx version --pin {} --apply` or `dx version --rollback --apply`",
         dx_adopt::DX_VERSION,
         dx_adopt::MODULE_VERSION,
         dx_adopt::MODULE_VERSION,

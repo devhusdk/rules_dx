@@ -28,7 +28,7 @@ toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel bui
 
 The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
 compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
-fails, and the hint is the fix, for example `dx version --pin <version>`.
+fails, and the hint is the fix, for example `dx version --pin <version> --apply`.
 The `platform` check names the execution platforms tools resolve for. The
 target platform never selects tools.
 
@@ -43,7 +43,8 @@ or empty `.dx/version` fails the same way.
 dx version [--check] [--apply] [--pin <version>|--rollback]
 ```
 
-Prints the version.
+Prints the version. Bare `--pin` and `--rollback` check by default and write
+nothing; `--apply` writes the pin.
 
 - `--check`: verify the pin without changing it.
 - `--pin <version>`: re-pin to this version.
@@ -56,8 +57,8 @@ pin drift or a refused pin.
 
 ```sh
 bazel run @rules_dx//:dx -- version --check
-bazel run @rules_dx//:dx -- version --pin 0.0.0
-bazel run @rules_dx//:dx -- version --rollback
+bazel run @rules_dx//:dx -- version --pin 0.0.0 --apply
+bazel run @rules_dx//:dx -- version --rollback --apply
 ```
 
 ## Version Skew

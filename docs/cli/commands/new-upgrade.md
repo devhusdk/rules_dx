@@ -1,19 +1,21 @@
 # `dx new` And `dx upgrade`
 
 ```sh
-bazel run @rules_dx//:dx -- new rust my_project
+bazel run @rules_dx//:dx -- new rust my_project --apply
 bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
 ```
 
 ## `dx new`
 
 ```text
-dx new [--apply] <language> [name]
+dx new [--check] [--apply] <language> [name]
 ```
 
 Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Never overwrites existing files.
+`fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Bare runs check by default:
+`new` compares the intended scaffold against the workspace and fails naming
+the missing files; `--apply` creates them. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 Two spellings scaffold the same projects:
@@ -51,7 +53,7 @@ file is written.
 ## `dx new rust-web`
 
 ```text
-dx new [--apply] rust-web [name]
+dx new [--check] [--apply] rust-web [name]
 ```
 
 Scaffolds a standalone shared-Rust consumer: one core library, one native
@@ -59,7 +61,7 @@ binary, one unit test suite, one web bundle, and one manual browser test.
 Versions come from the rules_dx pins. Never overwrites existing files.
 
 ```sh
-bazel run @rules_dx//:dx -- new rust-web demo
+bazel run @rules_dx//:dx -- new rust-web demo --apply
 ```
 
 Build and test inside the new project:
@@ -88,12 +90,14 @@ only and leaves custom files untouched.
 ## `dx upgrade`
 
 ```text
-dx upgrade [--apply] --from <version> --to <version> [--dry-run]
+dx upgrade [--check] [--apply] --from <version> --to <version> [--dry-run]
 ```
 
 Runs pin, migrate, and setup in one go with a recovery pointer. Both
-versions are required. `--dry-run` prints the plan without writing files.
-No manifests exist yet, so live runs fail closed.
+versions are required. Bare runs check by default and write nothing.
+No manifests exist yet, so every mode fails closed naming the missing
+manifest: check, `--apply`, and `--dry-run` all exit `1` instead of printing
+a runnable plan.
 
 Output: `--output text|json`.
 

@@ -43,7 +43,19 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
                 "--pin=1.0.0" => command == "version",
                 "--fail-on=error" => command == "security" || command == "license",
                 "--report=junit=report.xml" => command == "security" || command == "license",
-                "--check" => matches!(command, "generate" | "update" | "docs" | "version"),
+                "--check" => matches!(
+                    command,
+                    "generate"
+                        | "update"
+                        | "bump"
+                        | "migrate"
+                        | "init"
+                        | "new"
+                        | "upgrade"
+                        | "hooks"
+                        | "docs"
+                        | "version"
+                ),
                 _ => false,
             };
             if supported {
@@ -518,13 +530,11 @@ fn bump_needs_exactly_one_selector_plus_version() {
             option: "npm:react".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--check"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "--check".to_owned(),
-        })
-    );
+    let check =
+        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--check"])).expect("bump takes --check");
+    assert!(check.check);
+    assert!(!check.apply);
+    assert_eq!(check.operation(), OperationMode::Check);
     assert_eq!(
         parse(&strings(&[
             "bump",
@@ -626,18 +636,16 @@ fn migrate_needs_from_and_to_versions() {
         parse(&strings(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
         &["--from"],
     );
-    assert_eq!(
-        parse(&strings(&[
-            "migrate",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--check"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "migrate",
-            option: "--check".to_owned(),
-        })
-    );
+    let check = parse(&strings(&[
+        "migrate",
+        "--from=1.2.3",
+        "--to=2.0.0",
+        "--check",
+    ]))
+    .expect("migrate takes --check");
+    assert!(check.check);
+    assert!(!check.apply);
+    assert_eq!(check.operation(), OperationMode::Check);
     assert_eq!(
         parse(&strings(&[
             "migrate",

@@ -94,6 +94,31 @@ pub(crate) fn execute_version(
             }
             return 0;
         }
+        if !invocation.applies() {
+            let current = match dx_adopt::read_version_pin(workspace) {
+                Ok(pin) => pin,
+                Err(error) => {
+                    let message = format!(
+                        "rollback check failed: {error} (re-run with --apply to pin {previous})"
+                    );
+                    if is_json {
+                        if let Err(exit) = emit_started(invocation, out) {
+                            return exit;
+                        }
+                    }
+                    return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+                }
+            };
+            let message = format!(
+                "rollback check failed: pin {current:?} would re-pin to {previous:?} (re-run with --apply to write)"
+            );
+            if is_json {
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
+                }
+            }
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+        }
         return match dx_adopt::write_version_pin(workspace, previous) {
             Ok(()) => {
                 if is_json {
@@ -108,7 +133,7 @@ pub(crate) fn execute_version(
                         "pin",
                         "ok",
                         previous,
-                        &format!("dx version --pin {}", dx_adopt::MODULE_VERSION),
+                        &format!("dx version --pin {} --apply", dx_adopt::MODULE_VERSION),
                     ) {
                         return exit;
                     }
@@ -157,6 +182,58 @@ pub(crate) fn execute_version(
             }
             return 0;
         }
+        if !invocation.applies() {
+            let current = match dx_adopt::read_version_pin(workspace) {
+                Ok(pin) => pin,
+                Err(error) => {
+                    let message =
+                        format!("version check failed: {error} (re-run with --apply to pin {pin})");
+                    if is_json {
+                        if let Err(exit) = emit_started(invocation, out) {
+                            return exit;
+                        }
+                    }
+                    return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+                }
+            };
+            if current == *pin {
+                if is_json {
+                    if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+                        if let Err(exit) = emit_event(out, &event) {
+                            return exit;
+                        }
+                    }
+                    if let Err(exit) = json_status(
+                        out,
+                        "pin",
+                        "ok",
+                        &format!("dx {current} vs module {}", dx_adopt::MODULE_VERSION),
+                        &format!("dx version --pin {} --apply", dx_adopt::MODULE_VERSION),
+                    ) {
+                        return exit;
+                    }
+                    if let Err(exit) =
+                        emit_event(out, &command_finished(0, &FinishedCounts::default()))
+                    {
+                        return exit;
+                    }
+                    return 0;
+                }
+                if let Err(exit) = check_stdout_write(writeln!(out, "version ok: {current}")) {
+                    return exit;
+                }
+                return 0;
+            }
+            let message = format!(
+                "version check failed: pin {current:?} != {pin:?} (re-run with --apply to pin {pin})"
+            );
+            if is_json {
+                if let Err(exit) = emit_started(invocation, out) {
+                    return exit;
+                }
+            }
+            return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+        }
         return match dx_adopt::write_version_pin(workspace, pin) {
             Ok(()) => {
                 if is_json {
@@ -171,7 +248,7 @@ pub(crate) fn execute_version(
                         "pin",
                         "ok",
                         pin,
-                        &format!("dx version --pin {}", dx_adopt::MODULE_VERSION),
+                        &format!("dx version --pin {} --apply", dx_adopt::MODULE_VERSION),
                     ) {
                         return exit;
                     }
@@ -229,7 +306,7 @@ pub(crate) fn execute_version(
     };
     if invocation.check {
         let detail = format!("dx {current} vs module {}", dx_adopt::MODULE_VERSION);
-        let hint = format!("dx version --pin {}", dx_adopt::MODULE_VERSION);
+        let hint = format!("dx version --pin {} --apply", dx_adopt::MODULE_VERSION);
         if dx_adopt::version_pin_matches_module(&current, dx_adopt::MODULE_VERSION) {
             if is_json {
                 if let Ok(event) = command_started(invocation.command.name(), false, "default") {
@@ -283,7 +360,7 @@ pub(crate) fn execute_version(
                 "pin",
                 "ok",
                 &current,
-                &format!("dx version --pin {}", dx_adopt::MODULE_VERSION),
+                &format!("dx version --pin {} --apply", dx_adopt::MODULE_VERSION),
             ) {
                 return exit;
             }
@@ -320,9 +397,14 @@ mod tests {
             (vec!["version"], Some("0.0.0"), 5, 3),
             (vec!["version", "--check"], Some("0.0.0"), 3, 1),
             (vec!["version", "--check"], Some("9.9.9"), 4, 0),
-            (vec!["version", "--pin=0.0.0"], None, 3, 1),
+            (vec!["version", "--pin=0.0.0", "--apply"], None, 3, 1),
             (vec!["version", "--pin=9.9.9"], None, 3, 0),
-            (vec!["version", "--rollback"], Some("9.9.9"), 3, 1),
+            (
+                vec!["version", "--rollback", "--apply"],
+                Some("9.9.9"),
+                3,
+                1,
+            ),
             (vec!["version", "--rollback"], Some(""), 3, 0),
             (vec!["version", "--rollback"], None, 3, 0),
             (vec!["version"], None, 3, 0),
@@ -417,10 +499,54 @@ mod tests {
     fn version_pins_and_reports() {
         let scratch = dx_test_scratch::scratch("dx-adopt-version-pins-");
         let root = scratch.path().to_path_buf();
-        let pin = invocation(&["version", "--pin=0.0.0"]);
+        let pin = invocation(&["version", "--pin=0.0.0", "--apply"]);
         let (code, _out, _err) = run(&pin, &root);
         assert_eq!(code, 0);
         assert!(root.join(".dx/version").exists());
+    }
+
+    #[test]
+    fn version_pin_check_reports_drift_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-pin-check-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["version", "--pin=0.0.0"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
+        assert!(err.contains("--apply"), "{err}");
+        assert!(!root.join(".dx/version").exists());
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("version check failed"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".dx/version")).expect("pin"),
+            "9.9.9\n"
+        );
+    }
+
+    #[test]
+    fn version_pin_check_passes_when_already_pinned() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-pin-ok-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        let inv = invocation(&["version", "--pin=0.0.0"]);
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("version ok: 0.0.0"), "{out}");
+        let inv = invocation(&["version", "--pin=0.0.0", "--output=json"]);
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let text = out;
+        let events = json_events(&text);
+        let kinds = event_kinds(&events);
+        assert_eq!(
+            kinds,
+            vec!["command_started", "status", "command_finished"],
+            "{kinds:?}"
+        );
     }
 
     #[test]
@@ -438,7 +564,8 @@ mod tests {
         assert_eq!(code, 1);
         assert!(err.contains("rollback refused"));
         std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
-        let (code, out, _err) = run(&inv, &root);
+        let apply = invocation(&["version", "--rollback", "--apply"]);
+        let (code, out, _err) = run(&apply, &root);
         assert_eq!(code, 0);
         assert!(out.contains("rollback"));
         let pinned = std::fs::read_to_string(root.join(".dx/version")).expect("pin");
@@ -446,6 +573,30 @@ mod tests {
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1);
         assert!(err.contains("rollback refused"));
+    }
+
+    #[test]
+    fn version_rollback_check_reports_drift_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-rollback-check-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
+        let inv = invocation(&["version", "--rollback"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
+        assert!(err.contains("rollback check failed"), "{err}");
+        assert!(err.contains("--apply"), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".dx/version")).expect("pin"),
+            "9.9.9\n"
+        );
+        let apply = invocation(&["version", "--rollback", "--apply"]);
+        let (code, _, err) = run(&apply, &root);
+        assert_eq!(code, 0, "{err}");
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("rollback refused"), "{err}");
     }
 
     #[test]

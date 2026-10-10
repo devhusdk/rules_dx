@@ -303,6 +303,79 @@ pub fn render_hook_shim(trigger: &str) -> String {
     )
 }
 
+/// Lists managed hook paths that `install_hooks` would still write, without
+/// writing anything. A foreign hook fails exactly like the install does; a
+/// managed shim with stale bytes or a missing overlay counts as drift.
+pub fn check_hooks_install(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let mut drifted = Vec::new();
+    for trigger in ["pre-commit", "pre-push"] {
+        let dest = root.join(".git/hooks").join(trigger);
+        let wanted = render_hook_shim(trigger);
+        match std::fs::read_to_string(&dest) {
+            Ok(existing) => {
+                if !existing.contains(HOOK_MANAGED_MARKER) {
+                    return Err(AdoptError::UnmanagedInstall {
+                        trigger: trigger.to_owned(),
+                    });
+                }
+                if existing != wanted || !hook_shim_executable(&dest) {
+                    drifted.push(format!(".git/hooks/{trigger}"));
+                }
+            }
+            Err(error) => {
+                if dest.exists() {
+                    return Err(AdoptError::ReadHook {
+                        trigger: trigger.to_owned(),
+                        detail: error.to_string(),
+                    });
+                }
+                drifted.push(format!(".git/hooks/{trigger}"));
+            }
+        }
+    }
+    if !root.join("dx.local.toml").is_file() {
+        drifted.push("dx.local.toml".to_owned());
+    }
+    Ok(drifted)
+}
+
+#[cfg(unix)]
+fn hook_shim_executable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path)
+        .map(|metadata| metadata.permissions().mode() & 0o111 != 0)
+        .unwrap_or(false)
+}
+
+#[cfg(not(unix))]
+fn hook_shim_executable(_path: &Path) -> bool {
+    true
+}
+
+/// Lists managed hook shims that `uninstall_hooks` would still remove,
+/// without removing anything. A foreign hook fails exactly like the
+/// uninstall does; absent shims count as already uninstalled.
+pub fn check_hooks_uninstall(root: &Path) -> Result<Vec<String>, AdoptError> {
+    let mut drifted = Vec::new();
+    for trigger in ["pre-commit", "pre-push"] {
+        let dest = root.join(".git/hooks").join(trigger);
+        if !dest.exists() {
+            continue;
+        }
+        let existing = std::fs::read_to_string(&dest).map_err(|e| AdoptError::ReadHook {
+            trigger: trigger.to_owned(),
+            detail: e.to_string(),
+        })?;
+        if !existing.contains(HOOK_MANAGED_MARKER) {
+            return Err(AdoptError::UnmanagedUninstall {
+                trigger: trigger.to_owned(),
+            });
+        }
+        drifted.push(format!(".git/hooks/{trigger}"));
+    }
+    Ok(drifted)
+}
+
 pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
     let hooks_dir = root.join(".git/hooks");
     std::fs::create_dir_all(&hooks_dir).map_err(|e| AdoptError::CreateHooksDir {
@@ -564,11 +637,12 @@ pub fn render_hooks_status(baseline: &str, overlay: &str, timings: &str) -> Stri
 #[cfg(test)]
 mod tests {
     use super::super::{
-        checks_for_trigger, default_hooks_config, hook_check_timed_out, hook_git_is_hermetic,
-        hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks, is_hook_trigger,
-        load_hook_timings, load_hooks_config, render_hook_timings, render_hooks_status_merged,
-        render_local_overlay, uninstall_hooks, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER,
-        HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
+        check_hooks_install, check_hooks_uninstall, checks_for_trigger, default_hooks_config,
+        hook_check_timed_out, hook_git_is_hermetic, hook_git_path_is_hermetic,
+        hook_status_shows_merged, install_hooks, is_hook_trigger, load_hook_timings,
+        load_hooks_config, render_hook_timings, render_hooks_status_merged, render_local_overlay,
+        uninstall_hooks, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER, HOOK_TRIGGERS,
+        LOCAL_OVERLAY_COMMENT,
     };
     use super::{render_hook_shim, render_hooks_status};
 
@@ -579,6 +653,74 @@ mod tests {
         assert_eq!(super::LOCAL_OVERLAY_COMMENT, LOCAL_OVERLAY_COMMENT);
         assert!(render_hook_shim("pre-commit").contains(HOOK_MANAGED_MARKER));
         assert!(render_hooks_status("b", "o", "t").contains("baseline:\nb"));
+    }
+
+    #[test]
+    fn check_hooks_install_and_uninstall_compare_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-check-hooks-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".git")).expect("git");
+        let drifted = check_hooks_install(root).expect("checks");
+        assert_eq!(
+            drifted,
+            vec![
+                ".git/hooks/pre-commit".to_owned(),
+                ".git/hooks/pre-push".to_owned(),
+                "dx.local.toml".to_owned(),
+            ],
+            "{drifted:?}"
+        );
+        install_hooks(root).expect("installs");
+        let drifted = check_hooks_install(root).expect("rechecks");
+        assert!(drifted.is_empty(), "{drifted:?}");
+        let drifted = check_hooks_uninstall(root).expect("checks uninstall");
+        assert_eq!(
+            drifted,
+            vec![
+                ".git/hooks/pre-commit".to_owned(),
+                ".git/hooks/pre-push".to_owned(),
+            ],
+            "{drifted:?}"
+        );
+        uninstall_hooks(root).expect("uninstalls");
+        assert!(
+            check_hooks_uninstall(root).expect("rechecks").is_empty(),
+            "absent shims are already uninstalled"
+        );
+        assert_eq!(
+            check_hooks_install(root).expect("rechecks"),
+            vec![
+                ".git/hooks/pre-commit".to_owned(),
+                ".git/hooks/pre-push".to_owned(),
+            ],
+            "uninstall restores shim drift while the overlay stays"
+        );
+    }
+
+    #[test]
+    fn check_hooks_rejects_foreign_shims_like_install() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-check-hooks-foreign-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join(".git/hooks")).expect("hooks");
+        std::fs::write(root.join(".git/hooks/pre-commit"), "foreign hook").expect("foreign");
+        assert!(matches!(
+            check_hooks_install(root),
+            Err(super::super::AdoptError::UnmanagedInstall { .. })
+        ));
+        assert!(matches!(
+            check_hooks_uninstall(root),
+            Err(super::super::AdoptError::UnmanagedUninstall { .. })
+        ));
+        std::fs::write(
+            root.join(".git/hooks/pre-commit"),
+            format!("{HOOK_MANAGED_MARKER} pre-commit\nstale bytes\n"),
+        )
+        .expect("stale shim");
+        let drifted = check_hooks_install(root).expect("checks");
+        assert!(
+            drifted.contains(&".git/hooks/pre-commit".to_owned()),
+            "stale managed bytes are drift: {drifted:?}"
+        );
     }
 
     #[test]

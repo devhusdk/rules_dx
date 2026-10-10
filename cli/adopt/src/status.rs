@@ -60,7 +60,7 @@ pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
             name: "pin".to_owned(),
             status: pin_status.to_owned(),
             detail: format!("dx {pinned} vs module {MODULE_VERSION}"),
-            hint: format!("dx version --pin {MODULE_VERSION}"),
+            hint: format!("dx version --pin {MODULE_VERSION} --apply"),
         },
     ]
 }
@@ -77,7 +77,10 @@ mod tests {
         let text = render_status_text(&checks);
         assert!(text.contains("pin: ok"));
         let pin = checks.iter().find(|c| c.name == "pin").expect("pin check");
-        assert_eq!(pin.hint, format!("dx version --pin {MODULE_VERSION}"));
+        assert_eq!(
+            pin.hint,
+            format!("dx version --pin {MODULE_VERSION} --apply")
+        );
         let toolchain = checks
             .iter()
             .find(|c| c.name == "toolchain")
@@ -97,7 +100,7 @@ mod tests {
             tools.detail
         );
         let json = render_status_json(&checks).expect("status json");
-        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"execution linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 selects tools; the target platform never selects tools","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts)","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0"}]}"#);
+        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"execution linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 selects tools; the target platform never selects tools","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts)","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0 --apply"}]}"#);
     }
 
     #[test]

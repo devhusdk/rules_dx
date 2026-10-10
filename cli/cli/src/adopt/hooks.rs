@@ -42,6 +42,9 @@ pub(crate) fn execute_hooks(
                 }
                 return 0;
             }
+            if !invocation.applies() {
+                return execute_install_check(invocation, workspace, out, err);
+            }
             match dx_adopt::install_hooks(workspace) {
                 Ok(installed) => {
                     if !summaries_suppressed(invocation) {
@@ -74,6 +77,9 @@ pub(crate) fn execute_hooks(
                     }
                 }
                 return 0;
+            }
+            if !invocation.applies() {
+                return execute_uninstall_check(invocation, workspace, out, err);
             }
             match dx_adopt::uninstall_hooks(workspace) {
                 Ok(removed) => {
@@ -110,6 +116,70 @@ pub(crate) fn execute_hooks(
 
 fn read_file_opt(root: &std::path::Path, rel: &str) -> Option<String> {
     std::fs::read_to_string(root.join(rel)).ok()
+}
+
+fn execute_install_check(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let drifted = match dx_adopt::check_hooks_install(workspace) {
+        Ok(drifted) => drifted,
+        Err(error) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string());
+        }
+    };
+    if drifted.is_empty() {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) = check_stdout_write(writeln!(out, "hooks ok: install current")) {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_HOOKS_FAILED,
+        &format!(
+            "hooks check failed: install would write {} (re-run with --apply to install)",
+            drifted.join(", "),
+        ),
+    )
+}
+
+fn execute_uninstall_check(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let drifted = match dx_adopt::check_hooks_uninstall(workspace) {
+        Ok(drifted) => drifted,
+        Err(error) => {
+            return operational(invocation, out, err, CODE_HOOKS_FAILED, &error.to_string());
+        }
+    };
+    if drifted.is_empty() {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) = check_stdout_write(writeln!(out, "hooks ok: uninstall current")) {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_HOOKS_FAILED,
+        &format!(
+            "hooks check failed: uninstall would remove {} (re-run with --apply to remove)",
+            drifted.join(", "),
+        ),
+    )
 }
 
 fn execute_status(
@@ -579,7 +649,7 @@ mod tests {
             let mut err = Vec::new();
             assert_eq!(
                 execute_hooks(
-                    &invocation(&["hooks", verb]),
+                    &invocation(&["hooks", "--apply", verb]),
                     root,
                     &NullQuery,
                     &NullRunner,
@@ -603,21 +673,75 @@ mod tests {
         std::fs::write(foreign.path().join(".git/hooks/pre-commit"), "foreign hook")
             .expect("foreign hook");
         for verb in ["install", "uninstall"] {
-            let mut err = Vec::new();
-            assert_eq!(
-                execute_hooks(
-                    &invocation(&["hooks", verb]),
-                    foreign.path(),
-                    &NullQuery,
-                    &NullRunner,
-                    None,
-                    &mut Vec::new(),
-                    &mut err
-                ),
-                1
-            );
-            assert!(!err.is_empty());
+            for mode in [&[] as &[&str], &["--apply"]] {
+                let mut words = vec!["hooks"];
+                words.extend(mode.iter().copied());
+                words.push(verb);
+                let mut err = Vec::new();
+                assert_eq!(
+                    execute_hooks(
+                        &invocation(&words),
+                        foreign.path(),
+                        &NullQuery,
+                        &NullRunner,
+                        None,
+                        &mut Vec::new(),
+                        &mut err
+                    ),
+                    1,
+                    "{words:?}"
+                );
+                assert!(!err.is_empty());
+            }
         }
+    }
+
+    #[test]
+    fn hooks_install_check_reports_drift_without_writing() {
+        let scratch = dx_test_scratch::scratch("hooks-install-check-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir(root.join(".git")).expect("git");
+        let inv = invocation(&["hooks", "install"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains(CODE_HOOKS_FAILED), "{err}");
+        assert!(err.contains(".git/hooks/pre-commit"), "{err}");
+        assert!(err.contains("--apply"), "{err}");
+        assert!(!root.join(".git/hooks/pre-commit").exists());
+        assert!(!root.join("dx.local.toml").exists());
+    }
+
+    #[test]
+    fn hooks_install_check_passes_once_applied() {
+        let scratch = dx_test_scratch::scratch("hooks-install-check-ok-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir(root.join(".git")).expect("git");
+        let (code, _, err) = run(&invocation(&["hooks", "--apply", "install"]), &root);
+        assert_eq!(code, 0, "{err}");
+        let (code, out, err) = run(&invocation(&["hooks", "install", "--check"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("hooks ok: install current"), "{out}");
+    }
+
+    #[test]
+    fn hooks_uninstall_check_reports_managed_shims_without_removing() {
+        let scratch = dx_test_scratch::scratch("hooks-uninstall-check-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir(root.join(".git")).expect("git");
+        let (code, out, err) = run(&invocation(&["hooks", "uninstall"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("hooks ok: uninstall current"), "{out}");
+        let (code, _, err) = run(&invocation(&["hooks", "--apply", "install"]), &root);
+        assert_eq!(code, 0, "{err}");
+        let (code, _out, err) = run(&invocation(&["hooks", "uninstall"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains(CODE_HOOKS_FAILED), "{err}");
+        assert!(err.contains(".git/hooks/pre-commit"), "{err}");
+        assert!(err.contains("--apply"), "{err}");
+        assert!(root.join(".git/hooks/pre-commit").exists());
+        let (code, _, err) = run(&invocation(&["hooks", "--apply", "uninstall"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(!root.join(".git/hooks/pre-commit").exists());
     }
 
     #[test]

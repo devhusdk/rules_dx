@@ -34,16 +34,16 @@ pub use defaults::{
 };
 pub use error::AdoptError;
 pub use hooks::{
-    change_source_name, checks_for_trigger, dedupe_changes, default_hooks_config,
-    hook_check_timed_out, hook_git_is_hermetic, hook_git_path_is_hermetic,
-    hook_status_shows_merged, hook_trigger_pipe, hook_verb_pipe, install_hooks, is_hook_trigger,
-    is_zero_sha, load_hook_timings, load_hooks_config, nearest_package_pattern,
-    parse_name_status_nul, parse_push_refs, push_diff_base, push_ref_is_deletion, render_hook_shim,
-    render_hook_timings, render_hooks_status, render_hooks_status_merged, render_local_overlay,
-    render_selection_line, uninstall_hooks, ChangeKind, ChangeSource, GitChange, HookTimings,
-    HooksConfig, PushRef, EMPTY_TREE_SHA, HOOK_BASELINE_REL, HOOK_BUDGET_SECS, HOOK_GIT_ENV_VAR,
-    HOOK_MANAGED_MARKER, HOOK_OVERLAY_REL, HOOK_TIMINGS_REL, HOOK_TRIGGERS, HOOK_VERBS,
-    LOCAL_OVERLAY_COMMENT, ZERO_SHA,
+    change_source_name, check_hooks_install, check_hooks_uninstall, checks_for_trigger,
+    dedupe_changes, default_hooks_config, hook_check_timed_out, hook_git_is_hermetic,
+    hook_git_path_is_hermetic, hook_status_shows_merged, hook_trigger_pipe, hook_verb_pipe,
+    install_hooks, is_hook_trigger, is_zero_sha, load_hook_timings, load_hooks_config,
+    nearest_package_pattern, parse_name_status_nul, parse_push_refs, push_diff_base,
+    push_ref_is_deletion, render_hook_shim, render_hook_timings, render_hooks_status,
+    render_hooks_status_merged, render_local_overlay, render_selection_line, uninstall_hooks,
+    ChangeKind, ChangeSource, GitChange, HookTimings, HooksConfig, PushRef, EMPTY_TREE_SHA,
+    HOOK_BASELINE_REL, HOOK_BUDGET_SECS, HOOK_GIT_ENV_VAR, HOOK_MANAGED_MARKER, HOOK_OVERLAY_REL,
+    HOOK_TIMINGS_REL, HOOK_TRIGGERS, HOOK_VERBS, LOCAL_OVERLAY_COMMENT, ZERO_SHA,
 };
 pub use inspect::{inspect_scope_allowed, plan_inspect, plan_somepath, InspectPlan};
 pub use migrate::{
@@ -51,7 +51,7 @@ pub use migrate::{
     plan_migrate, MigratePlan,
 };
 pub use new::{
-    apply_new, default_new_name, derive_new_identity, new_is_known_language,
+    apply_new, check_new_files, default_new_name, derive_new_identity, new_is_known_language,
     new_language_name_list, normalize_new_language, plan_new_files, validate_new_destination,
     NEW_LANGUAGE_ALIASES, SUPPORTED_NEW_LANGUAGES,
 };
@@ -61,7 +61,7 @@ pub use preset_fragment::{
     PresetError, PRESET_BAZEL_VERSION,
 };
 pub use scaffold::{
-    apply_init, editor_disposition, editor_language_supported, plan_init_files,
+    apply_init, check_init_files, editor_disposition, editor_language_supported, plan_init_files,
     scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
     ENVRC_CONTENT,
 };

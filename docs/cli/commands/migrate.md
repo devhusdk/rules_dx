@@ -1,14 +1,16 @@
 # `dx migrate`
 
 ```text
-dx migrate [--apply] --from <version> --to <version> [scope...] [--dry-run]
+dx migrate [--check] [--apply] --from <version> --to <version> [scope...] [--dry-run]
 ```
 
-Rewrites breaking changes between releases. Both versions are Cargo semver.
-Target must be newer than source. `--dry-run` prints the plan without
-writing files.
+Rewrites breaking changes between releases. Bare runs check by default and
+write nothing; `--apply` authorizes the migration. Both versions are Cargo
+semver. Target must be newer than source.
 
-No manifests exist yet, so live runs fail closed. Scopes default to `//...`.
+No manifests exist yet, so every mode fails closed naming the missing
+manifest: check, `--apply`, and `--dry-run` all exit `1` instead of printing
+a runnable plan. Scopes default to `//...`.
 
 Output: `--output text|json`.
 

@@ -178,6 +178,21 @@ pub fn scaffold_dest_within_root(
     Ok(dest)
 }
 
+/// Lists intended scaffold paths that are still absent on disk, without
+/// writing anything. Existing files count as preserved: `apply_init` is
+/// absent-only, so a check passes once every intended path exists.
+pub fn check_init_files(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
+    let files = plan_init_files(module_name)?;
+    let mut missing = Vec::new();
+    for file in &files {
+        let dest = scaffold_dest_within_root(root, &file.path)?;
+        if !dest.is_file() {
+            missing.push(file.path.clone());
+        }
+    }
+    Ok(missing)
+}
+
 pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
     let files = plan_init_files(module_name)?;
     let mut staged = Vec::with_capacity(files.len());
@@ -213,8 +228,8 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 #[cfg(test)]
 mod tests {
     use super::super::{
-        apply_init, editor_disposition, editor_language_supported, plan_init_files,
-        DEVCONTAINER_JSON,
+        apply_init, check_init_files, editor_disposition, editor_language_supported,
+        plan_init_files, DEVCONTAINER_JSON,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
 
@@ -233,6 +248,20 @@ mod tests {
             .any(|f| f.path == ".devcontainer/devcontainer.json"));
         assert!(files.iter().any(|f| f.path == ".vscode/settings.json"));
         assert!(files.iter().any(|f| f.path == ".envrc"));
+    }
+
+    #[test]
+    fn check_init_lists_missing_files_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-check-init-");
+        let root = scratch.path();
+        let missing = check_init_files(root, "demo").expect("checks");
+        assert_eq!(missing.len(), 9, "{missing:?}");
+        assert!(missing.contains(&".dx/version".to_owned()));
+        assert!(!root.join(".dx/version").exists());
+        apply_init(root, "demo").expect("applies");
+        let missing = check_init_files(root, "demo").expect("rechecks");
+        assert!(missing.is_empty(), "{missing:?}");
+        assert!(check_init_files(root, "Bad Name").is_err());
     }
 
     #[test]

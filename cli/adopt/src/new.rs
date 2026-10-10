@@ -530,6 +530,21 @@ fn new_language_files(
     Ok(files)
 }
 
+/// Lists intended project paths that are still absent on disk, without
+/// writing anything. Existing files count as preserved: `apply_new` is
+/// absent-only, so a check passes once every intended path exists.
+pub fn check_new_files(root: &Path, language: &str, name: &str) -> Result<Vec<String>, AdoptError> {
+    let files = plan_new_files(language, name)?;
+    let mut missing = Vec::new();
+    for file in &files {
+        let dest = super::scaffold_dest_within_root(root, &file.path)?;
+        if !dest.is_file() {
+            missing.push(file.path.clone());
+        }
+    }
+    Ok(missing)
+}
+
 pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>, AdoptError> {
     let files = plan_new_files(language, name)?;
     let mut staged = Vec::with_capacity(files.len());
@@ -566,6 +581,27 @@ pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>,
 mod tests {
     use super::super::DX_VERSION;
     use super::*;
+
+    #[test]
+    fn check_new_lists_missing_files_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-check-new-");
+        let root = scratch.path();
+        let planned = plan_new_files("go", "demo").expect("plans");
+        let missing = check_new_files(root, "go", "demo").expect("checks");
+        assert_eq!(missing.len(), planned.len(), "{missing:?}");
+        assert!(missing.contains(&"demo/go.mod".to_owned()));
+        assert!(!root.join("demo/go.mod").exists());
+        apply_new(root, "go", "demo").expect("applies");
+        let missing = check_new_files(root, "go", "demo").expect("rechecks");
+        assert!(missing.is_empty(), "{missing:?}");
+        std::fs::write(root.join("demo/go.mod"), "[custom]\nkeep = true\n").expect("customize");
+        let missing = check_new_files(root, "go", "demo").expect("rechecks");
+        assert!(
+            missing.is_empty(),
+            "customized files stay preserved: {missing:?}"
+        );
+        assert!(check_new_files(root, "go", "../evil").is_err());
+    }
 
     #[test]
     fn new_aliases_normalize_to_canonical_templates() {

@@ -648,13 +648,13 @@ fn bazel_run_start_selects_the_workspace_root() {
 fn new_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();
-    let (code, out, err) = run_dx(root, &["new", "rust", "demo"], &[]);
+    let (code, out, err) = run_dx(root, &["new", "rust", "demo", "--apply"], &[]);
     assert_eq!(
         code,
         Some(0),
         "standalone new works outside a workspace: {err}"
     );
-    assert!(out.contains("demo/Cargo.toml"), "{out}");
+    assert!(out.contains("wrote demo/Cargo.toml"), "{out}");
     assert!(root.join("demo/Cargo.toml").exists());
     let (code, out, err) = run_dx(root, &["completion", "bash"], &[]);
     assert_eq!(code, Some(0), "completion works outside a workspace: {err}");

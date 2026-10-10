@@ -116,7 +116,7 @@ mod tests {
             if verb == "uninstall" {
                 dx_adopt::install_hooks(scratch.path()).expect("install");
             }
-            let inv = invocation(&["hooks", verb]);
+            let inv = invocation(&["hooks", "--apply", verb]);
             assert_eq!(
                 execute_adoption(
                     &inv,
@@ -140,7 +140,6 @@ mod tests {
             vec!["status", "--dry-run", "--output=json"],
             vec!["upgrade", "--from=1.0.0", "--to=2.0.0"],
             vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--output=json"],
-            vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--dry-run"],
             vec![
                 "upgrade",
                 "--from=1.0.0",

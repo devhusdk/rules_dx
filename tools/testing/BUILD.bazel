@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -50,13 +50,52 @@ rust_test(
 rustfmt_test(
     name = "dx_testing_fmt_test",
     size = "small",
-    targets = [":dx_testing"],
+    targets = [
+        ":dx_testing",
+        ":starlark_harness",
+    ],
 )
 
 rust_clippy_test(
     name = "dx_testing_clippy_test",
     size = "small",
-    targets = [":dx_testing"],
+    targets = [
+        ":dx_testing",
+        ":starlark_harness",
+    ],
+)
+
+# keep
+rust_binary(
+    name = "starlark_harness",
+    srcs = ["starlark_harness.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ),
+    crate_name = "starlark_harness",
+    crate_root = "starlark_harness.rs",
+    edition = "2021",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ) + ["//cli/path:dx_path"],
+)
+
+# keep
+rust_test(
+    name = "starlark_harness_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":starlark_harness",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ) + ["//cli/path:dx_path"],
 )
 
 exports_files(["Cargo.toml"])

@@ -182,4 +182,21 @@ mod tests {
         assert_eq!(code, pre_exec_code());
         assert!(err.contains("upgrade-only"));
     }
+
+    #[test]
+    fn upgrade_default_check_and_apply_all_fail_closed_without_writing() {
+        for extra in [vec![], vec!["--check"], vec!["--apply"]] {
+            let mut words = vec!["upgrade", "--from=1.2.3", "--to=2.0.0"];
+            words.extend(extra.clone());
+            let inv = invocation(&words);
+            let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-modes-");
+            let root = scratch.path().to_path_buf();
+            let (code, _out, err) = run(&inv, &root);
+            assert_eq!(code, 1, "{words:?}");
+            assert!(err.contains(CODE_UPGRADE_FAILED), "{words:?} {err}");
+            assert!(err.contains("migrate-v1-to-v2.json"), "{words:?} {err}");
+            assert!(!root.join("migrate-v1-to-v2.json").exists(), "{words:?}");
+            assert!(!root.join(".dx/version").exists(), "{words:?}");
+        }
+    }
 }

@@ -179,4 +179,44 @@ mod tests {
             Err(crate::args::ArgsError::UnsupportedOption { .. })
         ));
     }
+
+    #[test]
+    fn default_check_and_apply_all_fail_closed_without_writing() {
+        for extra in [vec![], vec!["--check"], vec!["--apply"]] {
+            let mut args = vec!["migrate", "--from=1.2.3", "--to=2.0.0"];
+            args.extend(extra.clone());
+            let harness = Harness::new("migrate-modes-closed");
+            let (code, _out, err) = harness.run(&args);
+            assert_eq!(code, 1, "{args:?} {err}");
+            assert!(err.contains("migrate_failed"), "{args:?} {err}");
+            assert!(err.contains("migrate-v1-to-v2.json"), "{args:?} {err}");
+            assert!(
+                !harness.workspace.join("migrate-v1-to-v2.json").exists(),
+                "{args:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn check_json_matches_default_outcome() {
+        let harness = Harness::new("migrate-check-json");
+        let (code, out, err) = harness.run(&[
+            "migrate",
+            "--from=1.2.3",
+            "--to=2.0.0",
+            "--check",
+            "--output=json",
+        ]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started");
+        assert!(kinds.contains(&"error"), "{kinds:?}");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        assert!(
+            !harness.workspace.join("migrate-v1-to-v2.json").exists(),
+            "check writes nothing"
+        );
+    }
 }

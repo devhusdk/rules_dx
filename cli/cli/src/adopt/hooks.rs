@@ -42,6 +42,9 @@ pub(crate) fn execute_hooks(
                 }
                 return 0;
             }
+            if !invocation.applies() {
+                return check_install(invocation, workspace, out, err);
+            }
             match dx_adopt::install_hooks(workspace) {
                 Ok(installed) => {
                     if !summaries_suppressed(invocation) {
@@ -74,6 +77,9 @@ pub(crate) fn execute_hooks(
                     }
                 }
                 return 0;
+            }
+            if !invocation.applies() {
+                return check_uninstall(invocation, workspace, out, err);
             }
             match dx_adopt::uninstall_hooks(workspace) {
                 Ok(removed) => {
@@ -110,6 +116,109 @@ pub(crate) fn execute_hooks(
 
 fn read_file_opt(root: &std::path::Path, rel: &str) -> Option<String> {
     std::fs::read_to_string(root.join(rel)).ok()
+}
+
+fn check_install(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let mut drifted: Vec<String> = Vec::new();
+    for trigger in ["pre-commit", "pre-push"] {
+        let rel = format!(".git/hooks/{trigger}");
+        match std::fs::read_to_string(workspace.join(&rel)) {
+            Err(_) => drifted.push(format!("would install {rel}")),
+            Ok(existing) => {
+                if !existing.contains(dx_adopt::HOOK_MANAGED_MARKER) {
+                    return operational(
+                        invocation,
+                        out,
+                        err,
+                        CODE_HOOKS_FAILED,
+                        &format!(
+                            "unmanaged hook refuses install: {trigger} (foreign file left untouched; remove or replace it explicitly, then re-run with `dx hooks install --apply`)"
+                        ),
+                    );
+                }
+                if existing != dx_adopt::render_hook_shim(trigger) {
+                    drifted.push(format!("would refresh {rel}"));
+                }
+            }
+        }
+    }
+    if !workspace.join("dx.local.toml").exists() {
+        drifted.push("would install dx.local.toml".to_owned());
+    }
+    if drifted.is_empty() {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) =
+                check_stdout_write(writeln!(out, "hooks current: managed hooks installed"))
+            {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_HOOKS_FAILED,
+        &format!(
+            "hooks would install: {}; re-run with `dx hooks install --apply` (nothing written)",
+            drifted.join(", "),
+        ),
+    )
+}
+
+fn check_uninstall(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let mut drifted: Vec<String> = Vec::new();
+    for trigger in ["pre-commit", "pre-push"] {
+        let rel = format!(".git/hooks/{trigger}");
+        match std::fs::read_to_string(workspace.join(&rel)) {
+            Err(_) => {}
+            Ok(existing) => {
+                if !existing.contains(dx_adopt::HOOK_MANAGED_MARKER) {
+                    return operational(
+                        invocation,
+                        out,
+                        err,
+                        CODE_HOOKS_FAILED,
+                        &format!(
+                            "unmanaged hook refuses uninstall: {trigger} (foreign file left untouched)"
+                        ),
+                    );
+                }
+                drifted.push(format!("would remove {rel}"));
+            }
+        }
+    }
+    if drifted.is_empty() {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) =
+                check_stdout_write(writeln!(out, "hooks current: no managed hooks installed"))
+            {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_HOOKS_FAILED,
+        &format!(
+            "hooks would remove: {}; re-run with `dx hooks uninstall --apply` (nothing removed)",
+            drifted.join(", "),
+        ),
+    )
 }
 
 fn execute_status(
@@ -579,7 +688,7 @@ mod tests {
             let mut err = Vec::new();
             assert_eq!(
                 execute_hooks(
-                    &invocation(&["hooks", verb]),
+                    &invocation(&["hooks", "--apply", verb]),
                     root,
                     &NullQuery,
                     &NullRunner,
@@ -603,20 +712,180 @@ mod tests {
         std::fs::write(foreign.path().join(".git/hooks/pre-commit"), "foreign hook")
             .expect("foreign hook");
         for verb in ["install", "uninstall"] {
+            for extra in [vec![], vec!["--apply"]] {
+                let mut words = vec!["hooks"];
+                words.extend(extra);
+                words.push(verb);
+                let mut err = Vec::new();
+                assert_eq!(
+                    execute_hooks(
+                        &invocation(&words),
+                        foreign.path(),
+                        &NullQuery,
+                        &NullRunner,
+                        None,
+                        &mut Vec::new(),
+                        &mut err
+                    ),
+                    1
+                );
+                assert!(!err.is_empty());
+            }
+        }
+        assert_eq!(
+            std::fs::read_to_string(foreign.path().join(".git/hooks/pre-commit"))
+                .expect("foreign hook"),
+            "foreign hook"
+        );
+    }
+
+    #[test]
+    fn hooks_install_check_reports_drift_without_writing() {
+        let scratch = dx_test_scratch::scratch("hooks-install-check-");
+        let root = scratch.path();
+        std::fs::create_dir(root.join(".git")).expect("git");
+        for words in [
+            vec!["hooks", "install"],
+            vec!["hooks", "install", "--check"],
+        ] {
+            let mut out = Vec::new();
             let mut err = Vec::new();
             assert_eq!(
                 execute_hooks(
-                    &invocation(&["hooks", verb]),
-                    foreign.path(),
+                    &invocation(&words),
+                    root,
                     &NullQuery,
                     &NullRunner,
                     None,
-                    &mut Vec::new(),
+                    &mut out,
                     &mut err
                 ),
-                1
+                1,
+                "{words:?}"
             );
-            assert!(!err.is_empty());
+            let err_text = String::from_utf8(err).expect("err");
+            assert!(err_text.contains("hooks_failed"), "{words:?} {err_text}");
+            assert!(
+                err_text.contains("dx hooks install --apply"),
+                "{words:?} {err_text}"
+            );
+            assert!(!root.join(".git/hooks/pre-commit").exists(), "{words:?}");
+            assert!(!root.join("dx.local.toml").exists(), "{words:?}");
+        }
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "install"]),
+                root,
+                &NullQuery,
+                &NullRunner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        assert!(err.is_empty());
+        for words in [
+            vec!["hooks", "install"],
+            vec!["hooks", "install", "--check"],
+        ] {
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            assert_eq!(
+                execute_hooks(
+                    &invocation(&words),
+                    root,
+                    &NullQuery,
+                    &NullRunner,
+                    None,
+                    &mut out,
+                    &mut err
+                ),
+                0,
+                "{words:?}"
+            );
+            assert!(
+                String::from_utf8(out)
+                    .expect("out")
+                    .contains("hooks current"),
+                "{words:?}"
+            );
+            assert!(err.is_empty(), "{words:?}");
+        }
+    }
+
+    #[test]
+    fn hooks_uninstall_check_reports_drift_without_removing() {
+        let scratch = dx_test_scratch::scratch("hooks-uninstall-check-");
+        let root = scratch.path();
+        std::fs::create_dir(root.join(".git")).expect("git");
+        for words in [
+            vec!["hooks", "uninstall"],
+            vec!["hooks", "uninstall", "--check"],
+        ] {
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            assert_eq!(
+                execute_hooks(
+                    &invocation(&words),
+                    root,
+                    &NullQuery,
+                    &NullRunner,
+                    None,
+                    &mut out,
+                    &mut err
+                ),
+                0,
+                "{words:?}"
+            );
+            assert!(
+                String::from_utf8(out)
+                    .expect("out")
+                    .contains("hooks current"),
+                "{words:?}"
+            );
+        }
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "install"]),
+                root,
+                &NullQuery,
+                &NullRunner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        for words in [
+            vec!["hooks", "uninstall"],
+            vec!["hooks", "uninstall", "--check"],
+        ] {
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            assert_eq!(
+                execute_hooks(
+                    &invocation(&words),
+                    root,
+                    &NullQuery,
+                    &NullRunner,
+                    None,
+                    &mut out,
+                    &mut err
+                ),
+                1,
+                "{words:?}"
+            );
+            let err_text = String::from_utf8(err).expect("err");
+            assert!(
+                err_text.contains("dx hooks uninstall --apply"),
+                "{words:?} {err_text}"
+            );
+            assert!(root.join(".git/hooks/pre-commit").exists(), "{words:?}");
         }
     }
 
@@ -1058,8 +1327,8 @@ mod tests {
         let targets = vec!["//pkg:lib".to_owned()];
         for (check, want) in [
             ("format", vec!["/dx", "format", "//pkg:lib"]),
-            ("update", vec!["/dx", "update", "--check", "//pkg:lib"]),
-            ("generate", vec!["/dx", "generate", "--check", "//pkg:lib"]),
+            ("update", vec!["/dx", "update", "//pkg:lib"]),
+            ("generate", vec!["/dx", "generate", "//pkg:lib"]),
             (
                 "format --check",
                 vec!["/dx", "format", "--check", "//pkg:lib"],

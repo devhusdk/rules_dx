@@ -1,19 +1,23 @@
 # `dx new` And `dx upgrade`
 
 ```sh
-bazel run @rules_dx//:dx -- new rust my_project
-bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
+bazel run @rules_dx//:dx -- new rust my_project --check
+bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0 --check
 ```
 
 ## `dx new`
 
 ```text
-dx new [--apply] <language> [name]
+dx new [--check] [--apply] <language> [name]
 ```
 
 Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Never overwrites existing files.
+`fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Checks by default and writes
+nothing; `--apply` authorizes the scaffolding. Never overwrites existing
+files. A missing project file is drift: the check fails and names every
+file `--apply` would write. Files that already exist stay untouched either
+way.
 There is no `--force`. Runs outside a workspace.
 
 Two spellings scaffold the same projects:
@@ -25,7 +29,12 @@ Output: `--output text`.
 
 Exit codes: `0` success, `2` usage errors including an unknown language, an
 invalid destination or package identity, or extra positionals, `1`
-scaffolding failed.
+scaffolding failed or the check found drift.
+
+```sh
+bazel run @rules_dx//:dx -- new rust my_project --check
+bazel run @rules_dx//:dx -- new rust my_project --apply
+```
 
 The `[name]` is the destination directory and defaults to `my_project`.
 Destinations stay inside the workspace. Absolute paths, `..` segments, empty
@@ -51,7 +60,7 @@ file is written.
 ## `dx new rust-web`
 
 ```text
-dx new [--apply] rust-web [name]
+dx new [--check] [--apply] rust-web [name]
 ```
 
 Scaffolds a standalone shared-Rust consumer: one core library, one native
@@ -59,7 +68,8 @@ binary, one unit test suite, one web bundle, and one manual browser test.
 Versions come from the rules_dx pins. Never overwrites existing files.
 
 ```sh
-bazel run @rules_dx//:dx -- new rust-web demo
+bazel run @rules_dx//:dx -- new rust-web demo --check
+bazel run @rules_dx//:dx -- new rust-web demo --apply
 ```
 
 Build and test inside the new project:
@@ -88,14 +98,22 @@ only and leaves custom files untouched.
 ## `dx upgrade`
 
 ```text
-dx upgrade [--apply] --from <version> --to <version> [--dry-run]
+dx upgrade [--check] [--apply] --from <version> --to <version> [--dry-run]
 ```
 
-Runs pin, migrate, and setup in one go with a recovery pointer. Both
+Runs pin, migrate, and setup in one go with a recovery pointer. Checks by
+default and writes nothing; `--apply` authorizes the upgrade. Both
 versions are required. `--dry-run` prints the plan without writing files.
-No manifests exist yet, so live runs fail closed.
+No manifests exist yet, so live runs fail closed in every mode: the check
+validates the pin, migrate, and setup preconditions without manufacturing a
+plan, and `--apply` reports the same missing-manifest failure.
 
 Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including missing versions or a
 target that is not newer, `1` a step failed.
+
+```sh
+bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0 --check
+bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0 --dry-run
+```

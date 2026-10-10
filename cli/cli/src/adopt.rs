@@ -14,8 +14,11 @@ pub(crate) mod watch;
 use std::io::Write;
 
 use crate::args::{Command, Invocation};
+use crate::exec::common::{check_stdout_write, emit_event};
 use crate::resolve::QueryRunner;
-use dx_output::OutputMode;
+use dx_output::{
+    command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
+};
 
 pub(crate) use crate::exec::common::{operational, pre_exec};
 
@@ -29,6 +32,81 @@ pub struct AdoptEnv<'a> {
 
 fn summaries_suppressed(invocation: &Invocation) -> bool {
     invocation.quiet || matches!(invocation.output, OutputMode::Text { quiet: true })
+}
+
+pub(crate) fn scaffold_check(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    command: &str,
+    rerun: &str,
+    files: &[dx_adopt::ScaffoldFile],
+) -> i32 {
+    let code = format!("{command}_failed");
+    let mut missing: Vec<&str> = Vec::new();
+    for file in files {
+        match std::fs::read(workspace.join(&file.path)) {
+            Ok(_) => {}
+            Err(_) => missing.push(file.path.as_str()),
+        }
+    }
+    let is_json = invocation.output == OutputMode::Json;
+    if missing.is_empty() {
+        let message = format!(
+            "{command} current: all {} intended file(s) present",
+            files.len()
+        );
+        if is_json {
+            if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            if let Ok(event) = notice_event(&NoticeEvent {
+                level: "info".to_owned(),
+                code: format!("{command}_current"),
+                message: message.clone(),
+                related_command: Some(command.to_owned()),
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            }) {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+                return exit;
+            }
+            return 0;
+        }
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    if is_json {
+        if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
+        }
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        &code,
+        &format!(
+            "{command} would write {} file(s): {}; re-run with `{rerun}` (nothing written)",
+            missing.len(),
+            missing.join(", "),
+        ),
+    )
 }
 
 pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
@@ -116,7 +194,7 @@ mod tests {
             if verb == "uninstall" {
                 dx_adopt::install_hooks(scratch.path()).expect("install");
             }
-            let inv = invocation(&["hooks", verb]);
+            let inv = invocation(&["hooks", "--apply", verb]);
             assert_eq!(
                 execute_adoption(
                     &inv,

@@ -44,13 +44,14 @@ pub fn restore_paths(report: &UpdateReport) -> Vec<String> {
 
 pub fn retry_command(retry: &[String]) -> String {
     if retry.is_empty() {
-        return "dx update".to_owned();
+        return "dx update --apply".to_owned();
     }
     let mut command = String::from("dx update");
     for set in retry {
         command.push(' ');
         command.push_str(set);
     }
+    command.push_str(" --apply");
     command
 }
 
@@ -174,7 +175,7 @@ mod tests {
     fn failed_report_plans_retry_plus_restore() {
         let plan = plan(&report()).expect("failed report plans recovery");
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
-        assert_eq!(plan.retry_command, "dx update maven");
+        assert_eq!(plan.retry_command, "dx update maven --apply");
         assert!(plan.restore_paths.contains(&"pnpm-lock.yaml".to_owned()));
         assert!(plan
             .restore_paths
@@ -210,7 +211,7 @@ mod tests {
             plan.retry_sets,
             vec!["maven".to_owned(), "nuget".to_owned()]
         );
-        assert_eq!(plan.retry_command, "dx update maven nuget");
+        assert_eq!(plan.retry_command, "dx update maven nuget --apply");
         let mut sorted = plan.restore_paths.clone();
         sorted.sort();
         assert_eq!(plan.restore_paths, sorted);
@@ -218,8 +219,11 @@ mod tests {
 
     #[test]
     fn retry_command_is_idempotent_shape() {
-        assert_eq!(retry_command(&[]), "dx update");
-        assert_eq!(retry_command(&["go".to_owned()]), "dx update go".to_owned());
+        assert_eq!(retry_command(&[]), "dx update --apply");
+        assert_eq!(
+            retry_command(&["go".to_owned()]),
+            "dx update go --apply".to_owned()
+        );
     }
 
     #[test]
@@ -243,7 +247,7 @@ mod tests {
         };
         let plan = plan(&report).expect("unsupported plans recovery");
         assert_eq!(plan.retry_sets, vec!["cargo".to_owned()]);
-        assert_eq!(plan.retry_command, "dx update cargo");
+        assert_eq!(plan.retry_command, "dx update cargo --apply");
         assert!(plan.restore_paths.is_empty());
         assert!(plan.restore_command.is_none());
         assert!(plan.message.contains("; nothing to roll back"));

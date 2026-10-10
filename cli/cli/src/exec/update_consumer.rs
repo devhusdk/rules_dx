@@ -10,7 +10,7 @@ pub(super) fn execute_configured(
     registry: &dependency_sets::Registry,
     verbose: bool,
 ) -> i32 {
-    let mode = if invocation.check {
+    let mode = if invocation.check || (!invocation.dry_run && !invocation.applies()) {
         RunMode::Check
     } else {
         RunMode::Update
@@ -446,7 +446,7 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_selective_update_runs_one_directory() {
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "worker", "--apply"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("Running update for worker"), "{out}");
         assert!(
@@ -464,6 +464,29 @@ source = { registry = "https://pypi.org/simple" }
                 "--directory".to_owned(),
                 "services/worker".to_owned(),
             ]
+        );
+    }
+
+    #[test]
+    fn consumer_default_checks_selective_set_without_updating() {
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err, harness) = run_consumer(&["update", "worker"], &runner);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Running update --check for worker"), "{out}");
+        assert_eq!(runner.calls.borrow().len(), 1);
+        assert_eq!(
+            runner.calls.borrow()[0],
+            vec![
+                "uv".to_owned(),
+                "lock".to_owned(),
+                "--check".to_owned(),
+                "--directory".to_owned(),
+                "services/worker".to_owned(),
+            ]
+        );
+        assert_eq!(
+            std::fs::read(harness.workspace.join("services/worker/uv.lock")).expect("lock"),
+            UV_LOCK.as_bytes()
         );
     }
 
@@ -536,11 +559,19 @@ writable = false
 "#;
         let harness = consumer_harness("read-only", READONLY, true);
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update", "frontend"], &runner, &harness);
+        let (code, _, err) = run_with(&["update", "frontend", "--apply"], &runner, &harness);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(err.contains("read-only"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "frontend"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("Running update --check for frontend"),
+            "{out}{err}"
+        );
+        assert_eq!(runner.calls.borrow().len(), 1);
         let runner = ScriptRunner::new(&[]);
         let (code, out, err) = run_with(&["update", "--check", "frontend"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
@@ -595,7 +626,8 @@ writable = false
     #[test]
     fn consumer_offline_update_needs_network() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "--offline", "worker"], &runner);
+        let (code, _, err, _) =
+            run_consumer(&["update", "--offline", "--apply", "worker"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
@@ -604,7 +636,7 @@ writable = false
     #[test]
     fn consumer_frozen_update_locks_resolution() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "--frozen", "worker"], &runner);
+        let (code, _, err, _) = run_consumer(&["update", "--frozen", "--apply", "worker"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("frozen_locked"), "{err}");
         assert!(!err.contains("offline_required"), "{err}");

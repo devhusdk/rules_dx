@@ -44,7 +44,7 @@ pub fn compare(left: &semver::Version, right: &semver::Version) -> std::cmp::Ord
 }
 
 pub fn generic_major_bump_hint() -> &'static str {
-    "if major bump, run `dx migrate --from <old> --to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 missing-versions)"
+    "if major bump, run `dx migrate --from <old> --to <new> --apply` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 missing-versions)"
 }
 
 pub fn parse(set: BumpSet, text: &str) -> Result<WidenVersion, VersionError> {

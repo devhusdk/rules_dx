@@ -132,7 +132,7 @@ pub(super) fn dry_run_rejects_unknown_and_unowned() {
 #[test]
 pub(super) fn live_all_success_reports_per_set_and_exits_zero() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("Running update for all dependency sets"),
@@ -159,7 +159,7 @@ pub(super) fn live_all_success_reports_per_set_and_exits_zero() {
 #[test]
 pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
-    let (code, out, err) = run_with(&["update"], &runner);
+    let (code, out, err) = run_with(&["update", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("updated cargo ("), "{out}");
     assert!(out.contains("updated npm ("), "{out}");
@@ -177,7 +177,7 @@ pub(super) fn live_independent_failure_preserves_success_and_exits_one() {
 #[test]
 pub(super) fn live_selective_npm_runs_once_with_packages() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "npm:jest", "npm:react"], &runner);
+    let (code, out, err) = run_with(&["update", "npm:jest", "npm:react", "--apply"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("Running update for npm:jest, npm:react"),
@@ -227,7 +227,10 @@ pub(super) fn live_unsupported_go_selective_fails_without_launch() {
 #[test]
 pub(super) fn live_target_resolves_to_owning_set_only() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "//go/tests/fixtures/hello:hello"], &runner);
+    let (code, out, err) = run_with(
+        &["update", "//go/tests/fixtures/hello:hello", "--apply"],
+        &runner,
+    );
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running update for go"), "{out}");
     assert!(out.contains("go pins are manual"), "{out}");
@@ -237,7 +240,7 @@ pub(super) fn live_target_resolves_to_owning_set_only() {
 #[test]
 pub(super) fn live_json_emits_per_set_notices_and_finished() {
     let runner = ScriptRunner::new(&[("npm", Some(2))]);
-    let (code, out, err) = run_with(&["update", "--output=json"], &runner);
+    let (code, out, err) = run_with(&["update", "--output=json", "--apply"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let kinds = event_kinds(&events);

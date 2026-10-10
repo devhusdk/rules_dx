@@ -28,7 +28,7 @@ toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel bui
 
 The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
 compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
-fails, and the hint is the fix, for example `dx version --pin <version>`.
+fails, and the hint is the fix, for example `dx version --pin <version> --apply`.
 The `platform` check names the execution platforms tools resolve for. The
 target platform never selects tools.
 
@@ -43,11 +43,14 @@ or empty `.dx/version` fails the same way.
 dx version [--check] [--apply] [--pin <version>|--rollback]
 ```
 
-Prints the version.
+Prints the version. Bare runs and `--check` never write.
 
-- `--check`: verify the pin without changing it.
-- `--pin <version>`: re-pin to this version.
-- `--rollback`: restore the last pin. Conflicts with `--pin`.
+- `--check`: verify the pin without changing it. Combines with `--pin` and
+  `--rollback` as the same drift check.
+- `--pin <version>`: re-pin to this version. Checks by default; `--apply`
+  writes the pin. A missing pin file is drift.
+- `--rollback`: restore the last pin. Checks by default; `--apply` writes
+  the pin. Conflicts with `--pin`.
 
 Output: `--output text|json`.
 
@@ -56,8 +59,8 @@ pin drift or a refused pin.
 
 ```sh
 bazel run @rules_dx//:dx -- version --check
-bazel run @rules_dx//:dx -- version --pin 0.0.0
-bazel run @rules_dx//:dx -- version --rollback
+bazel run @rules_dx//:dx -- version --pin 0.0.0 --apply
+bazel run @rules_dx//:dx -- version --rollback --apply
 ```
 
 ## Version Skew
@@ -80,6 +83,6 @@ error event, then `command_finished` with `exit_code` `1` and
 
 ```sh
 bazel run @rules_dx//:dx -- version --check
-bazel run @rules_dx//:dx -- version --pin 0.0.0
+bazel run @rules_dx//:dx -- version --pin 0.0.0 --apply
 bazel run @rules_dx//:dx -- build //...
 ```

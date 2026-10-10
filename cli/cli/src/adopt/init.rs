@@ -3,7 +3,7 @@ use std::io::Write;
 use crate::args::Invocation;
 use crate::exec::common::check_stdout_write;
 
-use super::{operational, summaries_suppressed};
+use super::{operational, scaffold_check, summaries_suppressed};
 use dx_process::pre_exec_code;
 
 pub(crate) const CODE_INIT_FAILED: &str = "init_failed";
@@ -52,6 +52,19 @@ pub(crate) fn execute_init(
         }
         return 0;
     }
+    if !invocation.applies() {
+        return match dx_adopt::plan_init_files(module) {
+            Ok(files) => {
+                let rerun = if invocation.targets.is_empty() {
+                    "dx init --apply".to_owned()
+                } else {
+                    format!("dx init --apply {module}")
+                };
+                scaffold_check(invocation, workspace, out, err, "init", &rerun, &files)
+            }
+            Err(error) => invalid_module_code(invocation, out, err, &error),
+        };
+    }
     match dx_adopt::apply_init(workspace, module) {
         Ok(entries) => {
             for entry in entries {
@@ -90,13 +103,43 @@ mod tests {
 
     #[test]
     fn init_applies_absent_only() {
-        let inv = invocation(&["init"]);
+        let inv = invocation(&["init", "--apply"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(root.join(".dx/version").exists());
         assert!(root.join(".devcontainer/devcontainer.json").exists());
+    }
+
+    #[test]
+    fn init_default_checks_without_writing() {
+        for words in [vec!["init"], vec!["init", "--check"]] {
+            let inv = invocation(&words);
+            let scratch = dx_test_scratch::scratch("dx-adopt-init-check-");
+            let root = scratch.path().to_path_buf();
+            let (code, _out, err) = run(&inv, &root);
+            assert_eq!(code, 1, "{words:?}");
+            assert!(err.contains("init_failed"), "{words:?} {err}");
+            assert!(err.contains("would write 9 file(s)"), "{words:?} {err}");
+            assert!(err.contains("dx init --apply"), "{words:?} {err}");
+            assert!(!root.join(".dx/version").exists(), "{words:?}");
+            assert!(!root.join(".devcontainer").exists(), "{words:?}");
+        }
+    }
+
+    #[test]
+    fn init_check_passes_once_applied() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-current-");
+        let root = scratch.path().to_path_buf();
+        let (code, _, _) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0);
+        for words in [vec!["init"], vec!["init", "--check"]] {
+            let (code, out, err) = run(&invocation(&words), &root);
+            assert_eq!(code, 0, "{words:?} {err}");
+            assert!(out.contains("init current"), "{words:?} {out}");
+            assert!(err.is_empty(), "{words:?} {err}");
+        }
     }
 
     #[test]

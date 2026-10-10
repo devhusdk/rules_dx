@@ -513,7 +513,13 @@ fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
             );
             continue;
         }
-        let accepted = parse(&strings(&words)).is_ok();
+        let mut words: Vec<String> = vec![command.name().to_owned()];
+        words.extend(required_words(command));
+        if command == Command::Docs {
+            words.push("--serve".to_owned());
+        }
+        words.push("--check".to_owned());
+        let accepted = parse(&words).is_ok();
         let advertised = usage.contains("[--check]");
         assert_eq!(
             accepted,

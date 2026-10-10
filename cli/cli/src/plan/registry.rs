@@ -26,6 +26,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "//quality:real_aspects.bzl%real_python_lint_aspect",
                 "//quality:real_aspects.bzl%real_jvm_lint_aspect",
                 "//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "//quality:real_aspects.bzl%real_shell_lint_aspect",
             ],
             reports: &[StandardFormat::Sarif],
             settings: &[CLIPPY_DIAGNOSTICS_FLAG],
@@ -187,6 +188,7 @@ mod tests {
                 "//quality:real_aspects.bzl%real_python_lint_aspect",
                 "//quality:real_aspects.bzl%real_jvm_lint_aspect",
                 "//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "//quality:real_aspects.bzl%real_shell_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);

@@ -84,6 +84,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_shell_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "shell",
+    lint = ["shellcheck"],
+)
+
+quality_family(
     name = "default_starlark_family",
     disabled = ["typecheck"],
     family_id = "starlark",
@@ -177,6 +187,7 @@ workspace_policy(
         ":default_markdown_family",
         ":default_python_family",
         ":default_rust_family",
+        ":default_shell_family",
         ":default_starlark_family",
         ":default_toml_family",
         ":default_typescript_family",

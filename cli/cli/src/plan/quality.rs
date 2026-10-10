@@ -198,7 +198,7 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "build",
-                "--aspects=//quality:real_aspects.bzl%real_lint_aspect,//quality:real_aspects.bzl%real_js_lint_aspect,//quality:real_aspects.bzl%real_python_lint_aspect,//quality:real_aspects.bzl%real_jvm_lint_aspect,//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "--aspects=//quality:real_aspects.bzl%real_lint_aspect,//quality:real_aspects.bzl%real_js_lint_aspect,//quality:real_aspects.bzl%real_python_lint_aspect,//quality:real_aspects.bzl%real_jvm_lint_aspect,//quality:real_aspects.bzl%real_rust_lint_aspect,//quality:real_aspects.bzl%real_shell_lint_aspect",
                 "--output_groups=dx_results",
                 "--remote_download_outputs=all",
             ]

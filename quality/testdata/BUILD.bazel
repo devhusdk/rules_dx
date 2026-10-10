@@ -515,6 +515,28 @@ real_aspect_subject(
     target = ":fixture_real_rust_generated_shape",
 )
 
+real_source_target(
+    name = "fixture_real_shell",
+    shell_srcs = ["real_clean.sh"],
+)
+
+real_source_target(
+    name = "fixture_real_shell_dirty",
+    shell_srcs = ["real_dirty.sh"],
+    tags = ["manual"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_shell_subject",
+    target = ":fixture_real_shell",
+)
+
+real_aspect_subject(
+    name = "fixture_real_shell_dirty_subject",
+    tags = ["manual"],
+    target = ":fixture_real_shell_dirty",
+)
+
 real_aspect_subject(
     name = "fixture_real_starlark_subject",
     target = ":fixture_real_starlark",
@@ -836,6 +858,7 @@ real_aspect_fixture_tests(
         ":fixture_real_python_subject",
         ":fixture_real_rust_subject",
         ":fixture_real_rust_generated_shape_subject",
+        ":fixture_real_shell_subject",
         ":fixture_real_starlark_subject",
         ":fixture_real_toml_subject",
         ":fixture_upstream_cc_subject",

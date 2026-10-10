@@ -79,6 +79,7 @@ pub(crate) struct Flags {
     pub(crate) open: bool,
     pub(crate) offline: bool,
     pub(crate) workspace_capabilities: bool,
+    pub(crate) cases: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
 
@@ -425,6 +426,14 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Enumerate supported test cases via the test runtime.
+    CasesFlag, {
+        #[arg(long = "cases", overrides_with = "cases")]
+        cases: bool,
+    }
+}
+
 composite_group! {
     /// The profile flags the workflow commands share.
     ProfileArgs, {
@@ -735,6 +744,12 @@ command_args! {
     Verify => 34, BazelTail, {};
     /// The flags `dx rerun` accepts.
     Rerun => 35, BazelTail, {};
+    /// The flags `dx tests` accepts.
+    Tests => 36, BazelTail, {
+        own: CasesFlag,
+        configured: ConfiguredFlag,
+        here: HereFlag,
+    };
 }
 
 #[derive(Parser)]

@@ -246,6 +246,7 @@ fn step_invocation(invocation: &Invocation, command: Command, step: &ResolvedSte
         open: false,
         offline: false,
         workspace_capabilities: false,
+        cases: false,
         bazel_startup_options: invocation.bazel_startup_options.clone(),
     }
 }

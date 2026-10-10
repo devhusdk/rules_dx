@@ -64,7 +64,7 @@ Every command reads the pin in `.dx/version` and compares it with the
 `MODULE.bazel` pin before it runs. A mismatch is version skew.
 
 - Runs anyway: `version`, `status`, `completion`, `capabilities`.
-- Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`, `verify`, `rerun`.
+- Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`, `verify`, `rerun`, `tests`.
 - Stops with exit code `1`: every other command.
 
 `--dry-run` turns a stop into a warning. `watch` answers for the command it

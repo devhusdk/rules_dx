@@ -47,6 +47,7 @@ real_source_target(
         "cli/commands/status-version.md",
         "cli/commands/verify.md",
         "cli/commands/rerun.md",
+        "cli/commands/tests.md",
         "cli/commands/watch.md",
         "github-ci.md",
     ],

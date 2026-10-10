@@ -441,6 +441,7 @@ fn rerun_invocation(invocation: &Invocation, receipt: &Receipt) -> Invocation {
         open: false,
         offline: false,
         workspace_capabilities: false,
+        cases: false,
         bazel_startup_options: invocation.bazel_startup_options.clone(),
     }
 }

@@ -183,7 +183,7 @@ pub fn usage_banner() -> String {
 flags go after the command: `dx lint --check //...`. \
 per-command flags: capabilities --workspace-capabilities (adds workspace facts from local records); \
 clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
-distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why --configured (cquery); \
+distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
 coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
@@ -243,6 +243,7 @@ const COMMAND_FLAGS: &[&str] = &[
     "--pin",
     "--rollback",
     "--configured",
+    "--cases",
     "--from",
     "--to",
     "--here",

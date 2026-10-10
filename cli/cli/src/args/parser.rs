@@ -346,6 +346,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         open,
         offline,
         workspace_capabilities,
+        cases,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
@@ -632,6 +633,9 @@ fn parse_inner<S: AsRef<OsStr>>(
     if run_output.is_some() && !command.supports_run_output() {
         return Err(unsupported(command, "--run-output"));
     }
+    if cases && !command.supports_cases() {
+        return Err(unsupported(command, "--cases"));
+    }
     if let Some(dir) = run_output.as_deref() {
         if dir.is_empty() {
             return Err(ArgsError::MissingValue {
@@ -673,6 +677,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         open,
         offline,
         workspace_capabilities,
+        cases,
         bazel_startup_options,
     })
 }

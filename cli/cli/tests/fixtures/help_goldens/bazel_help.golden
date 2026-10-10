@@ -47,6 +47,6 @@ Per-command flags: none (raw Bazel forwarding; dx-owned options must precede the
 Scopes: none (raw Bazel forwarding; no dx scope resolution).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text; --report has no standard format for this command.
-Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --check, --apply, --debug, --release, --bazel, --prune-unobserved, --pin, --rollback, --configured, --from, --to, --here, --serve, --port, --host, --open, --offline, --workspace-capabilities.
+Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --check, --apply, --debug, --release, --bazel, --prune-unobserved, --pin, --rollback, --configured, --cases, --from, --to, --here, --serve, --port, --host, --open, --offline, --workspace-capabilities.
 Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 

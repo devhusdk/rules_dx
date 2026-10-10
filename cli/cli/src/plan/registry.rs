@@ -126,6 +126,12 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
             settings: &[],
         },
+        Command::Tests => CommandSpec {
+            command,
+            aspects: &[],
+            reports: &[],
+            settings: &[],
+        },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],

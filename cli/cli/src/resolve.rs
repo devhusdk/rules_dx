@@ -11,7 +11,9 @@ pub(crate) use classify::{classify_scopes, first_line, parse_owners, resolve_fil
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test};
 pub(crate) use packages::PackageCache;
-pub(crate) use query::{ownership_set_expression, quote_set, run_label_query};
+pub(crate) use query::{
+    owned_sources_expression, ownership_set_expression, quote_set, run_label_query,
+};
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use test_map::map_owners_to_tests;
 #[cfg(test)]
@@ -79,8 +81,8 @@ mod tests {
             ),
             (
                 ResolveError::NoOwner {
-                    file: "f.py".to_owned(),
-                    label: "//:f.py".to_owned(),
+                    files: strings(&["f.py"]),
+                    labels: strings(&["//:f.py"]),
                 },
                 "f.py",
             ),

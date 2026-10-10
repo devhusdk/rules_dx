@@ -85,9 +85,14 @@ pub enum ResolveError {
     )]
     UnsupportedName { scope: String },
     #[error(
-        "no Bazel target owns {file:?} (queried as {label}): add the file to a target srcs list or pass an explicit target label"
+        "no Bazel target owns {files}: add the files to a target srcs list or pass explicit target labels (queried as {labels})",
+        files = files.join(" "),
+        labels = labels.join(" ")
     )]
-    NoOwner { file: String, label: String },
+    NoOwner {
+        files: Vec<String>,
+        labels: Vec<String>,
+    },
     #[error(
         "no test depends on {owners}: pass an explicit test label or pattern such as //pkg/...",
         owners = owners.join(" ")

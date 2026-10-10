@@ -16,6 +16,10 @@ pub(crate) fn ownership_set_expression(labels: &[String]) -> String {
     format!("kind('rule', rdeps(//..., set({}), 1))", quote_set(labels))
 }
 
+pub(crate) fn owned_sources_expression(owners: &[String]) -> String {
+    format!("deps(set({}), 1)", quote_set(owners))
+}
+
 pub(crate) fn quote_label(label: &str) -> String {
     dx_codegen::quote_label(label)
 }

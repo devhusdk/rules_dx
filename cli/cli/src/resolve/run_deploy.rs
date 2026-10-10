@@ -1,10 +1,9 @@
 use std::path::Path;
 
 use super::classify::classify_scopes;
+use super::classify::resolve_file_owners;
 use super::packages::PackageCache;
-use super::{
-    first_line, ownership_set_expression, quote_set, run_label_query, QueryRunner, ResolveError,
-};
+use super::{first_line, quote_set, run_label_query, QueryRunner, ResolveError};
 
 fn runnable_set_expression(labels: &[String]) -> String {
     format!(
@@ -72,20 +71,11 @@ pub fn resolve_run(
             startup_options,
         )?;
         if found.is_empty() {
-            let owned = run_label_query(
-                &ownership_set_expression(&labels),
-                workspace,
-                runner,
-                startup_options,
-            )?;
-            if owned.is_empty() {
-                let first = &classified.files[0];
-                return Err(ResolveError::NoOwner {
-                    file: first.scope.clone(),
-                    label: first.label.clone(),
-                });
-            }
+            resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
         } else {
+            if classified.files.len() > 1 {
+                resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
+            }
             candidates.extend(found);
         }
     }
@@ -365,10 +355,62 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::NoOwner {
-                file: "pkg/a.py".to_owned(),
-                label: "//pkg:a.py".to_owned(),
+                files: strings(&["pkg/a.py"]),
+                labels: strings(&["//pkg:a.py"]),
             }
         );
+    }
+
+    #[test]
+    fn run_mixed_owned_and_orphan_files_report_orphan() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-partial-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/run.py", "x = 1\n");
+        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:bin\n"),
+            FakeQuery::ok("//pkg:bin\n//pkg:lib\n"),
+            FakeQuery::ok("//pkg:bin\n//pkg:run.py\n"),
+        ]);
+        let err = resolve_run(
+            &strings(&["pkg/run.py", "pkg/orphan.py"]),
+            &workspace,
+            &query,
+            &[],
+        )
+        .expect_err("partial ownership must fail");
+        assert_eq!(
+            err,
+            ResolveError::NoOwner {
+                files: strings(&["pkg/orphan.py"]),
+                labels: strings(&["//pkg:orphan.py"]),
+            }
+        );
+        assert_eq!(query.calls().len(), 3);
+    }
+
+    #[test]
+    fn run_mixed_owned_files_select_runnable() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-multi-owned-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/run.py", "x = 1\n");
+        write(&workspace, "pkg/helper.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:bin\n"),
+            FakeQuery::ok("//pkg:bin\n//pkg:lib\n"),
+            FakeQuery::ok("//pkg:run.py\n//pkg:helper.py\n"),
+        ]);
+        let got = resolve_run(
+            &strings(&["pkg/run.py", "pkg/helper.py"]),
+            &workspace,
+            &query,
+            &[],
+        )
+        .expect("resolve");
+        assert_eq!(got, strings(&["//pkg:bin"]));
+        assert_eq!(query.calls().len(), 3);
     }
 
     #[test]

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dx shared core</title>
+</head>
+<body>
+<main>
+<h1>dx shared core</h1>
+<label>expression <input id="input" value="2 * (3 + 4)"></label>
+<button id="run" type="button">Evaluate</button>
+<p id="proof">loading</p>
+<p id="failure">pending</p>
+<p id="version">loading</p>
+<p id="asset">loading</p>
+</main>
+<script type="module">
+import init, { evaluate, core_version } from "./shared_core.js";
+await init();
+const proof = document.getElementById("proof");
+const failure = document.getElementById("failure");
+const run = () => {
+  proof.textContent = evaluate(document.getElementById("input").value);
+};
+document.getElementById("run").addEventListener("click", run);
+run();
+failure.textContent = evaluate("1 / 0");
+document.getElementById("version").textContent = core_version();
+const asset = await (await fetch("./assets/queries.txt")).text();
+document.getElementById("asset").textContent = asset.trim();
+</script>
+</body>
+</html>

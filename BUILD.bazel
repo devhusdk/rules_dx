@@ -61,6 +61,7 @@ load("//rust/rules:defs.bzl", "rust_test")
 # gazelle:exclude gazelle
 # gazelle:exclude astro/tests/fixtures/hello
 # gazelle:exclude examples/mixed/hello
+# gazelle:exclude examples/shared-rust
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
 # gazelle:exclude java/tests/fixtures/hello

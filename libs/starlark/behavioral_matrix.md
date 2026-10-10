@@ -11,6 +11,7 @@ matrix-item: load-mode
 matrix-item: unit-mode
 matrix-item: analysis-mode
 matrix-item: execution-mode
+matrix-item: harness-execution-mode
 matrix-item: dx-subject-info
 matrix-item: aspect-subjects
 matrix-item: configuration-subjects

@@ -580,11 +580,11 @@ fn frozen_live_fails_with_frozen_locked_without_launching() {
 
 #[test]
 fn frozen_locked_code_is_stable_single_source() {
-    assert_eq!(
-        crate::exec::common::CODE_FROZEN_LOCKED,
-        "frozen_locked"
-    );
+    assert_eq!(crate::exec::common::CODE_FROZEN_LOCKED, "frozen_locked");
 }
+
+#[test]
+fn offline_live_fails_with_offline_required_without_launching() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "cargo", "--offline"], &runner);
     assert_eq!(code, 1, "{out}{err}");

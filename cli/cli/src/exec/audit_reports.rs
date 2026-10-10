@@ -1239,11 +1239,13 @@ fn offline_dry_run_plans_cache_only_without_launching() {
     let (code, out, err) = alias.run(&["license", "--frozen", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
-        out,
-        "Running audit license for //... (frozen, no resolution changes)\n",
+        out, "Running audit license for //... (frozen, no resolution changes)\n",
         "{out}"
     );
-    assert!(!out.contains("offline"), "frozen no longer implies offline: {out}");
+    assert!(
+        !out.contains("offline"),
+        "frozen no longer implies offline: {out}"
+    );
     let online = Harness::new("audit-online-dryrun");
     let (code, out, err) = online.run(&["security", "--dry-run"]);
     assert_eq!(code, 0, "{out}{err}");

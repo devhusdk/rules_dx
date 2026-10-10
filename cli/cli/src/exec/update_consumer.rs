@@ -61,8 +61,7 @@ pub(super) fn execute_configured(
             runner,
             workspace,
             mode,
-            invocation.offline,
-            invocation.frozen,
+            invocation,
         );
     }
     let selected: Vec<String> = resolved
@@ -88,8 +87,7 @@ fn run_configured_target(
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
     mode: RunMode,
-    offline: bool,
-    frozen: bool,
+    invocation: &Invocation,
 ) {
     let set = &target.set;
     let verb = mode.verb();
@@ -125,23 +123,27 @@ fn run_configured_target(
         return;
     }
     let planned = match mode {
-        RunMode::Update => {
-            dx_update::backend::plan_configured(set, &target.request, offline, frozen).map(|plan| {
-                match plan {
-                    dx_update::backend::BackendPlan::Run { argv, env } => (argv, env),
-                    dx_update::backend::BackendPlan::Noop => (Vec::new(), Vec::new()),
-                }
-            })
-        }
-        RunMode::Check => {
-            dx_update::backend::check_configured(set, &target.request, offline, frozen).map(
-                |plan| match plan {
-                    dx_update::backend::CheckPlan::Run { argv, env } => (argv, env),
-                    dx_update::backend::CheckPlan::Pinned => (Vec::new(), Vec::new()),
-                    dx_update::backend::CheckPlan::Unavailable => (Vec::new(), Vec::new()),
-                },
-            )
-        }
+        RunMode::Update => dx_update::backend::plan_configured(
+            set,
+            &target.request,
+            invocation.offline,
+            invocation.frozen,
+        )
+        .map(|plan| match plan {
+            dx_update::backend::BackendPlan::Run { argv, env } => (argv, env),
+            dx_update::backend::BackendPlan::Noop => (Vec::new(), Vec::new()),
+        }),
+        RunMode::Check => dx_update::backend::check_configured(
+            set,
+            &target.request,
+            invocation.offline,
+            invocation.frozen,
+        )
+        .map(|plan| match plan {
+            dx_update::backend::CheckPlan::Run { argv, env } => (argv, env),
+            dx_update::backend::CheckPlan::Pinned => (Vec::new(), Vec::new()),
+            dx_update::backend::CheckPlan::Unavailable => (Vec::new(), Vec::new()),
+        }),
     };
     let (argv, extra) = match planned {
         Err(error) => {
@@ -608,7 +610,8 @@ writable = false
         assert!(!err.contains("offline_required"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "--check", "--frozen", "worker"], &runner);
+        let (code, out, err, _) =
+            run_consumer(&["update", "--check", "--frozen", "worker"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("worker lockfile current (services/worker/uv.lock)"),

@@ -61,6 +61,6 @@ Per-command flags: --debug | --release (build/run/test/deploy only; mutually exc
 Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json; --report has no standard format for this command.
-Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --check, --apply, --bazel, --prune-unobserved, --pin, --rollback, --configured, --cases, --from, --to, --serve, --port, --host, --open, --offline, --workspace-capabilities.
+Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --check, --apply, --bazel, --prune-unobserved, --pin, --rollback, --configured, --cases, --from, --to, --serve, --port, --host, --open, --offline, --frozen, --workspace-capabilities.
 Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 

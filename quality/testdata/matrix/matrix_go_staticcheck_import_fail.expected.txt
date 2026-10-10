@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_go_staticcheck_import_fail
+capability LINT
+stages 1
+stage staticcheck classes=go sources=matrix/app/app.go
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR staticcheck SA4017 matrix/app/app.go 123 164 fixable=false "Sprintf doesn't have side effects and its return value is ignored"
+terminal 1
+terminal ERROR staticcheck SA4017 matrix/app/app.go 123 164 fixable=false "Sprintf doesn't have side effects and its return value is ignored"
+replacements 0

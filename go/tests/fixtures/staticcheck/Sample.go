@@ -1,7 +1,8 @@
 package staticcheck
 
+import "fmt"
+
 func Greet(name string) string {
-	x := 1
-	_ = x
+	fmt.Sprintf("hello %s", name)
 	return "hello " + name
 }

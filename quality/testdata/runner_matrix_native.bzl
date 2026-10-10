@@ -125,13 +125,25 @@ NATIVE_CASES = [
     {
         "name": "matrix_go_staticcheck_fail",
         "generated": {
-            "matrix/staticcheck_dirty.go": "// Seed Go lint fixture.\npackage staticcheck\n\nfunc check(name string) string {\n\tx := 1\n\t_ = x\n\treturn \"hello \" + name\n}\n",
+            "matrix/staticcheck_dirty.go": "// Seed Go lint fixture.\npackage staticcheck\n\nimport \"fmt\"\n\nfunc check(name string) string {\n\tfmt.Sprintf(\"hello %s\", name)\n\treturn \"hello \" + name\n}\n",
         },
         "capability": "lint",
         "stages": ["staticcheck;go;matrix/staticcheck_dirty.go"],
         "upstream_tools": ["staticcheck"],
         "upstream_srcs": [":matrix/matrix_go_staticcheck_fail.upstream.staticcheck.txt"],
         "expected_file": ":matrix/matrix_go_staticcheck_fail.expected.txt",
+    },
+    {
+        "name": "matrix_go_staticcheck_import_fail",
+        "generated": {
+            "matrix/dep/dep.go": "// Seed Go lint fixture.\npackage dep\n\nfunc Helper(name string) string {\n\treturn \"hello \" + name\n}\n",
+            "matrix/app/app.go": "// Seed Go lint fixture.\npackage app\n\nimport (\n\t\"fmt\"\n\n\t\"example.com/staticcheck/dep\"\n)\n\nfunc Check(name string) string {\n\tfmt.Sprintf(\"hello %s\", dep.Helper(name))\n\treturn \"hello \" + name\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["staticcheck;go;matrix/app/app.go"],
+        "upstream_tools": ["staticcheck"],
+        "upstream_generated": {"staticcheck": "{\"code\": \"SA4017\", \"severity\": \"error\", \"location\": {\"file\": \"matrix/app/app.go\", \"line\": 11, \"column\": 2}, \"end\": {\"file\": \"matrix/app/app.go\", \"line\": 11, \"column\": 43}, \"message\": \"Sprintf doesn't have side effects and its return value is ignored\"}\n"},
+        "expected_file": ":matrix/matrix_go_staticcheck_import_fail.expected.txt",
     },
     {
         "name": "matrix_go_govet_pass",

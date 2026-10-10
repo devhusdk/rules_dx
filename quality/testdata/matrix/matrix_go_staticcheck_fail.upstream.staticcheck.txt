@@ -1,1 +1,1 @@
-[{"code": "SA4006", "severity": "warning", "location": {"file": "matrix/staticcheck_dirty.go", "line": 5, "column": 2}, "end": {"line": 5, "column": 3}, "message": "this value of x is never used"}]
+{"code": "SA4017", "severity": "error", "location": {"file": "matrix/staticcheck_dirty.go", "line": 7, "column": 2}, "end": {"file": "matrix/staticcheck_dirty.go", "line": 7, "column": 31}, "message": "Sprintf doesn't have side effects and its return value is ignored"}

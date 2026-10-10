@@ -81,7 +81,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         (
             "staticcheck",
-            r#"[{"code":"S1000","severity":"warning","location":{"file":"src/a.scala","line":1,"column":1},"message":"finding"}]"#,
+            r#"{"code":"S1000","severity":"warning","location":{"file":"src/a.scala","line":1,"column":1},"message":"finding"}"#,
         ),
         ("psscriptanalyzer", "src/a.scala:1:1: [Demo] finding\n"),
         (

@@ -456,6 +456,14 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(missing_positional(command));
         }
     }
+    if command == Command::Verify {
+        if targets.len() > 1 {
+            return Err(extra_positional(command, &targets[1]));
+        }
+        if targets.is_empty() {
+            return Err(missing_positional(command));
+        }
+    }
     if matches!(command, Command::Migrate | Command::Upgrade) && (from.is_none() || to.is_none()) {
         return Err(ArgsError::MissingValue {
             option: "--from <version> --to <version>".to_owned(),

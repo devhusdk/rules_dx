@@ -1,0 +1,11 @@
+schema = 1
+
+[sets.pre-pr]
+steps = [
+  { command = "format", scopes = ["//cli/output/..."] },
+  { command = "lint", scopes = ["//cli/output/..."] },
+  { command = "typecheck", scopes = ["//cli/output/..."] },
+  { command = "generate", scopes = ["//cli/output/..."] },
+  { command = "build", scopes = ["//cli/output/..."] },
+  { command = "test", scopes = ["//cli/output/..."] },
+]

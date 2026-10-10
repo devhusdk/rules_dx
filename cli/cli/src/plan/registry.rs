@@ -99,6 +99,12 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[StandardFormat::Sarif],
             settings: &[],
         },
+        Command::Verify => CommandSpec {
+            command,
+            aspects: &[],
+            reports: &[],
+            settings: &[],
+        },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],

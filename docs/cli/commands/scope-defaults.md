@@ -36,6 +36,7 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx new`: needs a language, plus an optional name.
 - `dx init`: optional module name.
 - `dx completion`: exactly one shell, or none with `--check`.
+- `dx verify`: exactly one verification set name from `dx.verify.toml`.
 
 ## No Scopes
 

@@ -731,6 +731,8 @@ command_args! {
     Bazel => 32, NoScopeTail, {};
     /// The flags `dx capabilities` accepts.
     Capabilities => 33, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
+    /// The flags `dx verify` accepts.
+    Verify => 34, BazelTail, {};
 }
 
 #[derive(Parser)]

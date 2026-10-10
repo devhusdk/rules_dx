@@ -26,6 +26,7 @@ mod test_reports;
 mod test_support;
 mod umbrella;
 mod update;
+mod verify;
 mod workflow;
 
 use crate::args::{Command, Invocation};
@@ -82,7 +83,7 @@ fn family(command: Command) -> Family {
         Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
             Family::Workflow
         }
-        Command::Check | Command::Fix => Family::Umbrella,
+        Command::Check | Command::Fix | Command::Verify => Family::Umbrella,
         Command::Clean => Family::Clean,
         Command::Update => Family::Update,
         Command::Bump => Family::Bump,
@@ -140,7 +141,13 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                 },
             )
         }
-        Family::Umbrella => umbrella::execute_umbrella(invocation, env),
+        Family::Umbrella => {
+            if invocation.command == Command::Verify {
+                verify::execute_verify(invocation, env)
+            } else {
+                umbrella::execute_umbrella(invocation, env)
+            }
+        }
         Family::Workflow => workflow::execute_workflow(invocation, env),
         Family::Bazel => bazel::execute_bazel(invocation, env),
         Family::Generate => generate::execute_generate(invocation, env),
@@ -191,7 +198,7 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            34,
+            35,
             "every variant classified"
         );
         assert_eq!(counts.get("adoption"), Some(&12));
@@ -199,7 +206,7 @@ mod tests {
         assert_eq!(counts.get("quality"), Some(&3));
         assert_eq!(counts.get("managed"), Some(&3));
         assert_eq!(counts.get("audit"), Some(&2));
-        assert_eq!(counts.get("umbrella"), Some(&2));
+        assert_eq!(counts.get("umbrella"), Some(&3));
         assert_eq!(counts.get("generate"), Some(&1));
         assert_eq!(counts.get("clean"), Some(&1));
         assert_eq!(counts.get("update"), Some(&1));

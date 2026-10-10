@@ -1,0 +1,17 @@
+.bazelversion
+MODULE.bazel
+MODULE.bazel.lock
+rust/tests/fixtures/hello/Cargo.toml
+rust/tests/fixtures/hello/Cargo.lock
+cargo-bazel-lock.json
+.github/workflows
+third_party/go/go.mod
+third_party/go/go.sum
+MODULE.bazel
+third_party/jvm/maven_install.json
+MODULE.bazel.lock
+package.json
+pnpm-lock.yaml
+third_party/dotnet/paket.dependencies
+third_party/dotnet/paket.lock
+third_party/dotnet/deps

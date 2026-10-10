@@ -44,6 +44,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Validate bump credentials
+        if: inputs.selector != '' && inputs.version != ''
+        env:
+          HAS_APP_ID: ${{ secrets.BUMP_APP_ID != '' }}
+          HAS_APP_KEY: ${{ secrets.BUMP_APP_PRIVATE_KEY != '' }}
+        run: |
+          set -euo pipefail
+          if [[ "${HAS_APP_ID:-}" != "true" || "${HAS_APP_KEY:-}" != "true" ]]; then
+            echo "bump_auth_missing: set BUMP_APP_ID and BUMP_APP_PRIVATE_KEY secrets before dispatching bump (nothing widened, nothing pushed)."
+            exit 1
+          fi
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: bump-app
+        if: inputs.selector != '' && inputs.version != ''
+        with:
+          app-id: ${{ secrets.BUMP_APP_ID }}
+          private-key: ${{ secrets.BUMP_APP_PRIVATE_KEY }}
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -193,7 +210,7 @@ jobs:
       - name: Open one PR if green (fork-safe, no retry-until-green)
         if: inputs.selector != '' && inputs.version != ''
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bump-app.outputs.token }}
           SELECTOR: ${{ inputs.selector }}
           VERSION: ${{ inputs.version }}
           AUTOMERGE: ${{ inputs.automerge }}
@@ -210,9 +227,50 @@ jobs:
             exit 0
           fi
           branch="bump/${SELECTOR//[^A-Za-z0-9_.-]/-}-${VERSION//[^A-Za-z0-9_.-]/-}"
+          set_name="${SELECTOR%%:*}"
+          case "$set_name" in
+            bazel) allowed=(.bazelversion MODULE.bazel MODULE.bazel.lock) ;;
+            cargo) allowed=(rust/tests/fixtures/hello/Cargo.toml rust/tests/fixtures/hello/Cargo.lock cargo-bazel-lock.json) ;;
+            github-actions|gha) allowed=(.github/workflows) ;;
+            go|gomod) allowed=(third_party/go/go.mod third_party/go/go.sum) ;;
+            maven) allowed=(MODULE.bazel third_party/jvm/maven_install.json MODULE.bazel.lock) ;;
+            npm) allowed=(package.json pnpm-lock.yaml) ;;
+            nuget) allowed=(third_party/dotnet/paket.dependencies third_party/dotnet/paket.lock third_party/dotnet/deps) ;;
+            *)
+              echo "bump_scope_unknown: unknown selector set ${set_name:-empty} (nothing staged, nothing pushed)."
+              exit 1
+              ;;
+          esac
+          unexpected=""
+          while IFS= read -r line; do
+            if [[ -z "$line" ]]; then
+              continue
+            fi
+            path="${line:3}"
+            path="${path##* -> }"
+            ok=0
+            for pattern in "${allowed[@]}"; do
+              if [[ "$path" == "$pattern" || "$path" == "$pattern"/* ]]; then
+                ok=1
+                break
+              fi
+            done
+            if [[ "$ok" != "1" ]]; then
+              unexpected+="$path "
+            fi
+          done < <(git status --porcelain)
+          if [[ -n "$unexpected" ]]; then
+            echo "bump_scope_rejected: unexpected bump files ${unexpected}(only manifest, lock and pin files for $set_name may be staged; nothing staged, nothing pushed)."
+            exit 1
+          fi
           git checkout -b "$branch"
-          git add -A
+          git add -- "${allowed[@]}"
+          if git diff --cached --quiet; then
+            echo "Nothing in scope widened: record and stop (failures never retry-until-green)."
+            exit 0
+          fi
           git -c user.name="dx-bump" -c user.email="dx-bump@local" commit -m "bump $SELECTOR to $VERSION (widen-one, one dep per PR)"
+          gh auth setup-git
           git push --set-upstream origin "$branch"
           # One dep per PR, never batch.
           gh pr create --title "bump $SELECTOR to $VERSION" --body "Widen-one-requirement loop (issue #260): one dep per PR, never batch. Verification: regen, preset flag-diff, bazel build //..., bazel test //... (with CI flaky/timeout flags), dx coverage --min-coverage 96 //... plus dx lint/typecheck/format --check //... plus dx security/license //... dogfood gates (seed host; full host matrix in CI). Automerge toggle: $AUTOMERGE (on merges solely on the full required-check set; off leaves the PR open). Human merge path preserved." --label dependencies
@@ -234,4 +292,4 @@ jobs:
         if: always()
         run: |
           echo "### bump widen-one — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 96 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + GITHUB_TOKEN + fork-safety + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 96 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + fork-safety + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"

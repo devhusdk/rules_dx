@@ -44,7 +44,7 @@ pub fn compare(left: &semver::Version, right: &semver::Version) -> std::cmp::Ord
 }
 
 pub fn generic_major_bump_hint() -> &'static str {
-    "if major bump, run `dx migrate --from <old> --to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 missing-versions)"
+    "if major bump, run `dx migrate --apply --from <old> --to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 missing-versions)"
 }
 
 pub fn parse(set: BumpSet, text: &str) -> Result<WidenVersion, VersionError> {
@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn generic_major_bump_hint_pins_exit_mapping() {
         let generic = generic_major_bump_hint();
-        assert!(generic.contains("dx migrate --from"), "{generic}");
+        assert!(generic.contains("dx migrate --apply --from"), "{generic}");
         assert!(generic.contains("migrate_failed"), "{generic}");
         assert!(generic.contains("missing-versions"), "{generic}");
     }

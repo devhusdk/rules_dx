@@ -446,7 +446,7 @@ fn summary_carries_major_bump_migrate_hint_for_semver() {
     let bump = BumpRequest::parse("cargo:anyhow", "2.0.0").expect("cargo major");
     let summary = bump.summary();
     assert!(summary.contains("major bump"), "{summary}");
-    assert!(summary.contains("dx migrate --from"), "{summary}");
+    assert!(summary.contains("dx migrate --apply --from"), "{summary}");
     assert!(summary.contains("migrate_failed"), "{summary}");
     assert!(summary.contains("missing-versions"), "{summary}");
     let sha = "3d3c42e5aac5ba805825da76410c181273ba90b1";

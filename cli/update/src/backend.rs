@@ -80,7 +80,7 @@ pub fn plan(
         }),
         (SetId::Cargo, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
-            reason: "crate_universe repin refreshes the whole Cargo lock; use `dx update cargo` for the set",
+            reason: "crate_universe repin refreshes the whole Cargo lock; use `dx update --apply cargo` for the set",
         }),
         (SetId::Npm, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: pnpm_argv(workspace, &["update", "--lockfile-only"]),
@@ -105,7 +105,7 @@ pub fn plan(
         (SetId::NpmTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "npm-tools pins are exact in quality/tools/javascript; use `dx update npm-tools` for the set",
+                "npm-tools pins are exact in quality/tools/javascript; use `dx update --apply npm-tools` for the set",
         }),
         (SetId::Uv, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "python/tests/fixtures/hello"]),
@@ -114,7 +114,7 @@ pub fn plan(
         (SetId::Uv, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update --apply uv` for the set",
         }),
         (SetId::UvTools, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "quality/tools/python"]),
@@ -123,7 +123,7 @@ pub fn plan(
         (SetId::UvTools, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv-tools` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update --apply uv-tools` for the set",
         }),
         (SetId::NpmAdopt, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&[
@@ -138,7 +138,7 @@ pub fn plan(
         (SetId::NpmAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "npm-adopt pins are exact in examples/adopt-js-ts; use `dx update npm-adopt` for the set",
+                "npm-adopt pins are exact in examples/adopt-js-ts; use `dx update --apply npm-adopt` for the set",
         }),
         (SetId::NpmAdoptPolyglot, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&[
@@ -153,7 +153,7 @@ pub fn plan(
         (SetId::NpmAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "npm-adopt-polyglot pins are exact in examples/adopt-polyglot; use `dx update npm-adopt-polyglot` for the set",
+                "npm-adopt-polyglot pins are exact in examples/adopt-polyglot; use `dx update --apply npm-adopt-polyglot` for the set",
         }),
         (SetId::UvAdopt, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "examples/adopt-python"]),
@@ -162,7 +162,7 @@ pub fn plan(
         (SetId::UvAdopt, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv-adopt` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update --apply uv-adopt` for the set",
         }),
         (SetId::UvAdoptPolyglot, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["uv", "lock", "--directory", "examples/adopt-polyglot"]),
@@ -171,7 +171,7 @@ pub fn plan(
         (SetId::UvAdoptPolyglot, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "uv repin refreshes the whole uv lock; use `dx update uv-adopt-polyglot` for the set",
+                "uv repin refreshes the whole uv lock; use `dx update --apply uv-adopt-polyglot` for the set",
         }),
         (SetId::Maven, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&["bazel", "run", "@maven//:pin"]),
@@ -180,7 +180,7 @@ pub fn plan(
         (SetId::Maven, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "maven pins are exact in MODULE.bazel; use `dx update maven` for the set",
+                "maven pins are exact in MODULE.bazel; use `dx update --apply maven` for the set",
         }),
         (SetId::NuGet, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: strings(&[
@@ -198,12 +198,12 @@ pub fn plan(
         (SetId::NuGet, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
             reason:
-                "nuget pins are exact in paket.dependencies; use `dx update nuget` for the set",
+                "nuget pins are exact in paket.dependencies; use `dx update --apply nuget` for the set",
         }),
         (SetId::Go, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Go, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
-            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump gomod:<module> <version>`",
+            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump --apply gomod:<module> <version>`",
         }),
         (SetId::Ruby, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Ruby, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
@@ -570,7 +570,7 @@ mod tests {
         assert!(error.to_string().contains("cargo"));
         assert!(error
             .to_string()
-            .contains("use `dx update cargo` for the set"));
+            .contains("use `dx update --apply cargo` for the set"));
     }
 
     #[test]
@@ -590,7 +590,7 @@ mod tests {
         assert!(error.to_string().contains("nuget"));
         assert!(error
             .to_string()
-            .contains("use `dx update nuget` for the set"));
+            .contains("use `dx update --apply nuget` for the set"));
     }
 
     #[test]
@@ -608,7 +608,7 @@ mod tests {
             "{error:?}"
         );
         assert!(error.to_string().contains("go"));
-        assert!(error.to_string().contains("dx bump gomod"));
+        assert!(error.to_string().contains("dx bump --apply gomod"));
     }
 
     #[test]
@@ -742,7 +742,7 @@ mod tests {
             );
             assert!(message.contains("maven"), "{artifact}: {message}");
             assert!(
-                message.contains("use `dx update maven` for the set"),
+                message.contains("use `dx update --apply maven` for the set"),
                 "{artifact}: {message}"
             );
         }

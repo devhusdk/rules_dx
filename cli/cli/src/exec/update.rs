@@ -24,7 +24,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(env.err, &error.to_string()),
     }
     let verbose = invocation.chatty();
-    if invocation.check {
+    if !invocation.applies() {
         execute_update_check(invocation, env, verbose)
     } else {
         execute_update_default(invocation, env, verbose)
@@ -354,7 +354,7 @@ pub(super) fn record_named(
 
 fn unavailable_message(set: dx_update::sets::SetId) -> String {
     format!(
-        "cannot check {}: no qualified check backend; refresh with `dx update {}`",
+        "cannot check {}: no qualified check backend; refresh with `dx update --apply {}`",
         set.name(),
         set.name()
     )
@@ -919,7 +919,7 @@ fn current_line(set: dx_update::sets::SetId) -> String {
 
 fn pinned_line(set: dx_update::sets::SetId) -> String {
     match set {
-        dx_update::sets::SetId::Go => "go pins are manual (track Gazelle for the shared go_deps extension; widen via `dx bump gomod:<module> <version>`); nothing to resolve"
+        dx_update::sets::SetId::Go => "go pins are manual (track Gazelle for the shared go_deps extension; widen via `dx bump --apply gomod:<module> <version>`); nothing to resolve"
             .to_owned(),
         dx_update::sets::SetId::Ruby => {
             "ruby pins are manual (regenerate with `bundle lock` on the seed host); nothing to resolve"

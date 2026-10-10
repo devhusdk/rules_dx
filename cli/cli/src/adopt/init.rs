@@ -8,6 +8,53 @@ use dx_process::pre_exec_code;
 
 pub(crate) const CODE_INIT_FAILED: &str = "init_failed";
 
+fn check_init(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    module: &str,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let files = match dx_adopt::plan_init_files(module) {
+        Ok(files) => files,
+        Err(error) => return invalid_module_code(invocation, out, err, &error),
+    };
+    let missing: Vec<&str> = files
+        .iter()
+        .filter(|file| !workspace.join(&file.path).exists())
+        .map(|file| file.path.as_str())
+        .collect();
+    if missing.is_empty() {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) = check_stdout_write(writeln!(
+                out,
+                "init ok: all {} files present",
+                files.len()
+            )) {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    if !summaries_suppressed(invocation) {
+        for path in &missing {
+            if let Err(exit) = check_stdout_write(writeln!(out, "would write {path}")) {
+                return exit;
+            }
+        }
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_INIT_FAILED,
+        &format!(
+            "init check: {} file(s) missing (re-run with --apply to scaffold)",
+            missing.len()
+        ),
+    )
+}
+
 fn invalid_module_code(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -52,6 +99,9 @@ pub(crate) fn execute_init(
         }
         return 0;
     }
+    if !invocation.applies() {
+        return check_init(invocation, workspace, module, out, err);
+    }
     match dx_adopt::apply_init(workspace, module) {
         Ok(entries) => {
             for entry in entries {
@@ -90,7 +140,7 @@ mod tests {
 
     #[test]
     fn init_applies_absent_only() {
-        let inv = invocation(&["init"]);
+        let inv = invocation(&["init", "--apply"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);

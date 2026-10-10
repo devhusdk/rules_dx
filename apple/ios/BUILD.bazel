@@ -1,16 +1,22 @@
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":app.bzl", "apple_ios_app", "apple_ios_framework")
+load(":app_tests.bzl", "apple_ios_app_tests")
 load(":defs.bzl", "apple_ios_lib")
 load(":metadata_tests.bzl", "apple_ios_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "app.bzl",
+    "app_tests.bzl",
     "defs.bzl",
     "metadata_tests.bzl",
 ])
 
 apple_ios_tests(name = "metadata")
+
+apple_ios_app_tests(name = "app_metadata")
 
 apple_ios_lib(
     name = "no_environment",
@@ -144,8 +150,241 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "app.bzl",
+        "app_tests.bzl",
         "defs.bzl",
         "metadata_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+apple_ios_app(
+    name = "no_bundle_id",
+    bundle_id = "",
+    environment = "simulator",
+    library = "share",
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_bundle_id_test",
+    expected_failure_substring = "bundle_id must not be empty",
+    target = ":no_bundle_id_selection",
+)
+
+apple_ios_app(
+    name = "flat_bundle_id",
+    bundle_id = "share",
+    environment = "simulator",
+    library = "share",
+    version = "1.0",
+)
+
+failure_test(
+    name = "flat_bundle_id_test",
+    expected_failure_substring = "is not reverse-DNS",
+    target = ":flat_bundle_id_selection",
+)
+
+apple_ios_app(
+    name = "freeform_version",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    library = "share",
+    version = "one",
+)
+
+failure_test(
+    name = "freeform_version_test",
+    expected_failure_substring = "is not a dotted version",
+    target = ":freeform_version_selection",
+)
+
+apple_ios_app(
+    name = "no_library",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_library_test",
+    expected_failure_substring = "composes one qualified Rust library cell",
+    target = ":no_library_selection",
+)
+
+apple_ios_app(
+    name = "device_no_provisioning",
+    bundle_id = "com.example.share",
+    environment = "device",
+    library = "share",
+    version = "1.0",
+)
+
+failure_test(
+    name = "device_no_provisioning_test",
+    expected_failure_substring = "needs provisioning_profile",
+    target = ":device_no_provisioning_selection",
+)
+
+apple_ios_app(
+    name = "simulator_signed",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    library = "share",
+    signing_identity = "Apple Development",
+    version = "1.0",
+)
+
+failure_test(
+    name = "simulator_signed_test",
+    expected_failure_substring = "simulator runs unsigned",
+    target = ":simulator_signed_selection",
+)
+
+apple_ios_app(
+    name = "plist_entitlements",
+    bundle_id = "com.example.share",
+    entitlements = "Share.plist",
+    environment = "simulator",
+    library = "share",
+    version = "1.0",
+)
+
+failure_test(
+    name = "plist_entitlements_test",
+    expected_failure_substring = "must be an .entitlements file",
+    target = ":plist_entitlements_selection",
+)
+
+apple_ios_app(
+    name = "export_on_check",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    export_ipa = True,
+    library = "share",
+    version = "1.0",
+)
+
+failure_test(
+    name = "export_on_check_test",
+    expected_failure_substring = "Check never exports an IPA",
+    target = ":export_on_check_selection",
+)
+
+apple_ios_app(
+    name = "simulator_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    environment = "simulator",
+    library = "share",
+    resources = ["Assets.xcassets"],
+    version = "1.0",
+    xcode_version = "16.2",
+)
+
+apple_ios_framework(
+    name = "no_slices",
+    bundle_id = "com.example.share",
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_slices_test",
+    expected_failure_substring = "needs at least one 'environment/arch' slice",
+    target = ":no_slices_selection",
+)
+
+apple_ios_framework(
+    name = "flat_slice",
+    bundle_id = "com.example.share",
+    slices = ["simulator"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "flat_slice_test",
+    expected_failure_substring = "is not 'environment/arch'",
+    target = ":flat_slice_selection",
+)
+
+apple_ios_framework(
+    name = "watch_slice",
+    bundle_id = "com.example.share",
+    slices = ["watch/arm64"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "watch_slice_test",
+    expected_failure_substring = "unknown environment 'watch'",
+    target = ":watch_slice_selection",
+)
+
+apple_ios_framework(
+    name = "device_x86_slice",
+    bundle_id = "com.example.share",
+    slices = ["device/x86_64"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "device_x86_slice_test",
+    expected_failure_substring = "is outside device",
+    target = ":device_x86_slice_selection",
+)
+
+apple_ios_framework(
+    name = "simulator_only",
+    bundle_id = "com.example.share",
+    slices = ["simulator/arm64"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "simulator_only_test",
+    expected_failure_substring = "needs the device/arm64 slice",
+    target = ":simulator_only_selection",
+)
+
+apple_ios_framework(
+    name = "device_only",
+    bundle_id = "com.example.share",
+    slices = ["device/arm64"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "device_only_test",
+    expected_failure_substring = "needs at least one simulator slice",
+    target = ":device_only_selection",
+)
+
+apple_ios_framework(
+    name = "absolute_resource",
+    bundle_id = "com.example.share",
+    resources = ["/abs/Assets.xcassets"],
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+    ],
+    version = "1.0",
+)
+
+failure_test(
+    name = "absolute_resource_test",
+    expected_failure_substring = "must be a relative workspace path",
+    target = ":absolute_resource_selection",
+)
+
+apple_ios_framework(
+    name = "share_framework",
+    bundle_id = "com.example.share",
+    resources = ["Assets.xcassets"],
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+        "simulator/x86_64",
+    ],
+    version = "1.0",
 )

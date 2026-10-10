@@ -58,3 +58,60 @@ and frameworks pass through unchanged for the consuming build.
 
 Simulator and device execution stay pending: run on a qualified macOS
 executor with Xcode. No launch is qualified from any other host.
+
+## Simulator apps
+
+Compose one simulator application over a qualified library cell.
+Loading these rules builds and launches nothing.
+
+```python
+load("@rules_dx//apple/ios:app.bzl", "apple_ios_app")
+
+apple_ios_app(
+    name = "share_app",
+    environment = "simulator",
+    arch = "arm64",
+    bundle_id = "com.example.share",
+    version = "1.0",
+    deployment = "17.0",
+    xcode_version = "16.2",
+    library = "share",
+    resources = ["Assets.xcassets"],
+)
+```
+
+The cell fields keep the library contract: simulator and device cells,
+triples, SDKs, deployment floor and ceiling, and Xcode lineage fail the
+same way. The bundle identifier stays reverse-DNS and the version stays
+dotted. The simulator runs unsigned, so signing inputs fail there;
+device distribution needs a provisioning profile file and a signing
+identity. Exporting an IPA is a distinct explicitly applied operation:
+`export_ipa` fails under Check. Launch stays pending for a qualified
+macOS executor.
+
+## Embeddable frameworks
+
+Compose one embeddable framework over device and simulator slices.
+
+```python
+load("@rules_dx//apple/ios:app.bzl", "apple_ios_framework")
+
+apple_ios_framework(
+    name = "share_framework",
+    bundle_id = "com.example.share",
+    version = "1.0",
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+        "simulator/x86_64",
+    ],
+    resources = ["Assets.xcassets"],
+)
+```
+
+Every slice names an `environment/arch` cell from the qualified set.
+The framework needs the `device/arm64` slice and at least one simulator
+slice; unknown environments, wrong architectures, duplicates, and
+missing coverage fail. Resources stay relative workspace paths with
+non-empty names. Build, signing, and publication stay separate
+operations with their own prerequisites.

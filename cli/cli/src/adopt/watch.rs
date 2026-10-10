@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use dx_adopt::AdoptError;
 
-use crate::args::{Command, Invocation};
+use crate::args::{Command, Invocation, QualityRequest};
 use crate::exec::common::check_stdout_write;
 use crate::exec::Env;
 
@@ -62,6 +62,11 @@ fn watch(
     let mut iteration = invocation.clone();
     iteration.command = command;
     iteration.targets = scopes.to_vec();
+    if iteration.command.is_quality() {
+        if let Err(message) = QualityRequest::from_invocation(&iteration) {
+            return pre_exec(&mut err, &message);
+        }
+    }
     let mut round = 0u32;
     loop {
         round += 1;
@@ -303,6 +308,41 @@ mod tests {
                 harness.seen.borrow()[0]
             );
         }
+    }
+
+    #[test]
+    fn watch_rejects_a_quality_wrap_carrying_an_unrelated_pin() {
+        let mut harness = Harness::new("dx-watch-quality-pin-");
+        let mut polluted = invocation(&["watch", "lint", "//..."]);
+        polluted.pin = Some("9.9.9".to_owned());
+        let query = NullQuery;
+        let runner = CountingRunner {
+            seen: RefCell::new(Vec::new()),
+        };
+        let code = watch(
+            &polluted,
+            Env {
+                workspace: &harness.workspace,
+                runner: &runner,
+                query_runner: &query,
+                temp_dir: &harness.temp_dir,
+                pid: 1,
+                nonce: 1,
+                out: &mut harness.out,
+                err: &mut harness.err,
+                ci: false,
+            },
+            Some(1),
+            |_| Ok(Vec::new()),
+        );
+        assert_eq!(code, 2, "{}", harness.stderr());
+        assert!(harness.stderr().contains("--pin"), "{}", harness.stderr());
+        assert!(runner.seen.borrow().is_empty(), "nothing launches");
+        assert!(
+            harness.stdout().is_empty(),
+            "wrap-time rejection prints no iteration summary: {}",
+            harness.stdout()
+        );
     }
 
     #[test]

@@ -119,6 +119,165 @@ impl Invocation {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommonOptions {
+    pub workspace: Option<String>,
+    pub dry_run: bool,
+    pub quiet: bool,
+    pub verbose: bool,
+    pub log_level: Option<LogLevel>,
+    pub color: ColorMode,
+    pub output: OutputMode,
+    pub bazel_startup_options: Vec<String>,
+}
+
+impl CommonOptions {
+    pub fn from_invocation(invocation: &Invocation) -> Self {
+        CommonOptions {
+            workspace: invocation.workspace.clone(),
+            dry_run: invocation.dry_run,
+            quiet: invocation.quiet,
+            verbose: invocation.verbose,
+            log_level: invocation.log_level,
+            color: invocation.color,
+            output: invocation.output,
+            bazel_startup_options: invocation.bazel_startup_options.clone(),
+        }
+    }
+
+    pub fn chatty(&self) -> bool {
+        dx_text_visible(&self.output) && !self.quiet
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QualityRequest {
+    pub command: Command,
+    pub common: CommonOptions,
+    pub operation: OperationMode,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub reports: Vec<ReportRequest>,
+    pub fail_on: Threshold,
+}
+
+impl QualityRequest {
+    pub fn from_invocation(invocation: &Invocation) -> Result<Self, String> {
+        if !invocation.command.is_quality() {
+            return Err(format!(
+                "option \"--{}\" is not supported by dx {}",
+                invocation.command.name(),
+                "quality"
+            ));
+        }
+        Self::reject_unrelated(invocation)?;
+        Ok(QualityRequest {
+            command: invocation.command,
+            common: CommonOptions::from_invocation(invocation),
+            operation: invocation.operation(),
+            targets: invocation.targets.clone(),
+            bazel_options: invocation.bazel_options.clone(),
+            reports: invocation.reports.clone(),
+            fail_on: invocation.fail_on,
+        })
+    }
+
+    pub fn applies(&self) -> bool {
+        self.operation == OperationMode::Apply
+    }
+
+    pub fn chatty(&self) -> bool {
+        self.common.chatty()
+    }
+
+    fn reject_unrelated(invocation: &Invocation) -> Result<(), String> {
+        let command = invocation.command.name();
+        if invocation.here {
+            return Err(format!(
+                "option \"--here\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.debug || invocation.release {
+            return Err(format!(
+                "option \"--debug|--release\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.strict_evidence {
+            return Err(format!(
+                "option \"--strict-evidence\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.run_output.is_some() {
+            return Err(format!(
+                "option \"--run-output\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.bazel_clean {
+            return Err(format!(
+                "option \"--bazel\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.prune_unobserved {
+            return Err(format!(
+                "option \"--prune-unobserved\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.pin.is_some() {
+            return Err(format!("option \"--pin\" is not supported by dx {command}"));
+        }
+        if invocation.rollback {
+            return Err(format!(
+                "option \"--rollback\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.configured {
+            return Err(format!(
+                "option \"--configured\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.from.is_some() || invocation.to.is_some() {
+            return Err(format!(
+                "option \"--from|--to\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.serve
+            || invocation.port.is_some()
+            || invocation.host.is_some()
+            || invocation.open
+        {
+            return Err(format!(
+                "option \"--serve\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.offline {
+            return Err(format!(
+                "option \"--offline\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.frozen {
+            return Err(format!(
+                "option \"--frozen\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.workspace_capabilities {
+            return Err(format!(
+                "option \"--workspace-capabilities\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.cases {
+            return Err(format!(
+                "option \"--cases\" is not supported by dx {command}"
+            ));
+        }
+        if invocation.min_coverage.is_some() {
+            return Err(format!(
+                "option \"--min-coverage\" is not supported by dx {command}"
+            ));
+        }
+        Ok(())
+    }
+}
+
 pub fn here_scope(workspace: &std::path::Path, cwd: &std::path::Path) -> Result<String, String> {
     use std::path::Component;
     let rel = cwd.strip_prefix(workspace).map_err(|_| {
@@ -373,5 +532,141 @@ mod tests {
         )
         .expect("cwd alias parses");
         assert!(aliased.here, "--cwd must set here");
+    }
+
+    fn parsed(words: &[&str]) -> Invocation {
+        crate::args::parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>())
+            .expect("parse")
+    }
+
+    #[test]
+    fn quality_request_preserves_mode_scopes_reports_severity_and_passthrough() {
+        let lint = parsed(&[
+            "lint",
+            "--check",
+            "--fail-on=error",
+            "--report=sarif=out.sarif",
+            "//a:one",
+            "--",
+            "--jobs=99",
+        ]);
+        let request = QualityRequest::from_invocation(&lint).expect("quality");
+        assert_eq!(request.command, Command::Lint);
+        assert_eq!(request.operation, OperationMode::Check);
+        assert!(!request.applies());
+        assert_eq!(request.targets, vec!["//a:one".to_owned()]);
+        assert_eq!(request.bazel_options, vec!["--jobs=99".to_owned()]);
+        assert_eq!(request.fail_on, dx_output::Threshold::Error);
+        assert_eq!(request.reports.len(), 1);
+        assert_eq!(request.reports[0].format, "sarif");
+        assert_eq!(request.common.output, lint.output);
+        assert!(request.chatty());
+
+        let apply = parsed(&["lint", "--apply", "//a:one"]);
+        let request = QualityRequest::from_invocation(&apply).expect("quality");
+        assert_eq!(request.operation, OperationMode::Apply);
+        assert!(request.applies());
+
+        let plan = parsed(&["lint", "--dry-run", "//a:one"]);
+        let request = QualityRequest::from_invocation(&plan).expect("quality");
+        assert_eq!(request.operation, OperationMode::Plan);
+
+        for command in ["typecheck", "format"] {
+            let got = parsed(&[command, "//a:one"]);
+            let request = QualityRequest::from_invocation(&got).expect("quality");
+            assert_eq!(request.command.name(), command);
+            assert_eq!(request.operation, OperationMode::Check);
+        }
+    }
+
+    #[test]
+    fn quality_request_rejects_non_quality_commands() {
+        for words in [
+            vec!["build", "//a:one"],
+            vec!["check"],
+            vec!["fix"],
+            vec!["generate"],
+            vec!["version"],
+        ] {
+            let invocation = parsed(&words);
+            assert!(
+                QualityRequest::from_invocation(&invocation).is_err(),
+                "{words:?} is not a quality request"
+            );
+        }
+        assert!(crate::args::parse(
+            &["lint", "--pin=1.0.0"]
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn quality_request_rejects_unrelated_flags() {
+        let mut base = parsed(&["lint", "//a:one"]);
+        base.here = false;
+        QualityRequest::from_invocation(&base).expect("clean quality");
+        let mut polluted = base.clone();
+        polluted.pin = Some("1.0.0".to_owned());
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.rollback = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.serve = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.port = Some(8080);
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.from = Some("1.0.0".to_owned());
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.offline = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.frozen = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.cases = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.min_coverage = Some(80);
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.debug = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.strict_evidence = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.run_output = Some("out".to_owned());
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.bazel_clean = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.configured = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base.clone();
+        polluted.workspace_capabilities = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+        let mut polluted = base;
+        polluted.here = true;
+        assert!(QualityRequest::from_invocation(&polluted).is_err());
+    }
+
+    #[test]
+    fn common_options_chatty_matches_invocation() {
+        let lint = parsed(&["lint", "//a:one"]);
+        assert_eq!(
+            CommonOptions::from_invocation(&lint).chatty(),
+            lint.chatty()
+        );
+        let mut quiet = lint.clone();
+        quiet.quiet = true;
+        assert!(!CommonOptions::from_invocation(&quiet).chatty());
     }
 }

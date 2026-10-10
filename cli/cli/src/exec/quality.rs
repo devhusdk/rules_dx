@@ -4,7 +4,7 @@ use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{write_standard_reports, StandardReports};
 use super::results::collect_results;
-use crate::args::Invocation;
+use crate::args::{Invocation, QualityRequest};
 use crate::plan::{bep_path, plan_build};
 use crate::reports::{plan_reports, Destination};
 use crate::resolve::resolve;
@@ -13,6 +13,17 @@ use dx_output::{
 };
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let request = match QualityRequest::from_invocation(invocation) {
+        Ok(request) => request,
+        Err(message) => {
+            let Env { err, .. } = env;
+            return pre_exec(err, &message);
+        }
+    };
+    execute_quality_request(&request, env)
+}
+
+pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
@@ -26,10 +37,10 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     } = env;
     let planned_reports = match plan_reports(
         workspace,
-        invocation.command,
-        &invocation.reports,
-        &invocation.output,
-        invocation.dry_run,
+        request.command,
+        &request.reports,
+        &request.common.output,
+        request.common.dry_run,
     ) {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -39,8 +50,8 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         .any(|report| report.destination == Destination::Stdout);
     let bep = bep_path(temp_dir, pid, nonce);
     let Some(bep_text) = bep.to_str() else {
-        return operational(
-            invocation,
+        return operational_output(
+            request.common.output,
             out,
             err,
             CODE_UNREADABLE_BEP,
@@ -48,47 +59,55 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
     };
     let build = match resolve(
-        &invocation.targets,
+        &request.targets,
         workspace,
         query_runner,
-        &invocation.bazel_startup_options,
+        &request.common.bazel_startup_options,
     )
     .map_err(|error| error.to_string())
     .and_then(|resolved| {
         plan_build(
-            invocation.command,
+            request.command,
             &resolved,
-            &invocation.bazel_options,
+            &request.bazel_options,
             bep_text,
-            &invocation.bazel_startup_options,
+            &request.common.bazel_startup_options,
         )
         .map_err(|error| format!("{error}"))
     }) {
         Ok(build) => build,
         Err(message) => return pre_exec(err, &message),
     };
-    let apply = invocation.applies();
+    let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, mode) {
+    if request.common.dry_run {
+        if request.common.output == OutputMode::Json {
+            if let Ok(event) = command_started(request.command.name(), true, mode) {
                 let _ = write_event(out, &event);
             }
             let finished = command_finished(0, &FinishedCounts::default());
             let _ = write_event(out, &finished);
-        } else if invocation.chatty() && !stdout_report {
+        } else if request.chatty() && !stdout_report {
             let _ = writeln!(out, "{}", build.summary);
         }
         return 0;
     }
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, mode) {
+    if request.common.output == OutputMode::Json {
+        if let Ok(event) = command_started(request.command.name(), false, mode) {
             let _ = write_event(out, &event);
         }
-    } else if invocation.chatty() && !stdout_report {
+    } else if request.chatty() && !stdout_report {
         let _ = writeln!(out, "{}", build.summary);
     }
-    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &build.argv, &[]) {
+    let bazel_code = match run_bazel_output(
+        request.common.output,
+        out,
+        err,
+        workspace,
+        runner,
+        &build.argv,
+        &[],
+    ) {
         Ok(code) => code,
         Err(exit) => return exit,
     };
@@ -96,7 +115,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(collected) => collected,
         Err((code, message)) => {
             let _ = std::fs::remove_file(&bep);
-            return operational(invocation, out, err, &code, &message);
+            return operational_output(request.common.output, out, err, &code, &message);
         }
     };
     let _ = std::fs::remove_file(&bep);
@@ -117,23 +136,30 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         &collected.initial,
         &collected.terminal,
         &applied,
-        invocation.fail_on,
+        request.fail_on,
         !collected.changes.is_empty(),
     );
 
     let mut patch = String::new();
-    if invocation.output == OutputMode::Diff {
+    if request.common.output == OutputMode::Diff {
         match render_diff_patch(&sources, &collected.changes) {
             Ok(rendered) => patch = rendered,
             Err(error) => {
-                return operational(invocation, out, err, CODE_DIFF_FAILED, &error.to_string());
+                return operational_output(
+                    request.common.output,
+                    out,
+                    err,
+                    CODE_DIFF_FAILED,
+                    &error.to_string(),
+                );
             }
         }
     }
 
     let emit_counts = emit_findings(
         EmitInputs {
-            invocation,
+            output: request.common.output,
+            applies: request.applies(),
             status: &status,
             changes: &collected.changes,
             applied: &applied,
@@ -154,7 +180,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             collected: &collected,
             status: &status,
             planned: &planned_reports,
-            output: &invocation.output,
+            output: &request.common.output,
             stdout_report,
         },
         out,
@@ -171,7 +197,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             Severity::Error => error += 1,
         }
     }
-    if invocation.output == OutputMode::Json {
+    if request.common.output == OutputMode::Json {
         let finished = command_finished(
             if collected.complete && !failed && reports_ok {
                 0

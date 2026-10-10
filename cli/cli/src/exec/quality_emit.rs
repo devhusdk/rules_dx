@@ -7,10 +7,10 @@ use dx_output::{
 };
 
 use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
-use crate::args::Invocation;
 
 pub(crate) struct EmitInputs<'a> {
-    pub(crate) invocation: &'a Invocation,
+    pub(crate) output: OutputMode,
+    pub(crate) applies: bool,
     pub(crate) status: &'a [DiagnosticEvent],
     pub(crate) changes: &'a [FileChange],
     pub(crate) applied: &'a BTreeMap<String, bool>,
@@ -30,7 +30,8 @@ pub(crate) fn emit_findings(
     err: &mut dyn Write,
 ) -> EmitCounts {
     let EmitInputs {
-        invocation,
+        output,
+        applies,
         status,
         changes,
         applied,
@@ -40,8 +41,8 @@ pub(crate) fn emit_findings(
     } = inputs;
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
-    if invocation.output == OutputMode::Json {
-        let mutating = invocation.applies();
+    if output == OutputMode::Json {
+        let mutating = applies;
         for diagnostic in status {
             let mut event_diagnostic = diagnostic.clone();
             if mutating && event_diagnostic.snapshot == Snapshot::Initial {
@@ -94,12 +95,12 @@ pub(crate) fn emit_findings(
                 );
             }
         }
-    } else if matches!(invocation.output, OutputMode::Text { .. }) {
+    } else if matches!(output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
         for diagnostic in status {
             let _ = writeln!(human, "{}", text_diagnostic(diagnostic));
         }
-        if invocation.applies() {
+        if applies {
             applied_count = applied.values().filter(|applied| **applied).count() as u64;
             not_applied_count = not_applied.len() as u64;
             if applied_count > 0 {

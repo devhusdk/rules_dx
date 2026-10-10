@@ -441,6 +441,14 @@ pub struct ChildStatus {
     pub code: Option<i32>,
 }
 
+/// What one capturing child run produced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapturedRun {
+    pub code: Option<i32>,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
+
 /// Deadline and capture bound for one child run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TimeBound {

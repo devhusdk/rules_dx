@@ -6,8 +6,12 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "README.md",
     "defs.bzl",
-    "wrapper_tests.bzl",
 ])
+
+exports_files(
+    ["wrapper_tests.bzl"],
+    visibility = ["//:__subpackages__"],
+)
 
 cc_wrapper_contract_tests(name = "wrapper_contract_tests")
 

@@ -1,6 +1,8 @@
 use serde::Serialize;
 
-use super::{version_pin_matches_module, MODULE_VERSION};
+use super::{
+    version_pin_matches_module, ConfigSummary, DEFAULT_KEYS, MODULE_VERSION,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct StatusCheck {
@@ -27,6 +29,56 @@ pub fn render_status_json(
     checks: &[StatusCheck],
 ) -> Result<String, dx_fingerprint::FingerprintError> {
     dx_fingerprint::to_json(&StatusPayload { checks })
+}
+
+fn config_file_name(path: &std::path::Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("config")
+        .to_owned()
+}
+
+pub fn config_status_check(summary: &ConfigSummary) -> StatusCheck {
+    let config = &summary.config;
+    let mut files = Vec::new();
+    if let Some(path) = &config.committed {
+        files.push(config_file_name(path));
+    }
+    if let Some(path) = &config.local {
+        if config.local_ignored_for_ci {
+            files.push(format!("{} (ignored: CI mode)", config_file_name(path)));
+        } else {
+            files.push(config_file_name(path));
+        }
+    }
+    if let Some(path) = &config.legacy {
+        files.push(config_file_name(path));
+    }
+    if files.is_empty() {
+        files.push("no config file".to_owned());
+    }
+    let origins = DEFAULT_KEYS
+        .iter()
+        .map(|key| format!("{key}:{}", summary.origins.get(key).name()))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let (status, hint) = if summary.legacy_conflict() || summary.legacy_only() {
+        (
+            "warn",
+            "dx status --migrate-config --apply moves legacy keys into dx.toml",
+        )
+    } else {
+        (
+            "ok",
+            "dx.toml holds committed defaults, dx.local.toml holds local ones",
+        )
+    };
+    StatusCheck {
+        name: "config".to_owned(),
+        status: status.to_owned(),
+        detail: format!("files: {}; {origins}", files.join(" + ")),
+        hint: hint.to_owned(),
+    }
 }
 
 pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {

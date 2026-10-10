@@ -10,6 +10,10 @@ use dx_output::{
 };
 
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let json = invocation.output == OutputMode::Json;
+    if invocation.recovery {
+        return execute_clean_recovery(invocation, env, json);
+    }
     let Env {
         workspace,
         runner,
@@ -17,7 +21,6 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
-    let json = invocation.output == OutputMode::Json;
     let apply = invocation.applies();
     let mode = if apply { "default" } else { "check" };
     if json {
@@ -58,11 +61,12 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             if invocation.bazel_clean {
                 let _ = writeln!(out, "would forward: bazel clean");
             }
+            emit_preserved_state(out, workspace);
         }
         return 0;
     }
     if !apply {
-        return check_clean(invocation, out, &plan, &bytes, json, verbose);
+        return check_clean(invocation, out, workspace, &plan, &bytes, json, verbose);
     }
     let outcome = match apply_plan(workspace, &plan) {
         Ok(outcome) => outcome,
@@ -92,6 +96,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
                 }
             );
         }
+        emit_preserved_state(out, workspace);
     }
     if !invocation.bazel_clean {
         if json {
@@ -132,9 +137,161 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     bazel_code
 }
 
+fn execute_clean_recovery(invocation: &Invocation, env: Env<'_>, json: bool) -> i32 {
+    let Env {
+        workspace, out, err, ..
+    } = env;
+    if json {
+        let mode = if invocation.applies() { "default" } else { "check" };
+        if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, mode) {
+            let _ = write_event(out, &event);
+        }
+    }
+    let items = match dx_adopt::list_recovery(workspace) {
+        Ok(items) => items,
+        Err(error) => {
+            return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
+        }
+    };
+    let deletion = dx_adopt::plan_recovery_deletion(&items);
+    let apply = invocation.applies();
+    if json {
+        for item in &deletion.deletable {
+            let message = if apply {
+                format!("deleted recovery record {}", item.name)
+            } else {
+                format!("would delete recovery record {}", item.name)
+            };
+            if let Ok(event) = notice_event(&NoticeEvent {
+                level: "info".to_owned(),
+                code: if apply {
+                    "clean_recovery_deleted".to_owned()
+                } else {
+                    "clean_recovery_planned".to_owned()
+                },
+                message,
+                related_command: Some("clean".to_owned()),
+                scope: None,
+                path: Some(format!(".dx/recovery/{}", item.name)),
+                language: None,
+                import: None,
+            }) {
+                let _ = write_event(out, &event);
+            }
+        }
+        for item in &deletion.refused {
+            if let Ok(event) = notice_event(&NoticeEvent {
+                level: "info".to_owned(),
+                code: "clean_recovery_refused".to_owned(),
+                message: format!(
+                    "preserves incomplete recovery record {} (rollback still possible)",
+                    item.name
+                ),
+                related_command: Some("clean".to_owned()),
+                scope: None,
+                path: Some(format!(".dx/recovery/{}", item.name)),
+                language: None,
+                import: None,
+            }) {
+                let _ = write_event(out, &event);
+            }
+        }
+    } else if invocation.chatty() {
+        for item in &deletion.deletable {
+            let _ = writeln!(
+                out,
+                "would delete recovery record {} (loses rollback to {})",
+                item.name, item.record.previous
+            );
+        }
+        for item in &deletion.refused {
+            let _ = writeln!(
+                out,
+                "preserves incomplete recovery record {} (rollback still possible)",
+                item.name
+            );
+        }
+    }
+    if !apply {
+        if json {
+            let code = if deletion.deletable.is_empty() { 0 } else { 1 };
+            let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
+            return code;
+        }
+        if deletion.deletable.is_empty() && deletion.refused.is_empty() {
+            if invocation.chatty() {
+                let _ = writeln!(out, "dx clean: no recovery records");
+            }
+            return 0;
+        }
+        return if deletion.deletable.is_empty() { 0 } else { 1 };
+    }
+    let removed = match dx_adopt::apply_recovery_deletion(&deletion) {
+        Ok(removed) => removed,
+        Err(error) => {
+            return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
+        }
+    };
+    if !json && invocation.chatty() {
+        for path in &removed {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("record");
+            let _ = writeln!(out, "deleted recovery record {name}");
+        }
+    }
+    if deletion.refused.is_empty() {
+        if json {
+            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+        } else if invocation.chatty() && removed.is_empty() {
+            let _ = writeln!(out, "dx clean: no recovery records");
+        }
+        return 0;
+    }
+    let names = deletion
+        .refused
+        .iter()
+        .map(|item| item.name.clone())
+        .collect::<Vec<_>>()
+        .join(", ");
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_CLEAN_FAILED,
+        &format!("refuses incomplete recovery records: {names} (rollback still possible)"),
+    )
+}
+
+fn preserved_state_lines(workspace: &std::path::Path) -> Vec<String> {
+    let mut lines = Vec::new();
+    match dx_adopt::list_recovery(workspace) {
+        Ok(items) if items.is_empty() => {}
+        Ok(items) => lines.push(format!(
+            "preserved recovery records: .dx/recovery ({} record(s), ordinary clean never deletes them)",
+            items.len()
+        )),
+        Err(error) => lines.push(format!(
+            "preserved recovery records: .dx/recovery (unreadable, left alone: {error})"
+        )),
+    }
+    if dx_adopt::cache_dir(workspace).is_dir() {
+        lines.push("preserved cache: .dx/cache (disposable state, rebuilt by setup)".to_owned());
+    }
+    lines
+}
+
+fn emit_preserved_state(out: &mut dyn std::io::Write, workspace: &std::path::Path) {
+    for line in preserved_state_lines(workspace) {
+        let _ = writeln!(out, "{line}");
+    }
+}
+
 fn check_clean(
     invocation: &Invocation,
     out: &mut dyn std::io::Write,
+    workspace: &std::path::Path,
     plan: &dx_clean::CleanPlan,
     bytes: &dx_clean::PruneBytes,
     json: bool,
@@ -148,6 +305,7 @@ fn check_clean(
         }
         if verbose {
             let _ = writeln!(out, "dx clean: nothing to prune");
+            emit_preserved_state(out, workspace);
         }
         return 0;
     }
@@ -164,6 +322,7 @@ fn check_clean(
         } else {
             let _ = writeln!(out, "run `dx clean --apply` to prune it");
         }
+        emit_preserved_state(out, workspace);
     }
     1
 }
@@ -715,5 +874,100 @@ mod tests {
             harness.workspace.join(".dx/setups").join(&stale).exists(),
             "json check prunes nothing"
         );
+    }
+
+    fn write_recovery(harness: &Harness, name: &str, body: &str) {
+        let dir = harness.workspace.join(".dx/recovery");
+        std::fs::create_dir_all(&dir).expect("recovery dir");
+        std::fs::write(dir.join(name), body).expect("recovery record");
+    }
+
+    const COMPLETE_RECORD: &str = "operation = \"version-pin\"\ncomplete = true\nprevious = \"1.2.3\"\ncurrent = \"2.0.0\"\nrollback = \"dx version --apply --pin 1.2.3\"\n";
+    const INCOMPLETE_RECORD: &str = "operation = \"upgrade\"\ncomplete = false\nprevious = \"1.2.3\"\ncurrent = \"2.0.0\"\nrollback = \"dx upgrade --from 1.2.3 --to 2.0.0\"\n";
+
+    #[test]
+    fn clean_recovery_check_lists_records_and_prunes_nothing() {
+        let harness = Harness::new("clean-recovery-check");
+        write_recovery(&harness, "version-pin.toml", COMPLETE_RECORD);
+        write_recovery(&harness, "active.toml", INCOMPLETE_RECORD);
+        let (code, out, err) = harness.run(&["clean", "--recovery"]);
+        assert_eq!(code, 1, "deletable records are drift: {out}{err}");
+        assert!(out.contains("would delete recovery record version-pin.toml"), "{out}");
+        assert!(out.contains("loses rollback to 1.2.3"), "{out}");
+        assert!(out.contains("preserves incomplete recovery record active.toml"), "{out}");
+        assert!(harness.workspace.join(".dx/recovery/version-pin.toml").exists());
+        assert!(harness.workspace.join(".dx/recovery/active.toml").exists());
+    }
+
+    #[test]
+    fn clean_recovery_apply_deletes_complete_and_refuses_incomplete() {
+        let harness = Harness::new("clean-recovery-apply");
+        write_recovery(&harness, "version-pin.toml", COMPLETE_RECORD);
+        write_recovery(&harness, "active.toml", INCOMPLETE_RECORD);
+        let (code, out, err) = harness.run(&["clean", "--recovery", "--apply"]);
+        assert_eq!(code, 1, "incomplete records refuse deletion: {out}{err}");
+        assert!(out.contains("deleted recovery record version-pin.toml"), "{out}");
+        assert!(err.contains("refuses incomplete recovery records: active.toml"), "{err}");
+        assert!(!harness.workspace.join(".dx/recovery/version-pin.toml").exists());
+        assert!(harness.workspace.join(".dx/recovery/active.toml").exists());
+    }
+
+    #[test]
+    fn clean_recovery_apply_succeeds_when_every_record_is_complete() {
+        let harness = Harness::new("clean-recovery-complete");
+        write_recovery(&harness, "version-pin.toml", COMPLETE_RECORD);
+        let (code, out, err) = harness.run(&["clean", "--recovery", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("deleted recovery record version-pin.toml"), "{out}");
+        assert!(!harness.workspace.join(".dx/recovery/version-pin.toml").exists());
+        let (code, out, _) = harness.run(&["clean", "--recovery"]);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("no recovery records"), "{out}");
+    }
+
+    #[test]
+    fn clean_recovery_json_streams_planned_and_refused_notices() {
+        let harness = Harness::new("clean-recovery-json");
+        write_recovery(&harness, "version-pin.toml", COMPLETE_RECORD);
+        write_recovery(&harness, "active.toml", INCOMPLETE_RECORD);
+        let (code, out, err) = harness.run(&["clean", "--recovery", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        let planned = event(&events, "notice");
+        assert_eq!(planned["code"], serde_json::json!("clean_recovery_planned"));
+        assert!(planned["message"].as_str().unwrap_or("").contains("version-pin.toml"));
+    }
+
+    #[test]
+    fn clean_recovery_rejects_prune_and_bazel_combinations() {
+        let harness = Harness::new("clean-recovery-combos");
+        for words in [
+            vec!["clean", "--recovery", "--bazel"],
+            vec!["clean", "--recovery", "--prune-unobserved"],
+        ] {
+            let (code, _, err) = harness.run(&words);
+            assert_eq!(code, 2, "words: {words:?}: {err}");
+            assert!(err.contains("is not supported by dx clean"), "words: {words:?}: {err}");
+        }
+    }
+
+    #[test]
+    fn ordinary_clean_preserves_recovery_and_cache() {
+        let harness = Harness::new("clean-preserves");
+        write_recovery(&harness, "version-pin.toml", COMPLETE_RECORD);
+        std::fs::create_dir_all(harness.workspace.join(".dx/cache")).expect("cache");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let _current = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!harness.workspace.join(".dx/setups").join(&stale).exists());
+        assert!(harness.workspace.join(".dx/recovery/version-pin.toml").exists());
+        assert!(harness.workspace.join(".dx/cache").exists());
+        assert!(out.contains("preserved recovery records: .dx/recovery (1 record(s)"), "{out}");
+        assert!(out.contains("ordinary clean never deletes them"), "{out}");
+        assert!(out.contains("preserved cache: .dx/cache"), "{out}");
     }
 }

@@ -663,3 +663,185 @@ fn no_default_source_selects_apply() {
         })
     );
 }
+
+fn pinned_workspace(name: &str) -> dx_test_scratch::TempDir {
+    let scratch = dx_test_scratch::scratch(name);
+    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
+    std::fs::write(scratch.path().join(".dx/version"), "0.0.0\n").expect("pin");
+    scratch
+}
+
+#[test]
+fn committed_and_local_precedence_flows_through_real_status() {
+    let scratch = pinned_workspace("dx-e2e-precedence-");
+    let root = scratch.path();
+    std::fs::write(
+        root.join("dx.toml"),
+        "[dx]\noutput = \"json\"\nverbose = true\n",
+    )
+    .expect("committed");
+    std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"diff\"\n").expect("local");
+    let (code, out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("config: ok"), "{out}");
+    assert!(out.contains("output:local"), "{out}");
+    assert!(out.contains("verbose:committed"), "{out}");
+    let (code, out, err) = run_dx(root, &["status"], &[("CI", ""), ("DX_OUTPUT", "json")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("output:env"), "{out}");
+    let (code, out, err) = run_dx(
+        root,
+        &["status", "--output=text"],
+        &[("CI", ""), ("DX_OUTPUT", "json")],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("output:flag"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn legacy_warns_then_migrates_through_real_status() {
+    let scratch = pinned_workspace("dx-e2e-legacy-");
+    let root = scratch.path();
+    std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n").expect("legacy");
+    let (code, out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("config: warn"), "{out}");
+    assert!(out.contains("output:legacy"), "{out}");
+    let (code, out, err) = run_dx(root, &["status", "--migrate-config"], &[("CI", "")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("would write"), "{out}");
+    assert!(!root.join("dx.toml").exists(), "check writes nothing");
+    let (code, out, err) = run_dx(
+        root,
+        &["status", "--migrate-config", "--apply"],
+        &[("CI", "")],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("wrote"), "{out}");
+    assert!(!root.join(".dx/config.toml").exists(), "legacy removed");
+    let (code, out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("config: ok"), "{out}");
+    assert!(out.contains("output:committed"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn legacy_conflict_fails_closed_until_migrated() {
+    let scratch = pinned_workspace("dx-e2e-conflict-");
+    let root = scratch.path();
+    std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n").expect("legacy");
+    std::fs::write(root.join("dx.toml"), "[dx]\nverbose = true\n").expect("committed");
+    let (code, _out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert!(err.contains("config.toml"), "{err}");
+    assert!(err.contains("dx.toml"), "{err}");
+    assert!(err.contains("dx status --migrate-config"), "{err}");
+    let (code, _out, err) = run_dx(root, &["clean", "--dry-run"], &[("CI", "")]);
+    assert_eq!(code, Some(2), "every command fails, not just status: {err}");
+    let (code, out, err) = run_dx(
+        root,
+        &["status", "--migrate-config", "--apply"],
+        &[("CI", "")],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("wrote"), "{out}");
+    let (code, out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("config: ok"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn unknown_and_broken_new_config_fail_closed() {
+    let scratch = pinned_workspace("dx-e2e-badconfig-");
+    let root = scratch.path();
+    std::fs::write(root.join("dx.toml"), "[dx]\nqiet = true\n").expect("typo");
+    let (code, _out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert!(err.contains("qiet"), "{err}");
+    assert!(err.contains("dx.toml"), "{err}");
+    std::fs::write(root.join("dx.toml"), "not toml = [").expect("broken");
+    let (code, _out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert!(err.contains("dx.toml"), "{err}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn required_ci_ignores_local_and_env() {
+    let scratch = pinned_workspace("dx-e2e-ci-");
+    let root = scratch.path();
+    std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+    std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"diff\"\n").expect("local");
+    let (code, out, err) = run_dx(
+        root,
+        &["status"],
+        &[("CI", "true"), ("DX_OUTPUT", "diff")],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("output:committed"), "{out}");
+    assert!(out.contains("dx.local.toml (ignored: CI mode)"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn deleting_managed_state_keeps_committed_behavior() {
+    let scratch = pinned_workspace("dx-e2e-rebuild-");
+    let root = scratch.path();
+    std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+    std::fs::remove_dir_all(root.join(".dx")).expect("delete managed state");
+    assert!(!root.join(".dx").exists());
+    let (code, out, err) = run_dx(
+        root,
+        &["version", "--apply", "--pin=0.0.0"],
+        &[("CI", "")],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("pinned 0.0.0"), "{out}");
+    let (code, out, err) = run_dx(root, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("config: ok"), "{out}");
+    assert!(out.contains("output:committed"), "{out}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn read_only_commands_do_not_rewrite_consumer_config() {
+    let scratch = pinned_workspace("dx-e2e-norewrite-");
+    let root = scratch.path();
+    let body = "[dx]\noutput = \"json\"\n";
+    std::fs::write(root.join("dx.toml"), body).expect("committed");
+    for words in [
+        vec!["status"],
+        vec!["status", "--migrate-config"],
+        vec!["clean", "--dry-run"],
+        vec!["version", "--check"],
+    ] {
+        let (code, _, err) = run_dx(root, &words, &[("CI", "")]);
+        assert_eq!(code, Some(0), "words: {words:?}: {err}");
+    }
+    assert_eq!(
+        std::fs::read_to_string(root.join("dx.toml")).expect("committed"),
+        body,
+        "no command rewrote the committed config"
+    );
+    assert!(!root.join("dx.local.toml").exists(), "no local file created");
+    assert!(!root.join(".dx/config.toml").exists(), "no legacy file created");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn nested_runs_resolve_the_workspace_root_config() {
+    let scratch = pinned_workspace("dx-e2e-nested-");
+    let root = scratch.path();
+    std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
+    let nested = root.join("sub/dir");
+    std::fs::create_dir_all(&nested).expect("nested");
+    let (code, out, err) = run_dx(&nested, &["status"], &[("CI", "")]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("output:committed"), "{out}");
+    scratch.close().expect("cleanup");
+}

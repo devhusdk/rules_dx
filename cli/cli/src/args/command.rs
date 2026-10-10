@@ -472,8 +472,8 @@ pub static COMMANDS: [CommandMeta; 34] = [
         name: "clean",
         scope_policy: "reject",
         describe: "prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)",
-        usage: "Usage: dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]",
-        flags: "Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; distinct from `dx bazel`, which forwards raw args; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).",
+        usage: "Usage: dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved] [--recovery]",
+        flags: "Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; distinct from `dx bazel`, which forwards raw args; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease). --recovery (list retained .dx/recovery records instead of pruning generations; with --apply, delete complete records and refuse incomplete ones; ordinary clean never touches recovery).",
         scopes: "Scopes: none (clean takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -769,8 +769,8 @@ pub static COMMANDS: [CommandMeta; 34] = [
         name: "status",
         scope_policy: "reject",
         describe: "report workspace and target status",
-        usage: "Usage: dx status",
-        flags: "Per-command flags: none (no scopes; --output text|json only, diff has no patch; --check/--fail-on/--report/--pin/--rollback/--configured and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`; JSON streams command_started, one status event per check (name, status, detail, hint), optional status_pin_mismatch error, command_finished; no dx doctor, use dx status, see docs/cli/commands/status-version.md#failure-explainer).",
+        usage: "Usage: dx status [--migrate-config] [--apply]",
+        flags: "Per-command flags: --migrate-config (plan moving legacy .dx/config.toml keys into the committed dx.toml; check by default, no scopes). --apply (authorizes the legacy-config migration; needs --migrate-config; without it status only reports. --output text|json only, diff has no patch; --check/--fail-on/--report/--pin/--rollback/--configured and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`; JSON streams command_started, one status event per check (name, status, detail, hint), optional status_pin_mismatch error, command_finished; no dx doctor, use dx status, see docs/cli/commands/status-version.md#failure-explainer).",
         scopes: "Scopes: none (status takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -1125,6 +1125,7 @@ impl Command {
                 | Command::Upgrade
                 | Command::Hooks
                 | Command::Watch
+                | Command::Status
                 | Command::Version
                 | Command::Docs
         )

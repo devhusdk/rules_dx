@@ -2,7 +2,7 @@ dx clean - prune unselected managed state, never Bazel outputs unless --bazel (c
 
 prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
 
-Usage: dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]
+Usage: dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved] [--recovery]
 
 Arguments:
   [TARGETS]...
@@ -51,14 +51,17 @@ Options:
       --prune-unobserved
           Prune generations process observation cannot see
 
+      --recovery
+          List or delete retained .dx/recovery records
+
   -h, --help
           Print help
 
-Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; distinct from `dx bazel`, which forwards raw args; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).
+Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; distinct from `dx bazel`, which forwards raw args; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease). --recovery (list retained .dx/recovery records instead of pruning generations; with --apply, delete complete records and refuse incomplete ones; ordinary clean never touches recovery).
 
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json; --report has no standard format for this command.
-Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --debug, --release, --pin, --rollback, --configured, --from, --to, --here, --serve, --port, --host, --open, --offline, --workspace-capabilities, -- <bazel-options>.
+Rejected: --report, --fail-on, --min-coverage, --strict-evidence, --run-output, --debug, --release, --migrate-config, --pin, --rollback, --configured, --from, --to, --here, --serve, --port, --host, --open, --offline, --workspace-capabilities, -- <bazel-options>.
 Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 

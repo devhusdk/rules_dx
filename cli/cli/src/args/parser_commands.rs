@@ -86,9 +86,11 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 12] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 14] = [
     ("--pin", &["--pin=1.0.0"], &["version"]),
     ("--rollback", &["--rollback"], &["version"]),
+    ("--migrate-config", &["--migrate-config"], &["status"]),
+    ("--recovery", &["--recovery"], &["clean"]),
     (
         "--configured",
         &["--configured"],

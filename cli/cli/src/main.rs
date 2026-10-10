@@ -14,8 +14,8 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dx_cli::args::{
-    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request, parse_with,
-    select_startup_defaults, DX_WORKSPACE_ENV,
+    early_workspace_flag, freeze_config_workspace, is_discovery_exempt, is_help_request,
+    parse_with_config, preference_env, select_startup_config, DX_WORKSPACE_ENV, FileConfig,
 };
 use dx_cli::exec::common::{emit_event, flush_out};
 use dx_cli::plan::create_run_temp_dir;
@@ -165,16 +165,22 @@ fn run() -> i32 {
     }
     let initial_cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").to_path_buf());
     let initial_start = dx_process::workspace_start(&initial_cwd);
+    let ci = dx_process::is_ci();
+    let env_value = |name: &str| {
+        if ci && preference_env(name) {
+            None
+        } else {
+            std::env::var(name).ok()
+        }
+    };
     let flag_workspace = early_workspace_flag(&args);
-    let env_workspace = std::env::var(DX_WORKSPACE_ENV)
-        .ok()
-        .filter(|value| !value.is_empty());
-    let (mut file_defaults, file_redirect) =
-        match select_startup_defaults(&initial_start, flag_workspace, env_workspace) {
-            Ok(selected) => (selected.defaults, selected.file_workspace),
+    let env_workspace = env_value(DX_WORKSPACE_ENV).filter(|value| !value.is_empty());
+    let (mut file_config, file_redirect) =
+        match select_startup_config(&initial_start, flag_workspace, env_workspace, ci) {
+            Ok(selected) => (selected.config, selected.file_workspace),
             Err(detail) => {
                 if is_help_request(&args) {
-                    (dx_cli::args::FileDefaults::default(), None)
+                    (FileConfig::default(), None)
                 } else {
                     return usage_error(&detail);
                 }
@@ -182,9 +188,9 @@ fn run() -> i32 {
         };
     if let Some(target) = file_redirect {
         let dir = dx_process::resolve_override_display(Path::new(&target), &initial_start);
-        match select_startup_defaults(&dir, Some(target.clone()), None) {
+        match select_startup_config(&dir, Some(target.clone()), None, ci) {
             Ok(selected) => {
-                file_defaults = freeze_workspace(&selected.defaults, &target);
+                file_config = freeze_config_workspace(&selected.config, &target);
             }
             Err(detail) => {
                 if !is_help_request(&args) {
@@ -193,8 +199,8 @@ fn run() -> i32 {
             }
         }
     };
-    let env_get = |name: &str| std::env::var(name).ok();
-    let mut invocation = match parse_with(&args, &env_get, &file_defaults) {
+    let env_get = |name: &str| env_value(name);
+    let mut invocation = match parse_with_config(&args, &env_get, &file_config) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {
             let stdout = io::stdout();

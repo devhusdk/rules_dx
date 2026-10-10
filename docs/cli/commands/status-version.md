@@ -8,11 +8,16 @@ bazel run @rules_dx//:dx -- version
 ## `dx status`
 
 ```text
-dx status
+dx status [--migrate-config] [--apply]
 ```
 
-Reports toolchain, platform, tools, and pin drift. Takes no scopes and no
-per-command flags. There is no `dx doctor`. Use `dx status` instead.
+Reports toolchain, platform, tools, pin drift, and effective config. Takes
+no scopes. There is no `dx doctor`. Use `dx status` instead.
+
+- `--migrate-config`: plan moving legacy `.dx/config.toml` keys into the
+  committed `dx.toml`. Check by default, writes nothing.
+- `--apply`: authorize the legacy-config migration. Needs
+  `--migrate-config`. Without it `dx status` only reports.
 
 Output: `--output text|json`.
 
@@ -26,9 +31,14 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
 ```
 
-The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
-compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
-fails, and the hint is the fix, for example `dx version --pin <version>`.
+The five checks are `toolchain`, `platform`, `tools`, `pin`, and `config`.
+`pin` compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes.
+`error` fails, and the hint is the fix, for example
+`dx version --pin <version>`. `config` names the config files in play and
+the origin of every default: `flag`, `env`, `local` (`dx.local.toml`),
+`committed` (`dx.toml`), `legacy` (`.dx/config.toml`), or `built-in`.
+A legacy file, or a legacy file next to a new one, reports `warn` with a
+`dx status --migrate-config --apply` hint.
 
 `--output=json` streams `command_started`, one `status` event per check with
 `name`, `status`, `detail`, and `hint`, then `command_finished`. A failed

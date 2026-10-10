@@ -63,6 +63,9 @@ pub struct Invocation {
     pub offline: bool,
     pub workspace_capabilities: bool,
     pub bazel_startup_options: Vec<String>,
+    pub migrate_config: bool,
+    pub recovery: bool,
+    pub config_summary: dx_adopt::ConfigSummary,
 }
 
 impl Invocation {
@@ -224,6 +227,9 @@ mod tests {
             offline: false,
             workspace_capabilities: false,
             bazel_startup_options: Vec::new(),
+            migrate_config: false,
+            recovery: false,
+            config_summary: dx_adopt::ConfigSummary::default(),
         }
     }
 

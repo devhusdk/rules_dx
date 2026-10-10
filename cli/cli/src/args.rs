@@ -107,12 +107,14 @@ pub use completion::{
 pub use grammar::cli_command;
 pub use invocation::{apply_here, here_scope, Invocation, OperationMode, ReportRequest};
 pub use parser::{
-    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request,
-    load_file_defaults, parse, parse_with, select_startup_defaults, StartupDefaults,
+    early_workspace_flag, freeze_config_workspace, freeze_workspace, is_discovery_exempt,
+    is_help_request, load_file_defaults, parse, parse_with, parse_with_config, preference_env,
+    select_startup_config, select_startup_defaults, StartupConfig, StartupDefaults,
 };
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 
 pub use dx_adopt::defaults::FileDefaults;
+pub use dx_adopt::FileConfig;
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
 
 /// Parse test words into one invocation, panicking on a failure.

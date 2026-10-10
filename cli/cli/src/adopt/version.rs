@@ -39,6 +39,22 @@ fn json_status(
     Ok(())
 }
 
+fn retain_displaced_pin(
+    workspace: &std::path::Path,
+    next: &str,
+) -> Result<Option<std::path::PathBuf>, String> {
+    let previous = match dx_adopt::read_version_pin(workspace) {
+        Ok(pin) => pin,
+        Err(_) => return Ok(None),
+    };
+    if previous.is_empty() || previous == next {
+        return Ok(None);
+    }
+    dx_adopt::record_previous_pin(workspace, &previous, next)
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
 pub(crate) fn execute_version(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -94,6 +110,17 @@ pub(crate) fn execute_version(
             }
             return 0;
         }
+        let retained = match retain_displaced_pin(workspace, previous) {
+            Ok(retained) => retained,
+            Err(message) => {
+                if is_json {
+                    if let Err(exit) = emit_started(invocation, out) {
+                        return exit;
+                    }
+                }
+                return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+            }
+        };
         return match dx_adopt::write_version_pin(workspace, previous) {
             Ok(()) => {
                 if is_json {
@@ -119,8 +146,14 @@ pub(crate) fn execute_version(
                     }
                     return 0;
                 }
-                if let Err(exit) = check_stdout_write(writeln!(out, "pinned {previous} (rollback)"))
-                {
+                if let Err(exit) = check_stdout_write(writeln!(
+                    out,
+                    "pinned {previous} (rollback){}",
+                    retained.map_or_else(String::new, |path| format!(
+                        "; previous pin retained in {}",
+                        path.strip_prefix(workspace).unwrap_or(&path).display()
+                    ))
+                )) {
                     return exit;
                 }
                 0
@@ -157,6 +190,17 @@ pub(crate) fn execute_version(
             }
             return 0;
         }
+        let retained = match retain_displaced_pin(workspace, pin) {
+            Ok(retained) => retained,
+            Err(message) => {
+                if is_json {
+                    if let Err(exit) = emit_started(invocation, out) {
+                        return exit;
+                    }
+                }
+                return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
+            }
+        };
         return match dx_adopt::write_version_pin(workspace, pin) {
             Ok(()) => {
                 if is_json {
@@ -182,7 +226,14 @@ pub(crate) fn execute_version(
                     }
                     return 0;
                 }
-                if let Err(exit) = check_stdout_write(writeln!(out, "pinned {pin}")) {
+                if let Err(exit) = check_stdout_write(writeln!(
+                    out,
+                    "pinned {pin}{}",
+                    retained.map_or_else(String::new, |path| format!(
+                        "; previous pin retained in {}",
+                        path.strip_prefix(workspace).unwrap_or(&path).display()
+                    ))
+                )) {
                     return exit;
                 }
                 0
@@ -619,5 +670,41 @@ mod tests {
             events[1]["code"],
             serde_json::json!(CODE_STATUS_PIN_MISMATCH)
         );
+    }
+
+    #[test]
+    fn version_pin_retains_the_displaced_pin_as_a_recovery_record() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-recovery-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
+        let inv = invocation(&["version", "--apply", "--pin=0.0.0"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("pinned 0.0.0"), "{out}");
+        assert!(out.contains(".dx/recovery/version-pin.toml"), "{out}");
+        let record = std::fs::read_to_string(root.join(".dx/recovery/version-pin.toml"))
+            .expect("recovery record");
+        assert!(record.contains("previous = \"9.9.9\""), "{record}");
+        assert!(record.contains("current = \"0.0.0\""), "{record}");
+        assert!(record.contains("dx version --apply --pin 9.9.9"), "{record}");
+        let inv = invocation(&["version", "--apply", "--pin=0.0.0"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("pinned 0.0.0"), "{out}");
+        assert!(!out.contains("retained"), "re-pinning the same value records nothing: {out}");
+    }
+
+    #[test]
+    fn version_pin_dry_run_writes_no_recovery_record() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-version-pin-dry-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("drifted pin");
+        let inv = invocation(&["version", "--pin=0.0.0", "--dry-run"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("would pin 0.0.0"), "{out}");
+        assert!(!root.join(".dx/recovery").exists(), "dry-run writes nothing");
     }
 }

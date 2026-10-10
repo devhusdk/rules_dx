@@ -72,7 +72,7 @@ commands. See [Version Skew](status-version.md#version-skew).
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `setup`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, and `docs`.
+  `codegen`, `env`, `setup`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, `status`, and `docs`.
   Every other command rejects it. It never combines with `--check` or `--dry-run`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, and `deploy`. Bare means dev, except `dx deploy` which means
@@ -149,8 +149,8 @@ is unset.
 
 ## Config File
 
-`.dx/config.toml` and `.dx/config` set the same defaults. A key is the flag
-name without `--`.
+`dx.toml` holds committed consumer defaults and `dx.local.toml` holds
+optional gitignored local overrides. A key is the flag name without `--`.
 
 ```toml
 [dx]
@@ -163,20 +163,28 @@ output = "json"
 fail-on = "error"
 ```
 
-`dry_run` and `fail_on` also work. Values are TOML, so a boolean key takes
-`true` or `false`, not the `<bool>` spellings above. An empty value is unset.
-An unknown key is a usage error that names the key and the keys it accepts.
+Keys live under `[dx]`; `dry_run` and `fail_on` spellings also work.
+Values are TOML, so a boolean key takes `true` or `false`, not the `<bool>`
+spellings above. An empty value is unset. An unknown key is a usage error
+that names the key and the keys it accepts. Other top-level tables belong
+to other families, for example `[hooks]` in `dx.local.toml`.
 
-Keys go under `[dx]` or at the top level, and `[dx]` wins. When a directory
-holds both `.dx/config.toml` and `.dx/config`, the `.toml` one wins. The
-nearest file to the working directory wins, and its values sit below the
-environment. The search reads the working directory and each directory above
-it, so a neighboring or nested workspace tree never supplies defaults. Under
-`bazel run` the search starts at the workspace root.
+The command line wins over the environment, the environment wins over
+`dx.local.toml`, `dx.local.toml` wins over `dx.toml`, and `dx.toml` wins
+over built-in defaults. Required CI mode ignores `dx.local.toml` and the
+`DX_` variables above; explicit flags still apply. `dx status` names the
+files in play and the origin of every default: `flag`, `env`, `local`,
+`committed`, `legacy`, or `built-in`.
 
-The command line wins over the environment, and the environment wins over
-the file. Defaults load from the selected workspace: `--workspace` or
-`DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
-`--version` print without reading a broken config. `dx new` and
-`dx completion` run outside a workspace.
+Defaults load from the selected workspace: `--workspace` or `DX_WORKSPACE`
+selects it before the file is read. A `workspace` key in the file redirects
+once to that workspace. The search reads the working directory and each
+directory above it, so a neighboring or nested workspace tree never supplies
+defaults. Under `bazel run` the search starts at the workspace root.
+`.dx/config.toml` and `.dx/config` are the legacy fallback, read only when
+neither `dx.toml` nor `dx.local.toml` exists. When a new file exists next
+to legacy state, every command except `dx status --migrate-config` fails
+with the conflicting paths; `dx status --migrate-config` plans moving the
+legacy keys into `dx.toml`, and `--apply` writes it and removes the legacy
+file. `-h`, `--help`, `help`, `-V`, and `--version` print without reading a
+broken config. `dx new` and `dx completion` run outside a workspace.

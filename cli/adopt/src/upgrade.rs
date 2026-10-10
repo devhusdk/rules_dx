@@ -15,7 +15,7 @@ pub fn upgrade_retry_command(from: &str, to: &str) -> String {
 }
 
 pub fn upgrade_restore_command() -> Option<String> {
-    Some("git checkout -- .dx/version".to_owned())
+    Some("rm .dx/version".to_owned())
 }
 
 pub fn upgrade_recovery_message(plan: &UpgradePlan) -> String {
@@ -58,10 +58,7 @@ mod tests {
         assert_eq!(plan.to, "2.0.0");
         assert_eq!(plan.manifest, "migrate-v1-to-v2.json");
         assert_eq!(plan.retry_command, "dx upgrade --from 1.2.3 --to 2.0.0");
-        assert_eq!(
-            plan.restore_command,
-            Some("git checkout -- .dx/version".to_owned())
-        );
+        assert_eq!(plan.restore_command, Some("rm .dx/version".to_owned()));
         assert!(plan.message.contains("dx upgrade --from 1.2.3 --to 2.0.0"));
         assert!(plan.message.contains("idempotent"));
         assert!(plan.message.contains("dx setup"));
@@ -85,12 +82,13 @@ mod tests {
             upgrade_retry_command("1.2.3", "2.0.0"),
             "dx upgrade --from 1.2.3 --to 2.0.0"
         );
-        assert_eq!(
-            upgrade_restore_command(),
-            Some("git checkout -- .dx/version".to_owned())
-        );
+        assert_eq!(upgrade_restore_command(), Some("rm .dx/version".to_owned()));
         let message = upgrade_recovery_message(&plan);
         assert!(message.contains("rerun"));
-        assert!(message.contains("git checkout -- .dx/version"));
+        assert!(message.contains("rm .dx/version"));
+        assert!(
+            !message.contains("git checkout"),
+            "a gitignored pin is discarded by removal, never by checkout: {message}"
+        );
     }
 }

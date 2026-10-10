@@ -18,6 +18,7 @@ dx_rust_crate(
         "src/new.rs",
         "src/policy.rs",
         "src/preset_fragment.rs",
+        "src/recovery.rs",
         "src/scaffold.rs",
         "src/status.rs",
         "src/upgrade.rs",

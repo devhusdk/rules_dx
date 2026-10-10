@@ -157,7 +157,13 @@ fn render_env_help() -> String {
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
     out.push_str(&format!(
-        "  {}\n  {}\n      Same defaults as the DX_ variables, below the environment.\n      An unknown key is a usage error.\n",
+        "  {}\n      Committed consumer defaults, below the environment.\n      Keys live under [dx]. An unknown key is a usage error.\n  {}\n      Optional gitignored local overrides, between the environment and {}.\n      Keys live under [dx]. Required CI mode ignores this file and the DX_ variables.\n",
+        dx_adopt::defaults::COMMITTED_CONFIG_REL,
+        dx_adopt::defaults::LOCAL_CONFIG_REL,
+        dx_adopt::defaults::COMMITTED_CONFIG_REL
+    ));
+    out.push_str(&format!(
+        "  {}\n  {}\n      Legacy fallback, read only when neither file above exists.\n      When a new file exists alongside legacy state, dx errors and `dx status --migrate-config` plans the move.\n",
         dx_adopt::defaults::CONFIG_TOML_REL,
         dx_adopt::defaults::CONFIG_REL
     ));
@@ -181,16 +187,16 @@ pub fn usage_banner() -> String {
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
 per-command flags: capabilities --workspace-capabilities (adds workspace facts from local records); \
-clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
-distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why --configured (cquery); \
+clean --bazel|--prune-unobserved|--recovery (also run `bazel clean`; default never touches Bazel outputs; \
+distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects; --recovery lists retained .dx/recovery records instead of pruning); owners|deps|why --configured (cquery); \
 coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy --debug|--release; \
-version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
+version --check|--pin|--rollback; status --migrate-config (plan the legacy-config move into dx.toml); docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/codegen/env/setup/clean/version/update/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
 where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env/setup selection, run/deploy launch, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \
-version --pin/--rollback, docs rendering/serving); \
+version --pin/--rollback, status legacy-config migration, docs rendering/serving); \
 every other command rejects it, and --apply never combines with --check or --dry-run. \
 by default lint, typecheck, format, fix, generate, codegen, env, setup, and clean only check, while --apply writes \
 (fix then verifies with a read-only check). \
@@ -239,6 +245,8 @@ const COMMAND_FLAGS: &[&str] = &[
     "--release",
     "--bazel",
     "--prune-unobserved",
+    "--migrate-config",
+    "--recovery",
     "--pin",
     "--rollback",
     "--configured",
@@ -417,6 +425,14 @@ mod tests {
         assert!(
             text.contains(dx_adopt::defaults::CONFIG_TOML_REL),
             "top help never names the config file"
+        );
+        assert!(
+            text.contains(dx_adopt::defaults::COMMITTED_CONFIG_REL),
+            "top help never names the committed config file"
+        );
+        assert!(
+            text.contains(dx_adopt::defaults::LOCAL_CONFIG_REL),
+            "top help never names the local config file"
         );
     }
 

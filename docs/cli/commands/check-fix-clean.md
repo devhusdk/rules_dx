@@ -51,13 +51,18 @@ bazel run @rules_dx//:dx -- fix --apply //...
 ## `dx clean`
 
 ```text
-dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]
+dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved] [--recovery]
 ```
 
 Reports unselected managed state under `.dx` by default and deletes
 nothing. Pass `--apply` to prune it. Never touches Bazel outputs unless
 `--bazel` is combined with `--apply` to also run `bazel clean`. Takes no
 scopes. `--dry-run` only lists what would go and always succeeds.
+`--recovery` lists retained `.dx/recovery` records instead of pruning
+generations; with `--apply` it deletes complete records and refuses
+incomplete ones, naming the rollback each deletion loses. Ordinary clean
+never touches `.dx/recovery` or `.dx/cache`, and rejects `--bazel` or
+`--prune-unobserved` combined with `--recovery`.
 
 Output: `--output text|json`.
 

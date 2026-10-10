@@ -17,6 +17,7 @@ pub mod migrate;
 pub mod new;
 pub mod policy;
 pub mod preset_fragment;
+pub mod recovery;
 pub mod scaffold;
 pub mod status;
 pub mod upgrade;
@@ -24,10 +25,13 @@ pub mod version;
 pub mod watch;
 
 pub use defaults::{
-    env_bool, env_string, find_config, is_truthy, load_defaults, parse_bool, parse_file_text,
-    resolve_bool, resolve_string, resolve_workspace, FileDefaults, BOOL_SPELLINGS, CONFIG_REL,
-    CONFIG_TOML_REL, DX_DRY_RUN_ENV, DX_FAIL_ON_ENV, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV,
-    DX_WORKSPACE_ENV, FALSEY,
+    apply_config_migration, env_bool, env_string, find_config, find_consumer_files, is_truthy,
+    load_consumer_config, load_defaults, parse_bool, parse_consumer_text, parse_file_text,
+    plan_config_migration, render_committed_toml, resolve_bool, resolve_origin, resolve_string,
+    resolve_workspace, ConfigMigration, ConfigSummary, DEFAULT_KEYS, DefaultOrigin, DefaultOrigins, FileConfig,
+    FileDefaults, FileLayer, FileOrigins, LegacyConflict, BOOL_SPELLINGS, COMMITTED_CONFIG_REL,
+    CONFIG_REL, CONFIG_TOML_REL, DX_COLOR_ENV, DX_DRY_RUN_ENV, DX_FAIL_ON_ENV, DX_OUTPUT_ENV, DX_QUIET_ENV,
+    DX_VERBOSE_ENV, DX_WORKSPACE_ENV, FALSEY, KNOWN_OTHER_TABLES, LOCAL_CONFIG_REL,
 };
 pub use error::AdoptError;
 pub use hooks::{
@@ -52,6 +56,11 @@ pub use new::{
     new_language_name_list, normalize_new_language, plan_new_files, validate_new_destination,
     NEW_LANGUAGE_ALIASES, SUPPORTED_NEW_LANGUAGES,
 };
+pub use recovery::{
+    apply_recovery_deletion, cache_dir, describe_record, list_recovery, plan_recovery_deletion,
+    record_previous_pin, recovery_dir, RecoveryDeletion, RecoveryItem, RecoveryRecord,
+    CACHE_DIR_NAME, RECOVERY_DIR_NAME, VERSION_PIN_RECORD,
+};
 pub use policy::{devcontainer_is_admissible, diagnostics_command_allowed};
 pub use preset_fragment::{
     check_preset, owned_collisions_in_content, preset_paths, render_preset_fragment, update_preset,
@@ -62,7 +71,7 @@ pub use scaffold::{
     scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
     ENVRC_CONTENT,
 };
-pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
+pub use status::{config_status_check, default_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{
     plan_upgrade, upgrade_recovery_message, upgrade_restore_command, upgrade_retry_command,
     UpgradePlan,

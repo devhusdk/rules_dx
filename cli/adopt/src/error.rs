@@ -74,6 +74,10 @@ pub enum AdoptError {
     RenderTimings { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
+    #[error("legacy config {legacy} conflicts with {current}; move its keys into the committed dx.toml, then delete it (dx status --migrate-config plans the move, --apply writes it)")]
+    LegacyConfigConflict { legacy: String, current: String },
+    #[error("record recovery: {detail}")]
+    RecordRecovery { detail: String },
     /// A boolean environment default is neither a documented on nor a documented off.
     #[error("invalid invocation default {name}={value:?}: want one of {spellings}")]
     InvalidEnvBool {

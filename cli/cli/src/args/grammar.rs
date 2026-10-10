@@ -67,6 +67,8 @@ pub(crate) struct Flags {
     pub(crate) release: bool,
     pub(crate) bazel_clean: bool,
     pub(crate) prune_unobserved: bool,
+    pub(crate) migrate_config: bool,
+    pub(crate) recovery: bool,
     pub(crate) pin: Option<String>,
     pub(crate) rollback: bool,
     pub(crate) configured: bool,
@@ -321,6 +323,22 @@ flag_group! {
     PruneUnobservedFlag, {
         #[arg(long = "prune-unobserved", overrides_with = "prune_unobserved")]
         prune_unobserved: bool,
+    }
+}
+
+flag_group! {
+    /// Move legacy .dx/config.toml keys into dx.toml.
+    MigrateConfigFlag, {
+        #[arg(long = "migrate-config", overrides_with = "migrate_config")]
+        migrate_config: bool,
+    }
+}
+
+flag_group! {
+    /// List or delete retained .dx/recovery records.
+    RecoveryFlag, {
+        #[arg(long, overrides_with = "recovery")]
+        recovery: bool,
     }
 }
 
@@ -676,7 +694,7 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, recovery: RecoveryFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         offline: OfflineFlag,
@@ -702,7 +720,7 @@ command_args! {
     /// The flags `dx hooks` accepts.
     Hooks => 23, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx status` accepts.
-    Status => 24, NoPassthroughTail, {};
+    Status => 24, NoPassthroughTail, { apply: ApplyFlag, own: MigrateConfigFlag, };
     /// The flags `dx version` accepts.
     Version => 25, NoPassthroughTail, {
         check: CheckFlag,

@@ -77,6 +77,14 @@ pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
 }
 
+pub fn parse_with<S: AsRef<OsStr>>(
+    args: &[S],
+    env_get: &dyn Fn(&str) -> Option<String>,
+    file: &super::FileDefaults,
+) -> Result<Invocation, ArgsError> {
+    parse_with_config(args, env_get, &dx_adopt::FileConfig::unattributed(file))
+}
+
 pub fn load_file_defaults(start: &std::path::Path) -> Result<super::FileDefaults, String> {
     match dx_adopt::defaults::load_defaults(start) {
         Ok((defaults, _)) => Ok(defaults),
@@ -91,6 +99,8 @@ pub struct StartupDefaults {
     pub defaults: super::FileDefaults,
     /// The config-directed workspace when no flag or environment value set one.
     pub file_workspace: Option<String>,
+    /// Where each default came from, for origin disclosure and migration.
+    pub config: dx_adopt::FileConfig,
 }
 
 /// Reads the `--workspace` value off the raw command line, if one is spelled.
@@ -176,20 +186,44 @@ pub fn select_startup_defaults(
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
 ) -> Result<StartupDefaults, String> {
+    select_startup_config(start, flag_workspace, env_workspace, false).map(|selected| {
+        StartupDefaults {
+            defaults: selected.defaults,
+            file_workspace: selected.file_workspace,
+            config: selected.config,
+        }
+    })
+}
+
+/// The startup selection with the CI gate applied to local and environment layers.
+#[derive(Debug)]
+pub struct StartupConfig {
+    pub defaults: super::FileDefaults,
+    pub file_workspace: Option<String>,
+    pub config: dx_adopt::FileConfig,
+}
+
+pub fn select_startup_config(
+    start: &std::path::Path,
+    flag_workspace: Option<String>,
+    env_workspace: Option<String>,
+    ci: bool,
+) -> Result<StartupConfig, String> {
     let preliminary = flag_workspace.or(env_workspace);
     let dir = match &preliminary {
         Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
         None => start.to_path_buf(),
     };
-    match dx_adopt::defaults::load_defaults(&dir) {
-        Ok((defaults, _)) => {
+    match dx_adopt::defaults::load_consumer_config(&dir, ci) {
+        Ok(config) => {
             let file_workspace = match preliminary {
                 Some(_) => None,
-                None => defaults.workspace.clone(),
+                None => config.defaults.workspace.clone(),
             };
-            Ok(StartupDefaults {
-                defaults,
+            Ok(StartupConfig {
+                defaults: config.defaults.clone(),
                 file_workspace,
+                config,
             })
         }
         Err(error) => Err(error.to_string()),
@@ -204,10 +238,27 @@ pub fn freeze_workspace(defaults: &super::FileDefaults, workspace: &str) -> supe
     frozen
 }
 
-pub fn parse_with<S: AsRef<OsStr>>(
+/// Whether an environment variable carries a CLI default that CI mode ignores.
+pub fn preference_env(name: &str) -> bool {
+    dx_adopt::defaults::ENV_DEFAULTS
+        .iter()
+        .any(|(env, _, _)| *env == name)
+}
+
+/// Returns the loaded config with the workspace pinned to the redirect target.
+pub fn freeze_config_workspace(
+    config: &dx_adopt::FileConfig,
+    workspace: &str,
+) -> dx_adopt::FileConfig {
+    let mut frozen = config.clone();
+    frozen.defaults.workspace = Some(workspace.to_owned());
+    frozen
+}
+
+pub fn parse_with_config<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
-    file: &super::FileDefaults,
+    config: &dx_adopt::FileConfig,
 ) -> Result<Invocation, ArgsError> {
     if let Some(error) = super::help::help_verb_error_in(args) {
         return Err(error);
@@ -233,6 +284,8 @@ pub fn parse_with<S: AsRef<OsStr>>(
         release,
         bazel_clean,
         prune_unobserved,
+        migrate_config,
+        recovery,
         pin,
         rollback,
         configured,
@@ -247,6 +300,26 @@ pub fn parse_with<S: AsRef<OsStr>>(
         workspace_capabilities,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
+    if let Some(conflict) = &config.conflict {
+        let migrating =
+            command == Command::Status && migrate_config;
+        if !migrating {
+            let current = conflict
+                .committed
+                .as_ref()
+                .or(conflict.local.as_ref())
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| dx_adopt::COMMITTED_CONFIG_REL.to_owned());
+            return Err(ArgsError::BadDefault {
+                detail: dx_adopt::AdoptError::LegacyConfigConflict {
+                    legacy: conflict.legacy.display().to_string(),
+                    current,
+                }
+                .to_string(),
+            });
+        }
+    }
+    let file = &config.defaults;
     let targets_os = tokenized.targets;
     let bazel_options = tokenized.bazel_options;
     let flag_workspace = match workspace_os {
@@ -263,45 +336,44 @@ pub fn parse_with<S: AsRef<OsStr>>(
         });
     }
     use dx_adopt::defaults as invocation_defaults;
+    let env_workspace =
+        invocation_defaults::env_string(env_get, invocation_defaults::DX_WORKSPACE_ENV);
     let workspace = invocation_defaults::resolve_workspace(
-        flag_workspace,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_WORKSPACE_ENV),
+        flag_workspace.clone(),
+        env_workspace.clone(),
         file.workspace.clone(),
     );
-    let dry_run = invocation_defaults::resolve_bool(
-        dry_run,
+    let flag_dry_run = dry_run.is_some();
+    let env_dry_run =
         invocation_defaults::env_bool(env_get, invocation_defaults::DX_DRY_RUN_ENV)
-            .map_err(bad_default)?,
-        file.dry_run,
-    );
+            .map_err(bad_default)?;
+    let dry_run = invocation_defaults::resolve_bool(dry_run, env_dry_run, file.dry_run);
     if dry_run && apply {
         return Err(ArgsError::ConflictingModes {
             first: "--dry-run",
             second: "--apply",
         });
     }
-    let quiet = invocation_defaults::resolve_bool(
-        quiet,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
-            .map_err(bad_default)?,
-        file.quiet,
-    );
-    let verbose = invocation_defaults::resolve_bool(
-        verbose,
+    let flag_quiet = quiet.is_some();
+    let env_quiet = invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
+        .map_err(bad_default)?;
+    let quiet = invocation_defaults::resolve_bool(quiet, env_quiet, file.quiet);
+    let flag_verbose = verbose.is_some();
+    let env_verbose =
         invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV)
-            .map_err(bad_default)?,
-        file.verbose,
-    );
-    let output_name = invocation_defaults::resolve_string(
-        output,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
-        file.output.clone(),
-        "text",
-    );
+            .map_err(bad_default)?;
+    let verbose = invocation_defaults::resolve_bool(verbose, env_verbose, file.verbose);
+    let flag_output = output.is_some();
+    let env_output =
+        invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV);
+    let output_name =
+        invocation_defaults::resolve_string(output, env_output.clone(), file.output.clone(), "text");
     let fail_on_given = fail_on.is_some();
+    let env_fail_on =
+        invocation_defaults::env_string(env_get, invocation_defaults::DX_FAIL_ON_ENV);
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_FAIL_ON_ENV),
+        env_fail_on.clone(),
         file.fail_on.clone(),
         "warning",
     );
@@ -324,9 +396,11 @@ pub fn parse_with<S: AsRef<OsStr>>(
             second: "--apply",
         });
     }
+    let flag_color = color_name.is_some();
+    let env_color = invocation_defaults::env_string(env_get, invocation_defaults::DX_COLOR_ENV);
     let color_name = invocation_defaults::resolve_string(
         color_name,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_COLOR_ENV),
+        env_color.clone(),
         file.color.clone(),
         "auto",
     );
@@ -530,6 +604,56 @@ pub fn parse_with<S: AsRef<OsStr>>(
             });
         }
     }
+    if command == Command::Clean && recovery && (bazel_clean || prune_unobserved) {
+        let option = if bazel_clean { "--bazel" } else { "--prune-unobserved" };
+        return Err(unsupported(command, option));
+    }
+    let mut origins = dx_adopt::DefaultOrigins::default();
+    origins.set(
+        "workspace",
+        invocation_defaults::resolve_origin(
+            flag_workspace.is_some(),
+            env_workspace.is_some(),
+            config.layers.workspace,
+        ),
+    );
+    origins.set(
+        "dry-run",
+        invocation_defaults::resolve_origin(
+            flag_dry_run,
+            env_dry_run.is_some(),
+            config.layers.dry_run,
+        ),
+    );
+    origins.set(
+        "quiet",
+        invocation_defaults::resolve_origin(flag_quiet, env_quiet.is_some(), config.layers.quiet),
+    );
+    origins.set(
+        "verbose",
+        invocation_defaults::resolve_origin(
+            flag_verbose,
+            env_verbose.is_some(),
+            config.layers.verbose,
+        ),
+    );
+    origins.set(
+        "output",
+        invocation_defaults::resolve_origin(flag_output, env_output.is_some(), config.layers.output),
+    );
+    origins.set(
+        "fail-on",
+        invocation_defaults::resolve_origin(
+            fail_on_given,
+            env_fail_on.is_some(),
+            config.layers.fail_on,
+        ),
+    );
+    origins.set(
+        "color",
+        invocation_defaults::resolve_origin(flag_color, env_color.is_some(), config.layers.color),
+    );
+    let config_summary = dx_adopt::ConfigSummary::from_config(config, &origins);
     Ok(Invocation {
         command,
         check,
@@ -552,6 +676,9 @@ pub fn parse_with<S: AsRef<OsStr>>(
         bazel_options,
         bazel_clean,
         prune_unobserved,
+        migrate_config,
+        recovery,
+        config_summary,
         pin,
         rollback,
         configured,

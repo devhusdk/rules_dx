@@ -57,6 +57,12 @@ CURATED_DEFAULTS = {
         "lint": ["buildifier"],
         "typecheck": [],
     },
+    "text": {
+        "audit": [],
+        "format": [],
+        "lint": ["keep_sorted"],
+        "typecheck": [],
+    },
     "toml": {
         "audit": [],
         "format": ["taplo"],
@@ -81,6 +87,7 @@ FORMAT_FROZEN = {
     "rust": ["rustfmt"],
     "shell": [],
     "starlark": ["buildifier"],
+    "text": [],
     "toml": ["taplo"],
     "typescript": ["biome"],
 }

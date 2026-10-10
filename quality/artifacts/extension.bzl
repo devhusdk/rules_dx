@@ -18,6 +18,10 @@ load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "decode_artifacts", "encode_artifacts", "hub_build")
+load("//quality/artifacts:keep_sorted.linux_arm64.bzl", _keep_sorted_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:keep_sorted.linux_x86_64.bzl", _keep_sorted_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:keep_sorted.macos_arm64.bzl", _keep_sorted_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:keep_sorted.windows_x86_64.bzl", _keep_sorted_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:platforms.bzl", "artifact_platform_key")
 load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
@@ -57,6 +61,10 @@ _ARTIFACTS = [
     _gitleaks_linux_arm64,
     _gitleaks_macos_arm64,
     _gitleaks_windows_x86_64,
+    _keep_sorted_linux_x86_64,
+    _keep_sorted_linux_arm64,
+    _keep_sorted_macos_arm64,
+    _keep_sorted_windows_x86_64,
     _ruff_linux_x86_64,
     _ruff_linux_arm64,
     _ruff_macos_arm64,

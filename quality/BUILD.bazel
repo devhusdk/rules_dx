@@ -179,6 +179,16 @@ quality_family(
     lint = ["shellcheck"],
 )
 
+quality_family(
+    name = "default_text_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "text",
+    lint = ["keep_sorted"],
+)
+
 workspace_policy(
     name = "default_workspace_policy",
     families = [
@@ -191,6 +201,7 @@ workspace_policy(
         ":default_rust_family",
         ":default_shell_family",
         ":default_starlark_family",
+        ":default_text_family",
         ":default_toml_family",
         ":default_typescript_family",
     ],

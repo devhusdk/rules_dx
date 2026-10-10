@@ -7,6 +7,14 @@ package(default_visibility = VIS_CLI_DEPLOY_QUALITY)
 dx_rust_crate(
     name = "dx_fingerprint",
     package_name = "cli/dx_fingerprint",
+    srcs = [
+        "src/baseline.rs",
+        "src/lib.rs",
+    ],
+    extra_deps = [
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
+    ],
     deps = [
         "serde",
         "serde_json",

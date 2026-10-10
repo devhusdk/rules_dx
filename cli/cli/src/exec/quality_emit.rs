@@ -7,6 +7,7 @@ use dx_output::{
 };
 
 use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
+use super::quality_baseline::BaselineView;
 use crate::args::Invocation;
 
 pub(crate) struct EmitInputs<'a> {
@@ -17,6 +18,8 @@ pub(crate) struct EmitInputs<'a> {
     pub(crate) not_applied: &'a [(String, &'static str)],
     pub(crate) patch: &'a str,
     pub(crate) stdout_report: bool,
+    pub(crate) suppressed: &'a [bool],
+    pub(crate) baseline: Option<&'a BaselineView>,
 }
 
 pub(crate) struct EmitCounts {
@@ -37,12 +40,15 @@ pub(crate) fn emit_findings(
         not_applied,
         patch,
         stdout_report,
+        suppressed,
+        baseline,
     } = inputs;
+    let held = |index: usize| suppressed.get(index).copied().unwrap_or(false);
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
     if invocation.output == OutputMode::Json {
         let mutating = invocation.applies();
-        for diagnostic in status {
+        for (index, diagnostic) in status.iter().enumerate() {
             let mut event_diagnostic = diagnostic.clone();
             if mutating && event_diagnostic.snapshot == Snapshot::Initial {
                 let is_applied = event_diagnostic
@@ -55,7 +61,16 @@ pub(crate) fn emit_findings(
                     Resolution::NotApplied
                 });
             }
-            let _ = write_event(out, &diagnostic_value(&event_diagnostic));
+            let mut event = diagnostic_value(&event_diagnostic);
+            if held(index) {
+                if let serde_json::Value::Object(ref mut map) = event {
+                    map.insert(
+                        "baseline".to_owned(),
+                        serde_json::Value::String("suppressed".to_owned()),
+                    );
+                }
+            }
+            let _ = write_event(out, &event);
         }
         for change in changes {
             let _ = write_event(out, &change_value(&change_event_for(change)));
@@ -96,8 +111,12 @@ pub(crate) fn emit_findings(
         }
     } else if matches!(invocation.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
-        for diagnostic in status {
-            let _ = writeln!(human, "{}", text_diagnostic(diagnostic));
+        for (index, diagnostic) in status.iter().enumerate() {
+            let mut line = text_diagnostic(diagnostic);
+            if held(index) {
+                line.push_str(" (baselined)");
+            }
+            let _ = writeln!(human, "{line}");
         }
         if invocation.applies() {
             applied_count = applied.values().filter(|applied| **applied).count() as u64;
@@ -114,6 +133,25 @@ pub(crate) fn emit_findings(
             let _ = writeln!(err, "Not applied: {path} ({reason})");
         }
         out.write_all(patch.as_bytes()).ok();
+    }
+    if let Some(view) = baseline {
+        for stale in &view.stale {
+            let _ = writeln!(
+                err,
+                "Baseline stale: {stale} (run with --apply to refresh)."
+            );
+        }
+        if matches!(invocation.output, OutputMode::Text { .. }) {
+            let human: &mut dyn Write = if stdout_report { err } else { out };
+            let _ = writeln!(
+                human,
+                "Baseline {}: {} total, {} new, {} suppressed.",
+                view.rel, view.total, view.fresh, view.held
+            );
+            if view.refreshed {
+                let _ = writeln!(human, "Baseline {} refreshed.", view.rel);
+            }
+        }
     }
     EmitCounts {
         applied_count,

@@ -17,7 +17,8 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 ```
 
 - `--check`: report findings without writing files. Same as the default.
-- `--apply`: write validated fixes. Without it files stay untouched.
+- `--apply`: write validated fixes and refresh the configured baseline.
+  Without it files stay untouched.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
   Repeatable. `dx format` has no report format. A relative destination anchors
@@ -27,8 +28,8 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 - `--output text|diff|json`: result shape.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
-`--fail-on`, an incomplete result set, or a failed report write. Bazel
-failures report `1`, not Bazel's code.
+`--fail-on`, an incomplete result set, a failed report write, or a missing,
+malformed, or stale baseline. Bazel failures report `1`, not Bazel's code.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --check //...
@@ -91,3 +92,55 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
   analysis with the tool named.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
+
+## Baselines
+
+Opt in to a baseline to keep known findings while new ones fail. Set the
+file in `dx.toml`:
+
+```toml
+[quality]
+baseline = "quality/baseline.json"
+```
+
+The path stays inside the workspace and names a `.json` file. Commit the
+file with the selection. A missing file fails checks. Pass `--apply` once to
+write it.
+
+The file lists known diagnostics with tool, rule, path, message, context,
+and count:
+
+```json
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "tool": "ruff",
+      "rule": "F401",
+      "path": "src/app.py",
+      "message": "unused import",
+      "context": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "count": 1
+    }
+  ]
+}
+```
+
+Identity is tool, rule, path, message, and source context. Line numbers
+alone never match, so moving a line keeps its entry. A rename or a rule
+change needs a refresh instead.
+
+Checks print `Baseline <file>: <total> total, <new> new, <suppressed>
+suppressed.` Suppressed findings print with `(baselined)` and stay in JSON
+and SARIF output. JSON marks them with `"baseline": "suppressed"` and
+carries the counts in `command_finished`. SARIF carries the counts in each
+run. New findings fail as usual. Fixed entries turn stale and fail. Entries
+outside the checked scope stay unevaluated. An incomplete run never goes
+green through a baseline.
+
+Pass `--apply` to refresh the file. Refresh adds new findings, prunes fixed
+entries in scope, and keeps the rest. A malformed file fails instead of
+being rewritten.
+
+Adopt in small steps. Run the check, review the findings, record them with
+`--apply`, then keep the file current on later runs.

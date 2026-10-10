@@ -1,15 +1,17 @@
 use super::common::*;
 use super::quality_apply::{apply_collected_changes, project_status};
+use super::quality_baseline::{apply_baseline, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{write_standard_reports, StandardReports};
 use super::results::collect_results;
 use crate::args::Invocation;
 use crate::plan::{bep_path, plan_build};
-use crate::reports::{plan_reports, Destination};
+use crate::reports::{plan_reports, BaselineReport, Destination};
 use crate::resolve::resolve;
 use dx_output::{
-    command_finished, command_started, write_event, FinishedCounts, OutputMode, Severity,
+    command_finished, command_started, meets_threshold, write_event, FinishedCounts, OutputMode,
+    Severity,
 };
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -112,7 +114,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let sources = applied_outcome.sources;
     let applied = applied_outcome.applied;
     let not_applied = applied_outcome.not_applied;
-    let (status, failed) = project_status(
+    let (status, _) = project_status(
         apply,
         &collected.initial,
         &collected.terminal,
@@ -120,6 +122,26 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.fail_on,
         !collected.changes.is_empty(),
     );
+    let baseline: Option<BaselineView> = match apply_baseline(
+        workspace,
+        &status,
+        &collected.tools,
+        &collected.terminal_digests,
+        collected.complete,
+        apply,
+    ) {
+        Ok(view) => view,
+        Err((code, message)) => return operational(invocation, out, err, &code, &message),
+    };
+    let suppressed: Vec<bool> = baseline
+        .as_ref()
+        .map_or_else(|| vec![false; status.len()], |view| view.suppressed.clone());
+    let mut failed = status.iter().zip(&suppressed).any(|(diagnostic, held)| {
+        !held && meets_threshold(diagnostic.severity, invocation.fail_on)
+    }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty());
+    if !apply && !collected.changes.is_empty() {
+        failed = true;
+    }
 
     let mut patch = String::new();
     if invocation.output == OutputMode::Diff {
@@ -140,6 +162,8 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             not_applied: &not_applied,
             patch: &patch,
             stdout_report,
+            suppressed: &suppressed,
+            baseline: baseline.as_ref(),
         },
         out,
         err,
@@ -156,6 +180,12 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             planned: &planned_reports,
             output: &invocation.output,
             stdout_report,
+            baseline: baseline.as_ref().map(|view| BaselineReport {
+                file: view.rel.clone(),
+                total: view.total,
+                new: view.fresh,
+                suppressed: view.held,
+            }),
         },
         out,
         err,
@@ -187,6 +217,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
                 } else {
                     None
                 },
+                baseline: baseline.as_ref().map(BaselineView::counts),
             },
         );
         let _ = write_event(out, &finished);

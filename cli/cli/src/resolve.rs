@@ -1,3 +1,4 @@
+pub mod changed;
 pub mod classify;
 pub mod codegen_expand;
 pub mod entry;
@@ -8,6 +9,10 @@ pub mod selection;
 pub mod test_map;
 pub mod types;
 
+pub use changed::{
+    collect_range, collect_working_tree, diff_name_status, merge_base, resolve_affected,
+    AffectedSelection, WidenedScope,
+};
 pub(crate) use classify::{classify_scopes, first_line, parse_owners, resolve_file_owners};
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test, resolve_for_test_with_selection};

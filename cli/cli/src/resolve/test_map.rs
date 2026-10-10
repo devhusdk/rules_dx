@@ -3,10 +3,7 @@ use std::path::Path;
 use super::{first_line, parse_owners, quote_set, QueryRunner, ResolveError, SelectionContext};
 
 fn tests_expression(owners: &[String]) -> String {
-    format!(
-        "kind('.*_test rule', rdeps(//..., set({})))",
-        quote_set(owners)
-    )
+    format!("tests(rdeps(//..., set({})))", quote_set(owners))
 }
 
 pub fn map_owners_to_tests(
@@ -132,7 +129,7 @@ mod tests {
                 "--nosystem_rc",
                 "query",
                 "--",
-                "kind('.*_test rule', rdeps(//..., set(\"//pkg:lib\")))",
+                "tests(rdeps(//..., set(\"//pkg:lib\")))",
             ])
         );
     }
@@ -148,7 +145,7 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('.*_test rule', rdeps(//..., set(\"//a:lib\" \"//z:lib\")))"
+            "tests(rdeps(//..., set(\"//a:lib\" \"//z:lib\")))"
         );
     }
 
@@ -181,7 +178,7 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label: "kind('.*_test rule', rdeps(//..., set(\"//pkg:lib\")))".to_owned(),
+                label: "tests(rdeps(//..., set(\"//pkg:lib\")))".to_owned(),
                 detail: "query failed: blah".to_owned(),
             }
         );
@@ -207,7 +204,7 @@ mod tests {
                 "--output_base=/tmp/a",
                 "query",
                 "--",
-                "kind('.*_test rule', rdeps(//..., set(\"//pkg:lib\")))",
+                "tests(rdeps(//..., set(\"//pkg:lib\")))",
             ])
         );
     }
@@ -229,5 +226,35 @@ mod tests {
         let text = error.to_string();
         assert!(text.contains("//a:lib //b:lib"), "{text}");
         assert!(text.contains("//pkg/..."), "{text}");
+    }
+
+    #[test]
+    fn test_mapping_keeps_custom_target_names_without_suffix_assumption() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-custom-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![FakeQuery::ok(
+            "//pkg:custom_check\n//pkg:plain_test\n",
+        )]);
+        let got =
+            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        assert_eq!(got, strings(&["//pkg:custom_check", "//pkg:plain_test"]));
+        let calls = query.calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(
+            calls[0].0.last().expect("expression"),
+            "tests(rdeps(//..., set(\"//pkg:lib\")))"
+        );
+    }
+
+    #[test]
+    fn test_mapping_dedupes_suite_expansion() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-suite-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![FakeQuery::ok(
+            "//pkg:custom_check\n//pkg:custom_check\n",
+        )]);
+        let got =
+            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        assert_eq!(got, strings(&["//pkg:custom_check"]));
     }
 }

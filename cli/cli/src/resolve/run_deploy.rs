@@ -3,17 +3,83 @@ use std::path::Path;
 use super::classify::classify_scopes;
 use super::classify::resolve_file_owners;
 use super::packages::PackageCache;
-use super::{first_line, quote_set, run_label_query, QueryRunner, ResolveError};
-
-fn runnable_set_expression(labels: &[String]) -> String {
-    format!(
-        "kind('.*_binary rule', rdeps(//..., set({}), 1))",
-        quote_set(labels)
-    )
-}
+use super::{first_line, quote_set, run_label_query, QueryRunner, ResolveError, SelectionContext};
 
 fn dir_runnable_expression(pattern: &str) -> String {
-    format!("kind('.*_binary rule', {pattern})")
+    format!("kind('rule', {pattern})")
+}
+
+fn executable_probe_expr() -> String {
+    "str(target.label) + '|' + str(target.files_to_run.executable != None)".to_owned()
+}
+
+fn normalize_cquery_label(raw: &str) -> String {
+    raw.strip_prefix("@@").unwrap_or(raw).to_owned()
+}
+
+fn filter_executables(
+    candidates: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> Result<Vec<String>, ResolveError> {
+    if candidates.is_empty() {
+        return Ok(Vec::new());
+    }
+    let expression = format!("set({})", quote_set(candidates));
+    let required = vec![
+        "--output=starlark".to_owned(),
+        format!("--starlark:expr={}", executable_probe_expr()),
+    ];
+    let selection = SelectionContext::unconfigured(startup_options);
+    let argv = selection
+        .selection_argv("cquery", &required, &expression)
+        .map_err(|error| ResolveError::QueryFailed {
+            label: expression.clone(),
+            detail: error.to_string(),
+        })?;
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| ResolveError::QueryFailed {
+            label: expression.clone(),
+            detail: error.to_string(),
+        })?;
+    if result.code != Some(0) {
+        return Err(ResolveError::QueryFailed {
+            label: expression,
+            detail: first_line(&result.stderr),
+        });
+    }
+    let text = std::str::from_utf8(&result.stdout).map_err(|_| ResolveError::QueryFailed {
+        label: expression.clone(),
+        detail: "query output is not UTF-8".to_owned(),
+    })?;
+    let mut executables: Vec<String> = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let (raw_label, flag) = line
+            .split_once('|')
+            .ok_or_else(|| ResolveError::QueryFailed {
+                label: expression.clone(),
+                detail: "cquery returned a malformed executable observation".to_owned(),
+            })?;
+        match flag.trim() {
+            "True" => executables.push(normalize_cquery_label(raw_label.trim())),
+            "False" => {}
+            _ => {
+                return Err(ResolveError::QueryFailed {
+                    label: expression.clone(),
+                    detail: "cquery returned a malformed executable observation".to_owned(),
+                });
+            }
+        }
+    }
+    executables.sort();
+    executables.dedup();
+    Ok(executables)
 }
 
 fn is_run_pattern(label: &str) -> bool {
@@ -38,8 +104,14 @@ pub fn resolve_run(
         let mut targets: Vec<String> = Vec::new();
         for label in &classified.labels {
             if is_run_pattern(label) {
-                targets.extend(run_label_query(
+                let all = run_label_query(
                     &dir_runnable_expression(label),
+                    workspace,
+                    runner,
+                    startup_options,
+                )?;
+                targets.extend(filter_executables(
+                    &all,
                     workspace,
                     runner,
                     startup_options,
@@ -59,34 +131,27 @@ pub fn resolve_run(
     }
     let mut candidates: Vec<String> = classified.labels;
     if !classified.files.is_empty() {
-        let labels: Vec<String> = classified
-            .files
-            .iter()
-            .map(|file| file.label.clone())
-            .collect();
-        let found = run_label_query(
-            &runnable_set_expression(&labels),
+        let owners = resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
+        candidates.extend(filter_executables(
+            &owners,
             workspace,
             runner,
             startup_options,
-        )?;
-        if found.is_empty() {
-            resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
-        } else {
-            if classified.files.len() > 1 {
-                resolve_file_owners(&classified.files, workspace, runner, startup_options)?;
-            }
-            candidates.extend(found);
-        }
+        )?);
     }
     for pattern in &classified.patterns {
-        let found = run_label_query(
+        let all = run_label_query(
             &dir_runnable_expression(pattern),
             workspace,
             runner,
             startup_options,
         )?;
-        candidates.extend(found);
+        candidates.extend(filter_executables(
+            &all,
+            workspace,
+            runner,
+            startup_options,
+        )?);
     }
     candidates.sort();
     candidates.dedup();
@@ -313,16 +378,21 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//app:bin\n")]);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//app:bin\n"),
+            FakeQuery::ok("@@//app:bin|True\n"),
+        ]);
         let got =
             resolve_run(&strings(&["app/main.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got, strings(&["//app:bin"]));
         let calls = query.calls();
-        assert_eq!(calls.len(), 1);
+        assert_eq!(calls.len(), 2);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('.*_binary rule', rdeps(//..., set(\"//app:main.py\"), 1))"
+            "kind('rule', rdeps(//..., set(\"//app:main.py\"), 1))"
         );
+        assert_eq!(calls[1].0[3], "cquery");
+        assert!(calls[1].0.contains(&"--output=starlark".to_owned()));
     }
 
     #[test]
@@ -331,7 +401,10 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("//pkg:lib\n")]);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:lib\n"),
+            FakeQuery::ok("@@//pkg:lib|False\n"),
+        ]);
         let err =
             resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("no runnable");
         assert_eq!(
@@ -349,7 +422,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("\n")]);
+        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
         let err =
             resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("no owner");
         assert_eq!(
@@ -369,7 +442,6 @@ mod tests {
         write(&workspace, "pkg/run.py", "x = 1\n");
         write(&workspace, "pkg/orphan.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:bin\n"),
             FakeQuery::ok("//pkg:bin\n//pkg:lib\n"),
             FakeQuery::ok("//pkg:bin\n//pkg:run.py\n"),
         ]);
@@ -387,7 +459,7 @@ mod tests {
                 labels: strings(&["//pkg:orphan.py"]),
             }
         );
-        assert_eq!(query.calls().len(), 3);
+        assert_eq!(query.calls().len(), 2);
     }
 
     #[test]
@@ -398,9 +470,9 @@ mod tests {
         write(&workspace, "pkg/run.py", "x = 1\n");
         write(&workspace, "pkg/helper.py", "x = 1\n");
         let query = FakeQuery::new(vec![
-            FakeQuery::ok("//pkg:bin\n"),
             FakeQuery::ok("//pkg:bin\n//pkg:lib\n"),
             FakeQuery::ok("//pkg:run.py\n//pkg:helper.py\n"),
+            FakeQuery::ok("@@//pkg:bin|True\n@@//pkg:lib|False\n"),
         ]);
         let got = resolve_run(
             &strings(&["pkg/run.py", "pkg/helper.py"]),
@@ -418,7 +490,10 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-ambiguous-");
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//app:two\n//app:one\n")]);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//app:two\n//app:one\n"),
+            FakeQuery::ok("@@//app:two|True\n@@//app:one|True\n"),
+        ]);
         let err = resolve_run(&strings(&["app"]), &workspace, &query, &[]).expect_err("ambiguous");
         assert_eq!(
             err,
@@ -431,10 +506,10 @@ mod tests {
             "{err}"
         );
         let calls = query.calls();
-        assert_eq!(calls.len(), 1);
+        assert_eq!(calls.len(), 2);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('.*_binary rule', //app/...)"
+            "kind('rule', //app/...)"
         );
     }
 
@@ -456,7 +531,10 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//app:bin\n")]);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//app:bin\n"),
+            FakeQuery::ok("@@//app:bin|True\n"),
+        ]);
         let got = resolve_run(
             &strings(&["//app:bin", "app/main.py"]),
             &workspace,
@@ -465,7 +543,7 @@ mod tests {
         )
         .expect("mixed");
         assert_eq!(got, strings(&["//app:bin"]));
-        assert_eq!(query.calls().len(), 1);
+        assert_eq!(query.calls().len(), 2);
     }
 
     #[test]
@@ -474,7 +552,9 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![
             FakeQuery::ok("//b:two\n//b:one\n"),
+            FakeQuery::ok("@@//b:two|True\n@@//b:one|True\n"),
             FakeQuery::ok("//a:two\n//a:one\n"),
+            FakeQuery::ok("@@//a:two|True\n@@//a:one|True\n"),
         ]);
         let got = resolve_run(&strings(&["//b/...", "//a/..."]), &workspace, &query, &[])
             .expect("cross-pattern");
@@ -485,7 +565,10 @@ mod tests {
         );
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-dedup-");
         let workspace = scratch.path().to_path_buf();
-        let query = FakeQuery::new(vec![FakeQuery::ok("//a:bin\n//a:other\n")]);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//a:bin\n//a:other\n"),
+            FakeQuery::ok("@@//a:bin|True\n@@//a:other|True\n"),
+        ]);
         let got =
             resolve_run(&strings(&["//a:bin", "//a/..."]), &workspace, &query, &[]).expect("dedup");
         assert_eq!(got, strings(&["//a:bin", "//a:other"]));
@@ -497,7 +580,10 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "app/BUILD.bazel", "");
         write(&workspace, "app/main.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("\n"), FakeQuery::ok("//app:lib\n")]);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//app:lib\n"),
+            FakeQuery::ok("@@//app:lib|False\n"),
+        ]);
         let err =
             resolve_run(&strings(&["app/main.py"]), &workspace, &query, &[]).expect_err("alias");
         assert_eq!(
@@ -510,5 +596,70 @@ mod tests {
             err.to_string().contains("explicit runnable label"),
             "alias fail-closed must hint explicit label: {err}"
         );
+    }
+
+    #[test]
+    fn run_file_resolves_custom_executable_without_binary_suffix() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-custom-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:custom_run\n"),
+            FakeQuery::ok("@@//pkg:custom_run|True\n"),
+        ]);
+        let got = resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect("custom");
+        assert_eq!(got, strings(&["//pkg:custom_run"]));
+        let calls = query.calls();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(
+            calls[0].0.last().expect("expression"),
+            "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))"
+        );
+        assert_eq!(calls[1].0[3], "cquery");
+    }
+
+    #[test]
+    fn run_pattern_resolves_alias_to_actual_and_drops_nonexecutables() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-alias-actual-");
+        let workspace = scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("pkg")).expect("dir");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:custom_run\n//pkg:run_alias\n//pkg:lib\n//pkg:suite\n"),
+            FakeQuery::ok(
+                "@@//pkg:custom_run|True\n@@//pkg:custom_run|True\n@@//pkg:lib|False\n@@//pkg:suite|False\n",
+            ),
+        ]);
+        let got = resolve_run(&strings(&["pkg"]), &workspace, &query, &[]).expect("alias");
+        assert_eq!(got, strings(&["//pkg:custom_run"]));
+    }
+
+    #[test]
+    fn executable_probe_failures_report_first_line() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-fail-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:bin\n"),
+            FakeQuery::failed("analysis failed\n"),
+        ]);
+        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("probe");
+        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
+    }
+
+    #[test]
+    fn executable_probe_malformed_observation_is_query_failed() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-malformed-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:bin\n"),
+            FakeQuery::ok("//pkg:bin\n"),
+        ]);
+        let err =
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("malformed");
+        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
     }
 }

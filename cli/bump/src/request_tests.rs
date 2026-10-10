@@ -750,3 +750,144 @@ fn regex_version_attr_and_json_keep_spacing() {
     let replaced = replace_first_quoted_version_after_colon(line, "30.3.0").expect("json");
     assert!(replaced.contains("\"jest\": \"30.3.0\""), "{replaced}");
 }
+
+#[test]
+fn uses_pin_parser_reads_structured_pins() {
+    let pin = crate::gha::parse_uses_pin(
+        "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7",
+    )
+    .expect("pin");
+    assert_eq!(pin.action, "actions/checkout");
+    assert_eq!(pin.reference, "3d3c42e5aac5ba805825da76410c181273ba90b1");
+    assert_eq!(pin.tag, "v7");
+    let pin = crate::gha::parse_uses_pin("actions/checkout@v5").expect("tag");
+    assert_eq!(pin.action, "actions/checkout");
+    assert_eq!(pin.reference, "v5");
+    assert_eq!(pin.tag, "");
+    let pin = crate::gha::parse_uses_pin("\"actions/checkout@v5\" # v5").expect("quoted");
+    assert_eq!(pin.action, "actions/checkout");
+    assert_eq!(pin.reference, "v5");
+    assert_eq!(pin.tag, "v5");
+    let pin = crate::gha::parse_uses_pin("'actions/checkout@v5'").expect("single");
+    assert_eq!(pin.action, "actions/checkout");
+    assert_eq!(pin.reference, "v5");
+    let pin = crate::gha::parse_uses_pin("actions/checkout@").expect("empty ref");
+    assert_eq!(pin.action, "actions/checkout");
+    assert_eq!(pin.reference, "");
+    assert!(crate::gha::parse_uses_pin("actions/checkout").is_none());
+    assert!(crate::gha::parse_uses_pin("").is_none());
+    assert!(crate::gha::parse_uses_pin("bad action@v1").is_none());
+    assert!(crate::gha::parse_uses_pin("\"unterminated@v1").is_none());
+}
+
+#[test]
+fn uses_line_matching_ignores_non_pin_lines() {
+    assert!(crate::gha::uses_pin_targets_package(
+        "      - uses: actions/checkout@v1 # v1",
+        "actions/checkout"
+    ));
+    assert!(crate::gha::uses_pin_targets_package(
+        "uses: actions/checkout@v1",
+        "actions/checkout"
+    ));
+    assert!(crate::gha::uses_pin_targets_package(
+        "- uses: \"actions/checkout@v1\" # v1",
+        "actions/checkout"
+    ));
+    assert!(!crate::gha::uses_pin_targets_package(
+        "# - uses: actions/checkout@v1",
+        "actions/checkout"
+    ));
+    assert!(!crate::gha::uses_pin_targets_package(
+        "run: echo uses: actions/checkout@v1",
+        "actions/checkout"
+    ));
+    assert!(!crate::gha::uses_pin_targets_package(
+        "- uses: actions/cache@v1",
+        "actions/checkout"
+    ));
+    assert!(!crate::gha::uses_pin_targets_package(
+        "steps: []",
+        "actions/checkout"
+    ));
+    assert!(!crate::gha::uses_pin_targets_package(
+        "- uses: actions/checkout",
+        "actions/checkout"
+    ));
+}
+
+#[test]
+fn commit_response_resolves_sha_or_fails_closed() {
+    let sha40 = "3d3c42e5aac5ba805825da76410c181273ba90b1";
+    let sha64 = "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08";
+    assert_eq!(
+        crate::gha::resolve_sha_from_commit_response(&format!(
+            "{{\"sha\": \"{sha40}\", \"commit\": {{}}}}"
+        ))
+        .expect("sha40"),
+        sha40
+    );
+    assert_eq!(
+        crate::gha::resolve_sha_from_commit_response(&format!("{{\"sha\": \"{sha64}\"}}"))
+            .expect("sha64"),
+        sha64
+    );
+    assert!(matches!(
+        crate::gha::resolve_sha_from_commit_response(""),
+        Err(crate::gha::GhaResolveError::Empty)
+    ));
+    assert!(matches!(
+        crate::gha::resolve_sha_from_commit_response("not json"),
+        Err(crate::gha::GhaResolveError::InvalidJson)
+    ));
+    assert!(matches!(
+        crate::gha::resolve_sha_from_commit_response("[1, 2]"),
+        Err(crate::gha::GhaResolveError::InvalidJson)
+    ));
+    assert!(matches!(
+        crate::gha::resolve_sha_from_commit_response("{\"commit\": {}}"),
+        Err(crate::gha::GhaResolveError::MissingSha)
+    ));
+    assert!(matches!(
+        crate::gha::resolve_sha_from_commit_response(
+            "{\"message\": \"Not Found\", \"documentation_url\": \"https://example.com\"}"
+        ),
+        Err(crate::gha::GhaResolveError::Upstream { .. })
+    ));
+    assert!(matches!(
+        crate::gha::resolve_sha_from_commit_response("{\"sha\": \"v5\"}"),
+        Err(crate::gha::GhaResolveError::InvalidSha { .. })
+    ));
+    assert!(matches!(
+        crate::gha::resolve_sha_from_commit_response("{\"sha\": null}"),
+        Err(crate::gha::GhaResolveError::MissingSha)
+    ));
+}
+
+#[test]
+fn plan_outcome_distinguishes_changed_from_unchanged() {
+    let sha = "a".repeat(40);
+    let bump = BumpRequest::parse("gha:actions/checkout", &sha).expect("request");
+    assert!(matches!(
+        bump.plan_edit_outcome("- uses: actions/checkout@v1\n").expect("changed"),
+        BumpPlanOutcome::Changed(widened) if widened.contains(&sha)
+    ));
+    assert!(matches!(
+        bump.plan_edit_outcome(&format!("- uses: actions/checkout@{sha}\n"))
+            .expect("unchanged"),
+        BumpPlanOutcome::Unchanged
+    ));
+    let cargo = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    assert!(matches!(
+        cargo
+            .plan_edit_outcome("[dependencies]\nanyhow = \"1\"\n")
+            .expect("changed"),
+        BumpPlanOutcome::Changed(_)
+    ));
+    assert!(matches!(
+        cargo
+            .plan_edit_outcome("[dependencies]\nanyhow = \"1.2.3\"\n")
+            .expect("unchanged"),
+        BumpPlanOutcome::Unchanged
+    ));
+}

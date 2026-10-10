@@ -457,11 +457,11 @@ pub(super) fn plan_github_workflow(
             tag: tag.clone(),
         }),
         WidenVersion::GitCommit(sha) => {
-            let needle = format!("{package}@");
             let mut matches = 0usize;
             let mut out = String::with_capacity(content.len());
             for line in content.split_inclusive('\n') {
-                if line.contains("uses:") && line.contains(&needle) {
+                if crate::gha::uses_pin_targets_package(line, package) {
+                    let needle = format!("{package}@");
                     match replace_gha_sha(line, &needle, sha) {
                         Some(replaced) => {
                             matches += 1;

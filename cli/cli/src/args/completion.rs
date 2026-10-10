@@ -1,5 +1,7 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use std::time::{Duration, Instant};
 
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
 
@@ -21,6 +23,8 @@ const MAX_PACKAGE_DIRS: usize = 200;
 
 const MAX_VISITED_DIRS: usize = 2000;
 
+const QUERY_TIMEOUT: Duration = Duration::from_millis(1500);
+
 /// Serve the shell request in COMPLETE, and report whether there was one.
 pub fn try_complete() -> Result<bool, String> {
     clap_complete::CompleteEnv::with_factory(super::grammar::cli_command)
@@ -35,14 +39,16 @@ pub fn with_scope_completers(
     start: &Path,
 ) -> clap::Command {
     let words: Vec<OsString> = words.into_iter().collect();
+    let workspace = select_workspace(start, &words);
+    let prior = prior_scopes(&words);
     for entry in COMMANDS.iter() {
         if entry.command.scope_policy() == "passthrough" {
             continue;
         }
         let completer = ArgValueCompleter::new(ScopeCompleter {
             command: entry.command,
-            prior: prior_scopes(&words),
-            start: start.to_path_buf(),
+            prior: prior.clone(),
+            workspace: workspace.clone(),
         });
         let mut attached = false;
         command = command.mut_subcommand(entry.name, |sub| {
@@ -124,7 +130,7 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
 struct ScopeCompleter {
     command: Command,
     prior: Vec<String>,
-    start: PathBuf,
+    workspace: PathBuf,
 }
 
 impl ValueCompleter for ScopeCompleter {
@@ -137,10 +143,13 @@ impl ValueCompleter for ScopeCompleter {
         let (mut names, allows_labels) = slot_candidates(self.command, &self.prior, &current);
         if allows_labels {
             names.extend(label_hint(&current));
-            let workspace =
-                dx_process::discover_real(&self.start, None).unwrap_or_else(|_| self.start.clone());
             names.extend(label_candidates_from_workspace(
-                &workspace,
+                &self.workspace,
+                &current,
+                MAX_LABEL_CANDIDATES,
+            ));
+            names.extend(target_candidates(
+                &self.workspace,
                 &current,
                 MAX_LABEL_CANDIDATES,
             ));
@@ -152,6 +161,166 @@ impl ValueCompleter for ScopeCompleter {
             .map(CompletionCandidate::new)
             .collect::<Vec<CompletionCandidate>>()
     }
+}
+
+/// The explicit workspace the typed words select, if one is spelled.
+fn workspace_override_from_words(words: &[OsString]) -> Option<PathBuf> {
+    let mut trimmed: &[OsString] = words;
+    if trimmed.first().is_some_and(|first| first == "--") {
+        trimmed = &trimmed[1..];
+        if trimmed.first().is_some_and(|first| first == "dx") {
+            trimmed = &trimmed[1..];
+        }
+    } else if trimmed.first().is_some_and(|first| first == "dx") {
+        trimmed = &trimmed[1..];
+    }
+    let flag = super::parser::early_workspace_flag(trimmed)?;
+    if flag.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(flag))
+    }
+}
+
+/// The workspace completion reads: the flag override or the start directory.
+fn select_workspace(start: &Path, words: &[OsString]) -> PathBuf {
+    let override_dir = workspace_override_from_words(words);
+    dx_process::discover_real(start, override_dir.as_deref())
+        .unwrap_or_else(|_| start.to_path_buf())
+}
+
+/// Whether the directory opens another workspace.
+fn is_workspace_root(dir: &Path) -> bool {
+    dir.join("MODULE.bazel").is_file()
+        || dir.join("WORKSPACE").is_file()
+        || dir.join("WORKSPACE.bazel").is_file()
+}
+
+/// The ignored directory prefixes listed in the workspace `.bazelignore`.
+fn read_bazelignore(workspace: &Path) -> Vec<String> {
+    let Ok(text) = std::fs::read_to_string(workspace.join(".bazelignore")) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let line = line.strip_prefix("./").unwrap_or(line);
+        let line = line.trim_end_matches('/');
+        if line.is_empty() || line == "." {
+            continue;
+        }
+        out.push(line.to_owned());
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Whether the workspace-relative path falls under an ignored prefix.
+fn is_ignored(rel: &str, ignores: &[String]) -> bool {
+    ignores
+        .iter()
+        .any(|prefix| rel == prefix || rel.starts_with(&format!("{prefix}/")))
+}
+
+/// The package the current word asks about, when it names a target.
+fn package_of_current(current: &str) -> Option<String> {
+    if current.starts_with('@') {
+        return None;
+    }
+    if !current.starts_with("//") {
+        return None;
+    }
+    let (package, _) = current.split_once(':')?;
+    if package.is_empty() || package == "//..." {
+        return None;
+    }
+    if package.contains("...") {
+        return None;
+    }
+    Some(package.to_owned())
+}
+
+/// The bounded query that lists one package, never the whole workspace.
+fn query_expression(package: &str) -> String {
+    format!("kind(rule, {package}:*)")
+}
+
+/// The labels one bounded query returns, empty when it cannot.
+fn bazel_query_labels(workspace: &Path, package: &str) -> Vec<String> {
+    let expression = query_expression(package);
+    let mut child = match std::process::Command::new("bazel")
+        .args(["query", "--output=label", &expression])
+        .current_dir(workspace)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(_) => return Vec::new(),
+    };
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if !status.success() {
+                    return Vec::new();
+                }
+                let output = match child.wait_with_output() {
+                    Ok(output) => output,
+                    Err(_) => return Vec::new(),
+                };
+                let Ok(text) = String::from_utf8(output.stdout) else {
+                    return Vec::new();
+                };
+                let mut out: Vec<String> = text
+                    .lines()
+                    .map(str::trim)
+                    .filter(|line| !line.is_empty())
+                    .map(ToString::to_string)
+                    .collect();
+                out.sort();
+                out.dedup();
+                return out;
+            }
+            Ok(None) => {
+                if start.elapsed() > QUERY_TIMEOUT {
+                    let _ = child.kill();
+                    return Vec::new();
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(_) => return Vec::new(),
+        }
+    }
+}
+
+/// The target labels matching the current word through one bounded query.
+fn target_candidates(workspace: &Path, current: &str, limit: usize) -> Vec<String> {
+    target_candidates_with_query(workspace, current, limit, bazel_query_labels)
+}
+
+/// The target labels matching the current word through the given lookup.
+fn target_candidates_with_query(
+    workspace: &Path,
+    current: &str,
+    limit: usize,
+    query: impl Fn(&Path, &str) -> Vec<String>,
+) -> Vec<String> {
+    let Some(package) = package_of_current(current) else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = query(workspace, &package)
+        .into_iter()
+        .filter(|label| label.starts_with(current))
+        .collect();
+    out.sort();
+    out.dedup();
+    out.truncate(limit);
+    out
 }
 
 fn prefixed(names: &[&str], current: &str) -> Vec<String> {
@@ -214,6 +383,10 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
     if !current.is_empty() && !current.starts_with("//") {
         return Vec::new();
     }
+    if current.contains(':') {
+        return Vec::new();
+    }
+    let ignores = read_bazelignore(workspace);
     let mut patterns: Vec<String> = Vec::new();
     let mut stack: Vec<std::path::PathBuf> = vec![workspace.to_path_buf()];
     let mut visited: usize = 0;
@@ -222,6 +395,17 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
             break;
         }
         visited += 1;
+        if dir != workspace && is_workspace_root(&dir) {
+            continue;
+        }
+        if dir != workspace {
+            if let Ok(rel) = dir.strip_prefix(workspace) {
+                let rel = dx_path::posix(rel);
+                if !rel.is_empty() && is_ignored(&rel, &ignores) {
+                    continue;
+                }
+            }
+        }
         let entries = match std::fs::read_dir(&dir) {
             Ok(entries) => entries,
             Err(_) => continue,
@@ -255,6 +439,9 @@ fn label_candidates_from_workspace(workspace: &Path, current: &str, limit: usize
                 Ok(rel) if rel.as_os_str().is_empty() => {}
                 Ok(rel) => {
                     let rel = dx_path::posix(rel);
+                    if is_ignored(&rel, &ignores) {
+                        continue;
+                    }
                     let pattern = format!("//{rel}/...");
                     if pattern.starts_with(current) {
                         patterns.push(pattern);
@@ -761,6 +948,316 @@ mod tests {
         assert_eq!(
             label_candidates_from_workspace(root, "//", 1),
             vec!["//pkg/a/..."]
+        );
+        assert!(label_candidates_from_workspace(root, "//pkg:target", 100).is_empty());
+    }
+
+    fn module_workspace() -> tempfile::TempDir {
+        let scratch = tempfile::tempdir().expect("scratch");
+        std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("marker");
+        scratch
+    }
+
+    fn workspace_with_packages(names: &[&str]) -> tempfile::TempDir {
+        let scratch = module_workspace();
+        let root = scratch.path();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        for name in names {
+            std::fs::create_dir_all(root.join(name)).expect("mkdir");
+            std::fs::write(root.join(format!("{name}/BUILD.bazel")), "").expect("marker");
+        }
+        scratch
+    }
+
+    fn words_of(argv: &[&str]) -> Vec<OsString> {
+        argv.iter().map(OsString::from).collect()
+    }
+
+    #[test]
+    fn workspace_override_reads_both_spellings() {
+        let flag = workspace_override_from_words(&words_of(&["build", "--workspace=/tmp/ws", ""]));
+        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
+        let flag =
+            workspace_override_from_words(&words_of(&["build", "--workspace", "/tmp/ws", ""]));
+        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
+        assert!(workspace_override_from_words(&words_of(&["build", ""])).is_none());
+        assert!(
+            workspace_override_from_words(&words_of(&["build", "--workspace", "--quiet", ""]))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn workspace_override_ignores_shell_separator_and_dx() {
+        let flag = workspace_override_from_words(&words_of(&[
+            "--",
+            "dx",
+            "build",
+            "--workspace",
+            "/tmp/ws",
+            "",
+        ]));
+        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
+        let flag = workspace_override_from_words(&words_of(&[
+            "--",
+            "dx",
+            "build",
+            "--workspace=/tmp/ws",
+            "",
+        ]));
+        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
+        let flag = workspace_override_from_words(&words_of(&["--", "dx", "build", ""]));
+        assert!(flag.is_none());
+    }
+
+    #[test]
+    fn workspace_override_selects_other_workspace_packages() {
+        let first = workspace_with_packages(&["alpha"]);
+        let second = workspace_with_packages(&["beta"]);
+        let second_root = second.path().to_string_lossy().into_owned();
+        let got = complete(
+            &["dx", "build", "--workspace", second_root.as_str(), ""],
+            first.path(),
+        );
+        assert!(
+            got.iter().any(|value| value == "//beta/..."),
+            "override must list beta: {got:?}"
+        );
+        assert!(
+            !got.iter().any(|value| value == "//alpha/..."),
+            "override must not list alpha: {got:?}"
+        );
+        let again = complete(&["dx", "build", ""], first.path());
+        assert!(
+            again.iter().any(|value| value == "//alpha/..."),
+            "bare must list alpha: {again:?}"
+        );
+    }
+
+    #[test]
+    fn workspace_override_from_shell_selects_other_workspace() {
+        let first = workspace_with_packages(&["alpha"]);
+        let second = workspace_with_packages(&["beta"]);
+        let second_root = second.path().to_string_lossy().into_owned();
+        let got = complete_from_a_shell(
+            &["dx", "build", "--workspace", second_root.as_str(), ""],
+            first.path(),
+        );
+        assert!(
+            got.iter().any(|value| value == "//beta/..."),
+            "shell override must list beta: {got:?}"
+        );
+        assert!(
+            !got.iter().any(|value| value == "//alpha/..."),
+            "shell override must not list alpha: {got:?}"
+        );
+    }
+
+    #[test]
+    fn nested_workspaces_are_excluded() {
+        let scratch = module_workspace();
+        let root = scratch.path();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        std::fs::create_dir_all(root.join("pkg")).expect("mkdir");
+        std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("marker");
+        std::fs::create_dir_all(root.join("nested/inner")).expect("mkdir");
+        std::fs::write(root.join("nested/MODULE.bazel"), "").expect("marker");
+        std::fs::write(root.join("nested/BUILD.bazel"), "").expect("marker");
+        std::fs::write(root.join("nested/inner/BUILD.bazel"), "").expect("marker");
+        let got = label_candidates_from_workspace(root, "", 100);
+        assert!(
+            got.iter().any(|value| value == "//pkg/..."),
+            "outer package stays: {got:?}"
+        );
+        assert!(
+            !got.iter().any(|value| value.starts_with("//nested")),
+            "nested workspace leaves: {got:?}"
+        );
+        let completed = complete(&["dx", "build", ""], root);
+        assert!(!completed.iter().any(|value| value.starts_with("//nested")));
+    }
+
+    #[test]
+    fn bazelignore_excludes_listed_dirs() {
+        let scratch = module_workspace();
+        let root = scratch.path();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        for dir in ["kept", "ignored", "ignored/nested"] {
+            std::fs::create_dir_all(root.join(dir)).expect("mkdir");
+            std::fs::write(root.join(format!("{dir}/BUILD.bazel")), "").expect("marker");
+        }
+        std::fs::write(root.join(".bazelignore"), "ignored\n# kept stays\n").expect("ignore");
+        let got = label_candidates_from_workspace(root, "", 100);
+        assert!(
+            got.iter().any(|value| value == "//kept/..."),
+            "kept stays: {got:?}"
+        );
+        assert!(
+            !got.iter().any(|value| value.starts_with("//ignored")),
+            "ignored leaves: {got:?}"
+        );
+        let ignores = read_bazelignore(root);
+        assert_eq!(ignores, vec!["ignored".to_owned()]);
+        assert!(is_ignored("ignored", &ignores));
+        assert!(is_ignored("ignored/nested", &ignores));
+        assert!(!is_ignored("kept", &ignores));
+    }
+
+    #[test]
+    fn spaced_workspace_paths_complete() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let spaced = scratch.path().join("with space").join("ws");
+        std::fs::create_dir_all(spaced.join("pkg")).expect("mkdir");
+        std::fs::write(spaced.join("MODULE.bazel"), "").expect("marker");
+        std::fs::write(spaced.join("BUILD.bazel"), "").expect("marker");
+        std::fs::write(spaced.join("pkg/BUILD.bazel"), "").expect("marker");
+        let other = workspace_with_packages(&["elsewhere"]);
+        let spaced_text = spaced.to_string_lossy().into_owned();
+        let got = complete(
+            &["dx", "build", "--workspace", spaced_text.as_str(), ""],
+            other.path(),
+        );
+        assert!(
+            got.iter().any(|value| value == "//pkg/..."),
+            "spaced workspace lists pkg: {got:?}"
+        );
+        assert!(
+            !got.iter().any(|value| value == "//elsewhere/..."),
+            "spaced override hides start: {got:?}"
+        );
+    }
+
+    #[test]
+    fn new_packages_appear_without_cache() {
+        let scratch = module_workspace();
+        let root = scratch.path();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        std::fs::create_dir_all(root.join("pkg/a")).expect("mkdir");
+        std::fs::write(root.join("pkg/a/BUILD.bazel"), "").expect("marker");
+        let first = label_candidates_from_workspace(root, "", 100);
+        assert!(first.iter().any(|value| value == "//pkg/a/..."));
+        assert!(!first.iter().any(|value| value == "//pkg/b/..."));
+        std::fs::create_dir_all(root.join("pkg/b")).expect("mkdir");
+        std::fs::write(root.join("pkg/b/BUILD.bazel"), "").expect("marker");
+        let second = label_candidates_from_workspace(root, "", 100);
+        assert!(second.iter().any(|value| value == "//pkg/a/..."));
+        assert!(
+            second.iter().any(|value| value == "//pkg/b/..."),
+            "new package appears: {second:?}"
+        );
+    }
+
+    #[test]
+    fn large_trees_stay_bounded() {
+        let scratch = module_workspace();
+        let root = scratch.path();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        for index in 0..250 {
+            let dir = format!("pkg/{index:03}");
+            std::fs::create_dir_all(root.join(&dir)).expect("mkdir");
+            std::fs::write(root.join(format!("{dir}/BUILD.bazel")), "").expect("marker");
+        }
+        let got = label_candidates_from_workspace(root, "", 100);
+        assert_eq!(got.len(), 100, "candidates truncate: {got:?}");
+        let many = label_candidates_from_workspace(root, "//pkg/", 200);
+        assert!(many.len() <= 200, "package dirs bound: {many:?}");
+    }
+
+    #[test]
+    fn package_of_current_scopes_one_package() {
+        assert_eq!(package_of_current("//pkg:target"), Some("//pkg".to_owned()));
+        assert_eq!(
+            package_of_current("//pkg/sub:foo"),
+            Some("//pkg/sub".to_owned())
+        );
+        assert_eq!(package_of_current("//:main"), Some("//".to_owned()));
+        assert!(package_of_current("//...").is_none());
+        assert!(package_of_current("//pkg/...").is_none());
+        assert!(package_of_current("//pkg").is_none());
+        assert!(package_of_current("@repo//pkg:target").is_none());
+        assert!(package_of_current("src/main.rs").is_none());
+        assert!(package_of_current("").is_none());
+    }
+
+    #[test]
+    fn query_expression_never_covers_the_workspace() {
+        assert_eq!(query_expression("//pkg"), "kind(rule, //pkg:*)");
+        assert_eq!(query_expression("//pkg/sub"), "kind(rule, //pkg/sub:*)");
+        assert_eq!(query_expression("//"), "kind(rule, //:*)");
+        for expression in [
+            query_expression("//pkg"),
+            query_expression("//pkg/sub"),
+            query_expression("//"),
+        ] {
+            assert!(
+                !expression.contains("//..."),
+                "bounded query must not span //...: {expression}"
+            );
+            assert!(expression.starts_with("kind(rule, "));
+        }
+    }
+
+    #[test]
+    fn target_query_runs_once_per_package_and_filters() {
+        use std::cell::RefCell;
+        let seen: RefCell<Vec<String>> = RefCell::new(Vec::new());
+        let query = |_: &Path, package: &str| {
+            seen.borrow_mut().push(package.to_owned());
+            vec![
+                format!("{package}:one"),
+                format!("{package}:two"),
+                format!("{package}:other"),
+            ]
+        };
+        let scratch = module_workspace();
+        let got = target_candidates_with_query(scratch.path(), "//pkg:tw", 100, &query);
+        assert_eq!(got, vec!["//pkg:two".to_owned()]);
+        assert_eq!(seen.borrow().as_slice(), ["//pkg".to_owned()]);
+        let none = target_candidates_with_query(scratch.path(), "//pkg/...", 100, &query);
+        assert!(none.is_empty());
+        assert_eq!(seen.borrow().len(), 1, "patterns run no query");
+        let empty = target_candidates_with_query(scratch.path(), "@repo//pkg:one", 100, &query);
+        assert!(empty.is_empty());
+        assert_eq!(seen.borrow().len(), 1, "external runs no query");
+    }
+
+    #[test]
+    fn target_failures_degrade_to_patterns() {
+        let failing = |_: &Path, _: &str| Vec::new();
+        let scratch = workspace_with_packages(&["pkg"]);
+        let got = target_candidates_with_query(scratch.path(), "//pkg:missing", 100, failing);
+        assert!(got.is_empty());
+        let patterns = label_candidates_from_workspace(scratch.path(), "", 100);
+        assert!(
+            patterns.iter().any(|value| value == "//pkg/..."),
+            "patterns still offer: {patterns:?}"
+        );
+    }
+
+    #[test]
+    fn check_apply_and_wrapped_args_stay_consistent_with_workspace() {
+        let first = workspace_with_packages(&["alpha"]);
+        let second = workspace_with_packages(&["beta"]);
+        let second_root = second.path().to_string_lossy().into_owned();
+        let got = complete(
+            &[
+                "dx",
+                "lint",
+                "--workspace",
+                second_root.as_str(),
+                "--check",
+                "",
+            ],
+            first.path(),
+        );
+        assert!(
+            got.iter().any(|value| value == "//beta/..."),
+            "flags keep workspace: {got:?}"
+        );
+        let wrapped = complete(&["dx", "build", "--", "--jobs=4", ""], first.path());
+        assert!(
+            wrapped.iter().any(|value| value == "//alpha/..."),
+            "wrapped args keep labels: {wrapped:?}"
         );
     }
 }

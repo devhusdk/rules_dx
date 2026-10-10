@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use dx_adopt::AdoptError;
@@ -13,8 +13,8 @@ const WATCH_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Runs the wrapped command, then reruns it after every change until interrupted.
 pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
-    watch(invocation, env, None, |root| {
-        dx_adopt::watch_for_change(root, WATCH_IDLE_TIMEOUT)
+    watch(invocation, env, None, |session| {
+        session.wait(WATCH_IDLE_TIMEOUT)
     })
 }
 
@@ -22,7 +22,7 @@ fn watch(
     invocation: &Invocation,
     env: Env<'_>,
     max_iterations: Option<u32>,
-    mut wait_for_change: impl FnMut(&Path) -> Result<Vec<PathBuf>, AdoptError>,
+    mut wait_for_change: impl FnMut(&dx_adopt::watch::WatchSession) -> Result<Vec<PathBuf>, AdoptError>,
 ) -> i32 {
     let Env {
         workspace,
@@ -45,12 +45,12 @@ fn watch(
         Ok(plan) => plan,
         Err(error) => return pre_exec(&mut err, &error.to_string()),
     };
-    let command = match Command::parse(wrapped) {
-        Some(command) => command,
-        None => return pre_exec(&mut err, &format!("not watchable: {wrapped}")),
-    };
     let scope = scopes.join(" ");
     let suppressed = summaries_suppressed(invocation);
+    let iteration = match build_iteration(invocation) {
+        Ok(iteration) => iteration,
+        Err(message) => return pre_exec(&mut err, &message),
+    };
     if invocation.dry_run {
         if !suppressed {
             if let Err(exit) = check_stdout_write(writeln!(out, "would {plan} scope={scope}")) {
@@ -59,12 +59,18 @@ fn watch(
         }
         return 0;
     }
-    let mut iteration = invocation.clone();
-    iteration.command = command;
-    iteration.targets = scopes.to_vec();
-    if let Err(message) = validate_wrapped_request(&iteration) {
-        return pre_exec(&mut err, &message);
-    }
+    let session = match dx_adopt::watch::WatchSession::start(workspace) {
+        Ok(session) => session,
+        Err(error) => {
+            return operational(
+                invocation,
+                &mut out,
+                &mut err,
+                "watch_failed",
+                &error.to_string(),
+            );
+        }
+    };
     let mut round = 0u32;
     loop {
         round += 1;
@@ -98,7 +104,7 @@ fn watch(
             }
         }
         loop {
-            match wait_for_change(workspace) {
+            match wait_for_change(&session) {
                 Ok(paths) if paths.is_empty() => {}
                 Ok(paths) => {
                     if !suppressed {
@@ -124,6 +130,32 @@ fn watch(
     }
 }
 
+/// Builds the invocation one watch iteration executes: the wrapped command
+/// with the watch scopes, profiles, check/apply mode and `--` payload.
+fn build_iteration(invocation: &Invocation) -> Result<Invocation, String> {
+    let wrapped = invocation
+        .targets
+        .first()
+        .map(String::as_str)
+        .unwrap_or_default();
+    let scopes = invocation.targets.get(1..).unwrap_or_default();
+    let command = match Command::parse(wrapped) {
+        Some(command) => command,
+        None => return Err(format!("not watchable: {wrapped}")),
+    };
+    if (invocation.debug || invocation.release) && !command.supports_profile() {
+        return Err(format!(
+            "option \"--debug|--release\" is not supported by dx {}",
+            command.name()
+        ));
+    }
+    let mut iteration = invocation.clone();
+    iteration.command = command;
+    iteration.targets = scopes.to_vec();
+    validate_wrapped_request(&iteration)?;
+    Ok(iteration)
+}
+
 fn validate_wrapped_request(iteration: &Invocation) -> Result<(), String> {
     match iteration.command {
         Command::Lint | Command::Typecheck | Command::Format => {
@@ -146,8 +178,11 @@ fn changed_line(paths: &[PathBuf]) -> String {
 mod tests {
     use super::*;
     use crate::adopt::test_support::{invocation, NullQuery, Truncated};
+    use crate::args::OperationMode;
     use std::cell::RefCell;
     use std::io;
+    use std::path::Path;
+    use std::time::Duration;
 
     struct CountingRunner {
         seen: RefCell<Vec<String>>,
@@ -241,7 +276,9 @@ mod tests {
             &mut self,
             words: &[&str],
             max_iterations: Option<u32>,
-            wait: &mut dyn FnMut(&Path) -> Result<Vec<PathBuf>, AdoptError>,
+            wait: &mut dyn FnMut(
+                &dx_adopt::watch::WatchSession,
+            ) -> Result<Vec<PathBuf>, AdoptError>,
         ) -> i32 {
             let query = NullQuery;
             let runner = CountingRunner {
@@ -261,7 +298,7 @@ mod tests {
                     ci: self.ci,
                 },
                 max_iterations,
-                |root| wait(root),
+                |session| wait(session),
             );
             *self.seen.borrow_mut() = runner.seen.borrow().clone();
             code
@@ -507,5 +544,187 @@ mod tests {
         assert_eq!(request.command, Command::Lint);
         assert_eq!(request.targets, vec!["//...".to_owned()]);
         assert!(validate_wrapped_request(&iteration).is_ok());
+    }
+
+    #[test]
+    fn watch_reruns_when_a_change_lands_during_execution() {
+        struct WritingRunner {
+            workspace: PathBuf,
+            seen: RefCell<Vec<String>>,
+        }
+
+        impl dx_process::Runner for WritingRunner {
+            fn run(
+                &self,
+                argv: &[String],
+                _cwd: &Path,
+                _env: &[(&str, &str)],
+            ) -> io::Result<dx_process::ChildStatus> {
+                self.seen.borrow_mut().push(argv.join(" "));
+                std::fs::write(self.workspace.join("trigger.txt"), "edited")
+                    .expect("trigger write");
+                Ok(dx_process::ChildStatus { code: Some(0) })
+            }
+        }
+
+        let scratch = dx_test_scratch::scratch("dx-watch-during-run-");
+        let workspace = scratch.path().to_path_buf();
+        let temp_scratch = dx_test_scratch::scratch("dx-watch-during-run-tmp-");
+        let temp_dir = temp_scratch.path().to_path_buf();
+        let query = NullQuery;
+        let runner = WritingRunner {
+            workspace: workspace.clone(),
+            seen: RefCell::new(Vec::new()),
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = watch(
+            &invocation(&["watch", "build", "//..."]),
+            Env {
+                workspace: &workspace,
+                runner: &runner,
+                query_runner: &query,
+                temp_dir: &temp_dir,
+                pid: 1,
+                nonce: 1,
+                out: &mut out,
+                err: &mut err,
+                ci: false,
+            },
+            Some(2),
+            |session| session.wait(Duration::from_secs(10)),
+        );
+        assert_eq!(code, 0, "rerun succeeds: {}", String::from_utf8_lossy(&err));
+        assert_eq!(
+            runner.seen.borrow().len(),
+            2,
+            "the mid-run edit must cause exactly one rerun"
+        );
+        let stdout = String::from_utf8(out).expect("stdout");
+        assert!(stdout.contains("iteration=2"), "{stdout}");
+        assert!(
+            stdout
+                .lines()
+                .any(|line| line.starts_with("changed ") && line.contains("trigger.txt")),
+            "{stdout}"
+        );
+    }
+
+    #[test]
+    fn watch_never_upgrades_a_wrapped_check_to_apply() {
+        let check = build_iteration(&invocation(&["watch", "fix", "//..."])).expect("wrapped fix");
+        assert_eq!(check.command, Command::Fix);
+        assert_eq!(check.targets, vec!["//...".to_owned()]);
+        assert_eq!(check.operation(), OperationMode::Check);
+        assert!(!check.applies());
+        let lint = build_iteration(&invocation(&["watch", "lint", "//..."])).expect("wrapped lint");
+        assert_eq!(
+            lint.quality_request().expect("quality").mode,
+            OperationMode::Check
+        );
+        let applied =
+            build_iteration(&invocation(&["watch", "--apply", "fix", "//..."])).expect("apply fix");
+        assert_eq!(applied.operation(), OperationMode::Apply);
+        assert!(applied.applies());
+    }
+
+    #[test]
+    fn watch_forwards_profiles_only_to_commands_that_take_them() {
+        let debug =
+            build_iteration(&invocation(&["watch", "--debug", "build", "//..."])).expect("debug");
+        assert!(debug.debug);
+        assert!(!debug.release);
+        assert_eq!(debug.targets, vec!["//...".to_owned()]);
+        let release = build_iteration(&invocation(&[
+            "watch",
+            "--release",
+            "run",
+            "//app:bin",
+            "--",
+            "--hi",
+        ]))
+        .expect("release");
+        assert!(release.release);
+        assert_eq!(
+            release.bazel_options,
+            vec!["--hi".to_owned()],
+            "app args ride the cloned invocation"
+        );
+        let err = build_iteration(&invocation(&["watch", "--debug", "lint", "//..."]))
+            .expect_err("lint takes no profile");
+        assert!(err.contains("--debug|--release"), "{err}");
+        assert!(err.contains("lint"), "{err}");
+    }
+
+    #[test]
+    fn watch_parses_wrapped_options_and_still_rejects_check_and_here() {
+        let got = invocation(&["watch", "build", "//...", "--", "--jobs=4"]);
+        assert_eq!(got.bazel_options, vec!["--jobs=4".to_owned()]);
+        let got = invocation(&["watch", "--apply", "run", "//app:bin"]);
+        assert!(got.apply);
+        assert!(crate::args::parse(&[
+            "watch".to_owned(),
+            "--check".to_owned(),
+            "build".to_owned()
+        ])
+        .is_err());
+        assert!(
+            crate::args::parse(&["watch".to_owned(), "--here".to_owned(), "build".to_owned()])
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn watch_dry_run_still_validates_the_wrapped_request() {
+        let mut harness = Harness::new("dx-watch-dry-run-valid-");
+        let code = harness.run(&["watch", "--dry-run", "lint", "//..."], None, &mut |_| {
+            panic!("dry run never waits for changes")
+        });
+        assert_eq!(code, 0);
+        let mut harness = Harness::new("dx-watch-dry-run-invalid-");
+        let code = harness.run(
+            &["watch", "--dry-run", "--debug", "lint", "//..."],
+            None,
+            &mut |_| panic!("invalid dry run never waits for changes"),
+        );
+        assert_eq!(code, 2);
+        assert!(harness.stderr().contains("--debug|--release"));
+    }
+
+    #[test]
+    fn watch_reports_a_session_start_failure_without_running() {
+        let missing = PathBuf::from("/tmp/dx-watch-missing-root-does-not-exist");
+        let temp_dir = missing.join(".tmp");
+        let query = NullQuery;
+        let runner = CountingRunner {
+            seen: RefCell::new(Vec::new()),
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = watch(
+            &invocation(&["watch", "build", "//..."]),
+            Env {
+                workspace: &missing,
+                runner: &runner,
+                query_runner: &query,
+                temp_dir: &temp_dir,
+                pid: 1,
+                nonce: 1,
+                out: &mut out,
+                err: &mut err,
+                ci: false,
+            },
+            Some(1),
+            |_| Ok(Vec::new()),
+        );
+        assert_eq!(code, 1);
+        assert!(runner.seen.borrow().is_empty(), "nothing runs");
+        assert!(
+            String::from_utf8(err)
+                .expect("stderr")
+                .contains("watch_failed"),
+            "{}",
+            String::from_utf8(out).expect("stdout")
+        );
     }
 }

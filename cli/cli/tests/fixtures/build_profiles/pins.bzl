@@ -5,6 +5,7 @@ PROFILE_COMMANDS = [
     "run",
     "test",
     "deploy",
+    "watch",
 ]
 PROFILE_FLAGS = ["--debug", "--release"]
 

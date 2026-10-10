@@ -184,7 +184,7 @@ flags go after the command: `dx lint --check //...`. \
 per-command flags: capabilities --workspace-capabilities (adds workspace facts from local records); \
 clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
 distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
-coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy --debug|--release; \
+coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy|watch --debug|--release; \
 version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/codegen/env/setup/clean/version/update/docs/completion/check|fix; status rejects --check; \
@@ -291,9 +291,6 @@ pub(crate) fn rejected_flags(command: Command) -> Vec<&'static str> {
 
 /// Whether `dx <command> -- <bazel-options>` passes them through.
 pub(crate) fn accepts_bazel_options(command: Command) -> bool {
-    if command.is_adoption() {
-        return false;
-    }
     !matches!(
         command,
         Command::Security

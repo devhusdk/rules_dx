@@ -62,7 +62,29 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{env, invocation, run, Truncated};
+    use crate::adopt::test_support::{env, env_with, invocation, run, NullRunner, Truncated};
+
+    struct HooksDirQuery {
+        dir: std::path::PathBuf,
+    }
+
+    impl QueryRunner for HooksDirQuery {
+        fn run_query(
+            &self,
+            argv: &[String],
+            _cwd: &std::path::Path,
+        ) -> std::io::Result<crate::resolve::QueryResult> {
+            assert_eq!(
+                &argv[1..],
+                &["rev-parse", "--path-format=absolute", "--git-path", "hooks"]
+            );
+            Ok(crate::resolve::QueryResult {
+                code: Some(0),
+                stdout: format!("{}\n", self.dir.display()).into_bytes(),
+                stderr: Vec::new(),
+            })
+        }
+    }
 
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {
@@ -112,16 +134,22 @@ mod tests {
         }
         for verb in ["install", "uninstall"] {
             let scratch = dx_test_scratch::scratch("hooks-live-pipe-");
+            let hooks_dir = scratch.path().join(".git/hooks");
             std::fs::create_dir(scratch.path().join(".git")).expect("git");
             if verb == "uninstall" {
-                dx_adopt::install_hooks(scratch.path()).expect("install");
+                dx_adopt::install_hooks(scratch.path(), &hooks_dir).expect("install");
             }
+            let query = HooksDirQuery {
+                dir: hooks_dir.clone(),
+            };
             let inv = invocation(&["hooks", "--apply", verb]);
             assert_eq!(
                 execute_adoption(
                     &inv,
-                    env(
+                    env_with(
                         scratch.path(),
+                        &query,
+                        &NullRunner,
                         &mut Truncated::after_bytes(0),
                         &mut Vec::new()
                     )

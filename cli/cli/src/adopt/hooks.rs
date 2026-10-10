@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::args::{Command, Invocation};
@@ -9,6 +10,52 @@ use crate::resolve::{QueryResult, QueryRunner};
 use super::{operational, pre_exec, summaries_suppressed};
 
 pub(crate) const CODE_HOOKS_FAILED: &str = "hooks_failed";
+
+fn selected_git(runner: &dyn dx_process::Runner) -> String {
+    runner
+        .git_tool()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "git".to_owned())
+}
+
+fn effective_hooks_dir(
+    workspace: &Path,
+    query_runner: &dyn QueryRunner,
+    git: &str,
+) -> Result<PathBuf, String> {
+    let argv = dx_adopt::hooks_git_path_argv(git);
+    let result = query_runner
+        .run_query(&argv, workspace)
+        .map_err(|error| format!("hook git rev-parse failed: {error}"))?;
+    if result.code != Some(0) {
+        return Err(format!(
+            "hook git rev-parse failed: {}",
+            first_line(&result.stderr)
+        ));
+    }
+    dx_adopt::parse_hooks_dir_output(&result.stdout).map_err(|error| error.to_string())
+}
+
+fn resolve_hooks_dir(
+    invocation: &Invocation,
+    workspace: &Path,
+    query_runner: &dyn QueryRunner,
+    runner: &dyn dx_process::Runner,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<PathBuf, i32> {
+    let git = selected_git(runner);
+    match effective_hooks_dir(workspace, query_runner, &git) {
+        Ok(dir) => Ok(dir),
+        Err(detail) => Err(operational(
+            invocation,
+            out,
+            err,
+            CODE_HOOKS_FAILED,
+            &detail,
+        )),
+    }
+}
 
 pub(crate) fn execute_hooks(
     invocation: &Invocation,
@@ -22,17 +69,20 @@ pub(crate) fn execute_hooks(
     let verb = invocation.targets.first().map(String::as_str).unwrap_or("");
     match verb {
         "install" => {
+            let dir = match resolve_hooks_dir(invocation, workspace, query_runner, runner, out, err)
+            {
+                Ok(dir) => dir,
+                Err(exit) => return exit,
+            };
+            let shown = dx_adopt::display_hooks_path(workspace, &dir);
             if invocation.dry_run {
                 if !summaries_suppressed(invocation) {
-                    if let Err(exit) =
-                        check_stdout_write(writeln!(out, "would install .git/hooks/pre-commit"))
-                    {
-                        return exit;
-                    }
-                    if let Err(exit) =
-                        check_stdout_write(writeln!(out, "would install .git/hooks/pre-push"))
-                    {
-                        return exit;
+                    for trigger in ["pre-commit", "pre-push"] {
+                        if let Err(exit) =
+                            check_stdout_write(writeln!(out, "would install {shown}/{trigger}"))
+                        {
+                            return exit;
+                        }
                     }
                     if let Err(exit) =
                         check_stdout_write(writeln!(out, "would install dx.local.toml"))
@@ -43,9 +93,9 @@ pub(crate) fn execute_hooks(
                 return 0;
             }
             if !invocation.applies() {
-                return check_install(invocation, workspace, out, err);
+                return check_install(invocation, workspace, &dir, &shown, out, err);
             }
-            match dx_adopt::install_hooks(workspace) {
+            match dx_adopt::install_hooks(workspace, &dir) {
                 Ok(installed) => {
                     if !summaries_suppressed(invocation) {
                         for path in installed {
@@ -63,25 +113,28 @@ pub(crate) fn execute_hooks(
             }
         }
         "uninstall" => {
+            let dir = match resolve_hooks_dir(invocation, workspace, query_runner, runner, out, err)
+            {
+                Ok(dir) => dir,
+                Err(exit) => return exit,
+            };
+            let shown = dx_adopt::display_hooks_path(workspace, &dir);
             if invocation.dry_run {
                 if !summaries_suppressed(invocation) {
-                    if let Err(exit) =
-                        check_stdout_write(writeln!(out, "would remove .git/hooks/pre-commit"))
-                    {
-                        return exit;
-                    }
-                    if let Err(exit) =
-                        check_stdout_write(writeln!(out, "would remove .git/hooks/pre-push"))
-                    {
-                        return exit;
+                    for trigger in ["pre-commit", "pre-push"] {
+                        if let Err(exit) =
+                            check_stdout_write(writeln!(out, "would remove {shown}/{trigger}"))
+                        {
+                            return exit;
+                        }
                     }
                 }
                 return 0;
             }
             if !invocation.applies() {
-                return check_uninstall(invocation, workspace, out, err);
+                return check_uninstall(invocation, &dir, &shown, out, err);
             }
-            match dx_adopt::uninstall_hooks(workspace) {
+            match dx_adopt::uninstall_hooks(workspace, &dir) {
                 Ok(removed) => {
                     if !summaries_suppressed(invocation) {
                         for path in removed {
@@ -117,13 +170,15 @@ pub(crate) fn execute_hooks(
 fn check_install(
     invocation: &Invocation,
     workspace: &std::path::Path,
+    dir: &Path,
+    shown: &str,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
     let mut missing: Vec<String> = Vec::new();
     for trigger in ["pre-commit", "pre-push"] {
-        let rel = format!(".git/hooks/{trigger}");
-        let current = std::fs::read_to_string(workspace.join(&rel)).ok();
+        let rel = format!("{shown}/{trigger}");
+        let current = std::fs::read_to_string(dir.join(trigger)).ok();
         let wanted = dx_adopt::render_hook_shim(trigger);
         if current.as_deref() != Some(wanted.as_str()) {
             missing.push(rel);
@@ -154,14 +209,15 @@ fn check_install(
 
 fn check_uninstall(
     invocation: &Invocation,
-    workspace: &std::path::Path,
+    dir: &Path,
+    shown: &str,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
     let mut present: Vec<String> = Vec::new();
     for trigger in ["pre-commit", "pre-push"] {
-        let rel = format!(".git/hooks/{trigger}");
-        let path = workspace.join(&rel);
+        let rel = format!("{shown}/{trigger}");
+        let path = dir.join(trigger);
         if !path.exists() {
             continue;
         }
@@ -659,19 +715,25 @@ mod tests {
     use std::io;
     use std::path::{Path, PathBuf};
 
+    fn hooks_dir_query(dir: &Path) -> ScriptQuery {
+        ScriptQuery::scripted(&[&format!("{}\n", dir.display())], "", "")
+    }
+
     #[test]
     fn hooks_install_uninstall_and_collisions_are_reported() {
         let scratch = dx_test_scratch::scratch("hooks-install-cycle-");
         let root = scratch.path();
+        let hooks_dir = root.join(".git/hooks");
         std::fs::create_dir(root.join(".git")).expect("git");
         for verb in ["install", "uninstall"] {
+            let query = hooks_dir_query(&hooks_dir);
             let mut out = Vec::new();
             let mut err = Vec::new();
             assert_eq!(
                 execute_hooks(
                     &invocation(&["hooks", "--apply", verb]),
                     root,
-                    &NullQuery,
+                    &query,
                     &NullRunner,
                     None,
                     &mut out,
@@ -682,23 +744,34 @@ mod tests {
             assert!(String::from_utf8(out)
                 .expect("out")
                 .contains(if verb == "install" {
-                    "installed"
+                    "installed .git/hooks/pre-commit"
                 } else {
-                    "removed"
+                    "removed .git/hooks/pre-commit"
                 }));
             assert!(err.is_empty());
+            assert_eq!(
+                query.seen.borrow()[0],
+                vec![
+                    "git".to_owned(),
+                    "rev-parse".to_owned(),
+                    "--path-format=absolute".to_owned(),
+                    "--git-path".to_owned(),
+                    "hooks".to_owned(),
+                ]
+            );
         }
         let foreign = dx_test_scratch::scratch("hooks-install-collision-");
-        std::fs::create_dir_all(foreign.path().join(".git/hooks")).expect("hooks");
-        std::fs::write(foreign.path().join(".git/hooks/pre-commit"), "foreign hook")
-            .expect("foreign hook");
+        let foreign_hooks = foreign.path().join(".git/hooks");
+        std::fs::create_dir_all(&foreign_hooks).expect("hooks");
+        std::fs::write(foreign_hooks.join("pre-commit"), "foreign hook").expect("foreign hook");
         for verb in ["install", "uninstall"] {
+            let query = hooks_dir_query(&foreign_hooks);
             let mut err = Vec::new();
             assert_eq!(
                 execute_hooks(
                     &invocation(&["hooks", verb]),
                     foreign.path(),
-                    &NullQuery,
+                    &query,
                     &NullRunner,
                     None,
                     &mut Vec::new(),
@@ -714,6 +787,7 @@ mod tests {
     fn hooks_install_checks_without_writing_and_apply_installs() {
         let scratch = dx_test_scratch::scratch("hooks-install-check-");
         let root = scratch.path();
+        let hooks_dir = root.join(".git/hooks");
         std::fs::create_dir(root.join(".git")).expect("git");
         let mut out = Vec::new();
         let mut err = Vec::new();
@@ -721,7 +795,7 @@ mod tests {
             execute_hooks(
                 &invocation(&["hooks", "install"]),
                 root,
-                &NullQuery,
+                &hooks_dir_query(&hooks_dir),
                 &NullRunner,
                 None,
                 &mut out,
@@ -731,14 +805,14 @@ mod tests {
         );
         assert!(String::from_utf8(err).expect("err").contains("hooks drift"));
         assert!(
-            !root.join(".git/hooks/pre-commit").exists(),
+            !hooks_dir.join("pre-commit").exists(),
             "check must not write"
         );
         assert_eq!(
             execute_hooks(
                 &invocation(&["hooks", "--apply", "install"]),
                 root,
-                &NullQuery,
+                &hooks_dir_query(&hooks_dir),
                 &NullRunner,
                 None,
                 &mut Vec::new(),
@@ -746,14 +820,14 @@ mod tests {
             ),
             0
         );
-        assert!(root.join(".git/hooks/pre-commit").exists());
+        assert!(hooks_dir.join("pre-commit").is_file());
         let mut out = Vec::new();
         let mut err = Vec::new();
         assert_eq!(
             execute_hooks(
                 &invocation(&["hooks", "install"]),
                 root,
-                &NullQuery,
+                &hooks_dir_query(&hooks_dir),
                 &NullRunner,
                 None,
                 &mut out,
@@ -768,12 +842,13 @@ mod tests {
     fn hooks_uninstall_checks_without_removing_and_apply_removes() {
         let scratch = dx_test_scratch::scratch("hooks-uninstall-check-");
         let root = scratch.path();
+        let hooks_dir = root.join(".git/hooks");
         std::fs::create_dir(root.join(".git")).expect("git");
         assert_eq!(
             execute_hooks(
                 &invocation(&["hooks", "--apply", "install"]),
                 root,
-                &NullQuery,
+                &hooks_dir_query(&hooks_dir),
                 &NullRunner,
                 None,
                 &mut Vec::new(),
@@ -786,7 +861,7 @@ mod tests {
             execute_hooks(
                 &invocation(&["hooks", "uninstall"]),
                 root,
-                &NullQuery,
+                &hooks_dir_query(&hooks_dir),
                 &NullRunner,
                 None,
                 &mut Vec::new(),
@@ -796,14 +871,14 @@ mod tests {
         );
         assert!(String::from_utf8(err).expect("err").contains("hooks drift"));
         assert!(
-            root.join(".git/hooks/pre-commit").exists(),
+            hooks_dir.join("pre-commit").exists(),
             "check must not remove"
         );
         assert_eq!(
             execute_hooks(
                 &invocation(&["hooks", "--apply", "uninstall"]),
                 root,
-                &NullQuery,
+                &hooks_dir_query(&hooks_dir),
                 &NullRunner,
                 None,
                 &mut Vec::new(),
@@ -811,13 +886,13 @@ mod tests {
             ),
             0
         );
-        assert!(!root.join(".git/hooks/pre-commit").exists());
+        assert!(!hooks_dir.join("pre-commit").exists());
         let mut out = Vec::new();
         assert_eq!(
             execute_hooks(
                 &invocation(&["hooks", "uninstall"]),
                 root,
-                &NullQuery,
+                &hooks_dir_query(&hooks_dir),
                 &NullRunner,
                 None,
                 &mut out,
@@ -979,8 +1054,6 @@ mod tests {
     #[test]
     fn hooks_dry_run_plans_without_mutating() {
         for (words, want) in [
-            (vec!["hooks", "install", "--dry-run"], "would install"),
-            (vec!["hooks", "uninstall", "--dry-run"], "would remove"),
             (vec!["hooks", "status", "--dry-run"], "would show"),
             (
                 vec!["hooks", "run", "pre-commit", "--dry-run"],
@@ -995,12 +1068,105 @@ mod tests {
             assert!(out.contains(want), "words: {words:?}");
             assert!(!root.join(".git/hooks/pre-commit").exists());
         }
+        for (words, want) in [
+            (
+                vec!["hooks", "install", "--dry-run"],
+                "would install .git/hooks/pre-commit",
+            ),
+            (
+                vec!["hooks", "uninstall", "--dry-run"],
+                "would remove .git/hooks/pre-push",
+            ),
+        ] {
+            let inv = invocation(&words);
+            let scratch = dx_test_scratch::scratch("dx-adopt-hooks-dry-dir-");
+            let root = scratch.path().to_path_buf();
+            let query = hooks_dir_query(&root.join(".git/hooks"));
+            let (code, out, _err) = run_with_query(&inv, &root, &query);
+            assert_eq!(code, 0, "words: {words:?}");
+            assert!(out.contains(want), "words: {words:?} got: {out}");
+            assert!(!root.join(".git/hooks/pre-commit").exists());
+        }
         let inv = invocation(&["hooks", "status", "--dry-run", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-hooks-dry-quiet-");
         let root = scratch.path().to_path_buf();
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(out.is_empty());
+    }
+
+    #[test]
+    fn hooks_discovery_prefers_the_selected_git_tool() {
+        let scratch = dx_test_scratch::scratch("hooks-git-selection-");
+        let root = scratch.path().to_path_buf();
+        let query = hooks_dir_query(&root.join(".git/hooks"));
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "install", "--dry-run"]),
+                &root,
+                &query,
+                &runner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        assert_eq!(query.seen.borrow()[0][0], "/hermetic/git");
+        assert!(String::from_utf8(out)
+            .expect("out")
+            .contains("would install .git/hooks/pre-commit"));
+    }
+
+    #[test]
+    fn hooks_install_fails_closed_outside_a_git_repository() {
+        struct FailingRevParse;
+        impl QueryRunner for FailingRevParse {
+            fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+                assert_eq!(
+                    &argv[1..],
+                    &["rev-parse", "--path-format=absolute", "--git-path", "hooks"]
+                );
+                Ok(QueryResult {
+                    code: Some(128),
+                    stdout: Vec::new(),
+                    stderr: b"fatal: not a git repository\n".to_vec(),
+                })
+            }
+        }
+        let scratch = dx_test_scratch::scratch("hooks-outside-repo-");
+        let root = scratch.path();
+        for words in [
+            vec!["hooks", "install"],
+            vec!["hooks", "--apply", "install"],
+            vec!["hooks", "uninstall"],
+            vec!["hooks", "--apply", "uninstall"],
+            vec!["hooks", "install", "--dry-run"],
+        ] {
+            let mut err = Vec::new();
+            assert_eq!(
+                execute_hooks(
+                    &invocation(&words),
+                    root,
+                    &FailingRevParse,
+                    &NullRunner,
+                    None,
+                    &mut Vec::new(),
+                    &mut err
+                ),
+                1,
+                "{words:?}"
+            );
+            let detail = String::from_utf8(err).expect("err");
+            assert!(
+                detail.contains("not a git repository"),
+                "{words:?}: {detail}"
+            );
+            assert!(!root.join(".git").exists(), "{words:?} must not scaffold");
+        }
     }
 
     struct ScriptQuery {
@@ -1719,5 +1885,228 @@ mod tests {
             "{:?}",
             runner.git_calls.borrow()
         );
+    }
+
+    #[test]
+    fn hooks_install_round_trips_through_real_git_discovery() {
+        let git = fixture_git();
+        let scratch = dx_test_scratch::scratch("hooks-real-git-cycle-");
+        let root = scratch.path().to_path_buf();
+        init_push_fixture(&git, &root);
+        let (query, runner) = discovered_git_runners(&git);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "install"]),
+                &root,
+                &query,
+                &runner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        let text = String::from_utf8(out).expect("out");
+        assert!(text.contains("installed .git/hooks/pre-commit"), "{text}");
+        assert!(err.is_empty());
+        let shim = std::fs::read_to_string(root.join(".git/hooks/pre-commit")).expect("shim");
+        assert!(shim.contains(dx_adopt::HOOK_MANAGED_MARKER));
+        assert!(shim.contains("-- \"$@\""));
+        if cfg!(unix) {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(root.join(".git/hooks/pre-commit"))
+                .expect("stat")
+                .permissions()
+                .mode();
+            assert!(mode & 0o111 != 0, "shim stays executable: {mode:o}");
+        }
+        assert_eq!(query.git_calls.borrow().len(), 1);
+        assert_eq!(
+            query.git_calls.borrow()[0][1..],
+            ["rev-parse", "--path-format=absolute", "--git-path", "hooks"]
+        );
+        let (code, out, _err) =
+            run_with(&invocation(&["hooks", "install"]), &root, &query, &runner);
+        assert_eq!(code, 0);
+        assert!(out.contains("hooks current: install"), "{out}");
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "uninstall"]),
+                &root,
+                &query,
+                &runner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        assert!(!root.join(".git/hooks/pre-commit").exists());
+        let (code, out, _err) =
+            run_with(&invocation(&["hooks", "uninstall"]), &root, &query, &runner);
+        assert_eq!(code, 0);
+        assert!(out.contains("hooks current: uninstall"), "{out}");
+    }
+
+    #[test]
+    fn hooks_install_in_a_linked_worktree_uses_the_worktree_hooks_dir() {
+        let git = fixture_git();
+        let scratch = dx_test_scratch::scratch("hooks-real-git-worktree-");
+        let root = scratch.path().to_path_buf();
+        init_push_fixture(&git, &root);
+        let wt = root.join("wt1");
+        let wt_arg = wt.to_string_lossy().into_owned();
+        git_fixture(&git, &root, &["worktree", "add", &wt_arg]);
+        assert!(wt.join(".git").is_file());
+        let expected = git_fixture(
+            &git,
+            &wt,
+            &["rev-parse", "--path-format=absolute", "--git-path", "hooks"],
+        );
+        let expected = expected.trim().to_owned();
+        let (query, runner) = discovered_git_runners(&git);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "install"]),
+                &wt,
+                &query,
+                &runner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        let text = String::from_utf8(out).expect("out");
+        assert!(
+            text.contains(&format!("installed {expected}/pre-commit")),
+            "{text}"
+        );
+        assert!(Path::new(&expected).join("pre-commit").is_file());
+        assert!(wt.join(".git").is_file(), "worktree pointer stays a file");
+        assert!(!wt.join(".git/hooks").exists());
+        assert!(wt.join("dx.local.toml").is_file());
+        let (code, _out, _err) = run_with(&invocation(&["hooks", "install"]), &wt, &query, &runner);
+        assert_eq!(code, 0);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "uninstall"]),
+                &wt,
+                &query,
+                &runner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        assert!(!Path::new(&expected).join("pre-commit").exists());
+        assert!(wt.join(".git").is_file());
+    }
+
+    #[test]
+    fn hooks_install_honors_configured_hooks_path() {
+        let git = fixture_git();
+        let scratch = dx_test_scratch::scratch("hooks-real-git-hookspath-");
+        let root = scratch.path().to_path_buf();
+        init_push_fixture(&git, &root);
+        git_fixture(&git, &root, &["config", "core.hooksPath", "my hooks"]);
+        let (query, runner) = discovered_git_runners(&git);
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "install"]),
+                &root,
+                &query,
+                &runner,
+                None,
+                &mut out,
+                &mut err
+            ),
+            0
+        );
+        let text = String::from_utf8(out).expect("out");
+        assert!(text.contains("installed my hooks/pre-commit"), "{text}");
+        let custom = root.join("my hooks/pre-commit");
+        assert!(custom.is_file());
+        assert!(!root.join(".git/hooks/pre-commit").exists());
+        std::fs::write(root.join("my hooks/pre-commit"), "# custom hook\n").expect("unmanaged");
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "install"]),
+                &root,
+                &query,
+                &runner,
+                None,
+                &mut Vec::new(),
+                &mut err
+            ),
+            1
+        );
+        let err = String::from_utf8(err).expect("err");
+        assert!(err.contains("unmanaged"), "{err}");
+        assert!(custom.is_file(), "unmanaged hook survives");
+        let outside = root.join("abs hooks");
+        let outside_arg = outside.to_string_lossy().into_owned();
+        git_fixture(&git, &root, &["config", "core.hooksPath", &outside_arg]);
+        let (query, runner) = discovered_git_runners(&git);
+        let (code, out, _err) = run_with(
+            &invocation(&["hooks", "--apply", "install"]),
+            &root,
+            &query,
+            &runner,
+        );
+        assert_eq!(code, 0, "{out}");
+        assert!(outside.join("pre-push").is_file());
+        assert!(out.contains("installed abs hooks/pre-commit"), "{out}");
+    }
+
+    #[test]
+    fn hooks_install_fails_closed_without_a_real_repository() {
+        let git = fixture_git();
+        let scratch = dx_test_scratch::scratch("hooks-real-git-norepo-");
+        let root = scratch.path().to_path_buf();
+        let (query, runner) = discovered_git_runners(&git);
+        let mut err = Vec::new();
+        assert_eq!(
+            execute_hooks(
+                &invocation(&["hooks", "--apply", "install"]),
+                &root,
+                &query,
+                &runner,
+                None,
+                &mut Vec::new(),
+                &mut err
+            ),
+            1
+        );
+        let detail = String::from_utf8(err).expect("err");
+        assert!(detail.contains("rev-parse"), "{detail}");
+        assert!(!root.join(".git").exists());
+    }
+
+    fn discovered_git_runners(git: &Path) -> (RealGit, ScriptRunner) {
+        let query = RealGit {
+            git: git.to_path_buf(),
+            owners: String::new(),
+            owned_labels: RefCell::new(Vec::new()),
+            git_calls: RefCell::new(Vec::new()),
+        };
+        let runner = ScriptRunner {
+            git: Some(git.to_path_buf()),
+            codes: RefCell::new(Vec::new()),
+            seen: RefCell::new(Vec::new()),
+        };
+        (query, runner)
     }
 }

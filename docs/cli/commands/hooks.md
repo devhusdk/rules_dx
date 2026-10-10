@@ -39,6 +39,16 @@ installs, removes, or records timings.
 Flags: `--apply`, `--dry-run`.
 Scopes: verb `install|uninstall|status|run`.
 
+Install and uninstall resolve the effective hooks directory through Git by
+running `git rev-parse --path-format=absolute --git-path hooks` in the
+workspace. Discovery runs the selected Git from `DX_GIT_BIN` when set,
+otherwise `git` from `PATH`. A linked worktree installs into its own worktree hooks directory,
+and a configured `core.hooksPath` is honored with Git's relative-path
+resolution. Outside a Git repository every install, uninstall, check, and
+`--dry-run` fails instead of writing into `.git/hooks`. Only shims carrying
+the managed marker are installed or removed; foreign hooks are left in place
+and reported as errors. Check and `--dry-run` name the effective directory.
+
 `run` needs a hermetic Git. Set `DX_GIT_BIN` to the absolute path of a managed
 Git binary. A relative path is rejected and `PATH` is never searched. Without
 it the run exits `1` with `hook git must be hermetic`.

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::AdoptError;
 
@@ -303,9 +303,40 @@ pub fn render_hook_shim(trigger: &str) -> String {
     )
 }
 
-pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
-    let hooks_dir = root.join(".git/hooks");
-    std::fs::create_dir_all(&hooks_dir).map_err(|e| AdoptError::CreateHooksDir {
+pub fn hooks_git_path_argv(git: &str) -> Vec<String> {
+    vec![
+        git.to_owned(),
+        "rev-parse".to_owned(),
+        "--path-format=absolute".to_owned(),
+        "--git-path".to_owned(),
+        "hooks".to_owned(),
+    ]
+}
+
+pub fn parse_hooks_dir_output(stdout: &[u8]) -> Result<PathBuf, AdoptError> {
+    let text = std::str::from_utf8(stdout).map_err(|_| AdoptError::ResolveHooksDir {
+        detail: "hook git rev-parse printed a non-UTF-8 hooks path".to_owned(),
+    })?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Err(AdoptError::ResolveHooksDir {
+            detail: "hook git rev-parse printed an empty hooks path".to_owned(),
+        });
+    }
+    Ok(PathBuf::from(trimmed))
+}
+
+pub fn display_hooks_path(workspace: &Path, dir: &Path) -> String {
+    if let Ok(rel) = dir.strip_prefix(workspace) {
+        if !rel.as_os_str().is_empty() {
+            return rel.to_string_lossy().into_owned();
+        }
+    }
+    dir.to_string_lossy().into_owned()
+}
+
+pub fn install_hooks(workspace: &Path, hooks_dir: &Path) -> Result<Vec<String>, AdoptError> {
+    std::fs::create_dir_all(hooks_dir).map_err(|e| AdoptError::CreateHooksDir {
         detail: e.to_string(),
     })?;
     let mut installed = Vec::new();
@@ -343,9 +374,9 @@ pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
                 detail: e.to_string(),
             })?;
         }
-        installed.push(format!(".git/hooks/{trigger}"));
+        installed.push(display_hooks_path(workspace, &dest));
     }
-    let overlay = root.join("dx.local.toml");
+    let overlay = workspace.join("dx.local.toml");
     if !overlay.exists() {
         let content = render_local_overlay()?;
         dx_atomic_fs::write_atomic(&overlay, content.as_bytes()).map_err(|e| {
@@ -358,10 +389,10 @@ pub fn install_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
     Ok(installed)
 }
 
-pub fn uninstall_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
+pub fn uninstall_hooks(workspace: &Path, hooks_dir: &Path) -> Result<Vec<String>, AdoptError> {
     let mut removed = Vec::new();
     for trigger in ["pre-commit", "pre-push"] {
-        let dest = root.join(".git/hooks").join(trigger);
+        let dest = hooks_dir.join(trigger);
         if !dest.exists() {
             continue;
         }
@@ -378,7 +409,7 @@ pub fn uninstall_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
             trigger: trigger.to_owned(),
             detail: e.to_string(),
         })?;
-        removed.push(format!(".git/hooks/{trigger}"));
+        removed.push(display_hooks_path(workspace, &dest));
     }
     Ok(removed)
 }
@@ -564,9 +595,10 @@ pub fn render_hooks_status(baseline: &str, overlay: &str, timings: &str) -> Stri
 #[cfg(test)]
 mod tests {
     use super::super::{
-        checks_for_trigger, default_hooks_config, hook_check_timed_out, hook_git_is_hermetic,
-        hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks, is_hook_trigger,
-        load_hook_timings, load_hooks_config, render_hook_timings, render_hooks_status_merged,
+        checks_for_trigger, default_hooks_config, display_hooks_path, hook_check_timed_out,
+        hook_git_is_hermetic, hook_git_path_is_hermetic, hook_status_shows_merged,
+        hooks_git_path_argv, install_hooks, is_hook_trigger, load_hook_timings, load_hooks_config,
+        parse_hooks_dir_output, render_hook_timings, render_hooks_status_merged,
         render_local_overlay, uninstall_hooks, HOOK_BUDGET_SECS, HOOK_MANAGED_MARKER,
         HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
     };
@@ -639,14 +671,71 @@ mod tests {
     }
 
     #[test]
+    fn hooks_git_path_argv_names_the_effective_hooks_dir() {
+        assert_eq!(
+            hooks_git_path_argv("git"),
+            vec![
+                "git".to_owned(),
+                "rev-parse".to_owned(),
+                "--path-format=absolute".to_owned(),
+                "--git-path".to_owned(),
+                "hooks".to_owned(),
+            ]
+        );
+        assert!(hooks_git_path_argv("/hermetic/git")[0] == "/hermetic/git");
+    }
+
+    #[test]
+    fn hooks_dir_output_parses_one_absolute_path() {
+        let dir = parse_hooks_dir_output(b"/repo/.git/hooks\n").expect("parse");
+        assert_eq!(dir, std::path::Path::new("/repo/.git/hooks"));
+        let spaced = parse_hooks_dir_output(b"/repo/my hooks\n").expect("spaces survive");
+        assert_eq!(spaced, std::path::Path::new("/repo/my hooks"));
+        assert!(parse_hooks_dir_output(b"\n").is_err());
+        assert!(parse_hooks_dir_output(b"   \n").is_err());
+        assert!(parse_hooks_dir_output(b"").is_err());
+        assert!(parse_hooks_dir_output(b"\xff\n").is_err());
+    }
+
+    #[test]
+    fn hooks_display_stays_relative_inside_the_workspace() {
+        let workspace = std::path::Path::new("/repo");
+        assert_eq!(
+            display_hooks_path(workspace, &workspace.join(".git/hooks/pre-commit")),
+            ".git/hooks/pre-commit"
+        );
+        assert_eq!(
+            display_hooks_path(workspace, std::path::Path::new("/other/hooks")),
+            "/other/hooks"
+        );
+        assert_eq!(display_hooks_path(workspace, workspace), "/repo");
+    }
+
+    #[test]
     fn hooks_install_refuses_unmanaged_and_manages_shims() {
         let scratch = dx_test_scratch::scratch("dx-adopt-hook-");
         let root = scratch.path().to_path_buf();
-        std::fs::create_dir_all(root.join(".git/hooks")).expect("tmp");
-        let installed = install_hooks(&root).expect("install");
+        let hooks_dir = root.join(".git/hooks");
+        std::fs::create_dir_all(&hooks_dir).expect("tmp");
+        let installed = install_hooks(&root, &hooks_dir).expect("install");
         assert!(installed.iter().any(|p| p == ".git/hooks/pre-commit"));
-        std::fs::write(root.join(".git/hooks/pre-commit"), "# custom hook\n").expect("unmanaged");
-        assert!(install_hooks(&root).is_err());
+        std::fs::write(hooks_dir.join("pre-commit"), "# custom hook\n").expect("unmanaged");
+        assert!(install_hooks(&root, &hooks_dir).is_err());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn hooks_install_creates_a_custom_hooks_dir() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-hook-custom-");
+        let root = scratch.path().to_path_buf();
+        let hooks_dir = root.join("my hooks");
+        let installed = install_hooks(&root, &hooks_dir).expect("install");
+        assert!(installed.iter().any(|p| p == "my hooks/pre-commit"));
+        assert!(hooks_dir.join("pre-commit").is_file());
+        assert!(hooks_dir.join("pre-push").is_file());
+        let removed = uninstall_hooks(&root, &hooks_dir).expect("uninstall");
+        assert!(removed.iter().any(|p| p == "my hooks/pre-commit"));
+        assert!(!hooks_dir.join("pre-commit").exists());
         scratch.close().expect("cleanup");
     }
 
@@ -654,16 +743,17 @@ mod tests {
     fn hooks_uninstall_removes_only_managed_shims() {
         let scratch = dx_test_scratch::scratch("dx-adopt-hook-uninstall-");
         let root = scratch.path().to_path_buf();
-        std::fs::create_dir_all(root.join(".git/hooks")).expect("tmp");
-        install_hooks(&root).expect("install");
-        let removed = uninstall_hooks(&root).expect("uninstall");
+        let hooks_dir = root.join(".git/hooks");
+        std::fs::create_dir_all(&hooks_dir).expect("tmp");
+        install_hooks(&root, &hooks_dir).expect("install");
+        let removed = uninstall_hooks(&root, &hooks_dir).expect("uninstall");
         assert!(removed.iter().any(|p| p == ".git/hooks/pre-commit"));
-        assert!(!root.join(".git/hooks/pre-commit").exists());
-        let again = uninstall_hooks(&root).expect("uninstall again");
+        assert!(!hooks_dir.join("pre-commit").exists());
+        let again = uninstall_hooks(&root, &hooks_dir).expect("uninstall again");
         assert!(again.is_empty());
-        std::fs::write(root.join(".git/hooks/pre-commit"), "# custom hook\n").expect("unmanaged");
-        assert!(uninstall_hooks(&root).is_err());
-        assert!(root.join(".git/hooks/pre-commit").exists());
+        std::fs::write(hooks_dir.join("pre-commit"), "# custom hook\n").expect("unmanaged");
+        assert!(uninstall_hooks(&root, &hooks_dir).is_err());
+        assert!(hooks_dir.join("pre-commit").exists());
         scratch.close().expect("cleanup");
     }
 
@@ -688,8 +778,9 @@ mod tests {
     fn hooks_install_writes_toml_backed_overlay() {
         let scratch = dx_test_scratch::scratch("dx-adopt-hook-overlay-");
         let root = scratch.path().to_path_buf();
-        std::fs::create_dir_all(root.join(".git/hooks")).expect("tmp");
-        let installed = install_hooks(&root).expect("install");
+        let hooks_dir = root.join(".git/hooks");
+        std::fs::create_dir_all(&hooks_dir).expect("tmp");
+        let installed = install_hooks(&root, &hooks_dir).expect("install");
         assert!(installed.iter().any(|p| p == "dx.local.toml"));
         let written = std::fs::read_to_string(root.join("dx.local.toml")).expect("read overlay");
         assert_eq!(written, render_local_overlay().expect("overlay"));

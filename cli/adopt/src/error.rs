@@ -24,6 +24,8 @@ pub enum AdoptError {
     UnmanagedUninstall { trigger: String },
     #[error("remove hook {trigger}: {detail}")]
     RemoveHook { trigger: String, detail: String },
+    #[error("resolve hooks dir: {detail}")]
+    ResolveHooksDir { detail: String },
     #[error("read version pin: {detail}")]
     ReadVersionPin { detail: String },
     #[error("refuses empty version")]

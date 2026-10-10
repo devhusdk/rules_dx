@@ -69,6 +69,368 @@ pub struct Invocation {
     pub bazel_startup_options: Vec<String>,
 }
 
+/// Shared output and workspace policy below command dispatch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommonOptions {
+    pub quiet: bool,
+    pub verbose: bool,
+    pub log_level: Option<LogLevel>,
+    pub color: ColorMode,
+    pub output: OutputMode,
+    pub reports: Vec<ReportRequest>,
+    pub workspace: Option<String>,
+    pub bazel_startup_options: Vec<String>,
+}
+
+impl CommonOptions {
+    pub fn from_invocation(invocation: &Invocation) -> Self {
+        Self {
+            quiet: invocation.quiet,
+            verbose: invocation.verbose,
+            log_level: invocation.log_level,
+            color: invocation.color,
+            output: invocation.output,
+            reports: invocation.reports.clone(),
+            workspace: invocation.workspace.clone(),
+            bazel_startup_options: invocation.bazel_startup_options.clone(),
+        }
+    }
+
+    pub fn chatty(&self) -> bool {
+        dx_text_visible(&self.output) && !self.quiet
+    }
+}
+
+/// Validated quality invocation for lint, typecheck, or format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QualityRequest {
+    pub command: Command,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub fail_on: Threshold,
+    pub dry_run: bool,
+    pub apply: bool,
+    pub check: bool,
+    pub common: CommonOptions,
+}
+
+/// Validated generate invocation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenerateRequest {
+    pub command: Command,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub dry_run: bool,
+    pub apply: bool,
+    pub check: bool,
+    pub common: CommonOptions,
+}
+
+/// Validated umbrella invocation for check or fix.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UmbrellaRequest {
+    pub command: Command,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub fail_on: Threshold,
+    pub dry_run: bool,
+    pub apply: bool,
+    pub check: bool,
+    pub common: CommonOptions,
+}
+
+/// Typed composition request for the first migrated family.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypedRequest {
+    Quality(QualityRequest),
+    Generate(GenerateRequest),
+    Umbrella(UmbrellaRequest),
+}
+
+fn unsupported_for(command: Command, flag: &str) -> String {
+    format!("option {flag:?} is not supported by dx {}", command.name())
+}
+
+fn reject_unrelated_for_quality(invocation: &Invocation) -> Result<(), String> {
+    let command = invocation.command;
+    if invocation.strict_evidence {
+        return Err(unsupported_for(command, "--strict-evidence"));
+    }
+    if invocation.run_output.is_some() {
+        return Err(unsupported_for(command, "--run-output"));
+    }
+    if invocation.debug {
+        return Err(unsupported_for(command, "--debug"));
+    }
+    if invocation.release {
+        return Err(unsupported_for(command, "--release"));
+    }
+    if invocation.min_coverage.is_some() {
+        return Err(unsupported_for(command, "--min-coverage"));
+    }
+    if invocation.bazel_clean {
+        return Err(unsupported_for(command, "--bazel"));
+    }
+    if invocation.prune_unobserved {
+        return Err(unsupported_for(command, "--prune-unobserved"));
+    }
+    if invocation.pin.is_some() {
+        return Err(unsupported_for(command, "--pin"));
+    }
+    if invocation.rollback {
+        return Err(unsupported_for(command, "--rollback"));
+    }
+    if invocation.configured {
+        return Err(unsupported_for(command, "--configured"));
+    }
+    if invocation.from.is_some() {
+        return Err(unsupported_for(command, "--from"));
+    }
+    if invocation.to.is_some() {
+        return Err(unsupported_for(command, "--to"));
+    }
+    if invocation.here {
+        return Err("option \"--here/--cwd\" needs cwd resolution".to_owned());
+    }
+    if invocation.serve {
+        return Err(unsupported_for(command, "--serve"));
+    }
+    if invocation.port.is_some() {
+        return Err(unsupported_for(command, "--port"));
+    }
+    if invocation.host.is_some() {
+        return Err(unsupported_for(command, "--host"));
+    }
+    if invocation.open {
+        return Err(unsupported_for(command, "--open"));
+    }
+    if invocation.offline {
+        return Err(unsupported_for(command, "--offline"));
+    }
+    if invocation.frozen {
+        return Err(unsupported_for(command, "--frozen"));
+    }
+    if invocation.workspace_capabilities {
+        return Err(unsupported_for(command, "--workspace-capabilities"));
+    }
+    if invocation.cases {
+        return Err(unsupported_for(command, "--cases"));
+    }
+    Ok(())
+}
+
+impl QualityRequest {
+    pub fn from_invocation(invocation: &Invocation) -> Result<Self, String> {
+        match invocation.command {
+            Command::Lint | Command::Typecheck | Command::Format => {}
+            _ => {
+                return Err(format!(
+                    "option {:?} is not a quality command",
+                    invocation.command.name()
+                ));
+            }
+        }
+        reject_unrelated_for_quality(invocation)?;
+        Ok(Self {
+            command: invocation.command,
+            targets: invocation.targets.clone(),
+            bazel_options: invocation.bazel_options.clone(),
+            fail_on: invocation.fail_on,
+            dry_run: invocation.dry_run,
+            apply: invocation.apply,
+            check: invocation.check,
+            common: CommonOptions::from_invocation(invocation),
+        })
+    }
+
+    pub fn operation(&self) -> OperationMode {
+        if self.apply {
+            OperationMode::Apply
+        } else if self.dry_run {
+            OperationMode::Plan
+        } else {
+            OperationMode::Check
+        }
+    }
+
+    pub fn applies(&self) -> bool {
+        self.operation() == OperationMode::Apply
+    }
+
+    pub fn chatty(&self) -> bool {
+        self.common.chatty()
+    }
+}
+
+impl GenerateRequest {
+    pub fn from_invocation(invocation: &Invocation) -> Result<Self, String> {
+        if invocation.command != Command::Generate {
+            return Err(format!(
+                "option {:?} is not a generate command",
+                invocation.command.name()
+            ));
+        }
+        reject_unrelated_for_quality(invocation)?;
+        if invocation.fail_on != Threshold::Warning {
+            return Err(unsupported_for(invocation.command, "--fail-on"));
+        }
+        Ok(Self {
+            command: invocation.command,
+            targets: invocation.targets.clone(),
+            bazel_options: invocation.bazel_options.clone(),
+            dry_run: invocation.dry_run,
+            apply: invocation.apply,
+            check: invocation.check,
+            common: CommonOptions::from_invocation(invocation),
+        })
+    }
+
+    pub fn operation(&self) -> OperationMode {
+        if self.apply {
+            OperationMode::Apply
+        } else if self.dry_run {
+            OperationMode::Plan
+        } else {
+            OperationMode::Check
+        }
+    }
+
+    pub fn applies(&self) -> bool {
+        self.operation() == OperationMode::Apply
+    }
+
+    pub fn chatty(&self) -> bool {
+        self.common.chatty()
+    }
+}
+
+impl UmbrellaRequest {
+    pub fn from_invocation(invocation: &Invocation) -> Result<Self, String> {
+        match invocation.command {
+            Command::Check | Command::Fix => {}
+            _ => {
+                return Err(format!(
+                    "option {:?} is not an umbrella command",
+                    invocation.command.name()
+                ));
+            }
+        }
+        reject_unrelated_for_quality(invocation)?;
+        Ok(Self {
+            command: invocation.command,
+            targets: invocation.targets.clone(),
+            bazel_options: invocation.bazel_options.clone(),
+            fail_on: invocation.fail_on,
+            dry_run: invocation.dry_run,
+            apply: invocation.apply,
+            check: invocation.check,
+            common: CommonOptions::from_invocation(invocation),
+        })
+    }
+
+    pub fn fix_apply(&self) -> bool {
+        self.command == Command::Fix && self.apply
+    }
+
+    pub fn phase_check(&self) -> bool {
+        !self.fix_apply()
+    }
+
+    pub fn operation(&self) -> OperationMode {
+        if self.apply {
+            OperationMode::Apply
+        } else if self.dry_run {
+            OperationMode::Plan
+        } else {
+            OperationMode::Check
+        }
+    }
+
+    pub fn applies(&self) -> bool {
+        self.operation() == OperationMode::Apply
+    }
+
+    pub fn quality_for(&self, phase: Command, reports: Vec<ReportRequest>) -> QualityRequest {
+        let mut common = self.common.clone();
+        common.reports = reports;
+        QualityRequest {
+            command: phase,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            fail_on: self.fail_on,
+            dry_run: self.dry_run,
+            apply: self.apply,
+            check: self.phase_check(),
+            common,
+        }
+    }
+
+    pub fn generate_for(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
+        let mut common = self.common.clone();
+        common.reports = reports;
+        GenerateRequest {
+            command: Command::Generate,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            dry_run: self.dry_run,
+            apply: self.apply,
+            check: self.phase_check(),
+            common,
+        }
+    }
+
+    pub fn verify_quality_for(&self, phase: Command) -> QualityRequest {
+        QualityRequest {
+            command: phase,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            fail_on: self.fail_on,
+            dry_run: false,
+            apply: false,
+            check: true,
+            common: CommonOptions {
+                reports: Vec::new(),
+                ..self.common.clone()
+            },
+        }
+    }
+
+    pub fn verify_generate_for(&self) -> GenerateRequest {
+        GenerateRequest {
+            command: Command::Generate,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            dry_run: false,
+            apply: false,
+            check: true,
+            common: CommonOptions {
+                reports: Vec::new(),
+                ..self.common.clone()
+            },
+        }
+    }
+}
+
+impl TypedRequest {
+    pub fn from_invocation(invocation: &Invocation) -> Result<Self, String> {
+        match invocation.command {
+            Command::Lint | Command::Typecheck | Command::Format => Ok(TypedRequest::Quality(
+                QualityRequest::from_invocation(invocation)?,
+            )),
+            Command::Generate => Ok(TypedRequest::Generate(GenerateRequest::from_invocation(
+                invocation,
+            )?)),
+            Command::Check | Command::Fix => Ok(TypedRequest::Umbrella(
+                UmbrellaRequest::from_invocation(invocation)?,
+            )),
+            _ => Err(format!(
+                "option {:?} is not in the first typed family",
+                invocation.command.name()
+            )),
+        }
+    }
+}
+
 impl Invocation {
     pub fn mode(self) -> &'static str {
         if self.check {
@@ -373,5 +735,112 @@ mod tests {
         )
         .expect("cwd alias parses");
         assert!(aliased.here, "--cwd must set here");
+    }
+
+    fn parsed(words: &[&str]) -> Invocation {
+        crate::args::parse(&crate::test_support::strings(words)).expect("parse")
+    }
+
+    #[test]
+    fn quality_request_accepts_quality_commands() {
+        for command in ["lint", "typecheck", "format"] {
+            let invocation = parsed(&[command, "//a:one", "--fail-on=error"]);
+            let request = QualityRequest::from_invocation(&invocation).expect("quality validates");
+            assert_eq!(request.command.name(), command);
+            assert_eq!(request.targets, vec!["//a:one".to_owned()]);
+            assert_eq!(request.fail_on, dx_output::Threshold::Error);
+            assert!(!request.applies());
+            assert!(request.chatty());
+        }
+        let lint = parsed(&["lint"]);
+        let request = QualityRequest::from_invocation(&lint).expect("bare lint validates");
+        assert!(request.targets.is_empty());
+        assert_eq!(request.operation(), OperationMode::Check);
+    }
+
+    #[test]
+    fn quality_request_rejects_unrelated_flags() {
+        let base = parsed(&["lint"]);
+        for mutate in [
+            "--pin",
+            "--rollback",
+            "--from",
+            "--to",
+            "--offline",
+            "--frozen",
+            "--debug",
+            "--strict-evidence",
+            "--min-coverage",
+            "--cases",
+        ] as [&str; 10]
+        {
+            let mut tainted = base.clone();
+            match mutate {
+                "--pin" => tainted.pin = Some("1.2.3".to_owned()),
+                "--rollback" => tainted.rollback = true,
+                "--from" => tainted.from = Some("1.2.3".to_owned()),
+                "--to" => tainted.to = Some("2.0.0".to_owned()),
+                "--offline" => tainted.offline = true,
+                "--frozen" => tainted.frozen = true,
+                "--debug" => tainted.debug = true,
+                "--strict-evidence" => tainted.strict_evidence = true,
+                "--min-coverage" => tainted.min_coverage = Some(90),
+                "--cases" => tainted.cases = true,
+                _ => unreachable!(),
+            }
+            let error = QualityRequest::from_invocation(&tainted).expect_err("unrelated must fail");
+            assert!(error.contains(mutate), "{mutate} must name itself: {error}");
+            assert!(error.contains("lint"), "{error}");
+        }
+        let mut wrong = base;
+        wrong.command = Command::Build;
+        assert!(QualityRequest::from_invocation(&wrong).is_err());
+        let mut generate = parsed(&["generate"]);
+        generate.fail_on = dx_output::Threshold::Error;
+        assert!(GenerateRequest::from_invocation(&generate).is_err());
+    }
+
+    #[test]
+    fn umbrella_request_derives_phases_without_unrelated() {
+        let invocation = parsed(&["check", "//a:one", "--fail-on=error"]);
+        let request = UmbrellaRequest::from_invocation(&invocation).expect("umbrella validates");
+        assert_eq!(request.command, Command::Check);
+        assert!(request.phase_check());
+        assert!(!request.fix_apply());
+        let phase = request.quality_for(Command::Lint, Vec::new());
+        assert_eq!(phase.command, Command::Lint);
+        assert_eq!(phase.targets, vec!["//a:one".to_owned()]);
+        assert_eq!(phase.fail_on, dx_output::Threshold::Error);
+        assert!(phase.check);
+        assert!(!phase.apply);
+        let generated = request.generate_for(Vec::new());
+        assert_eq!(generated.command, Command::Generate);
+        assert_eq!(generated.targets, vec!["//a:one".to_owned()]);
+        let fix = parsed(&["fix", "--apply", "//a:one"]);
+        let fix_request = UmbrellaRequest::from_invocation(&fix).expect("fix validates");
+        assert!(fix_request.fix_apply());
+        assert!(!fix_request.phase_check());
+        let fix_phase = fix_request.quality_for(Command::Format, Vec::new());
+        assert!(!fix_phase.check);
+        assert!(fix_phase.apply);
+        let verify = request.verify_quality_for(Command::Lint);
+        assert!(verify.check);
+        assert!(!verify.apply);
+        assert!(!verify.dry_run);
+        assert!(verify.common.reports.is_empty());
+        let verify_generate = request.verify_generate_for();
+        assert_eq!(verify_generate.command, Command::Generate);
+        assert!(verify_generate.check);
+    }
+
+    #[test]
+    fn typed_request_dispatches_first_family_only() {
+        for words in [&["lint"][..], &["generate"][..], &["check"][..]] {
+            let invocation = parsed(words);
+            assert!(TypedRequest::from_invocation(&invocation).is_ok());
+        }
+        let build = parsed(&["build", "//..."]);
+        let error = TypedRequest::from_invocation(&build).expect_err("build is later");
+        assert!(error.contains("first typed family"), "{error}");
     }
 }

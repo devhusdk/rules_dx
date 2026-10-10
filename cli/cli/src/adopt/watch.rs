@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use dx_adopt::AdoptError;
 
-use crate::args::{Command, Invocation};
+use crate::args::{Command, GenerateRequest, Invocation, QualityRequest, UmbrellaRequest};
 use crate::exec::common::check_stdout_write;
 use crate::exec::Env;
 
@@ -16,6 +16,165 @@ pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
     watch(invocation, env, None, |root| {
         dx_adopt::watch_for_change(root, WATCH_IDLE_TIMEOUT)
     })
+}
+
+fn watch_wrapped_invocation(
+    invocation: &Invocation,
+    command: Command,
+    scopes: &[String],
+) -> Invocation {
+    Invocation {
+        command,
+        check: false,
+        strict_evidence: false,
+        run_output: None,
+        apply: invocation.apply,
+        debug: false,
+        release: false,
+        workspace: invocation.workspace.clone(),
+        dry_run: invocation.dry_run,
+        quiet: invocation.quiet,
+        verbose: invocation.verbose,
+        log_level: invocation.log_level,
+        color: invocation.color,
+        output: invocation.output,
+        reports: Vec::new(),
+        fail_on: invocation.fail_on,
+        min_coverage: None,
+        targets: scopes.to_vec(),
+        bazel_options: Vec::new(),
+        bazel_clean: false,
+        prune_unobserved: false,
+        pin: None,
+        rollback: false,
+        configured: false,
+        from: None,
+        to: None,
+        here: false,
+        serve: false,
+        port: None,
+        host: None,
+        open: false,
+        offline: false,
+        frozen: false,
+        workspace_capabilities: false,
+        cases: false,
+        bazel_startup_options: invocation.bazel_startup_options.clone(),
+    }
+}
+
+fn watch_carry(command: Command, invocation: &Invocation) -> Result<(), String> {
+    let unsupported =
+        |flag: &str| format!("option {flag:?} is not supported by dx {}", command.name());
+    if invocation.pin.is_some() {
+        return Err(unsupported("--pin"));
+    }
+    if invocation.rollback {
+        return Err(unsupported("--rollback"));
+    }
+    if invocation.from.is_some() {
+        return Err(unsupported("--from"));
+    }
+    if invocation.to.is_some() {
+        return Err(unsupported("--to"));
+    }
+    if invocation.serve {
+        return Err(unsupported("--serve"));
+    }
+    if invocation.port.is_some() {
+        return Err(unsupported("--port"));
+    }
+    if invocation.host.is_some() {
+        return Err(unsupported("--host"));
+    }
+    if invocation.open {
+        return Err(unsupported("--open"));
+    }
+    if invocation.offline {
+        return Err(unsupported("--offline"));
+    }
+    if invocation.frozen {
+        return Err(unsupported("--frozen"));
+    }
+    if invocation.workspace_capabilities {
+        return Err(unsupported("--workspace-capabilities"));
+    }
+    if invocation.cases {
+        return Err(unsupported("--cases"));
+    }
+    if invocation.configured {
+        return Err(unsupported("--configured"));
+    }
+    if invocation.debug {
+        return Err(unsupported("--debug"));
+    }
+    if invocation.release {
+        return Err(unsupported("--release"));
+    }
+    if invocation.strict_evidence {
+        return Err(unsupported("--strict-evidence"));
+    }
+    if invocation.run_output.is_some() {
+        return Err(unsupported("--run-output"));
+    }
+    if invocation.min_coverage.is_some() {
+        return Err(unsupported("--min-coverage"));
+    }
+    if invocation.bazel_clean {
+        return Err(unsupported("--bazel"));
+    }
+    if invocation.prune_unobserved {
+        return Err(unsupported("--prune-unobserved"));
+    }
+    if !invocation.bazel_options.is_empty() {
+        return Err(unsupported("--"));
+    }
+    if !invocation.reports.is_empty() {
+        let first = &invocation.reports[0];
+        return Err(unsupported(&format!(
+            "--report={}={}",
+            first.format, first.destination
+        )));
+    }
+    Ok(())
+}
+
+fn watch_quality_request(
+    invocation: &Invocation,
+    command: Command,
+    scopes: &[String],
+) -> Result<QualityRequest, String> {
+    match command {
+        Command::Lint | Command::Typecheck | Command::Format => {}
+        _ => return Err("not a quality wrap".to_owned()),
+    }
+    watch_carry(command, invocation)?;
+    QualityRequest::from_invocation(&watch_wrapped_invocation(invocation, command, scopes))
+}
+
+fn watch_generate_request(
+    invocation: &Invocation,
+    command: Command,
+    scopes: &[String],
+) -> Result<GenerateRequest, String> {
+    if command != Command::Generate {
+        return Err("not a generate wrap".to_owned());
+    }
+    watch_carry(command, invocation)?;
+    GenerateRequest::from_invocation(&watch_wrapped_invocation(invocation, command, scopes))
+}
+
+fn watch_umbrella_request(
+    invocation: &Invocation,
+    command: Command,
+    scopes: &[String],
+) -> Result<UmbrellaRequest, String> {
+    match command {
+        Command::Check | Command::Fix => {}
+        _ => return Err("not an umbrella wrap".to_owned()),
+    }
+    watch_carry(command, invocation)?;
+    UmbrellaRequest::from_invocation(&watch_wrapped_invocation(invocation, command, scopes))
 }
 
 fn watch(
@@ -59,9 +218,32 @@ fn watch(
         }
         return 0;
     }
-    let mut iteration = invocation.clone();
-    iteration.command = command;
-    iteration.targets = scopes.to_vec();
+    let mut fallback_iteration = invocation.clone();
+    fallback_iteration.command = command;
+    fallback_iteration.targets = scopes.to_vec();
+    let wrapped_quality = watch_quality_request(invocation, command, scopes);
+    let wrapped_generate = watch_generate_request(invocation, command, scopes);
+    let wrapped_umbrella = watch_umbrella_request(invocation, command, scopes);
+    // The first typed family wraps a validated request; other families keep
+    // the existing clone path until their own migration lands.
+    if matches!(
+        command,
+        Command::Lint | Command::Typecheck | Command::Format
+    ) {
+        if let Err(message) = &wrapped_quality {
+            return pre_exec(&mut err, message);
+        }
+    }
+    if command == Command::Generate {
+        if let Err(message) = &wrapped_generate {
+            return pre_exec(&mut err, message);
+        }
+    }
+    if matches!(command, Command::Check | Command::Fix) {
+        if let Err(message) = &wrapped_umbrella {
+            return pre_exec(&mut err, message);
+        }
+    }
     let mut round = 0u32;
     loop {
         round += 1;
@@ -72,20 +254,82 @@ fn watch(
                 return exit;
             }
         }
-        let code = crate::exec::execute(
-            &iteration,
-            Env {
-                workspace,
-                runner,
-                query_runner,
-                temp_dir,
-                pid,
-                nonce,
-                out: &mut out,
-                err: &mut err,
-                ci,
-            },
-        );
+        let code = match command {
+            Command::Lint | Command::Typecheck | Command::Format => {
+                let request = match &wrapped_quality {
+                    Ok(request) => request,
+                    Err(message) => return pre_exec(&mut err, message),
+                };
+                crate::exec::quality::execute_quality_request(
+                    request,
+                    Env {
+                        workspace,
+                        runner,
+                        query_runner,
+                        temp_dir,
+                        pid,
+                        nonce,
+                        out: &mut out,
+                        err: &mut err,
+                        ci,
+                    },
+                )
+            }
+            Command::Generate => {
+                let request = match &wrapped_generate {
+                    Ok(request) => request,
+                    Err(message) => return pre_exec(&mut err, message),
+                };
+                crate::exec::generate::execute_generate_request(
+                    request,
+                    Env {
+                        workspace,
+                        runner,
+                        query_runner,
+                        temp_dir,
+                        pid,
+                        nonce,
+                        out: &mut out,
+                        err: &mut err,
+                        ci,
+                    },
+                )
+            }
+            Command::Check | Command::Fix => {
+                let request = match &wrapped_umbrella {
+                    Ok(request) => request,
+                    Err(message) => return pre_exec(&mut err, message),
+                };
+                crate::exec::umbrella::execute_umbrella_request(
+                    request,
+                    Env {
+                        workspace,
+                        runner,
+                        query_runner,
+                        temp_dir,
+                        pid,
+                        nonce,
+                        out: &mut out,
+                        err: &mut err,
+                        ci,
+                    },
+                )
+            }
+            _ => crate::exec::execute(
+                &fallback_iteration,
+                Env {
+                    workspace,
+                    runner,
+                    query_runner,
+                    temp_dir,
+                    pid,
+                    nonce,
+                    out: &mut out,
+                    err: &mut err,
+                    ci,
+                },
+            ),
+        };
         if max_iterations == Some(round) {
             return code;
         }
@@ -480,6 +724,56 @@ mod tests {
         assert_eq!(
             harness.run_with_truncated_out(&["watch", "--quiet", "build", "//..."], Some(1)),
             0
+        );
+    }
+
+    #[test]
+    fn watch_wraps_validated_quality_and_umbrella_requests() {
+        let outer = invocation(&["watch", "lint", "//a:one"]);
+        let scopes = vec!["//a:one".to_owned()];
+        let quality =
+            watch_quality_request(&outer, Command::Lint, &scopes).expect("lint wraps typed");
+        assert_eq!(quality.command, Command::Lint);
+        assert_eq!(quality.targets, scopes);
+        assert!(!quality.apply);
+        let outer_apply = invocation(&["watch", "--apply", "lint", "//a:one"]);
+        let applied =
+            watch_quality_request(&outer_apply, Command::Lint, &scopes).expect("apply wraps");
+        assert!(applied.apply);
+        let umbrella =
+            watch_umbrella_request(&outer, Command::Check, &scopes).expect("check wraps typed");
+        assert_eq!(umbrella.command, Command::Check);
+        assert_eq!(umbrella.targets, scopes);
+        let generate =
+            watch_generate_request(&outer, Command::Generate, &scopes).expect("generate wraps");
+        assert_eq!(generate.targets, scopes);
+        assert!(watch_quality_request(&outer, Command::Build, &scopes).is_err());
+        let mut tainted = outer.clone();
+        tainted.pin = Some("1.2.3".to_owned());
+        let error = watch_quality_request(&tainted, Command::Lint, &scopes)
+            .expect_err("a pin cannot ride a watch wrap");
+        assert!(error.contains("--pin"), "{error}");
+    }
+
+    #[test]
+    fn watch_runs_typed_lint_wrap_for_one_iteration() {
+        let mut harness = Harness::new("dx-watch-typed-lint-");
+        let code = harness.run(
+            &["watch", "lint", "//..."],
+            Some(1),
+            &mut |_| Ok(Vec::new()),
+        );
+        assert_eq!(code, 0, "empty results stay clean: {}", harness.stderr());
+        assert_eq!(harness.seen.borrow().len(), 1, "one typed lint launch");
+        assert!(
+            harness.stdout().contains("iteration=1"),
+            "{}",
+            harness.stdout()
+        );
+        assert!(
+            harness.seen.borrow()[0].contains("build"),
+            "typed lint reaches Bazel: {}",
+            harness.seen.borrow()[0]
         );
     }
 }

@@ -105,7 +105,10 @@ pub use completion::{
     registers_callback, render_completion, try_complete, COMPLETE_VAR, COMPLETION_SHELLS,
 };
 pub use grammar::cli_command;
-pub use invocation::{apply_here, here_scope, Invocation, OperationMode, ReportRequest};
+pub use invocation::{
+    apply_here, here_scope, CommonOptions, GenerateRequest, Invocation, OperationMode,
+    QualityRequest, ReportRequest, TypedRequest, UmbrellaRequest,
+};
 pub use parser::{
     config_sources, early_output_flag, early_workspace_flag, freeze_workspace, is_discovery_exempt,
     is_help_request, json_output_intent, load_file_defaults, parse, parse_with, parse_with_ci,

@@ -5,7 +5,7 @@ mod clean;
 pub mod common;
 mod deploy;
 mod docs;
-mod generate;
+pub(crate) mod generate;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -14,7 +14,7 @@ mod managed_staging;
 mod migrate;
 #[cfg(test)]
 mod package_identity;
-mod quality;
+pub(crate) mod quality;
 mod quality_apply;
 mod quality_emit;
 mod quality_patch;
@@ -26,7 +26,7 @@ mod test_inventory;
 mod test_reports;
 #[cfg(test)]
 mod test_support;
-mod umbrella;
+pub(crate) mod umbrella;
 mod update;
 mod verify;
 mod workflow;

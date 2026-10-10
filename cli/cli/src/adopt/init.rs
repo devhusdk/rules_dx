@@ -52,6 +52,9 @@ pub(crate) fn execute_init(
         }
         return 0;
     }
+    if !invocation.applies() {
+        return check_init(invocation, workspace, module, out, err);
+    }
     match dx_adopt::apply_init(workspace, module) {
         Ok(entries) => {
             for entry in entries {
@@ -72,6 +75,43 @@ pub(crate) fn execute_init(
     }
 }
 
+fn check_init(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    module: &str,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let files = match dx_adopt::plan_init_files(module) {
+        Ok(files) => files,
+        Err(error) => return invalid_module_code(invocation, out, err, &error),
+    };
+    let mut missing: Vec<String> = Vec::new();
+    for file in &files {
+        if !workspace.join(&file.path).exists() {
+            missing.push(file.path.clone());
+        }
+    }
+    if missing.is_empty() {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
+                return exit;
+            }
+        }
+        return 0;
+    }
+    operational(
+        invocation,
+        out,
+        err,
+        CODE_INIT_FAILED,
+        &format!(
+            "init drift: missing {} (run `dx init {module} --apply`)",
+            missing.join(", ")
+        ),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use crate::adopt::test_support::{invocation, run};
@@ -90,13 +130,35 @@ mod tests {
 
     #[test]
     fn init_applies_absent_only() {
-        let inv = invocation(&["init"]);
+        let inv = invocation(&["init", "--apply"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(root.join(".dx/version").exists());
         assert!(root.join(".devcontainer/devcontainer.json").exists());
+    }
+
+    #[test]
+    fn init_default_checks_without_writing_and_apply_writes() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["init"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("init_failed"), "{err}");
+        assert!(err.contains("init drift"), "{err}");
+        assert!(err.contains("--apply"), "{err}");
+        assert!(!root.join(".dx/version").exists(), "check must not write");
+        assert!(!root.join(".devcontainer/devcontainer.json").exists());
+        let inv = invocation(&["init", "--apply"]);
+        let (code, _out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(root.join(".dx/version").exists());
+        let inv = invocation(&["init"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("current"), "{out}");
     }
 
     #[test]

@@ -39,6 +39,11 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         plan.from, plan.to, plan.manifest
     );
     let verbose = invocation.chatty();
+    let mode = if invocation.applies() {
+        "default"
+    } else {
+        "check"
+    };
     if invocation.dry_run {
         if invocation.output == OutputMode::Json {
             if let Ok(event) = command_started(invocation.command.name(), true, "default") {
@@ -64,7 +69,7 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
         return 0;
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), false, mode) {
             let _ = write_event(out, &event);
         }
     } else if verbose {
@@ -124,6 +129,15 @@ mod tests {
     fn live_fails_closed_with_migrate_failed() {
         let harness = Harness::new("migrate-live-closed");
         let (code, _, err) = harness.run(&["migrate", "--from=1.2.3", "--to=2.0.0"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("migrate_failed"), "{err}");
+        assert!(err.contains("migrate-v1-to-v2.json"), "{err}");
+    }
+
+    #[test]
+    fn apply_fails_closed_like_default_without_writing() {
+        let harness = Harness::new("migrate-apply-closed");
+        let (code, _, err) = harness.run(&["migrate", "--apply", "--from=1.2.3", "--to=2.0.0"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("migrate_failed"), "{err}");
         assert!(err.contains("migrate-v1-to-v2.json"), "{err}");

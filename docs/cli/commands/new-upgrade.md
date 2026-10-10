@@ -1,8 +1,8 @@
 # `dx new` And `dx upgrade`
 
 ```sh
-bazel run @rules_dx//:dx -- new rust my_project
-bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
+bazel run @rules_dx//:dx -- new --apply rust my_project
+bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0 --dry-run
 ```
 
 ## `dx new`
@@ -11,7 +11,7 @@ bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
 dx new [--apply] <language> [name]
 ```
 
-Scaffolds a minimal project for one language: `rust`, `python`,
+Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
 `fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
@@ -59,7 +59,7 @@ binary, one unit test suite, one web bundle, and one manual browser test.
 Versions come from the rules_dx pins. Never overwrites existing files.
 
 ```sh
-bazel run @rules_dx//:dx -- new rust-web demo
+bazel run @rules_dx//:dx -- new --apply rust-web demo
 ```
 
 Build and test inside the new project:
@@ -91,9 +91,12 @@ only and leaves custom files untouched.
 dx upgrade [--apply] --from <version> --to <version> [--dry-run]
 ```
 
-Runs pin, migrate, and setup in one go with a recovery pointer. Both
+Runs pin, migrate, and setup in one go with a recovery pointer. Checks by
+default; `--apply` upgrades. Both
 versions are required. `--dry-run` prints the plan without writing files.
-No manifests exist yet, so live runs fail closed.
+No manifests exist yet, so check and apply fail closed.
+Flags: `--from <version> --to <version>`, `--apply`, `--dry-run`.
+Scopes: none.
 
 Output: `--output text|json`.
 

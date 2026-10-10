@@ -1,8 +1,8 @@
 # `dx init` And `dx hooks`
 
 ```sh
-bazel run @rules_dx//:dx -- init
-bazel run @rules_dx//:dx -- hooks install
+bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//:dx -- hooks --apply install
 ```
 
 ## `dx init`
@@ -11,10 +11,12 @@ bazel run @rules_dx//:dx -- hooks install
 dx init [--apply] [module-name]
 ```
 
-Scaffolds `dx` into a foreign tree. Takes an optional module name, which
+Checks by default; `--apply` scaffolds. Scaffolds `dx` into a foreign tree. Takes an optional module name, which
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Never overwrites existing files.
+Flags: `--apply`, `--dry-run`.
+Scopes: optional single module name.
 
 Output: `--output text`.
 
@@ -27,12 +29,15 @@ invalid module name, `1` scaffolding failed.
 dx hooks [--apply] <install|uninstall|status|run> [pre-commit|pre-push]
 ```
 
-Manages Git hooks through hermetic Git.
+Manages Git hooks through hermetic Git. Checks by default; `--apply`
+installs, removes, or records timings.
 
 - `install`: install `pre-commit` and `pre-push` shims.
 - `uninstall`: remove them.
 - `status`: show what would run.
 - `run <trigger>`: run one trigger.
+Flags: `--apply`, `--dry-run`.
+Scopes: verb `install|uninstall|status|run`.
 
 `run` needs a hermetic Git. Set `DX_GIT_BIN` to the absolute path of a managed
 Git binary. A relative path is rejected and `PATH` is never searched. Without

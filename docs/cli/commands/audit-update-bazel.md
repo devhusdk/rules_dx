@@ -197,8 +197,8 @@ codes: 0 success, 2 usage or scope errors, 1 operational failures.
 dx update [--check] [--apply] [--offline] [--frozen] [set...]
 ```
 
-Updates dependencies per set through the qualified resolvers. No selector
-updates all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
+Updates dependencies per set through the qualified resolvers. Checks by
+default; `--apply` writes updates. No selector checks all sets. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
 `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
 `uv-adopt`, `uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`,
 or a label/path. `go`, `powershell`, and `ruby` pins are manual: `update`
@@ -226,12 +226,12 @@ Exit codes: 0 success, 2 usage or scope errors, 1 operational failures.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check
-bazel run @rules_dx//:dx -- update go
-bazel run @rules_dx//:dx -- update ruby
-bazel run @rules_dx//:dx -- update powershell
-bazel run @rules_dx//:dx -- update uv uv-tools
-bazel run @rules_dx//:dx -- update npm-tools
-bazel run @rules_dx//:dx -- update npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
+bazel run @rules_dx//:dx -- update --apply go
+bazel run @rules_dx//:dx -- update --apply ruby
+bazel run @rules_dx//:dx -- update --apply powershell
+bazel run @rules_dx//:dx -- update --apply uv uv-tools
+bazel run @rules_dx//:dx -- update --apply npm-tools
+bazel run @rules_dx//:dx -- update --apply npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
 bazel run @rules_dx//:dx -- update --dry-run
 ```
 
@@ -241,7 +241,8 @@ bazel run @rules_dx//:dx -- update --dry-run
 dx bump [--apply] [--offline] [--frozen] <set:package> <version>
 ```
 
-Widens one declared requirement to a new version. Takes exactly one
+Widens one declared requirement to a new version. Checks by default;
+`--apply` widens. Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. The package must already be declared in the
 manifest, or the run fails without writing. A `github-actions` version is
@@ -263,8 +264,8 @@ Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 1 operational failures.
 
 ```sh
-bazel run @rules_dx//:dx -- bump cargo:anyhow 1.0.100
-bazel run @rules_dx//:dx -- bump go:github.com/google/go-cmp 0.7.0
+bazel run @rules_dx//:dx -- bump --apply cargo:anyhow 1.0.100
+bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
 ```
 
 ## Consumer dependency sets (`dx.toml`)
@@ -312,7 +313,7 @@ to refuse it: widening is unsupported for configured ecosystems.
 
 ```sh
 bazel run @rules_dx//:dx -- update --check frontend
-bazel run @rules_dx//:dx -- update worker
+bazel run @rules_dx//:dx -- update --apply worker
 bazel run @rules_dx//:dx -- security apps/frontend
 bazel run @rules_dx//:dx -- license --output=json
 ```

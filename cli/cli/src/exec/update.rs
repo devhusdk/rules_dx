@@ -24,10 +24,16 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(env.err, &error.to_string()),
     }
     let verbose = invocation.chatty();
-    if invocation.check {
-        execute_update_check(invocation, env, verbose)
-    } else {
+    if invocation.dry_run {
+        if invocation.check {
+            execute_update_check(invocation, env, verbose)
+        } else {
+            execute_update_default(invocation, env, verbose)
+        }
+    } else if invocation.applies() {
         execute_update_default(invocation, env, verbose)
+    } else {
+        execute_update_check(invocation, env, verbose)
     }
 }
 

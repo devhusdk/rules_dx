@@ -10,10 +10,16 @@ pub(super) fn execute_configured(
     registry: &dependency_sets::Registry,
     verbose: bool,
 ) -> i32 {
-    let mode = if invocation.check {
-        RunMode::Check
-    } else {
+    let mode = if invocation.dry_run {
+        if invocation.check {
+            RunMode::Check
+        } else {
+            RunMode::Update
+        }
+    } else if invocation.applies() {
         RunMode::Update
+    } else {
+        RunMode::Check
     };
     let mode_text = match mode {
         RunMode::Update => "default",
@@ -446,7 +452,7 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_selective_update_runs_one_directory() {
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--apply", "worker"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("Running update for worker"), "{out}");
         assert!(
@@ -490,11 +496,11 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_unknown_and_unowned_selectors_fail_closed() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "cargo"], &runner);
+        let (code, _, err, _) = run_consumer(&["update", "--apply", "cargo"], &runner);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("unknown dependency set or scope"), "{err}");
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "docs/cli/README.md"], &runner);
+        let (code, _, err, _) = run_consumer(&["update", "--apply", "docs/cli/README.md"], &runner);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("no owning dependency set"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
@@ -503,7 +509,7 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_selective_package_is_unsupported_without_launch() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "frontend:anyio"], &runner);
+        let (code, _, err, _) = run_consumer(&["update", "--apply", "frontend:anyio"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(err.contains("frontend"), "{err}");
@@ -536,7 +542,7 @@ writable = false
 "#;
         let harness = consumer_harness("read-only", READONLY, true);
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update", "frontend"], &runner, &harness);
+        let (code, _, err) = run_with(&["update", "--apply", "frontend"], &runner, &harness);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(err.contains("read-only"), "{err}");
@@ -595,7 +601,8 @@ writable = false
     #[test]
     fn consumer_offline_update_needs_network() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "--offline", "worker"], &runner);
+        let (code, _, err, _) =
+            run_consumer(&["update", "--apply", "--offline", "worker"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
@@ -604,7 +611,7 @@ writable = false
     #[test]
     fn consumer_frozen_update_locks_resolution() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "--frozen", "worker"], &runner);
+        let (code, _, err, _) = run_consumer(&["update", "--apply", "--frozen", "worker"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("frozen_locked"), "{err}");
         assert!(!err.contains("offline_required"), "{err}");

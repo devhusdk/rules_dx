@@ -97,32 +97,37 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test upstream empty stays private",
                 dx_test_upstream_kwargs({}),
-                {"visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
-                "test upstream strips manual-only tags",
+                "test upstream keeps manual-only tags",
                 dx_test_upstream_kwargs({"tags": ["manual"]}),
-                {"visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream keeps non-manual tags",
                 dx_test_upstream_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["cpu:4"], "visibility": ["//visibility:private"]},
+                {"tags": ["manual", "cpu:4"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
+                "test upstream adds manual",
+                dx_test_upstream_kwargs({"tags": ["cpu:4"]}),
+                {"tags": ["cpu:4", "manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream forces private visibility",
                 dx_test_upstream_kwargs({"visibility": ["//visibility:public"]}),
-                {"visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream sets srcs when given",
                 dx_test_upstream_kwargs({}, ["hello_test.go"]),
-                {"visibility": ["//visibility:private"], "srcs": ["hello_test.go"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"], "srcs": ["hello_test.go"]},
             ),
             expect_equal(
                 "test upstream keeps compiler flags",
                 dx_test_upstream_kwargs({"copts": ["-Werror"]}),
-                {"copts": ["-Werror"], "visibility": ["//visibility:private"]},
+                {"copts": ["-Werror"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward empty stays empty",
@@ -130,9 +135,14 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
-                "test forward strips manual",
+                "test forward keeps manual",
                 dx_test_forward_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["cpu:4"]},
+                {"tags": ["manual", "cpu:4"]},
+            ),
+            expect_equal(
+                "test forward keeps manual-only",
+                dx_test_forward_kwargs({"tags": ["manual"]}),
+                {"tags": ["manual"]},
             ),
             expect_equal(
                 "test forward keeps timeout, drops flaky",

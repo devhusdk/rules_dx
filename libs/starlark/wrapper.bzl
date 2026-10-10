@@ -61,9 +61,7 @@ def dx_forwarded_test_kwargs(kwargs):
     """Extracts the standard test attributes a test forwarder preserves."""
     out = {}
     if "tags" in kwargs and kwargs["tags"] != None:
-        kept = [t for t in kwargs["tags"] if t != "manual"]
-        if len(kept) > 0:
-            out["tags"] = kept
+        out["tags"] = list(kwargs["tags"])
     for key in ("timeout", "shard_count", "size"):
         if key in kwargs and kwargs[key] != None:
             out[key] = kwargs[key]
@@ -260,12 +258,13 @@ def dx_binary_forward_kwargs(kwargs):
 def dx_test_upstream_kwargs(kwargs, srcs = None):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)
-    if "tags" in out:
-        kept = [t for t in out["tags"] if t != "manual"]
-        if len(kept) > 0:
-            out["tags"] = kept
-        else:
-            out.pop("tags")
+    tags = out.get("tags", None)
+    if tags == None:
+        out["tags"] = ["manual"]
+    elif "manual" in tags:
+        out["tags"] = list(tags)
+    else:
+        out["tags"] = tags + ["manual"]
     out["visibility"] = ["//visibility:private"]
     if srcs != None:
         out["srcs"] = srcs

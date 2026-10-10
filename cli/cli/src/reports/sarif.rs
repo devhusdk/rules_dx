@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::ReportError;
-use dx_output::{sort_diagnostics, DiagnosticEvent, Severity};
+use dx_output::{DiagnosticEvent, Severity};
 use line_index::{LineIndex, TextSize, WideEncoding};
 use serde_sarif::sarif::{
-    ArtifactLocation, Invocation, Location, Message, PhysicalLocation, Region, ReportingDescriptor,
-    Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
+    ArtifactLocation, Invocation, Location, Message, PhysicalLocation, PropertyBag, Region,
+    ReportingDescriptor, Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
 };
 
 pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), ReportError> {
@@ -108,9 +108,10 @@ fn location(
     }
 }
 
-fn result(
+fn result_with_baseline(
     finding: &DiagnosticEvent,
     snapshots: &BTreeMap<String, String>,
+    suppressed: Option<bool>,
 ) -> Result<SarifResult, ReportError> {
     if finding.tool.is_empty() {
         return Err(ReportError::InvalidFinding {
@@ -125,24 +126,58 @@ fn result(
     let message = Message::builder().text(finding.message.clone()).build();
     let level = sarif_level(finding.severity);
     let locations = location(finding, snapshots)?.map(|single| vec![single]);
-    match (&finding.rule, locations) {
-        (Some(rule), Some(locations)) => Ok(SarifResult::builder()
+    let baseline_state = suppressed.map(|held| {
+        if held {
+            serde_json::Value::String("unchanged".to_owned())
+        } else {
+            serde_json::Value::String("new".to_owned())
+        }
+    });
+    match (&finding.rule, locations, baseline_state) {
+        (Some(rule), Some(locations), Some(state)) => Ok(SarifResult::builder()
+            .message(message)
+            .level(level)
+            .rule_id(rule.clone())
+            .locations(locations)
+            .baseline_state(state)
+            .build()),
+        (Some(rule), Some(locations), None) => Ok(SarifResult::builder()
             .message(message)
             .level(level)
             .rule_id(rule.clone())
             .locations(locations)
             .build()),
-        (Some(rule), None) => Ok(SarifResult::builder()
+        (Some(rule), None, Some(state)) => Ok(SarifResult::builder()
+            .message(message)
+            .level(level)
+            .rule_id(rule.clone())
+            .baseline_state(state)
+            .build()),
+        (Some(rule), None, None) => Ok(SarifResult::builder()
             .message(message)
             .level(level)
             .rule_id(rule.clone())
             .build()),
-        (None, Some(locations)) => Ok(SarifResult::builder()
+        (None, Some(locations), Some(state)) => Ok(SarifResult::builder()
+            .message(message)
+            .level(level)
+            .locations(locations)
+            .baseline_state(state)
+            .build()),
+        (None, Some(locations), None) => Ok(SarifResult::builder()
             .message(message)
             .level(level)
             .locations(locations)
             .build()),
-        (None, None) => Ok(SarifResult::builder().message(message).level(level).build()),
+        (None, None, Some(state)) => Ok(SarifResult::builder()
+            .message(message)
+            .level(level)
+            .baseline_state(state)
+            .build()),
+        (None, None, None) => Ok(SarifResult::builder()
+            .message(message)
+            .level(level)
+            .build()),
     }
 }
 
@@ -152,11 +187,39 @@ pub fn render_sarif(
     snapshots: &BTreeMap<String, String>,
     complete: bool,
 ) -> Result<String, ReportError> {
+    render_sarif_with_baseline(tools, findings, snapshots, complete, &[], None)
+}
+
+pub fn render_sarif_with_baseline(
+    tools: &[String],
+    findings: &[DiagnosticEvent],
+    snapshots: &BTreeMap<String, String>,
+    complete: bool,
+    suppressed: &[bool],
+    baseline_counts: Option<(usize, usize, usize)>,
+) -> Result<String, ReportError> {
     let ordered: BTreeSet<&str> = tools.iter().map(String::as_str).collect();
-    let mut working = findings.to_vec();
-    sort_diagnostics(&mut working);
-    let mut by_tool: BTreeMap<&str, Vec<&DiagnosticEvent>> = BTreeMap::new();
-    for finding in &working {
+    let mut working: Vec<(&DiagnosticEvent, Option<bool>)> = findings
+        .iter()
+        .enumerate()
+        .map(|(index, finding)| (finding, suppressed.get(index).copied()))
+        .collect();
+    working.sort_by(|a, b| {
+        a.0.snapshot
+            .cmp(&b.0.snapshot)
+            .then_with(|| a.0.path.is_none().cmp(&b.0.path.is_none()))
+            .then_with(|| a.0.path.cmp(&b.0.path))
+            .then_with(|| a.0.range.is_none().cmp(&b.0.range.is_none()))
+            .then_with(|| a.0.range.map(|r| r.0).cmp(&b.0.range.map(|r| r.0)))
+            .then_with(|| a.0.range.map(|r| r.1).cmp(&b.0.range.map(|r| r.1)))
+            .then_with(|| a.0.severity.rank().cmp(&b.0.severity.rank()))
+            .then_with(|| a.0.tool.cmp(&b.0.tool))
+            .then_with(|| a.0.rule.is_none().cmp(&b.0.rule.is_none()))
+            .then_with(|| a.0.rule.cmp(&b.0.rule))
+            .then_with(|| a.0.message.cmp(&b.0.message))
+    });
+    let mut by_tool: BTreeMap<&str, Vec<(&DiagnosticEvent, Option<bool>)>> = BTreeMap::new();
+    for (finding, held) in &working {
         check_shape(finding)?;
         if !ordered.contains(finding.tool.as_str()) {
             return Err(ReportError::UnknownTool {
@@ -166,18 +229,23 @@ pub fn render_sarif(
         by_tool
             .entry(finding.tool.as_str())
             .or_default()
-            .push(finding);
+            .push((finding, *held));
     }
     let mut runs = Vec::with_capacity(ordered.len());
     for tool in ordered {
         let tool_findings = by_tool.get(tool).cloned().unwrap_or_default();
         let rules: BTreeSet<&str> = tool_findings
             .iter()
-            .filter_map(|finding| finding.rule.as_deref())
+            .filter_map(|(finding, _)| finding.rule.as_deref())
             .collect();
         let mut results = Vec::with_capacity(tool_findings.len());
-        for finding in tool_findings {
-            results.push(result(finding, snapshots)?);
+        for (finding, held) in tool_findings {
+            let marked = if baseline_counts.is_some() {
+                held.or(Some(false))
+            } else {
+                None
+            };
+            results.push(result_with_baseline(finding, snapshots, marked)?);
         }
         let descriptors = rules
             .into_iter()
@@ -188,17 +256,52 @@ pub fn render_sarif(
             .rules(descriptors)
             .build();
         let tool_value = Tool::builder().driver(driver).build();
+        let properties = baseline_counts.map(|(total, new, held)| {
+            let mut bag = BTreeMap::new();
+            bag.insert(
+                "baselineTotal".to_owned(),
+                serde_json::Value::from(total as u64),
+            );
+            bag.insert("baselineNew".to_owned(), serde_json::Value::from(new as u64));
+            bag.insert(
+                "baselineSuppressed".to_owned(),
+                serde_json::Value::from(held as u64),
+            );
+            PropertyBag {
+                tags: None,
+                additional_properties: bag,
+            }
+        });
         if complete {
-            runs.push(Run::builder().tool(tool_value).results(results).build());
+            match properties {
+                Some(bag) => runs.push(
+                    Run::builder()
+                        .tool(tool_value)
+                        .results(results)
+                        .properties(bag)
+                        .build(),
+                ),
+                None => runs.push(Run::builder().tool(tool_value).results(results).build()),
+            }
         } else {
             let invocation = Invocation::builder().execution_successful(false).build();
-            runs.push(
-                Run::builder()
-                    .tool(tool_value)
-                    .results(results)
-                    .invocations(vec![invocation])
-                    .build(),
-            );
+            match properties {
+                Some(bag) => runs.push(
+                    Run::builder()
+                        .tool(tool_value)
+                        .results(results)
+                        .invocations(vec![invocation])
+                        .properties(bag)
+                        .build(),
+                ),
+                None => runs.push(
+                    Run::builder()
+                        .tool(tool_value)
+                        .results(results)
+                        .invocations(vec![invocation])
+                        .build(),
+                ),
+            }
         }
     }
     let document = Sarif::builder()
@@ -501,24 +604,26 @@ mod tests {
             Err(ReportError::InvertedRange)
         );
         assert_eq!(
-            result(
+            result_with_baseline(
                 &DiagnosticEvent {
                     tool: String::new(),
                     ..finding("lint-tool", Severity::Error, None)
                 },
                 &snapshots,
+                None,
             ),
             Err(ReportError::InvalidFinding {
                 detail: "empty tool"
             })
         );
         assert_eq!(
-            result(
+            result_with_baseline(
                 &DiagnosticEvent {
                     message: String::new(),
                     ..finding("lint-tool", Severity::Error, None)
                 },
                 &snapshots,
+                None,
             ),
             Err(ReportError::InvalidFinding {
                 detail: "empty message"

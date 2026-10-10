@@ -17,6 +17,10 @@ pub(crate) struct EmitInputs<'a> {
     pub(crate) not_applied: &'a [(String, &'static str)],
     pub(crate) patch: &'a str,
     pub(crate) stdout_report: bool,
+    pub(crate) suppressed: &'a [bool],
+    pub(crate) baseline_counts: Option<(usize, usize, usize)>,
+    pub(crate) baseline_error: Option<&'a str>,
+    pub(crate) baseline_stale: &'a [String],
 }
 
 pub(crate) struct EmitCounts {
@@ -37,12 +41,16 @@ pub(crate) fn emit_findings(
         not_applied,
         patch,
         stdout_report,
+        suppressed,
+        baseline_counts,
+        baseline_error,
+        baseline_stale,
     } = inputs;
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
     if invocation.output == OutputMode::Json {
         let mutating = invocation.applies();
-        for diagnostic in status {
+        for (index, diagnostic) in status.iter().enumerate() {
             let mut event_diagnostic = diagnostic.clone();
             if mutating && event_diagnostic.snapshot == Snapshot::Initial {
                 let is_applied = event_diagnostic
@@ -55,7 +63,52 @@ pub(crate) fn emit_findings(
                     Resolution::NotApplied
                 });
             }
-            let _ = write_event(out, &diagnostic_value(&event_diagnostic));
+            let mut event = diagnostic_value(&event_diagnostic);
+            if suppressed.get(index).copied().unwrap_or(false) {
+                if let serde_json::Value::Object(ref mut map) = event {
+                    map.insert(
+                        "suppressed".to_owned(),
+                        serde_json::Value::Bool(true),
+                    );
+                }
+            }
+            let _ = write_event(out, &event);
+        }
+        if let Some((total, new, held)) = baseline_counts {
+            let _ = write_event(
+                out,
+                &serde_json::json!({
+                    "schema": {"major": 1, "minor": 0},
+                    "event": "notice",
+                    "level": if new == 0 && baseline_error.is_none() { "info" } else { "warning" },
+                    "code": "baseline",
+                    "message": format!("baseline: {total} total, {new} new, {held} suppressed"),
+                }),
+            );
+        }
+        if let Some(detail) = baseline_error {
+            let _ = write_event(
+                out,
+                &serde_json::json!({
+                    "schema": {"major": 1, "minor": 0},
+                    "event": "error",
+                    "code": "baseline",
+                    "message": detail,
+                }),
+            );
+        }
+        for stale in baseline_stale {
+            let _ = write_event(
+                out,
+                &serde_json::json!({
+                    "schema": {"major": 1, "minor": 0},
+                    "event": "notice",
+                    "level": "warning",
+                    "code": "baseline_stale",
+                    "message": format!("baseline stale: {stale}"),
+                    "path": stale,
+                }),
+            );
         }
         for change in changes {
             let _ = write_event(out, &change_value(&change_event_for(change)));
@@ -96,8 +149,15 @@ pub(crate) fn emit_findings(
         }
     } else if matches!(invocation.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
-        for diagnostic in status {
-            let _ = writeln!(human, "{}", text_diagnostic(diagnostic));
+        for (index, diagnostic) in status.iter().enumerate() {
+            let mut line = text_diagnostic(diagnostic);
+            if suppressed.get(index).copied().unwrap_or(false) {
+                line.push_str(" (suppressed)");
+            }
+            let _ = writeln!(human, "{line}");
+        }
+        if let Some((total, new, held)) = baseline_counts {
+            let _ = writeln!(human, "Baseline: {total} total, {new} new, {held} suppressed.");
         }
         if invocation.applies() {
             applied_count = applied.values().filter(|applied| **applied).count() as u64;
@@ -106,12 +166,28 @@ pub(crate) fn emit_findings(
                 let _ = writeln!(human, "Applied {applied_count} file(s).");
             }
         }
+        let _ = human.flush();
+        if let Some(detail) = baseline_error {
+            let _ = writeln!(err, "dx: baseline: {detail}");
+        }
+        for stale in baseline_stale {
+            let _ = writeln!(err, "dx: baseline_stale: {stale}");
+        }
         for (path, reason) in not_applied {
             let _ = writeln!(err, "Not applied: {path} ({reason})");
         }
     } else {
         for (path, reason) in not_applied {
             let _ = writeln!(err, "Not applied: {path} ({reason})");
+        }
+        if let Some((total, new, held)) = baseline_counts {
+            let _ = writeln!(err, "Baseline: {total} total, {new} new, {held} suppressed.");
+        }
+        if let Some(detail) = baseline_error {
+            let _ = writeln!(err, "dx: baseline: {detail}");
+        }
+        for stale in baseline_stale {
+            let _ = writeln!(err, "dx: baseline_stale: {stale}");
         }
         out.write_all(patch.as_bytes()).ok();
     }

@@ -1,5 +1,6 @@
 use super::common::*;
 use super::quality_apply::{apply_collected_changes, project_status};
+use super::quality_baseline::apply_baseline;
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{write_standard_reports, StandardReports};
@@ -112,7 +113,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let sources = applied_outcome.sources;
     let applied = applied_outcome.applied;
     let not_applied = applied_outcome.not_applied;
-    let (status, failed) = project_status(
+    let (status, project_failed) = project_status(
         apply,
         &collected.initial,
         &collected.terminal,
@@ -120,6 +121,32 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.fail_on,
         !collected.changes.is_empty(),
     );
+    let baseline = apply_baseline(
+        workspace,
+        &status,
+        collected.complete,
+        &collected.terminal_digests,
+        apply,
+    );
+    let baseline_failed = if baseline.selection.is_none() {
+        false
+    } else if baseline.error.is_some() {
+        true
+    } else if !baseline.stale_paths.is_empty() {
+        true
+    } else {
+        status
+            .iter()
+            .zip(baseline.suppressed.iter())
+            .any(|(diagnostic, suppressed)| {
+                !suppressed && dx_output::meets_threshold(diagnostic.severity, invocation.fail_on)
+            })
+    };
+    let failed = if baseline.selection.is_none() {
+        project_failed
+    } else {
+        (!apply && !collected.changes.is_empty()) || baseline_failed
+    };
 
     let mut patch = String::new();
     if invocation.output == OutputMode::Diff {
@@ -140,6 +167,12 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             not_applied: &not_applied,
             patch: &patch,
             stdout_report,
+            suppressed: &baseline.suppressed,
+            baseline_counts: baseline.counts.as_ref().map(|counts| {
+                (counts.total, counts.new, counts.suppressed)
+            }),
+            baseline_error: baseline.error.as_deref(),
+            baseline_stale: &baseline.stale_paths,
         },
         out,
         err,
@@ -156,6 +189,10 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             planned: &planned_reports,
             output: &invocation.output,
             stdout_report,
+            suppressed: &baseline.suppressed,
+            baseline_counts: baseline.counts.as_ref().map(|counts| {
+                (counts.total, counts.new, counts.suppressed)
+            }),
         },
         out,
         err,

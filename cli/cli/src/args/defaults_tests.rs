@@ -46,6 +46,7 @@ fn file_with(
         quiet,
         dry_run,
         fail_on: fail_on.map(ToString::to_string),
+        baseline: None,
     }
 }
 

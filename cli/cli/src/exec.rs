@@ -16,6 +16,7 @@ mod migrate;
 mod package_identity;
 mod quality;
 mod quality_apply;
+mod quality_baseline;
 mod quality_emit;
 mod quality_patch;
 mod quality_reports;

@@ -53,6 +53,7 @@ pub struct FileDefaults {
     pub quiet: Option<bool>,
     pub dry_run: Option<bool>,
     pub fail_on: Option<String>,
+    pub baseline: Option<String>,
 }
 
 pub fn is_truthy(value: &str) -> bool {
@@ -131,6 +132,8 @@ struct DxTable {
     dry_run: Option<bool>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default)]
+    baseline: Option<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -152,6 +155,8 @@ struct ConfigFile {
     dry_run: Option<bool>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default)]
+    baseline: Option<String>,
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
@@ -186,6 +191,7 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         quiet: table.quiet.or(parsed.quiet),
         dry_run: table.dry_run.or(parsed.dry_run),
         fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
+        baseline: non_empty(table.baseline.or(parsed.baseline)),
     })
 }
 
@@ -213,6 +219,7 @@ pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefau
         quiet: local.quiet.or(committed.quiet),
         dry_run: local.dry_run.or(committed.dry_run),
         fail_on: local.fail_on.or(committed.fail_on),
+        baseline: local.baseline.or(committed.baseline),
     }
 }
 
@@ -528,6 +535,27 @@ mod tests {
         assert_eq!(parsed.workspace, None);
         assert_eq!(parsed.output, None);
         assert_eq!(parsed.color, None);
+    }
+
+    #[test]
+    fn baseline_selection_parses_and_merges() {
+        let parsed =
+            parse_file_text("[dx]\nbaseline = \"quality/baseline.json\"\n").expect("baseline");
+        assert_eq!(
+            parsed.baseline,
+            Some("quality/baseline.json".to_owned())
+        );
+        let top = parse_file_text("baseline = \"base.json\"\n").expect("top baseline");
+        assert_eq!(top.baseline, Some("base.json".to_owned()));
+        let empty = parse_file_text("[dx]\nbaseline = \"\"\n").expect("empty baseline");
+        assert_eq!(empty.baseline, None);
+        let committed =
+            parse_file_text("[dx]\nbaseline = \"a.json\"\n").expect("committed baseline");
+        let local = parse_file_text("[dx]\nbaseline = \"b.json\"\n").expect("local baseline");
+        assert_eq!(
+            merge_defaults(committed, local).baseline,
+            Some("b.json".to_owned())
+        );
     }
 
     #[test]

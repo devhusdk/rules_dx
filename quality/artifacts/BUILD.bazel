@@ -3,6 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":corpus_tests.bzl", "corpus_coverage_test")
 load(":metadata_tests.bzl", "metadata_tests")
+load(":platforms_tests.bzl", "platforms_tests")
 
 package(default_visibility = VIS_QUALITY)
 
@@ -31,6 +32,8 @@ exports_files(
 
 metadata_tests(name = "metadata")
 
+platforms_tests(name = "platforms")
+
 corpus_coverage_test(
     name = "corpus_coverage",
     subject = ":corpus_starlark",
@@ -41,6 +44,7 @@ test_suite(
     tests = [
         ":corpus_coverage",
         ":metadata",
+        ":platforms",
         "//quality/artifacts/acquire_test",
         "//quality/artifacts/hub_test:hub_selection_analysis",
         "//quality/artifacts/hub_test:hub_selection_unit",

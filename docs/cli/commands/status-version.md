@@ -29,6 +29,8 @@ toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel bui
 The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
 compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
 fails, and the hint is the fix, for example `dx version --pin <version>`.
+The `platform` check names the execution platforms tools resolve for. The
+target platform never selects tools.
 
 `--output=json` streams `command_started`, one `status` event per check with
 `name`, `status`, `detail`, and `hint`, then `command_finished`. A failed

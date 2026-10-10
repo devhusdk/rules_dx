@@ -46,7 +46,7 @@ pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
             name: "platform".to_owned(),
             status: "ok".to_owned(),
             detail:
-                "linux_x86_64 + linux_arm64 glibc plus macos_arm64 plus windows_x86_64 qualified"
+                "execution linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 selects tools; the target platform never selects tools"
                     .to_owned(),
             hint: "out-of-v1 hosts stay unqualified".to_owned(),
         },
@@ -97,7 +97,33 @@ mod tests {
             tools.detail
         );
         let json = render_status_json(&checks).expect("status json");
-        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"linux_x86_64 + linux_arm64 glibc plus macos_arm64 plus windows_x86_64 qualified","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts)","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0"}]}"#);
+        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"execution linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 selects tools; the target platform never selects tools","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"ok","detail":"bazel-resolved pinned tools (//quality/artifacts)","hint":"no ambient tools required"},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --pin 0.0.0"}]}"#);
+    }
+
+    #[test]
+    fn platform_check_names_execution_not_target() {
+        let checks = default_status_checks(MODULE_VERSION);
+        let platform = checks
+            .iter()
+            .find(|c| c.name == "platform")
+            .expect("platform check");
+        assert_eq!(platform.status, "ok");
+        for key in [
+            "linux_x86_64",
+            "linux_arm64",
+            "macos_arm64",
+            "windows_x86_64",
+        ] {
+            assert!(platform.detail.contains(key), "{}", platform.detail);
+        }
+        assert!(platform.detail.contains("execution"), "{}", platform.detail);
+        assert!(
+            platform
+                .detail
+                .contains("target platform never selects tools"),
+            "{}",
+            platform.detail
+        );
     }
 
     #[test]

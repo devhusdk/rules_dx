@@ -27,6 +27,134 @@ impl OperationMode {
     }
 }
 
+/// Output and report policy shared below command dispatch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommonOptions {
+    pub output: OutputMode,
+    pub quiet: bool,
+    pub reports: Vec<ReportRequest>,
+}
+
+impl CommonOptions {
+    /// Reports whether chatty dx text prints: text output, no `--quiet`.
+    pub fn chatty(&self) -> bool {
+        dx_text_visible(&self.output) && !self.quiet
+    }
+}
+
+/// The validated quality request: exactly what lint, typecheck and format
+/// execution reads. Unrelated invocation flags cannot be represented here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QualityRequest {
+    pub command: Command,
+    pub operation: OperationMode,
+    pub common: CommonOptions,
+    pub fail_on: Threshold,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub bazel_startup_options: Vec<String>,
+}
+
+impl QualityRequest {
+    /// Validates one parsed invocation into the quality request its executor
+    /// accepts. Only lint, typecheck and format convert; every other command
+    /// fails with the command name so misuse surfaces instead of dropping.
+    pub fn from_invocation(invocation: &Invocation) -> Result<QualityRequest, String> {
+        if !invocation.command.is_quality() {
+            return Err(format!(
+                "dx {} has no quality request: want lint, typecheck or format",
+                invocation.command.name()
+            ));
+        }
+        if invocation.apply && invocation.dry_run {
+            return Err("options --dry-run and --apply are mutually exclusive".to_owned());
+        }
+        Ok(QualityRequest {
+            command: invocation.command,
+            operation: invocation.operation(),
+            common: CommonOptions {
+                output: invocation.output,
+                quiet: invocation.quiet,
+                reports: invocation.reports.clone(),
+            },
+            fail_on: invocation.fail_on,
+            targets: invocation.targets.clone(),
+            bazel_options: invocation.bazel_options.clone(),
+            bazel_startup_options: invocation.bazel_startup_options.clone(),
+        })
+    }
+
+    /// Derives one umbrella phase request from the parent invocation. Only
+    /// the fields quality execution reads are carried over, so parent flags
+    /// from other families can neither leak into the phase nor need clearing.
+    pub fn phase(
+        parent: &Invocation,
+        phase: Command,
+        operation: OperationMode,
+        reports: Vec<ReportRequest>,
+    ) -> Result<QualityRequest, String> {
+        if !phase.is_quality() {
+            return Err(format!(
+                "dx {} has no quality request: want lint, typecheck or format",
+                phase.name()
+            ));
+        }
+        Ok(QualityRequest {
+            command: phase,
+            operation,
+            common: CommonOptions {
+                output: parent.output,
+                quiet: parent.quiet,
+                reports,
+            },
+            fail_on: parent.fail_on,
+            targets: parent.targets.clone(),
+            bazel_options: parent.bazel_options.clone(),
+            bazel_startup_options: parent.bazel_startup_options.clone(),
+        })
+    }
+
+    /// Whether the request authorizes writing sources: explicit `--apply` only.
+    pub fn applies(&self) -> bool {
+        self.operation == OperationMode::Apply
+    }
+
+    /// Whether the request plans without running: `--dry-run` only.
+    pub fn is_plan(&self) -> bool {
+        self.operation == OperationMode::Plan
+    }
+
+    /// The lifecycle mode name the request reports: apply runs read back as
+    /// default, everything else checks.
+    pub fn mode(&self) -> &'static str {
+        if self.applies() {
+            "default"
+        } else {
+            "check"
+        }
+    }
+
+    /// Reports whether chatty dx text prints: text output, no `--quiet`.
+    pub fn chatty(&self) -> bool {
+        self.common.chatty()
+    }
+}
+
+/// One validated command request. Families migrate onto their own variant one
+/// at a time; only quality has landed so far.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CommandRequest {
+    Quality(QualityRequest),
+}
+
+impl CommandRequest {
+    pub fn from_invocation(invocation: &Invocation) -> Result<CommandRequest, String> {
+        Ok(CommandRequest::Quality(QualityRequest::from_invocation(
+            invocation,
+        )?))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invocation {
     pub command: Command,

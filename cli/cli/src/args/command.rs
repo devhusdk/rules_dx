@@ -1226,6 +1226,15 @@ impl Command {
         matches!(self, Command::Test | Command::Coverage)
     }
 
+    /// Whether the command runs through the quality executor: only lint,
+    /// typecheck and format validate into a quality request.
+    pub fn is_quality(self) -> bool {
+        matches!(
+            self,
+            Command::Lint | Command::Typecheck | Command::Format
+        )
+    }
+
     pub fn supports_run_output(self) -> bool {
         matches!(self, Command::Test | Command::Coverage)
     }

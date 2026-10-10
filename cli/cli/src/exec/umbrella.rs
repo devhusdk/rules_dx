@@ -1,7 +1,7 @@
 use super::common::*;
-use super::execute;
+use super::execute_request;
 use super::generate::execute_generate;
-use crate::args::{Command, Invocation, ReportRequest};
+use crate::args::{Command, CommandRequest, Invocation, OperationMode, QualityRequest, ReportRequest};
 use crate::plan::spec;
 use crate::reports::plan_reports;
 use crate::resolve::QueryRunner;
@@ -324,7 +324,7 @@ struct VerifyContext<'a> {
     ci: bool,
 }
 
-fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verification {
+fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Result<Verification, String> {
     let mut outcome = Verification {
         failed_phase: None,
         skipped: Vec::new(),
@@ -336,43 +336,6 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
             outcome.skipped.push(phase.name());
             continue;
         }
-        let verify_invocation = Invocation {
-            command: *phase,
-            check: true,
-            strict_evidence: invocation.strict_evidence,
-            run_output: None,
-            apply: false,
-            debug: false,
-            release: false,
-            workspace: invocation.workspace.clone(),
-            dry_run: false,
-            quiet: invocation.quiet,
-            verbose: invocation.verbose,
-            log_level: invocation.log_level,
-            color: invocation.color,
-            output: invocation.output,
-            reports: Vec::new(),
-            fail_on: invocation.fail_on,
-            min_coverage: invocation.min_coverage,
-            targets: invocation.targets.clone(),
-            bazel_options: invocation.bazel_options.clone(),
-            bazel_clean: false,
-            prune_unobserved: false,
-            pin: None,
-            rollback: false,
-            configured: false,
-            from: None,
-            to: None,
-            here: false,
-            serve: false,
-            port: None,
-            host: None,
-            open: false,
-            offline: false,
-            workspace_capabilities: false,
-            cases: false,
-            bazel_startup_options: invocation.bazel_startup_options.clone(),
-        };
         let code = {
             let phase_env = Env {
                 workspace: context.workspace,
@@ -389,16 +352,59 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
                 ci: context.ci,
             };
             if *phase == Command::Generate {
+                let verify_invocation = Invocation {
+                    command: *phase,
+                    check: true,
+                    strict_evidence: invocation.strict_evidence,
+                    run_output: None,
+                    apply: false,
+                    debug: false,
+                    release: false,
+                    workspace: invocation.workspace.clone(),
+                    dry_run: false,
+                    quiet: invocation.quiet,
+                    verbose: invocation.verbose,
+                    log_level: invocation.log_level,
+                    color: invocation.color,
+                    output: invocation.output,
+                    reports: Vec::new(),
+                    fail_on: invocation.fail_on,
+                    min_coverage: invocation.min_coverage,
+                    targets: invocation.targets.clone(),
+                    bazel_options: invocation.bazel_options.clone(),
+                    bazel_clean: false,
+                    prune_unobserved: false,
+                    pin: None,
+                    rollback: false,
+                    configured: false,
+                    from: None,
+                    to: None,
+                    here: false,
+                    serve: false,
+                    port: None,
+                    host: None,
+                    open: false,
+                    offline: false,
+                    workspace_capabilities: false,
+                    cases: false,
+                    bazel_startup_options: invocation.bazel_startup_options.clone(),
+                };
                 execute_generate(&verify_invocation, phase_env)
             } else {
-                execute(&verify_invocation, phase_env)
+                let request = QualityRequest::phase(
+                    invocation,
+                    *phase,
+                    OperationMode::Check,
+                    Vec::new(),
+                )?;
+                execute_request(&CommandRequest::Quality(request), phase_env)
             }
         };
         if code != 0 {
             outcome.failed_phase = Some(phase.name());
         }
     }
-    outcome
+    Ok(outcome)
 }
 
 /// Announces one fix apply whose read-only verification found drift.
@@ -507,6 +513,13 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     for phase in &UMBRELLA_PHASES {
         collector.plan(*phase);
     }
+    let phase_operation = if invocation.apply {
+        OperationMode::Apply
+    } else if invocation.dry_run {
+        OperationMode::Plan
+    } else {
+        OperationMode::Check
+    };
     let mut stop_code: Option<i32> = None;
     let mut stdout_exit: Option<i32> = None;
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate() {
@@ -539,43 +552,6 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         if let Some(capture) = sarif_capture {
             collector.require_capture(index, capture);
         }
-        let phase_invocation = Invocation {
-            command: *phase,
-            check: phase_check,
-            strict_evidence: invocation.strict_evidence,
-            run_output: None,
-            apply: invocation.apply,
-            debug: false,
-            release: false,
-            workspace: invocation.workspace.clone(),
-            dry_run: invocation.dry_run,
-            quiet: invocation.quiet,
-            verbose: invocation.verbose,
-            log_level: invocation.log_level,
-            color: invocation.color,
-            output: invocation.output,
-            reports: phase_reports,
-            fail_on: invocation.fail_on,
-            min_coverage: invocation.min_coverage,
-            targets: invocation.targets.clone(),
-            bazel_options: invocation.bazel_options.clone(),
-            bazel_clean: false,
-            prune_unobserved: false,
-            pin: None,
-            rollback: false,
-            configured: false,
-            from: None,
-            to: None,
-            here: false,
-            serve: false,
-            port: None,
-            host: None,
-            open: false,
-            offline: false,
-            workspace_capabilities: false,
-            cases: false,
-            bazel_startup_options: invocation.bazel_startup_options.clone(),
-        };
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
         let code = {
@@ -591,9 +567,55 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ci,
             };
             if *phase == Command::Generate {
+                let phase_invocation = Invocation {
+                    command: *phase,
+                    check: phase_check,
+                    strict_evidence: invocation.strict_evidence,
+                    run_output: None,
+                    apply: invocation.apply,
+                    debug: false,
+                    release: false,
+                    workspace: invocation.workspace.clone(),
+                    dry_run: invocation.dry_run,
+                    quiet: invocation.quiet,
+                    verbose: invocation.verbose,
+                    log_level: invocation.log_level,
+                    color: invocation.color,
+                    output: invocation.output,
+                    reports: phase_reports,
+                    fail_on: invocation.fail_on,
+                    min_coverage: invocation.min_coverage,
+                    targets: invocation.targets.clone(),
+                    bazel_options: invocation.bazel_options.clone(),
+                    bazel_clean: false,
+                    prune_unobserved: false,
+                    pin: None,
+                    rollback: false,
+                    configured: false,
+                    from: None,
+                    to: None,
+                    here: false,
+                    serve: false,
+                    port: None,
+                    host: None,
+                    open: false,
+                    offline: false,
+                    workspace_capabilities: false,
+                    cases: false,
+                    bazel_startup_options: invocation.bazel_startup_options.clone(),
+                };
                 execute_generate(&phase_invocation, phase_env)
             } else {
-                execute(&phase_invocation, phase_env)
+                let request = match QualityRequest::phase(
+                    invocation,
+                    *phase,
+                    phase_operation,
+                    phase_reports,
+                ) {
+                    Ok(request) => request,
+                    Err(message) => return pre_exec(err, &message),
+                };
+                execute_request(&CommandRequest::Quality(request), phase_env)
             }
         };
         collector.record_exit(index, code);
@@ -661,7 +683,10 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             nonce,
             ci,
         };
-        let verification = verify_fix(invocation, &context);
+        let verification = match verify_fix(invocation, &context) {
+            Ok(verification) => verification,
+            Err(message) => return pre_exec(err, &message),
+        };
         if let Some(failed) = verification.failed_phase {
             verification_failed = true;
             if let Err(exit) = check_stdout_write(out.write_all(&verification.out))

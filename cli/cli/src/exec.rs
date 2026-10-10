@@ -31,7 +31,7 @@ mod update;
 mod verify;
 mod workflow;
 
-use crate::args::{Command, Invocation};
+use crate::args::{Command, CommandRequest, Invocation};
 
 pub use common::Env;
 
@@ -166,7 +166,21 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         Family::Bump => bump::execute_bump(invocation, env),
         Family::Migrate => migrate::execute_migrate(invocation, env),
         Family::Docs => docs::execute_docs(invocation, env),
-        Family::Quality => quality::execute_quality(invocation, env),
+        Family::Quality => match CommandRequest::from_invocation(invocation) {
+            Ok(request) => execute_request(&request, env),
+            Err(message) => {
+                let Env { err, .. } = env;
+                common::pre_exec(err, &message)
+            }
+        },
+    }
+}
+
+/// Runs one validated command request. Families migrate onto their own
+/// request variant one at a time; only quality has landed so far.
+pub(crate) fn execute_request(request: &CommandRequest, env: Env<'_>) -> i32 {
+    match request {
+        CommandRequest::Quality(quality) => quality::execute_quality(quality, env),
     }
 }
 

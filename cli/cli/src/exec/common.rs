@@ -307,8 +307,20 @@ pub(crate) fn operational(
     code: &str,
     message: &str,
 ) -> i32 {
+    operational_output(invocation.output, out, err, code, message)
+}
+
+/// Reports one operational failure with only the output policy it needs, so
+/// typed requests that carry no invocation can still fail the same way.
+pub(crate) fn operational_output(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    code: &str,
+    message: &str,
+) -> i32 {
     let _ = writeln!(err, "dx: {code}: {message}");
-    if invocation.output == OutputMode::Json {
+    if output == OutputMode::Json {
         if let Ok(event) = dx_output::error_event(code, message, None, None, None) {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
@@ -364,11 +376,25 @@ pub(crate) fn run_bazel(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
+    run_bazel_output(invocation.output, out, err, workspace, runner, argv, env)
+}
+
+/// Runs one Bazel argv with only the output policy it needs, so typed
+/// requests that carry no invocation launch the same way.
+pub(crate) fn run_bazel_output(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    env: &[(&str, &str)],
+) -> Result<i32, i32> {
     let status = match runner.run(argv, workspace, env) {
         Ok(status) => status,
         Err(error) => {
-            return Err(operational(
-                invocation,
+            return Err(operational_output(
+                output,
                 out,
                 err,
                 CODE_LAUNCH_FAILED,
@@ -378,8 +404,8 @@ pub(crate) fn run_bazel(
     };
     match status.code {
         Some(code) => Ok(code),
-        None => Err(operational(
-            invocation,
+        None => Err(operational_output(
+            output,
             out,
             err,
             CODE_BAZEL_SIGNALLED,

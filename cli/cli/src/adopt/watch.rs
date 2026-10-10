@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use dx_adopt::AdoptError;
 
-use crate::args::{Command, Invocation};
+use crate::args::{Command, CommandRequest, Invocation};
 use crate::exec::common::check_stdout_write;
 use crate::exec::Env;
 
@@ -62,6 +62,26 @@ fn watch(
     let mut iteration = invocation.clone();
     iteration.command = command;
     iteration.targets = scopes.to_vec();
+    if command.is_quality() {
+        let request = match CommandRequest::from_invocation(&iteration) {
+            Ok(request) => request,
+            Err(message) => return pre_exec(&mut err, &message),
+        };
+        return crate::exec::execute_request(
+            &request,
+            Env {
+                workspace,
+                runner,
+                query_runner,
+                temp_dir,
+                pid,
+                nonce,
+                out: &mut out,
+                err: &mut err,
+                ci,
+            },
+        );
+    }
     let mut round = 0u32;
     loop {
         round += 1;

@@ -47,6 +47,30 @@ pub fn plan_upgrade(from: &str, to: &str) -> Result<UpgradePlan, AdoptError> {
     Ok(plan)
 }
 
+pub fn plan_qualified_upgrade(
+    from: &str,
+    to: &str,
+    qualified: &[(&str, &str)],
+) -> Result<UpgradePlan, AdoptError> {
+    let migrate = super::plan_qualified_migrate(from, to, qualified)?;
+    let retry_command = upgrade_retry_command(from, to);
+    let restore_command = upgrade_restore_command_for(from);
+    let mut plan = UpgradePlan {
+        from: from.to_owned(),
+        to: to.to_owned(),
+        manifest: migrate.manifest,
+        retry_command,
+        restore_command,
+        message: String::new(),
+    };
+    plan.message = upgrade_recovery_message(&plan);
+    Ok(plan)
+}
+
+pub fn plan_released_upgrade(from: &str, to: &str) -> Result<UpgradePlan, AdoptError> {
+    plan_qualified_upgrade(from, to, super::migrate::QUALIFIED_MIGRATIONS)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,5 +118,22 @@ mod tests {
         assert!(message.contains("rerun"));
         assert!(message.contains("dx version --pin 1.2.3"));
         assert!(!message.contains("git checkout"));
+    }
+
+    #[test]
+    fn upgrade_qualification_needs_a_shipped_pair() {
+        let table = [("1.2.3", "2.0.0")];
+        let plan = plan_qualified_upgrade("1.2.3", "2.0.0", &table).expect("listed pair plans");
+        assert_eq!(plan.manifest, "migrate-v1-to-v2.json");
+        assert!(plan.message.contains("dx upgrade --from 1.2.3 --to 2.0.0"));
+        let empty: &[(&str, &str)] = &[];
+        let missing = plan_qualified_upgrade("1.2.3", "2.0.0", empty).unwrap_err();
+        assert_eq!(
+            missing.to_string(),
+            "no qualified migration 1.2.3 -> 2.0.0: manifest migrate-v1-to-v2.json is not shipped"
+        );
+        assert!(plan_qualified_upgrade("2.0.0", "1.0.0", &table).is_err());
+        let released = plan_released_upgrade("1.2.3", "2.0.0").unwrap_err();
+        assert_eq!(released.to_string(), missing.to_string());
     }
 }

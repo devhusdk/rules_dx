@@ -42,6 +42,31 @@ pub struct MigratePlan {
     pub manifest: String,
 }
 
+pub static QUALIFIED_MIGRATIONS: &[(&str, &str)] = &[];
+
+pub fn plan_qualified_migrate(
+    from: &str,
+    to: &str,
+    qualified: &[(&str, &str)],
+) -> Result<MigratePlan, AdoptError> {
+    let plan = plan_migrate(from, to)?;
+    if !qualified
+        .iter()
+        .any(|(known_from, known_to)| *known_from == plan.from && *known_to == plan.to)
+    {
+        return Err(AdoptError::NoQualifiedManifest {
+            from: plan.from.clone(),
+            to: plan.to.clone(),
+            manifest: plan.manifest.clone(),
+        });
+    }
+    Ok(plan)
+}
+
+pub fn plan_released_migrate(from: &str, to: &str) -> Result<MigratePlan, AdoptError> {
+    plan_qualified_migrate(from, to, QUALIFIED_MIGRATIONS)
+}
+
 pub fn plan_migrate(from: &str, to: &str) -> Result<MigratePlan, AdoptError> {
     if from.is_empty() || to.is_empty() {
         return Err(AdoptError::MigrateVersions {
@@ -178,5 +203,36 @@ mod tests {
         assert!(!migrate_is_upgrade("2.0.0-alpha.1", "1.9.9"));
         let skip = plan_migrate("1.0.0", "3.0.0").expect("multi-hop plans single");
         assert_eq!(skip.manifest, "migrate-v1-to-v3.json");
+    }
+
+    #[test]
+    fn migrate_qualification_needs_a_shipped_pair() {
+        let table = [("1.2.3", "2.0.0")];
+        let plan = plan_qualified_migrate("1.2.3", "2.0.0", &table).expect("listed pair plans");
+        assert_eq!(plan.manifest, "migrate-v1-to-v2.json");
+        let missing = plan_qualified_migrate("1.2.3", "1.3.0", &table).unwrap_err();
+        assert_eq!(
+            missing.to_string(),
+            "no qualified migration 1.2.3 -> 1.3.0: manifest migrate-v1.2.3-to-v1.3.0.json is not shipped"
+        );
+        let empty: &[(&str, &str)] = &[];
+        let missing = plan_qualified_migrate("1.2.3", "2.0.0", empty).unwrap_err();
+        assert_eq!(
+            missing.to_string(),
+            "no qualified migration 1.2.3 -> 2.0.0: manifest migrate-v1-to-v2.json is not shipped"
+        );
+        assert!(plan_qualified_migrate("2.0.0", "1.0.0", &table).is_err());
+        assert!(plan_qualified_migrate("abc", "2.0.0", &table).is_err());
+    }
+
+    #[test]
+    fn migrate_released_table_is_empty_before_first_release() {
+        assert!(QUALIFIED_MIGRATIONS.is_empty());
+        let missing = plan_released_migrate("1.2.3", "2.0.0").unwrap_err();
+        assert_eq!(
+            missing.to_string(),
+            "no qualified migration 1.2.3 -> 2.0.0: manifest migrate-v1-to-v2.json is not shipped"
+        );
+        assert!(plan_released_migrate("2.0.0", "1.0.0").is_err());
     }
 }

@@ -44,15 +44,19 @@ dx version [--check] [--apply] [--pin <version>|--rollback]
 ```
 
 Prints the version. Checks by default; `--apply` authorizes `--pin` and
-`--rollback`.
+`--rollback`. Bare `dx version` also prints the `rules_dx` dependency the
+workspace declares, including any override and its source.
 
 - `--check`: verify the pin without changing it.
-- `--pin <version>` with `--apply`: re-pin to this version.
-- `--rollback` with `--apply`: restore the last pin. Conflicts with `--pin`.
+- `--pin <version>` with `--apply`: re-pin to this version. Records the
+previous pin for `--rollback`.
+- `--rollback` with `--apply`: restore the last recorded pin. Conflicts
+with `--pin`. Refuses without a record, after manual pin edits, or after
+the record is deleted.
 Flags: `--check`, `--apply`, `--pin`, `--rollback`, `--dry-run`.
 Scopes: none.
 
-Output: `--output text|json`.
+Output: `--output text|json`. Bare JSON adds a `dependency` status event.
 
 Exit codes: `0` success, `2` usage errors including conflicting flags, `1`
 pin drift or a refused pin.

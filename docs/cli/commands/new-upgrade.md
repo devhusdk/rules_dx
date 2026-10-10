@@ -94,7 +94,7 @@ dx upgrade [--apply] --from <version> --to <version> [--dry-run]
 Runs pin, migrate, and setup in one go with a recovery pointer. Checks by
 default; `--apply` upgrades. Both
 versions are required. `--dry-run` prints the plan without writing files.
-No manifests exist yet, so check and apply fail closed.
+No manifests exist yet, so dry-run, check, and apply fail closed.
 Flags: `--from <version> --to <version>`, `--apply`, `--dry-run`.
 Scopes: none.
 

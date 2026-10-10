@@ -3,6 +3,7 @@ use super::real_fixtures::*;
 use super::*;
 use crate::run_convergence;
 use quality_adapter::parsers;
+use quality_result::encode_validated;
 use quality_result::proto::Convergence;
 use quality_result::MAX_COMPLETED_ROUNDS;
 
@@ -210,6 +211,144 @@ fn taplo_fix_rewrites_the_file() {
         .apply_fix("taplo", "a.toml", "a=1\n", "lint")
         .expect("fixed");
     assert_eq!(fixed, "a = 1\n");
+}
+
+#[test]
+fn keep_sorted_lint_reports_and_fix_sorts() {
+    let backend = backend_for("keep_sorted", plain_tool(), keep_sorted_behavior);
+    let findings = backend
+        .diagnose(
+            "keep_sorted",
+            "lint",
+            &single("notes.txt", KEEP_SORTED_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "keep_sorted");
+    assert_eq!(findings[0].message, KEEP_SORTED_MESSAGE);
+    assert_eq!(findings[0].path, "notes.txt");
+    assert_eq!(
+        (findings[0].start_byte, findings[0].end_byte),
+        (Some(20), Some(20))
+    );
+    assert!(!findings[0].fixable);
+    assert!(backend
+        .diagnose(
+            "keep_sorted",
+            "lint",
+            &single("notes.txt", KEEP_SORTED_CLEAN)
+        )
+        .expect("diagnosed")
+        .is_empty());
+    let fixed = backend
+        .apply_fix("keep_sorted", "notes.txt", KEEP_SORTED_DIRTY, "lint")
+        .expect("fixed");
+    assert_eq!(fixed, KEEP_SORTED_CLEAN);
+    assert!(backend
+        .diagnose("keep_sorted", "lint", &single("notes.txt", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn keep_sorted_lint_pipeline_fixes_dirty_files_to_stable() {
+    let backend = backend_for("keep_sorted", plain_tool(), keep_sorted_behavior);
+    let stages = vec![stage("keep_sorted", &["text"], &["notes.txt"])];
+    let files = vec![file("notes.txt", KEEP_SORTED_DIRTY)];
+    let result = run_real_pipeline("//quality:test", "lint", &stages, &files, &backend)
+        .expect("real pipeline");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert_eq!(result.completed_rounds, 2);
+    assert_eq!(result.initial_diagnostics.len(), 1);
+    assert_eq!(result.initial_diagnostics[0].tool_id, "keep_sorted");
+    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.replacements.len(), 1);
+    assert_eq!(result.replacements[0].path, "notes.txt");
+    assert!(encode_validated(&result).is_ok());
+}
+
+fn keep_sorted_empty_exit(
+    _argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn keep_sorted_garbage(
+    _argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"not json".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn keep_sorted_elsewhere(
+    _argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"[{\"path\":\"/elsewhere/notes.txt\",\"lines\":{\"start\":2,\"end\":4},\"message\":\"These lines are out of order.\"}]".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn keep_sorted_delegated_fix_is_check_only() {
+    let fixture = upstream_file("keep-sorted-fix", "notes.txt:4: block is not sorted\n");
+    let path = fixture.path().to_path_buf();
+    let backend = backend_for("keep_sorted", delegated_tool(path.clone()), no_spawn);
+    let findings = backend
+        .diagnose(
+            "keep_sorted",
+            "lint",
+            &single("notes.txt", KEEP_SORTED_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    let patched = backend
+        .apply_fix("keep_sorted", "notes.txt", KEEP_SORTED_DIRTY, "lint")
+        .expect("check-only keeps input");
+    std::fs::remove_file(&path).expect("remove upstream fixture");
+    assert_eq!(patched, KEEP_SORTED_DIRTY);
+}
+
+#[test]
+fn keep_sorted_direct_failures_fail_the_action() {
+    for spawn in [
+        keep_sorted_empty_exit,
+        keep_sorted_garbage,
+        keep_sorted_elsewhere,
+    ] {
+        let backend = backend_for("keep_sorted", plain_tool(), spawn);
+        let err = backend
+            .diagnose(
+                "keep_sorted",
+                "lint",
+                &single("notes.txt", KEEP_SORTED_DIRTY),
+            )
+            .expect_err("direct failure fails");
+        assert!(
+            matches!(
+                err,
+                RunnerError::ToolOutput { .. } | RunnerError::UnplaceableFinding { .. }
+            ),
+            "unexpected error: {err}"
+        );
+    }
 }
 
 #[test]

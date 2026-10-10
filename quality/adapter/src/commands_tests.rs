@@ -950,7 +950,11 @@ fn file_family_lint_checks_are_check_only() {
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
         argv_strings(&keep_sorted_check(Path::new(BIN), &[txt])),
-        vec![BIN, "/scratch/notes.txt"]
+        vec![BIN, "--mode", "lint", "/scratch/notes.txt"]
+    );
+    assert_eq!(
+        argv_strings(&keep_sorted_fix(Path::new(BIN), &[txt])),
+        vec![BIN, "--mode", "fix", "/scratch/notes.txt"]
     );
 }
 
@@ -971,6 +975,10 @@ fn fixed_args_match_recorded_invocations() {
         ),
         (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file])),
         (SHELLCHECK_ARGS, shellcheck_check(Path::new(BIN), &[file])),
+        (
+            KEEP_SORTED_CHECK_ARGS,
+            keep_sorted_check(Path::new(BIN), &[file]),
+        ),
     ];
     for (args, invocation) in cases {
         let mut expected = vec![BIN.to_owned()];

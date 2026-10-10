@@ -96,7 +96,7 @@ fn parse(argv: &[String]) -> (Flags, Vec<String>) {
             continue;
         }
         match arg.as_str() {
-            "--config" | "--config-path" => skip_next = true,
+            "--config" | "--config-path" | "--mode" => skip_next = true,
             "--check" => flags.check = true,
             "--diff" | "-d" => flags.diff = true,
             "--reformat" => {
@@ -295,14 +295,137 @@ fn emit_diff(file: &str, header: Header) {
     );
 }
 
+/// The first unsorted `# keep-sorted` block, with 1-based bounds, mirroring the real tool.
+fn unsorted_block(text: &str) -> Option<(u64, u64)> {
+    let mut block: Vec<(u64, &str)> = Vec::new();
+    let mut in_block = false;
+    let check = |block: &mut Vec<(u64, &str)>| -> Option<(u64, u64)> {
+        if block.is_empty() {
+            return None;
+        }
+        let mut ordered: Vec<&str> = block.iter().map(|(_, line)| *line).collect();
+        ordered.sort_unstable();
+        let dirty = block.iter().map(|(_, line)| *line).collect::<Vec<_>>() != ordered;
+        if !dirty {
+            return None;
+        }
+        Some((
+            block.first().map(|(number, _)| *number).unwrap_or(1),
+            block.last().map(|(number, _)| *number).unwrap_or(1),
+        ))
+    };
+    for (index, line) in text.lines().enumerate() {
+        let number = index as u64 + 1;
+        if line.starts_with("# keep-sorted") {
+            if line.contains("start") {
+                in_block = true;
+                block.clear();
+            } else if line.contains("end") {
+                in_block = false;
+                if let Some(found) = check(&mut block) {
+                    return Some(found);
+                }
+                block.clear();
+            }
+            continue;
+        }
+        if in_block {
+            block.push((number, line));
+        }
+    }
+    None
+}
+
+fn sort_blocks(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut block: Vec<&str> = Vec::new();
+    let mut in_block = false;
+    for line in text.lines() {
+        if line.starts_with("# keep-sorted") {
+            if line.contains("start") {
+                in_block = true;
+                block.clear();
+            } else if line.contains("end") {
+                in_block = false;
+                let mut ordered = std::mem::take(&mut block);
+                ordered.sort_unstable();
+                for sorted in &ordered {
+                    out.push_str(sorted);
+                    out.push('\n');
+                }
+            }
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        if in_block {
+            block.push(line);
+        } else {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// The pinned keep-sorted protocol: `--mode lint` reports JSON findings with exit 1,
+/// `--mode fix` sorts blocks in place with exit 0, and clean input stays silent.
+fn run_keep_sorted(mode: &str, files: &[String]) -> i32 {
+    if mode == "lint" {
+        let mut findings = Vec::new();
+        for file in files {
+            let text = match std::fs::read_to_string(file) {
+                Ok(text) => text,
+                Err(_) => return 1,
+            };
+            if let Some((start, end)) = unsorted_block(&text) {
+                findings.push(format!(
+                    "{{\"path\": \"{}\", \"lines\": {{\"start\": {start}, \"end\": {end}}}, \"message\": \"These lines are out of order.\", \"fixes\": []}}",
+                    json_escape(file)
+                ));
+            }
+        }
+        if findings.is_empty() {
+            return 0;
+        }
+        println!("[{}]", findings.join(", "));
+        return 1;
+    }
+    if mode == "fix" {
+        for file in files {
+            let text = match std::fs::read_to_string(file) {
+                Ok(text) => text,
+                Err(_) => return 1,
+            };
+            if std::fs::write(file, sort_blocks(&text)).is_err() {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    eprintln!("unknown keep-sorted mode: {mode}");
+    2
+}
+
 pub fn run(argv: &[String]) -> i32 {
     let cwd = match std::env::current_dir() {
         Ok(cwd) => cwd,
         Err(_) => return 2,
     };
+    let mut mode: Option<&str> = None;
+    let mut index = 1;
+    while index < argv.len() {
+        if argv[index] == "--mode" && index + 1 < argv.len() {
+            mode = Some(argv[index + 1].as_str());
+        }
+        index += 1;
+    }
     let (flags, files) = parse(argv);
     if files.is_empty() {
         return 0;
+    }
+    if let Some(mode) = mode {
+        return run_keep_sorted(mode, &files);
     }
     let ext = extension_of(&files[0]);
     if wants_fix(ext, &flags) {
@@ -511,6 +634,25 @@ mod tests {
         assert_eq!(json_escape("a\"b.py"), "a\\\"b.py");
         assert_eq!(json_escape("a\nb"), "a\\nb");
         assert_eq!(json_escape("plain/a.py"), "plain/a.py");
+    }
+
+    /// keep-sorted only reads marked blocks: unmarked text stays clean and the first
+    /// unsorted block wins, the way the pinned binary reports one finding per block.
+    #[test]
+    fn keep_sorted_blocks_report_their_own_line_range() {
+        assert_eq!(unsorted_block("c\nb\na\n"), None);
+        assert_eq!(
+            unsorted_block("# keep-sorted start\nc\nb\na\n# keep-sorted end\n"),
+            Some((2, 4))
+        );
+        assert_eq!(
+            unsorted_block("# keep-sorted start\na\nb\nc\n# keep-sorted end\n"),
+            None
+        );
+        assert_eq!(
+            sort_blocks("# keep-sorted start\nc\nb\na\n# keep-sorted end\n"),
+            "# keep-sorted start\na\nb\nc\n# keep-sorted end\n"
+        );
     }
 
     /// `Mode::Relpath` and `Mode::ListedRel` print paths the runner matches against its own

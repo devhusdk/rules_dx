@@ -956,6 +956,7 @@ _FAKE_FORMAT_TOOLS = [
     "fantomas",
     "gofumpt",
     "jsonnetfmt",
+    "keep_sorted",
     "modfmt",
     "pkl",
     "prettier_file_family",

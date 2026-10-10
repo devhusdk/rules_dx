@@ -510,23 +510,23 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_text_lint_pass",
         "generated": {
-            "matrix/keep_sorted_clean.txt": "a\nb\nc\n",
+            "matrix/keep_sorted_clean.txt": "# keep-sorted start\na\nb\nc\n# keep-sorted end\n",
         },
         "capability": "lint",
         "stages": ["keep_sorted;text;matrix/keep_sorted_clean.txt"],
-        "upstream_tools": ["keep_sorted"],
-        "upstream_srcs": [":matrix/matrix_text_lint_pass.upstream.keep_sorted.txt"],
+        "tool_names": ["keep_sorted"],
+        "tool_binaries": ["//quality/testdata:fake_keep_sorted"],
         "expected_file": ":matrix/matrix_text_lint_pass.expected.txt",
     },
     {
         "name": "matrix_text_lint_fail",
         "generated": {
-            "matrix/keep_sorted_dirty.txt": "c\nb\na\nd\n",
+            "matrix/keep_sorted_dirty.txt": "# keep-sorted start\nc\nb\na\n# keep-sorted end\n",
         },
         "capability": "lint",
         "stages": ["keep_sorted;text;matrix/keep_sorted_dirty.txt"],
-        "upstream_tools": ["keep_sorted"],
-        "upstream_srcs": [":matrix/matrix_text_lint_fail.upstream.keep_sorted.txt"],
+        "tool_names": ["keep_sorted"],
+        "tool_binaries": ["//quality/testdata:fake_keep_sorted"],
         "expected_file": ":matrix/matrix_text_lint_fail.expected.txt",
     },
 ]

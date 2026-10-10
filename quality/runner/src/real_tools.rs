@@ -187,6 +187,90 @@ fn check_ok_fix_poisons(
 }
 
 #[test]
+fn keep_sorted_reports_json_and_fix_sorts_the_block() {
+    let backend = backend_for("keep_sorted", plain_tool(), roundtrip_keep_sorted);
+    let dirty = "# keep-sorted start\nc\nb\na\n# keep-sorted end\n";
+    let findings = backend
+        .diagnose("keep_sorted", "lint", &single("notes.txt", dirty))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "keep_sorted");
+    assert_eq!(findings[0].path, "notes.txt");
+    assert_eq!(findings[0].message, "These lines are out of order.");
+    assert_eq!(
+        (findings[0].start_byte, findings[0].end_byte),
+        (Some(20), Some(24))
+    );
+    let repeat = backend
+        .diagnose("keep_sorted", "lint", &single("notes.txt", dirty))
+        .expect("diagnosed");
+    assert_eq!(repeat.len(), 1, "the check leaves the staged bytes alone");
+    let fixed = backend
+        .apply_fix("keep_sorted", "notes.txt", dirty, "lint")
+        .expect("fixed");
+    assert_eq!(fixed, "# keep-sorted start\na\nb\nc\n# keep-sorted end\n");
+    assert!(backend
+        .diagnose("keep_sorted", "lint", &single("notes.txt", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn keep_sorted_clean_check_passes_with_no_findings() {
+    let backend = backend_for("keep_sorted", plain_tool(), roundtrip_keep_sorted);
+    assert!(backend
+        .diagnose(
+            "keep_sorted",
+            "lint",
+            &single(
+                "notes.txt",
+                "# keep-sorted start\na\nb\nc\n# keep-sorted end\n"
+            )
+        )
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn keep_sorted_fix_failure_keeps_original_text() {
+    let backend = backend_for("keep_sorted", plain_tool(), fatal_fix);
+    let text = "# keep-sorted start\nc\nb\na\n# keep-sorted end\n";
+    assert_eq!(
+        backend
+            .apply_fix("keep_sorted", "notes.txt", text, "lint")
+            .expect("failed fix keeps text"),
+        text
+    );
+}
+
+fn keep_sorted_garbage(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let _ = last_file(argv);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"not json\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn keep_sorted_output_failure_aborts_diagnose() {
+    let backend = backend_for("keep_sorted", plain_tool(), keep_sorted_garbage);
+    let err = backend
+        .diagnose(
+            "keep_sorted",
+            "lint",
+            &single("notes.txt", "# keep-sorted start\nc\n# keep-sorted end\n"),
+        )
+        .expect_err("parse fails");
+    assert!(matches!(err, RunnerError::ToolOutput { .. }));
+}
+
+#[test]
 fn production_constructor_resolves_tools() {
     let tools = BTreeMap::from([("rustfmt".to_owned(), plain_tool())]);
     let backend = RealBackend::new(tools, std::env::temp_dir());

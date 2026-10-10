@@ -157,6 +157,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "fantomas",
         "gofumpt",
         "jsonnetfmt",
+        "keep_sorted",
         "ktlint",
         "modfmt",
         "pkl",

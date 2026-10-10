@@ -148,6 +148,11 @@ const FIX_SPECS: &[FixSpec] = &[
         keep_exit_one: false,
     },
     FixSpec {
+        tool: "keep_sorted",
+        config: FixConfig::None,
+        keep_exit_one: false,
+    },
+    FixSpec {
         tool: "standardrb",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -188,7 +193,7 @@ impl super::RealBackend {
             | "clippy" | "scalafix" | "roslyn" | "fsharplint" | "checkstyle" | "pmd"
             | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"
             | "errcheck" | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint"
-            | "shellcheck" | "keep_sorted" => Ok(text.to_owned()),
+            | "shellcheck" => Ok(text.to_owned()),
             "buf" | "djlint" | "biome" | "prettier" => {
                 if capability == "format" {
                     self.run_spec_fix(tool_id, tool, path, text, true)
@@ -335,6 +340,7 @@ impl super::RealBackend {
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
+                "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
                 "standardrb" => Ok(commands::standardrb_fix(&tool.binary, refs)),
                 "djlint" => Ok(commands::djlint_format_fix(&tool.binary, refs)),
                 _ => Err(execution(

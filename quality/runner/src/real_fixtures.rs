@@ -713,6 +713,125 @@ pub(super) fn roundtrip_ty(
     })
 }
 
+fn sorted_block_range(text: &str) -> Option<(u64, u64, Vec<String>)> {
+    let mut block: Vec<(u64, String)> = Vec::new();
+    let mut in_block = false;
+    let check = |block: &mut Vec<(u64, String)>| -> Option<(u64, u64, Vec<String>)> {
+        if block.is_empty() {
+            return None;
+        }
+        let mut ordered: Vec<String> = block.iter().map(|(_, line)| line.clone()).collect();
+        ordered.sort();
+        let dirty = block
+            .iter()
+            .map(|(_, line)| line.clone())
+            .collect::<Vec<_>>()
+            != ordered;
+        if !dirty {
+            return None;
+        }
+        let start = block.first().map(|(number, _)| *number).unwrap_or(1);
+        let end = block.last().map(|(number, _)| *number).unwrap_or(start);
+        Some((start, end, ordered))
+    };
+    for (index, line) in text.lines().enumerate() {
+        let number = index as u64 + 1;
+        if line.starts_with("# keep-sorted") {
+            if line.contains("start") {
+                in_block = true;
+                block.clear();
+            } else if line.contains("end") {
+                in_block = false;
+                if let Some(found) = check(&mut block) {
+                    return Some(found);
+                }
+                block.clear();
+            }
+            continue;
+        }
+        if in_block {
+            block.push((number, line.to_owned()));
+        }
+    }
+    None
+}
+
+fn sort_keep_sorted_blocks(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut block: Vec<String> = Vec::new();
+    let mut in_block = false;
+    for line in text.lines() {
+        if line.starts_with("# keep-sorted") {
+            if line.contains("start") {
+                in_block = true;
+                block.clear();
+            } else if line.contains("end") {
+                in_block = false;
+                let mut ordered = std::mem::take(&mut block);
+                ordered.sort();
+                for sorted in &ordered {
+                    out.push_str(sorted);
+                    out.push('\n');
+                }
+            }
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        if in_block {
+            block.push(line.to_owned());
+        } else {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+pub(super) fn roundtrip_keep_sorted(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let bytes = std::fs::read(&file).expect("checked file is materialized");
+    let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+    if argv.iter().any(|arg| arg == "lint") {
+        assert!(
+            argv.iter().any(|arg| arg == "--mode"),
+            "keep_sorted checks spell the lint mode"
+        );
+        if let Some((start, end, _)) = sorted_block_range(&text) {
+            let stdout = format!(
+                "[{{\"path\":\"{}\",\"lines\":{{\"start\":{start},\"end\":{end}}},\"message\":\"These lines are out of order.\",\"fixes\":[]}}]",
+                json_escape(&file)
+            );
+            return Ok(ChildOutput {
+                code: Some(1),
+                stdout: stdout.into_bytes(),
+                stderr: Vec::new(),
+            });
+        }
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    assert!(
+        argv.iter().any(|arg| arg == "fix"),
+        "keep_sorted applies the fix mode"
+    );
+    let fixed = sort_keep_sorted_blocks(&text);
+    std::fs::write(&file, fixed).expect("fix writes back");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn roundtrip_pydoclint(
     argv: &[OsString],
     _cwd: &Path,

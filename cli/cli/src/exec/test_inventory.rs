@@ -49,6 +49,71 @@ fn inventory_expression(scope: &str) -> String {
     format!("tests({scope})")
 }
 
+fn is_single_label(scope: &str) -> bool {
+    scope.starts_with("//") && !scope.contains("...") && !scope.contains('*')
+}
+
+fn alias_kind_expression(scope: &str) -> String {
+    format!("kind('alias rule', {scope})")
+}
+
+fn alias_actual_tests_expression(scope: &str) -> String {
+    format!("tests(labels('actual', kind('alias rule', {scope})))")
+}
+
+fn unconfigured_query_argv(startup: &[String], expr: &str) -> Vec<String> {
+    let mut argv = dx_process::startup_argv(startup);
+    argv.push("query".to_owned());
+    argv.push("--".to_owned());
+    argv.push(expr.to_owned());
+    argv
+}
+
+fn run_unconfigured_query(
+    ctx: &Ctx,
+    expr: &str,
+) -> Result<Vec<String>, (String, String)> {
+    let argv = unconfigured_query_argv(&ctx.invocation.bazel_startup_options, expr);
+    let result = ctx
+        .query_runner
+        .run_query(&argv, ctx.workspace)
+        .map_err(|error| (CODE_QUERY_FAILED.to_owned(), error.to_string()))?;
+    if result.code != Some(0) {
+        return Err((
+            CODE_QUERY_FAILED.to_owned(),
+            format!(
+                "query failed: bazel query {expr} exited with code {} ({})",
+                result.code.unwrap_or(-1),
+                first_line(&result.stderr)
+            ),
+        ));
+    }
+    let text =
+        std::str::from_utf8(&result.stdout).map_err(|_| (CODE_QUERY_FAILED.to_owned(), "query output is not UTF-8".to_owned()))?;
+    let mut labels: Vec<String> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(ToString::to_string)
+        .collect();
+    labels.sort();
+    labels.dedup();
+    Ok(labels)
+}
+
+fn resolve_alias_scope(ctx: &Ctx, scope: &str) -> Result<Option<(String, String, String)>, (String, String)> {
+    if !is_single_label(scope) {
+        return Ok(None);
+    }
+    if run_unconfigured_query(ctx, &alias_kind_expression(scope))?.is_empty() {
+        return Ok(None);
+    }
+    if run_unconfigured_query(ctx, &alias_actual_tests_expression(scope))?.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(("alias".to_owned(), scope.to_owned(), scope.to_owned())))
+}
+
 fn query_argv(selection: &SelectionContext, verb: &str, expr: &str) -> Result<Vec<String>, String> {
     selection
         .selection_argv(verb, &["--output=label_kind".to_owned()], expr)
@@ -185,7 +250,14 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
         match run_inventory_query(&ctx, &expr) {
             Ok(found) => {
                 if found.is_empty() {
-                    empty_scopes.push(scope.clone());
+                    match resolve_alias_scope(&ctx, scope) {
+                        Ok(Some(pair)) => pairs.push(pair),
+                        Ok(None) => empty_scopes.push(scope.clone()),
+                        Err((code, detail)) => {
+                            return operational(ctx.invocation, ctx.out, ctx.err, &code, &detail);
+                        }
+                    }
+                    continue;
                 }
                 for (kind, label) in found {
                     pairs.push((kind, label, scope.clone()));
@@ -590,6 +662,46 @@ mod tests {
         let (code, _, err) = harness.run(&["tests", "//..."]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_failed"), "{err}");
+    }
+
+    #[test]
+    fn inventory_lists_alias_label_when_actual_is_a_test() {
+        let harness = Harness::new("tests-alias");
+        script_output(&harness.query, "\n");
+        script_output(&harness.query, "//app:verify_alias\n");
+        script_output(&harness.query, "//app:verify\n");
+        let (code, out, err) = harness.run(&["tests", "//app:verify_alias"]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "//app:verify_alias\n");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 3, "{calls:?}");
+        assert_eq!(calls[1].last().expect("probe"), "kind('alias rule', //app:verify_alias)");
+        assert_eq!(
+            calls[2].last().expect("actual"),
+            "tests(labels('actual', kind('alias rule', //app:verify_alias)))"
+        );
+    }
+
+    #[test]
+    fn inventory_alias_to_non_test_is_no_tests() {
+        let harness = Harness::new("tests-alias-non-test");
+        script_output(&harness.query, "\n");
+        script_output(&harness.query, "//app:launcher_alias\n");
+        script_output(&harness.query, "\n");
+        let (code, _, err) = harness.run(&["tests", "//app:launcher_alias"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("no_tests"), "{err}");
+    }
+
+    #[test]
+    fn inventory_empty_single_label_probes_alias_once() {
+        let harness = Harness::new("tests-empty-label");
+        script_output(&harness.query, "\n");
+        script_output(&harness.query, "\n");
+        let (code, _, err) = harness.run(&["tests", "//app:plain"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("no_tests"), "{err}");
+        assert_eq!(harness.query.calls.borrow().len(), 2);
     }
 
     #[test]

@@ -99,7 +99,7 @@ pub enum ResolveError {
     )]
     NoTests { owners: Vec<String> },
     #[error(
-        "no executable target owns {scopes}: add a *_binary rule owning the file or pass an explicit runnable label",
+        "no executable target owns {scopes}: add an executable rule owning the file or pass an explicit runnable label",
         scopes = scopes.join(" ")
     )]
     NoRunnable { scopes: Vec<String> },

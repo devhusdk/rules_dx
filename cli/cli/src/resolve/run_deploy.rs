@@ -3,17 +3,72 @@ use std::path::Path;
 use super::classify::classify_scopes;
 use super::classify::resolve_file_owners;
 use super::packages::PackageCache;
-use super::{first_line, quote_set, run_label_query, QueryRunner, ResolveError};
+use super::{first_line, quote_set, QueryRunner, ResolveError};
 
-fn runnable_set_expression(labels: &[String]) -> String {
-    format!(
-        "kind('.*_binary rule', rdeps(//..., set({}), 1))",
-        quote_set(labels)
-    )
+fn run_candidates_expression(labels: &[String]) -> String {
+    format!("kind('.* rule', rdeps(//..., set({}), 1))", quote_set(labels))
 }
 
-fn dir_runnable_expression(pattern: &str) -> String {
-    format!("kind('.*_binary rule', {pattern})")
+fn dir_candidates_expression(pattern: &str) -> String {
+    format!("kind('.* rule', {pattern})")
+}
+
+fn executable_starlark_expr() -> String {
+    "str(target.label) if target.files_to_run.executable != None and not target.files_to_run.executable.is_source else ''".to_owned()
+}
+
+fn executable_discovery_argv(broad: &str, startup_options: &[String]) -> Vec<String> {
+    let mut argv = dx_process::startup_argv(startup_options);
+    argv.push("cquery".to_owned());
+    argv.push("--output=starlark".to_owned());
+    argv.push(format!("--starlark:expr={}", executable_starlark_expr()));
+    argv.push("--".to_owned());
+    argv.push(broad.to_owned());
+    argv
+}
+
+fn normalize_cquery_label(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Some(rest) = trimmed.strip_prefix("@@//") {
+        return Some(format!("//{rest}"));
+    }
+    Some(trimmed.to_owned())
+}
+
+fn parse_executables(stdout: &[u8], broad: &str) -> Result<Vec<String>, ResolveError> {
+    let text = std::str::from_utf8(stdout).map_err(|_| ResolveError::QueryFailed {
+        label: broad.to_owned(),
+        detail: "query output is not UTF-8".to_owned(),
+    })?;
+    let mut targets: Vec<String> = text.lines().filter_map(normalize_cquery_label).collect();
+    targets.sort();
+    targets.dedup();
+    Ok(targets)
+}
+
+pub(crate) fn run_executable_query(
+    broad: &str,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    startup_options: &[String],
+) -> Result<Vec<String>, ResolveError> {
+    let argv = executable_discovery_argv(broad, startup_options);
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| ResolveError::QueryFailed {
+            label: broad.to_owned(),
+            detail: error.to_string(),
+        })?;
+    if result.code != Some(0) {
+        return Err(ResolveError::QueryFailed {
+            label: broad.to_owned(),
+            detail: first_line(&result.stderr),
+        });
+    }
+    parse_executables(&result.stdout, broad)
 }
 
 fn is_run_pattern(label: &str) -> bool {
@@ -38,8 +93,8 @@ pub fn resolve_run(
         let mut targets: Vec<String> = Vec::new();
         for label in &classified.labels {
             if is_run_pattern(label) {
-                targets.extend(run_label_query(
-                    &dir_runnable_expression(label),
+                targets.extend(run_executable_query(
+                    &dir_candidates_expression(label),
                     workspace,
                     runner,
                     startup_options,
@@ -64,8 +119,8 @@ pub fn resolve_run(
             .iter()
             .map(|file| file.label.clone())
             .collect();
-        let found = run_label_query(
-            &runnable_set_expression(&labels),
+        let found = run_executable_query(
+            &run_candidates_expression(&labels),
             workspace,
             runner,
             startup_options,
@@ -80,8 +135,8 @@ pub fn resolve_run(
         }
     }
     for pattern in &classified.patterns {
-        let found = run_label_query(
-            &dir_runnable_expression(pattern),
+        let found = run_executable_query(
+            &dir_candidates_expression(pattern),
             workspace,
             runner,
             startup_options,
@@ -296,6 +351,15 @@ mod tests {
         let query = NeverQuery;
         let got = resolve_run(&strings(&["//app:bin"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got, strings(&["//app:bin"]));
+        let got = resolve_run(&strings(&["//app:launcher"]), &workspace, &query, &[])
+            .expect("custom executable labels pass through");
+        assert_eq!(got, strings(&["//app:launcher"]));
+        let got = resolve_run(&strings(&["//app:launcher_alias"]), &workspace, &query, &[])
+            .expect("alias labels pass through");
+        assert_eq!(got, strings(&["//app:launcher_alias"]));
+        let got = resolve_run(&strings(&["//app:suite"]), &workspace, &query, &[])
+            .expect("suite labels pass through to Bazel");
+        assert_eq!(got, strings(&["//app:suite"]));
     }
 
     #[test]
@@ -321,7 +385,63 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('.*_binary rule', rdeps(//..., set(\"//app:main.py\"), 1))"
+            "kind('.* rule', rdeps(//..., set(\"//app:main.py\"), 1))"
+        );
+        assert!(
+            calls[0].0.contains(&"cquery".to_owned()),
+            "discovery reads executable metadata: {:?}",
+            calls[0].0
+        );
+        assert!(
+            calls[0]
+                .0
+                .iter()
+                .any(|arg| arg.starts_with("--starlark:expr=")),
+            "discovery filters with a Starlark expression: {:?}",
+            calls[0].0
+        );
+    }
+
+    #[test]
+    fn run_file_discovers_custom_executable_without_binary_name() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-custom-exe-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "app/BUILD.bazel", "");
+        write(&workspace, "app/main.sh", "echo hi\n");
+        let query = FakeQuery::new(vec![FakeQuery::ok("@@//app:launcher\n\n")]);
+        let got =
+            resolve_run(&strings(&["app/main.sh"]), &workspace, &query, &[]).expect("resolve");
+        assert_eq!(got, strings(&["//app:launcher"]));
+    }
+
+    #[test]
+    fn run_dir_lists_custom_executable_and_drops_source_filegroups() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-dir-custom-");
+        let workspace = scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("app")).expect("dir");
+        let query = FakeQuery::new(vec![FakeQuery::ok("@@//app:launcher\n\n")]);
+        let got = resolve_run(&strings(&["app"]), &workspace, &query, &[]).expect("resolve");
+        assert_eq!(got, strings(&["//app:launcher"]));
+        let calls = query.calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(
+            calls[0].0.last().expect("expression"),
+            "kind('.* rule', //app/...)"
+        );
+    }
+
+    #[test]
+    fn run_dir_without_executables_reports_no_runnable() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-dir-none-");
+        let workspace = scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("app")).expect("dir");
+        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let err = resolve_run(&strings(&["app"]), &workspace, &query, &[]).expect_err("no runnable");
+        assert_eq!(
+            err,
+            ResolveError::NoRunnable {
+                scopes: strings(&["app"]),
+            }
         );
     }
 
@@ -434,7 +554,23 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('.*_binary rule', //app/...)"
+            "kind('.* rule', //app/...)"
+        );
+    }
+
+    #[test]
+    fn executable_discovery_failure_is_query_failed() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-analysis-fail-");
+        let workspace = scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("app")).expect("dir");
+        let query = FakeQuery::new(vec![FakeQuery::failed("analysis failed\n")]);
+        let err = resolve_run(&strings(&["app"]), &workspace, &query, &[]).expect_err("fail");
+        assert_eq!(
+            err,
+            ResolveError::QueryFailed {
+                label: "kind('.* rule', //app/...)".to_owned(),
+                detail: "analysis failed".to_owned(),
+            }
         );
     }
 

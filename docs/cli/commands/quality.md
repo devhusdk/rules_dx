@@ -38,6 +38,22 @@ bazel run @rules_dx//:dx -- typecheck --fail-on error //cli/...
 bazel run @rules_dx//:dx -- format --apply //cli/...
 ```
 
+## Dry run
+
+Pass `--dry-run` to print the plan without running it.
+
+```sh
+bazel run @rules_dx//:dx -- lint --dry-run //...
+bazel run @rules_dx//:dx -- lint --dry-run --output=json //...
+```
+
+Text prints the scope summary, the policy origin, the selected aspect count,
+and the unknown execution facts. JSON emits an `operation` event with phase
+`plan` and a `provenance` object. The object names the command, mode, scope,
+policy origin, aspects, settings, reports, and the redacted Bazel inputs.
+Execution platform and toolchain read `unknown` until Bazel analyzes them.
+Validation is not performed.
+
 ## Policy
 
 The three commands check with the workspace policy that

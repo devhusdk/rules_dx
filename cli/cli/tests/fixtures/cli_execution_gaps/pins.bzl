@@ -36,11 +36,12 @@ NOT_WATCHABLE_COMMANDS = [
     "status",
     "update",
     "upgrade",
+    "verify",
     "version",
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 26
+NOT_WATCHABLE_COUNT = 27
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -100,6 +101,7 @@ REPORT_NONE = [
     "completion",
     "bazel",
     "capabilities",
+    "verify",
 ]
 REPORT_DISPOSITION = "wont-fix"
 

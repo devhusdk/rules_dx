@@ -21,6 +21,7 @@ dx_rust_crate(
         "src/scaffold.rs",
         "src/status.rs",
         "src/upgrade.rs",
+        "src/verify_sets.rs",
         "src/version.rs",
         "src/watch.rs",
     ],

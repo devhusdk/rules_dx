@@ -626,6 +626,7 @@ mod tests {
             Command::Watch => owned(&["build"]),
             Command::Owners | Command::Deps => owned(&["//:all"]),
             Command::New => owned(&["rust"]),
+            Command::Verify => owned(&["pre-pr"]),
             _ => Vec::new(),
         }
     }

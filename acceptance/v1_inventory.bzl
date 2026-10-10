@@ -912,6 +912,16 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
+        "id": "command.verify",
+        "native": True,
+        "owner": "//cli/cli:dx",
+        "page": "verify.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
         "id": "command.version",
         "native": True,
         "owner": "//cli/cli:dx",
@@ -1657,6 +1667,16 @@ PROMISES = [
         "native": False,
         "owner": "//docs:command_docs",
         "page": "status-version.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
+        "id": "doc.verify.md",
+        "native": False,
+        "owner": "//docs:command_docs",
+        "page": "verify.md",
         "state": "evidenced",
     },
     {
@@ -3187,7 +3207,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 344
+PROMISE_COUNT = 346
 
 PROMISE_FAMILIES = [
     "artifact",

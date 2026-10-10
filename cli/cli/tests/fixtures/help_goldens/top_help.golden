@@ -43,6 +43,7 @@ Commands:
   docs          build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
   bazel         forward raw arguments to the Bazel launcher
   capabilities  print machine-readable CLI and workspace capabilities (no downloads; --workspace-capabilities adds workspace facts)
+  verify        run one committed verification set from dx.verify.toml in order (non-mutating; stops after the first required failure)
 
 Options:
   -h, --help

@@ -20,6 +20,7 @@ pub mod preset_fragment;
 pub mod scaffold;
 pub mod status;
 pub mod upgrade;
+pub mod verify_sets;
 pub mod version;
 pub mod watch;
 
@@ -68,6 +69,10 @@ pub use status::{default_status_checks, render_status_json, render_status_text, 
 pub use upgrade::{
     plan_upgrade, upgrade_recovery_message, upgrade_restore_command_for, upgrade_retry_command,
     UpgradePlan,
+};
+pub use verify_sets::{
+    load_verify_set, ResolvedSet, ResolvedStep, VerifySetError, VERIFY_SCHEMA_VERSION,
+    VERIFY_STEP_COMMANDS, VERIFY_TOML_REL,
 };
 pub use version::{
     read_version_pin, rollback_re_pins_previous, version_pin_matches_module, write_version_pin,

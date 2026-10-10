@@ -7,12 +7,16 @@ exports_files(
     visibility = ["//:__subpackages__"],
 )
 
-exports_files([
-    "defs.bzl",
-    "edition.bzl",
-    "probe.bzl",
-    "wrapper_tests.bzl",
-])
+exports_files(["defs.bzl"])
+
+exports_files(
+    [
+        "edition.bzl",
+        "probe.bzl",
+        "wrapper_tests.bzl",
+    ],
+    visibility = ["//:__subpackages__"],
+)
 
 real_source_target(
     name = "corpus_starlark",

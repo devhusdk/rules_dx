@@ -196,3 +196,16 @@ file redirects once to that workspace. `-h`, `--help`, `help`, `-V`, and
 `--version` print without reading a broken config. `dx new` and
 `dx completion` run outside a workspace. Deleting `.dx` keeps committed
 behavior. Read-only commands never rewrite config.
+
+## Supported Surface
+
+`@rules_dx//:dx` runs every command.
+`@rules_dx//rust/rules:defs.bzl` provides Rust wrappers.
+`@rules_dx//cc/rules:defs.bzl` provides C and C++ wrappers.
+Other files under those directories stay private.
+A private file is not a dependency.
+Patch releases keep every supported label and flag.
+Minor releases add without breaking old uses.
+A breaking change needs a new major version and a migration.
+Readers tolerate added fields and fail on a new major schema.
+Bazel 9.2.0 is the tested baseline.

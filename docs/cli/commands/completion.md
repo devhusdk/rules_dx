@@ -12,8 +12,14 @@ Prints the completion script for one shell: `bash`, `zsh`, `fish`, or
 - Unknown shells fail with `unknown-shell`.
 
 The script asks `dx` for candidates as you type, so keep `dx` on your `PATH`.
-Candidates cover every command, every flag, the per-command slots, and the
-package labels of the current workspace.
+Candidates cover every command, every flag, the per-command slots, the
+package labels of the selected workspace, and the targets of one package.
+
+`--workspace` selects the workspace for candidates. Without it candidates
+come from the current workspace. Nested workspaces and `.bazelignore`
+entries never offer labels. Target completion queries one package only and
+falls back to package patterns when the query cannot run. Completion never
+writes files.
 
 Output: `--output text`.
 

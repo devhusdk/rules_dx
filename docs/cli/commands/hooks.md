@@ -55,6 +55,17 @@ check mode, and only a check that names `--apply` applies. Measured timings
 are written only when the run applies, either through `dx hooks --apply run`
 or through a check that names `--apply`.
 
+Checks live in `dx.hooks.toml` under `pre_commit` and `pre_push`, with
+`dx.local.toml` overrides. Each check is an argument array, such as
+`["lint", "--flag=a b"]`. A plain string stays accepted and splits on
+whitespace with single and double quote grouping. No shell runs. An empty
+or unmatched check fails with an error that names the array form.
+
+`budget_secs` is one total deadline for the whole run. Checks share the
+remaining time. A hung check and its children stop at the deadline and the
+run reports a timeout. A check failure reports its exit status. A launch
+failure reports the launch error. A signal reports the signal.
+
 `run pre-commit` checks staged changes. `run pre-push` reads the pushed refs
 from stdin and checks the outgoing commits, even with an empty index.
 A deleted ref is skipped. A new remote ref diffs against the empty tree.
@@ -68,8 +79,8 @@ staged bytes.
 Output: `--output text`.
 
 Exit codes: `0` success, `2` usage errors including an unknown verb or
-trigger, `1` a hook install, status, discovery, or check failed. A failing
-check reports `1`, never the check's own code.
+trigger, `1` a hook install, status, discovery, check, or timeout failed. A
+failing or timed-out check reports `1`, never the check's own code.
 
 ```sh
 bazel run @rules_dx//:dx -- hooks status

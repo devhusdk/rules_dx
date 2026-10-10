@@ -478,56 +478,96 @@ fn execute_run(
         }
     };
     let mut measured: Vec<(String, f64)> = Vec::with_capacity(checks.len());
+    let budget = std::time::Duration::from_secs(config.budget_secs);
+    let deadline = Instant::now() + budget;
+    let total = checks.len();
     for check in &checks {
-        let argv = check_argv(&dx_exe, check, &targets);
-        let start = Instant::now();
-        let status = match runner.run(&argv, workspace, &[]) {
-            Ok(status) => status,
-            Err(error) => {
-                return operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_HOOKS_FAILED,
-                    &format!("hook check {check:?} launch failed: {error}"),
-                );
-            }
-        };
-        let elapsed = start.elapsed().as_secs_f64();
-        if dx_adopt::hook_check_timed_out(elapsed, config.budget_secs) {
+        let display = check.display();
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
             return operational(
                 invocation,
                 out,
                 err,
                 CODE_HOOKS_FAILED,
                 &format!(
-                    "hook check {check:?} exceeded budget (took {elapsed:.2}s, budget {}s)",
+                    "hook check {display:?} exceeded budget (no time left of {}s total budget)",
                     config.budget_secs
                 ),
             );
         }
-        match status.code {
-            Some(0) => {
-                measured.push((check.clone(), elapsed));
-            }
-            Some(code) => {
+        let argv = check_argv(&dx_exe, &check.argv, &targets);
+        let start = Instant::now();
+        let outcome = match runner.run_bounded(&argv, workspace, &[], remaining) {
+            Ok(outcome) => outcome,
+            Err(error) => {
                 return operational(
                     invocation,
                     out,
                     err,
                     CODE_HOOKS_FAILED,
-                    &format!("hook check {check:?} failed with exit {code}"),
+                    &format!("hook check {display:?} launch failed: {error}"),
                 );
             }
-            None => {
+        };
+        let elapsed = start.elapsed().as_secs_f64();
+        match outcome {
+            dx_process::BoundedOutcome::TimedOut => {
                 return operational(
                     invocation,
                     out,
                     err,
                     CODE_HOOKS_FAILED,
-                    &format!("hook check {check:?} terminated by signal"),
+                    &format!(
+                        "hook check {display:?} timed out after {elapsed:.2}s (budget {}s total for {total} checks)",
+                        config.budget_secs
+                    ),
                 );
             }
+            dx_process::BoundedOutcome::OutputTooLarge { limit } => {
+                return operational(
+                    invocation,
+                    out,
+                    err,
+                    CODE_HOOKS_FAILED,
+                    &format!("hook check {display:?} produced more than {limit} bytes of output"),
+                );
+            }
+            dx_process::BoundedOutcome::Finished { code } => match code {
+                Some(0) => {
+                    if dx_adopt::hook_check_timed_out(elapsed, config.budget_secs) {
+                        return operational(
+                            invocation,
+                            out,
+                            err,
+                            CODE_HOOKS_FAILED,
+                            &format!(
+                                "hook check {display:?} exceeded budget (took {elapsed:.2}s, budget {}s)",
+                                config.budget_secs
+                            ),
+                        );
+                    }
+                    measured.push((display, elapsed));
+                }
+                Some(code) => {
+                    return operational(
+                        invocation,
+                        out,
+                        err,
+                        CODE_HOOKS_FAILED,
+                        &format!("hook check {display:?} failed with exit {code}"),
+                    );
+                }
+                None => {
+                    return operational(
+                        invocation,
+                        out,
+                        err,
+                        CODE_HOOKS_FAILED,
+                        &format!("hook check {display:?} terminated by signal"),
+                    );
+                }
+            },
         }
     }
     if hook_applies(invocation, &checks) {
@@ -663,31 +703,31 @@ fn change_targets(
     Ok(targets)
 }
 
-fn check_argv(dx_exe: &str, check: &str, targets: &[String]) -> Vec<String> {
-    let mut words: Vec<String> = check.split_whitespace().map(ToOwned::to_owned).collect();
-    let explicit_mode = words
+fn check_argv(dx_exe: &str, words: &[String], targets: &[String]) -> Vec<String> {
+    let mut argv: Vec<String> = words.to_vec();
+    let explicit_mode = argv
         .iter()
         .any(|word| matches!(word.as_str(), "--check" | "--apply" | "--dry-run"));
     if !explicit_mode {
-        let forces_check = words
+        let forces_check = argv
             .first()
             .and_then(|first| Command::parse(first))
             .is_some_and(|command| command.is_mutating_by_default() && command.supports_check());
         if forces_check {
-            words.insert(1, "--check".to_owned());
+            argv.insert(1, "--check".to_owned());
         }
     }
-    let mut argv = vec![dx_exe.to_owned()];
-    argv.extend(words);
-    argv.extend(targets.iter().cloned());
-    argv
+    let mut full = vec![dx_exe.to_owned()];
+    full.extend(argv);
+    full.extend(targets.iter().cloned());
+    full
 }
 
-fn hook_applies(invocation: &Invocation, checks: &[String]) -> bool {
+fn hook_applies(invocation: &Invocation, checks: &[dx_adopt::HookCheck]) -> bool {
     invocation.apply
         || checks
             .iter()
-            .any(|check| check.split_whitespace().any(|word| word == "--apply"))
+            .any(|check| check.argv.iter().any(|word| word == "--apply"))
 }
 
 fn record_timings(workspace: &std::path::Path, measured: &[(String, f64)]) -> Result<(), String> {
@@ -838,6 +878,9 @@ mod tests {
             git: Some(PathBuf::from("git")),
             codes: RefCell::new(vec![]),
             seen: RefCell::new(Vec::new()),
+            bounded: RefCell::new(Vec::new()),
+            bound_timeouts: RefCell::new(Vec::new()),
+            delay: std::time::Duration::ZERO,
         };
         let (code, _out, err) = run_with(
             &invocation(&["hooks", "--apply", "install"]),
@@ -1429,6 +1472,9 @@ mod tests {
         git: Option<PathBuf>,
         codes: RefCell<Vec<Option<i32>>>,
         seen: RefCell<Vec<Vec<String>>>,
+        bounded: RefCell<Vec<dx_process::BoundedOutcome>>,
+        bound_timeouts: RefCell<Vec<std::time::Duration>>,
+        delay: std::time::Duration,
     }
 
     impl ScriptRunner {
@@ -1437,6 +1483,9 @@ mod tests {
                 git: Some(PathBuf::from(git)),
                 codes: RefCell::new(codes),
                 seen: RefCell::new(Vec::new()),
+                bounded: RefCell::new(Vec::new()),
+                bound_timeouts: RefCell::new(Vec::new()),
+                delay: std::time::Duration::ZERO,
             }
         }
     }
@@ -1456,6 +1505,23 @@ mod tests {
             Ok(dx_process::ChildStatus {
                 code: self.codes.borrow_mut().remove(0),
             })
+        }
+
+        fn run_bounded(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+            env: &[(&str, &str)],
+            timeout: std::time::Duration,
+        ) -> io::Result<dx_process::BoundedOutcome> {
+            self.bound_timeouts.borrow_mut().push(timeout);
+            if !self.bounded.borrow().is_empty() {
+                self.seen.borrow_mut().push(argv.to_vec());
+                return Ok(self.bounded.borrow_mut().remove(0));
+            }
+            std::thread::sleep(self.delay);
+            self.run(argv, cwd, env)
+                .map(|status| dx_process::BoundedOutcome::Finished { code: status.code })
         }
     }
 
@@ -1633,39 +1699,49 @@ mod tests {
     #[test]
     fn hook_children_stay_read_only_without_explicit_apply() {
         let targets = vec!["//pkg:lib".to_owned()];
-        for (check, want) in [
-            ("format", vec!["/dx", "format", "//pkg:lib"]),
-            ("update", vec!["/dx", "update", "//pkg:lib"]),
-            ("generate", vec!["/dx", "generate", "//pkg:lib"]),
+        for (words, want) in [
+            (&["format"][..], vec!["/dx", "format", "//pkg:lib"]),
+            (&["update"][..], vec!["/dx", "update", "//pkg:lib"]),
+            (&["generate"][..], vec!["/dx", "generate", "//pkg:lib"]),
             (
-                "format --check",
+                &["format", "--check"][..],
                 vec!["/dx", "format", "--check", "//pkg:lib"],
             ),
-            ("fix --apply", vec!["/dx", "fix", "--apply", "//pkg:lib"]),
             (
-                "run //app:bin",
+                &["fix", "--apply"][..],
+                vec!["/dx", "fix", "--apply", "//pkg:lib"],
+            ),
+            (
+                &["run", "//app:bin"][..],
                 vec!["/dx", "run", "//app:bin", "//pkg:lib"],
             ),
-            ("docs --serve", vec!["/dx", "docs", "--serve", "//pkg:lib"]),
             (
-                "bogus --check",
+                &["docs", "--serve"][..],
+                vec!["/dx", "docs", "--serve", "//pkg:lib"],
+            ),
+            (
+                &["bogus", "--check"][..],
                 vec!["/dx", "bogus", "--check", "//pkg:lib"],
             ),
         ] {
+            let words: Vec<String> = words.iter().map(ToString::to_string).collect();
             let want: Vec<String> = want.into_iter().map(ToString::to_string).collect();
-            assert_eq!(check_argv("/dx", check, &targets), want, "{check}");
+            assert_eq!(check_argv("/dx", &words, &targets), want, "{words:?}");
         }
+        let check = |words: &[&str]| dx_adopt::HookCheck {
+            argv: words.iter().map(ToString::to_string).collect(),
+        };
         assert!(!hook_applies(
             &invocation(&["hooks", "run", "pre-commit"]),
-            &["format --check".to_owned()]
+            &[check(&["format", "--check"])]
         ));
         assert!(hook_applies(
             &invocation(&["hooks", "--apply", "run", "pre-commit"]),
-            &["format --check".to_owned()]
+            &[check(&["format", "--check"])]
         ));
         assert!(hook_applies(
             &invocation(&["hooks", "run", "pre-commit"]),
-            &["format --apply".to_owned()]
+            &[check(&["format", "--apply"])]
         ));
     }
 
@@ -1695,6 +1771,116 @@ mod tests {
         let (code, _out, err) = run_with(&inv, &root, &query, &runner);
         assert_eq!(code, 1);
         assert!(err.contains("exceeded budget"));
+        assert!(
+            runner.seen.borrow().is_empty(),
+            "an exhausted budget spawns nothing: {:?}",
+            runner.seen.borrow()
+        );
+    }
+
+    #[test]
+    fn hooks_run_delivers_spaced_arguments_exactly_without_a_shell() {
+        let structured =
+            "[hooks]\npre_commit = [[\"lint\", \"--flag=a b\", \"it's\"]]\nbudget_secs = 3600\n";
+        let legacy =
+            "[hooks]\npre_commit = [\"lint \\\"--flag=a b\\\" \\\"it's\\\"\"]\nbudget_secs = 3600\n";
+        let mut seen_all = Vec::new();
+        for (name, config) in [("structured", structured), ("legacy", legacy)] {
+            let inv = invocation(&["hooks", "run", "pre-commit"]);
+            let scratch = dx_test_scratch::scratch("dx-adopt-hooks-argv-");
+            let root = scratch.path().to_path_buf();
+            write_workspace(&root);
+            std::fs::write(root.join("dx.hooks.toml"), config).expect("config");
+            let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
+            let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0)]);
+            let (code, _out, err) = run_with(&inv, &root, &query, &runner);
+            assert_eq!(code, 0, "{name}: {err}");
+            assert_eq!(runner.seen.borrow().len(), 1, "{name}");
+            seen_all.push(runner.seen.borrow()[0].clone());
+        }
+        assert_eq!(seen_all[0], seen_all[1]);
+        let argv = &seen_all[0];
+        assert!(argv[1..].contains(&"lint".to_owned()), "{argv:?}");
+        assert!(argv[1..].contains(&"--flag=a b".to_owned()), "{argv:?}");
+        assert!(argv[1..].contains(&"it's".to_owned()), "{argv:?}");
+        assert!(
+            !argv.iter().any(|word| word.contains('"')),
+            "no shell quoting may leak into argv: {argv:?}"
+        );
+    }
+
+    #[test]
+    fn hooks_run_rejects_unparseable_checks_with_an_array_hint() {
+        let inv = invocation(&["hooks", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-argv-hint-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        std::fs::write(
+            root.join("dx.hooks.toml"),
+            "[hooks]\npre_commit = [\"lint \\\"--flag\"]\n",
+        )
+        .expect("config");
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0)]);
+        let (code, _out, err) = run_with(&inv, &root, &query, &runner);
+        assert_eq!(code, 1);
+        assert!(err.contains("argument array"), "{err}");
+        assert!(
+            runner.seen.borrow().is_empty(),
+            "an invalid check spawns nothing"
+        );
+    }
+
+    #[test]
+    fn hooks_run_shares_one_total_budget_across_checks() {
+        let inv = invocation(&["hooks", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-shared-budget-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        std::fs::write(root.join("dx.hooks.toml"), "[hooks]\nbudget_secs = 3600\n")
+            .expect("budget");
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
+        let runner = ScriptRunner {
+            git: Some(PathBuf::from("/hermetic/git")),
+            codes: RefCell::new(vec![Some(0), Some(0)]),
+            seen: RefCell::new(Vec::new()),
+            bounded: RefCell::new(Vec::new()),
+            bound_timeouts: RefCell::new(Vec::new()),
+            delay: std::time::Duration::from_millis(300),
+        };
+        let (code, _out, err) = run_with(&inv, &root, &query, &runner);
+        assert_eq!(code, 0, "{err}");
+        let timeouts = runner.bound_timeouts.borrow();
+        assert_eq!(timeouts.len(), 2);
+        let consumed = timeouts[0]
+            .checked_sub(timeouts[1])
+            .expect("the second check sees the remaining budget");
+        assert!(
+            consumed >= std::time::Duration::from_millis(200),
+            "the first check must consume shared budget: {timeouts:?}"
+        );
+    }
+
+    #[test]
+    fn hooks_run_reports_timeouts_distinctly_without_recording_timings() {
+        let inv = invocation(&["hooks", "--apply", "run", "pre-commit"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-timed-out-");
+        let root = scratch.path().to_path_buf();
+        write_workspace(&root);
+        let query = ScriptQuery::staged_then_owners("M\0pkg/a.py\0", "//pkg:lib\n");
+        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
+        runner
+            .bounded
+            .borrow_mut()
+            .push(dx_process::BoundedOutcome::TimedOut);
+        let (code, _out, err) = run_with(&inv, &root, &query, &runner);
+        assert_eq!(code, 1);
+        assert!(err.contains("timed out"), "{err}");
+        assert!(!err.contains("failed with exit"), "{err}");
+        assert!(
+            !root.join(dx_adopt::HOOK_TIMINGS_REL).exists(),
+            "a timed-out run records no timings"
+        );
     }
 
     #[test]
@@ -1707,6 +1893,9 @@ mod tests {
             git: None,
             codes: RefCell::new(vec![]),
             seen: RefCell::new(Vec::new()),
+            bounded: RefCell::new(Vec::new()),
+            bound_timeouts: RefCell::new(Vec::new()),
+            delay: std::time::Duration::ZERO,
         };
         let (code, _out, err) = run_with_query(&inv, &root, &NullQuery);
         assert_eq!(code, 1);

@@ -480,18 +480,125 @@ pub fn uninstall_hooks(root: &Path) -> Result<Vec<String>, AdoptError> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HookCheck {
+    pub argv: Vec<String>,
+}
+
+impl HookCheck {
+    pub fn display(&self) -> String {
+        self.argv
+            .iter()
+            .map(|word| {
+                if word.is_empty()
+                    || word
+                        .bytes()
+                        .any(|byte| byte.is_ascii_whitespace() || byte == b'\'' || byte == b'"')
+                {
+                    format!("'{}'", word.replace('\'', "'\\''"))
+                } else {
+                    word.clone()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+fn split_check_words(check: &str) -> Result<Vec<String>, String> {
+    let mut words = Vec::new();
+    let mut current = String::new();
+    let mut started = false;
+    let mut quote: Option<char> = None;
+    let mut chars = check.chars();
+    while let Some(next) = chars.next() {
+        if let Some(mark) = quote {
+            if next == mark {
+                quote = None;
+            } else if mark == '"' && next == '\\' {
+                match chars.next() {
+                    Some(escaped @ ('"' | '\\')) => {
+                        current.push(escaped);
+                    }
+                    Some(other) => {
+                        current.push('\\');
+                        current.push(other);
+                    }
+                    None => {
+                        return Err(format!(
+                            "hook check {check:?} ends in a dangling backslash; spell the check as an argument array instead"
+                        ));
+                    }
+                }
+            } else {
+                current.push(next);
+            }
+            continue;
+        }
+        if next == '\'' || next == '"' {
+            started = true;
+            quote = Some(next);
+        } else if next.is_whitespace() {
+            if started {
+                words.push(std::mem::take(&mut current));
+                started = false;
+            }
+        } else {
+            started = true;
+            current.push(next);
+        }
+    }
+    if let Some(mark) = quote {
+        return Err(format!(
+            "hook check {check:?} has an unmatched {mark}; spell the check as an argument array instead"
+        ));
+    }
+    if started {
+        words.push(current);
+    }
+    Ok(words)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(untagged)]
+enum CheckSpec {
+    Words(Vec<String>),
+    Legacy(String),
+}
+
+impl CheckSpec {
+    fn into_check(self, trigger: &str, index: usize) -> Result<HookCheck, AdoptError> {
+        let argv = match self {
+            CheckSpec::Words(words) => words,
+            CheckSpec::Legacy(check) => {
+                split_check_words(&check).map_err(|detail| AdoptError::InvalidHooks {
+                    detail: format!("{trigger} check {index}: {detail}"),
+                })?
+            }
+        };
+        if argv.is_empty() {
+            return Err(AdoptError::InvalidHooks {
+                detail: format!(
+                    "{trigger} check {index} is empty; spell the check as an argument array instead"
+                ),
+            });
+        }
+        Ok(HookCheck { argv })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HooksConfig {
-    pub pre_commit: Vec<String>,
-    pub pre_push: Vec<String>,
+    pub pre_commit: Vec<HookCheck>,
+    pub pre_push: Vec<HookCheck>,
     pub budget_secs: u64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]
 struct HooksTable {
     #[serde(default)]
-    pre_commit: Option<Vec<String>>,
+    pre_commit: Option<Vec<CheckSpec>>,
     #[serde(default)]
-    pre_push: Option<Vec<String>>,
+    pre_push: Option<Vec<CheckSpec>>,
     #[serde(default)]
     budget_secs: Option<u64>,
 }
@@ -504,10 +611,21 @@ struct HooksFile {
 
 pub fn default_hooks_config() -> HooksConfig {
     HooksConfig {
-        pre_commit: vec!["format --check".to_owned(), "lint --check".to_owned()],
+        pre_commit: vec![
+            HookCheck {
+                argv: vec!["format".to_owned(), "--check".to_owned()],
+            },
+            HookCheck {
+                argv: vec!["lint".to_owned(), "--check".to_owned()],
+            },
+        ],
         pre_push: vec![
-            "typecheck --check".to_owned(),
-            "generate --check".to_owned(),
+            HookCheck {
+                argv: vec!["typecheck".to_owned(), "--check".to_owned()],
+            },
+            HookCheck {
+                argv: vec!["generate".to_owned(), "--check".to_owned()],
+            },
         ],
         budget_secs: HOOK_BUDGET_SECS,
     }
@@ -519,24 +637,45 @@ fn parse_hooks_file(text: &str) -> Result<HooksFile, AdoptError> {
     })
 }
 
-fn merge_hooks_config(baseline: &HooksFile, overlay: &HooksFile) -> HooksConfig {
+fn merge_hooks_config(
+    baseline: &HooksFile,
+    overlay: &HooksFile,
+) -> Result<HooksConfig, AdoptError> {
     let defaults = default_hooks_config();
     let base = baseline.hooks.as_ref();
     let over = overlay.hooks.as_ref();
-    HooksConfig {
-        pre_commit: over
-            .and_then(|t| t.pre_commit.clone())
-            .or_else(|| base.and_then(|t| t.pre_commit.clone()))
-            .unwrap_or(defaults.pre_commit),
-        pre_push: over
-            .and_then(|t| t.pre_push.clone())
-            .or_else(|| base.and_then(|t| t.pre_push.clone()))
-            .unwrap_or(defaults.pre_push),
+    let resolve = |trigger: &str,
+                   over: Option<&Vec<CheckSpec>>,
+                   base: Option<&Vec<CheckSpec>>,
+                   fallback: Vec<HookCheck>|
+     -> Result<Vec<HookCheck>, AdoptError> {
+        match over.or(base) {
+            Some(specs) => specs
+                .iter()
+                .enumerate()
+                .map(|(index, spec)| spec.clone().into_check(trigger, index))
+                .collect(),
+            None => Ok(fallback),
+        }
+    };
+    Ok(HooksConfig {
+        pre_commit: resolve(
+            "pre-commit",
+            over.and_then(|t| t.pre_commit.as_ref()),
+            base.and_then(|t| t.pre_commit.as_ref()),
+            defaults.pre_commit,
+        )?,
+        pre_push: resolve(
+            "pre-push",
+            over.and_then(|t| t.pre_push.as_ref()),
+            base.and_then(|t| t.pre_push.as_ref()),
+            defaults.pre_push,
+        )?,
         budget_secs: over
             .and_then(|t| t.budget_secs)
             .or_else(|| base.and_then(|t| t.budget_secs))
             .unwrap_or(defaults.budget_secs),
-    }
+    })
 }
 
 pub fn load_hooks_config(
@@ -551,10 +690,10 @@ pub fn load_hooks_config(
         Some(text) => parse_hooks_file(text)?,
         None => HooksFile::default(),
     };
-    Ok(merge_hooks_config(&baseline, &overlay))
+    merge_hooks_config(&baseline, &overlay)
 }
 
-pub fn checks_for_trigger(config: &HooksConfig, trigger: &str) -> Vec<String> {
+pub fn checks_for_trigger(config: &HooksConfig, trigger: &str) -> Vec<HookCheck> {
     match trigger {
         "pre-commit" => config.pre_commit.clone(),
         "pre-push" => config.pre_push.clone(),
@@ -626,7 +765,12 @@ pub fn render_hooks_status_merged(
         if config.pre_commit.is_empty() {
             "(none)".to_owned()
         } else {
-            config.pre_commit.join(", ")
+            config
+                .pre_commit
+                .iter()
+                .map(HookCheck::display)
+                .collect::<Vec<_>>()
+                .join(", ")
         }
     ));
     view.push_str(&format!(
@@ -634,7 +778,12 @@ pub fn render_hooks_status_merged(
         if config.pre_push.is_empty() {
             "(none)".to_owned()
         } else {
-            config.pre_push.join(", ")
+            config
+                .pre_push
+                .iter()
+                .map(HookCheck::display)
+                .collect::<Vec<_>>()
+                .join(", ")
         }
     ));
     view.push_str(&format!("budget_secs: {}\n", config.budget_secs));
@@ -664,7 +813,7 @@ mod tests {
         hook_git_is_hermetic, hook_git_path_is_hermetic, hook_status_shows_merged, install_hooks,
         install_hooks_into, is_hook_trigger, join_hooks_path, load_hook_timings, load_hooks_config,
         parse_git_path_output, render_hook_timings, render_hooks_status_merged,
-        render_local_overlay, uninstall_hooks, uninstall_hooks_from, HOOK_BUDGET_SECS,
+        render_local_overlay, uninstall_hooks, uninstall_hooks_from, HookCheck, HOOK_BUDGET_SECS,
         HOOK_MANAGED_MARKER, HOOK_TRIGGERS, LOCAL_OVERLAY_COMMENT,
     };
     use super::{render_hook_shim, render_hooks_status};
@@ -993,25 +1142,106 @@ mod tests {
         assert_eq!(merged, default_hooks_config());
         assert_eq!(
             checks_for_trigger(&merged, "pre-commit"),
-            vec!["format --check".to_owned(), "lint --check".to_owned()]
+            vec![
+                HookCheck {
+                    argv: vec!["format".to_owned(), "--check".to_owned()],
+                },
+                HookCheck {
+                    argv: vec!["lint".to_owned(), "--check".to_owned()],
+                },
+            ]
         );
         assert_eq!(
             checks_for_trigger(&merged, "pre-push"),
             vec![
-                "typecheck --check".to_owned(),
-                "generate --check".to_owned()
+                HookCheck {
+                    argv: vec!["typecheck".to_owned(), "--check".to_owned()],
+                },
+                HookCheck {
+                    argv: vec!["generate".to_owned(), "--check".to_owned()],
+                },
             ]
         );
         assert!(checks_for_trigger(&merged, "bogus").is_empty());
         let overlay = "[hooks]\npre_commit = [\"format --check\"]\n";
         let merged = load_hooks_config(Some(baseline), Some(overlay)).expect("merged");
-        assert_eq!(merged.pre_commit, vec!["format --check".to_owned()]);
+        assert_eq!(
+            merged.pre_commit,
+            vec![HookCheck {
+                argv: vec!["format".to_owned(), "--check".to_owned()],
+            }]
+        );
         assert_eq!(merged.pre_push.len(), 2);
         assert_eq!(merged.budget_secs, HOOK_BUDGET_SECS);
         let missing = load_hooks_config(None, None).expect("defaults");
         assert_eq!(missing, default_hooks_config());
         assert!(load_hooks_config(Some("not toml = ["), None).is_err());
         assert!(load_hooks_config(None, Some("[hooks]\nbudget_secs = \"x\"\n")).is_err());
+    }
+
+    #[test]
+    fn hook_checks_keep_exact_words_from_arrays_and_quoted_strings() {
+        let merged = load_hooks_config(
+            Some(
+                "[hooks]\npre_commit = [[\"lint\", \"--flag=a b\", \"it's\"], 'format \"--check\"']\n",
+            ),
+            None,
+        )
+        .expect("structured and quoted checks");
+        assert_eq!(
+            merged.pre_commit,
+            vec![
+                HookCheck {
+                    argv: vec![
+                        "lint".to_owned(),
+                        "--flag=a b".to_owned(),
+                        "it's".to_owned(),
+                    ],
+                },
+                HookCheck {
+                    argv: vec!["format".to_owned(), "--check".to_owned()],
+                },
+            ]
+        );
+        assert_eq!(
+            merged.pre_commit[0].display(),
+            "lint '--flag=a b' 'it'\\''s'"
+        );
+        assert_eq!(merged.pre_commit[1].display(), "format --check");
+    }
+
+    #[test]
+    fn hook_checks_reject_empty_and_unmatched_checks_with_an_array_hint() {
+        for (name, body) in [
+            ("empty-string", "[hooks]\npre_commit = [\"\"]\n"),
+            ("empty-array", "[hooks]\npre_commit = [[]]\n"),
+            (
+                "unmatched-quote",
+                "[hooks]\npre_commit = [\"lint \\\"--flag\"]\n",
+            ),
+            ("whitespace-only", "[hooks]\npre_commit = [\"   \"]\n"),
+        ] {
+            let err = load_hooks_config(Some(body), None).expect_err(name);
+            assert!(err.to_string().contains("argument array"), "{name}: {err}");
+        }
+        assert!(
+            load_hooks_config(Some("[hooks]\npre_commit = [[\"format\"], 7]\n"), None,).is_err()
+        );
+    }
+
+    #[test]
+    fn hook_check_words_keep_backslashes_outside_quotes() {
+        let merged = load_hooks_config(
+            Some("[hooks]\npre_commit = [\"lint C:\\\\new\\\\x\"]\n"),
+            None,
+        )
+        .expect("windows paths stay literal");
+        assert_eq!(
+            merged.pre_commit,
+            vec![HookCheck {
+                argv: vec!["lint".to_owned(), "C:\\new\\x".to_owned()],
+            }]
+        );
     }
 
     #[test]

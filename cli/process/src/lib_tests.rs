@@ -885,6 +885,82 @@ fn gitleaks_tool_defaults_to_absent() {
 }
 
 #[test]
+fn unbounded_fakes_report_finished_for_bounded_runs() {
+    let runner = FakeRunner {
+        status: ChildStatus { code: Some(3) },
+    };
+    match runner
+        .run_bounded(
+            &["bazel".to_owned()],
+            Path::new("."),
+            &[],
+            std::time::Duration::from_secs(60),
+        )
+        .expect("fake maps run")
+    {
+        BoundedOutcome::Finished { code } => assert_eq!(code, Some(3)),
+        outcome => panic!("fake must finish, got {outcome:?}"),
+    }
+}
+
+#[test]
+fn bounded_run_reports_exit_codes() {
+    let runner = SystemRunner;
+    let cwd = std::env::temp_dir();
+    match runner
+        .run_bounded(
+            &probe_argv(&["--exit-code=0"]),
+            &cwd,
+            &[],
+            std::time::Duration::from_secs(30),
+        )
+        .expect("probe finishes")
+    {
+        BoundedOutcome::Finished { code } => assert_eq!(code, Some(0)),
+        outcome => panic!("probe must finish, got {outcome:?}"),
+    }
+}
+
+#[test]
+fn bounded_run_kills_a_hanging_child_and_its_descendant() {
+    let runner = SystemRunner;
+    let cwd = std::env::temp_dir();
+    let scratch = dx_test_scratch::scratch("dx-runner-bounded-descendant");
+    let marker = scratch.path().join("descendant.finished");
+    let started = std::time::Instant::now();
+    let outcome = runner
+        .run_bounded(
+            &probe_argv(&[
+                "--spawn-descendant",
+                "--descendant-sleep-ms=1500",
+                &format!("--descendant-marker={}", marker.display()),
+            ]),
+            &cwd,
+            &[],
+            std::time::Duration::from_millis(500),
+        )
+        .expect("timeout is an outcome");
+    assert_eq!(outcome, BoundedOutcome::TimedOut);
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(20),
+        "descendant must not hold the run past {:?}",
+        started.elapsed()
+    );
+    let deadline = started + std::time::Duration::from_millis(1900);
+    loop {
+        assert!(
+            !marker.exists(),
+            "the descendant survived the run: {}",
+            marker.display()
+        );
+        if std::time::Instant::now() >= deadline {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+#[test]
 fn spawn_success_reports_status_without_triplication() {
     assert!(spawn_success(&probe_argv(&["--exit-code=0"])));
     assert!(!spawn_success(&probe_argv(&["--exit-code=1"])));

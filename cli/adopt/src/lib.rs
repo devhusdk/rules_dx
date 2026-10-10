@@ -41,10 +41,10 @@ pub use hooks::{
     nearest_package_pattern, parse_git_path_output, parse_name_status_nul, parse_push_refs,
     push_diff_base, push_ref_is_deletion, render_hook_shim, render_hook_timings,
     render_hooks_status, render_hooks_status_merged, render_local_overlay, render_selection_line,
-    uninstall_hooks, uninstall_hooks_from, ChangeKind, ChangeSource, GitChange, HookTimings,
-    HooksConfig, PushRef, EMPTY_TREE_SHA, HOOK_BASELINE_REL, HOOK_BUDGET_SECS, HOOK_GIT_ENV_VAR,
-    HOOK_MANAGED_MARKER, HOOK_OVERLAY_REL, HOOK_TIMINGS_REL, HOOK_TRIGGERS, HOOK_VERBS,
-    LOCAL_OVERLAY_COMMENT, ZERO_SHA,
+    uninstall_hooks, uninstall_hooks_from, ChangeKind, ChangeSource, GitChange, HookCheck,
+    HookTimings, HooksConfig, PushRef, EMPTY_TREE_SHA, HOOK_BASELINE_REL, HOOK_BUDGET_SECS,
+    HOOK_GIT_ENV_VAR, HOOK_MANAGED_MARKER, HOOK_OVERLAY_REL, HOOK_TIMINGS_REL, HOOK_TRIGGERS,
+    HOOK_VERBS, LOCAL_OVERLAY_COMMENT, ZERO_SHA,
 };
 pub use inspect::{inspect_scope_allowed, plan_inspect, plan_somepath, InspectPlan};
 pub use migrate::{

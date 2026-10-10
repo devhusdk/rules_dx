@@ -440,8 +440,27 @@ pub struct ChildStatus {
     pub code: Option<i32>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BoundedOutcome {
+    Finished { code: Option<i32> },
+    TimedOut,
+    OutputTooLarge { limit: usize },
+}
+
 pub trait Runner {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus>;
+
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        timeout: std::time::Duration,
+    ) -> io::Result<BoundedOutcome> {
+        let _ = timeout;
+        self.run(argv, cwd, env)
+            .map(|status| BoundedOutcome::Finished { code: status.code })
+    }
 
     fn run_hermetic(
         &self,
@@ -520,6 +539,43 @@ impl Runner for SystemRunner {
         Ok(ChildStatus {
             code: output.status.code(),
         })
+    }
+
+    fn run_bounded(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        timeout: std::time::Duration,
+    ) -> io::Result<BoundedOutcome> {
+        let spec = lifecycle::SpawnSpec {
+            argv: argv.iter().map(std::ffi::OsString::from).collect(),
+            cwd: cwd.to_path_buf(),
+            env: lifecycle::EnvPolicy::Inherited {
+                extra: env
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            std::ffi::OsString::from(key),
+                            std::ffi::OsString::from(value),
+                        )
+                    })
+                    .collect(),
+            },
+            capture: lifecycle::CapturePolicy {
+                max_bytes: 32 * 1024 * 1024,
+            },
+            timeout,
+        };
+        match lifecycle::run(&spec)? {
+            lifecycle::ChildOutcome::Finished { exit, .. } => {
+                Ok(BoundedOutcome::Finished { code: exit.code() })
+            }
+            lifecycle::ChildOutcome::TimedOut => Ok(BoundedOutcome::TimedOut),
+            lifecycle::ChildOutcome::OutputTooLarge { limit } => {
+                Ok(BoundedOutcome::OutputTooLarge { limit })
+            }
+        }
     }
 
     fn run_hermetic(

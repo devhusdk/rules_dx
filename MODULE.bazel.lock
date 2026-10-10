@@ -505,7 +505,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "OJbifXozQ+DDEfKoJ7Cu1+AU/KcE0LoZghWbt+C9ezc=",
+        "bzlTransitiveDigest": "yGEyhZlC6EsQ3qsw0pN13wn5LZa3I8mVqIJUqgXOxCA=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -775,6 +775,50 @@
               "executable_sha256": "c9e82ada36ef4b8d4caf1f97fa89289048c8f4a33c2c76ffffc88bfe09ff00c5"
             }
           },
+          "dx_staticcheck_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_amd64.tar.gz",
+              "sha256": "df1fd2b42de9fdef42231329522ea8f1f6846a5eb1a0200fad14c90bba464d02",
+              "asset": "staticcheck_linux_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck",
+              "executable_sha256": "ba8e1dd887ca0c6a60838fc880b023a137b1feac99bcc1566ba5533429c9b88e"
+            }
+          },
+          "dx_staticcheck_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_arm64.tar.gz",
+              "sha256": "3315fa61b8e18512d43ce5bf4fe1bf9b55e85d2febafe6baa3847e243a484348",
+              "asset": "staticcheck_linux_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck",
+              "executable_sha256": "e64f135562f1984d68c5f22d8ea06e6c36e73fcf1ded79f6f50870d8090cc581"
+            }
+          },
+          "dx_staticcheck_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_darwin_arm64.tar.gz",
+              "sha256": "9e831155872d1982fe322e9ce146fc013541a8b71bc43371f94b20cc6fcf131e",
+              "asset": "staticcheck_darwin_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck",
+              "executable_sha256": "960e43040c76bac7fba6900a25b212b1c04798e6e316e88619685b96b9cedcda"
+            }
+          },
+          "dx_staticcheck_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_windows_amd64.tar.gz",
+              "sha256": "cc95236095badd515646d5a1b8b352deaf81614b4ac14f2652b7031ae5f67973",
+              "asset": "staticcheck_windows_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "staticcheck/staticcheck.exe",
+              "executable_sha256": "111d26aae31530799c6ab562d860916bd1198ab68df30e85421439f12c98b405"
+            }
+          },
           "dx_taplo_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -910,7 +954,7 @@
           "dx_tools": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_hub_repo",
             "attributes": {
-              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"}}",
+              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"staticcheck\":{\"linux_arm64\":\"dx_staticcheck_linux_arm64\",\"linux_x86_64\":\"dx_staticcheck_linux_x86_64\",\"macos_arm64\":\"dx_staticcheck_macos_arm64\",\"windows_x86_64\":\"dx_staticcheck_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"}}",
               "os_linux": "'@@platforms//os:linux'",
               "os_macos": "'@@platforms//os:macos'",
               "os_windows": "'@@platforms//os:windows'",

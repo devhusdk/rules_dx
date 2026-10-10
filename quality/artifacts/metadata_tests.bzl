@@ -27,6 +27,10 @@ load(":shellcheck.linux_arm64.bzl", _shellcheck_linux_arm64 = "ARTIFACT")
 load(":shellcheck.linux_x86_64.bzl", _shellcheck_linux_x86_64 = "ARTIFACT")
 load(":shellcheck.macos_arm64.bzl", _shellcheck_macos_arm64 = "ARTIFACT")
 load(":shellcheck.windows_x86_64.bzl", _shellcheck_windows_x86_64 = "ARTIFACT")
+load(":staticcheck.linux_arm64.bzl", _staticcheck_linux_arm64 = "ARTIFACT")
+load(":staticcheck.linux_x86_64.bzl", _staticcheck_linux_x86_64 = "ARTIFACT")
+load(":staticcheck.macos_arm64.bzl", _staticcheck_macos_arm64 = "ARTIFACT")
+load(":staticcheck.windows_x86_64.bzl", _staticcheck_windows_x86_64 = "ARTIFACT")
 load(":taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT")
 load(":taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
 load(":taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
@@ -344,6 +348,50 @@ def metadata_tests(name):
         "c9e82ada36ef4b8d4caf1f97fa89289048c8f4a33c2c76ffffc88bfe09ff00c5",
     )
     checks += _artifact_checks(
+        _staticcheck_linux_arm64,
+        "staticcheck",
+        "linux_arm64",
+        "2026.2",
+        "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_arm64.tar.gz",
+        "3315fa61b8e18512d43ce5bf4fe1bf9b55e85d2febafe6baa3847e243a484348",
+        8538109,
+        "staticcheck/staticcheck",
+        "e64f135562f1984d68c5f22d8ea06e6c36e73fcf1ded79f6f50870d8090cc581",
+    )
+    checks += _artifact_checks(
+        _staticcheck_linux_x86_64,
+        "staticcheck",
+        "linux_x86_64",
+        "2026.2",
+        "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_amd64.tar.gz",
+        "df1fd2b42de9fdef42231329522ea8f1f6846a5eb1a0200fad14c90bba464d02",
+        9419376,
+        "staticcheck/staticcheck",
+        "ba8e1dd887ca0c6a60838fc880b023a137b1feac99bcc1566ba5533429c9b88e",
+    )
+    checks += _artifact_checks(
+        _staticcheck_macos_arm64,
+        "staticcheck",
+        "macos_arm64",
+        "2026.2",
+        "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_darwin_arm64.tar.gz",
+        "9e831155872d1982fe322e9ce146fc013541a8b71bc43371f94b20cc6fcf131e",
+        8947431,
+        "staticcheck/staticcheck",
+        "960e43040c76bac7fba6900a25b212b1c04798e6e316e88619685b96b9cedcda",
+    )
+    checks += _artifact_checks(
+        _staticcheck_windows_x86_64,
+        "staticcheck",
+        "windows_x86_64",
+        "2026.2",
+        "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_windows_amd64.tar.gz",
+        "cc95236095badd515646d5a1b8b352deaf81614b4ac14f2652b7031ae5f67973",
+        9503766,
+        "staticcheck/staticcheck.exe",
+        "111d26aae31530799c6ab562d860916bd1198ab68df30e85421439f12c98b405",
+    )
+    checks += _artifact_checks(
         _taplo_linux_arm64,
         "taplo",
         "linux_arm64",
@@ -477,7 +525,7 @@ def metadata_tests(name):
     )
 
     derived_repos = sorted(["dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"]) for artifact in TOOL_ARTIFACTS])
-    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 36))
+    checks.append(expect_equal("dx tool repo count", len(DX_TOOL_REPOS), 40))
     checks.append(expect_equal("dx tool repos match metadata", DX_TOOL_REPOS, derived_repos))
     checks.append(expect_equal("dx tool repos sorted", DX_TOOL_REPOS, sorted(DX_TOOL_REPOS)))
     checks.append(expect_equal("dx tool hub", DX_TOOL_HUB, "dx_tools"))

@@ -1,5 +1,5 @@
 {
-  "checksum": "ad59417bd6e0bdc4f6b246728c22ba43e43129558389761ff1e124e6d5a1e270",
+  "checksum": "fe8c9298012a2513c053d236bc9ac49b4e24b84b2be9b98e3b12b236ea64e15c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3094,6 +3094,29 @@
         {
           "Library": {
             "crate_name": "dx_fingerprint",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_go_launcher 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_go_launcher",
+      "name": "dx_go_launcher",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_go_launcher",
             "crate_root": "src/lib.rs"
           }
         }
@@ -13848,6 +13871,7 @@
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
+    "dx_go_launcher 0.0.0": "quality/tools/dx_go_launcher",
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_identity 0.0.0": "cli/dx_identity",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",

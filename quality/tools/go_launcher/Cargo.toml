@@ -1,0 +1,15 @@
+[package]
+name = "dx_go_launcher"
+version = "0.0.0"
+edition = "2021"
+
+[[bin]]
+name = "go_launcher"
+path = "src/main.rs"
+
+[lib]
+name = "dx_go_launcher"
+path = "src/lib.rs"
+
+[dependencies]
+tempfile = "3"

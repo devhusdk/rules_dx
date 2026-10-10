@@ -654,6 +654,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_go_launcher"
+version = "0.0.0"
+dependencies = [
+ "tempfile",
+]
+
+[[package]]
 name = "dx_gomod"
 version = "0.0.0"
 dependencies = [

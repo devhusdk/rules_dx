@@ -394,6 +394,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "staticcheck": {
+        "upstream_version": "2026.2",
+        "release_page": "https://github.com/dominikh/go-tools/releases/tag/2026.2",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/dominikh/go-tools/blob/2026.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "staticcheck_linux_amd64.tar.gz",
+                "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_amd64.tar.gz",
+                "checksums_url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_amd64.tar.gz.sha256",
+                "kind": "tar.gz",
+                "executable": "staticcheck/staticcheck",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "staticcheck_linux_arm64.tar.gz",
+                "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_arm64.tar.gz",
+                "checksums_url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_linux_arm64.tar.gz.sha256",
+                "kind": "tar.gz",
+                "executable": "staticcheck/staticcheck",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "staticcheck_darwin_arm64.tar.gz",
+                "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_darwin_arm64.tar.gz",
+                "checksums_url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_darwin_arm64.tar.gz.sha256",
+                "kind": "tar.gz",
+                "executable": "staticcheck/staticcheck",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "staticcheck_windows_amd64.tar.gz",
+                "url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_windows_amd64.tar.gz",
+                "checksums_url": "https://github.com/dominikh/go-tools/releases/download/2026.2/staticcheck_windows_amd64.tar.gz.sha256",
+                "kind": "tar.gz",
+                "executable": "staticcheck/staticcheck.exe",
+            },
+        },
+    },
     "ty": {
         "upstream_version": "0.0.80",
         "release_page": "https://github.com/astral-sh/ty/releases/tag/0.0.80",

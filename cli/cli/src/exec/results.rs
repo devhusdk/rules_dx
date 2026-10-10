@@ -10,6 +10,7 @@ use super::common::{collect_targets, FileChange};
 #[derive(Default)]
 struct Staged {
     tools: Vec<String>,
+    coverage: Vec<(String, String)>,
     initial: Vec<DiagnosticEvent>,
     terminal: Vec<DiagnosticEvent>,
     changes: Vec<FileChange>,
@@ -19,6 +20,7 @@ struct Staged {
 impl Staged {
     fn absorb(&mut self, other: Staged) {
         self.tools.extend(other.tools);
+        self.coverage.extend(other.coverage);
         self.initial.extend(other.initial);
         self.terminal.extend(other.terminal);
         self.changes.extend(other.changes);
@@ -36,6 +38,9 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
     let mut staged = Staged::default();
     for stage in &result.stages {
         staged.tools.push(stage.tool_id.clone());
+        for path in &stage.source_paths {
+            staged.coverage.push((stage.tool_id.clone(), path.clone()));
+        }
     }
     for snapshot in &result.terminal_snapshot {
         let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
@@ -59,6 +64,7 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
 
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
+    pub(crate) coverage: BTreeSet<(String, String)>,
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
@@ -126,6 +132,7 @@ pub(crate) fn collect_results_in(
 ) -> Result<Collected, (String, String)> {
     let targets = collect_targets(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
+    let mut coverage = BTreeSet::new();
     let mut initial = Vec::new();
     let mut terminal = Vec::new();
     let mut changes = Vec::new();
@@ -150,6 +157,7 @@ pub(crate) fn collect_results_in(
             continue;
         }
         tools.extend(staged.tools);
+        coverage.extend(staged.coverage);
         initial.extend(staged.initial);
         terminal.extend(staged.terminal);
         changes.extend(staged.changes);
@@ -157,6 +165,7 @@ pub(crate) fn collect_results_in(
     }
     Ok(Collected {
         tools: tools.into_iter().collect(),
+        coverage,
         initial,
         terminal,
         changes,

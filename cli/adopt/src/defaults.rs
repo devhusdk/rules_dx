@@ -53,6 +53,7 @@ pub struct FileDefaults {
     pub quiet: Option<bool>,
     pub dry_run: Option<bool>,
     pub fail_on: Option<String>,
+    pub quality_baseline: Option<String>,
 }
 
 pub fn is_truthy(value: &str) -> bool {
@@ -131,6 +132,8 @@ struct DxTable {
     dry_run: Option<bool>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default, alias = "quality-baseline")]
+    quality_baseline: Option<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -152,6 +155,8 @@ struct ConfigFile {
     dry_run: Option<bool>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default, alias = "quality-baseline")]
+    quality_baseline: Option<String>,
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
@@ -186,6 +191,7 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         quiet: table.quiet.or(parsed.quiet),
         dry_run: table.dry_run.or(parsed.dry_run),
         fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
+        quality_baseline: non_empty(table.quality_baseline.or(parsed.quality_baseline)),
     })
 }
 
@@ -213,6 +219,7 @@ pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefau
         quiet: local.quiet.or(committed.quiet),
         dry_run: local.dry_run.or(committed.dry_run),
         fail_on: local.fail_on.or(committed.fail_on),
+        quality_baseline: local.quality_baseline.or(committed.quality_baseline),
     }
 }
 
@@ -515,6 +522,36 @@ mod tests {
         assert_eq!(empty, FileDefaults::default());
         assert!(parse_file_text("not toml = [").is_err());
         assert!(parse_file_text("[dx]\nverbose = \"yes\"\n").is_err());
+    }
+
+    #[test]
+    fn file_parses_quality_baseline_selection() {
+        let parsed = parse_file_text("[dx]\nquality_baseline = \"baselines/lint.json\"\n")
+            .expect("baseline parses");
+        assert_eq!(
+            parsed.quality_baseline,
+            Some("baselines/lint.json".to_owned())
+        );
+        let hyphen = parse_file_text("[dx]\n\"quality-baseline\" = \"baselines/lint.json\"\n")
+            .expect("hyphen alias parses");
+        assert_eq!(
+            hyphen.quality_baseline,
+            Some("baselines/lint.json".to_owned())
+        );
+        let top = parse_file_text("quality_baseline = \"baselines/lint.json\"\n")
+            .expect("top level parses");
+        assert_eq!(
+            top.quality_baseline,
+            Some("baselines/lint.json".to_owned())
+        );
+        let empty = parse_file_text("[dx]\nquality_baseline = \"\"\n").expect("empty parses");
+        assert_eq!(empty.quality_baseline, None);
+        let committed = parse_file_text("[dx]\nquality_baseline = \"a.json\"\n").expect("a");
+        let local = parse_file_text("[dx]\nquality_baseline = \"b.json\"\n").expect("b");
+        assert_eq!(
+            merge_defaults(committed, local).quality_baseline,
+            Some("b.json".to_owned())
+        );
     }
 
     #[test]

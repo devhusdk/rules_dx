@@ -114,21 +114,23 @@ pub fn diagnostic_value(diagnostic: &DiagnosticEvent) -> Value {
     Value::Object(map)
 }
 
+pub fn compare_diagnostics(a: &DiagnosticEvent, b: &DiagnosticEvent) -> std::cmp::Ordering {
+    a.snapshot
+        .cmp(&b.snapshot)
+        .then_with(|| a.path.is_none().cmp(&b.path.is_none()))
+        .then_with(|| a.path.cmp(&b.path))
+        .then_with(|| a.range.is_none().cmp(&b.range.is_none()))
+        .then_with(|| a.range.map(|r| r.0).cmp(&b.range.map(|r| r.0)))
+        .then_with(|| a.range.map(|r| r.1).cmp(&b.range.map(|r| r.1)))
+        .then_with(|| a.severity.rank().cmp(&b.severity.rank()))
+        .then_with(|| a.tool.cmp(&b.tool))
+        .then_with(|| a.rule.is_none().cmp(&b.rule.is_none()))
+        .then_with(|| a.rule.cmp(&b.rule))
+        .then_with(|| a.message.cmp(&b.message))
+}
+
 pub fn sort_diagnostics(diagnostics: &mut [DiagnosticEvent]) {
-    diagnostics.sort_by(|a, b| {
-        a.snapshot
-            .cmp(&b.snapshot)
-            .then_with(|| a.path.is_none().cmp(&b.path.is_none()))
-            .then_with(|| a.path.cmp(&b.path))
-            .then_with(|| a.range.is_none().cmp(&b.range.is_none()))
-            .then_with(|| a.range.map(|r| r.0).cmp(&b.range.map(|r| r.0)))
-            .then_with(|| a.range.map(|r| r.1).cmp(&b.range.map(|r| r.1)))
-            .then_with(|| a.severity.rank().cmp(&b.severity.rank()))
-            .then_with(|| a.tool.cmp(&b.tool))
-            .then_with(|| a.rule.is_none().cmp(&b.rule.is_none()))
-            .then_with(|| a.rule.cmp(&b.rule))
-            .then_with(|| a.message.cmp(&b.message))
-    });
+    diagnostics.sort_by(compare_diagnostics);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

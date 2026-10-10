@@ -46,6 +46,7 @@ fn file_with(
         quiet,
         dry_run,
         fail_on: fail_on.map(ToString::to_string),
+        quality_baseline: None,
     }
 }
 
@@ -101,6 +102,17 @@ fn file_supplies_defaults_when_flag_and_env_absent() {
     assert!(got.quiet);
     assert!(got.dry_run);
     assert_eq!(got.fail_on, Threshold::Error);
+}
+
+#[test]
+fn file_supplies_quality_baseline_selection() {
+    let mut file = file_with(None, None, None, None, None, None);
+    file.quality_baseline = Some("baselines/lint.json".to_owned());
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("file parse");
+    assert_eq!(got.quality_baseline, Some("baselines/lint.json".to_owned()));
+    let empty = FileDefaults::default();
+    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &empty).expect("parse");
+    assert_eq!(got.quality_baseline, None);
 }
 
 #[test]

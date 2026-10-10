@@ -123,6 +123,8 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
   `outcome`, and an optional `reason`.
 - `notice`: a note, with `level`, `code`, `message`, and optional
   `related_command`, `scope`, `path`, `language`, and `import`.
+- `baseline`: a quality baseline summary, with `path`, `total`,
+  `suppressed`, `stale`, and `coverage_complete`.
 - `report`: a report written, with `format`, `path`, and `results_complete`.
 - `test_outcome`: one test result, with `target`, `outcome`, `evidence_complete`,
   and `artifacts`, plus optional `configuration`, `status`, `cached`, `run`,
@@ -171,9 +173,10 @@ verbose = true
 color = "never"
 output = "json"
 fail-on = "error"
+quality-baseline = "baselines/lint.json"
 ```
 
-`dry_run` and `fail_on` also work. Values are TOML, so a boolean key takes
+`dry_run`, `fail_on`, and `quality_baseline` also work. Values are TOML, so a boolean key takes
 `true` or `false`, not the `<bool>` spellings above. An empty value is unset.
 An unknown key is a usage error that names the key and the keys it accepts.
 

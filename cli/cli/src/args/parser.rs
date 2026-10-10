@@ -408,6 +408,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         file.fail_on.clone(),
         "warning",
     );
+    let quality_baseline = file.quality_baseline.clone().filter(|text| !text.is_empty());
     let log_level = match log_level_name.as_deref() {
         None => None,
         Some(value) => {
@@ -662,6 +663,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         reports,
         fail_on,
         min_coverage,
+        quality_baseline,
         targets,
         bazel_options,
         bazel_clean,

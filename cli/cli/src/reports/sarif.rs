@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::ReportError;
-use dx_output::{sort_diagnostics, DiagnosticEvent, Severity};
+use dx_output::{compare_diagnostics, DiagnosticEvent, Severity};
 use line_index::{LineIndex, TextSize, WideEncoding};
 use serde_sarif::sarif::{
     ArtifactLocation, Invocation, Location, Message, PhysicalLocation, Region, ReportingDescriptor,
-    Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
+    Result as SarifResult, ResultBaselineState, ResultLevel, Run, Sarif, Tool, ToolComponent,
 };
 
 pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), ReportError> {
@@ -110,6 +110,7 @@ fn location(
 
 fn result(
     finding: &DiagnosticEvent,
+    baselined: Option<bool>,
     snapshots: &BTreeMap<String, String>,
 ) -> Result<SarifResult, ReportError> {
     if finding.tool.is_empty() {
@@ -125,24 +126,41 @@ fn result(
     let message = Message::builder().text(finding.message.clone()).build();
     let level = sarif_level(finding.severity);
     let locations = location(finding, snapshots)?.map(|single| vec![single]);
+    let state = baselined.map(|suppressed| {
+        serde_json::Value::String(
+            if suppressed {
+                ResultBaselineState::Unchanged
+            } else {
+                ResultBaselineState::New
+            }
+            .to_string(),
+        )
+    });
+    macro_rules! finish {
+        ($partial:expr) => {
+            match state {
+                Some(state) => $partial.baseline_state(state).build(),
+                None => $partial.build(),
+            }
+        };
+    }
     match (&finding.rule, locations) {
-        (Some(rule), Some(locations)) => Ok(SarifResult::builder()
+        (Some(rule), Some(locations)) => Ok(finish!(SarifResult::builder()
             .message(message)
             .level(level)
             .rule_id(rule.clone())
-            .locations(locations)
-            .build()),
-        (Some(rule), None) => Ok(SarifResult::builder()
+            .locations(locations))),
+        (Some(rule), None) => Ok(finish!(SarifResult::builder()
             .message(message)
             .level(level)
-            .rule_id(rule.clone())
-            .build()),
-        (None, Some(locations)) => Ok(SarifResult::builder()
+            .rule_id(rule.clone()))),
+        (None, Some(locations)) => Ok(finish!(SarifResult::builder()
             .message(message)
             .level(level)
-            .locations(locations)
-            .build()),
-        (None, None) => Ok(SarifResult::builder().message(message).level(level).build()),
+            .locations(locations))),
+        (None, None) => Ok(finish!(SarifResult::builder()
+            .message(message)
+            .level(level))),
     }
 }
 
@@ -152,11 +170,37 @@ pub fn render_sarif(
     snapshots: &BTreeMap<String, String>,
     complete: bool,
 ) -> Result<String, ReportError> {
+    let annotated: Vec<(&DiagnosticEvent, Option<bool>)> =
+        findings.iter().map(|finding| (finding, None)).collect();
+    render_annotated(tools, &annotated, snapshots, complete)
+}
+
+pub fn render_sarif_with_baseline(
+    tools: &[String],
+    findings: &[DiagnosticEvent],
+    suppressed: &BTreeSet<usize>,
+    snapshots: &BTreeMap<String, String>,
+    complete: bool,
+) -> Result<String, ReportError> {
+    let annotated: Vec<(&DiagnosticEvent, Option<bool>)> = findings
+        .iter()
+        .enumerate()
+        .map(|(index, finding)| (finding, Some(suppressed.contains(&index))))
+        .collect();
+    render_annotated(tools, &annotated, snapshots, complete)
+}
+
+fn render_annotated(
+    tools: &[String],
+    annotated: &[(&DiagnosticEvent, Option<bool>)],
+    snapshots: &BTreeMap<String, String>,
+    complete: bool,
+) -> Result<String, ReportError> {
     let ordered: BTreeSet<&str> = tools.iter().map(String::as_str).collect();
-    let mut working = findings.to_vec();
-    sort_diagnostics(&mut working);
-    let mut by_tool: BTreeMap<&str, Vec<&DiagnosticEvent>> = BTreeMap::new();
-    for finding in &working {
+    let mut working: Vec<(&DiagnosticEvent, Option<bool>)> = annotated.to_vec();
+    working.sort_by(|a, b| compare_diagnostics(a.0, b.0));
+    let mut by_tool: BTreeMap<&str, Vec<(&DiagnosticEvent, Option<bool>)>> = BTreeMap::new();
+    for (finding, baselined) in &working {
         check_shape(finding)?;
         if !ordered.contains(finding.tool.as_str()) {
             return Err(ReportError::UnknownTool {
@@ -166,18 +210,18 @@ pub fn render_sarif(
         by_tool
             .entry(finding.tool.as_str())
             .or_default()
-            .push(finding);
+            .push((*finding, *baselined));
     }
     let mut runs = Vec::with_capacity(ordered.len());
     for tool in ordered {
         let tool_findings = by_tool.get(tool).cloned().unwrap_or_default();
         let rules: BTreeSet<&str> = tool_findings
             .iter()
-            .filter_map(|finding| finding.rule.as_deref())
+            .filter_map(|(finding, _)| finding.rule.as_deref())
             .collect();
         let mut results = Vec::with_capacity(tool_findings.len());
-        for finding in tool_findings {
-            results.push(result(finding, snapshots)?);
+        for (finding, baselined) in tool_findings {
+            results.push(result(finding, baselined, snapshots)?);
         }
         let descriptors = rules
             .into_iter()
@@ -397,6 +441,39 @@ mod tests {
     }
 
     #[test]
+    fn sarif_marks_baselined_results_without_changing_plain_renders() {
+        let snapshots = BTreeMap::new();
+        let tools = ["lint-tool".to_owned()];
+        let findings = vec![
+            finding("lint-tool", Severity::Warning, None),
+            finding("lint-tool", Severity::Error, None),
+        ];
+        let plain = render_sarif(&tools, &findings, &snapshots, true).expect("render");
+        assert!(
+            !plain.contains("baselineState"),
+            "plain renders carry no baseline state"
+        );
+        let suppressed: BTreeSet<usize> = [1].into_iter().collect();
+        let marked =
+            render_sarif_with_baseline(&tools, &findings, &suppressed, &snapshots, true)
+                .expect("render");
+        let document: Value = serde_json::from_str(&marked).expect("sarif json");
+        let results = document["runs"][0]["results"].as_array().expect("results");
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0]["baselineState"], json!("new"));
+        assert_eq!(results[1]["baselineState"], json!("unchanged"));
+        let typed: Sarif = serde_json::from_str(&marked).expect("typed SARIF");
+        assert_eq!(
+            typed.runs[0]
+                .results
+                .as_ref()
+                .expect("results")
+                .len(),
+            2
+        );
+    }
+
+    #[test]
     fn sarif_rejects_inconsistent_inputs() {
         let snapshots = BTreeMap::new();
         let tools = ["lint-tool".to_owned()];
@@ -506,6 +583,7 @@ mod tests {
                     tool: String::new(),
                     ..finding("lint-tool", Severity::Error, None)
                 },
+                None,
                 &snapshots,
             ),
             Err(ReportError::InvalidFinding {
@@ -518,6 +596,7 @@ mod tests {
                     message: String::new(),
                     ..finding("lint-tool", Severity::Error, None)
                 },
+                None,
                 &snapshots,
             ),
             Err(ReportError::InvalidFinding {

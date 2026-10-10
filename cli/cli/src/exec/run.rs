@@ -670,6 +670,7 @@ mod tests {
             reports,
             fail_on: dx_output::Threshold::Warning,
             min_coverage: None,
+            quality_baseline: None,
             targets: vec!["//app:bin".to_owned()],
             bazel_options: Vec::new(),
             bazel_clean: false,

@@ -91,3 +91,35 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
   analysis with the tool named.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
+
+## Baselines
+
+`lint`, `typecheck`, and `format` read an opt-in diagnostic baseline that
+tells accepted findings apart from new ones. Name a workspace-relative JSON
+file in `dx.toml` and commit the file:
+
+```toml
+[dx]
+quality-baseline = "baselines/lint.json"
+```
+
+A check prints baselined findings with `(suppressed)` and keeps them in the
+JSON and SARIF reports. New findings still fail. Run with `--apply` to
+refresh the file: fixed entries drop out, current findings enter, and
+entries outside the analyzed scopes stay untouched. A plain check never
+writes the file.
+
+```sh
+bazel run @rules_dx//:dx -- lint --check //...
+bazel run @rules_dx//:dx -- lint --apply //...
+```
+
+- A baseline matches tool, rule, file, message, and source context. Moved
+  lines still match. Renames and tool or rule changes need a refresh.
+- Fixed entries fail the check until `--apply` prunes them. Entries outside
+  the analyzed scopes never fail.
+- A missing or malformed baseline file fails with `baseline_failed`. An
+  incomplete result set suppresses nothing and refreshes nothing.
+- The JSON stream carries a `baseline` event with `total`, `suppressed`,
+  and `stale` counts. SARIF marks baselined results `unchanged` and new
+  results `new`.

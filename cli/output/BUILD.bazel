@@ -13,6 +13,7 @@ dx_rust_crate(
     name = "dx_output",
     package_name = "cli/dx_output",
     srcs = [
+        "src/baseline.rs",
         "src/changes.rs",
         "src/clap_errors.rs",
         "src/diagnostics.rs",

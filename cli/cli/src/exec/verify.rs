@@ -230,6 +230,7 @@ fn step_invocation(invocation: &Invocation, command: Command, step: &ResolvedSte
         reports: Vec::new(),
         fail_on: invocation.fail_on,
         min_coverage: invocation.min_coverage,
+        quality_baseline: invocation.quality_baseline.clone(),
         targets: step.scopes.clone(),
         bazel_options,
         bazel_clean: false,

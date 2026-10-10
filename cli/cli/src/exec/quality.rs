@@ -1,5 +1,6 @@
 use super::common::*;
 use super::quality_apply::{apply_collected_changes, project_status};
+use super::quality_baseline::{apply_baseline, BaselineOutcome};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{write_standard_reports, StandardReports};
@@ -9,7 +10,8 @@ use crate::plan::{bep_path, plan_build};
 use crate::reports::{plan_reports, Destination};
 use crate::resolve::resolve;
 use dx_output::{
-    command_finished, command_started, write_event, FinishedCounts, OutputMode, Severity,
+    command_finished, command_started, meets_threshold, write_event, FinishedCounts, OutputMode,
+    Severity,
 };
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -112,14 +114,41 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let sources = applied_outcome.sources;
     let applied = applied_outcome.applied;
     let not_applied = applied_outcome.not_applied;
+    let has_changes = !collected.changes.is_empty();
     let (status, failed) = project_status(
         apply,
         &collected.initial,
         &collected.terminal,
         &applied,
         invocation.fail_on,
-        !collected.changes.is_empty(),
+        has_changes,
     );
+    let baseline: Option<BaselineOutcome> = match &invocation.quality_baseline {
+        None => None,
+        Some(selection) => match apply_baseline(
+            workspace,
+            selection,
+            apply,
+            collected.complete,
+            &collected.coverage,
+            &status,
+        ) {
+            Ok(outcome) => Some(outcome),
+            Err(detail) => {
+                return operational(invocation, out, err, CODE_BASELINE_FAILED, &detail);
+            }
+        },
+    };
+    let failed = match &baseline {
+        None => failed,
+        Some(outcome) => {
+            let new_failing = status.iter().enumerate().any(|(index, diagnostic)| {
+                !outcome.suppressed.contains(&index)
+                    && meets_threshold(diagnostic.severity, invocation.fail_on)
+            });
+            new_failing || !outcome.stale.is_empty() || (!apply && has_changes)
+        }
+    };
 
     let mut patch = String::new();
     if invocation.output == OutputMode::Diff {
@@ -131,6 +160,11 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
 
+    let no_suppressed = std::collections::BTreeSet::new();
+    let suppressed = baseline
+        .as_ref()
+        .map(|outcome| &outcome.suppressed)
+        .unwrap_or(&no_suppressed);
     let emit_counts = emit_findings(
         EmitInputs {
             invocation,
@@ -140,6 +174,11 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             not_applied: &not_applied,
             patch: &patch,
             stdout_report,
+            suppressed,
+            baseline: invocation
+                .quality_baseline
+                .as_deref()
+                .zip(baseline.as_ref()),
         },
         out,
         err,
@@ -156,6 +195,8 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
             planned: &planned_reports,
             output: &invocation.output,
             stdout_report,
+            suppressed,
+            baselined: invocation.quality_baseline.is_some(),
         },
         out,
         err,

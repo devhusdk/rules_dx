@@ -8,6 +8,7 @@
     )
 )]
 
+pub mod baseline;
 pub mod changes;
 pub mod clap_errors;
 pub mod diagnostics;
@@ -17,6 +18,11 @@ pub mod modes;
 pub mod severity;
 pub mod validation;
 
+pub use baseline::{
+    baseline_event, fingerprint, match_baseline, normalize_message, parse_baseline,
+    refresh_entries, render_baseline, BaselineCounts, BaselineEntry, BaselineError, BaselineFile,
+    BaselineMatch, Fingerprint, BASELINE_VERSION,
+};
 pub use changes::{
     change_event, change_value, mutation_event, mutation_value, ChangeEvent, ChangeKind,
     MutationOutcome,
@@ -29,8 +35,8 @@ pub use diagnostics::{
     LogLevel, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
 };
 pub use findings::{
-    diagnostic_event, diagnostic_value, notice_event, notice_value, sort_diagnostics,
-    DiagnosticEvent, NoticeEvent, Resolution, Snapshot,
+    compare_diagnostics, diagnostic_event, diagnostic_value, notice_event, notice_value,
+    sort_diagnostics, DiagnosticEvent, NoticeEvent, Resolution, Snapshot,
 };
 pub use lifecycle::{
     capability_event, capability_value, command_finished, command_started, error_event,

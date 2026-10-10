@@ -5,6 +5,7 @@ pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
 pub const EVENTS: &[&str] = &[
+    "baseline",
     "capability",
     "change",
     "command_finished",

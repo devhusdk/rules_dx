@@ -56,6 +56,12 @@ two-token form, with spaces and Unicode kept verbatim. `--test_filter`
 stays a Bazel option with framework-dependent semantics. Other commands
 reject `--test_arg`; run those cases with `dx bazel` instead.
 
+Tests run once by default. Only tests marked flaky in their build
+definition retry, up to three attempts. Diagnose one test with retries
+through `dx test <label> -- --flaky_test_attempts=3`, or through
+`bazel test --config=retry <label>`. A test that passes after retry is
+reported as `passed_after_retry` with its attempt number.
+
 ## `dx run`
 
 ```text

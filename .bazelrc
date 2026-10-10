@@ -1,6 +1,6 @@
 import %workspace%/tools/bazelrc/preset.bazelrc
 
-test --flaky_test_attempts=3
+test:retry --flaky_test_attempts=3
 test --test_timeout=300
 test --local_test_jobs=4
 

@@ -190,7 +190,7 @@ jobs:
           bazel run "$@" --noshow_progress //cli/cli:dx -- generate --check //... -- "$@"
           bazel run --noshow_progress "$@" //tools/bazelrc:preset_update -- --verify-only
           bazel build --noshow_progress //... "$@"
-          bazel test --noshow_progress --flaky_test_attempts=3 --test_timeout=300 //... "$@"
+          bazel test --noshow_progress --test_timeout=300 //... "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- coverage --min-coverage 96 //... -- "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- lint --check //... -- "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- typecheck --check //... -- "$@"

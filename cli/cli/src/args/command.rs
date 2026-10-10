@@ -1149,6 +1149,10 @@ impl Command {
         Self::from_str(text, false).ok()
     }
 
+    pub fn is_quality(self) -> bool {
+        matches!(self, Command::Lint | Command::Typecheck | Command::Format)
+    }
+
     pub fn workflow_verb(self) -> Option<WorkflowVerb> {
         self.meta().workflow_verb
     }

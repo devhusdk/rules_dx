@@ -300,15 +300,15 @@ impl std::fmt::Display for ReportWriteError {
     }
 }
 
-pub(crate) fn operational(
-    invocation: &Invocation,
+pub(crate) fn operational_output(
+    output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
     code: &str,
     message: &str,
 ) -> i32 {
     let _ = writeln!(err, "dx: {code}: {message}");
-    if invocation.output == OutputMode::Json {
+    if output == OutputMode::Json {
         if let Ok(event) = dx_output::error_event(code, message, None, None, None) {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
@@ -354,9 +354,19 @@ pub fn emit_startup_outcome(
     flush_out(out)
 }
 
-/// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
-pub(crate) fn run_bazel(
+pub(crate) fn operational(
     invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    code: &str,
+    message: &str,
+) -> i32 {
+    operational_output(invocation.output, out, err, code, message)
+}
+
+/// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
+pub(crate) fn run_bazel_output(
+    output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
     workspace: &Path,
@@ -367,8 +377,8 @@ pub(crate) fn run_bazel(
     let status = match runner.run(argv, workspace, env) {
         Ok(status) => status,
         Err(error) => {
-            return Err(operational(
-                invocation,
+            return Err(operational_output(
+                output,
                 out,
                 err,
                 CODE_LAUNCH_FAILED,
@@ -378,14 +388,27 @@ pub(crate) fn run_bazel(
     };
     match status.code {
         Some(code) => Ok(code),
-        None => Err(operational(
-            invocation,
+        None => Err(operational_output(
+            output,
             out,
             err,
             CODE_BAZEL_SIGNALLED,
             "Bazel terminated by signal",
         )),
     }
+}
+
+/// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
+pub(crate) fn run_bazel(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    env: &[(&str, &str)],
+) -> Result<i32, i32> {
+    run_bazel_output(invocation.output, out, err, workspace, runner, argv, env)
 }
 
 pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {

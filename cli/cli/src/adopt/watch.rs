@@ -62,6 +62,9 @@ fn watch(
     let mut iteration = invocation.clone();
     iteration.command = command;
     iteration.targets = scopes.to_vec();
+    if let Err(message) = validate_wrapped_request(&iteration) {
+        return pre_exec(&mut err, &message);
+    }
     let mut round = 0u32;
     loop {
         round += 1;
@@ -118,6 +121,17 @@ fn watch(
                 }
             }
         }
+    }
+}
+
+fn validate_wrapped_request(iteration: &Invocation) -> Result<(), String> {
+    match iteration.command {
+        Command::Lint | Command::Typecheck | Command::Format => {
+            iteration.quality_request().map(|_| ())
+        }
+        Command::Generate => iteration.generate_request().map(|_| ()),
+        Command::Check | Command::Fix => iteration.umbrella_request().map(|_| ()),
+        _ => Ok(()),
     }
 }
 
@@ -481,5 +495,17 @@ mod tests {
             harness.run_with_truncated_out(&["watch", "--quiet", "build", "//..."], Some(1)),
             0
         );
+    }
+
+    #[test]
+    fn watch_wraps_a_validated_quality_request() {
+        let wrapped = invocation(&["watch", "lint", "//..."]);
+        let mut iteration = wrapped.clone();
+        iteration.command = Command::Lint;
+        iteration.targets = vec!["//...".to_owned()];
+        let request = iteration.quality_request().expect("validated request");
+        assert_eq!(request.command, Command::Lint);
+        assert_eq!(request.targets, vec!["//...".to_owned()]);
+        assert!(validate_wrapped_request(&iteration).is_ok());
     }
 }

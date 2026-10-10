@@ -28,6 +28,198 @@ impl OperationMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommonOptions {
+    pub output: OutputMode,
+    pub reports: Vec<ReportRequest>,
+    pub quiet: bool,
+    pub verbose: bool,
+    pub log_level: Option<LogLevel>,
+    pub color: ColorMode,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QualityRequest {
+    pub command: Command,
+    pub mode: OperationMode,
+    pub dry_run: bool,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub bazel_startup_options: Vec<String>,
+    pub workspace: Option<String>,
+    pub common: CommonOptions,
+    pub fail_on: Threshold,
+    pub strict_evidence: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenerateRequest {
+    pub mode: OperationMode,
+    pub dry_run: bool,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub bazel_startup_options: Vec<String>,
+    pub workspace: Option<String>,
+    pub common: CommonOptions,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UmbrellaRequest {
+    pub command: Command,
+    pub mode: OperationMode,
+    pub dry_run: bool,
+    pub apply: bool,
+    pub targets: Vec<String>,
+    pub bazel_options: Vec<String>,
+    pub bazel_startup_options: Vec<String>,
+    pub workspace: Option<String>,
+    pub common: CommonOptions,
+    pub fail_on: Threshold,
+    pub strict_evidence: bool,
+}
+
+impl CommonOptions {
+    pub fn chatty(&self) -> bool {
+        dx_text_visible(&self.output) && !self.quiet
+    }
+}
+
+impl QualityRequest {
+    pub fn operation(&self) -> OperationMode {
+        self.mode
+    }
+
+    pub fn applies(&self) -> bool {
+        self.mode == OperationMode::Apply
+    }
+
+    pub fn chatty(&self) -> bool {
+        self.common.chatty()
+    }
+}
+
+impl GenerateRequest {
+    pub fn operation(&self) -> OperationMode {
+        self.mode
+    }
+
+    pub fn applies(&self) -> bool {
+        self.mode == OperationMode::Apply
+    }
+
+    pub fn chatty(&self) -> bool {
+        self.common.chatty()
+    }
+}
+
+impl UmbrellaRequest {
+    pub fn operation(&self) -> OperationMode {
+        self.mode
+    }
+
+    pub fn applies(&self) -> bool {
+        self.mode == OperationMode::Apply
+    }
+
+    pub fn phase_quality_request(
+        &self,
+        phase: Command,
+        reports: Vec<ReportRequest>,
+    ) -> Result<QualityRequest, String> {
+        if !matches!(phase, Command::Lint | Command::Typecheck | Command::Format) {
+            return Err(format!(
+                "umbrella phase {} is not a quality request",
+                phase.name()
+            ));
+        }
+        Ok(QualityRequest {
+            command: phase,
+            mode: self.mode,
+            dry_run: self.dry_run,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            bazel_startup_options: self.bazel_startup_options.clone(),
+            workspace: self.workspace.clone(),
+            common: CommonOptions {
+                output: self.common.output,
+                reports,
+                quiet: self.common.quiet,
+                verbose: self.common.verbose,
+                log_level: self.common.log_level,
+                color: self.common.color,
+            },
+            fail_on: self.fail_on,
+            strict_evidence: self.strict_evidence,
+        })
+    }
+
+    pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
+        GenerateRequest {
+            mode: self.mode,
+            dry_run: self.dry_run,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            bazel_startup_options: self.bazel_startup_options.clone(),
+            workspace: self.workspace.clone(),
+            common: CommonOptions {
+                output: self.common.output,
+                reports,
+                quiet: self.common.quiet,
+                verbose: self.common.verbose,
+                log_level: self.common.log_level,
+                color: self.common.color,
+            },
+        }
+    }
+
+    pub fn verify_quality_request(&self, phase: Command) -> Result<QualityRequest, String> {
+        if !matches!(phase, Command::Lint | Command::Typecheck | Command::Format) {
+            return Err(format!(
+                "umbrella phase {} is not a quality request",
+                phase.name()
+            ));
+        }
+        Ok(QualityRequest {
+            command: phase,
+            mode: OperationMode::Check,
+            dry_run: false,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            bazel_startup_options: self.bazel_startup_options.clone(),
+            workspace: self.workspace.clone(),
+            common: CommonOptions {
+                output: self.common.output,
+                reports: Vec::new(),
+                quiet: self.common.quiet,
+                verbose: self.common.verbose,
+                log_level: self.common.log_level,
+                color: self.common.color,
+            },
+            fail_on: self.fail_on,
+            strict_evidence: self.strict_evidence,
+        })
+    }
+
+    pub fn verify_generate_request(&self) -> GenerateRequest {
+        GenerateRequest {
+            mode: OperationMode::Check,
+            dry_run: false,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            bazel_startup_options: self.bazel_startup_options.clone(),
+            workspace: self.workspace.clone(),
+            common: CommonOptions {
+                output: self.common.output,
+                reports: Vec::new(),
+                quiet: self.common.quiet,
+                verbose: self.common.verbose,
+                log_level: self.common.log_level,
+                color: self.common.color,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invocation {
     pub command: Command,
     pub check: bool,
@@ -116,6 +308,81 @@ impl Invocation {
     /// Reports whether chatty dx text prints: text output, no `--quiet`.
     pub fn chatty(&self) -> bool {
         dx_text_visible(&self.output) && !self.quiet
+    }
+
+    pub fn common_options(&self) -> CommonOptions {
+        CommonOptions {
+            output: self.output,
+            reports: self.reports.clone(),
+            quiet: self.quiet,
+            verbose: self.verbose,
+            log_level: self.log_level,
+            color: self.color,
+        }
+    }
+
+    pub fn quality_request(&self) -> Result<QualityRequest, String> {
+        if !matches!(
+            self.command,
+            Command::Lint | Command::Typecheck | Command::Format
+        ) {
+            return Err(format!(
+                "option \"--command\" is not supported by dx {}: want lint|typecheck|format",
+                self.command.name()
+            ));
+        }
+        Ok(QualityRequest {
+            command: self.command,
+            mode: self.operation(),
+            dry_run: self.dry_run,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            bazel_startup_options: self.bazel_startup_options.clone(),
+            workspace: self.workspace.clone(),
+            common: self.common_options(),
+            fail_on: self.fail_on,
+            strict_evidence: self.strict_evidence,
+        })
+    }
+
+    pub fn generate_request(&self) -> Result<GenerateRequest, String> {
+        if self.command != Command::Generate {
+            return Err(format!(
+                "option \"--command\" is not supported by dx {}: want generate",
+                self.command.name()
+            ));
+        }
+        Ok(GenerateRequest {
+            mode: self.operation(),
+            dry_run: self.dry_run,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            bazel_startup_options: self.bazel_startup_options.clone(),
+            workspace: self.workspace.clone(),
+            common: self.common_options(),
+        })
+    }
+
+    pub fn umbrella_request(&self) -> Result<UmbrellaRequest, String> {
+        if !matches!(self.command, Command::Check | Command::Fix) {
+            return Err(format!(
+                "option \"--command\" is not supported by dx {}: want check|fix",
+                self.command.name()
+            ));
+        }
+        Ok(UmbrellaRequest {
+            command: self.command,
+            mode: self.operation(),
+            dry_run: self.dry_run,
+            apply: self.apply,
+            targets: self.targets.clone(),
+            bazel_options: self.bazel_options.clone(),
+            bazel_startup_options: self.bazel_startup_options.clone(),
+            workspace: self.workspace.clone(),
+            common: self.common_options(),
+            fail_on: self.fail_on,
+            strict_evidence: self.strict_evidence,
+        })
     }
 }
 
@@ -373,5 +640,131 @@ mod tests {
         )
         .expect("cwd alias parses");
         assert!(aliased.here, "--cwd must set here");
+    }
+
+    fn parsed(words: &[&str]) -> Invocation {
+        crate::args::parse(&words.iter().map(ToString::to_string).collect::<Vec<_>>())
+            .expect("parse")
+    }
+
+    #[test]
+    fn quality_request_accepts_only_the_quality_family() {
+        for command in ["lint", "typecheck", "format"] {
+            let request = parsed(&[command, "--check", "//a:one"])
+                .quality_request()
+                .expect("quality family");
+            assert_eq!(request.command.name(), command);
+            assert_eq!(request.mode, OperationMode::Check);
+            assert_eq!(request.targets, vec!["//a:one".to_owned()]);
+        }
+        assert!(parsed(&["check"]).quality_request().is_err());
+        assert!(parsed(&["generate"]).quality_request().is_err());
+        assert!(parsed(&["build", "//a:one"]).quality_request().is_err());
+    }
+
+    #[test]
+    fn quality_request_carries_mode_scopes_and_severity() {
+        let request = parsed(&[
+            "lint",
+            "--apply",
+            "--fail-on=error",
+            "//a:one",
+            "--",
+            "--jobs=4",
+        ])
+        .quality_request()
+        .expect("apply request");
+        assert_eq!(request.mode, OperationMode::Apply);
+        assert!(request.applies());
+        assert!(!request.dry_run);
+        assert_eq!(request.targets, vec!["//a:one".to_owned()]);
+        assert_eq!(request.bazel_options, vec!["--jobs=4".to_owned()]);
+        assert_eq!(
+            request.fail_on,
+            dx_output::Threshold::Error,
+            "severity rides the typed request"
+        );
+        let planned = parsed(&["format", "--dry-run"])
+            .quality_request()
+            .expect("plan");
+        assert_eq!(planned.mode, OperationMode::Plan);
+        assert!(!planned.applies());
+    }
+
+    #[test]
+    fn quality_request_has_no_unrelated_fields() {
+        let request = parsed(&["lint", "//a:one"])
+            .quality_request()
+            .expect("request");
+        let debug = format!("{request:?}");
+        for unrelated in [
+            "pin",
+            "rollback",
+            "serve",
+            "offline",
+            "frozen",
+            "min_coverage",
+            "run_output",
+            "configured",
+        ] {
+            assert!(
+                !debug.contains(unrelated),
+                "typed quality request cannot represent {unrelated}: {debug}"
+            );
+        }
+    }
+
+    #[test]
+    fn generate_and_umbrella_requests_validate_their_commands() {
+        let generate = parsed(&["generate", "--check"])
+            .generate_request()
+            .expect("generate");
+        assert_eq!(generate.mode, OperationMode::Check);
+        assert!(parsed(&["lint"]).generate_request().is_err());
+        let umbrella = parsed(&["check", "//..."])
+            .umbrella_request()
+            .expect("umbrella");
+        assert_eq!(umbrella.command, Command::Check);
+        assert_eq!(umbrella.targets, vec!["//...".to_owned()]);
+        assert!(parsed(&["lint"]).umbrella_request().is_err());
+        assert!(parsed(&["generate"]).umbrella_request().is_err());
+    }
+
+    #[test]
+    fn umbrella_phases_derive_typed_requests_without_resets() {
+        let umbrella = parsed(&["fix", "--apply", "--fail-on=error", "//a:one"])
+            .umbrella_request()
+            .expect("fix apply");
+        assert_eq!(umbrella.mode, OperationMode::Apply);
+        let phase = umbrella
+            .phase_quality_request(Command::Lint, Vec::new())
+            .expect("lint phase");
+        assert_eq!(phase.command, Command::Lint);
+        assert_eq!(phase.mode, OperationMode::Apply);
+        assert_eq!(phase.targets, vec!["//a:one".to_owned()]);
+        assert_eq!(phase.fail_on, dx_output::Threshold::Error);
+        assert!(umbrella
+            .phase_quality_request(Command::Generate, Vec::new())
+            .is_err());
+        let generate = umbrella.phase_generate_request(Vec::new());
+        assert_eq!(generate.mode, OperationMode::Apply);
+        assert_eq!(generate.targets, vec!["//a:one".to_owned()]);
+    }
+
+    #[test]
+    fn umbrella_verification_is_always_read_only() {
+        let umbrella = parsed(&["fix", "--apply", "//a:one"])
+            .umbrella_request()
+            .expect("fix apply");
+        let recheck = umbrella
+            .verify_quality_request(Command::Lint)
+            .expect("recheck");
+        assert_eq!(recheck.mode, OperationMode::Check);
+        assert!(!recheck.applies());
+        assert!(!recheck.dry_run);
+        assert!(recheck.common.reports.is_empty());
+        let generate = umbrella.verify_generate_request();
+        assert_eq!(generate.mode, OperationMode::Check);
+        assert!(!generate.applies());
     }
 }

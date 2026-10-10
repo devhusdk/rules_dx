@@ -1,7 +1,7 @@
 use super::common::*;
-use super::execute;
-use super::generate::execute_generate;
-use crate::args::{Command, Invocation, ReportRequest};
+use super::generate::execute_generate_request;
+use super::quality::execute_quality_request;
+use crate::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use crate::plan::spec;
 use crate::reports::plan_reports;
 use crate::resolve::QueryRunner;
@@ -324,7 +324,7 @@ struct VerifyContext<'a> {
     ci: bool,
 }
 
-fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verification {
+fn verify_fix(request: &UmbrellaRequest, context: &VerifyContext<'_>) -> Verification {
     let mut outcome = Verification {
         failed_phase: None,
         skipped: Vec::new(),
@@ -336,44 +336,6 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
             outcome.skipped.push(phase.name());
             continue;
         }
-        let verify_invocation = Invocation {
-            command: *phase,
-            check: true,
-            strict_evidence: invocation.strict_evidence,
-            run_output: None,
-            apply: false,
-            debug: false,
-            release: false,
-            workspace: invocation.workspace.clone(),
-            dry_run: false,
-            quiet: invocation.quiet,
-            verbose: invocation.verbose,
-            log_level: invocation.log_level,
-            color: invocation.color,
-            output: invocation.output,
-            reports: Vec::new(),
-            fail_on: invocation.fail_on,
-            min_coverage: invocation.min_coverage,
-            targets: invocation.targets.clone(),
-            bazel_options: invocation.bazel_options.clone(),
-            bazel_clean: false,
-            prune_unobserved: false,
-            pin: None,
-            rollback: false,
-            configured: false,
-            from: None,
-            to: None,
-            here: false,
-            serve: false,
-            port: None,
-            host: None,
-            open: false,
-            offline: false,
-            frozen: false,
-            workspace_capabilities: false,
-            cases: false,
-            bazel_startup_options: invocation.bazel_startup_options.clone(),
-        };
         let code = {
             let phase_env = Env {
                 workspace: context.workspace,
@@ -390,9 +352,15 @@ fn verify_fix(invocation: &Invocation, context: &VerifyContext<'_>) -> Verificat
                 ci: context.ci,
             };
             if *phase == Command::Generate {
-                execute_generate(&verify_invocation, phase_env)
+                execute_generate_request(&request.verify_generate_request(), phase_env)
             } else {
-                execute(&verify_invocation, phase_env)
+                match request.verify_quality_request(*phase) {
+                    Ok(phase_request) => execute_quality_request(&phase_request, phase_env),
+                    Err(message) => {
+                        let _ = writeln!(&mut outcome.err, "dx: {message}");
+                        2
+                    }
+                }
             }
         };
         if code != 0 {
@@ -460,6 +428,17 @@ fn announce_report(
 }
 
 pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let request = match invocation.umbrella_request() {
+        Ok(request) => request,
+        Err(message) => {
+            let Env { err, .. } = env;
+            return pre_exec(err, &message);
+        }
+    };
+    execute_umbrella_request(&request, env)
+}
+
+pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
@@ -471,34 +450,32 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ci,
     } = env;
-    let fix_apply = invocation.command == Command::Fix && invocation.applies();
+    let fix_apply = request.command == Command::Fix && request.applies();
     let phase_check = !fix_apply;
     let mode = if phase_check { "check" } else { "default" };
-    let command = invocation.command.name();
+    let command = request.command.name();
     if let Err(error) = plan_reports(
         workspace,
-        invocation.command,
-        &invocation.reports,
-        &invocation.output,
-        invocation.dry_run,
+        request.command,
+        &request.common.reports,
+        &request.common.output,
+        request.dry_run,
     ) {
         return pre_exec(err, &error.to_string());
     }
-    for request in &invocation.reports {
-        if request.destination == "-" {
+    for report in &request.common.reports {
+        if report.destination == "-" {
             return pre_exec(
                 err,
                 &format!(
                     "option \"--report={}={}\" is not supported by dx {}: phases share one stdout document",
-                    request.format,
-                    request.destination,
-                    command,
+                    report.format, report.destination, command,
                 ),
             );
         }
     }
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(command, invocation.dry_run, mode) {
+    if request.common.output == OutputMode::Json {
+        if let Ok(event) = command_started(command, request.dry_run, mode) {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
             }
@@ -514,8 +491,8 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         let phase_nonce = nonce.wrapping_add(index as u64);
         let mut phase_reports = Vec::new();
         let mut sarif_capture: Option<PathBuf> = None;
-        for request in &invocation.reports {
-            if !spec(*phase).accepts_report(&request.format) {
+        for report in &request.common.reports {
+            if !spec(*phase).accepts_report(&report.format) {
                 continue;
             }
             if sarif_capture.is_none() {
@@ -527,57 +504,19 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
                     return pre_exec(err, "temporary report path is not UTF-8"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
                 };
                 phase_reports.push(ReportRequest {
-                    format: request.format.clone(),
+                    format: report.format.clone(),
                     destination: capture_text.to_owned(),
                 });
                 sarif_capture = Some(capture);
             }
         }
-        if let Err(exit) = announce_phase(out, invocation.output, command, phase.name()) {
+        if let Err(exit) = announce_phase(out, request.common.output, command, phase.name()) {
             stdout_exit = Some(exit);
             break;
         }
         if let Some(capture) = sarif_capture {
             collector.require_capture(index, capture);
         }
-        let phase_invocation = Invocation {
-            command: *phase,
-            check: phase_check,
-            strict_evidence: invocation.strict_evidence,
-            run_output: None,
-            apply: invocation.apply,
-            debug: false,
-            release: false,
-            workspace: invocation.workspace.clone(),
-            dry_run: invocation.dry_run,
-            quiet: invocation.quiet,
-            verbose: invocation.verbose,
-            log_level: invocation.log_level,
-            color: invocation.color,
-            output: invocation.output,
-            reports: phase_reports,
-            fail_on: invocation.fail_on,
-            min_coverage: invocation.min_coverage,
-            targets: invocation.targets.clone(),
-            bazel_options: invocation.bazel_options.clone(),
-            bazel_clean: false,
-            prune_unobserved: false,
-            pin: None,
-            rollback: false,
-            configured: false,
-            from: None,
-            to: None,
-            here: false,
-            serve: false,
-            port: None,
-            host: None,
-            open: false,
-            offline: false,
-            frozen: false,
-            workspace_capabilities: false,
-            cases: false,
-            bazel_startup_options: invocation.bazel_startup_options.clone(),
-        };
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
         let code = {
@@ -593,9 +532,15 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ci,
             };
             if *phase == Command::Generate {
-                execute_generate(&phase_invocation, phase_env)
+                execute_generate_request(&request.phase_generate_request(phase_reports), phase_env)
             } else {
-                execute(&phase_invocation, phase_env)
+                match request.phase_quality_request(*phase, phase_reports) {
+                    Ok(phase_request) => execute_quality_request(&phase_request, phase_env),
+                    Err(message) => {
+                        let _ = writeln!(&mut phase_err, "dx: {message}");
+                        2
+                    }
+                }
             }
         };
         collector.record_exit(index, code);
@@ -616,31 +561,31 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let reasons = collector.reasons();
     let mut reports_ok = true;
     for phase in collector.skipped() {
-        announce_skip(out, invocation.output, command, phase);
+        announce_skip(out, request.common.output, command, phase);
     }
     for (phase, reason) in collector.collection_failures() {
         reports_ok = false;
-        announce_collection_failure(out, err, invocation.output, command, phase, reason);
+        announce_collection_failure(out, err, request.common.output, command, phase, reason);
     }
     if stdout_exit.is_none() {
         let document = collector.document();
-        for request in &invocation.reports {
-            if let Err(error) = write_report_file(workspace, &request.destination, &document) {
+        for report in &request.common.reports {
+            if let Err(error) = write_report_file(workspace, &report.destination, &document) {
                 reports_ok = false;
                 report_failed(
                     out,
                     err,
-                    invocation.output,
-                    &format!("failed to write {} report to {error}", request.format),
+                    request.common.output,
+                    &format!("failed to write {} report to {error}", report.format),
                 );
                 continue;
             }
             let announced = announce_report(
                 out,
                 err,
-                invocation.output,
-                &request.format,
-                &request.destination,
+                request.common.output,
+                &report.format,
+                &report.destination,
                 complete,
                 &reasons,
             );
@@ -653,7 +598,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     collector.cleanup();
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    if fix_apply && !invocation.dry_run && stdout_exit.is_none() && stop_code.is_none() {
+    if fix_apply && !request.dry_run && stdout_exit.is_none() && stop_code.is_none() {
         let context = VerifyContext {
             workspace,
             runner,
@@ -663,7 +608,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             nonce,
             ci,
         };
-        let verification = verify_fix(invocation, &context);
+        let verification = verify_fix(request, &context);
         if let Some(failed) = verification.failed_phase {
             verification_failed = true;
             if let Err(exit) = check_stdout_write(out.write_all(&verification.out))
@@ -674,7 +619,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
                 announce_verification_failure(
                     out,
                     err,
-                    invocation.output,
+                    request.common.output,
                     command,
                     failed,
                     &verification.skipped,
@@ -694,7 +639,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
             },
         },
     };
-    if invocation.output == OutputMode::Json {
+    if request.common.output == OutputMode::Json {
         let finished = command_finished(
             code,
             &FinishedCounts {

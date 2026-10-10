@@ -1,1 +1,1 @@
-[{"code": "SA4006", "severity": "warning", "location": {"file": "go/tests/fixtures/staticcheck/Sample.go", "line": 4, "column": 2}, "end": {"line": 4, "column": 3}, "message": "this value of x is never used"}]
+{"code": "SA4017", "severity": "error", "location": {"file": "go/tests/fixtures/staticcheck/Sample.go", "line": 6, "column": 2}, "end": {"file": "go/tests/fixtures/staticcheck/Sample.go", "line": 6, "column": 31}, "message": "Sprintf doesn't have side effects and its return value is ignored"}

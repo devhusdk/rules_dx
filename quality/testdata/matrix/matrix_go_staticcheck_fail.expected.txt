@@ -5,7 +5,7 @@ stage staticcheck classes=go sources=matrix/staticcheck_dirty.go
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING staticcheck SA4006 matrix/staticcheck_dirty.go 80 81 fixable=false "this value of x is never used"
+initial ERROR staticcheck SA4017 matrix/staticcheck_dirty.go 94 123 fixable=false "Sprintf doesn't have side effects and its return value is ignored"
 terminal 1
-terminal WARNING staticcheck SA4006 matrix/staticcheck_dirty.go 80 81 fixable=false "this value of x is never used"
+terminal ERROR staticcheck SA4017 matrix/staticcheck_dirty.go 94 123 fixable=false "Sprintf doesn't have side effects and its return value is ignored"
 replacements 0

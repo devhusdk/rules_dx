@@ -1,0 +1,24 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "consumer_cpp",
+    srcs = ["hello.cc"],
+    hdrs = ["hello.h"],
+)
+
+cc_binary(
+    name = "consumer_cpp_bin",
+    srcs = ["main.cc"],
+    deps = [":consumer_cpp"],
+)
+
+cc_test(
+    name = "consumer_cpp_test",
+    srcs = ["hello_test.cc"],
+    deps = [":consumer_cpp"],
+)

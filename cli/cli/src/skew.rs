@@ -76,6 +76,7 @@ mod tests {
         Command::Owners,
         Command::Deps,
         Command::Why,
+        Command::Verify,
     ];
 
     const REFUSE: &[Command] = &[

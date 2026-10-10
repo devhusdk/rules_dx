@@ -74,6 +74,7 @@ rust_library(
         "src/exec/update_check.rs",
         "src/exec/update_consumer.rs",
         "src/exec/update_live.rs",
+        "src/exec/verify.rs",
         "src/exec/workflow.rs",
         "src/finalize.rs",
         "src/generate.rs",

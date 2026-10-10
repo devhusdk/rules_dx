@@ -147,6 +147,7 @@ fn plain_words(command: Command) -> Vec<String> {
         Command::New => words.push("rust".to_owned()),
         Command::Watch => words.push("build".to_owned()),
         Command::Completion => words.push("bash".to_owned()),
+        Command::Verify => words.push("pre-pr".to_owned()),
         _ => {}
     }
     words

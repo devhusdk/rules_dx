@@ -448,6 +448,14 @@ fn parse_inner<S: AsRef<OsStr>>(
         reject_report(command, &reports)?;
         reject_passthrough(command, &bazel_options)?;
     }
+    if command == Command::Verify {
+        if targets.is_empty() {
+            return Err(missing_positional(command));
+        }
+        if targets.len() > 1 {
+            return Err(extra_positional(command, &targets[1]));
+        }
+    }
     if command == Command::Bump {
         if targets.len() > 2 {
             return Err(extra_positional(command, &targets[2]));

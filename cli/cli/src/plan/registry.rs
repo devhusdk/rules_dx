@@ -185,6 +185,12 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
             settings: &[],
         },
+        Command::Verify => CommandSpec {
+            command,
+            aspects: &[],
+            reports: &[],
+            settings: &[],
+        },
     }
 }
 

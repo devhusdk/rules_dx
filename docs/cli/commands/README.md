@@ -24,6 +24,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`](new-upgrade.md)
 - [`dx watch`](watch.md)
+- [`dx verify`](verify.md)
 
 Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
 

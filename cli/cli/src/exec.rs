@@ -26,6 +26,7 @@ mod test_reports;
 mod test_support;
 mod umbrella;
 mod update;
+mod verify;
 mod workflow;
 
 use crate::args::{Command, Invocation};
@@ -47,6 +48,7 @@ enum Family {
     Migrate,
     Docs,
     Quality,
+    Verify,
 }
 
 impl Family {
@@ -66,6 +68,7 @@ impl Family {
             Family::Migrate => "migrate",
             Family::Docs => "docs",
             Family::Quality => "quality",
+            Family::Verify => "verify",
         }
     }
 
@@ -102,6 +105,7 @@ fn family(command: Command) -> Family {
         | Command::Completion => Family::Adoption,
         Command::Docs => Family::Docs,
         Command::Bazel => Family::Bazel,
+        Command::Verify => Family::Verify,
     }
 }
 
@@ -152,6 +156,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         Family::Migrate => migrate::execute_migrate(invocation, env),
         Family::Docs => docs::execute_docs(invocation, env),
         Family::Quality => quality::execute_quality(invocation, env),
+        Family::Verify => verify::execute_verify(invocation, env),
     }
 }
 
@@ -171,7 +176,7 @@ mod tests {
                 .entry(family(meta.command).name())
                 .or_insert(false) |= meta.supports_diff;
         }
-        assert_eq!(any_supports_diff.len(), 13, "every family classified");
+        assert_eq!(any_supports_diff.len(), 14, "every family classified");
         for meta in COMMANDS {
             let name = family(meta.command).name();
             assert_eq!(
@@ -191,7 +196,7 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            34,
+            35,
             "every variant classified"
         );
         assert_eq!(counts.get("adoption"), Some(&12));
@@ -207,6 +212,7 @@ mod tests {
         assert_eq!(counts.get("migrate"), Some(&1));
         assert_eq!(counts.get("docs"), Some(&1));
         assert_eq!(counts.get("bazel"), Some(&1));
+        assert_eq!(counts.get("verify"), Some(&1));
     }
 
     #[test]

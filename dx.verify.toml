@@ -1,0 +1,10 @@
+schema = 1
+
+[sets.pre-pr]
+steps = [
+  { command = "format", scopes = ["//cli/cli:dx"] },
+  { command = "lint", scopes = ["//cli/cli:dx"] },
+  { command = "typecheck", scopes = ["//cli/cli:dx"] },
+  { command = "generate", scopes = ["//cli/cli:dx"] },
+  { command = "test", scopes = ["//cli/cli:dx_cli_test"] },
+]

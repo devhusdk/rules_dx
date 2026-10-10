@@ -34,6 +34,7 @@ pub enum Command {
     Docs,
     Bazel,
     Capabilities,
+    Verify,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,7 +116,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 34] = [
+pub static COMMANDS: [CommandMeta; 35] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -1034,6 +1035,33 @@ pub static COMMANDS: [CommandMeta; 34] = [
         labels: LabelsPolicy::Never,
         hook_triggers_on_run: false,
     },
+    CommandMeta {
+        command: Command::Verify,
+        name: "verify",
+        scope_policy: "require",
+        describe: "run one committed verification set in order (non-mutating; stops on the first required failure)",
+        usage: "Usage: dx verify <set> [-- bazel-options ...]",
+        flags: "Per-command flags: `-- --bazel-options` append after each step's declared options (verify only; --output text|json only, diff has no patch; --check/--fail-on/--report/--here do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
+        scopes: "Scopes: exactly one committed set name from dx.verify.toml at the workspace root (set names are not Bazel labels; unknown names fail with the available sets).",
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_check: false,
+        supports_fail_on: false,
+        supports_min_coverage: false,
+        supports_profile: false,
+        supports_offline: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Warn,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
 ];
 
 impl Command {
@@ -1303,6 +1331,7 @@ mod tests {
             Command::Docs,
             Command::Bazel,
             Command::Capabilities,
+            Command::Verify,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1357,13 +1386,14 @@ mod tests {
             "typecheck",
             "update",
             "upgrade",
+            "verify",
             "version",
             "watch",
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 34");
-        assert_eq!(Command::value_variants().len(), 34);
+        assert_eq!(got, want, "Command registry drifted from the final 35");
+        assert_eq!(Command::value_variants().len(), 35);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1508,7 +1538,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            34,
+            35,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1526,7 +1556,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify",
             "pipe_list order must match declaration order"
         );
     }
@@ -1534,7 +1564,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 34);
+        assert_eq!(Command::value_variants().len(), 35);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1753,7 +1783,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 34);
+        assert_eq!(COMMANDS.len(), 35);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

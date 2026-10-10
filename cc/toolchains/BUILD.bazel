@@ -1,0 +1,28 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":identity_subject.bzl", "cc_toolchain_identity_subject")
+load(":identity_tests.bzl", "cc_toolchain_identity_tests")
+
+package(default_visibility = ["//:__subpackages__"])
+
+cc_toolchain_identity_subject(
+    name = "identity_under_test",
+)
+
+cc_toolchain_identity_tests(name = "identity")
+
+test_suite(
+    name = "all",
+    tests = [":identity"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "bindings.bzl",
+        "identity_subject.bzl",
+        "identity_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

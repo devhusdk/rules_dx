@@ -132,6 +132,7 @@ powershell.toolchain(
 )
 use_repo(powershell, "dx_powershell_toolchains")
 
+register_toolchains("@llvm//toolchain:all")
 register_toolchains("@dx_powershell_toolchains//:all")
 
 bazel_dep(name = "rules_ruby", version = "0.28.0")

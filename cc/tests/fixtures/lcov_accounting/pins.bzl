@@ -50,6 +50,9 @@ REJECTED_ALTERNATIVES = [
 
 LCOV_ACCOUNTING_FIXTURE_LIB = "//cc/tests/fixtures/lcov_accounting:accounting"
 LCOV_ACCOUNTING_FIXTURE_TEST = "//cc/tests/fixtures/lcov_accounting:accounting_test"
+PARTIAL_SHAPE = "partial C++ coverage with hot and cold lines"
+PARTIAL_FIXTURE_LIB = "//cc/tests/fixtures/lcov_accounting:partial"
+PARTIAL_FIXTURE_TEST = "//cc/tests/fixtures/lcov_accounting:partial_test"
 LCOV_ACCOUNTING_RUST_HELLO = "//rust/tests/fixtures/hello:hello_test"
 LCOV_ACCOUNTING_MIXED_CXX = "//rust/tests/fixtures/cxx_identity:bridge"
 LCOV_ACCOUNTING_MIXED_RUST = "//rust/tests/fixtures/cxx_identity:cxx_identity"

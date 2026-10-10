@@ -1,0 +1,13 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_binary(
+    name = "consumer_starter",
+    srcs = ["src/main.rs"],
+    crate_name = "consumer_starter",
+    edition = "2021",
+)

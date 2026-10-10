@@ -37,10 +37,15 @@ names such as `CON` and `NUL` are rejected. Nested destinations such as
 The package identity derives from the final destination segment: it is
 lowercased, and every other run of characters folds to `-`. `My App`
 scaffolds the `my-app` package. The derived identity must satisfy the
-language rule. `rust` takes Cargo names. `rust-web` takes Cargo names and
+language rule. `rust` takes Cargo names and scaffolds a runnable
+binary: `Cargo.toml`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`,
+`.bazelversion`, and `README.md`. `rust-web` takes Cargo names and
 scaffolds a shared core with native and browser targets: `Cargo.toml`,
 `src/lib.rs`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`, `.bazelversion`,
-and `README.md`. `python` takes dotted names.
+and `README.md`. `c` scaffolds a standalone C consumer: `hello.c`,
+`hello.h`, `main.c`, `hello_test.c`, `BUILD.bazel`, `MODULE.bazel`,
+`.bazelversion`, and `README.md`. `cc` scaffolds the same layout
+with C++ sources, as does `cpp`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
@@ -83,6 +88,36 @@ destination or package identity, `1` scaffolding failed.
 
 The browser test is manual. It needs Firefox and geckodriver on a
 qualified host. Scaffolding into an existing directory adds absent files
+only and leaves custom files untouched.
+
+## `dx new c`
+
+```text
+dx new [--apply] c [name]
+```
+
+Scaffolds a standalone C consumer: one library, one binary, and one
+test. The `cc` spelling scaffolds the same layout with C++ sources,
+as does `cpp`.
+Versions come from the rules_dx pins. Never overwrites existing files.
+
+```sh
+bazel run @rules_dx//:dx -- new --apply c demo
+```
+
+Build and test inside the new project:
+
+```text
+bazel build //...
+bazel test //...
+```
+
+Output: `--output text`.
+
+Exit codes: `0` success, `2` usage errors including an invalid
+destination or package identity, `1` scaffolding failed.
+
+Scaffolding into an existing directory adds absent files
 only and leaves custom files untouched.
 
 ## `dx upgrade`

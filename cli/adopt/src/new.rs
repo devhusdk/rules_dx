@@ -24,6 +24,8 @@ pub const RUST_WEB_WASM_BINDGEN_CRATE_VERSION: &str = "0.2.121";
 pub const RULES_RUST_WASM_BINDGEN_VERSION: &str = "0.74.0";
 pub const RUST_WEB_PLATFORMS_VERSION: &str = "1.1.0";
 pub const RUST_WEB_BAZEL_VERSION: &str = "9.2.0";
+pub const STANDALONE_BAZEL_VERSION: &str = "9.2.0";
+pub const C_RULES_CC_VERSION: &str = "0.2.22";
 pub const RUST_WEB_WASM_REPOS: &[&str] = &[
     "chrome",
     "chrome_headless_shell",
@@ -63,7 +65,6 @@ pub const RUST_WEB_WASM_REPOS: &[&str] = &[
 ];
 
 pub const NEW_LANGUAGE_ALIASES: &[(&str, &str)] = &[
-    ("c", "cpp"),
     ("cc", "cpp"),
     ("c#", "csharp"),
     ("f#", "fsharp"),
@@ -367,6 +368,140 @@ fn rust_web_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
     ])
 }
 
+fn c_hello_h() -> String {
+    "#pragma once\n\n#include <stddef.h>\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nchar *Hello(char *out, size_t size, const char *name);\n\n#ifdef __cplusplus\n}\n#endif\n"
+        .to_owned()
+}
+
+fn c_hello_c() -> String {
+    "#include <stdio.h>\n\n#include \"hello.h\"\n\nchar *Hello(char *out, size_t size, const char *name) {\n  if (out == NULL || size == 0) {\n    return NULL;\n  }\n  if (name == NULL) {\n    name = \"world\";\n  }\n  snprintf(out, size, \"hello %s\", name);\n  return out;\n}\n"
+        .to_owned()
+}
+
+fn c_main_c() -> String {
+    "#include <stdio.h>\n\n#include \"hello.h\"\n\nint main(void) {\n  char out[64];\n  puts(Hello(out, sizeof out, \"world\"));\n  return 0;\n}\n"
+        .to_owned()
+}
+
+fn c_hello_test_c() -> String {
+    "#include <assert.h>\n#include <string.h>\n\n#include \"hello.h\"\n\nint main(void) {\n  char out[64];\n  assert(strcmp(Hello(out, sizeof out, \"dx\"), \"hello dx\") == 0);\n  assert(Hello(out, sizeof out, NULL) != NULL);\n  assert(strcmp(out, \"hello world\") == 0);\n  assert(Hello(NULL, sizeof out, \"dx\") == NULL);\n  return 0;\n}\n"
+        .to_owned()
+}
+
+fn cpp_hello_h() -> String {
+    "#pragma once\n\n#include <string>\n\nstd::string Hello(const std::string& name);\n".to_owned()
+}
+
+fn cpp_hello_cc() -> String {
+    "#include \"hello.h\"\n\nstd::string Hello(const std::string& name) {\n  return \"hello \" + name;\n}\n"
+        .to_owned()
+}
+
+fn cpp_main_cc() -> String {
+    "#include <iostream>\n\n#include \"hello.h\"\n\nint main() {\n  std::cout << Hello(\"world\") << \"\\n\";\n  return 0;\n}\n"
+        .to_owned()
+}
+
+fn cpp_hello_test_cc() -> String {
+    "#include <cassert>\n\n#include \"hello.h\"\n\nint main() {\n  assert(Hello(\"dx\") == \"hello dx\");\n  return 0;\n}\n"
+        .to_owned()
+}
+
+fn cc_build_bazel(identity: &str, ext: &str) -> String {
+    format!(
+        "load(\"@rules_dx//cc/rules:defs.bzl\", \"cc_binary\", \"cc_library\", \"cc_test\")\n\ncc_library(\n    name = \"{identity}\",\n    srcs = [\"hello.{ext}\"],\n    hdrs = [\"hello.h\"],\n)\n\ncc_binary(\n    name = \"{identity}_bin\",\n    srcs = [\"main.{ext}\"],\n    deps = [\":{identity}\"],\n)\n\ncc_test(\n    name = \"{identity}_test\",\n    srcs = [\"hello_test.{ext}\"],\n    deps = [\":{identity}\"],\n)\n"
+    )
+}
+
+fn cc_module_bazel(identity: &str) -> String {
+    format!(
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\n",
+        dx = super::DX_VERSION,
+        cc = C_RULES_CC_VERSION,
+    )
+}
+
+fn cc_readme(identity: &str, language: &str) -> String {
+    format!(
+        "# {identity}\n\nStandalone {language} consumer with one library, one binary, and one test.\nVersions come from the rules_dx pins.\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nRun the binary and the test directly:\n\n```sh\nbazel run :{identity}_bin\nbazel test :{identity}_test\n```\n"
+    )
+}
+
+fn rust_main_rs() -> String {
+    "fn main() {\n    println!(\"hello world\");\n}\n".to_owned()
+}
+
+fn rust_build_bazel(identity: &str) -> String {
+    format!(
+        "load(\"@rules_dx//rust/rules:defs.bzl\", \"rust_binary\")\n\nrust_binary(\n    name = \"{identity}\",\n    srcs = [\"src/main.rs\"],\n    crate_name = \"{crate_ident}\",\n    edition = \"{edition}\",\n)\n",
+        crate_ident = rust_crate_ident(identity),
+        edition = RUST_WEB_EDITION,
+    )
+}
+
+fn rust_crate_ident(identity: &str) -> String {
+    identity.replace('-', "_")
+}
+
+fn rust_module_bazel(identity: &str) -> String {
+    format!(
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\n",
+        dx = super::DX_VERSION,
+    )
+}
+
+fn rust_readme(identity: &str) -> String {
+    format!(
+        "# {identity}\n\nStandalone Rust consumer with one binary.\nVersions come from the rules_dx pins.\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nRun the binary directly:\n\n```sh\nbazel run :{identity}\n```\n"
+    )
+}
+
+fn rust_standalone_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    Ok(vec![
+        ("Cargo.toml".to_owned(), cargo_manifest(identity)?),
+        ("src/main.rs".to_owned(), rust_main_rs()),
+        ("BUILD.bazel".to_owned(), rust_build_bazel(identity)),
+        ("MODULE.bazel".to_owned(), rust_module_bazel(identity)),
+        (
+            ".bazelversion".to_owned(),
+            format!("{}\n", STANDALONE_BAZEL_VERSION),
+        ),
+        ("README.md".to_owned(), rust_readme(identity)),
+    ])
+}
+
+fn c_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    Ok(vec![
+        ("hello.c".to_owned(), c_hello_c()),
+        ("hello.h".to_owned(), c_hello_h()),
+        ("main.c".to_owned(), c_main_c()),
+        ("hello_test.c".to_owned(), c_hello_test_c()),
+        ("BUILD.bazel".to_owned(), cc_build_bazel(identity, "c")),
+        ("MODULE.bazel".to_owned(), cc_module_bazel(identity)),
+        (
+            ".bazelversion".to_owned(),
+            format!("{}\n", STANDALONE_BAZEL_VERSION),
+        ),
+        ("README.md".to_owned(), cc_readme(identity, "C")),
+    ])
+}
+
+fn cpp_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    Ok(vec![
+        ("hello.cc".to_owned(), cpp_hello_cc()),
+        ("hello.h".to_owned(), cpp_hello_h()),
+        ("main.cc".to_owned(), cpp_main_cc()),
+        ("hello_test.cc".to_owned(), cpp_hello_test_cc()),
+        ("BUILD.bazel".to_owned(), cc_build_bazel(identity, "cc")),
+        ("MODULE.bazel".to_owned(), cc_module_bazel(identity)),
+        (
+            ".bazelversion".to_owned(),
+            format!("{}\n", STANDALONE_BAZEL_VERSION),
+        ),
+        ("README.md".to_owned(), cc_readme(identity, "C++")),
+    ])
+}
+
 fn python_manifest(identity: &str) -> Result<String, AdoptError> {
     let mut project = toml::Table::new();
     project.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
@@ -396,13 +531,7 @@ fn new_language_files(
     let xml_name = escape_xml(identity);
     let sbt_name = escape_sbt_string(identity);
     let files = match canonical {
-        "rust" => vec![
-            ("Cargo.toml".to_owned(), cargo_manifest(identity)?),
-            (
-                "src/main.rs".to_owned(),
-                "fn main() {\n    println!(\"hello world\");\n}\n".to_owned(),
-            ),
-        ],
+        "rust" => rust_standalone_files(identity)?,
         "rust-web" => rust_web_files(identity)?,
         "python" => vec![
             ("pyproject.toml".to_owned(), python_manifest(identity)?),
@@ -514,18 +643,13 @@ fn new_language_files(
                 "module Hello\n\nlet greet name = \"hello \" + name\n".to_owned(),
             ),
         ],
-        _ => vec![
-            (
-                "hello.cc".to_owned(),
-                "#include \"hello.h\"\n\nstd::string Hello(const std::string& name) {\n  return \"hello \" + name;\n}\n"
-                    .to_owned(),
-            ),
-            (
-                "hello.h".to_owned(),
-                "#pragma once\n\n#include <string>\n\nstd::string Hello(const std::string& name);\n"
-                    .to_owned(),
-            ),
-        ],
+        "c" => c_files(identity)?,
+        "cpp" => cpp_files(identity)?,
+        unknown => {
+            return Err(AdoptError::NewUnknownLanguage {
+                language: unknown.to_owned(),
+            });
+        }
     };
     Ok(files)
 }
@@ -570,7 +694,7 @@ mod tests {
     #[test]
     fn new_aliases_normalize_to_canonical_templates() {
         assert_eq!(normalize_new_language("rust"), Some("rust"));
-        assert_eq!(normalize_new_language("c"), Some("cpp"));
+        assert_eq!(normalize_new_language("c"), Some("c"));
         assert_eq!(normalize_new_language("cc"), Some("cpp"));
         assert_eq!(normalize_new_language("cpp"), Some("cpp"));
         assert_eq!(normalize_new_language("c#"), Some("csharp"));
@@ -635,8 +759,13 @@ mod tests {
         assert!(go.iter().any(|f| f.path == "demo/go.mod"));
         let java = plan_new_files("java", "demo").expect("java");
         assert!(java.iter().any(|f| f.path == "demo/Hello.java"));
-        let cpp = plan_new_files("c", "demo").expect("c alias");
+        let c = plan_new_files("c", "demo").expect("c template");
+        assert!(c.iter().any(|f| f.path == "demo/hello.c"));
+        assert!(c.iter().any(|f| f.path == "demo/hello.h"));
+        let cpp = plan_new_files("cpp", "demo").expect("cpp template");
         assert!(cpp.iter().any(|f| f.path == "demo/hello.cc"));
+        let cc = plan_new_files("cc", "demo").expect("cc alias");
+        assert!(cc.iter().any(|f| f.path == "demo/hello.cc"));
         let version = rust
             .iter()
             .find(|f| f.path == "demo/.dx/version")
@@ -765,6 +894,174 @@ mod tests {
             "{build:?}"
         );
         assert!(plan_new_files("rust-web", "+").is_err());
+    }
+
+    #[test]
+    fn c_template_is_pure_c_and_standalone() {
+        let files = plan_new_files("c", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        for wanted in [
+            "demo/hello.c",
+            "demo/hello.h",
+            "demo/main.c",
+            "demo/hello_test.c",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+            "demo/.dx/version",
+        ] {
+            assert!(paths.contains(&wanted.to_owned()), "{paths:?}");
+        }
+        assert!(!paths.iter().any(|path| path.ends_with(".cc")), "{paths:?}");
+        let header = files
+            .iter()
+            .find(|f| f.path == "demo/hello.h")
+            .expect("header");
+        assert!(header.content.contains("extern \"C\""), "{header:?}");
+        assert!(!header.content.contains("std::"), "{header:?}");
+        assert!(!header.content.contains("#include <string>"), "{header:?}");
+        for path in ["demo/hello.c", "demo/main.c", "demo/hello_test.c"] {
+            let source = files.iter().find(|f| f.path == path).expect("source");
+            assert!(!source.content.contains("std::"), "{path}");
+            assert!(!source.content.contains("iostream"), "{path}");
+        }
+        let build = files
+            .iter()
+            .find(|f| f.path == "demo/BUILD.bazel")
+            .expect("build");
+        for wanted in [
+            "cc_library(",
+            "cc_binary(",
+            "cc_test(",
+            "name = \"demo\"",
+            "name = \"demo_bin\"",
+            "name = \"demo_test\"",
+            "@rules_dx//cc/rules:defs.bzl",
+            ":demo",
+        ] {
+            assert!(build.content.contains(wanted), "{wanted}");
+        }
+        let module = files
+            .iter()
+            .find(|f| f.path == "demo/MODULE.bazel")
+            .expect("module");
+        assert!(
+            module.content.contains("module(name = \"demo\")"),
+            "{module:?}"
+        );
+        let version = files
+            .iter()
+            .find(|f| f.path == "demo/.bazelversion")
+            .expect("bazelversion");
+        assert_eq!(version.content, "9.2.0\n");
+        let readme = files
+            .iter()
+            .find(|f| f.path == "demo/README.md")
+            .expect("readme");
+        assert!(readme.content.contains("bazel test //..."), "{readme:?}");
+        assert!(readme.content.contains("demo_test"), "{readme:?}");
+    }
+
+    #[test]
+    fn cpp_template_stays_cpp_and_standalone() {
+        let files = plan_new_files("cpp", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        for wanted in [
+            "demo/hello.cc",
+            "demo/hello.h",
+            "demo/main.cc",
+            "demo/hello_test.cc",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+            "demo/.dx/version",
+        ] {
+            assert!(paths.contains(&wanted.to_owned()), "{paths:?}");
+        }
+        let header = files
+            .iter()
+            .find(|f| f.path == "demo/hello.h")
+            .expect("header");
+        assert!(header.content.contains("std::string"), "{header:?}");
+        let build = files
+            .iter()
+            .find(|f| f.path == "demo/BUILD.bazel")
+            .expect("build");
+        assert!(build.content.contains("hello.cc"), "{build:?}");
+        let aliased = plan_new_files("cc", "demo").expect("cc alias");
+        let aliased_paths = aliased
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(paths, aliased_paths);
+    }
+
+    #[test]
+    fn rust_template_is_standalone() {
+        let files = plan_new_files("rust", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        for wanted in [
+            "demo/Cargo.toml",
+            "demo/src/main.rs",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+            "demo/.dx/version",
+        ] {
+            assert!(paths.contains(&wanted.to_owned()), "{paths:?}");
+        }
+        let main = files
+            .iter()
+            .find(|f| f.path == "demo/src/main.rs")
+            .expect("main");
+        assert_eq!(
+            main.content,
+            "fn main() {\n    println!(\"hello world\");\n}\n"
+        );
+        let build = files
+            .iter()
+            .find(|f| f.path == "demo/BUILD.bazel")
+            .expect("build");
+        for wanted in [
+            "rust_binary(",
+            "name = \"demo\"",
+            "crate_name = \"demo\"",
+            "@rules_dx//rust/rules:defs.bzl",
+        ] {
+            assert!(build.content.contains(wanted), "{wanted}");
+        }
+        let module = files
+            .iter()
+            .find(|f| f.path == "demo/MODULE.bazel")
+            .expect("module");
+        assert!(
+            module.content.contains("module(name = \"demo\")"),
+            "{module:?}"
+        );
+        assert!(
+            module
+                .content
+                .contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"),
+            "{module:?}"
+        );
+        let folded = plan_new_files("rust", "teams/My App").expect("plans");
+        let build = folded
+            .iter()
+            .find(|f| f.path == "teams/My App/BUILD.bazel")
+            .expect("build");
+        assert!(build.content.contains("crate_name = \"my_app\""), "{build:?}");
     }
 
     #[test]

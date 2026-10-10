@@ -242,15 +242,47 @@ mod tests {
     }
 
     #[test]
-    fn new_rust_web_dry_run_lists_template_without_writing() {
-        let inv = invocation(&["new", "rust-web", "demo", "--dry-run"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-new-web-dry-");
+    fn rust_template_matches_the_consumer_starter_fixture() {
+        let root = workspace_root();
+        let fixture = root.join("rust/tests/fixtures/consumer_starter");
+        let expected = template_file_for("rust", "consumer_starter", "src/main.rs");
+        let actual =
+            std::fs::read_to_string(fixture.join("src/main.rs")).expect("fixture file ships");
+        assert_eq!(actual, expected, "src/main.rs drifted from the template");
+        let expected = template_file_for("rust", "consumer_starter", "BUILD.bazel");
+        let actual =
+            std::fs::read_to_string(fixture.join("BUILD.bazel")).expect("fixture BUILD ships");
+        let actual = strip_fixture_package_block(&actual);
+        assert_eq!(actual, expected, "BUILD.bazel drifted from the template");
+    }
+
+    #[test]
+    fn rust_template_pins_come_from_supported_metadata() {
+        let versions = std::fs::read_to_string(workspace_root().join("modules/versions.bzl"))
+            .expect("modules/versions.bzl ships as test data");
+        assert_eq!(versions_pin(&versions, "BAZEL_VERSION"), "9.2.0");
+        assert_eq!(versions_pin(&versions, "RUST_EDITION"), "2021");
+        let module = module_bazel();
+        let generated = template_file_for("rust", "demo", "MODULE.bazel");
+        let pinned = module
+            .lines()
+            .find(|line| line.contains("rules_dx") && line.contains("bazel_dep"))
+            .expect("MODULE.bazel pins rules_dx");
+        assert!(generated.contains(pinned.trim()), "{generated}");
+        assert!(generated.contains("module(name = \"demo\")"), "{generated}");
+        let bazelversion = template_file_for("rust", "demo", ".bazelversion");
+        assert_eq!(bazelversion, "9.2.0\n");
+    }
+
+    #[test]
+    fn new_rust_dry_run_lists_standalone_files_without_writing() {
+        let inv = invocation(&["new", "rust", "demo", "--dry-run"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-rust-dry-");
         let root = scratch.path().to_path_buf();
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         for wanted in [
             "demo/Cargo.toml",
-            "demo/src/lib.rs",
             "demo/src/main.rs",
             "demo/BUILD.bazel",
             "demo/MODULE.bazel",
@@ -328,11 +360,15 @@ mod tests {
     }
 
     fn template_file(destination: &str, suffix: &str) -> String {
-        let files = dx_adopt::plan_new_files("rust-web", destination).expect("plans");
+        template_file_for("rust-web", destination, suffix)
+    }
+
+    fn template_file_for(language: &str, destination: &str, suffix: &str) -> String {
+        let files = dx_adopt::plan_new_files(language, destination).expect("plans");
         files
             .iter()
             .find(|file| file.path == format!("{destination}/{suffix}"))
-            .unwrap_or_else(|| panic!("template has no {suffix}"))
+            .unwrap_or_else(|| panic!("{language} template has no {suffix}"))
             .content
             .clone()
     }
@@ -440,5 +476,107 @@ mod tests {
             generated_repos, provisioned,
             "template adds no unmanaged repos"
         );
+    }
+
+    fn strip_fixture_corpus_block(build: &str) -> String {
+        let marker = "\nreal_source_target(\n";
+        let start = build.find(marker).expect("fixture has a corpus block");
+        let end = build[start..]
+            .find(")\n")
+            .map(|offset| start + offset + ")\n".len())
+            .expect("corpus block is closed");
+        let mut merged = build[..start].to_owned();
+        merged.push_str(&build[end..]);
+        merged
+    }
+
+    #[test]
+    fn c_template_matches_the_consumer_c_fixture() {
+        let root = workspace_root();
+        let fixture = root.join("cc/tests/fixtures/consumer_c");
+        for suffix in ["hello.c", "hello.h", "main.c", "hello_test.c"] {
+            let expected = template_file_for("c", "consumer_c", suffix);
+            let actual =
+                std::fs::read_to_string(fixture.join(suffix)).expect("fixture file ships");
+            assert_eq!(actual, expected, "{suffix} drifted from the template");
+        }
+        let expected = template_file_for("c", "consumer_c", "BUILD.bazel");
+        let actual =
+            std::fs::read_to_string(fixture.join("BUILD.bazel")).expect("fixture BUILD ships");
+        let actual = strip_fixture_corpus_block(&strip_fixture_package_block(&actual));
+        assert_eq!(actual, expected, "BUILD.bazel drifted from the template");
+    }
+
+    #[test]
+    fn c_template_pins_come_from_supported_metadata() {
+        let versions = std::fs::read_to_string(workspace_root().join("modules/versions.bzl"))
+            .expect("modules/versions.bzl ships as test data");
+        assert_eq!(versions_pin(&versions, "BAZEL_VERSION"), "9.2.0");
+        assert_eq!(versions_pin(&versions, "RULES_CC_VERSION"), "0.2.22");
+        let module = module_bazel();
+        let generated = template_file_for("c", "demo", "MODULE.bazel");
+        for wanted in ["rules_dx", "rules_cc"] {
+            let pinned = module
+                .lines()
+                .find(|line| line.contains(wanted) && line.contains("bazel_dep"))
+                .unwrap_or_else(|| panic!("MODULE.bazel pins {wanted}"));
+            assert!(generated.contains(pinned.trim()), "{generated}");
+        }
+        let bazelversion = template_file_for("c", "demo", ".bazelversion");
+        assert_eq!(bazelversion, "9.2.0\n");
+    }
+
+    #[test]
+    fn new_c_and_cc_dry_run_list_distinct_templates() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-c-dry-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "c", "demo", "--dry-run"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        for wanted in [
+            "demo/hello.c",
+            "demo/hello.h",
+            "demo/main.c",
+            "demo/hello_test.c",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+        ] {
+            assert!(out.contains(wanted), "{out}");
+        }
+        assert!(!out.contains("hello.cc"), "{out}");
+        let inv = invocation(&["new", "cc", "demo", "--dry-run"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("demo/hello.cc"), "{out}");
+        assert!(!out.contains("demo/hello.c\n"), "{out}");
+        assert!(!root.join("demo/hello.c").exists());
+        assert!(!root.join("demo/hello.cc").exists());
+    }
+
+    #[test]
+    fn new_c_applies_standalone_layout_absent_only() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-c-apply-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "--apply", "c", "demo"]);
+        let (code, _out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        for wanted in [
+            "demo/hello.c",
+            "demo/hello.h",
+            "demo/main.c",
+            "demo/hello_test.c",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+        ] {
+            assert!(root.join(wanted).exists(), "{wanted} was not written");
+        }
+        let inv = invocation(&["new", "c", "demo"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("current"), "{out}");
     }
 }

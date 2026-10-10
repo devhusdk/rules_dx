@@ -1,0 +1,33 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "consumer_c",
+    srcs = ["hello.c"],
+    hdrs = ["hello.h"],
+)
+
+cc_binary(
+    name = "consumer_c_bin",
+    srcs = ["main.c"],
+    deps = [":consumer_c"],
+)
+
+cc_test(
+    name = "consumer_c_test",
+    srcs = ["hello_test.c"],
+    deps = [":consumer_c"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

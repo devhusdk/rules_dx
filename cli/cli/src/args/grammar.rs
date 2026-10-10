@@ -61,6 +61,7 @@ pub(crate) struct Flags {
     pub(crate) min_coverage: Option<u32>,
     pub(crate) strict_evidence: bool,
     pub(crate) run_output: Option<String>,
+    pub(crate) baseline: Option<String>,
     pub(crate) check: bool,
     pub(crate) apply: bool,
     pub(crate) debug: bool,
@@ -275,6 +276,14 @@ flag_group! {
     RunOutputFlag, {
         #[arg(long = "run-output", value_name = "DIR", allow_negative_numbers = true, overrides_with = "run_output", value_parser = non_empty)]
         run_output: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Suppress baselined diagnostics from a versioned JSON file.
+    BaselineFlag, {
+        #[arg(long = "baseline", value_name = "PATH", allow_negative_numbers = true, overrides_with = "baseline", value_parser = non_empty)]
+        baseline: Option<String>,
     }
 }
 
@@ -633,6 +642,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        baseline: BaselineFlag,
     };
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
@@ -641,6 +651,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        baseline: BaselineFlag,
     };
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
@@ -648,6 +659,7 @@ command_args! {
         apply: ApplyFlag,
         fail_on: FailOnFlag,
         here: HereFlag,
+        baseline: BaselineFlag,
     };
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
@@ -686,6 +698,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        baseline: BaselineFlag,
     };
     /// The flags `dx fix` accepts.
     Fix => 12, BazelTail, {
@@ -694,6 +707,7 @@ command_args! {
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
+        baseline: BaselineFlag,
     };
     /// The flags `dx clean` accepts.
     Clean => 13, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };

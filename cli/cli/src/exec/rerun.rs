@@ -425,6 +425,7 @@ fn rerun_invocation(invocation: &Invocation, receipt: &Receipt) -> Invocation {
         reports: Vec::new(),
         fail_on: invocation.fail_on,
         min_coverage: None,
+            baseline: None,
         targets: receipt.failed_targets.clone(),
         bazel_options,
         bazel_clean: false,

@@ -58,3 +58,45 @@ and frameworks pass through unchanged for the consuming build.
 
 Simulator and device execution stay pending: run on a qualified macOS
 executor with Xcode. No launch is qualified from any other host.
+
+## Apps and frameworks
+
+Compose one simulator or device app bundle with its qualified library
+cell, and one embeddable framework with its environment slices. Loading
+these rules builds, launches, signs, and publishes nothing.
+
+```python
+load("@rules_dx//apple/app:defs.bzl", "apple_app_bundle", "apple_xcframework")
+
+apple_app_bundle(
+    name = "share",
+    environment = "simulator",
+    arch = "arm64",
+    deployment = "17.0",
+    xcode_version = "16.2",
+    bundle_id = "com.example.share",
+    version = "1.0",
+    frameworks = ["Foundation"],
+    resources = ["share.dat"],
+    operation = "build",
+)
+
+apple_xcframework(
+    name = "share",
+    served = ["simulator"],
+    slices = ["simulator/arm64"],
+)
+```
+
+The app library cell follows the iOS library contract: device and
+simulator triples, SDKs, architectures, and deployment floors fail on
+the wrong cell instead of falling back. Resources stay inside the
+bundle, and framework slices stay inside the served environments: a
+device slice fails in a simulator framework.
+
+Build, launch, signing, export, and publication stay separate
+operations. Signing, export, and publication are effects: they fail
+under check and need explicitly allowed effects plus a provisioning
+profile and entitlements. Simulator and device launch stay pending on
+any other host, and device execution is never inferred from the
+simulator.

@@ -1,0 +1,138 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "apple_app_bundle", "apple_xcframework")
+load(":metadata_tests.bzl", "apple_app_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "metadata_tests.bzl",
+])
+
+apple_app_tests(name = "metadata")
+
+apple_app_bundle(
+    name = "no_bundle_id",
+    arch = "arm64",
+    environment = "simulator",
+)
+
+failure_test(
+    name = "no_bundle_id_test",
+    expected_failure_substring = "select one bundle identifier",
+    target = ":no_bundle_id_selection",
+)
+
+apple_app_bundle(
+    name = "bad_bundle_id",
+    arch = "arm64",
+    bundle_id = "share",
+    environment = "simulator",
+)
+
+failure_test(
+    name = "bad_bundle_id_test",
+    expected_failure_substring = "is not reverse-DNS",
+    target = ":bad_bundle_id_selection",
+)
+
+apple_xcframework(
+    name = "device_slice_in_simulator_framework",
+    served = ["simulator"],
+    slices = [
+        "device/arm64",
+        "simulator/arm64",
+    ],
+)
+
+failure_test(
+    name = "device_slice_in_simulator_framework_test",
+    expected_failure_substring = "is outside the simulator framework",
+    target = ":device_slice_in_simulator_framework_selection",
+)
+
+apple_app_bundle(
+    name = "broken_resource",
+    arch = "arm64",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    resources = ["../share.dat"],
+)
+
+failure_test(
+    name = "broken_resource_test",
+    expected_failure_substring = "escapes the bundle",
+    target = ":broken_resource_selection",
+)
+
+apple_app_bundle(
+    name = "sign_during_check",
+    arch = "arm64",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    operation = "sign",
+)
+
+failure_test(
+    name = "sign_during_check_test",
+    expected_failure_substring = "is an effect",
+    target = ":sign_during_check_selection",
+)
+
+apple_app_bundle(
+    name = "export_without_profile",
+    allow_effects = True,
+    arch = "arm64",
+    bundle_id = "com.example.share",
+    entitlements = ["applinks"],
+    environment = "simulator",
+    operation = "export",
+)
+
+failure_test(
+    name = "export_without_profile_test",
+    expected_failure_substring = "needs a provisioning profile",
+    target = ":export_without_profile_selection",
+)
+
+apple_app_bundle(
+    name = "export_without_entitlements",
+    allow_effects = True,
+    arch = "arm64",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    operation = "export",
+    provisioning_profile = "share.mobileprovision",
+)
+
+failure_test(
+    name = "export_without_entitlements_test",
+    expected_failure_substring = "needs entitlements",
+    target = ":export_without_entitlements_selection",
+)
+
+apple_app_bundle(
+    name = "device_triple_on_simulator",
+    arch = "arm64",
+    bundle_id = "com.example.share",
+    environment = "simulator",
+    triple = "aarch64-apple-ios",
+)
+
+failure_test(
+    name = "device_triple_on_simulator_test",
+    expected_failure_substring = "disagrees with simulator/arm64",
+    target = ":device_triple_on_simulator_selection",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "metadata_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -8,10 +8,10 @@ use dx_output::{
 
 use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
 use super::quality_baseline::BaselineView;
-use crate::args::Invocation;
+use crate::args::QualityRequest;
 
 pub(crate) struct EmitInputs<'a> {
-    pub(crate) invocation: &'a Invocation,
+    pub(crate) request: &'a QualityRequest,
     pub(crate) status: &'a [DiagnosticEvent],
     pub(crate) changes: &'a [FileChange],
     pub(crate) applied: &'a BTreeMap<String, bool>,
@@ -33,7 +33,7 @@ pub(crate) fn emit_findings(
     err: &mut dyn Write,
 ) -> EmitCounts {
     let EmitInputs {
-        invocation,
+        request,
         status,
         changes,
         applied,
@@ -46,8 +46,8 @@ pub(crate) fn emit_findings(
     let held = |index: usize| suppressed.get(index).copied().unwrap_or(false);
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
-    if invocation.output == OutputMode::Json {
-        let mutating = invocation.applies();
+    if request.common.output == OutputMode::Json {
+        let mutating = request.applies();
         for (index, diagnostic) in status.iter().enumerate() {
             let mut event_diagnostic = diagnostic.clone();
             if mutating && event_diagnostic.snapshot == Snapshot::Initial {
@@ -109,7 +109,7 @@ pub(crate) fn emit_findings(
                 );
             }
         }
-    } else if matches!(invocation.output, OutputMode::Text { .. }) {
+    } else if matches!(request.common.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
         for (index, diagnostic) in status.iter().enumerate() {
             let mut line = text_diagnostic(diagnostic);
@@ -118,7 +118,7 @@ pub(crate) fn emit_findings(
             }
             let _ = writeln!(human, "{line}");
         }
-        if invocation.applies() {
+        if request.applies() {
             applied_count = applied.values().filter(|applied| **applied).count() as u64;
             not_applied_count = not_applied.len() as u64;
             if applied_count > 0 {
@@ -141,7 +141,7 @@ pub(crate) fn emit_findings(
                 "Baseline stale: {stale} (run with --apply to refresh)."
             );
         }
-        if matches!(invocation.output, OutputMode::Text { .. }) {
+        if matches!(request.common.output, OutputMode::Text { .. }) {
             let human: &mut dyn Write = if stdout_report { err } else { out };
             let _ = writeln!(
                 human,

@@ -1,5 +1,5 @@
 use super::common::*;
-use crate::args::Invocation;
+use crate::args::{GenerateRequest, Invocation};
 use crate::finalize::{finalize, FinalizeError, FinalizeInput};
 use crate::generate::{project, render_diff, text_lines};
 use crate::plan::{
@@ -14,8 +14,8 @@ use dx_output::{
 };
 use std::io::Write;
 
-fn finish_incomplete_generate(invocation: &Invocation, out: &mut dyn Write, code: i32) -> i32 {
-    if invocation.output == OutputMode::Json {
+fn finish_incomplete_generate(output: OutputMode, out: &mut dyn Write, code: i32) -> i32 {
+    if output == OutputMode::Json {
         let _ = write_event(
             out,
             &command_finished(
@@ -31,52 +31,63 @@ fn finish_incomplete_generate(invocation: &Invocation, out: &mut dyn Write, code
 }
 
 pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let request = match invocation.generate_request() {
+        Ok(request) => request,
+        Err(message) => {
+            let Env { err, .. } = env;
+            return pre_exec(err, &message);
+        }
+    };
+    execute_generate_request(&request, env)
+}
+
+pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) -> i32 {
     match plan_reports(
         env.workspace,
-        invocation.command,
-        &invocation.reports,
-        &invocation.output,
-        invocation.dry_run,
+        crate::args::Command::Generate,
+        &request.common.reports,
+        &request.common.output,
+        request.dry_run,
     ) {
         Ok(_) => {}
         Err(error) => return pre_exec(env.err, &error.to_string()),
     }
     let resolved = match resolve(
-        &invocation.targets,
+        &request.targets,
         env.workspace,
         env.query_runner,
-        &invocation.bazel_startup_options,
+        &request.bazel_startup_options,
     ) {
         Ok(resolved) => resolved,
         Err(error) => return pre_exec(env.err, &error.to_string()),
     };
-    let apply = invocation.applies();
+    let apply = request.applies();
     let plan = match plan_generate(
         &resolved,
-        &invocation.bazel_options,
+        &request.bazel_options,
         !apply,
-        &invocation.bazel_startup_options,
+        &request.bazel_startup_options,
     ) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(env.err, &format!("{error}")),
     };
     let mode = if apply { "default" } else { "check" };
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, mode) {
+    if request.dry_run {
+        if request.common.output == OutputMode::Json {
+            if let Ok(event) = command_started("generate", true, mode) {
                 let _ = write_event(env.out, &event);
             }
             let _ = write_event(env.out, &command_finished(0, &FinishedCounts::default()));
-        } else if invocation.chatty() {
+        } else if request.chatty() {
             let _ = writeln!(env.out, "{}", plan.summary);
         }
         return 0;
     }
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, mode) {
+    if request.common.output == OutputMode::Json {
+        if let Ok(event) = command_started("generate", false, mode) {
             let _ = write_event(env.out, &event);
         }
-    } else if invocation.chatty() {
+    } else if request.chatty() {
         let _ = writeln!(env.out, "{}", plan.summary);
     }
     let intended = intended_path(env.temp_dir, env.pid, env.nonce);
@@ -87,8 +98,8 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
         (GENERATE_ENV_SCOPE, scope_json.as_str()),
         (GENERATE_ENV_MODE, mode),
     ];
-    let bazel_code = match run_bazel(
-        invocation,
+    let bazel_code = match run_bazel_output(
+        request.common.output,
         env.out,
         env.err,
         env.workspace,
@@ -101,10 +112,10 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {
-            return finish_incomplete_generate(invocation, env.out, bazel_code);
+            return finish_incomplete_generate(request.common.output, env.out, bazel_code);
         }
-        return operational(
-            invocation,
+        return operational_output(
+            request.common.output,
             env.out,
             env.err,
             CODE_INVALID_RESULT,
@@ -121,11 +132,11 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     let projected = match finalized {
         Ok(projected) => projected,
         Err(FinalizeError::IncompleteCheck) => {
-            return finish_incomplete_generate(invocation, env.out, bazel_code);
+            return finish_incomplete_generate(request.common.output, env.out, bazel_code);
         }
         Err(error) => {
-            return operational(
-                invocation,
+            return operational_output(
+                request.common.output,
                 env.out,
                 env.err,
                 CODE_INVALID_RESULT,
@@ -133,7 +144,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
             );
         }
     };
-    if invocation.output == OutputMode::Json {
+    if request.common.output == OutputMode::Json {
         for file in projected.sorted_files() {
             let _ = write_event(env.out, &change_value(&file.change));
         }
@@ -160,14 +171,14 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
         return code;
     }
-    if invocation.output == OutputMode::Diff {
+    if request.common.output == OutputMode::Diff {
         match render_diff(&projected) {
             Ok(patch) => {
                 env.out.write_all(patch.as_bytes()).ok();
             }
             Err(error) => {
-                return operational(
-                    invocation,
+                return operational_output(
+                    request.common.output,
                     env.out,
                     env.err,
                     CODE_DIFF_FAILED,

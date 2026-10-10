@@ -763,3 +763,34 @@ fn mixed_applied_and_not_applied_fail_together() {
     assert!(out.contains("Applied 1 file(s)."));
     assert!(err.contains("Not applied: src/b.py (stale_source)"));
 }
+
+#[test]
+fn typed_quality_request_preserves_severity_to_the_exit_code() {
+    for (args, code) in [
+        (vec!["lint", "--fail-on=error", "--output=text"], 0),
+        (vec!["lint", "--fail-on=warning", "--output=text"], 1),
+    ] {
+        let mut harness = Harness::new("typed-severity-");
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
+        );
+        let (got, out, _) = harness.run(&args);
+        assert_eq!(got, code, "{args:?}: {out}");
+    }
+}
+
+#[test]
+fn typed_quality_request_preserves_passthrough_and_default_scope() {
+    let mut harness = Harness::new("typed-passthrough-");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, out, err) = harness.run(&["lint", "--output=text", "--", "--jobs=4"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("Running lint analysis for //..."), "{out}");
+    assert_eq!(err, "", "{err}");
+}

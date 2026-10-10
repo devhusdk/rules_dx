@@ -578,8 +578,7 @@ impl RealBackend {
                     parsed(tool_id, parsers::parse_djlint(&out.stdout, out.code, &strs))
                 }
             }
-            "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck"
-            | "keep_sorted" => {
+            "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)
                 } else {
@@ -592,8 +591,7 @@ impl RealBackend {
                         "yamllint" => {
                             commands::yamllint_check(&tool.binary, &refs, config.as_deref())
                         }
-                        "shellcheck" => commands::shellcheck_check(&tool.binary, &refs),
-                        _ => commands::keep_sorted_check(&tool.binary, &refs),
+                        _ => commands::shellcheck_check(&tool.binary, &refs),
                     };
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let report = match tool_id {
@@ -603,10 +601,16 @@ impl RealBackend {
                             parsers::parse_psscriptanalyzer(&out.stdout, out.code, &strs)
                         }
                         "yamllint" => parsers::parse_yamllint(&out.stdout, out.code, &strs),
-                        "shellcheck" => parsers::parse_shellcheck(&out.stdout, out.code, &strs),
-                        _ => parsers::parse_keep_sorted_lint(&out.stdout, out.code, &strs),
+                        _ => parsers::parse_shellcheck(&out.stdout, out.code, &strs),
                     };
                     parsed(tool_id, report)
+                }
+            }
+            "keep_sorted" => {
+                if !tool.upstream_diagnostics.is_empty() {
+                    self.check_file_family_delegated(tool_id, tool, pairs)
+                } else {
+                    self.check_keep_sorted_batched(tool_id, tool, scratch, pairs, &strs)
                 }
             }
             _ => Err(execution(
@@ -614,5 +618,56 @@ impl RealBackend {
                 format!("unsupported real tool: {tool_id}"),
             )),
         }
+    }
+
+    fn check_keep_sorted_batched(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        scratch: &Scratch,
+        pairs: &[(String, PathBuf)],
+        strs: &[&str],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let refs: Vec<&Path> = pairs
+            .iter()
+            .map(|(_, absolute)| absolute.as_path())
+            .collect();
+        let head = commands::keep_sorted_check(&tool.binary, &[]);
+        let batches = commands::plan_batches(&head.argv, &refs);
+        let total = batches.len();
+        let mut merged: Vec<FileFinding> = Vec::new();
+        for (index, batch) in batches.iter().enumerate() {
+            let invocation = commands::keep_sorted_check(&tool.binary, batch);
+            let out = self
+                .run(tool_id, tool, &invocation, scratch)
+                .map_err(|err| {
+                    execution(tool_id, format!("batch {}/{}: {err}", index + 1, total))
+                })?;
+            let report =
+                parsers::parse_keep_sorted_lint(&out.stdout, out.code, strs).map_err(|err| {
+                    RunnerError::ToolOutput {
+                        tool_id: tool_id.to_owned(),
+                        detail: format!("batch {}/{}: {err}", index + 1, total),
+                    }
+                })?;
+            merged.extend(report);
+        }
+        merged.sort_by(|left, right| {
+            (
+                left.file.as_str(),
+                left.finding.start.line,
+                left.finding.start.column,
+                left.finding.rule_id.as_str(),
+                left.finding.message.as_str(),
+            )
+                .cmp(&(
+                    right.file.as_str(),
+                    right.finding.start.line,
+                    right.finding.start.column,
+                    right.finding.rule_id.as_str(),
+                    right.finding.message.as_str(),
+                ))
+        });
+        Ok(merged)
     }
 }

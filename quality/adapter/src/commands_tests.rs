@@ -1,4 +1,5 @@
 use super::*;
+use std::path::PathBuf;
 
 const BIN: &str = "/scratch/bin/tool";
 const FILE: &str = "/scratch/src/main.rs";
@@ -991,4 +992,180 @@ fn fixed_args_match_recorded_invocations() {
         assert_eq!(argv_strings(invocation), expected);
         assert_eq!(invocation.cwd_rel, "");
     }
+}
+
+#[test]
+fn batch_argv_counts_bytes_and_utf16_units() {
+    assert_eq!(argv_sizes(OsStr::new("")), (0, 0));
+    assert_eq!(argv_sizes(OsStr::new("abc")), (3, 3));
+    assert_eq!(argv_sizes(OsStr::new("--mode")), (6, 6));
+    assert_eq!(argv_sizes(OsStr::new("é")), (2, 1));
+    assert_eq!(argv_sizes(OsStr::new("字")), (3, 1));
+    assert_eq!(argv_sizes(OsStr::new("🦀")), (4, 2));
+}
+
+#[test]
+fn only_keep_sorted_batches_until_proved() {
+    assert_eq!(transport_for("keep_sorted"), ArgTransport::Batched);
+    for tool in [
+        "buildifier",
+        "rustfmt",
+        "ruff",
+        "biome",
+        "eslint",
+        "prettier",
+        "ty",
+        "clippy",
+        "clang_tidy",
+        "staticcheck",
+    ] {
+        assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
+    }
+}
+
+fn batch_cost(head: &[OsString], batch: &[&Path]) -> (usize, usize) {
+    let mut bytes = 0usize;
+    let mut units = 0usize;
+    for arg in head
+        .iter()
+        .map(|part| part.as_os_str())
+        .chain(batch.iter().map(|file| file.as_os_str()))
+    {
+        let (argument_bytes, argument_units) = argv_sizes(arg);
+        bytes += argument_bytes + 1;
+        units += argument_units + 1;
+    }
+    (bytes, units)
+}
+
+#[test]
+fn batches_keep_input_order_under_a_small_budget() {
+    let head = vec![
+        OsString::from("/bin/tool"),
+        OsString::from("--mode"),
+        OsString::from("lint"),
+    ];
+    let owned: Vec<PathBuf> = (0..8)
+        .map(|index| PathBuf::from(format!("/s/notes-{index}.txt")))
+        .collect();
+    let refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+    let batches = plan_batches_with_budget(&head, &refs, 80);
+    assert!(batches.len() > 1, "small budget forces batches");
+    let roundtrip: Vec<&Path> = batches.iter().flatten().copied().collect();
+    assert_eq!(roundtrip, refs);
+    for batch in &batches {
+        assert!(!batch.is_empty());
+        let (bytes, units) = batch_cost(&head, batch);
+        assert!(bytes <= 80, "bytes {bytes} fit");
+        assert!(units <= 80, "units {units} fit");
+    }
+}
+
+#[test]
+fn a_small_selection_stays_on_one_spawn() {
+    let head = vec![OsString::from("/bin/tool")];
+    let owned: Vec<PathBuf> = (0..3)
+        .map(|index| PathBuf::from(format!("/s/notes-{index}.txt")))
+        .collect();
+    let refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+    assert_eq!(plan_batches(&head, &refs), vec![refs]);
+}
+
+#[test]
+fn an_empty_selection_keeps_one_spawn() {
+    let head = vec![OsString::from("/bin/tool")];
+    let batches: Vec<Vec<&Path>> = plan_batches(&head, &[]);
+    assert_eq!(batches.len(), 1);
+    assert!(batches[0].is_empty());
+}
+
+#[test]
+fn an_oversized_file_travels_alone() {
+    let head = vec![OsString::from("/bin/tool")];
+    let big = PathBuf::from(format!("/s/{}.txt", "x".repeat(300)));
+    let small = PathBuf::from("/s/a.txt");
+    let refs = vec![big.as_path(), small.as_path()];
+    let batches = plan_batches_with_budget(&head, &refs, 100);
+    assert_eq!(batches.len(), 2);
+    assert_eq!(batches[0], vec![big.as_path()]);
+    assert_eq!(batches[1], vec![small.as_path()]);
+}
+
+#[test]
+fn batched_probe_spawns_deliver_every_byte() {
+    let probe = dx_testing::process_probe();
+    let session = tempfile::TempDir::new().expect("scratch");
+    let ambient: Vec<(OsString, OsString)> = Vec::new();
+    let env = crate::exec::hermetic_env(session.path(), &[], &ambient);
+    let head = vec![probe.into_os_string(), OsString::from("--print-argv")];
+    let owned: Vec<OsString> = (0..400)
+        .map(|index| {
+            OsString::from(format!(
+                "--stderr-text=padded-{index:04}-{}",
+                "n".repeat(100)
+            ))
+        })
+        .collect();
+    let file_refs: Vec<&Path> = owned.iter().map(Path::new).collect();
+    let batches = plan_batches(&head, &file_refs);
+    assert!(batches.len() > 1, "oversized selection splits");
+    let mut delivered: Vec<String> = Vec::new();
+    for batch in &batches {
+        let mut argv = head.clone();
+        argv.extend(batch.iter().map(|file| file.as_os_str().to_owned()));
+        let mut bytes = 0usize;
+        let mut units = 0usize;
+        for arg in &argv {
+            let (argument_bytes, argument_units) = argv_sizes(arg.as_os_str());
+            bytes += argument_bytes + 1;
+            units += argument_units + 1;
+        }
+        assert!(bytes <= ARGV_BATCH_BUDGET, "bytes {bytes} fit");
+        assert!(units <= ARGV_BATCH_BUDGET, "units {units} fit");
+        let out = crate::exec::spawn(&argv, session.path(), &env).expect("probe runs");
+        assert_eq!(out.code, Some(0));
+        let mut lines: Vec<String> = String::from_utf8(out.stdout)
+            .expect("probe prints text")
+            .split('\n')
+            .map(str::to_owned)
+            .collect();
+        lines.pop();
+        delivered.extend(lines);
+    }
+    let mut expected: Vec<String> = Vec::new();
+    for batch in &batches {
+        expected.push("--print-argv".to_owned());
+        expected.extend(batch.iter().map(|file| file.to_string_lossy().into_owned()));
+    }
+    assert_eq!(delivered, expected);
+}
+
+#[test]
+fn probe_spawn_preserves_shell_metacharacters() {
+    let probe = dx_testing::process_probe();
+    let session = tempfile::TempDir::new().expect("scratch");
+    let ambient: Vec<(OsString, OsString)> = Vec::new();
+    let env = crate::exec::hermetic_env(session.path(), &[], &ambient);
+    let tricky = vec![
+        OsString::from("--stderr-text=with space"),
+        OsString::from("--stderr-text=quote\"back\\slash'tick`dollar$"),
+        OsString::from("--stderr-text=uniçødé-字-🦀"),
+        OsString::from("--stderr-text="),
+        OsString::from("--stderr-text=--mode"),
+    ];
+    let mut argv = vec![probe.into_os_string(), OsString::from("--print-argv")];
+    argv.extend(tricky.clone());
+    let out = crate::exec::spawn(&argv, session.path(), &env).expect("probe runs");
+    assert_eq!(out.code, Some(0));
+    assert_eq!(out.stderr, b"--mode");
+    let mut lines: Vec<String> = String::from_utf8(out.stdout)
+        .expect("probe prints text")
+        .split('\n')
+        .map(str::to_owned)
+        .collect();
+    lines.pop();
+    let expected: Vec<String> = std::iter::once("--print-argv".to_owned())
+        .chain(tricky.iter().map(|arg| arg.to_string_lossy().into_owned()))
+        .collect();
+    assert_eq!(lines, expected);
 }

@@ -349,6 +349,61 @@ pub(super) fn keep_sorted_behavior(
     })
 }
 
+pub(super) fn keep_sorted_multi_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let files_at = argv
+        .windows(2)
+        .position(|pair| pair[0] == "--mode")
+        .map(|at| at + 2)
+        .expect("keep-sorted always takes --mode");
+    assert_eq!(
+        argv[files_at - 1].to_string_lossy(),
+        "lint",
+        "check stays a check"
+    );
+    let mut entries = Vec::new();
+    for file in &argv[files_at..] {
+        let name = file.to_string_lossy().into_owned();
+        let bytes = std::fs::read(&name).expect("checked file is materialized");
+        let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+        let Some((start, end, block)) = keep_sorted_block(&text) else {
+            continue;
+        };
+        let mut sorted = block.clone();
+        sorted.sort();
+        if sorted == block {
+            continue;
+        }
+        let replacement = sorted.join("\n") + "\n";
+        entries.push(format!(
+            "{{\"path\":\"{}\",\"lines\":{{\"start\":{},\"end\":{}}},\"message\":\"{}\",\"fixes\":[{{\"replacements\":[{{\"lines\":{{\"start\":{},\"end\":{}}},\"new_content\":\"{}\"}}]}}]}}",
+            json_escape(&name),
+            start + 2,
+            end,
+            KEEP_SORTED_MESSAGE,
+            start + 2,
+            end,
+            json_escape(&replacement),
+        ));
+    }
+    if entries.is_empty() {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: format!("[{}]", entries.join(",")).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn biome_config_dir_arg(argv: &[OsString]) -> String {
     argv.windows(2)
         .find(|pair| pair[0] == "--config-path")

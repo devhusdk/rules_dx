@@ -15,6 +15,7 @@ TEXT_KEEP_SORTED_SUPPORT = {
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "known",
     "tool": "keep_sorted",
+    "transport": "batched",
 }
 
 def _is_canonical_token(text):
@@ -30,7 +31,7 @@ def support_record_error(record):
     """Validates one support record against the adapter taxonomy."""
     if SUPPORT_SCHEMA_VERSION != 1:
         return "support: unsupported schema v" + str(SUPPORT_SCHEMA_VERSION) + " (want v1)"
-    for key in ["artifact", "capability", "classes", "context", "execution", "family", "fix", "platforms", "state", "tool"]:
+    for key in ["artifact", "capability", "classes", "context", "execution", "family", "fix", "platforms", "state", "tool", "transport"]:
         if key not in record:
             return "support: record is missing field '" + key + "'"
     tool = record["tool"]
@@ -74,6 +75,8 @@ def support_record_error(record):
         return "support: tool '" + tool + "' needs state 'known', 'supported' or 'qualified', got '" + str(record["state"]) + "'"
     if record["artifact"] not in ["missing", "pinned"]:
         return "support: tool '" + tool + "' needs artifact 'missing' or 'pinned', got '" + str(record["artifact"]) + "'"
+    if record["transport"] not in ["batched", "single"]:
+        return "support: tool '" + tool + "' needs transport 'batched' or 'single', got '" + str(record["transport"]) + "'"
     return ""
 
 def support_schema_error():

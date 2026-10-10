@@ -802,14 +802,18 @@ mod tests {
 
     impl ScriptQuery {
         fn staged_then_owners(staged: &str, owners: &str) -> Self {
-            Self::scripted(&[staged], owners)
+            Self::scripted(&[staged], owners, "")
+        }
+
+        fn staged_then_attributed_owners(staged: &str, owners: &str, sources: &str) -> Self {
+            Self::scripted(&[staged], owners, sources)
         }
 
         fn push_then_owners(diffs: &[&str], owners: &str) -> Self {
-            Self::scripted(diffs, owners)
+            Self::scripted(diffs, owners, "")
         }
 
-        fn scripted(git_outputs: &[&str], owners: &str) -> Self {
+        fn scripted(git_outputs: &[&str], owners: &str, sources: &str) -> Self {
             let mut outputs: Vec<crate::resolve::QueryResult> = git_outputs
                 .iter()
                 .map(|stdout| crate::resolve::QueryResult {
@@ -823,6 +827,13 @@ mod tests {
                 stdout: owners.as_bytes().to_vec(),
                 stderr: Vec::new(),
             });
+            if !sources.is_empty() {
+                outputs.push(crate::resolve::QueryResult {
+                    code: Some(0),
+                    stdout: sources.as_bytes().to_vec(),
+                    stderr: Vec::new(),
+                });
+            }
             Self {
                 outputs: RefCell::new(outputs),
                 seen: RefCell::new(Vec::new()),
@@ -1313,9 +1324,10 @@ mod tests {
         let root = scratch.path().to_path_buf();
         write_workspace(&root);
         std::fs::write(root.join("pkg/space name.py"), "x = 1\n").expect("spaced");
-        let query = ScriptQuery::staged_then_owners(
+        let query = ScriptQuery::staged_then_attributed_owners(
             "A\0pkg/space name.py\0M\0pkg/BUILD.bazel\0",
             "//pkg:lib\n",
+            "//pkg:BUILD.bazel\n//pkg:space name.py\n",
         );
         let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![Some(0), Some(0)]);
         let (code, out, err) = run_with_stdin(&inv, &root, &query, &runner, None);
@@ -1348,6 +1360,7 @@ mod tests {
     struct RealGit {
         git: PathBuf,
         owners: String,
+        owned_labels: RefCell<Vec<String>>,
         git_calls: RefCell<Vec<Vec<String>>>,
     }
 
@@ -1368,6 +1381,27 @@ mod tests {
                     stdout: output.stdout,
                     stderr: output.stderr,
                 });
+            }
+            if argv.last().is_some_and(|query| query.starts_with("deps(")) {
+                let mut owned = self.owned_labels.borrow().clone();
+                owned.sort();
+                owned.dedup();
+                return Ok(QueryResult {
+                    code: Some(0),
+                    stdout: owned.join("\n").as_bytes().to_vec(),
+                    stderr: Vec::new(),
+                });
+            }
+            if let Some(query) = argv.last() {
+                let mut labels: Vec<String> = query
+                    .split('"')
+                    .skip(1)
+                    .step_by(2)
+                    .map(ToString::to_string)
+                    .collect();
+                labels.sort();
+                labels.dedup();
+                *self.owned_labels.borrow_mut() = labels;
             }
             Ok(QueryResult {
                 code: Some(0),
@@ -1428,6 +1462,7 @@ mod tests {
         let runner = RealGit {
             git: git.clone(),
             owners: "//pkg:lib\n".to_owned(),
+            owned_labels: RefCell::new(Vec::new()),
             git_calls: RefCell::new(Vec::new()),
         };
         let staged = staged_changes(&git, &root, &runner).expect("staged");

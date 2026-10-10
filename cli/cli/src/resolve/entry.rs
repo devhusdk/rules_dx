@@ -166,6 +166,34 @@ mod tests {
     }
 
     #[test]
+    fn test_scope_with_orphan_file_reports_no_owner() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-orphan-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:lib\n"),
+            FakeQuery::ok("//pkg:a.py\n"),
+        ]);
+        let err = resolve_for_test(
+            &strings(&["pkg/a.py", "pkg/orphan.py"]),
+            &workspace,
+            &query,
+            &[],
+        )
+        .expect_err("partial ownership must fail");
+        assert_eq!(
+            err,
+            ResolveError::NoOwner {
+                files: strings(&["pkg/orphan.py"]),
+                labels: strings(&["//pkg:orphan.py"]),
+            }
+        );
+        assert_eq!(query.calls().len(), 2);
+    }
+
+    #[test]
     fn test_scope_without_files_matches_plain_resolve() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-");
         let workspace = scratch.path().to_path_buf();

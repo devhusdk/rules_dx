@@ -2,7 +2,9 @@ use std::io;
 use std::path::{Component, Path};
 
 use super::packages::PackageCache;
-use super::{ownership_set_expression, run_label_query, QueryRunner, ResolveError};
+use super::{
+    owned_sources_expression, ownership_set_expression, run_label_query, QueryRunner, ResolveError,
+};
 
 fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
     if raw.is_empty() {
@@ -57,6 +59,7 @@ pub(crate) fn parse_owners(stdout: &[u8], label: &str) -> Result<Vec<String>, Re
     Ok(owners)
 }
 
+#[derive(Clone)]
 pub(crate) struct FileScope {
     pub(crate) scope: String,
     pub(crate) label: String,
@@ -127,6 +130,22 @@ pub(crate) fn classify_scopes(
     Ok(classified)
 }
 
+fn no_owner_error(files: &[FileScope]) -> ResolveError {
+    let mut seen = std::collections::HashSet::new();
+    let mut scopes = Vec::new();
+    let mut labels = Vec::new();
+    for file in files {
+        if seen.insert((file.scope.as_str(), file.label.as_str())) {
+            scopes.push(file.scope.clone());
+            labels.push(file.label.clone());
+        }
+    }
+    ResolveError::NoOwner {
+        files: scopes,
+        labels,
+    }
+}
+
 pub(crate) fn resolve_file_owners(
     files: &[FileScope],
     workspace: &Path,
@@ -137,11 +156,24 @@ pub(crate) fn resolve_file_owners(
     let expression = ownership_set_expression(&labels);
     let owners = run_label_query(&expression, workspace, runner, startup_options)?;
     if owners.is_empty() {
-        let first = &files[0];
-        return Err(ResolveError::NoOwner {
-            file: first.scope.clone(),
-            label: first.label.clone(),
-        });
+        return Err(no_owner_error(files));
+    }
+    if files.len() > 1 {
+        let sources = run_label_query(
+            &owned_sources_expression(&owners),
+            workspace,
+            runner,
+            startup_options,
+        )?;
+        let owned: std::collections::HashSet<&str> = sources.iter().map(String::as_str).collect();
+        let missing: Vec<FileScope> = files
+            .iter()
+            .filter(|file| !owned.contains(file.label.as_str()))
+            .cloned()
+            .collect();
+        if !missing.is_empty() {
+            return Err(no_owner_error(&missing));
+        }
     }
     Ok(owners)
 }
@@ -298,26 +330,37 @@ mod tests {
     }
 
     #[test]
-    fn multiple_files_share_one_bounded_query() {
+    fn multiple_files_share_two_bounded_queries() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
         write(&workspace, "pkg/b.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::ok("//pkg:lib\n//pkg:extra\n")]);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:lib\n//pkg:extra\n"),
+            FakeQuery::ok("//pkg:a.py\n//pkg:b.py\n"),
+        ]);
         let got =
             resolve(&strings(&["pkg/b.py", "pkg/a.py"]), &workspace, &query, &[]).expect("resolve");
         assert_eq!(got.targets, strings(&["//pkg:extra", "//pkg:lib"]));
         let calls = query.calls();
-        assert_eq!(calls.len(), 1, "one bounded query per resolver call");
+        assert_eq!(
+            calls.len(),
+            2,
+            "one ownership query plus one attribution query"
+        );
         assert_eq!(
             calls[0].0.last().expect("expression"),
             "kind('rule', rdeps(//..., set(\"//pkg:a.py\" \"//pkg:b.py\"), 1))"
         );
+        assert_eq!(
+            calls[1].0.last().expect("expression"),
+            "deps(set(\"//pkg:extra\" \"//pkg:lib\"), 1)"
+        );
     }
 
     #[test]
-    fn empty_batch_mapping_names_the_first_file() {
+    fn empty_batch_mapping_names_every_file() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-empty-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
@@ -329,8 +372,130 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::NoOwner {
-                file: "pkg/a.py".to_owned(),
-                label: "//pkg:a.py".to_owned(),
+                files: strings(&["pkg/a.py", "pkg/b.py"]),
+                labels: strings(&["//pkg:a.py", "//pkg:b.py"]),
+            }
+        );
+        assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn mixed_owned_and_orphan_files_report_every_orphan() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-partial-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/owned.py", "x = 1\n");
+        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        write(&workspace, "pkg/my orphan.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:lib\n"),
+            FakeQuery::ok("//pkg:lib\n//pkg:owned.py\n//other:dep\n"),
+        ]);
+        let err = resolve(
+            &strings(&["pkg/owned.py", "pkg/orphan.py", "pkg/my orphan.py"]),
+            &workspace,
+            &query,
+            &[],
+        )
+        .expect_err("partial ownership must fail");
+        assert_eq!(
+            err,
+            ResolveError::NoOwner {
+                files: strings(&["pkg/orphan.py", "pkg/my orphan.py"]),
+                labels: strings(&["//pkg:orphan.py", "//pkg:my orphan.py"]),
+            }
+        );
+        assert!(err.to_string().contains("pkg/orphan.py"), "{err}");
+        assert!(err.to_string().contains("pkg/my orphan.py"), "{err}");
+        let calls = query.calls();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(
+            calls[1].0.last().expect("expression"),
+            "deps(set(\"//pkg:lib\"), 1)"
+        );
+    }
+
+    #[test]
+    fn overlapping_owners_cover_every_file() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-overlap-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/b.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:lib\n//pkg:extra\n"),
+            FakeQuery::ok("//pkg:lib\n//pkg:a.py\n//pkg:b.py\n"),
+        ]);
+        let got =
+            resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query, &[]).expect("resolve");
+        assert_eq!(got.targets, strings(&["//pkg:extra", "//pkg:lib"]));
+        assert_eq!(query.calls().len(), 2);
+    }
+
+    #[test]
+    fn duplicate_orphan_scopes_are_listed_once() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-dup-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let err = resolve(&strings(&["pkg/a.py", "pkg/a.py"]), &workspace, &query, &[])
+            .expect_err("orphans");
+        assert_eq!(
+            err,
+            ResolveError::NoOwner {
+                files: strings(&["pkg/a.py"]),
+                labels: strings(&["//pkg:a.py"]),
+            }
+        );
+        assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn attribution_query_failure_stays_query_failed() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-batch-attrib-fail-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        write(&workspace, "pkg/b.py", "x = 1\n");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:lib\n"),
+            QueryResult {
+                code: Some(2),
+                stdout: Vec::new(),
+                stderr: b"ERROR: no such package\nmore context\n".to_vec(),
+            },
+        ]);
+        let err = resolve(&strings(&["pkg/a.py", "pkg/b.py"]), &workspace, &query, &[])
+            .expect_err("failed");
+        assert_eq!(
+            err,
+            ResolveError::QueryFailed {
+                label: "deps(set(\"//pkg:lib\"), 1)".to_owned(),
+                detail: "ERROR: no such package".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn mixed_labels_and_orphan_files_fail_without_partial_selection() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-mixed-orphan-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/orphan.py", "x = 1\n");
+        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let err = resolve(
+            &strings(&["//z:z", "pkg/orphan.py"]),
+            &workspace,
+            &query,
+            &[],
+        )
+        .expect_err("orphan");
+        assert_eq!(
+            err,
+            ResolveError::NoOwner {
+                files: strings(&["pkg/orphan.py"]),
+                labels: strings(&["//pkg:orphan.py"]),
             }
         );
         assert_eq!(query.calls().len(), 1);
@@ -554,8 +719,8 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::NoOwner {
-                file: "pkg/orphan.py".to_owned(),
-                label: "//pkg:orphan.py".to_owned(),
+                files: strings(&["pkg/orphan.py"]),
+                labels: strings(&["//pkg:orphan.py"]),
             }
         );
         assert!(err.to_string().contains("explicit target label"));

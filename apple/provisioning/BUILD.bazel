@@ -1,0 +1,233 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "apple_provisioning")
+load(":metadata_tests.bzl", "apple_provisioning_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "metadata_tests.bzl",
+])
+
+apple_provisioning_tests(name = "metadata")
+
+apple_provisioning(
+    name = "no_route",
+    sdk = "iphoneos",
+)
+
+failure_test(
+    name = "no_route_test",
+    expected_failure_substring = "select one execution route",
+    target = ":no_route_selection",
+)
+
+apple_provisioning(
+    name = "bad_route",
+    accept_licenses = ["apple-xcode-license"],
+    host = "macos_arm64",
+    route = "remote",
+    sdk = "iphoneos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "bad_route_test",
+    expected_failure_substring = "unknown route 'remote'",
+    target = ":bad_route_selection",
+)
+
+apple_provisioning(
+    name = "unknown_host",
+    accept_licenses = ["apple-xcode-license"],
+    credential_file = "/run/secrets/mac",
+    endpoint = "https://mac.example.com",
+    host = "linux_x86_64",
+    route = "managed",
+    sdk = "iphoneos",
+)
+
+failure_test(
+    name = "unknown_host_test",
+    expected_failure_substring = "unknown host 'linux_x86_64'",
+    target = ":unknown_host_selection",
+)
+
+apple_provisioning(
+    name = "linux_local",
+    accept_licenses = ["apple-xcode-license"],
+    host = "linux_x86_64",
+    route = "local",
+    sdk = "iphoneos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "linux_local_test",
+    expected_failure_substring = "local route needs a macos_arm64 executor",
+    target = ":linux_local_selection",
+)
+
+apple_provisioning(
+    name = "missing_xcode",
+    accept_licenses = ["apple-xcode-license"],
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphoneos",
+)
+
+failure_test(
+    name = "missing_xcode_test",
+    expected_failure_substring = "needs the installed Xcode version",
+    target = ":missing_xcode_selection",
+)
+
+apple_provisioning(
+    name = "old_xcode",
+    accept_licenses = ["apple-xcode-license"],
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphoneos",
+    xcode_version = "15.4",
+)
+
+failure_test(
+    name = "old_xcode_test",
+    expected_failure_substring = "is outside 16",
+    target = ":old_xcode_selection",
+)
+
+apple_provisioning(
+    name = "bad_sdk",
+    accept_licenses = ["apple-xcode-license"],
+    host = "macos_arm64",
+    route = "local",
+    sdk = "watchos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "bad_sdk_test",
+    expected_failure_substring = "is outside iphoneos, iphonesimulator, macosx",
+    target = ":bad_sdk_selection",
+)
+
+apple_provisioning(
+    name = "old_deployment",
+    accept_licenses = ["apple-xcode-license"],
+    deployment = "16.0",
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphoneos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "old_deployment_test",
+    expected_failure_substring = "is below 17.0",
+    target = ":old_deployment_selection",
+)
+
+apple_provisioning(
+    name = "old_macos",
+    accept_licenses = ["apple-xcode-license"],
+    host = "macos_arm64",
+    macos_version = "13.6",
+    route = "local",
+    sdk = "iphoneos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "old_macos_test",
+    expected_failure_substring = "is below 14.5",
+    target = ":old_macos_selection",
+)
+
+apple_provisioning(
+    name = "managed_no_endpoint",
+    accept_licenses = ["apple-xcode-license"],
+    credential_file = "/run/secrets/mac",
+    host = "macos_arm64",
+    route = "managed",
+    sdk = "iphoneos",
+)
+
+failure_test(
+    name = "managed_no_endpoint_test",
+    expected_failure_substring = "needs an endpoint",
+    target = ":managed_no_endpoint_selection",
+)
+
+apple_provisioning(
+    name = "managed_no_credential",
+    accept_licenses = ["apple-xcode-license"],
+    endpoint = "https://mac.example.com",
+    host = "macos_arm64",
+    route = "managed",
+    sdk = "iphoneos",
+)
+
+failure_test(
+    name = "managed_no_credential_test",
+    expected_failure_substring = "needs credential_file",
+    target = ":managed_no_credential_selection",
+)
+
+apple_provisioning(
+    name = "inline_secret",
+    accept_licenses = ["apple-xcode-license"],
+    api_token = "s3cret",
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphoneos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "inline_secret_test",
+    expected_failure_substring = "must stay empty",
+    target = ":inline_secret_selection",
+)
+
+apple_provisioning(
+    name = "auto_download",
+    accept_licenses = ["apple-xcode-license"],
+    allow_download = True,
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphoneos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "auto_download_test",
+    expected_failure_substring = "no unattended download",
+    target = ":auto_download_selection",
+)
+
+apple_provisioning(
+    name = "missing_license",
+    host = "macos_arm64",
+    route = "local",
+    sdk = "iphoneos",
+    xcode_version = "16.2",
+)
+
+failure_test(
+    name = "missing_license_test",
+    expected_failure_substring = "accept apple-xcode-license",
+    target = ":missing_license_selection",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "metadata_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -1,0 +1,19 @@
+# Windows ARM64 cell inventory: the same rows as the seed cell.
+# support marks declared-but-uncounted sources: cfg(test)-only modules, line-less declarations, and the fully excluded entry shim.
+eligible cli/lcov/src/lib.rs
+eligible cli/lcov/src/ignores.rs
+eligible cli/lcov/src/ignores_find.rs
+eligible cli/lcov/src/ignores_policy.rs
+eligible cli/lcov/src/ignores_scan.rs
+support cli/lcov/src/ignores_tests.rs
+eligible cli/lcov/src/inventory.rs
+eligible cli/lcov/src/parse.rs
+eligible cli/lcov/src/run.rs
+support cli/lcov/src/verdict.rs
+eligible cli/lcov/src/verdict_eval.rs
+eligible cli/lcov/src/verdict_lang.rs
+eligible cli/lcov/src/verdict_render.rs
+support cli/lcov/src/verdict_tests.rs
+eligible quality/evaluator/src/lib.rs
+eligible quality/evaluator/src/main.rs
+support tools/coverage/src/main.rs

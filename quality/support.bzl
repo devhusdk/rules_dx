@@ -18,6 +18,40 @@ TEXT_KEEP_SORTED_SUPPORT = {
     "transport": "batched",
 }
 
+SHELL_SHELLCHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["shell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "shell",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "shellcheck",
+    "transport": "single",
+}
+
+SHELL_SHFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["shell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "shell",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "shfmt",
+    "transport": "single",
+}
+
+SUPPORT_RECORDS = [
+    TEXT_KEEP_SORTED_SUPPORT,
+    SHELL_SHELLCHECK_SUPPORT,
+    SHELL_SHFMT_SUPPORT,
+]
+
 def _is_canonical_token(text):
     """Reports whether a token uses the canonical alphabet."""
     if text == "":
@@ -80,34 +114,78 @@ def support_record_error(record):
     return ""
 
 def support_schema_error():
-    """Validates the versioned support-record schema."""
-    return support_record_error(TEXT_KEEP_SORTED_SUPPORT)
+    """Validates every recorded support entry."""
+    for record in SUPPORT_RECORDS:
+        err = support_record_error(record)
+        if err != "":
+            return err
+    return ""
+
+def _wiring_error(record, wired_tools, aspect):
+    """Reports the missing wired aspect for one qualified record."""
+    if record["tool"] in wired_tools:
+        return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no wired aspect (missing " + aspect + "; not silently clean)"
 
 def support_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the migrated family."""
-    if TEXT_KEEP_SORTED_SUPPORT["tool"] in wired_tools:
-        return ""
-    return "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)"
+    return _wiring_error(TEXT_KEEP_SORTED_SUPPORT, wired_tools, "real_text_lint_aspect")
+
+def support_shell_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the shell family."""
+    for record in [SHELL_SHELLCHECK_SUPPORT, SHELL_SHFMT_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_shell_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
+def _cli_error(record, cli_aspects, aspect):
+    """Reports the missing CLI aspect for one qualified record."""
+    for seen in cli_aspects:
+        if aspect in seen:
+            return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no CLI " + record["capability"] + " aspect (missing " + aspect + ")"
 
 def support_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the migrated family."""
-    for aspect in cli_aspects:
-        if "real_text_lint" in aspect:
-            return ""
-    return "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)"
+    return _cli_error(TEXT_KEEP_SORTED_SUPPORT, cli_aspects, "real_text_lint_aspect")
+
+def support_shell_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the shell family."""
+    for record in [SHELL_SHELLCHECK_SUPPORT, SHELL_SHFMT_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_shell_" + record["capability"] + "_aspect")
+        if err != "":
+            return err
+    return ""
+
+def _artifact_error(record):
+    """Reports the missing pinned artifact for one qualified record."""
+    if record["artifact"] == "pinned":
+        return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no pinned artifact (quality/artifacts/" + record["tool"] + ".*.bzl is missing)"
 
 def support_artifact_error():
     """Reports the actionable artifact gap for the migrated family."""
-    if TEXT_KEEP_SORTED_SUPPORT["artifact"] == "pinned":
-        return ""
-    return "support: keep_sorted lint is qualified but has no pinned artifact (quality/artifacts/keep_sorted.*.bzl is missing)"
+    return _artifact_error(TEXT_KEEP_SORTED_SUPPORT)
+
+def support_shell_artifact_error():
+    """Reports the actionable artifact gap for the shell family."""
+    for record in [SHELL_SHELLCHECK_SUPPORT, SHELL_SHFMT_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
 
 def is_support_tool(tool_id):
     """Reports whether a tool carries an explicit support record."""
-    return tool_id == TEXT_KEEP_SORTED_SUPPORT["tool"]
+    for record in SUPPORT_RECORDS:
+        if tool_id == record["tool"]:
+            return True
+    return False
 
 def support_state(tool_id):
     """Returns the recorded support state for one tool, or unknown."""
-    if tool_id == TEXT_KEEP_SORTED_SUPPORT["tool"]:
-        return TEXT_KEEP_SORTED_SUPPORT["state"]
+    for record in SUPPORT_RECORDS:
+        if tool_id == record["tool"]:
+            return record["state"]
     return "unknown"

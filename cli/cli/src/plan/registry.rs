@@ -31,6 +31,36 @@ pub fn keep_sorted_cli_gap(aspects: &[&str]) -> Option<&'static str> {
     }
 }
 
+pub fn shfmt_support_state() -> &'static str {
+    "qualified"
+}
+
+pub fn shellcheck_support_state() -> &'static str {
+    "qualified"
+}
+
+pub fn shfmt_cli_gap(aspects: &[&str]) -> Option<&'static str> {
+    if aspects
+        .iter()
+        .any(|aspect| aspect.contains("real_shell_format"))
+    {
+        None
+    } else {
+        Some("support: shfmt format is qualified but has no CLI format aspect (missing real_shell_format_aspect)")
+    }
+}
+
+pub fn shellcheck_cli_gap(aspects: &[&str]) -> Option<&'static str> {
+    if aspects
+        .iter()
+        .any(|aspect| aspect.contains("real_shell_lint"))
+    {
+        None
+    } else {
+        Some("support: shellcheck lint is qualified but has no CLI lint aspect (missing real_shell_lint_aspect)")
+    }
+}
+
 pub fn spec(command: Command) -> CommandSpec {
     match command {
         Command::Lint => CommandSpec {
@@ -350,5 +380,37 @@ mod tests {
             keep_sorted_cli_gap(&["//quality:real_aspects.bzl%real_text_lint_aspect"]),
             None
         );
+    }
+
+    #[test]
+    fn shell_cli_gaps_are_explicit() {
+        assert_eq!(shfmt_support_state(), "qualified");
+        assert_eq!(shellcheck_support_state(), "qualified");
+        let format = spec(Command::Format);
+        assert_eq!(shfmt_cli_gap(format.aspects), None);
+        assert!(
+            format.aspects
+                .iter()
+                .any(|aspect| aspect.contains("real_shell_format")),
+            "format wires the shell aspect"
+        );
+        let lint = spec(Command::Lint);
+        assert_eq!(shellcheck_cli_gap(lint.aspects), None);
+        assert!(
+            lint.aspects
+                .iter()
+                .any(|aspect| aspect.contains("real_shell_lint")),
+            "lint wires the shell aspect"
+        );
+        assert_eq!(
+            shfmt_cli_gap(&["//quality:real_aspects.bzl%real_shell_format_aspect"]),
+            None
+        );
+        assert_eq!(
+            shellcheck_cli_gap(&["//quality:real_aspects.bzl%real_shell_lint_aspect"]),
+            None
+        );
+        assert!(shfmt_cli_gap(&["//quality:real_aspects.bzl%real_shell_lint_aspect"]).is_some());
+        assert!(shellcheck_cli_gap(&["//quality:real_aspects.bzl%real_shell_format_aspect"]).is_some());
     }
 }

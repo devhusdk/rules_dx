@@ -637,6 +637,117 @@ pub(super) fn roundtrip_prettier(
     })
 }
 
+pub(super) fn roundtrip_shfmt(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    assert!(
+        Path::new(&file).starts_with(cwd),
+        "the checked file stays under the launch cwd: {file}"
+    );
+    if argv.iter().any(|arg| arg == "-w") {
+        assert!(
+            !argv.iter().any(|arg| arg == "-d"),
+            "shfmt fix writes instead of diffing"
+        );
+        let bytes = std::fs::read(&file).expect("checked file is materialized");
+        let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+        let fixed = text.replace("echo  ", "echo ");
+        std::fs::write(&file, fixed).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    assert!(
+        argv.iter().any(|arg| arg == "-d"),
+        "shfmt check stays a diff-only check"
+    );
+    let bytes = std::fs::read(&file).expect("checked file is materialized");
+    let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+    if text.contains("echo  ") {
+        let stdout = format!(
+            "--- {file}.orig\n+++ {file}\n@@ -1,2 +1,2 @@\n #!/usr/bin/env bash\n-echo  \"hello\"\n+echo \"hello\"\n"
+        );
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: stdout.into_bytes(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+pub(super) fn shfmt_empty_exit(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let _ = last_file(argv);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+pub(super) fn roundtrip_shellcheck(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(
+        argv.iter().any(|arg| arg == "--format=gcc"),
+        "shellcheck always reports gcc lines"
+    );
+    let file = last_file(argv);
+    assert!(
+        Path::new(&file).starts_with(cwd),
+        "the checked file stays under the launch cwd: {file}"
+    );
+    let bytes = std::fs::read(&file).expect("checked file is materialized");
+    let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+    if text.contains("echo $") {
+        let stdout = format!(
+            "{file}:2:6: warning: Double quote to prevent globbing and word splitting. [SC2086]\n"
+        );
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: stdout.into_bytes(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+pub(super) fn shellcheck_garbage(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let _ = last_file(argv);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"unexpected shellcheck output".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn missing_spawn(
     _argv: &[OsString],
     _cwd: &Path,

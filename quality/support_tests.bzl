@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":support.bzl", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_schema_error", "support_state", "support_wiring_error")
+load(":support.bzl", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_records_error", "support_schema_error", "support_state", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -32,21 +32,37 @@ def support_unit_tests(name):
             expect_equal(
                 "missing aspect wiring is an actionable failure",
                 support_wiring_error([]),
-                "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)",
+                "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)\n" +
+                "support: shfmt format is qualified but has no wired aspect (missing real_shell_format_aspect; not silently clean)\n" +
+                "support: shellcheck lint is qualified but has no wired aspect (missing real_shell_lint_aspect; not silently clean)",
             ),
             expect_equal(
-                "wired keep_sorted clears the aspect gap",
+                "wired keep_sorted clears only its own aspect gap",
                 support_wiring_error(["keep_sorted"]),
+                "support: shfmt format is qualified but has no wired aspect (missing real_shell_format_aspect; not silently clean)\n" +
+                "support: shellcheck lint is qualified but has no wired aspect (missing real_shell_lint_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired shell family clears the remaining aspect gaps",
+                support_wiring_error(["keep_sorted", "shfmt", "shellcheck"]),
                 "",
             ),
             expect_equal(
                 "missing CLI aspect is an actionable failure",
                 support_cli_error(["//quality:real_aspects.bzl%real_lint_aspect"]),
-                "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)",
+                "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)\n" +
+                "support: shfmt format is qualified but has no CLI format aspect (missing real_shell_format_aspect)\n" +
+                "support: shellcheck lint is qualified but has no CLI lint aspect (missing real_shell_lint_aspect)",
             ),
             expect_equal(
-                "CLI text aspect clears the CLI gap",
+                "CLI text aspect clears only its own CLI gap",
                 support_cli_error(["//quality:real_aspects.bzl%real_text_lint_aspect"]),
+                "support: shfmt format is qualified but has no CLI format aspect (missing real_shell_format_aspect)\n" +
+                "support: shellcheck lint is qualified but has no CLI lint aspect (missing real_shell_lint_aspect)",
+            ),
+            expect_equal(
+                "CLI shell aspects clear the shell CLI gaps",
+                support_cli_error(["//quality:real_aspects.bzl%real_text_lint_aspect", "//quality:real_aspects.bzl%real_shell_format_aspect", "//quality:real_aspects.bzl%real_shell_lint_aspect"]),
                 "",
             ),
             expect_equal(
@@ -113,6 +129,36 @@ def support_unit_tests(name):
                 "record keeps the batched transport",
                 TEXT_KEEP_SORTED_SUPPORT["transport"],
                 "batched",
+            ),
+            expect_equal(
+                "shfmt is a support tool with qualified state",
+                [is_support_tool("shfmt"), support_state("shfmt")],
+                [True, "qualified"],
+            ),
+            expect_equal(
+                "shellcheck is a support tool with qualified state",
+                [is_support_tool("shellcheck"), support_state("shellcheck")],
+                [True, "qualified"],
+            ),
+            expect_equal(
+                "shfmt adapter support stays shell format",
+                real_supported_classes("shfmt", "format"),
+                ["shell"],
+            ),
+            expect_equal(
+                "shellcheck adapter support stays shell lint",
+                real_supported_classes("shellcheck", "lint"),
+                ["shell"],
+            ),
+            expect_equal(
+                "shell records keep pinned single-shot execution facts",
+                [[SHELL_SHFMT_SUPPORT["fix"], SHELL_SHFMT_SUPPORT["transport"]], [SHELL_SHELLCHECK_SUPPORT["fix"], SHELL_SHELLCHECK_SUPPORT["transport"]]],
+                [["supported", "single"], ["check_only", "single"]],
+            ),
+            expect_equal(
+                "duplicate tool cells are rejected",
+                support_records_error([SHELL_SHFMT_SUPPORT, SHELL_SHFMT_SUPPORT]),
+                "support: duplicate record for 'shfmt format'",
             ),
         ],
     )

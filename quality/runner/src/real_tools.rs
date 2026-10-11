@@ -352,6 +352,134 @@ fn keep_sorted_direct_failures_fail_the_action() {
 }
 
 #[test]
+fn shfmt_format_reports_and_fix_rewrites() {
+    let backend = backend_for("shfmt", plain_tool(), roundtrip_shfmt);
+    let findings = backend
+        .diagnose(
+            "shfmt",
+            "format",
+            &single("run.sh", "#!/usr/bin/env bash\necho  \"hello\"\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "shfmt");
+    assert_eq!(findings[0].rule_id, "");
+    assert!(
+        findings[0].path.ends_with("run.sh"),
+        "unexpected path: {}",
+        findings[0].path
+    );
+    assert!(backend
+        .diagnose(
+            "shfmt",
+            "format",
+            &single("run.sh", "#!/usr/bin/env bash\necho \"hello\"\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix(
+                "shfmt",
+                "run.sh",
+                "#!/usr/bin/env bash\necho  \"hello\"\n",
+                "format"
+            )
+            .expect("fixed"),
+        "#!/usr/bin/env bash\necho \"hello\"\n"
+    );
+}
+
+#[test]
+fn shellcheck_lint_reports_and_fix_is_check_only() {
+    let backend = backend_for("shellcheck", plain_tool(), roundtrip_shellcheck);
+    let findings = backend
+        .diagnose(
+            "shellcheck",
+            "lint",
+            &single("run.sh", "#!/usr/bin/env bash\necho $hello\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "shellcheck");
+    assert_eq!(findings[0].rule_id, "SC2086");
+    assert!(
+        findings[0].path.ends_with("run.sh"),
+        "unexpected path: {}",
+        findings[0].path
+    );
+    assert_eq!(
+        findings[0].severity,
+        quality_result::proto::Severity::Warning as i32
+    );
+    assert!(backend
+        .diagnose(
+            "shellcheck",
+            "lint",
+            &single("run.sh", "#!/usr/bin/env bash\necho \"hello\"\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    let backend = backend_for("shellcheck", plain_tool(), no_spawn);
+    let kept = backend
+        .apply_fix(
+            "shellcheck",
+            "run.sh",
+            "#!/usr/bin/env bash\necho $hello\n",
+            "lint",
+        )
+        .expect("check-only keeps input");
+    assert_eq!(kept, "#!/usr/bin/env bash\necho $hello\n");
+}
+
+#[test]
+fn shfmt_without_a_program_fails_before_any_spawn() {
+    let tool = RealTool {
+        binary: PathBuf::new(),
+        ..plain_tool()
+    };
+    let backend = backend_for("shfmt", tool, missing_spawn);
+    let err = backend
+        .diagnose("shfmt", "format", &single("run.sh", "echo hi\n"))
+        .expect_err("no program fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("names no executable"));
+}
+
+#[test]
+fn shell_tool_failures_fail_the_action() {
+    let err = backend
+        .diagnose(
+            "shfmt",
+            "format",
+            &single("run.sh", "#!/usr/bin/env bash\necho  \"hello\"\n"),
+        )
+        .expect_err("empty failure fails");
+    assert!(
+        matches!(
+            err,
+            RunnerError::ToolOutput { .. } | RunnerError::UnplaceableFinding { .. }
+        ),
+        "unexpected error: {err}"
+    );
+    let backend = backend_for("shellcheck", plain_tool(), shellcheck_garbage);
+    let err = backend
+        .diagnose(
+            "shellcheck",
+            "lint",
+            &single("run.sh", "#!/usr/bin/env bash\necho $hello\n"),
+        )
+        .expect_err("garbage fails");
+    assert!(
+        matches!(
+            err,
+            RunnerError::ToolOutput { .. } | RunnerError::UnplaceableFinding { .. }
+        ),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
 fn ruff_lint_reports_and_fix_rereads_on_exit_one() {
     let backend = backend_for("ruff", plain_tool(), roundtrip_ruff);
     let findings = backend

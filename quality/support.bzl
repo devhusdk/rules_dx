@@ -18,6 +18,40 @@ TEXT_KEEP_SORTED_SUPPORT = {
     "transport": "batched",
 }
 
+SHELL_SHFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["shell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "shell",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "shfmt",
+    "transport": "single",
+}
+
+SHELL_SHELLCHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["shell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "shell",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "shellcheck",
+    "transport": "single",
+}
+
+ALL_TOOL_SUPPORT = [
+    TEXT_KEEP_SORTED_SUPPORT,
+    SHELL_SHFMT_SUPPORT,
+    SHELL_SHELLCHECK_SUPPORT,
+]
+
 def _is_canonical_token(text):
     """Reports whether a token uses the canonical alphabet."""
     if text == "":
@@ -79,35 +113,70 @@ def support_record_error(record):
         return "support: tool '" + tool + "' needs transport 'batched' or 'single', got '" + str(record["transport"]) + "'"
     return ""
 
+def support_records_error(records):
+    """Validates support records and rejects duplicate tool cells."""
+    seen = {}
+    for record in records:
+        err = support_record_error(record)
+        if err != "":
+            return err
+        cell = record["tool"] + " " + record["capability"]
+        if cell in seen:
+            return "support: duplicate record for '" + cell + "'"
+        seen[cell] = True
+    return ""
+
 def support_schema_error():
-    """Validates the versioned support-record schema."""
-    return support_record_error(TEXT_KEEP_SORTED_SUPPORT)
+    """Validates every support record and rejects duplicate tool cells."""
+    if SUPPORT_SCHEMA_VERSION != 1:
+        return "support: unsupported schema v" + str(SUPPORT_SCHEMA_VERSION) + " (want v1)"
+    return support_records_error(ALL_TOOL_SUPPORT)
+
+def _qualified_records():
+    """Returns the support records carrying a qualified state."""
+    return [record for record in ALL_TOOL_SUPPORT if record["state"] == "qualified"]
+
+def _wiring_gap(record, wired_tools):
+    """Reports the actionable aspect gap for one qualified record."""
+    if record["tool"] in wired_tools:
+        return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no wired aspect (missing real_" + record["family"] + "_" + record["capability"] + "_aspect; not silently clean)"
 
 def support_wiring_error(wired_tools):
-    """Reports the actionable aspect gap for the migrated family."""
-    if TEXT_KEEP_SORTED_SUPPORT["tool"] in wired_tools:
-        return ""
-    return "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)"
+    """Reports the actionable aspect gaps for the migrated families."""
+    return "\n".join([gap for gap in [_wiring_gap(record, wired_tools) for record in _qualified_records()] if gap != ""])
+
+def _cli_gap(record, cli_aspects):
+    """Reports the actionable CLI gap for one qualified record."""
+    for aspect in cli_aspects:
+        if "real_" + record["family"] + "_" + record["capability"] in aspect:
+            return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no CLI " + record["capability"] + " aspect (missing real_" + record["family"] + "_" + record["capability"] + "_aspect)"
 
 def support_cli_error(cli_aspects):
-    """Reports the actionable CLI gap for the migrated family."""
-    for aspect in cli_aspects:
-        if "real_text_lint" in aspect:
-            return ""
-    return "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)"
+    """Reports the actionable CLI gaps for the migrated families."""
+    return "\n".join([gap for gap in [_cli_gap(record, cli_aspects) for record in _qualified_records()] if gap != ""])
+
+def _artifact_gap(record):
+    """Reports the actionable artifact gap for one qualified record."""
+    if record["artifact"] == "pinned":
+        return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no pinned artifact (quality/artifacts/" + record["tool"] + ".*.bzl is missing)"
 
 def support_artifact_error():
-    """Reports the actionable artifact gap for the migrated family."""
-    if TEXT_KEEP_SORTED_SUPPORT["artifact"] == "pinned":
-        return ""
-    return "support: keep_sorted lint is qualified but has no pinned artifact (quality/artifacts/keep_sorted.*.bzl is missing)"
+    """Reports the actionable artifact gaps for the migrated families."""
+    return "\n".join([gap for gap in [_artifact_gap(record) for record in _qualified_records()] if gap != ""])
 
 def is_support_tool(tool_id):
     """Reports whether a tool carries an explicit support record."""
-    return tool_id == TEXT_KEEP_SORTED_SUPPORT["tool"]
+    for record in ALL_TOOL_SUPPORT:
+        if tool_id == record["tool"]:
+            return True
+    return False
 
 def support_state(tool_id):
     """Returns the recorded support state for one tool, or unknown."""
-    if tool_id == TEXT_KEEP_SORTED_SUPPORT["tool"]:
-        return TEXT_KEEP_SORTED_SUPPORT["state"]
+    for record in ALL_TOOL_SUPPORT:
+        if tool_id == record["tool"]:
+            return record["state"]
     return "unknown"

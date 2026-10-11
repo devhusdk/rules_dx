@@ -311,6 +311,14 @@ consumer_policy_tests(
             "policy": "//quality/tests/fixtures/consumer_policy:js_eslint_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
         },
+        {
+            "case": "cc_clang_tidy",
+            "expected_dx_results": [
+                "clean_c-real-lint-cc.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_c",
+        },
     ],
 )
 
@@ -325,6 +333,7 @@ support_unit_tests(name = "support_unit")
 test_suite(
     name = "all",
     tests = [
+        ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",

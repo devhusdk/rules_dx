@@ -80,6 +80,15 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
         ],
+        "id": "aspect.real_cc_lint_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+        ],
         "id": "aspect.real_format_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
@@ -2428,12 +2437,13 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
         ],
         "id": "tool.clang_tidy",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@llvm//tools:clang-tidy",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3277,7 +3287,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 353
+PROMISE_COUNT = 354
 
 PROMISE_FAMILIES = [
     "artifact",

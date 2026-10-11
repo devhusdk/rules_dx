@@ -138,7 +138,11 @@ pub struct StatusEvent {
 pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     nonempty("name", &check.name)?;
     nonempty("status", &check.status)?;
-    if check.status != "ok" && check.status != "warn" && check.status != "error" {
+    if check.status != "ok"
+        && check.status != "warn"
+        && check.status != "error"
+        && check.status != "unprobed"
+    {
         return Err(OutputError::BadSeverity {
             value: check.status.clone(),
         });
@@ -614,6 +618,14 @@ mod tests {
         assert_eq!(event["schema"], schema());
         assert_eq!(event["name"], Value::String("pin".to_owned()));
         assert_eq!(event["status"], Value::String("ok".to_owned()));
+        let unprobed = status_event(&StatusEvent {
+            name: "toolchain".to_owned(),
+            status: "unprobed".to_owned(),
+            detail: "declared".to_owned(),
+            hint: "probe".to_owned(),
+        })
+        .expect("unprobed status");
+        assert_eq!(unprobed["status"], Value::String("unprobed".to_owned()));
         let mut bad = StatusEvent {
             name: "pin".to_owned(),
             status: "bogus".to_owned(),

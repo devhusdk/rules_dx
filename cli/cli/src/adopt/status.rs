@@ -55,7 +55,7 @@ pub(crate) fn execute_status(
         for check in &checks {
             if let Ok(event) = status_event(&StatusEvent {
                 name: check.name.clone(),
-                status: check.status.clone(),
+                status: check.status.as_str().to_owned(),
                 detail: check.detail.clone(),
                 hint: check.hint.clone(),
             }) {
@@ -64,7 +64,9 @@ pub(crate) fn execute_status(
                 }
             }
         }
-        let failed = checks.iter().any(|c| c.status == "error");
+        let failed = checks
+            .iter()
+            .any(|c| c.status == dx_adopt::StatusState::Error);
         if failed {
             return operational(
                 invocation,
@@ -84,7 +86,10 @@ pub(crate) fn execute_status(
     {
         return exit;
     }
-    if checks.iter().any(|c| c.status == "error") {
+    if checks
+        .iter()
+        .any(|c| c.status == dx_adopt::StatusState::Error)
+    {
         return operational(
             invocation,
             out,
@@ -115,7 +120,28 @@ mod tests {
     }
 
     #[test]
-    fn status_json_streams_envelope() {
+    fn status_reports_unprobed_declared_rows_without_failing() {
+        let inv = invocation(&["status"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-unprobed-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        for needle in [
+            "toolchain: unprobed",
+            "platform: unprobed",
+            "tools: unprobed",
+            "host: ok",
+            "pin: ok",
+        ] {
+            assert!(out.contains(needle), "missing {needle}: {out}");
+        }
+        assert!(!out.contains(": ok (rust"), "{out}");
+    }
+
+    #[test]
+    fn status_json_streams_unprobed_events() {
         let inv = invocation(&["status", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-json-");
         let root = scratch.path().to_path_buf();
@@ -152,6 +178,14 @@ mod tests {
             })
             .expect("pin status event");
         assert_eq!(status["status"], serde_json::json!("ok"));
+        let toolchain = events
+            .iter()
+            .find(|event| {
+                event["event"] == serde_json::json!("status")
+                    && event["name"] == serde_json::json!("toolchain")
+            })
+            .expect("toolchain status event");
+        assert_eq!(toolchain["status"], serde_json::json!("unprobed"));
         assert!(err.is_empty());
     }
 

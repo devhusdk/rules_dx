@@ -1380,12 +1380,18 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
     let mut ids: Vec<String> = workflow
         .lines()
         .filter_map(|line| {
-            line.split_once("inputs.disabled_checks), ',")
+            line.split_once("needs.validate.outputs.disabled), ',")
                 .and_then(|(_, tail)| tail.split_once(",')"))
                 .map(|(id, _)| id.to_owned())
+                .or_else(|| {
+                    line.split_once("inputs.disabled_checks), ',")
+                        .and_then(|(_, tail)| tail.split_once(",')"))
+                        .map(|(id, _)| id.to_owned())
+                })
         })
         .collect();
     ids.sort();
+    ids.dedup();
     ids
 }
 
@@ -1397,12 +1403,36 @@ fn runner_table(line: &str) -> Option<String> {
 
 fn platform_labels(workflow: &str) -> Vec<String> {
     let mut labels: Vec<String> = Vec::new();
-    for table in workflow.lines().filter_map(runner_table) {
-        for entry in table.split(',') {
-            if let Some((label, _)) = entry.split_once(':') {
-                let label = label.trim().trim_matches('"');
-                if !label.is_empty() && !label.contains(char::is_whitespace) {
-                    labels.push(label.to_owned());
+    let mut inside = false;
+    for line in workflow.lines() {
+        if line.contains("PLATFORMS = {") {
+            inside = true;
+            continue;
+        }
+        if inside {
+            if line.contains('}') {
+                break;
+            }
+            if let Some(start) = line.find('"') {
+                let tail = &line[start + 1..];
+                if let Some(end) = tail.find('"') {
+                    let label = tail[..end].to_owned();
+                    if !label.is_empty() && !label.contains(char::is_whitespace) {
+                        labels.push(label);
+                    }
+                }
+            }
+            continue;
+        }
+    }
+    if labels.is_empty() {
+        for table in workflow.lines().filter_map(runner_table) {
+            for entry in table.split(',') {
+                if let Some((label, _)) = entry.split_once(':') {
+                    let label = label.trim().trim_matches('"');
+                    if !label.is_empty() && !label.contains(char::is_whitespace) {
+                        labels.push(label.to_owned());
+                    }
                 }
             }
         }
@@ -1422,11 +1452,19 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
         .into_iter()
         .filter(|(id, _)| gated.contains(id))
         .map(|(id, body)| {
-            let table = body
+            let runs_on = body
                 .iter()
-                .find_map(|line| runner_table(line))
-                .unwrap_or_else(|| panic!("{id} job runs no platform runner table"));
-            (id, table)
+                .find(|line| line.contains("needs.validate.outputs.runners"))
+                .or_else(|| body.iter().find(|line| runner_table(line).is_some()))
+                .unwrap_or_else(|| panic!("{id} job runs no platform runner table"))
+                .to_string();
+            assert!(
+                body.iter()
+                    .any(|line| line.contains("needs.validate.outputs.platforms"))
+                    || body.iter().any(|line| runner_table(line).is_some()),
+                "{id} job runs no platform matrix"
+            );
+            (id, runs_on)
         })
         .collect();
     assert_eq!(

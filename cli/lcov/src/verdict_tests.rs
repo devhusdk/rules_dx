@@ -1,5 +1,5 @@
 use super::*;
-use crate::{find_ignores, FileHits, LcovError, ELIGIBLE, SUPPORT};
+use crate::{find_ignores, parse_lcov, FileHits, LcovError, ELIGIBLE, SUPPORT};
 use std::collections::BTreeMap;
 
 fn marker(kind: &str) -> String {
@@ -1005,4 +1005,98 @@ fn render_reports_raw_ignored_and_eligible_counts() {
         text.contains("uncounted support files:\n  - tool.rs"),
         "{text}"
     );
+}
+
+#[test]
+fn measured_go_block_without_functions_parses_and_passes() {
+    let text =
+        "SF:gazelle/vue/naming.go\nFNF:0\nFNH:0\nDA:7,13\nDA:9,8\nLH:2\nLF:2\nend_of_record\n";
+    let report = parse_lcov(text).unwrap();
+    assert_eq!(report["gazelle/vue/naming.go"].lines.len(), 2);
+    let files = BTreeMap::from([("gazelle/vue/naming.go", "package vue\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&["gazelle/vue/naming.go"]),
+        &["gazelle/vue/naming.go".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.covered, 2);
+    assert!(verdict.other_sources.is_empty());
+}
+
+#[test]
+fn measured_go_zero_hit_lines_parse_and_fail_with_locations() {
+    let text = "SF:gazelle/scala/parser.go\nFNF:0\nFNH:0\nDA:15,11\nDA:16,11\nDA:17,11\nDA:18,11\nDA:19,10\nDA:20,10\nDA:21,10\nDA:22,10\nDA:23,10\nDA:25,11\nDA:26,11\nDA:27,9\nDA:28,9\nDA:29,11\nDA:30,11\nDA:33,10\nDA:34,10\nDA:35,10\nDA:36,10\nDA:37,1\nDA:38,1\nDA:39,9\nDA:40,1\nDA:41,1\nDA:42,8\nDA:47,0\nDA:48,0\nDA:49,0\nDA:51,1\nDA:53,12\nDA:54,12\nDA:55,12\nDA:57,10\nDA:58,10\nDA:59,10\nLH:32\nLF:35\nend_of_record\n";
+    let report = parse_lcov(text).unwrap();
+    let lines = &report["gazelle/scala/parser.go"].lines;
+    assert_eq!(lines.len(), 35);
+    assert_eq!(lines[&47], 0);
+    assert_eq!(lines[&48], 0);
+    assert_eq!(lines[&49], 0);
+    let files = BTreeMap::from([("gazelle/scala/parser.go", "package scala\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&["gazelle/scala/parser.go"]),
+        &["gazelle/scala/parser.go".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert_eq!(verdict.files[0].uncovered, vec![47, 48, 49]);
+    let text = render(&verdict);
+    assert!(
+        text.contains("gazelle/scala/parser.go:47, gazelle/scala/parser.go:48"),
+        "{text}"
+    );
+}
+
+#[test]
+fn measured_python_empty_block_errors_as_uninstrumented() {
+    let text =
+        "SF:quality/tools/python/tool_bootstrap.py\nFNF:0\nFNH:0\nLH:0\nLF:0\nend_of_record\n";
+    let report = parse_lcov(text).unwrap();
+    assert!(report["quality/tools/python/tool_bootstrap.py"]
+        .lines
+        .is_empty());
+    let files = BTreeMap::from([(
+        "quality/tools/python/tool_bootstrap.py",
+        "import os\n".to_string(),
+    )]);
+    let verdict = evaluate(
+        &eligible_inventory(&["quality/tools/python/tool_bootstrap.py"]),
+        &["quality/tools/python/tool_bootstrap.py".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict.errors.iter().any(|error| error.contains(
+            "no instrumented lines and no validated ignores for eligible source: quality/tools/python/tool_bootstrap.py"
+        )),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn measured_python_pytest_block_with_functions_parses_and_passes() {
+    let text = "SF:python/tests/fixtures/hello/hello.py\nFN:4,greet\nFNDA:1,greet\nFNF:1\nFNH:1\nDA:4,1\nDA:6,1\nLH:2\nLF:2\nend_of_record\n";
+    let report = parse_lcov(text).unwrap();
+    assert_eq!(
+        report["python/tests/fixtures/hello/hello.py"].lines.len(),
+        2
+    );
+    let files = BTreeMap::from([(
+        "python/tests/fixtures/hello/hello.py",
+        "x = 1\n".to_string(),
+    )]);
+    let verdict = evaluate(
+        &eligible_inventory(&["python/tests/fixtures/hello/hello.py"]),
+        &["python/tests/fixtures/hello/hello.py".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.covered, 2);
+    assert!(verdict.other_sources.is_empty());
 }

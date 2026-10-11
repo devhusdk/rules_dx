@@ -307,7 +307,7 @@ mod tests {
                 "--nosystem_rc",
                 "query",
                 "--",
-                "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))",
+                "kind('rule', rdeps(//pkg/..., set(\"//pkg:a.py\"), 1))",
             ])
         );
     }
@@ -324,7 +324,7 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//..., set(\"//pkg:my file.py\"), 1))"
+            "kind('rule', rdeps(//pkg/..., set(\"//pkg:my file.py\"), 1))"
         );
         assert_eq!(quote_label("//pkg:a\"b\\c"), "\"//pkg:a\\\"b\\\\c\"");
     }
@@ -351,7 +351,7 @@ mod tests {
         );
         assert_eq!(
             calls[0].0.last().expect("expression"),
-            "kind('rule', rdeps(//..., set(\"//pkg:a.py\" \"//pkg:b.py\"), 1))"
+            "kind('rule', rdeps(//pkg/..., set(\"//pkg:a.py\" \"//pkg:b.py\"), 1))"
         );
         assert_eq!(
             calls[1].0.last().expect("expression"),

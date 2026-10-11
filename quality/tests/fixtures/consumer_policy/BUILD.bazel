@@ -5,6 +5,7 @@ load("//quality:policy.bzl", "quality_family", "workspace_policy")
 package(default_visibility = ["//quality:__pkg__"])
 
 exports_files([
+    "clean.c",
     "clean.js",
     "clean.json",
     "clean.toml",
@@ -103,9 +104,30 @@ workspace_policy(
     families = [":eslint_js_family"],
 )
 
+quality_family(
+    name = "clang_tidy_cc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cc",
+    lint = ["clang_tidy"],
+)
+
+workspace_policy(
+    name = "cc_clang_tidy_policy",
+    families = [":clang_tidy_cc_family"],
+)
+
 eslint_config(
     name = "consumer_eslint_config",
     src = "eslint.config.js",
+)
+
+real_source_target(
+    name = "clean_c",
+    c_srcs = ["clean.c"],
+    tags = ["corpus"],
 )
 
 real_source_target(

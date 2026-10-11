@@ -1377,33 +1377,48 @@ fn help_doc_anchors_resolve() {
 }
 
 fn gated_check_ids(workflow: &str) -> Vec<String> {
-    let mut ids: Vec<String> = workflow
-        .lines()
-        .filter_map(|line| {
-            line.split_once("inputs.disabled_checks), ',")
-                .and_then(|(_, tail)| tail.split_once(",')"))
-                .map(|(id, _)| id.to_owned())
-        })
-        .collect();
+    let mut ids: Vec<String> = Vec::new();
+    let mut inside = false;
+    for line in workflow.lines() {
+        let trimmed = line.trim();
+        if trimmed == "CHECKS = (" {
+            inside = true;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        if trimmed == ")" {
+            break;
+        }
+        let name = trimmed.trim_end_matches(',').trim_matches('"');
+        if !name.is_empty() && !name.contains(char::is_whitespace) {
+            ids.push(name.to_owned());
+        }
+    }
     ids.sort();
     ids
 }
 
-fn runner_table(line: &str) -> Option<String> {
-    let (_, table) = line.split_once("fromJSON('{")?;
-    let (body, _) = table.split_once('}')?;
-    Some(body.to_owned())
-}
-
 fn platform_labels(workflow: &str) -> Vec<String> {
     let mut labels: Vec<String> = Vec::new();
-    for table in workflow.lines().filter_map(runner_table) {
-        for entry in table.split(',') {
-            if let Some((label, _)) = entry.split_once(':') {
-                let label = label.trim().trim_matches('"');
-                if !label.is_empty() && !label.contains(char::is_whitespace) {
-                    labels.push(label.to_owned());
-                }
+    let mut inside = false;
+    for line in workflow.lines() {
+        let trimmed = line.trim();
+        if trimmed == "PLATFORMS = {" {
+            inside = true;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        if trimmed == "}" {
+            break;
+        }
+        if let Some((label, _)) = trimmed.split_once(':') {
+            let label = label.trim().trim_matches('"');
+            if !label.is_empty() && !label.contains(char::is_whitespace) {
+                labels.push(label.to_owned());
             }
         }
     }
@@ -1418,17 +1433,26 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
         std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
             .expect("reusable-consumer.yml ships as test data");
     let gated = gated_check_ids(&workflow);
-    let tables: Vec<(String, String)> = job_blocks(&workflow)
-        .into_iter()
-        .filter(|(id, _)| gated.contains(id))
-        .map(|(id, body)| {
-            let table = body
-                .iter()
-                .find_map(|line| runner_table(line))
-                .unwrap_or_else(|| panic!("{id} job runs no platform runner table"));
-            (id, table)
-        })
-        .collect();
+    assert!(
+        !gated.is_empty(),
+        "the validate job declares no gated checks"
+    );
+    let mut tables: Vec<(String, String)> = Vec::new();
+    for (id, body) in job_blocks(&workflow) {
+        if !gated.contains(&id) {
+            continue;
+        }
+        assert!(
+            body.iter()
+                .any(|line| line.contains("fromJSON(needs.validate.outputs.platforms)")),
+            "{id} job expands no validated platform matrix"
+        );
+        let table = body
+            .iter()
+            .find(|line| line.contains("fromJSON(needs.validate.outputs.runners)[matrix.platform]"))
+            .unwrap_or_else(|| panic!("{id} job runs no validated platform runner table"));
+        tables.push((id, (*table).to_owned()));
+    }
     assert_eq!(
         tables.len(),
         gated.len(),

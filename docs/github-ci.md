@@ -56,7 +56,7 @@ every platform in `platforms`:
 `--check` applies to the four quality checks. `dx security`, `dx license`,
 `dx test`, `dx build`, and `dx coverage` reject it.
 
-A `validate` job runs first. It reads every input, rejects a bad one with the
+A `validate (inputs)` job runs first. It reads every input, rejects a bad one with the
 accepted values, and starts no check.
 
 Inputs:
@@ -97,10 +97,10 @@ scopes on the calling job. `examples/consumer-ci/caller.yml` does.
 
 ## Advisory Snapshots
 
-`security-audit` reads `.dx/advisory/`. One `advisory snapshots (one run,
-every platform)` job fills that directory once per run, uploads it as the
-`advisory-snapshots` artifact, and every platform cell downloads the same
-bytes. No cell downloads a database of its own.
+`security-audit` reads `.dx/advisory/`. One
+`advisory snapshots (one run, every platform)` job fills that directory once
+per run, uploads it as the `advisory-snapshots` artifact, and every platform
+cell downloads the same bytes. No cell downloads a database of its own.
 
 ```sh
 bazel run @rules_dx//cli/advisory_prep --workspace . --out .dx/advisory

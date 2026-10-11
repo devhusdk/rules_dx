@@ -18,6 +18,25 @@ TEXT_KEEP_SORTED_SUPPORT = {
     "transport": "batched",
 }
 
+SHELL_SHFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["shell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "shell",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "shfmt",
+    "transport": "single",
+}
+
+SUPPORT_RECORDS = [
+    TEXT_KEEP_SORTED_SUPPORT,
+    SHELL_SHFMT_SUPPORT,
+]
+
 def _is_canonical_token(text):
     """Reports whether a token uses the canonical alphabet."""
     if text == "":
@@ -80,34 +99,58 @@ def support_record_error(record):
     return ""
 
 def support_schema_error():
-    """Validates the versioned support-record schema."""
-    return support_record_error(TEXT_KEEP_SORTED_SUPPORT)
+    """Validates every migrated support record."""
+    for record in SUPPORT_RECORDS:
+        error = support_record_error(record)
+        if error != "":
+            return error
+    return ""
+
+def _support_aspect_stem(record):
+    """Names the CLI aspect stem for one support record."""
+    return "real_" + record["family"] + "_" + record["capability"]
+
+def support_record_wiring_error(record, wired_tools):
+    """Reports the actionable aspect gap for one support record."""
+    if record["tool"] in wired_tools:
+        return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no wired aspect (missing " + _support_aspect_stem(record) + "_aspect; not silently clean)"
 
 def support_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the migrated family."""
-    if TEXT_KEEP_SORTED_SUPPORT["tool"] in wired_tools:
-        return ""
-    return "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)"
+    return support_record_wiring_error(TEXT_KEEP_SORTED_SUPPORT, wired_tools)
+
+def support_record_cli_error(record, cli_aspects):
+    """Reports the actionable CLI gap for one support record."""
+    for aspect in cli_aspects:
+        if _support_aspect_stem(record) in aspect:
+            return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no CLI " + record["capability"] + " aspect (missing " + _support_aspect_stem(record) + "_aspect)"
 
 def support_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the migrated family."""
-    for aspect in cli_aspects:
-        if "real_text_lint" in aspect:
-            return ""
-    return "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)"
+    return support_record_cli_error(TEXT_KEEP_SORTED_SUPPORT, cli_aspects)
+
+def support_record_artifact_error(record):
+    """Reports the actionable artifact gap for one support record."""
+    if record["artifact"] == "pinned":
+        return ""
+    return "support: " + record["tool"] + " " + record["capability"] + " is qualified but has no pinned artifact (quality/artifacts/" + record["tool"] + ".*.bzl is missing)"
 
 def support_artifact_error():
     """Reports the actionable artifact gap for the migrated family."""
-    if TEXT_KEEP_SORTED_SUPPORT["artifact"] == "pinned":
-        return ""
-    return "support: keep_sorted lint is qualified but has no pinned artifact (quality/artifacts/keep_sorted.*.bzl is missing)"
+    return support_record_artifact_error(TEXT_KEEP_SORTED_SUPPORT)
 
 def is_support_tool(tool_id):
     """Reports whether a tool carries an explicit support record."""
-    return tool_id == TEXT_KEEP_SORTED_SUPPORT["tool"]
+    for record in SUPPORT_RECORDS:
+        if record["tool"] == tool_id:
+            return True
+    return False
 
 def support_state(tool_id):
     """Returns the recorded support state for one tool, or unknown."""
-    if tool_id == TEXT_KEEP_SORTED_SUPPORT["tool"]:
-        return TEXT_KEEP_SORTED_SUPPORT["state"]
+    for record in SUPPORT_RECORDS:
+        if record["tool"] == tool_id:
+            return record["state"]
     return "unknown"

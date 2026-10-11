@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":support.bzl", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_schema_error", "support_state", "support_wiring_error")
+load(":support.bzl", "SHELL_SHFMT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_artifact_error", "support_record_cli_error", "support_record_error", "support_record_wiring_error", "support_schema_error", "support_state", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(

@@ -36,6 +36,7 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Lint => CommandSpec {
             command,
             aspects: &[
+                "//quality:real_aspects.bzl%real_cc_lint_aspect",
                 "//quality:real_aspects.bzl%real_lint_aspect",
                 "//quality:real_aspects.bzl%real_js_lint_aspect",
                 "//quality:real_aspects.bzl%real_python_lint_aspect",
@@ -219,6 +220,7 @@ mod tests {
         assert_eq!(
             lint.aspects,
             &[
+                "//quality:real_aspects.bzl%real_cc_lint_aspect",
                 "//quality:real_aspects.bzl%real_lint_aspect",
                 "//quality:real_aspects.bzl%real_js_lint_aspect",
                 "//quality:real_aspects.bzl%real_python_lint_aspect",

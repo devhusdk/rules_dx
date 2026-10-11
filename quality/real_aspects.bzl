@@ -23,6 +23,7 @@ _REAL_TOOL_TABLE = {
     "buildifier": {"capabilities": ["format", "lint"], "shard": "core"},
     "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
     "clang_format": {"capabilities": ["format"], "shard": "cc"},
+    "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},
@@ -54,6 +55,7 @@ _CORE_LINT_TOOLS = _shard_tools("core", "lint")
 _CORE_FORMAT_TOOLS = _shard_tools("core", "format")
 _CORE_TYPECHECK_TOOLS = _shard_tools("core", "typecheck")
 _CC_FORMAT_TOOLS = _shard_tools("cc", "format")
+_CC_LINT_TOOLS = _shard_tools("cc", "lint")
 _JS_LINT_TOOLS = _shard_tools("js", "lint")
 _JS_FORMAT_TOOLS = _shard_tools("js", "format")
 _PY_LINT_TOOLS = _shard_tools("py", "lint")
@@ -68,7 +70,7 @@ _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 
 _WIRED_TOOLS = {
     "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS)),
-    "lint": sorted(set(_CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -219,6 +221,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             rustc_diagnostics = target[OutputGroupInfo]["rustc_output"].to_list()
     rustc_delegated = len(rustc_diagnostics) > 0
 
+    tidy_diagnostics = []
+    if "clang_tidy" in [stage["tool"] for stage in resolved]:
+        if OutputGroupInfo in target and "clang_tidy_output" in target[OutputGroupInfo]:
+            tidy_diagnostics = target[OutputGroupInfo]["clang_tidy_output"].to_list()
+    tidy_delegated = len(tidy_diagnostics) > 0
+
     hints = []
     if hasattr(ctx.rule.attr, "aspect_hints"):
         for hint_target in ctx.rule.attr.aspect_hints:
@@ -274,6 +282,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["checkstyle"] = ctx.executable._checkstyle
     if "clang_format" in stage_tools:
         tool_binaries["clang_format"] = ctx.file._clang_format
+    if "clang_tidy" in stage_tools:
+        tool_binaries["clang_tidy"] = ctx.file._clang_tidy
     if "pmd" in stage_tools:
         tool_binaries["pmd"] = ctx.executable._pmd
     if "spotbugs" in stage_tools:
@@ -376,7 +386,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     request_tools = {}
     for tool in stage_tools:
         binary_path = None
-        if not (tool == "clippy" and clippy_delegated) and not (tool == "rustc" and rustc_delegated):
+        if not (tool == "clippy" and clippy_delegated) and not (tool == "rustc" and rustc_delegated) and not (tool == "clang_tidy" and tidy_delegated):
             binary = tool_binaries[tool]
             binary_path = binary.path
             inputs.append(binary)
@@ -403,6 +413,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(diagnostics)
         if tool == "rustc" and rustc_delegated:
             for diagnostics in rustc_diagnostics:
+                upstream.append(diagnostics.path)
+                inputs.append(diagnostics)
+        if tool == "clang_tidy" and tidy_delegated:
+            for diagnostics in tidy_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
         request_tools[tool] = real_request_tool(
@@ -463,7 +477,7 @@ def real_allowed_tools_error():
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
         _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS +
-        _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS
+        _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
         if tool not in REAL_ADAPTERS:
@@ -507,6 +521,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "clang_format": attr.label(
         default = "@llvm//tools:clang-format",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
+    "clang_tidy": attr.label(
+        default = "@llvm//tools:clang-tidy",
         allow_single_file = True,
         cfg = "exec",
     ),
@@ -608,6 +627,7 @@ def _real_attrs_for(tools):
 
 _REAL_CORE_ATTRS = _real_attrs_for(sorted([tool for tool in _REAL_TOOL_TABLE if _REAL_TOOL_TABLE[tool]["shard"] == "core"]))
 _REAL_CC_FORMAT_ATTRS = _real_attrs_for(_CC_FORMAT_TOOLS)
+_REAL_CC_LINT_ATTRS = _real_attrs_for(_CC_LINT_TOOLS)
 _REAL_JS_LINT_ATTRS = _real_attrs_for(_JS_LINT_TOOLS)
 _REAL_JS_FORMAT_ATTRS = _real_attrs_for(_JS_FORMAT_TOOLS)
 _REAL_JVM_LINT_ATTRS = _real_attrs_for(_JVM_LINT_TOOLS)
@@ -620,6 +640,7 @@ _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
+    "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
     "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
@@ -667,6 +688,8 @@ real_format_aspect = _make_real_aspect("real_format")
 real_typecheck_aspect = _make_real_aspect("real_typecheck")
 
 real_cc_format_aspect = _make_real_aspect("real_cc_format")
+
+real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
 
 real_js_lint_aspect = _make_real_aspect("real_js_lint")
 

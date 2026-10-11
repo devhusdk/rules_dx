@@ -1,10 +1,12 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load("//quality/testdata:tidy_upstream_subject.bzl", "tidy_upstream_subject")
 
 package(default_visibility = ["//quality:__pkg__"])
 
 exports_files([
+    "clean.c",
     "clean.js",
     "clean.json",
     "clean.toml",
@@ -103,6 +105,21 @@ workspace_policy(
     families = [":eslint_js_family"],
 )
 
+quality_family(
+    name = "clang_tidy_cc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cc",
+    lint = ["clang_tidy"],
+)
+
+workspace_policy(
+    name = "cc_clang_tidy_policy",
+    families = [":clang_tidy_cc_family"],
+)
+
 eslint_config(
     name = "consumer_eslint_config",
     src = "eslint.config.js",
@@ -129,6 +146,18 @@ real_source_target(
     name = "clean_toml",
     tags = ["corpus"],
     toml_srcs = ["clean.toml"],
+)
+
+real_source_target(
+    name = "clean_c",
+    c_srcs = ["clean.c"],
+    tags = ["corpus"],
+)
+
+tidy_upstream_subject(
+    name = "clean_c_delegated",
+    diagnostics = ["clean_c.upstream.txt"],
+    target = ":clean_c",
 )
 
 real_source_target(

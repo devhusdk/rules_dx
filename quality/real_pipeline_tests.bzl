@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "drop_pipeline_tool", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "real_allowed_tools_error")
+load(":real_aspects.bzl", "real_allowed_tools_error", "real_wired_tools")
 
 _LINT_SELECTIONS = {
     "javascript": ["biome"],
@@ -106,6 +106,15 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("tsc", "typecheck"),
                 ],
                 [[], [], ["tsx", "typescript"]],
+            ),
+            expect_equal(
+                "real_supported_classes returns clang_tidy lint support only",
+                [
+                    real_supported_classes("clang_tidy", "lint"),
+                    real_supported_classes("clang_tidy", "format"),
+                    real_supported_classes("clang_tidy", "typecheck"),
+                ],
+                [["c", "cpp"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns buildifier lint support",
@@ -465,6 +474,36 @@ def real_pipeline_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "resolve_pipeline carries the exact c and cpp lint subset for an opt-in selection",
+                resolve_pipeline(
+                    ["c", "cpp"],
+                    {"c": ["src/a.c"], "cpp": ["src/b.cc"]},
+                    "lint",
+                    {"cc": ["clang_tidy"]},
+                    REAL_CLASS_TO_FAMILY,
+                    REAL_ADAPTERS,
+                ),
+                [
+                    {
+                        "classes": ["c", "cpp"],
+                        "sources": ["src/a.c", "src/b.cc"],
+                        "tool": "clang_tidy",
+                    },
+                ],
+            ),
+            expect_equal(
+                "resolve_pipeline leaves c lint empty without an opt-in selection",
+                resolve_pipeline(
+                    ["c", "cpp"],
+                    {"c": ["src/a.c"], "cpp": ["src/b.cc"]},
+                    "lint",
+                    {"cc": []},
+                    REAL_CLASS_TO_FAMILY,
+                    REAL_ADAPTERS,
+                ),
+                [],
+            ),
+            expect_equal(
                 "resolve_pipeline carries the exact typecheck source subset",
                 resolve_pipeline(
                     ["toml", "starlark", "rust"],
@@ -495,6 +534,17 @@ def real_pipeline_unit_tests(name):
                     ["taplo"],
                     [],
                     _WIRED_FORMAT_TOOLS,
+                ),
+                "",
+            ),
+            expect_equal(
+                "family_section_error accepts the wired clang_tidy opt-in",
+                family_section_error(
+                    "cc",
+                    "lint",
+                    ["clang_tidy"],
+                    [],
+                    real_wired_tools(),
                 ),
                 "",
             ),

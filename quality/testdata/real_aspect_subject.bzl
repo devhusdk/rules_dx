@@ -5,6 +5,7 @@ load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load(
     "//quality:real_aspects.bzl",
     "real_cc_format_aspect",
+    "real_cc_lint_aspect",
     "real_format_aspect",
     "real_js_format_aspect",
     "real_js_lint_aspect",
@@ -51,6 +52,7 @@ real_aspect_subject = rule(
         "target": attr.label(
             aspects = [
                 real_cc_format_aspect,
+                real_cc_lint_aspect,
                 real_lint_aspect,
                 real_format_aspect,
                 real_js_lint_aspect,

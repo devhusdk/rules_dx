@@ -20,6 +20,15 @@ fn hits(pairs: &[(u32, u64)]) -> FileHits {
     file
 }
 
+fn branch_file(lines: &[(u32, u64)], branches: &[((u32, u32, u32), Option<u64>)]) -> FileHits {
+    let mut file = hits(lines);
+    for (id, taken) in branches {
+        file.branches.insert(*id, *taken);
+    }
+    file.branch_data = true;
+    file
+}
+
 fn report_of(path: &str, pairs: &[(u32, u64)]) -> BTreeMap<String, FileHits> {
     let mut report = BTreeMap::new();
     report.insert(path.to_string(), hits(pairs));
@@ -1076,6 +1085,170 @@ fn measured_python_empty_block_errors_as_uninstrumented() {
         "{:?}",
         verdict.errors
     );
+}
+
+#[test]
+fn branch_data_with_both_outcomes_reports_taken_counts() {
+    let files = BTreeMap::from([("elf.rs", "fn f(n: u32) -> u32 {\n    n\n}\n".to_string())]);
+    let mut report = BTreeMap::new();
+    report.insert(
+        "elf.rs".to_string(),
+        branch_file(
+            &[(1, 1), (2, 1)],
+            &[((2, 0, 0), Some(3)), ((2, 0, 1), Some(1))],
+        ),
+    );
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branch_found, 2);
+    assert_eq!(verdict.branch_hit, 2);
+    assert_eq!(verdict.branch_files, 1);
+    assert_eq!(verdict.branch_bare, 0);
+    assert!(verdict.files[0].missed_branches.is_empty());
+    let text = render(&verdict);
+    assert!(
+        text.contains(
+            "measured branches: 2 taken of 2 recorded (1 files with branch data, 0 without)"
+        ),
+        "{text}"
+    );
+    assert!(text.contains("elf.rs branches(rs): 2/2 taken"), "{text}");
+    assert!(
+        text.contains("informational branch rate: 100.00% (measured files only; never a gate)"),
+        "{text}"
+    );
+}
+
+#[test]
+fn line_gate_passes_with_missed_branch_outcomes() {
+    let files = BTreeMap::from([("elf.rs", "fn f(n: u32) -> u32 {\n    n\n}\n".to_string())]);
+    let mut report = BTreeMap::new();
+    report.insert(
+        "elf.rs".to_string(),
+        branch_file(
+            &[(1, 1), (2, 1)],
+            &[
+                ((2, 0, 0), Some(1)),
+                ((2, 0, 1), None),
+                ((2, 0, 2), Some(0)),
+            ],
+        ),
+    );
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branch_found, 3);
+    assert_eq!(verdict.branch_hit, 1);
+    assert_eq!(verdict.files[0].missed_branches, vec![(2, 0, 1), (2, 0, 2)]);
+    let text = render(&verdict);
+    assert!(
+        text.contains("measured branches: 1 taken of 3 recorded"),
+        "{text}"
+    );
+    assert!(
+        text.contains("missed: elf.rs:2 block 0 branch 1, elf.rs:2 block 0 branch 2"),
+        "{text}"
+    );
+    assert!(
+        text.contains("informational branch rate: 33.33% (measured files only; never a gate)"),
+        "{text}"
+    );
+}
+
+#[test]
+fn unavailable_branch_data_reports_unknown_never_full() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branch_files, 0);
+    assert_eq!(verdict.branch_bare, 1);
+    let text = render(&verdict);
+    assert!(
+        text.contains("measured branches: unavailable (no branch records in report; branch coverage unknown, never 100%)"),
+        "{text}"
+    );
+    assert!(!text.contains("informational branch rate"), "{text}");
+}
+
+#[test]
+fn summary_only_branch_section_counts_zero_recorded() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let mut measured = hits(&[(1, 1)]);
+    measured.branch_data = true;
+    let mut report = BTreeMap::new();
+    report.insert("elf.rs".to_string(), measured);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branch_files, 1);
+    assert_eq!(verdict.branch_found, 0);
+    let text = render(&verdict);
+    assert!(
+        text.contains(
+            "measured branches: 0 taken of 0 recorded (1 files with branch data, 0 without)"
+        ),
+        "{text}"
+    );
+    assert!(text.contains("elf.rs branches(rs): 0/0 taken"), "{text}");
+    assert!(
+        text.contains("informational branch rate: n/a (no recorded branches)"),
+        "{text}"
+    );
+}
+
+#[test]
+fn mixed_files_split_branch_provenance_counts() {
+    let files = BTreeMap::from([
+        ("taken.rs", "fn f() {}\n".to_string()),
+        ("bare.rs", "fn g() {}\n".to_string()),
+    ]);
+    let mut report = BTreeMap::new();
+    report.insert(
+        "taken.rs".to_string(),
+        branch_file(&[(1, 1)], &[((1, 0, 0), Some(1))]),
+    );
+    report.insert("bare.rs".to_string(), hits(&[(1, 1)]));
+    let verdict = evaluate(
+        &eligible_inventory(&["taken.rs", "bare.rs"]),
+        &["taken.rs".to_string(), "bare.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branch_files, 1);
+    assert_eq!(verdict.branch_bare, 1);
+    let text = render(&verdict);
+    assert!(
+        text.contains("(1 files with branch data, 1 without)"),
+        "{text}"
+    );
+}
+
+#[test]
+fn branch_language_labels_covered_extensions() {
+    assert_eq!(language_label("elf.rs"), "rs");
+    assert_eq!(language_label("elf.py"), "py");
+    assert_eq!(language_label("elf.cc"), "cc");
+    assert_eq!(language_label("elf.mts"), "mts");
+    assert_eq!(language_label("notes.txt"), "other");
 }
 
 #[test]

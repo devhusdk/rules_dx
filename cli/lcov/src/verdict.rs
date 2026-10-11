@@ -5,6 +5,10 @@ pub struct FileVerdict {
     pub eligible: u64,
     pub uncovered: Vec<u32>,
     pub ignored: u64,
+    pub branch_found: u64,
+    pub branch_hit: u64,
+    pub branch_data: bool,
+    pub missed_branches: Vec<(u32, u32, u32)>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
@@ -14,6 +18,10 @@ pub struct GateVerdict {
     pub eligible: u64,
     pub ignored: u64,
     pub instrumented: u64,
+    pub branch_found: u64,
+    pub branch_hit: u64,
+    pub branch_files: u64,
+    pub branch_bare: u64,
     pub passed: bool,
     pub errors: Vec<String>,
     pub other_sources: Vec<String>,

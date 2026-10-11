@@ -273,11 +273,132 @@ mod tests {
             "coverage gate: FAIL 1/1 executable lines\n  \
              elf.rs: 1/1 (0 ignored)\n\
              measured lines: 1 raw, 0 ignored, 1 eligible\n\
+             measured branches: unavailable (no branch records in report; branch coverage unknown, never 100%)\n\
              errors:\n  \
              - unexpected Starlark line data for defs.bzl: the gate has no Starlark line route\n\
              other instrumented sources (not counted):\n  \
              - defs.bzl\n\
              informational line rate: 100.00% (exact counts decide, never rounding)\n"
+        );
+    }
+
+    #[test]
+    fn run_reports_measured_branches_for_supported_data() {
+        let mut stored = passing_store();
+        stored.insert(
+            "report.info",
+            "SF:elf.rs\nDA:1,1\nBRDA:1,0,0,2\nBRDA:1,0,1,1\nBRF:2\nBRH:2\nend_of_record\n",
+        );
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 0, "{printed:?}");
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.contains("measured branches: 2 taken of 2 recorded")),
+            "{printed:?}"
+        );
+        assert!(
+            printed.iter().any(|line| line.contains(
+                "informational branch rate: 100.00% (measured files only; never a gate)"
+            )),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_passes_line_gate_with_missed_branch_outcome() {
+        let mut stored = passing_store();
+        stored.insert(
+            "report.info",
+            "SF:elf.rs\nDA:1,1\nBRDA:1,0,0,-\nBRF:1\nBRH:0\nend_of_record\n",
+        );
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 0, "{printed:?}");
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.contains("measured branches: 0 taken of 1 recorded")),
+            "{printed:?}"
+        );
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.contains("missed: elf.rs:1 block 0 branch 0")),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_fails_on_incomplete_branch_summary() {
+        let mut stored = passing_store();
+        stored.insert(
+            "report.info",
+            "SF:elf.rs\nDA:1,1\nBRDA:1,0,0,1\nBRF:2\nend_of_record\n",
+        );
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 1, "{printed:?}");
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.contains("incomplete LCOV branch summary")),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_fails_on_malformed_branch_record() {
+        let mut stored = passing_store();
+        stored.insert(
+            "report.info",
+            "SF:elf.rs\nDA:1,1\nBRDA:x,0,0,1\nend_of_record\n",
+        );
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 1, "{printed:?}");
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.contains("malformed LCOV BRDA")),
+            "{printed:?}"
         );
     }
 

@@ -40,6 +40,17 @@ fn check_file(
             eligible += 1;
         }
     }
+    let mut branch_found = 0;
+    let mut branch_hit = 0;
+    let mut missed_branches = Vec::new();
+    for ((line, block, branch), taken) in &hits.branches {
+        branch_found += 1;
+        if taken.is_some_and(|count| count > 0) {
+            branch_hit += 1;
+        } else {
+            missed_branches.push((*line, *block, *branch));
+        }
+    }
     if hits.lines.is_empty() && ignores.singles.is_empty() && ignores.ranges.is_empty() {
         errors.push(format!(
             "no instrumented lines and no validated ignores for eligible source: {path}"
@@ -78,6 +89,10 @@ fn check_file(
         eligible,
         uncovered,
         ignored,
+        branch_found,
+        branch_hit,
+        branch_data: hits.branch_data,
+        missed_branches,
     })
 }
 
@@ -155,6 +170,13 @@ pub fn evaluate(
         verdict.covered += file.covered;
         verdict.eligible += file.eligible;
         verdict.ignored += file.ignored;
+        verdict.branch_found += file.branch_found;
+        verdict.branch_hit += file.branch_hit;
+        if file.branch_data {
+            verdict.branch_files += 1;
+        } else {
+            verdict.branch_bare += 1;
+        }
     }
     verdict.instrumented = verdict.eligible + verdict.ignored;
     let mut clean = verdict.errors.is_empty();

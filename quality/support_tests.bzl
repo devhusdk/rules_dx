@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":support.bzl", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_schema_error", "support_state", "support_wiring_error")
+load(":support.bzl", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -113,6 +113,66 @@ def support_unit_tests(name):
                 "record keeps the batched transport",
                 TEXT_KEEP_SORTED_SUPPORT["transport"],
                 "batched",
+            ),
+            expect_equal(
+                "shell records validate",
+                [support_record_error(SHELL_SHELLCHECK_SUPPORT), support_record_error(SHELL_SHFMT_SUPPORT)],
+                ["", ""],
+            ),
+            expect_equal(
+                "shell tools are support tools with qualified state",
+                [is_support_tool("shellcheck"), support_state("shellcheck"), is_support_tool("shfmt"), support_state("shfmt")],
+                [True, "qualified", True, "qualified"],
+            ),
+            expect_equal(
+                "shell records keep the direct single execution",
+                [[SHELL_SHELLCHECK_SUPPORT["execution"], SHELL_SHELLCHECK_SUPPORT["transport"]], [SHELL_SHFMT_SUPPORT["execution"], SHELL_SHFMT_SUPPORT["transport"]]],
+                [["direct", "single"], ["direct", "single"]],
+            ),
+            expect_equal(
+                "shell records keep the check and fix support",
+                [SHELL_SHELLCHECK_SUPPORT["fix"], SHELL_SHFMT_SUPPORT["fix"]],
+                ["check_only", "supported"],
+            ),
+            expect_equal(
+                "shell records keep the migrated platforms",
+                [SHELL_SHELLCHECK_SUPPORT["platforms"], SHELL_SHFMT_SUPPORT["platforms"]],
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]],
+            ),
+            expect_equal(
+                "missing shell aspect wiring is an actionable failure",
+                support_shell_wiring_error([]),
+                "support: shellcheck lint is qualified but has no wired aspect (missing real_shell_lint_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "half-wired shell still names the missing aspect",
+                support_shell_wiring_error(["shellcheck"]),
+                "support: shfmt format is qualified but has no wired aspect (missing real_shell_format_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired shell clears the aspect gap",
+                support_shell_wiring_error(["shellcheck", "shfmt"]),
+                "",
+            ),
+            expect_equal(
+                "missing shell CLI aspect is an actionable failure",
+                support_shell_cli_error(["//quality:real_aspects.bzl%real_lint_aspect"]),
+                "support: shellcheck lint is qualified but has no CLI lint aspect (missing real_shell_lint_aspect)",
+            ),
+            expect_equal(
+                "lint-only shell CLI still names the format gap",
+                support_shell_cli_error(["//quality:real_aspects.bzl%real_shell_lint_aspect"]),
+                "support: shfmt format is qualified but has no CLI format aspect (missing real_shell_format_aspect)",
+            ),
+            expect_equal(
+                "both shell CLI aspects clear the CLI gap",
+                support_shell_cli_error(["//quality:real_aspects.bzl%real_shell_lint_aspect", "//quality:real_aspects.bzl%real_shell_format_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned shell artifacts clear the artifact gap",
+                support_shell_artifact_error(),
+                "",
             ),
         ],
     )

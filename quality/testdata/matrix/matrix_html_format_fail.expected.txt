@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_html_format_fail
+capability FORMAT
+stages 1
+stage prettier classes=html sources=quality/testdata/real_dirty.html
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - quality/testdata/real_dirty.html 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement quality/testdata/real_dirty.html 5 19 "class=\"a\""

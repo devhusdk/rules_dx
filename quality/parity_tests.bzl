@@ -7,10 +7,6 @@ PARITY_SCHEMA_VERSION = 1
 
 PARITY_DEFERRED = {
     "astro": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
-    "graphql": ["ADR", "private Node graph (Prettier GraphQL parser)"],
-    "html": ["ADR", "private Node graph (Prettier HTML parser)"],
-    "json5": ["ADR", "private Node graph (Prettier JSON5 parser); Biome adapter claim pending"],
-    "jsonc": ["ADR", "private Node graph (Prettier JSONC parser); Biome adapter claim pending"],
     "mdx": ["ADR", "framework adapter region; prose-is-not-dependency boundary per composition"],
     "svelte": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
     "vue": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],

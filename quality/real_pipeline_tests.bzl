@@ -96,7 +96,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("prettier", "format"),
                     real_supported_classes("prettier", "typecheck"),
                 ],
-                [[], ["css", "gherkin", "javascript", "json", "jsx", "less", "scss", "sql", "tsx", "typescript", "xml"], []],
+                [[], ["css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "xml"], []],
             ),
             expect_equal(
                 "real_supported_classes returns tsc typecheck support only",

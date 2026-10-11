@@ -126,6 +126,26 @@ quality_family(
 )
 
 quality_family(
+    name = "default_graphql_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "graphql",
+    format = ["prettier"],
+)
+
+quality_family(
+    name = "default_html_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "html",
+    format = ["prettier"],
+)
+
+quality_family(
     name = "default_javascript_family",
     disabled = ["typecheck"],
     family_id = "javascript",
@@ -192,6 +212,8 @@ quality_family(
 workspace_policy(
     name = "default_workspace_policy",
     families = [
+        ":default_graphql_family",
+        ":default_html_family",
         ":default_java_family",
         ":default_javascript_family",
         ":default_kotlin_family",

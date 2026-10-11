@@ -3,6 +3,18 @@
 CURATED_SCHEMA_VERSION = 1
 
 CURATED_DEFAULTS = {
+    "graphql": {
+        "audit": [],
+        "format": ["prettier"],
+        "lint": [],
+        "typecheck": [],
+    },
+    "html": {
+        "audit": [],
+        "format": ["prettier"],
+        "lint": [],
+        "typecheck": [],
+    },
     "java": {
         "audit": [],
         "format": ["google_java_format"],
@@ -78,6 +90,8 @@ CURATED_DEFAULTS = {
 }
 
 FORMAT_FROZEN = {
+    "graphql": ["prettier"],
+    "html": ["prettier"],
     "java": ["google_java_format"],
     "javascript": ["biome"],
     "json": ["prettier"],

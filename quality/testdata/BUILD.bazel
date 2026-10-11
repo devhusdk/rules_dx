@@ -753,6 +753,46 @@ real_aspect_subject(
 )
 
 real_source_target(
+    name = "fixture_real_graphql",
+    graphql_srcs = ["real_clean.graphql"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_graphql_subject",
+    target = ":fixture_real_graphql",
+)
+
+real_source_target(
+    name = "fixture_real_html",
+    html_srcs = ["real_clean.html"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_html_subject",
+    target = ":fixture_real_html",
+)
+
+real_source_target(
+    name = "fixture_real_json5",
+    json5_srcs = ["real_clean.json5"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_json5_subject",
+    target = ":fixture_real_json5",
+)
+
+real_source_target(
+    name = "fixture_real_jsonc",
+    jsonc_srcs = ["real_clean.jsonc"],
+)
+
+real_aspect_subject(
+    name = "fixture_real_jsonc_subject",
+    target = ":fixture_real_jsonc",
+)
+
+real_source_target(
     name = "fixture_real_typescript",
     aspect_hints = [":biome_cfg"],
     typescript_srcs = ["real_clean.ts"],
@@ -877,6 +917,10 @@ real_aspect_fixture_tests(
         ":fixture_real_java_hinted_subject",
         ":fixture_real_javascript_subject",
         ":fixture_real_json_subject",
+        ":fixture_real_graphql_subject",
+        ":fixture_real_html_subject",
+        ":fixture_real_json5_subject",
+        ":fixture_real_jsonc_subject",
         ":fixture_real_jsx_subject",
         ":fixture_real_kotlin_subject",
         ":fixture_real_tsx_subject",

@@ -75,6 +75,26 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "graphql curated defaults stay Prettier format only",
+                CURATED_DEFAULTS["graphql"],
+                {
+                    "audit": [],
+                    "format": ["prettier"],
+                    "lint": [],
+                    "typecheck": [],
+                },
+            ),
+            expect_equal(
+                "html curated defaults stay Prettier format only",
+                CURATED_DEFAULTS["html"],
+                {
+                    "audit": [],
+                    "format": ["prettier"],
+                    "lint": [],
+                    "typecheck": [],
+                },
+            ),
+            expect_equal(
                 "rust curated defaults stay rustfmt + Clippy + rustc",
                 CURATED_DEFAULTS["rust"],
                 {

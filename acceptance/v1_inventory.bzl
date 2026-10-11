@@ -990,6 +990,24 @@ PROMISES = [
         "evidence": [
             "//quality:curated_defaults_unit",
         ],
+        "id": "curated.graphql",
+        "native": False,
+        "owner": "//quality:curated_defaults.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:curated_defaults_unit",
+        ],
+        "id": "curated.html",
+        "native": False,
+        "owner": "//quality:curated_defaults.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:curated_defaults_unit",
+        ],
         "id": "curated.java",
         "native": False,
         "owner": "//quality:curated_defaults.bzl",
@@ -1099,42 +1117,6 @@ PROMISES = [
             "//quality:parity_unit",
         ],
         "id": "deferred.astro",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
-        "id": "deferred.graphql",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
-        "id": "deferred.html",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
-        "id": "deferred.json5",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
-        "id": "deferred.jsonc",
         "native": False,
         "owner": "ADR",
         "state": "evidenced",
@@ -3276,7 +3258,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 353
+PROMISE_COUNT = 351
 
 PROMISE_FAMILIES = [
     "artifact",

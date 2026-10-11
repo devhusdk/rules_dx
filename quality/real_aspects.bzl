@@ -9,7 +9,7 @@ load(
     "REAL_ADAPTERS",
     "REAL_CLASS_TO_FAMILY",
 )
-load("//quality:execution_requirements.bzl", "dx_execution_requirements")
+load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
@@ -437,7 +437,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tools = run_tools,
         outputs = [out],
         arguments = [args],
-        execution_requirements = dx_execution_requirements(),
+        execution_requirements = dx_stage_execution_requirements(stage_tools, capability),
         mnemonic = "DxRealQuality" + capability.capitalize(),
         progress_message = "Dx real quality " + capability + " %{label}",
     )

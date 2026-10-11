@@ -22,6 +22,7 @@ _REAL_TOOL_TABLE = {
     "biome": {"capabilities": ["format", "lint"], "shard": "core"},
     "buildifier": {"capabilities": ["format", "lint"], "shard": "core"},
     "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
+    "clang_format": {"capabilities": ["format"], "shard": "cc"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},

@@ -6,7 +6,7 @@ load(
     "SYNTHETIC_ADAPTERS",
     "SYNTHETIC_CLASS_TO_FAMILY",
 )
-load("//quality:execution_requirements.bzl", "dx_execution_requirements")
+load("//quality:execution_requirements.bzl", "dx_action_requirements", "dx_execution_requirements")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "resolve_pipeline", "stage_flag")
 load("//quality:policy.bzl", "QualityPolicyInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -53,7 +53,7 @@ def _quality_pipeline_action(target, ctx, capability):
         inputs = depset(inputs),
         outputs = [out],
         arguments = [args],
-        execution_requirements = dx_execution_requirements(),
+        execution_requirements = dx_action_requirements([stage["tool"] for stage in resolved], capability),
         mnemonic = "DxQuality" + capability.capitalize(),
         progress_message = "Dx quality " + capability + " %{label}",
     )

@@ -15,10 +15,12 @@ pub mod run;
 pub mod verdict;
 
 pub use ignores::{find_ignores, is_ignored, Ignores};
-pub use inventory::{parse_inventory, ELIGIBLE, SUPPORT};
+pub use inventory::{normalize_inventory_path, parse_inventory, ELIGIBLE, SUPPORT};
 pub use parse::{merge_lcov_reports, parse_lcov, validate_lcov_report, FileHits};
 pub use run::run;
-pub use verdict::{evaluate, is_covered_language, render, FileVerdict, GateVerdict};
+pub use verdict::{
+    evaluate, evaluate_with_tracked, is_covered_language, render, FileVerdict, GateVerdict,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LcovError {
@@ -74,6 +76,8 @@ pub enum LcovError {
     UnclosedStart { path: String, start: usize },
     #[error("malformed inventory line {lineno}: {raw:?}")]
     MalformedInventory { lineno: usize, raw: String },
+    #[error("duplicate inventory path {path:?} on line {lineno}")]
+    DuplicateInventoryPath { lineno: usize, path: String },
     #[error("{message}")]
     Io { message: String },
 }

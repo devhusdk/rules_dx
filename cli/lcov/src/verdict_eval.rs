@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
 use super::{is_covered_language, is_starlark, FileVerdict, GateVerdict};
-use crate::{find_ignores, is_ignored, FileHits, LcovError, ELIGIBLE, SUPPORT};
+use crate::{
+    find_ignores, inventory::normalize_inventory_path, is_ignored, FileHits, LcovError, ELIGIBLE,
+    SUPPORT,
+};
 
 fn check_file(
     path: &str,
@@ -60,6 +63,16 @@ pub fn evaluate(
     report: &BTreeMap<String, FileHits>,
     load_source: &dyn Fn(&str) -> Result<String, LcovError>,
 ) -> GateVerdict {
+    evaluate_with_tracked(inventory, bazel_sources, &[], report, load_source)
+}
+
+pub fn evaluate_with_tracked(
+    inventory: &BTreeMap<String, String>,
+    bazel_sources: &[String],
+    tracked_sources: &[String],
+    report: &BTreeMap<String, FileHits>,
+    load_source: &dyn Fn(&str) -> Result<String, LcovError>,
+) -> GateVerdict {
     let mut verdict = GateVerdict::default();
     if report.is_empty() {
         verdict.errors.push(
@@ -99,6 +112,17 @@ pub fn evaluate(
             ));
         }
     }
+    for tracked in tracked_sources {
+        let path = normalize_inventory_path(tracked.trim());
+        if path.is_empty() || !is_covered_language(path) {
+            continue;
+        }
+        if !inventory.contains_key(path) {
+            verdict.errors.push(format!(
+                "tracked production source missing from inventory: {path}"
+            ));
+        }
+    }
     for (path, disposition) in inventory {
         if disposition == ELIGIBLE {
             if !bazel_sources.contains(path) {
@@ -111,7 +135,13 @@ pub fn evaluate(
                     "eligible source absent from coverage report: {path}"
                 ));
             }
-        } else if disposition != SUPPORT {
+        } else if disposition == SUPPORT {
+            if !bazel_sources.contains(path) {
+                verdict
+                    .errors
+                    .push(format!("support source not declared by Bazel: {path}"));
+            }
+        } else {
             verdict.errors.push(format!(
                 "unknown disposition {disposition:?} for {path}; want \"eligible\" or \"support\""
             ));

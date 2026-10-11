@@ -1,8 +1,8 @@
-use super::{evaluate, parse_inventory, parse_lcov, render, LcovError};
+use super::{evaluate_with_tracked, parse_inventory, parse_lcov, render, LcovError};
 use clap::{error::ErrorKind, Parser};
 
 fn print_usage(print: &mut dyn FnMut(&str)) {
-    print("usage: check --report <combined.lcov> --inventory <inventory.txt> --sources <sources.txt> [--root <dir>]");
+    print("usage: check --report <combined.lcov> --inventory <inventory.txt> --sources <sources.txt> [--root <dir>] [--tracked <sources.txt>]");
 }
 
 #[derive(Parser, Debug)]
@@ -16,6 +16,8 @@ struct Cli {
     sources: Option<String>,
     #[arg(long, allow_hyphen_values = true, overrides_with = "root")]
     root: Option<String>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "tracked")]
+    tracked: Option<String>,
     #[arg(long = "help", short = 'h', action = clap::ArgAction::SetTrue)]
     help: bool,
 }
@@ -133,16 +135,40 @@ pub fn run(
             bazel_sources.push(line.to_string());
         }
     }
-    let verdict = evaluate(&inventory, &bazel_sources, &report, &|path| {
-        let full = if root == "." {
-            path.to_string()
-        } else {
-            format!("{root}/{path}")
+    let mut tracked_sources = Vec::new();
+    if let Some(tracked_path) = cli.tracked {
+        let tracked_text = match read_file(&tracked_path) {
+            Ok(text) => text,
+            Err(message) => {
+                print(&format!(
+                    "unreadable tracked source list {tracked_path}: {message}"
+                ));
+                return 2;
+            }
         };
-        read_file(&full).map_err(|error| LcovError::Io {
-            message: format!("cannot read eligible source {full}: {error}"),
-        })
-    });
+        for raw in tracked_text.lines() {
+            let line = raw.trim();
+            if !line.is_empty() && !line.starts_with('#') {
+                tracked_sources.push(line.to_string());
+            }
+        }
+    }
+    let verdict = evaluate_with_tracked(
+        &inventory,
+        &bazel_sources,
+        &tracked_sources,
+        &report,
+        &|path| {
+            let full = if root == "." {
+                path.to_string()
+            } else {
+                format!("{root}/{path}")
+            };
+            read_file(&full).map_err(|error| LcovError::Io {
+                message: format!("cannot read eligible source {full}: {error}"),
+            })
+        },
+    );
     print(&render(&verdict));
     if verdict.passed {
         0
@@ -434,6 +460,119 @@ mod tests {
             "{printed:?}"
         );
         let (code, printed) = run_harness(passing_store(), &["-h"]);
+        assert_eq!(code, 2, "{printed:?}");
+        assert!(
+            printed.iter().any(|line| line.contains("usage")),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_fails_on_tracked_orphan_missing_from_inventory() {
+        let mut stored = passing_store();
+        stored.insert("sources.txt", "elf.rs\n");
+        stored.insert("tracked.txt", "elf.rs\norphan.rs\n");
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+                "tracked.txt",
+            ],
+        );
+        assert_eq!(code, 1, "{printed:?}");
+        assert!(
+            printed
+                .iter()
+                .any(|line| line
+                    .contains("tracked production source missing from inventory: orphan.rs")),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_passes_when_tracked_matches_inventory() {
+        let mut stored = passing_store();
+        stored.insert("tracked.txt", "# scope\nelf.rs\n");
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+                "tracked.txt",
+            ],
+        );
+        assert_eq!(code, 0, "{printed:?}");
+    }
+
+    #[test]
+    fn run_ignores_untracked_languages_in_tracked_list() {
+        let mut stored = passing_store();
+        stored.insert("tracked.txt", "elf.rs\nnotes.md\ndefs.bzl\n");
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+                "tracked.txt",
+            ],
+        );
+        assert_eq!(code, 0, "{printed:?}");
+    }
+
+    #[test]
+    fn run_rejects_missing_tracked_list() {
+        let (code, printed) = run_harness(
+            passing_store(),
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+                "gone.txt",
+            ],
+        );
+        assert_eq!(code, 2, "{printed:?}");
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.contains("unreadable tracked source list")),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_rejects_dangling_tracked_flag() {
+        let (code, printed) = run_harness(
+            passing_store(),
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+            ],
+        );
         assert_eq!(code, 2, "{printed:?}");
         assert!(
             printed.iter().any(|line| line.contains("usage")),

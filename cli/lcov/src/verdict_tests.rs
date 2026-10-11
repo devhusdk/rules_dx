@@ -327,7 +327,12 @@ fn support_hits_are_skipped_and_others_listed() {
     let mut report = report_of("elf.rs", &[(1, 1)]);
     report.insert("tool.rs".to_string(), hits(&[(1, 0)]));
     report.insert("notes.txt".to_string(), hits(&[(7, 1)]));
-    let verdict = evaluate(&inventory, &["elf.rs".to_string()], &report, &loader(files));
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string(), "tool.rs".to_string()],
+        &report,
+        &loader(files),
+    );
     assert!(verdict.passed, "{verdict:?}");
     assert_eq!(verdict.covered, 1);
     assert_eq!(verdict.eligible, 1);
@@ -711,4 +716,166 @@ fn python_stub_stays_other_sources() {
     );
     assert!(verdict.passed, "{verdict:?}");
     assert_eq!(verdict.other_sources, vec!["elf.pyi".to_string()]);
+}
+
+#[test]
+fn bazel_declared_split_module_missing_from_inventory_fails() {
+    let path = "cli/lcov/src/ignores_find.rs";
+    let files = BTreeMap::from([(path, "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&["cli/lcov/src/lib.rs"]),
+        &["cli/lcov/src/lib.rs".to_string(), path.to_string()],
+        &report_of(path, &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|e| e
+                == "Bazel-declared source missing from inventory: cli/lcov/src/ignores_find.rs"),
+        "{verdict:?}"
+    );
+}
+
+#[test]
+fn support_source_missing_from_bazel_declaration_fails() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let mut inventory = eligible_inventory(&["elf.rs"]);
+    inventory.insert("stale.rs".to_string(), SUPPORT.to_string());
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|e| e == "support source not declared by Bazel: stale.rs"),
+        "{verdict:?}"
+    );
+}
+
+#[test]
+fn tracked_orphan_missing_from_inventory_fails() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate_with_tracked(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &["elf.rs".to_string(), "orphan.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|e| e == "tracked production source missing from inventory: orphan.rs"),
+        "{verdict:?}"
+    );
+}
+
+#[test]
+fn tracked_dot_slash_alias_matches_inventory() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate_with_tracked(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &["./elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+}
+
+#[test]
+fn tracked_non_covered_language_is_ignored() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate_with_tracked(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &["elf.rs".to_string(), "notes.md".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+}
+
+#[test]
+fn zero_hit_source_pins_its_uncovered_line() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 0)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert_eq!(verdict.files.len(), 1);
+    assert_eq!(verdict.files[0].covered, 0);
+    assert_eq!(verdict.files[0].eligible, 1);
+    assert_eq!(verdict.files[0].uncovered, vec![1]);
+}
+
+#[test]
+fn generated_source_gates_like_any_owned_source() {
+    let path = "bazel-out/k8-fastbuild/bin/gen/owned.rs";
+    let files = BTreeMap::from([(path, "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&[path]),
+        &[path.to_string()],
+        &report_of(path, &[(1, 4)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.files[0].path, path.to_string());
+}
+
+#[test]
+fn omitted_generated_source_fails_by_path() {
+    let path = "bazel-out/k8-fastbuild/bin/gen/owned.rs";
+    let files = BTreeMap::from([(path, "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &[path.to_string()],
+        &report_of(path, &[(1, 4)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict.errors.iter().any(|e| e.contains(path)),
+        "{verdict:?}"
+    );
+}
+
+#[test]
+fn arm_only_source_diverges_per_cell() {
+    let path = "arch/arm_only.rs";
+    let files = BTreeMap::from([(path, "fn f() {}\n".to_string())]);
+    let report = report_of(path, &[(1, 3)]);
+    let seed = evaluate(
+        &eligible_inventory(&[]),
+        &[],
+        &report,
+        &loader(files.clone()),
+    );
+    assert!(!seed.passed);
+    assert!(
+        seed.errors
+            .iter()
+            .any(|e| e == "instrumented source not in inventory: arch/arm_only.rs"),
+        "{seed:?}"
+    );
+    let arm = evaluate(
+        &eligible_inventory(&[path]),
+        &[path.to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(arm.passed, "{arm:?}");
 }

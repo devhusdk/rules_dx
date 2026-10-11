@@ -330,6 +330,7 @@ fn emit_clean_pruned(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
+    use dx_atomic_fs::lease;
     use dx_setup::{read_current_pair, setup_hex};
 
     #[test]
@@ -436,6 +437,45 @@ mod tests {
                 .join('2'.to_string().repeat(64))
                 .exists(),
             "generation shared with current survives"
+        );
+    }
+
+    #[test]
+    fn clean_apply_preserves_leased_stale_generation() {
+        let harness = Harness::new("clean-apply-leased");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let current = commit_clean_pair(&harness, '1', '2');
+        let dx_dir = harness.workspace.join(".dx");
+        let leased_hex = "4".repeat(64);
+        let _leased = lease::acquire_shared(
+            &dx_dir,
+            lease::GenerationUse::Generated,
+            &leased_hex,
+            std::time::Duration::from_secs(10),
+        )
+        .expect("hold a reader lease on the stale generation");
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(err, "", "{err}");
+        assert!(
+            out.contains("pruned 1 setup records and 1 generations"),
+            "{out}"
+        );
+        assert!(
+            dx_dir.join("generated").join(&leased_hex).exists(),
+            "a leased generation survives apply"
+        );
+        assert!(
+            !dx_dir.join("environments").join("3".repeat(64)).exists(),
+            "the unleased stale generation prunes"
+        );
+        assert!(
+            !dx_dir.join("setups").join(&stale).exists(),
+            "the stale setup record prunes"
+        );
+        assert!(
+            dx_dir.join("setups").join(&current).exists(),
+            "the current record survives"
         );
     }
 

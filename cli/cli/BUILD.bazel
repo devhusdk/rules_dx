@@ -326,6 +326,7 @@ rust_test(
         package_name = "cli/dx_cli",
     ) + [
         "//cli/adopt:dx_adopt",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/bump:dx_bump",
         "//cli/codegen:dx_codegen",

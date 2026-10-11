@@ -51,6 +51,11 @@ filegroup(
     srcs = ["clean.rs"],
 )
 
+filegroup(
+    name = "llvm_clang_format",
+    srcs = ["@llvm//tools:clang-format"],
+)
+
 exports_files(
     [
         "biome_cfg/biome.json",
@@ -370,6 +375,25 @@ real_source_target(
 )
 
 real_source_target(
+    name = "fixture_real_cc",
+    c_srcs = ["real_clean.c"],
+    cpp_srcs = ["real_clean_cpp.cc"],
+)
+
+real_source_target(
+    name = "fixture_real_cc_hinted",
+    aspect_hints = ["//:clang_format_config"],
+    c_srcs = ["real_clean.c"],
+    cpp_srcs = ["real_clean_cpp.cc"],
+)
+
+real_source_target(
+    name = "fixture_real_cc_format_dirty",
+    c_srcs = ["real_format_dirty.c"],
+    tags = ["manual"],
+)
+
+real_source_target(
     name = "fixture_real_shell",
     shell_srcs = ["real_clean.sh"],
 )
@@ -612,6 +636,22 @@ real_aspect_subject(
 real_aspect_subject(
     name = "fixture_real_python_subject",
     target = ":fixture_real_python",
+)
+
+real_aspect_subject(
+    name = "fixture_real_cc_subject",
+    target = ":fixture_real_cc",
+)
+
+real_aspect_subject(
+    name = "fixture_real_cc_hinted_subject",
+    target = ":fixture_real_cc_hinted",
+)
+
+real_aspect_subject(
+    name = "fixture_real_cc_format_dirty_subject",
+    tags = ["manual"],
+    target = ":fixture_real_cc_format_dirty",
 )
 
 real_aspect_subject(
@@ -913,6 +953,8 @@ failure_test(
 real_aspect_fixture_tests(
     name = "real_aspect_presence",
     subjects = [
+        ":fixture_real_cc_hinted_subject",
+        ":fixture_real_cc_subject",
         ":fixture_real_delim_python_subject",
         ":fixture_real_java_hinted_subject",
         ":fixture_real_javascript_subject",
@@ -1028,7 +1070,6 @@ runner_matrix_cases(name = "runner_matrix")
 
 _FAKE_FORMAT_TOOLS = [
     "buf_format",
-    "clang_format",
     "csharpier",
     "cue",
     "djlint_format",

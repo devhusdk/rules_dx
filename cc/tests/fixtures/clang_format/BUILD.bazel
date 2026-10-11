@@ -9,7 +9,6 @@ package(
 exports_files([
     "pins.bzl",
     "Sample.c",
-    "check_dirty.diff",
 ])
 
 real_source_target(

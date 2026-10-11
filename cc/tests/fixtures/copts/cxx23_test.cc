@@ -1,4 +1,5 @@
-// Configurable C/C++ options fixture: the C++23 request is observable at runtime.
+// Configurable C/C++ options fixture: the C++23 request is observable at
+// runtime.
 #include <cassert>
 
 #include "cc/tests/fixtures/copts/cxx23.h"

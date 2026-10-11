@@ -59,6 +59,7 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Format => CommandSpec {
             command,
             aspects: &[
+                "//quality:real_aspects.bzl%real_cc_format_aspect",
                 "//quality:real_aspects.bzl%real_format_aspect",
                 "//quality:real_aspects.bzl%real_js_format_aspect",
                 "//quality:real_aspects.bzl%real_jvm_format_aspect",
@@ -243,6 +244,7 @@ mod tests {
         assert_eq!(
             format.aspects,
             &[
+                "//quality:real_aspects.bzl%real_cc_format_aspect",
                 "//quality:real_aspects.bzl%real_format_aspect",
                 "//quality:real_aspects.bzl%real_js_format_aspect",
                 "//quality:real_aspects.bzl%real_jvm_format_aspect",

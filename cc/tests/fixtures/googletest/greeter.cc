@@ -4,11 +4,9 @@
 #include <optional>
 #include <string>
 
-std::string Greet(const std::string& name) {
-  return "hello " + name;
-}
+std::string Greet(const std::string &name) { return "hello " + name; }
 
-std::optional<std::string> MaybeGreet(const std::string& name) {
+std::optional<std::string> MaybeGreet(const std::string &name) {
   if (name.empty()) {
     return std::nullopt;
   }

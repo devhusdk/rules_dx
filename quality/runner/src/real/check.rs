@@ -381,7 +381,7 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_clang_format(&out.stdout, out.code, &strs),
+                    parsers::parse_clang_format(&out.stderr, out.code, &strs),
                 )
             }
             "gofumpt" => {

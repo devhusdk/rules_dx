@@ -1,4 +1,5 @@
-// Seed C++ GoogleTest test; consumer of the qualified GoogleTest v1.18.0 runner.
+// Seed C++ GoogleTest test; consumer of the qualified GoogleTest v1.18.0
+// runner.
 #include <gtest/gtest.h>
 
 #include <optional>
@@ -12,9 +13,7 @@
 // BUILD.bazel; this assertion fails the compile below the floor.
 static_assert(__cplusplus >= 201703L, "GoogleTest v1.18.0 requires C++17");
 
-TEST(GreeterTest, GreetsWorld) {
-  EXPECT_EQ(Greet("world"), "hello world");
-}
+TEST(GreeterTest, GreetsWorld) { EXPECT_EQ(Greet("world"), "hello world"); }
 
 TEST(GreeterTest, MaybeGreetEmptyIsNullopt) {
   EXPECT_FALSE(MaybeGreet("").has_value());

@@ -11,10 +11,6 @@
 // assertion fails the compile below the floor.
 static_assert(__cplusplus >= 201703L, "GoogleTest v1.18.0 requires C++17");
 
-TEST(GreetTest, GreetsWorld) {
-  EXPECT_EQ(Greet("dx"), "hello dx world");
-}
+TEST(GreetTest, GreetsWorld) { EXPECT_EQ(Greet("dx"), "hello dx world"); }
 
-TEST(GreetTest, HelperSuffix) {
-  EXPECT_EQ(HelperSuffix(), " world");
-}
+TEST(GreetTest, HelperSuffix) { EXPECT_EQ(HelperSuffix(), " world"); }

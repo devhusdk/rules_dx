@@ -3,6 +3,12 @@
 CURATED_SCHEMA_VERSION = 1
 
 CURATED_DEFAULTS = {
+    "cc": {
+        "audit": [],
+        "format": ["clang_format"],
+        "lint": [],
+        "typecheck": [],
+    },
     "graphql": {
         "audit": [],
         "format": ["prettier"],
@@ -90,6 +96,7 @@ CURATED_DEFAULTS = {
 }
 
 FORMAT_FROZEN = {
+    "cc": ["clang_format"],
     "graphql": ["prettier"],
     "html": ["prettier"],
     "java": ["google_java_format"],

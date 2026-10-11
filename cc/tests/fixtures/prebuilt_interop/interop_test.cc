@@ -17,7 +17,7 @@ int main() {
   bool threw = false;
   try {
     (void)Describe(nullptr);
-  } catch (const std::invalid_argument&) {
+  } catch (const std::invalid_argument &) {
     threw = true;
   }
   assert(threw);

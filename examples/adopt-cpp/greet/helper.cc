@@ -3,6 +3,4 @@
 
 #include <string>
 
-std::string HelperSuffix() {
-  return " world";
-}
+std::string HelperSuffix() { return " world"; }

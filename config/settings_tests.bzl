@@ -23,6 +23,10 @@ def settings_tests(name):
     )
 
 EXPECTED_WORKSPACE_POLICY_OBSERVATIONS = """subject //config:workspace_policy_under_test
+field disabled.cc.audit=False
+field disabled.cc.format=False
+field disabled.cc.lint=True
+field disabled.cc.typecheck=True
 field disabled.graphql.audit=False
 field disabled.graphql.format=False
 field disabled.graphql.lint=True
@@ -79,6 +83,10 @@ field disabled.typescript.audit=False
 field disabled.typescript.format=False
 field disabled.typescript.lint=False
 field disabled.typescript.typecheck=True
+field family.cc.audit=
+field family.cc.format=clang_format
+field family.cc.lint=
+field family.cc.typecheck=
 field family.graphql.audit=
 field family.graphql.format=prettier
 field family.graphql.lint=
@@ -136,7 +144,7 @@ field family.typescript.format=biome
 field family.typescript.lint=biome
 field family.typescript.typecheck=
 aspect_field aspect_seen=True
-aspect_field field_count=112
+aspect_field field_count=120
 aspect_field has_subject=True
 aspect_field subject_label=//config:workspace_policy_under_test
 aspect_field transitive_count=0"""

@@ -5,6 +5,6 @@
 
 #include <string>
 
-std::string StrictGreet(const std::string& name) {
+std::string StrictGreet(const std::string &name) {
   return "strict hello " + name;
 }

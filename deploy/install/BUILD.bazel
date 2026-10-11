@@ -55,12 +55,29 @@ rust_test(
     ),
 )
 
+# keep
+rust_test(
+    name = "dx_verify_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_install_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_verify",
+    deps = crate_deps(
+        [],
+        package_name = "deploy/dx_install_tools",
+    ) + [":dx_install_tools"],
+)
+
 rustfmt_test(
     name = "dx_install_tools_fmt_test",
     size = "small",
     targets = [
         ":dx_install_tools",
         ":dx_verify",
+        ":dx_verify_bin_test",
     ],
 )
 

@@ -50,3 +50,21 @@ support gazelle/mdx/doc.go
 support gazelle/svelte/doc.go
 # package documentation only; ships no executable lines.
 support gazelle/vue/doc.go
+# Deploy thin-shim cell: every deploy binary entry point. Extracted
+# argument parsing is unit-tested through the package bin_test harness;
+# only the process boundary (argv/env/subprocess/fs-write/exit) stays
+# ignored. Pure delegation stubs are support.
+eligible deploy/release/src/bin_release_driver.rs
+eligible deploy/release/src/bin_publish_dry_run_check.rs
+eligible deploy/release/src/bin_sbom_spdx_gen.rs
+eligible deploy/release/src/bin_sbom_prov_gen.rs
+eligible deploy/release/src/bin_bcr_source_gen.rs
+eligible deploy/release/src/bin_notice_gen.rs
+eligible deploy/rules/src/bin_hasher.rs
+eligible deploy/rules/src/bin_archiver.rs
+# pure delegation to tested npm_pack_main; ships no branch of its own.
+support deploy/rules/src/bin_npm_pack.rs
+# fixed-output placeholder entry points; no arguments, no branches.
+support deploy/rules/src/bin_deploy_app.rs
+support deploy/rules/src/bin_deploy_program.rs
+eligible deploy/install/src/main.rs

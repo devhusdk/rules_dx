@@ -134,15 +134,43 @@ rust_test(
     ),
 )
 
+# keep
+rust_test(
+    name = "hasher_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":hasher",
+    deps = [":dx_deploy_tools"],
+)
+
+# keep
+rust_test(
+    name = "archiver_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":archiver",
+    deps = [":dx_deploy_tools"],
+)
+
 rustfmt_test(
     name = "dx_deploy_tools_fmt_test",
     size = "small",
     targets = [
         ":archiver",
+        ":archiver_bin_test",
         ":deploy_app",
         ":deploy_program",
         ":dx_deploy_tools",
         ":hasher",
+        ":hasher_bin_test",
         ":npm_packer",
     ],
 )

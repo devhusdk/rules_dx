@@ -200,13 +200,19 @@ rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
     targets = [
-        ":dx_release_tools",
-        ":sbom_spdx_gen",
-        ":sbom_prov_gen",
         ":bcr_source_gen",
+        ":bcr_source_gen_bin_test",
+        ":dx_release_tools",
         ":notice_gen",
+        ":notice_gen_bin_test",
         ":publish_dry_run_check",
+        ":publish_dry_run_check_bin_test",
         ":release_driver",
+        ":release_driver_bin_test",
+        ":sbom_prov_gen",
+        ":sbom_prov_gen_bin_test",
+        ":sbom_spdx_gen",
+        ":sbom_spdx_gen_bin_test",
     ],
 )
 
@@ -254,6 +260,126 @@ rust_binary(
     crate_name = "release_driver",
     crate_root = "src/bin_release_driver.rs",
     edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "release_driver_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":release_driver",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "publish_dry_run_check_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":publish_dry_run_check",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "sbom_spdx_gen_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":sbom_spdx_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "sbom_prov_gen_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":sbom_prov_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "bcr_source_gen_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":bcr_source_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "notice_gen_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":notice_gen",
     deps = crate_deps(
         [
             "serde",

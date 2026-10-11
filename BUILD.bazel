@@ -1,6 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "ruff_config", "rustfmt_config", "vale_config")
+load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "clang_format_config", "ruff_config", "rustfmt_config", "vale_config")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 
@@ -275,6 +275,12 @@ ruff_config(
 biome_config(
     name = "biome_config",
     src = "biome.json",
+    visibility = ["//:__subpackages__"],
+)
+
+clang_format_config(
+    name = "clang_format_config",
+    src = ".clang-format",
     visibility = ["//:__subpackages__"],
 )
 

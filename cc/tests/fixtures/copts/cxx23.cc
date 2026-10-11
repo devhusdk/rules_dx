@@ -1,4 +1,5 @@
-// Configurable C/C++ options fixture: the requested C++ standard is never translated down.
+// Configurable C/C++ options fixture: the requested C++ standard is never
+// translated down.
 #include "cc/tests/fixtures/copts/cxx23.h"
 
 #if __cplusplus < 202002L
@@ -14,10 +15,10 @@ namespace {
 struct DxGrid {
   int cells[4];
 
-  int& operator[](int row, int column) { return cells[row * 2 + column]; }
+  int &operator[](int row, int column) { return cells[row * 2 + column]; }
 };
 
-}  // namespace
+} // namespace
 
 long DxCxx23Standard() {
   DxGrid grid{};

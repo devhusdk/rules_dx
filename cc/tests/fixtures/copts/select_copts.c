@@ -1,4 +1,5 @@
-// Configurable C/C++ options fixture: select-valued copts, defines and features reach the C compile.
+// Configurable C/C++ options fixture: select-valued copts, defines and features
+// reach the C compile.
 #include "cc/tests/fixtures/copts/select_copts.h"
 
 #if !defined(DX_SELECTED_SHARED)
@@ -13,6 +14,4 @@
 #error "select-valued defines did not resolve to exactly one branch"
 #endif
 
-int DxSelectCoptsSum(int value) {
-  return value + 1;
-}
+int DxSelectCoptsSum(int value) { return value + 1; }

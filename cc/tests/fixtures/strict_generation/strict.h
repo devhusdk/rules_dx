@@ -4,4 +4,4 @@
 #include <string>
 
 // Greet returns a greeting for name.
-std::string StrictGreet(const std::string& name);
+std::string StrictGreet(const std::string &name);

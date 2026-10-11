@@ -4,45 +4,45 @@ NATIVE_CASES = [
     {
         "name": "matrix_c_format_pass",
         "generated": {
-            "matrix/clang_format_clean.c": "// Seed C format fixture.\n#include <stdio.h>\n\nint greet(const char *name) {\n  return 0;\n}\n",
+            "matrix/clang_format_clean.c": "// Seed C format fixture.\n#include <stdio.h>\n\nint greet(const char *name) { return 0; }\n",
         },
         "capability": "format",
         "stages": ["clang_format;c;matrix/clang_format_clean.c"],
         "tool_names": ["clang_format"],
-        "tool_binaries": ["//quality/testdata:fake_clang_format"],
+        "tool_binaries": ["//quality/testdata:llvm_clang_format"],
         "expected_file": ":matrix/matrix_c_format_pass.expected.txt",
     },
     {
         "name": "matrix_c_format_fail",
         "generated": {
-            "matrix/clang_format_dirty.c": "// Seed C format fixture.\n#include <stdio.h>\n\nint greet( const char*name){ BADFMT return 0; }\n",
+            "matrix/clang_format_dirty.c": "// Seed C format fixture.\n#include <stdio.h>\n\nint greet( const char*name){printf(\"hello %s\\n\", name);return 0;}\n",
         },
         "capability": "format",
         "stages": ["clang_format;c;matrix/clang_format_dirty.c"],
         "tool_names": ["clang_format"],
-        "tool_binaries": ["//quality/testdata:fake_clang_format"],
+        "tool_binaries": ["//quality/testdata:llvm_clang_format"],
         "expected_file": ":matrix/matrix_c_format_fail.expected.txt",
     },
     {
         "name": "matrix_cpp_format_pass",
         "generated": {
-            "matrix/clang_format_clean.cpp": "// Seed C++ format fixture.\n\nint greet(const char *name) {\n  return 0;\n}\n",
+            "matrix/clang_format_clean.cpp": "// Seed C++ format fixture.\n\nint greet(const char *name) { return 0; }\n",
         },
         "capability": "format",
         "stages": ["clang_format;cpp;matrix/clang_format_clean.cpp"],
         "tool_names": ["clang_format"],
-        "tool_binaries": ["//quality/testdata:fake_clang_format"],
+        "tool_binaries": ["//quality/testdata:llvm_clang_format"],
         "expected_file": ":matrix/matrix_cpp_format_pass.expected.txt",
     },
     {
         "name": "matrix_cpp_format_fail",
         "generated": {
-            "matrix/clang_format_dirty.cpp": "// Seed C++ format fixture.\n\nint greet( const char*name){ BADFMT return 0; }\n",
+            "matrix/clang_format_dirty.cpp": "// Seed C++ format fixture.\n\nint greet( const char*name){return 0;}\n",
         },
         "capability": "format",
         "stages": ["clang_format;cpp;matrix/clang_format_dirty.cpp"],
         "tool_names": ["clang_format"],
-        "tool_binaries": ["//quality/testdata:fake_clang_format"],
+        "tool_binaries": ["//quality/testdata:llvm_clang_format"],
         "expected_file": ":matrix/matrix_cpp_format_fail.expected.txt",
     },
     {

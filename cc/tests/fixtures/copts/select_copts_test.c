@@ -1,4 +1,5 @@
-// Configurable C/C++ options fixture: the selected C copts reach the test compile.
+// Configurable C/C++ options fixture: the selected C copts reach the test
+// compile.
 #include <assert.h>
 
 #include "cc/tests/fixtures/copts/select_copts.h"

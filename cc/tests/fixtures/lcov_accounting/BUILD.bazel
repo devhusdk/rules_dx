@@ -10,6 +10,7 @@ cc_library(
     name = "accounting",
     srcs = ["accounting.cc"],
     hdrs = ["accounting.h"],
+    tags = ["no-format"],
 )
 
 cc_test(
@@ -22,6 +23,7 @@ cc_library(
     name = "partial",
     srcs = ["partial.cc"],
     hdrs = ["partial.h"],
+    tags = ["no-format"],
 )
 
 cc_test(

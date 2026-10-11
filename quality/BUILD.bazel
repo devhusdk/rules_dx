@@ -78,6 +78,16 @@ workspace_policy(
 )
 
 quality_family(
+    name = "default_cc_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cc",
+    format = ["clang_format"],
+)
+
+quality_family(
     name = "default_rust_family",
     family_id = "rust",
     format = ["rustfmt"],
@@ -212,6 +222,7 @@ quality_family(
 workspace_policy(
     name = "default_workspace_policy",
     families = [
+        ":default_cc_family",
         ":default_graphql_family",
         ":default_html_family",
         ":default_java_family",

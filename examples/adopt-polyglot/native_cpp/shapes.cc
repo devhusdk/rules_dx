@@ -2,7 +2,7 @@
 
 #include <string>
 
-double Area(const std::string& shape) {
+double Area(const std::string &shape) {
   if (shape == "square") {
     return 4.0;
   }

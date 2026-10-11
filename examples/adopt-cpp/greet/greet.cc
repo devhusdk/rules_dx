@@ -5,6 +5,6 @@
 
 #include "examples/adopt-cpp/greet/helper.h"
 
-std::string Greet(const std::string& name) {
+std::string Greet(const std::string &name) {
   return "hello " + name + HelperSuffix();
 }

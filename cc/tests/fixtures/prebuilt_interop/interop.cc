@@ -9,7 +9,7 @@
 
 std::string Circle::Name() const { return "circle"; }
 
-std::string Join(const std::vector<std::string>& names) {
+std::string Join(const std::vector<std::string> &names) {
   std::string out;
   for (size_t i = 0; i < names.size(); ++i) {
     if (i > 0) {
@@ -20,7 +20,7 @@ std::string Join(const std::vector<std::string>& names) {
   return out;
 }
 
-std::string Describe(const Shape* shape) {
+std::string Describe(const Shape *shape) {
   if (shape == nullptr) {
     throw std::invalid_argument("null shape");
   }
@@ -31,12 +31,12 @@ std::unique_ptr<Shape> MakeCircle(double radius) {
   return std::unique_ptr<Shape>(new Circle(radius));
 }
 
-bool IsCircle(const Shape* shape) {
+bool IsCircle(const Shape *shape) {
   if (shape == nullptr) {
     return false;
   }
   if (typeid(*shape) == typeid(Circle)) {
     return true;
   }
-  return dynamic_cast<const Circle*>(shape) != nullptr;
+  return dynamic_cast<const Circle *>(shape) != nullptr;
 }

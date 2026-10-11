@@ -2,4 +2,4 @@
 
 #include <string>
 
-double Area(const std::string& shape);
+double Area(const std::string &shape);

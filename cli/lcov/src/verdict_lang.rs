@@ -55,6 +55,15 @@ pub fn is_covered_language(path: &str) -> bool {
     line_comment_syntax(path).is_some()
 }
 
+/// Short language key for branch provenance lines, from the covered extension.
+pub(crate) fn language_label(path: &str) -> &str {
+    COVERED_LANGUAGES
+        .iter()
+        .find(|(extension, _)| path.ends_with(extension))
+        .map(|(extension, _)| extension.trim_start_matches('.'))
+        .unwrap_or("other")
+}
+
 pub(crate) fn is_starlark(path: &str) -> bool {
     path.ends_with(".bzl")
 }

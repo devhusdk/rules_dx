@@ -1,4 +1,4 @@
-use super::GateVerdict;
+use super::{language_label, GateVerdict};
 
 pub fn render(verdict: &GateVerdict) -> String {
     let mut out = String::new();
@@ -38,6 +38,45 @@ pub fn render(verdict: &GateVerdict) -> String {
         "measured lines: {} raw, {} ignored, {} eligible\n",
         verdict.instrumented, verdict.ignored, verdict.eligible
     ));
+    if verdict.branch_files > 0 {
+        out.push_str(&format!(
+            "measured branches: {} taken of {} recorded ({} files with branch data, {} without)\n",
+            verdict.branch_hit, verdict.branch_found, verdict.branch_files, verdict.branch_bare
+        ));
+        for file in &verdict.files {
+            if file.branch_data {
+                out.push_str(&format!(
+                    "  {} branches({}): {}/{} taken",
+                    file.path,
+                    language_label(&file.path),
+                    file.branch_hit,
+                    file.branch_found
+                ));
+                if file.missed_branches.is_empty() {
+                    out.push('\n');
+                } else {
+                    let locations: Vec<String> = file
+                        .missed_branches
+                        .iter()
+                        .map(|(line, block, branch)| {
+                            format!("{}:{line} block {block} branch {branch}", file.path)
+                        })
+                        .collect();
+                    out.push_str(&format!(" missed: {}\n", locations.join(", ")));
+                }
+            }
+        }
+        if verdict.branch_found > 0 {
+            let rate = verdict.branch_hit as f64 * 100.0 / verdict.branch_found as f64;
+            out.push_str(&format!(
+                "informational branch rate: {rate:.2}% (measured files only; never a gate)\n"
+            ));
+        } else {
+            out.push_str("informational branch rate: n/a (no recorded branches)\n");
+        }
+    } else {
+        out.push_str("measured branches: unavailable (no branch records in report; branch coverage unknown, never 100%)\n");
+    }
     if !verdict.errors.is_empty() {
         out.push_str("errors:\n");
         for error in &verdict.errors {

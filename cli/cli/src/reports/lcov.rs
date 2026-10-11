@@ -64,6 +64,23 @@ mod tests {
         assert_eq!(validate_lcov(with_noise.as_bytes()), Ok(()));
     }
 
+    #[test]
+    fn lcov_validation_accepts_matching_branch_summary() {
+        let matching =
+            "SF:/a.rs\nDA:1,1\nBRDA:1,0,0,1\nBRDA:1,0,1,-\nBRF:2\nBRH:1\nend_of_record\n";
+        assert_eq!(validate_lcov(matching.as_bytes()), Ok(()));
+    }
+
+    #[test]
+    fn lcov_validation_rejects_incomplete_branch_summary() {
+        let short = "SF:/a.rs\nDA:1,1\nBRDA:1,0,0,1\nBRF:2\nend_of_record\n";
+        assert!(validate_lcov(short.as_bytes()).is_err());
+        let malformed = "SF:/a.rs\nDA:1,1\nBRDA:1,0,0,x\nend_of_record\n";
+        assert!(validate_lcov(malformed.as_bytes()).is_err());
+        let outside = "BRDA:1,0,0,1\nend_of_record\n";
+        assert!(validate_lcov(outside.as_bytes()).is_err());
+    }
+
     fn rate(documents: &[&str], sources: &[(&str, &str)]) -> Result<(u64, u64), ReportError> {
         let owned: Vec<String> = documents.iter().map(ToString::to_string).collect();
         coverage_line_rate(&owned, &|path| {

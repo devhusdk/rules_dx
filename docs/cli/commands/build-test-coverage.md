@@ -146,3 +146,11 @@ bazel run @rules_dx//:dx -- coverage --min-coverage 96 //...
 Coverage ignores use `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`
 with a short `reason:` and `issue:`. Bare ignores without a reason fail the
 gate.
+
+## Line And Branch Metrics
+
+The coverage gate enforces exact executable-line coverage. Branch outcomes
+are measured separately and never change the gate. Each file with branch
+records reports taken and recorded counts with its language. Files without
+branch records report unavailable instead of a rate. A declared branch
+summary that does not match its records fails the report as incomplete.

@@ -26,6 +26,16 @@ pub enum LcovError {
     EmptySfPath,
     #[error("LCOV DA record outside any SF record: {line}")]
     DaOutsideSf { line: String },
+    #[error("LCOV branch record outside any SF record: {line}")]
+    BranchOutsideSf { line: String },
+    #[error("malformed LCOV BRDA record in {path}: {line}")]
+    MalformedBranch { path: String, line: String },
+    #[error("incomplete LCOV branch summary in {path}: BRF declares {declared} branches but {recorded} BRDA records are present")]
+    BranchSummaryMismatch {
+        path: String,
+        declared: u32,
+        recorded: usize,
+    },
     #[error("malformed LCOV DA line number in {path}: {line}")]
     MalformedLineNumber { path: String, line: String },
     #[error("malformed LCOV DA hit count in {path}: {line}")]

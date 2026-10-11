@@ -5,6 +5,7 @@ COVERAGE_CELLS = {
     "linux_arm64": "tools/coverage/arm64-inventory.txt",
     "macos_arm64": "tools/coverage/macos-arm64-inventory.txt",
     "windows_x86_64": "tools/coverage/windows-x86_64-inventory.txt",
+    "windows_arm64": "tools/coverage/windows-arm64-inventory.txt",
 }
 
 COVERAGE_SEED_CELL = "seed-linux_x86_64"
@@ -14,6 +15,7 @@ INVENTORY_FILES = [
     "cells.txt",
     "macos-arm64-inventory.txt",
     "seed-inventory.txt",
+    "windows-arm64-inventory.txt",
     "windows-x86_64-inventory.txt",
 ]
 

@@ -12,9 +12,12 @@ pub struct GateVerdict {
     pub files: Vec<FileVerdict>,
     pub covered: u64,
     pub eligible: u64,
+    pub ignored: u64,
+    pub instrumented: u64,
     pub passed: bool,
     pub errors: Vec<String>,
     pub other_sources: Vec<String>,
+    pub support_files: Vec<String>,
 }
 
 #[path = "verdict_eval.rs"]

@@ -45,6 +45,33 @@ fn check_file(
             "no instrumented lines and no validated ignores for eligible source: {path}"
         ));
     }
+    if !hits.lines.is_empty() {
+        for line in ignores.singles.keys() {
+            if !hits.lines.contains_key(line) {
+                errors.push(format!(
+                    "stale coverage ignore at {path}:{line}: no instrumented line; remove it"
+                ));
+            }
+        }
+        for range in &ignores.ranges {
+            if !hits
+                .lines
+                .keys()
+                .any(|line| range.0 <= *line && *line <= range.1)
+            {
+                errors.push(format!(
+                    "stale coverage range at {path}:{}-{}: covers no instrumented lines; remove it",
+                    range.0, range.1
+                ));
+            }
+        }
+        if eligible == 0 {
+            errors.push(format!(
+                "broad coverage ignore at {path}: all {} instrumented lines ignored; narrow the range or reclassify to support",
+                hits.lines.len()
+            ));
+        }
+    }
     Some(FileVerdict {
         path: path.to_string(),
         covered,
@@ -111,7 +138,14 @@ pub fn evaluate(
                     "eligible source absent from coverage report: {path}"
                 ));
             }
-        } else if disposition != SUPPORT {
+        } else if disposition == SUPPORT {
+            verdict.support_files.push(path.clone());
+            if !bazel_sources.contains(path) {
+                verdict.errors.push(format!(
+                    "inventory support source not declared by Bazel: {path}"
+                ));
+            }
+        } else {
             verdict.errors.push(format!(
                 "unknown disposition {disposition:?} for {path}; want \"eligible\" or \"support\""
             ));
@@ -120,7 +154,9 @@ pub fn evaluate(
     for file in &verdict.files {
         verdict.covered += file.covered;
         verdict.eligible += file.eligible;
+        verdict.ignored += file.ignored;
     }
+    verdict.instrumented = verdict.eligible + verdict.ignored;
     let mut clean = verdict.errors.is_empty();
     for file in &verdict.files {
         if !file.uncovered.is_empty() {

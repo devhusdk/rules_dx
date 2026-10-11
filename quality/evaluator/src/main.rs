@@ -12,7 +12,6 @@ use clap::{error::ErrorKind, Parser};
 use quality_evaluator::{evaluate, parse_threshold, Threshold};
 use quality_result::decode_validated;
 
-// LCOV_EXCL_START - reason: clap schema, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[derive(Parser)]
 #[command(disable_help_flag = true)]
 struct Cli {
@@ -28,7 +27,6 @@ struct Cli {
     #[arg(long, allow_hyphen_values = true, overrides_with = "output")]
     output: Option<String>,
 }
-// LCOV_EXCL_STOP - reason: end clap schema, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 
 fn parse_error(error: clap::Error, args: &[String]) -> String {
     match error.kind() {

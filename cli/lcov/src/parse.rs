@@ -61,9 +61,6 @@ pub fn parse_lcov(report: &str) -> Result<BTreeMap<String, FileHits>, LcovError>
             Ok(_) => {}
             Err(err) => {
                 let kind = line.split_once(':').map(|(k, _)| k).unwrap_or("");
-                if kind == "SF" {
-                    return Err(LcovError::EmptySfPath); // LCOV_EXCL_LINE - reason: empty SF path is invalid input, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                }
                 if kind != "DA" {
                     continue;
                 }
@@ -164,9 +161,6 @@ pub fn validate_lcov_report(report: &str) -> Result<(), LcovError> {
             Ok(_) => {}
             Err(err) => {
                 let kind = line.split_once(':').map(|(k, _)| k).unwrap_or("");
-                if kind == "SF" {
-                    return Err(LcovError::EmptySfPath); // LCOV_EXCL_LINE - reason: empty SF path is invalid input, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-                }
                 if kind != "DA" {
                     continue;
                 }

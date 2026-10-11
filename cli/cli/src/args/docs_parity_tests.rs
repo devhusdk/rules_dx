@@ -1380,31 +1380,37 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
     let mut ids: Vec<String> = workflow
         .lines()
         .filter_map(|line| {
-            line.split_once("inputs.disabled_checks), ',")
+            line.split_once("needs.validate.outputs.disabled)")
+                .and_then(|(_, tail)| tail.split_once("',"))
                 .and_then(|(_, tail)| tail.split_once(",')"))
-                .map(|(id, _)| id.to_owned())
+                .map(|(id, _)| id.trim().to_owned())
         })
         .collect();
     ids.sort();
+    ids.dedup();
     ids
-}
-
-fn runner_table(line: &str) -> Option<String> {
-    let (_, table) = line.split_once("fromJSON('{")?;
-    let (body, _) = table.split_once('}')?;
-    Some(body.to_owned())
 }
 
 fn platform_labels(workflow: &str) -> Vec<String> {
     let mut labels: Vec<String> = Vec::new();
-    for table in workflow.lines().filter_map(runner_table) {
-        for entry in table.split(',') {
-            if let Some((label, _)) = entry.split_once(':') {
-                let label = label.trim().trim_matches('"');
-                if !label.is_empty() && !label.contains(char::is_whitespace) {
-                    labels.push(label.to_owned());
-                }
-            }
+    let mut inside = false;
+    for line in workflow.lines() {
+        let trimmed = line.trim();
+        if trimmed == "PLATFORMS = {" {
+            inside = true;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        if trimmed == "}" {
+            break;
+        }
+        if let Some((label, _)) = trimmed
+            .strip_prefix('"')
+            .and_then(|rest| rest.split_once("\": "))
+        {
+            labels.push(label.to_owned());
         }
     }
     labels.sort();
@@ -1418,29 +1424,55 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
         std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
             .expect("reusable-consumer.yml ships as test data");
     let gated = gated_check_ids(&workflow);
-    let tables: Vec<(String, String)> = job_blocks(&workflow)
-        .into_iter()
-        .filter(|(id, _)| gated.contains(id))
-        .map(|(id, body)| {
-            let table = body
-                .iter()
-                .find_map(|line| runner_table(line))
-                .unwrap_or_else(|| panic!("{id} job runs no platform runner table"));
-            (id, table)
-        })
-        .collect();
-    assert_eq!(
-        tables.len(),
-        gated.len(),
-        "every gated check job must run on the platform matrix"
+    assert_eq!(gated.len(), 9, "consumer workflow gates nine checks");
+    let jobs = job_blocks(&workflow);
+    let validate = jobs
+        .iter()
+        .find(|(id, _)| id == "validate")
+        .expect("a validate job computes the shared runner map");
+    assert!(
+        validate
+            .1
+            .iter()
+            .any(|line| line.contains("runners: ${{ steps.validate.outputs.runners }}")),
+        "the validate job must publish the one shared runners map"
     );
-    let (first, table) = &tables[0];
-    for (id, other) in &tables[1..] {
-        assert_eq!(
-            other, table,
-            "{id} maps platforms to a runner table other than {first}'s"
-        );
+    let mut shared = 0;
+    for (id, body) in &jobs {
+        if !body
+            .iter()
+            .any(|line| line.contains("needs.validate.outputs.disabled"))
+        {
+            continue;
+        }
+        let runs_on = body
+            .iter()
+            .find_map(|line| line.trim().strip_prefix("runs-on:"))
+            .map(str::trim)
+            .unwrap_or_else(|| panic!("{id} job sets no runner"));
+        if body.iter().any(|line| line.contains("matrix.platform")) {
+            assert_eq!(
+                runs_on,
+                "${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}",
+                "{id} must resolve its runner through the one shared map"
+            );
+            shared += 1;
+        } else {
+            assert_eq!(
+                id, "advisory-snapshots",
+                "{id} is gated but runs no matrix; only the one preparation run may"
+            );
+            assert_eq!(
+                runs_on, "ubuntu-latest",
+                "the one preparation run pins its runner, it shares no matrix"
+            );
+        }
     }
+    assert_eq!(
+        shared,
+        gated.len(),
+        "every gated check must run its matrix through the shared map"
+    );
 }
 
 #[test]

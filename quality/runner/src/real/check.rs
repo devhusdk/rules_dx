@@ -711,7 +711,8 @@ impl RealBackend {
         if units.is_empty() {
             return Ok(Vec::new());
         }
-        let workspaces: Vec<&str> = units
+        self.materialize_tidy_bundle(tool_id, tool, scratch)?;
+        let workspaces: Vec<&str> = pairs
             .iter()
             .map(|(workspace, _)| workspace.as_str())
             .collect();
@@ -741,4 +742,74 @@ impl RealBackend {
         }
         Ok(findings)
     }
+
+    fn materialize_tidy_bundle(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        scratch: &Scratch,
+    ) -> Result<(), RunnerError> {
+        let root = scratch.root();
+        let raw = tool
+            .tool_files
+            .iter()
+            .find(|(rel, _)| rel == TIDY_BUNDLE_REL)
+            .map(|(_, bytes)| bytes.clone())
+            .ok_or_else(|| {
+                execution(
+                    tool_id,
+                    "clang_tidy bundle is missing: the C/C++ lint aspect must stage compile_commands.json".to_owned(),
+                )
+            })?;
+        let text = std::str::from_utf8(&raw).map_err(|_| {
+            execution(
+                tool_id,
+                "clang_tidy bundle is not UTF-8: refusing to guess a compilation context".to_owned(),
+            )
+        })?;
+        let mut database: Vec<TidyBundleEntry> = serde_json::from_str(text).map_err(|err| {
+            execution(
+                tool_id,
+                format!("clang_tidy bundle does not parse: {err}"),
+            )
+        })?;
+        let driver = absolute_tool_binary(&tool.binary);
+        for entry in &mut database {
+            entry.directory = root.to_string_lossy().into_owned();
+            if let Some(first) = entry.arguments.first_mut() {
+                *first = driver.clone();
+            }
+        }
+        let rendered = serde_json::to_string(&database).map_err(|err| {
+            execution(
+                tool_id,
+                format!("clang_tidy bundle does not render: {err}"),
+            )
+        })?;
+        std::fs::write(root.join(TIDY_BUNDLE_REL), rendered).map_err(|err| {
+            execution(
+                tool_id,
+                format!("clang_tidy bundle cannot be staged: {err}"),
+            )
+        })?;
+        Ok(())
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct TidyBundleEntry {
+    arguments: Vec<String>,
+    directory: String,
+    file: String,
+}
+
+fn absolute_tool_binary(binary: &Path) -> String {
+    if binary.is_absolute() {
+        return binary.to_string_lossy().into_owned();
+    }
+    std::env::current_dir()
+        .unwrap_or_default()
+        .join(binary)
+        .to_string_lossy()
+        .into_owned()
 }

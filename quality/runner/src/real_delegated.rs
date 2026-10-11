@@ -37,7 +37,12 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
             error.to_string().contains("upstream diagnostics"),
             "{tool_id}: {error}"
         );
-        let report = upstream_file(tool_id, "{<error malformed");
+        let malformed = if tool_id == "clang_tidy" {
+            "src/a.txt:1:1: warning\n"
+        } else {
+            "{<error malformed"
+        };
+        let report = upstream_file(tool_id, malformed);
         let backend = backend_for(
             tool_id,
             delegated_tool(report.path().to_path_buf()),

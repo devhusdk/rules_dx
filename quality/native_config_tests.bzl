@@ -288,6 +288,11 @@ def native_config_unit_tests(name):
                 "real_aspect (//q:t): applicable ESLint requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
             ),
             expect_equal(
+                "missing_required_config_error names an unbound clang_tidy stage",
+                missing_required_config_error("clang_tidy", {}, "//q:t"),
+                "real_aspect (//q:t): applicable ClangTidy requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+            ),
+            expect_equal(
                 "every tool the runner refuses without a config is required here",
                 sorted([
                     tool

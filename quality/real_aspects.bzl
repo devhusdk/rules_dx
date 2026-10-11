@@ -149,11 +149,10 @@ def _write_tidy_bundle(ctx, target, what):
     """Writes the clang-tidy compilation database from the selected toolchain and target."""
     compilation = target[CcInfo].compilation_context
     toolchain = ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"]
-    compiler = getattr(toolchain, "compiler_executable", "")
-    if compiler == "":
-        fail(what + ": clang_tidy needs the C++ toolchain compiler for its compilation context")
-    sysroot = getattr(toolchain, "sysroot", "")
-    builtins = _tidy_string_list(getattr(toolchain, "built_in_include_directories", []))
+    cc_toolchain = toolchain.cc if hasattr(toolchain, "cc") else toolchain
+    driver = ctx.file._clang_tidy.path
+    sysroot = getattr(cc_toolchain, "sysroot", "")
+    builtins = _tidy_string_list(getattr(cc_toolchain, "built_in_include_directories", []))
     defines = _tidy_string_list(getattr(compilation, "defines", [])) + _tidy_string_list(getattr(compilation, "local_defines", []))
     quote_includes = _tidy_string_list(getattr(compilation, "quote_includes", []))
     plain_includes = _tidy_string_list(getattr(compilation, "includes", []))
@@ -164,7 +163,7 @@ def _write_tidy_bundle(ctx, target, what):
     sources = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension in _TIDY_TU_EXTENSIONS]
     entries = []
     for src in sorted(sources, key = lambda f: f.short_path):
-        command = [compiler, "-x", "c" if src.extension == "c" else "c++"]
+        command = [driver, "-x", "c" if src.extension == "c" else "c++"]
         if src.extension == "c":
             command.extend(conlyopts)
         else:
@@ -361,16 +360,20 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     out = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + ".pb")
 
     tidy_bundle = None
+    tidy_extra_inputs = []
     if tidy_wanted:
         tidy_bundle = _write_tidy_bundle(ctx, target, what)
-        inputs.append(tidy_bundle)
-        inputs.extend(_tidy_string_list(target[CcInfo].compilation_context.headers))
-        toolchain_files = getattr(ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"], "all_files", None)
+        tidy_extra_inputs.append(tidy_bundle)
+        tidy_extra_inputs.extend(_tidy_string_list(target[CcInfo].compilation_context.headers))
+        tidy_toolchain = ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"]
+        tidy_cc = tidy_toolchain.cc if hasattr(tidy_toolchain, "cc") else tidy_toolchain
+        toolchain_files = getattr(tidy_cc, "all_files", None)
         if toolchain_files != None:
-            inputs.extend(toolchain_files.to_list())
+            tidy_extra_inputs.extend(toolchain_files.to_list())
 
     ordered_paths = ordered_pipeline_paths(resolved)
     inputs = pipeline_inputs_for_paths(ordered_paths, path_to_file)
+    inputs.extend(tidy_extra_inputs)
 
     sibling_pairs = {}
     if "markdown_check" in stage_tools and hasattr(ctx.rule.attr, "markdown_siblings"):
@@ -540,6 +543,7 @@ def real_allowed_tools_error():
     """Validates aspect shards stay registry subsets."""
     allowed = (
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
+        _CC_LINT_TOOLS + _CC_FORMAT_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
         _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS +

@@ -1,17 +1,24 @@
 use super::{
-    finding, lines, located, missing, numbered, require_findings, FileFinding, ParseError,
+    as_text, finding, missing, numbered, require_findings, FileFinding, ParseError,
 };
 use crate::ToolSeverity;
 
 pub fn parse_clang_tidy(
-    stderr: &[u8],
+    stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "clang_tidy";
+    let text = as_text(TOOL, stdout)?;
     let mut findings = Vec::new();
-    for line in lines(TOOL, stderr)? {
-        let (file, rest) = located(TOOL, line, files)?;
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some((file, rest)) = split_reported(line, files) else {
+            continue;
+        };
         let rest = rest.trim_start_matches(':').trim_start();
         let mut parts = rest.splitn(4, ':');
         let line_no = numbered(TOOL, "line", line, parts.next())?;
@@ -50,6 +57,17 @@ pub fn parse_clang_tidy(
     Ok(findings)
 }
 
+fn split_reported<'a, 'b>(line: &'a str, files: &[&'b str]) -> Option<(&'b str, &'a str)> {
+    for file in files {
+        if let Some(rest) = line.strip_prefix(file) {
+            if rest.starts_with(':') {
+                return Some((file, rest));
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,5 +98,24 @@ mod tests {
         assert!(parse_clang_tidy(DIRTY.as_bytes(), Some(1), &["other.c"]).is_err());
         assert!(parse_clang_tidy(b"nope\n", Some(1), &["x"]).is_err());
         assert!(parse_clang_tidy(&[0xff], Some(1), &["x"]).is_err());
+    }
+
+    const SNIPPET: &str = "cc/tests/fixtures/clang_tidy/Sample.c:4:5: warning: do not use 'else' after 'return' [readability-else-after-return]\n    4 |   } else {\n      |     ^~~~~~\n    5 |     return 0;\n      |     ~\n";
+
+    #[test]
+    fn clang_tidy_skips_source_snippets_and_accepts_exit_zero() {
+        let findings = parse_clang_tidy(
+            SNIPPET.as_bytes(),
+            Some(0),
+            &["cc/tests/fixtures/clang_tidy/Sample.c"],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "cc/tests/fixtures/clang_tidy/Sample.c");
+        assert_eq!(findings[0].finding.rule_id, "readability-else-after-return");
+        assert_eq!(
+            (findings[0].finding.start.line, findings[0].finding.start.column),
+            (4, 5)
+        );
     }
 }

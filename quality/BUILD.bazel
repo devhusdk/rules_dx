@@ -78,6 +78,16 @@ workspace_policy(
 )
 
 quality_family(
+    name = "default_cc_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cc",
+    format = ["clang_format"],
+)
+
+quality_family(
     name = "default_rust_family",
     family_id = "rust",
     format = ["rustfmt"],
@@ -192,6 +202,7 @@ quality_family(
 workspace_policy(
     name = "default_workspace_policy",
     families = [
+        ":default_cc_family",
         ":default_java_family",
         ":default_javascript_family",
         ":default_kotlin_family",
@@ -277,6 +288,15 @@ consumer_policy_tests(
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:js_eslint_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_js",
+        },
+        {
+            "case": "cc_declared",
+            "expected_dx_results": [
+                "clean_cc-real-format-cc.pb",
+                "clean_cc-real-lint-cc.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:cc_declared_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_cc",
         },
     ],
 )

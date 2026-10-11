@@ -11,10 +11,10 @@ bazel test //examples/adopt-cpp/...
 
 Both tests pass (`greet_test`, `pure_test`).
 
-`copts` reaches the compiler exactly as written, so `-std=c++17` here stays C++17. Warnings are errors because the repository selects the `treat_warnings_as_errors` toolchain feature, not because the wrapper adds a flag. A consumer workspace selects the same feature on its own toolchain:
+`copts` reaches the compiler exactly as written, so `-std=c++17` here stays C++17. Warnings are errors because the repository selects the `treat_warnings_as_errors` toolchain feature, not because the wrapper adds a flag. The same feature can also be selected on the command line:
 
 ```sh
-bazel build --features=treat_warnings_as_errors //pkg/...
+bazel build --features=treat_warnings_as_errors //examples/adopt-cpp/...
 ```
 
 See `cc/rules/README.md` for the wrapper contract.

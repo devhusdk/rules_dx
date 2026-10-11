@@ -1107,42 +1107,6 @@ PROMISES = [
         "evidence": [
             "//quality:parity_unit",
         ],
-        "id": "deferred.graphql",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
-        "id": "deferred.html",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
-        "id": "deferred.json5",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
-        "id": "deferred.jsonc",
-        "native": False,
-        "owner": "ADR",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//quality:parity_unit",
-        ],
         "id": "deferred.mdx",
         "native": False,
         "owner": "ADR",
@@ -3276,7 +3240,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 353
+PROMISE_COUNT = 349
 
 PROMISE_FAMILIES = [
     "artifact",

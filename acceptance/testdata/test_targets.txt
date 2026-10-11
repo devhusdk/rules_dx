@@ -337,6 +337,10 @@
 //quality/testdata:matrix_go_module_format_pass
 //quality/testdata:matrix_go_staticcheck_fail
 //quality/testdata:matrix_go_staticcheck_pass
+//quality/testdata:matrix_graphql_format_real_fail
+//quality/testdata:matrix_graphql_format_real_pass
+//quality/testdata:matrix_html_format_real_fail
+//quality/testdata:matrix_html_format_real_pass
 //quality/testdata:matrix_html_template_format_fail
 //quality/testdata:matrix_html_template_format_pass
 //quality/testdata:matrix_html_template_lint_fail
@@ -354,10 +358,14 @@
 //quality/testdata:matrix_javascript_format_pass
 //quality/testdata:matrix_javascript_lint_fail
 //quality/testdata:matrix_javascript_lint_pass
+//quality/testdata:matrix_json5_format_real_fail
+//quality/testdata:matrix_json5_format_real_pass
 //quality/testdata:matrix_json_format_fail
 //quality/testdata:matrix_json_format_pass
 //quality/testdata:matrix_json_lint_fail
 //quality/testdata:matrix_json_lint_pass
+//quality/testdata:matrix_jsonc_format_real_fail
+//quality/testdata:matrix_jsonc_format_real_pass
 //quality/testdata:matrix_jsonnet_format_fail
 //quality/testdata:matrix_jsonnet_format_pass
 //quality/testdata:matrix_jsx_format_fail

@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_graphql_format_real_pass
+capability FORMAT
+stages 1
+stage prettier classes=graphql sources=matrix/prettier_graphql_clean.graphql
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -54,7 +54,7 @@ REAL_ADAPTERS = {
     "modfmt": {"format": ["go_module"]},
     "pkl": {"format": ["pkl"]},
     "pmd": {"lint": ["java"]},
-    "prettier": {"format": ["css", "gherkin", "javascript", "json", "jsx", "less", "scss", "sql", "tsx", "typescript", "xml"]},
+    "prettier": {"format": ["css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "xml"]},
     "psscriptanalyzer": {"lint": ["powershell"]},
     "rubocop": {"lint": ["ruby"]},
     "pydoclint": {"lint": ["python", "python_stub"]},

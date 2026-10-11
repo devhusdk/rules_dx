@@ -332,6 +332,94 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_xml_format_fail.expected.txt",
     },
     {
+        "name": "matrix_graphql_format_real_pass",
+        "generated": {
+            "matrix/prettier_graphql_clean.graphql": "type Query {\n  hello: String\n}\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;graphql;matrix/prettier_graphql_clean.graphql"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_graphql_format_real_pass.expected.txt",
+    },
+    {
+        "name": "matrix_graphql_format_real_fail",
+        "generated": {
+            "matrix/prettier_graphql_dirty.graphql": "type  Query{hello:String}\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;graphql;matrix/prettier_graphql_dirty.graphql"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_graphql_format_real_fail.expected.txt",
+    },
+    {
+        "name": "matrix_html_format_real_pass",
+        "generated": {
+            "matrix/prettier_html_clean.html": "<div><span>hi</span></div>\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;html;matrix/prettier_html_clean.html"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_html_format_real_pass.expected.txt",
+    },
+    {
+        "name": "matrix_html_format_real_fail",
+        "generated": {
+            "matrix/prettier_html_dirty.html": "<div><span>hi</span></div>   \n",
+        },
+        "capability": "format",
+        "stages": ["prettier;html;matrix/prettier_html_dirty.html"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_html_format_real_fail.expected.txt",
+    },
+    {
+        "name": "matrix_json5_format_real_pass",
+        "generated": {
+            "matrix/prettier_json5_clean.json5": "{\n  unquoted_key: \"hello\",\n  trailing: [1, 2],\n}\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;json5;matrix/prettier_json5_clean.json5"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_json5_format_real_pass.expected.txt",
+    },
+    {
+        "name": "matrix_json5_format_real_fail",
+        "generated": {
+            "matrix/prettier_json5_dirty.json5": "{\n  unquoted_key: 'hello',\n  trailing: [1, 2,],\n}\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;json5;matrix/prettier_json5_dirty.json5"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_json5_format_real_fail.expected.txt",
+    },
+    {
+        "name": "matrix_jsonc_format_real_pass",
+        "generated": {
+            "matrix/prettier_jsonc_clean.jsonc": "{\n  // comment\n  \"a\": 1,\n}\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;jsonc;matrix/prettier_jsonc_clean.jsonc"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_jsonc_format_real_pass.expected.txt",
+    },
+    {
+        "name": "matrix_jsonc_format_real_fail",
+        "generated": {
+            "matrix/prettier_jsonc_dirty.jsonc": "{\n  // comment\n  \"a\": 1\n}\n",
+        },
+        "capability": "format",
+        "stages": ["prettier;jsonc;matrix/prettier_jsonc_dirty.jsonc"],
+        "tool_names": ["prettier"],
+        "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
+        "expected_file": ":matrix/matrix_jsonc_format_real_fail.expected.txt",
+    },
+    {
         "name": "matrix_html_template_lint_pass",
         "generated": {
             "matrix/djlint_clean.html": "<html><body><p>hello</p></body></html>\n",

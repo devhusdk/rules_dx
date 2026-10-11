@@ -36,7 +36,11 @@ dx_rust_crate(
         "//cli/path:dx_path",
         "//tools/bazelrc:dx_preset",
     ],
-    extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
+    extra_test_deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
+    test_data = ["//examples:consumer-ci/caller.yml"],
     deps = [
         "notify",
         "notify-debouncer-mini",

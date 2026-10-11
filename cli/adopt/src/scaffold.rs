@@ -8,6 +8,11 @@ pub struct ScaffoldFile {
     pub content: String,
 }
 
+pub const CONSUMER_WORKFLOW_USES: &str =
+    "rules_dx/.github/workflows/reusable-consumer.yml@78068c86f4cc5d5edf35f01315784f14196d01e4";
+
+pub const CONSUMER_CALLER_RUNFILES: &str = "examples/consumer-ci/caller.yml";
+
 pub const DEVCONTAINER_JSON: &str = concat!(
     "{\n",
     "  \"name\": \"rules_dx\",\n",
@@ -138,7 +143,7 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         ScaffoldFile {
             path: ".github/workflows/ci.yml".to_owned(),
             content: format!(
-                "# Caller template: pins the qualified reusable workflow at a reviewed commit.\nname: ci\non:\n  push: {{}}\n  pull_request: {{}}\njobs:\n  dx:\n    uses: {module}/.github/workflows/reusable-consumer.yml@<reviewed-commit>\n"
+                "# Caller template: pins the qualified reusable workflow at a reviewed commit.\nname: ci\non:\n  pull_request: {{}}\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {CONSUMER_WORKFLOW_USES}\n    with:\n      rules_dx_version: \"{DX_VERSION}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n      scheduling_mode: \"parallel\"\n      code_scanning_opt_in: false\n    secrets: inherit\n    # A called workflow can only narrow this job's token.\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n"
             ),
         },
         ScaffoldFile {
@@ -457,18 +462,90 @@ mod tests {
     }
 
     #[test]
-    fn init_module_names_cannot_break_the_ci_template() {
+    fn init_module_names_never_become_the_workflow_owner() {
+        for module in ["demo", "my_project", "9lives"] {
+            let files = plan_init_files(module).expect("init plans");
+            let ci = files
+                .iter()
+                .find(|f| f.path == ".github/workflows/ci.yml")
+                .expect("ci scaffold");
+            assert!(
+                !ci.content.contains("<reviewed-commit>"),
+                "generated caller must pin a reviewed commit: {}",
+                ci.content
+            );
+            assert!(
+                !ci.content.contains(&format!("uses: {module}/")),
+                "consumer module must not become the workflow owner: {}",
+                ci.content
+            );
+            assert!(
+                ci.content
+                    .contains(&format!("uses: {}", super::CONSUMER_WORKFLOW_USES)),
+                "generated caller must pin the qualified workflow: {}",
+                ci.content
+            );
+            let snippet = files
+                .iter()
+                .find(|f| f.path == "MODULE.bazel.snippet")
+                .expect("snippet");
+            assert!(snippet.content.contains(&format!("# module: {module}\n")));
+        }
+    }
+
+    #[test]
+    fn init_ci_caller_matches_the_qualified_starter() {
+        let starter = dx_testing::read_runfiles(super::CONSUMER_CALLER_RUNFILES);
         let files = plan_init_files("demo").expect("init plans");
         let ci = files
             .iter()
             .find(|f| f.path == ".github/workflows/ci.yml")
             .expect("ci scaffold");
-        assert!(ci.content.contains("uses: demo/.github/workflows/"));
-        let snippet = files
+        let body = ci.content.split_once("name: ci\n").expect("caller body");
+        assert_eq!(
+            body.0,
+            "# Caller template: pins the qualified reusable workflow at a reviewed commit.\n",
+            "generated caller keeps the one-line template header"
+        );
+        let want = starter.split_once("name: ci\n").expect("starter body");
+        assert_eq!(
+            body.1, want.1,
+            "generated caller must match the qualified starter below its header"
+        );
+    }
+
+    #[test]
+    fn init_ci_caller_passes_the_required_workflow_inputs() {
+        let files = plan_init_files("demo").expect("init plans");
+        let ci = files
             .iter()
-            .find(|f| f.path == "MODULE.bazel.snippet")
-            .expect("snippet");
-        assert!(snippet.content.contains("# module: demo\n"));
+            .find(|f| f.path == ".github/workflows/ci.yml")
+            .expect("ci scaffold");
+        assert!(
+            ci.content.contains(&format!(
+                "rules_dx_version: \"{}\"",
+                super::super::DX_VERSION
+            )),
+            "generated caller must pass the scaffolded rules_dx version: {}",
+            ci.content
+        );
+        for needle in [
+            "disabled_checks: \"\"",
+            "platforms: '[\"linux_x86_64\"]'",
+            "scheduling_mode: \"parallel\"",
+            "code_scanning_opt_in: false",
+            "secrets: inherit",
+            "contents: read",
+            "checks: write",
+            "pull-requests: write",
+            "workflow_dispatch: {}",
+        ] {
+            assert!(
+                ci.content.contains(needle),
+                "generated caller must carry {needle:?}: {}",
+                ci.content
+            );
+        }
     }
 
     #[test]

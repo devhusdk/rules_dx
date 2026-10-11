@@ -117,6 +117,27 @@ fn error_display_reports_variants() {
     assert!(rendered.contains("invalid tool output"));
 }
 
+#[test]
+fn cppcheck_without_a_declared_binary_fails_closed() {
+    let tool = RealTool {
+        binary: PathBuf::from("/nonexistent-dx-cppcheck"),
+        ..plain_tool()
+    };
+    let backend = backend_for("cppcheck", tool, real_spawn);
+    let error = backend
+        .diagnose(
+            "cppcheck",
+            "lint",
+            &single("src/a.c", "int check(int value) {\n  return value;\n}\n"),
+        )
+        .expect_err("cppcheck without a binary is rejected");
+    assert!(
+        matches!(error, RunnerError::ToolExecution { .. }),
+        "{error}"
+    );
+    assert!(error.to_string().contains("cppcheck"), "{error}");
+}
+
 fn buildifier_fix_ok(
     argv: &[OsString],
     _cwd: &Path,

@@ -1,6 +1,8 @@
+load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "eslint_config")
+load("//quality:native_config.bzl", "clang_tidy_config", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
+load(":cc_policy_tests.bzl", "cc_policy_failure_tests")
 
 package(default_visibility = ["//quality:__pkg__"])
 
@@ -106,6 +108,51 @@ workspace_policy(
 eslint_config(
     name = "consumer_eslint_config",
     src = "eslint.config.js",
+)
+
+quality_family(
+    name = "cc_declared_family",
+    disabled = ["typecheck"],
+    family_id = "cc",
+    format = ["clang_format"],
+    lint = ["clang_tidy"],
+)
+
+workspace_policy(
+    name = "cc_declared_policy",
+    families = [":cc_declared_family"],
+)
+
+clang_tidy_config(
+    name = "consumer_clang_tidy_config",
+    src = ".clang-tidy",
+)
+
+cc_library(
+    name = "clean_cc",
+    srcs = ["clean_cc.cc"],
+    aspect_hints = [":consumer_clang_tidy_config"],
+    tags = ["corpus"],
+)
+
+cc_library(
+    name = "unhinted_cc",
+    srcs = ["clean_cc.cc"],
+    tags = [
+        "corpus",
+        "manual",
+    ],
+)
+
+cc_policy_failure_tests(
+    name = "cc_policy",
+    cases = [
+        {
+            "case": "tidy_requires_config",
+            "expected_failure": "applicable ClangTidy requires declared config",
+            "subject": ":unhinted_cc",
+        },
+    ],
 )
 
 real_source_target(

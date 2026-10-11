@@ -5,7 +5,7 @@ stage clang_format classes=c sources=matrix/clang_format_dirty.c
 completed_rounds 2
 convergence STABLE
 initial 1
-initial WARNING clang_format - matrix/clang_format_dirty.c 0 0 fixable=true "file is not formatted"
+initial ERROR clang_format -Wclang-format-violations matrix/clang_format_dirty.c 75 75 fixable=true "code should be clang-formatted"
 terminal 0
 replacements 1
 replacement matrix/clang_format_dirty.c 75 81 "fixed"

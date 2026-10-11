@@ -233,8 +233,8 @@ aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:fixture_real_typescript_subject
 aspect_field transitive_count=0
 subject //quality/testdata:fixture_upstream_cc_subject
-field dx_count=0
-field dx_results=(none)
+field dx_count=1
+field dx_results=fixture_upstream_cc-real-format-cc.pb
 field has_quality_sources=False
 field label=//quality/testdata:fixture_upstream_cc
 aspect_field aspect_seen=True

@@ -22,6 +22,8 @@ _REAL_TOOL_TABLE = {
     "biome": {"capabilities": ["format", "lint"], "shard": "core"},
     "buildifier": {"capabilities": ["format", "lint"], "shard": "core"},
     "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
+    "clang_format": {"capabilities": ["format"], "shard": "cc"},
+    "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
     "clippy": {"capabilities": ["lint"], "shard": "rust"},
     "eslint": {"capabilities": ["lint"], "shard": "js"},
     "flake8": {"capabilities": ["lint"], "shard": "py"},
@@ -50,6 +52,8 @@ def _shard_tools(shard, capability):
     return sorted([tool for tool in _REAL_TOOL_TABLE if _REAL_TOOL_TABLE[tool]["shard"] == shard and capability in _REAL_TOOL_TABLE[tool]["capabilities"]])
 
 _CORE_LINT_TOOLS = _shard_tools("core", "lint")
+_CC_FORMAT_TOOLS = _shard_tools("cc", "format")
+_CC_LINT_TOOLS = _shard_tools("cc", "lint")
 _CORE_FORMAT_TOOLS = _shard_tools("core", "format")
 _CORE_TYPECHECK_TOOLS = _shard_tools("core", "typecheck")
 _JS_LINT_TOOLS = _shard_tools("js", "lint")
@@ -65,8 +69,8 @@ _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS)),
-    "lint": sorted(set(_CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
+    "format": sorted(set(_CORE_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS)),
+    "lint": sorted(set(_CORE_LINT_TOOLS + _CC_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -120,6 +124,66 @@ def upstream_direct_sources(target, ctx):
             direct_sources[class_id] = depset(buckets[class_id])
     check_direct_sources(direct_sources, str(target.label))
     return (True, direct_sources, "")
+
+_TIDY_BUNDLE_REL = "compile_commands.json"
+
+_TIDY_TU_EXTENSIONS = ["c", "cc", "cpp", "cxx"]
+
+def _tidy_string_list(value):
+    """Returns a depset or list of strings as a plain list."""
+    if type(value) == "depset":
+        return value.to_list()
+    return list(value)
+
+def _tidy_expanded_builtin(path, sysroot):
+    """Expands one toolchain builtin include directory, or None when unusable."""
+    if "%sysroot%" in path:
+        if sysroot == "":
+            return None
+        return path.replace("%sysroot%", sysroot)
+    if "%" in path:
+        return None
+    return path
+
+def _write_tidy_bundle(ctx, target, what):
+    """Writes the clang-tidy compilation database from the selected toolchain and target."""
+    compilation = target[CcInfo].compilation_context
+    toolchain = ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"]
+    cc_toolchain = toolchain.cc if hasattr(toolchain, "cc") else toolchain
+    driver = ctx.file._clang_tidy.path
+    sysroot = getattr(cc_toolchain, "sysroot", "")
+    builtins = _tidy_string_list(getattr(cc_toolchain, "built_in_include_directories", []))
+    defines = _tidy_string_list(getattr(compilation, "defines", [])) + _tidy_string_list(getattr(compilation, "local_defines", []))
+    quote_includes = _tidy_string_list(getattr(compilation, "quote_includes", []))
+    plain_includes = _tidy_string_list(getattr(compilation, "includes", []))
+    system_includes = _tidy_string_list(getattr(compilation, "system_includes", []))
+    copts = _tidy_string_list(getattr(ctx.rule.attr, "copts", []))
+    conlyopts = _tidy_string_list(getattr(ctx.rule.attr, "conlyopts", []))
+    cxxopts = _tidy_string_list(getattr(ctx.rule.attr, "cxxopts", []))
+    sources = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension in _TIDY_TU_EXTENSIONS]
+    entries = []
+    for src in sorted(sources, key = lambda f: f.short_path):
+        command = [driver, "-x", "c" if src.extension == "c" else "c++"]
+        if src.extension == "c":
+            command.extend(conlyopts)
+        else:
+            command.extend(cxxopts)
+        command.extend(copts)
+        for define in defines:
+            command.append("-D" + define)
+        for include in quote_includes + plain_includes:
+            command.append("-I" + include)
+        for include in system_includes:
+            command.append("-isystem" + include)
+        for builtin in builtins:
+            expanded = _tidy_expanded_builtin(builtin, sysroot)
+            if expanded != None:
+                command.append("-isystem" + expanded)
+        command.append(src.short_path)
+        entries.append({"arguments": command, "directory": ".", "file": src.short_path})
+    out = ctx.actions.declare_file(target.label.name + "-tidy-commands.json")
+    ctx.actions.write(output = out, content = json.encode(entries))
+    return out
 
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
@@ -217,6 +281,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             rustc_diagnostics = target[OutputGroupInfo]["rustc_output"].to_list()
     rustc_delegated = len(rustc_diagnostics) > 0
 
+    tidy_wanted = "clang_tidy" in [stage["tool"] for stage in resolved]
+    if tidy_wanted and CcInfo not in target:
+        fail(what + ": clang_tidy needs a CcInfo target for its compilation context")
+
     hints = []
     if hasattr(ctx.rule.attr, "aspect_hints"):
         for hint_target in ctx.rule.attr.aspect_hints:
@@ -236,6 +304,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["biome"] = ctx.file._biome
     if "buildifier" in stage_tools:
         tool_binaries["buildifier"] = ctx.file._buildifier
+    if "clang_format" in stage_tools:
+        tool_binaries["clang_format"] = ctx.file._clang_format
+    if "clang_tidy" in stage_tools:
+        tool_binaries["clang_tidy"] = ctx.file._clang_tidy
     if "eslint" in stage_tools:
         tool_binaries["eslint"] = ctx.executable._eslint
         tool_extra["eslint"] = ctx.attr._eslint[DefaultInfo].files.to_list()
@@ -287,8 +359,21 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
 
     out = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + ".pb")
 
+    tidy_bundle = None
+    tidy_extra_inputs = []
+    if tidy_wanted:
+        tidy_bundle = _write_tidy_bundle(ctx, target, what)
+        tidy_extra_inputs.append(tidy_bundle)
+        tidy_extra_inputs.extend(_tidy_string_list(target[CcInfo].compilation_context.headers))
+        tidy_toolchain = ctx.toolchains["@bazel_tools//tools/cpp:toolchain_type"]
+        tidy_cc = tidy_toolchain.cc if hasattr(tidy_toolchain, "cc") else tidy_toolchain
+        toolchain_files = getattr(tidy_cc, "all_files", None)
+        if toolchain_files != None:
+            tidy_extra_inputs.extend(toolchain_files.to_list())
+
     ordered_paths = ordered_pipeline_paths(resolved)
     inputs = pipeline_inputs_for_paths(ordered_paths, path_to_file)
+    inputs.extend(tidy_extra_inputs)
 
     sibling_pairs = {}
     if "markdown_check" in stage_tools and hasattr(ctx.rule.attr, "markdown_siblings"):
@@ -401,6 +486,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for diagnostics in rustc_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
+        if tool == "clang_tidy" and tidy_bundle != None:
+            tool_files.append(real_request_tool_file(_TIDY_BUNDLE_REL, tidy_bundle.path))
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,
@@ -456,6 +543,7 @@ def real_allowed_tools_error():
     """Validates aspect shards stay registry subsets."""
     allowed = (
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
+        _CC_LINT_TOOLS + _CC_FORMAT_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
         _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS +
@@ -500,6 +588,16 @@ _REAL_TOOL_ATTR_DEFS = {
         default = "//quality/tools/jvm:checkstyle",
         cfg = "exec",
         executable = True,
+    ),
+    "clang_format": attr.label(
+        default = "@llvm//tools:clang-format",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
+    "clang_tidy": attr.label(
+        default = "@llvm//tools:clang-tidy",
+        allow_single_file = True,
+        cfg = "exec",
     ),
     "eslint": attr.label(
         default = "//quality/tools/javascript/bin:eslint",
@@ -598,6 +696,8 @@ def _real_attrs_for(tools):
     return _REAL_BASE_ATTRS | {"_" + tool: _REAL_TOOL_ATTR_DEFS[tool] for tool in tools}
 
 _REAL_CORE_ATTRS = _real_attrs_for(sorted([tool for tool in _REAL_TOOL_TABLE if _REAL_TOOL_TABLE[tool]["shard"] == "core"]))
+_REAL_CC_FORMAT_ATTRS = _real_attrs_for(_CC_FORMAT_TOOLS)
+_REAL_CC_LINT_ATTRS = _real_attrs_for(_CC_LINT_TOOLS)
 _REAL_JS_LINT_ATTRS = _real_attrs_for(_JS_LINT_TOOLS)
 _REAL_JS_FORMAT_ATTRS = _real_attrs_for(_JS_FORMAT_TOOLS)
 _REAL_JVM_LINT_ATTRS = _real_attrs_for(_JVM_LINT_TOOLS)
@@ -609,7 +709,9 @@ _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 
 _REAL_SHARDS = {
-    "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
+    "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_cc": False, "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
+    "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy with target context).", "has_cc": True, "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
+    "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_cc": False, "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
     "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
@@ -643,6 +745,13 @@ def _make_real_aspect(shard_name):
             attrs = shard["attrs"],
             toolchains = rust_toolchain_toolchains(),
         )
+    if shard.get("has_cc", False):
+        return aspect(
+            implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            attr_aspects = ["aspect_hints"],
+            attrs = shard["attrs"],
+            toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
+        )
     return aspect(
         implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
         attr_aspects = ["aspect_hints"],
@@ -650,6 +759,10 @@ def _make_real_aspect(shard_name):
     )
 
 real_lint_aspect = _make_real_aspect("real_lint")
+
+real_cc_format_aspect = _make_real_aspect("real_cc_format")
+
+real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
 
 real_format_aspect = _make_real_aspect("real_format")
 

@@ -42,6 +42,7 @@ _REAL_TOOL_TABLE = {
     "shfmt": {"capabilities": ["format"], "shard": "shell"},
     "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
     "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
+    "tsc": {"capabilities": ["typecheck"], "shard": "core"},
     "ty": {"capabilities": ["typecheck"], "shard": "core"},
     "vale": {"capabilities": ["lint"], "shard": "core"},
 }
@@ -162,11 +163,6 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if len(resolved) == 0:
         return []
 
-    if "tsc" in [stage["tool"] for stage in resolved]:
-        resolved = drop_pipeline_tool(resolved, "tsc")
-        if len(resolved) == 0:
-            return []
-
     spotbugs_jars = []
     if "spotbugs" in [stage["tool"] for stage in resolved]:
         if JavaInfo not in target:
@@ -248,6 +244,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "prettier" in stage_tools:
         tool_binaries["prettier"] = ctx.executable._prettier
         tool_extra["prettier"] = ctx.attr._prettier[DefaultInfo].files.to_list()
+    if "tsc" in stage_tools:
+        tool_binaries["tsc"] = ctx.executable._tsc
+        tool_extra["tsc"] = ctx.attr._tsc[DefaultInfo].files.to_list()
     if "pydoclint" in stage_tools:
         tool_binaries["pydoclint"] = ctx.executable._pydoclint
     if "pylint" in stage_tools:
@@ -350,6 +349,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "prettier" in stage_tools:
         run_tools.append(ctx.attr._prettier[DefaultInfo].files_to_run)
         tool_env_entries["prettier"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "tsc" in stage_tools:
+        run_tools.append(ctx.attr._tsc[DefaultInfo].files_to_run)
+        tool_env_entries["tsc"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
         tool_env_entries["pydoclint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
@@ -589,6 +591,11 @@ _REAL_TOOL_ATTR_DEFS = {
         default = "@dx_tools//:taplo",
         allow_single_file = True,
         cfg = "exec",
+    ),
+    "tsc": attr.label(
+        default = "//quality/tools/javascript/bin:tsc",
+        cfg = "exec",
+        executable = True,
     ),
     "ty": attr.label(
         default = "@dx_tools//:ty",

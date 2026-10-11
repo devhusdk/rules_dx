@@ -432,6 +432,39 @@ fn eslint_without_a_program_fails_before_any_spawn() {
 }
 
 #[test]
+fn tsc_check_is_hermetic_and_check_only() {
+    let launch = ResolvedTool::javascript("tsc", Path::new(BIN));
+    let files = [Path::new("/scratch/src/a.ts"), Path::new("/scratch/src/b.tsx")];
+    let check = tsc_check(&launch, &files).expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "--noEmit",
+            "--pretty",
+            "false",
+            "--jsx",
+            "preserve",
+            "/scratch/src/a.ts",
+            "/scratch/src/b.tsx"
+        ]
+    );
+    assert_eq!(check.cwd_rel, "");
+}
+
+#[test]
+fn tsc_without_a_program_fails_before_any_spawn() {
+    let launch = ResolvedTool::javascript("tsc", Path::new(""));
+    let error = tsc_check(&launch, &[]).expect_err("no program");
+    assert_eq!(
+        error,
+        LaunchError::MissingProgram {
+            tool: "tsc".to_owned()
+        }
+    );
+}
+
+#[test]
 fn prettier_check_and_fix_are_hermetic() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");

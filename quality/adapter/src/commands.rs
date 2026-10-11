@@ -64,6 +64,7 @@ const ESLINT_FIX_SUFFIX: &[&str] = &["-f", "json", "--fix"];
 const PRETTIER_BASE: &[&str] = &["--no-config", "--no-editorconfig"];
 const PRETTIER_CHECK_TAIL: &[&str] = &["--check"];
 const PRETTIER_FIX_TAIL: &[&str] = &["--write"];
+const TSC_CHECK_ARGS: &[&str] = &["--noEmit", "--pretty", "false", "--jsx", "preserve"];
 const SCALAFMT_CHECK_PREFIX: &[&str] = &["--check"];
 const SCALAFMT_EMPTY: &[&str] = &[];
 const CSHARPIER_CHECK_PREFIX: &[&str] = &["check"];
@@ -426,6 +427,12 @@ pub fn prettier_check(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocati
 
 pub fn prettier_fix(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
     launch.resolve(&prettier_args(PRETTIER_FIX_TAIL), files)
+}
+
+pub fn tsc_check(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
+    let mut args = Vec::with_capacity(TSC_CHECK_ARGS.len());
+    args.extend(TSC_CHECK_ARGS.iter().map(OsString::from));
+    launch.resolve(&args, files)
 }
 
 pub fn markdown_check(

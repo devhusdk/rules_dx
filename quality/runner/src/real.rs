@@ -59,6 +59,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "stylelint",
     "taplo",
     "terraform",
+    "tsc",
     "ty",
     "vale",
     "yamlfmt",

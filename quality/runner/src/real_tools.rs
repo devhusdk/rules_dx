@@ -443,6 +443,33 @@ fn ty_reports_and_is_check_only() {
 }
 
 #[test]
+fn tsc_reports_and_is_check_only() {
+    let backend = backend_for("tsc", plain_tool(), roundtrip_tsc);
+    let findings = backend
+        .diagnose("tsc", "typecheck", &single("src/a.ts", "const x: number = BADTYPE;\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "tsc");
+    assert_eq!(findings[0].rule_id, "TS2322");
+    assert_eq!(
+        findings[0].severity,
+        quality_result::proto::Severity::Error as i32
+    );
+    assert_eq!(findings[0].path, "src/a.ts");
+    assert!(backend
+        .diagnose("tsc", "typecheck", &single("src/a.ts", "const x: number = 1;\n"))
+        .expect("diagnosed")
+        .is_empty());
+    let text = "const x: number = BADTYPE;\n";
+    assert_eq!(
+        backend
+            .apply_fix("tsc", "src/a.ts", text, "typecheck")
+            .expect("check-only"),
+        text
+    );
+}
+
+#[test]
 fn pydoclint_reports_and_is_check_only() {
     let backend = backend_for("pydoclint", plain_tool(), roundtrip_pydoclint);
     let findings = backend
@@ -1016,6 +1043,23 @@ fn ty_garbage(
     })
 }
 
+fn tsc_garbage(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(
+        argv.iter().any(|arg| arg == "--noEmit"),
+        "tsc never emits output files"
+    );
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: b"garbage\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
 #[test]
 fn ruff_format_clean_and_unterminated_fix() {
     let backend = backend_for("ruff", plain_tool(), roundtrip_ruff);
@@ -1052,6 +1096,15 @@ fn ty_output_failure_aborts_diagnose() {
     let backend = backend_for("ty", plain_tool(), ty_garbage);
     let err = backend
         .diagnose("ty", "typecheck", &single("a.py", "x: int = 1\n"))
+        .expect_err("parse fails");
+    assert!(matches!(err, RunnerError::ToolOutput { .. }));
+}
+
+#[test]
+fn tsc_output_failure_aborts_diagnose() {
+    let backend = backend_for("tsc", plain_tool(), tsc_garbage);
+    let err = backend
+        .diagnose("tsc", "typecheck", &single("src/a.ts", "const x: number = 1;\n"))
         .expect_err("parse fails");
     assert!(matches!(err, RunnerError::ToolOutput { .. }));
 }

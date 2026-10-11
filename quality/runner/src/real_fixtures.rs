@@ -849,6 +849,42 @@ pub(super) fn roundtrip_ty(
     })
 }
 
+pub(super) fn roundtrip_tsc(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(
+        argv.iter().any(|arg| arg == "--noEmit"),
+        "tsc never emits output files"
+    );
+    assert!(
+        argv.windows(2).any(|pair| pair[0] == "--pretty" && pair[1] == "false"),
+        "tsc reports classic diagnostics"
+    );
+    assert!(
+        argv.windows(2).any(|pair| pair[0] == "--jsx" && pair[1] == "preserve"),
+        "tsc typechecks TSX without a runtime dependency"
+    );
+    let file = last_file(argv);
+    let bytes = std::fs::read(&file).expect("checked file is materialized");
+    let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+    if text.contains("BADTYPE") {
+        let stdout = format!("{file}(1,7): error TS2322: Type 'string' is not assignable to type 'number'.\n");
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: stdout.into_bytes(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn roundtrip_pydoclint(
     argv: &[OsString],
     _cwd: &Path,

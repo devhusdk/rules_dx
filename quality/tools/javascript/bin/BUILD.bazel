@@ -21,6 +21,12 @@ js_tool(
     js_binary = ":prettier_generated",
 )
 
+js_tool(
+    name = "tsc",
+    entry_point = "@npm_typescript//:tsc_entrypoint",
+    js_binary = "@npm_typescript//:tsc",
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

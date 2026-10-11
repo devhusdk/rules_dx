@@ -1055,6 +1055,11 @@ real_typecheck_subject(
     target = ":fixture_real_python_no_typecheck",
 )
 
+real_typecheck_subject(
+    name = "fixture_real_typescript_typecheck_subject",
+    target = ":fixture_real_typescript",
+)
+
 real_typecheck_fixture_tests(
     name = "real_typecheck_presence",
     subjects = [

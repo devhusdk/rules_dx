@@ -195,13 +195,13 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "stylelint",
             "taplo",
             "terraform",
+            "tsc",
             "ty",
             "vale",
             "yamlfmt",
             "yamllint",
         ]
     );
-    assert!(!REAL_TOOLS.contains(&"tsc"));
 }
 
 #[test]

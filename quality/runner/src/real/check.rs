@@ -252,6 +252,13 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "tsc" => {
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                let invocation = commands::tsc_check(&launch, &refs)
+                    .map_err(|err| execution(tool_id, err.to_string()))?;
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(tool_id, parsers::parse_tsc(&out.stdout, out.code, &strs))
+            }
             "scalafmt" => {
                 let invocation = commands::scalafmt_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

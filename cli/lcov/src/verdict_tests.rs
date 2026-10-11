@@ -327,7 +327,12 @@ fn support_hits_are_skipped_and_others_listed() {
     let mut report = report_of("elf.rs", &[(1, 1)]);
     report.insert("tool.rs".to_string(), hits(&[(1, 0)]));
     report.insert("notes.txt".to_string(), hits(&[(7, 1)]));
-    let verdict = evaluate(&inventory, &["elf.rs".to_string()], &report, &loader(files));
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string(), "tool.rs".to_string()],
+        &report,
+        &loader(files),
+    );
     assert!(verdict.passed, "{verdict:?}");
     assert_eq!(verdict.covered, 1);
     assert_eq!(verdict.eligible, 1);
@@ -854,5 +859,150 @@ fn arm_only_source_passes_in_its_own_cell_and_fails_cross_cell() {
         ),
         "{:?}",
         seed_verdict.errors
+    );
+}
+
+#[test]
+fn stale_single_ignore_fails_naming_file_and_line() {
+    let source = file_lines(&[
+        "pub fn classify(n: u32) -> u32 {".to_string(),
+        format!(
+            "    let _ = n; // {} - reason: fixture dead marker, issue: 1055.",
+            marker("_LINE")
+        ),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1), (3, 1), (4, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|error| error.contains("stale coverage ignore at elf.rs:2")),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn stale_range_ignore_fails_naming_start_and_end() {
+    let source = file_lines(&[
+        "fn f() {}".to_string(),
+        format!(
+            "// {} - reason: fixture dead range, issue: 1055.",
+            marker("_START")
+        ),
+        "// nothing executable here".to_string(),
+        format!(
+            "// {} - reason: fixture dead range end, issue: 1055.",
+            marker("_STOP")
+        ),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|error| error.contains("stale coverage range at elf.rs:2-4")),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn fully_ignored_instrumented_file_fails_as_broad() {
+    let source = file_lines(&[
+        format!(
+            "// {} - reason: fixture whole-file range, issue: 1055.",
+            marker("_START")
+        ),
+        "fn hidden() {}".to_string(),
+        format!(
+            "// {} - reason: fixture whole-file range end, issue: 1055.",
+            marker("_STOP")
+        ),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(2, 0)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    let broad = "broad coverage ignore at elf.rs: all 1 instrumented lines ignored";
+    assert!(
+        verdict.errors.iter().any(|error| error.contains(broad)),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn orphan_support_row_fails_as_not_declared_by_bazel() {
+    let mut inventory = eligible_inventory(&["elf.rs"]);
+    inventory.insert("ghost.rs".to_string(), SUPPORT.to_string());
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict.errors.iter().any(
+            |error| error.contains("inventory support source not declared by Bazel: ghost.rs")
+        ),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn render_reports_raw_ignored_and_eligible_counts() {
+    let source = file_lines(&[
+        "pub fn classify(n: u32) -> u32 {".to_string(),
+        "    if n == 0 {".to_string(),
+        format!(
+            "        return 0; // {} - reason: fixture defensive branch, issue: 1055.",
+            marker("_LINE")
+        ),
+        "    }".to_string(),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let mut inventory = eligible_inventory(&["elf.rs"]);
+    inventory.insert("tool.rs".to_string(), SUPPORT.to_string());
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string(), "tool.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1), (2, 1), (3, 0), (5, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    let text = render(&verdict);
+    assert!(
+        text.contains("measured lines: 4 raw, 1 ignored, 3 eligible"),
+        "{text}"
+    );
+    assert!(
+        text.contains("uncounted support files:\n  - tool.rs"),
+        "{text}"
     );
 }

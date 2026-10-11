@@ -34,6 +34,10 @@ pub fn render(verdict: &GateVerdict) -> String {
             ));
         }
     }
+    out.push_str(&format!(
+        "measured lines: {} raw, {} ignored, {} eligible\n",
+        verdict.instrumented, verdict.ignored, verdict.eligible
+    ));
     if !verdict.errors.is_empty() {
         out.push_str("errors:\n");
         for error in &verdict.errors {
@@ -44,6 +48,12 @@ pub fn render(verdict: &GateVerdict) -> String {
         out.push_str("other instrumented sources (not counted):\n");
         for source in &verdict.other_sources {
             out.push_str(&format!("  - {source}\n"));
+        }
+    }
+    if !verdict.support_files.is_empty() {
+        out.push_str("uncounted support files:\n");
+        for path in &verdict.support_files {
+            out.push_str(&format!("  - {path}\n"));
         }
     }
     if verdict.eligible > 0 {

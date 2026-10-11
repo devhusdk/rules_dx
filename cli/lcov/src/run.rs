@@ -32,7 +32,7 @@ fn parse_error(error: clap::Error, args: &[String]) -> String {
             let flag = dx_output::missing_value_flag(&error);
             format!("missing value for {flag}")
         }
-        _ => dx_output::first_line(&error), // LCOV_EXCL_LINE - reason: first line keeps CLI error stable, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        _ => dx_output::first_line(&error),
     }
 }
 
@@ -272,6 +272,7 @@ mod tests {
             printed.concat(),
             "coverage gate: FAIL 1/1 executable lines\n  \
              elf.rs: 1/1 (0 ignored)\n\
+             measured lines: 1 raw, 0 ignored, 1 eligible\n\
              errors:\n  \
              - unexpected Starlark line data for defs.bzl: the gate has no Starlark line route\n\
              other instrumented sources (not counted):\n  \
@@ -288,6 +289,22 @@ mod tests {
             printed.iter().any(|line| line.contains("usage")),
             "{printed:?}"
         );
+    }
+
+    #[test]
+    fn parse_error_keeps_first_line_for_unowned_kinds() {
+        for kind in [
+            clap::error::ErrorKind::TooManyValues,
+            clap::error::ErrorKind::MissingRequiredArgument,
+            clap::error::ErrorKind::NoEquals,
+        ] {
+            let error = clap::Error::raw(kind, "usage: check\n\nsecond line");
+            assert_eq!(
+                parse_error(error, &[]),
+                "error: usage: check",
+                "kind: {kind:?}"
+            );
+        }
     }
 
     #[test]

@@ -74,6 +74,8 @@ pub enum LcovError {
     UnclosedStart { path: String, start: usize },
     #[error("malformed inventory line {lineno}: {raw:?}")]
     MalformedInventory { lineno: usize, raw: String },
+    #[error("duplicate inventory path at line {lineno}: {path:?}")]
+    DuplicateInventoryPath { lineno: usize, path: String },
     #[error("{message}")]
     Io { message: String },
 }

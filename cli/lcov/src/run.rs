@@ -273,6 +273,7 @@ mod tests {
             "coverage gate: FAIL 1/1 executable lines\n  \
              elf.rs: 1/1 (0 ignored)\n\
              measured lines: 1 raw, 0 ignored, 1 eligible\n\
+             branch: unavailable (no BRDA records in report)\n\
              errors:\n  \
              - unexpected Starlark line data for defs.bzl: the gate has no Starlark line route\n\
              other instrumented sources (not counted):\n  \
@@ -369,6 +370,72 @@ mod tests {
             ],
         );
         assert_eq!(code, 1);
+    }
+
+    #[test]
+    fn run_reports_malformed_branch_as_gate_failure() {
+        let mut stored = passing_store();
+        stored.insert(
+            "report.info",
+            "SF:elf.rs\nDA:1,1\nBRDA:x,0,0,1\nend_of_record\n",
+        );
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 1, "{printed:?}");
+        assert!(printed.concat().contains("BRDA"), "{printed:?}");
+    }
+
+    #[test]
+    fn run_passes_with_branch_section_and_keeps_line_gate() {
+        let mut stored = passing_store();
+        stored.insert(
+            "report.info",
+            "SF:elf.rs\nDA:1,1\nBRDA:1,0,0,1\nBRDA:1,0,1,-\nend_of_record\n",
+        );
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 0, "{printed:?}");
+        let text = printed.concat();
+        assert!(text.contains("PASS 1/1 executable lines"), "{text}");
+        assert!(text.contains("measured branches: 2 raw"), "{text}");
+        assert!(text.contains("missed branches: elf.rs:1:0:1"), "{text}");
+    }
+
+    #[test]
+    fn run_reports_unavailable_branch_without_masquerading() {
+        let (code, printed) = run_harness(
+            passing_store(),
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 0, "{printed:?}");
+        let text = printed.concat();
+        assert!(text.contains("branch: unavailable"), "{text}");
+        assert!(!text.contains("informational branch rate: 100"), "{text}");
     }
 
     #[test]

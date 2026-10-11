@@ -5,6 +5,16 @@ use super::LcovError;
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct FileHits {
     pub lines: BTreeMap<u32, u64>,
+    pub branches: BTreeMap<(u32, u32, u32), Option<u64>>,
+}
+
+fn merge_taken(current: Option<u64>, incoming: Option<u64>) -> Option<u64> {
+    match (current, incoming) {
+        (None, None) => None,
+        (Some(hits), None) => Some(hits),
+        (None, Some(hits)) => Some(hits),
+        (Some(a), Some(b)) => Some(a.max(b)),
+    }
 }
 
 pub fn parse_lcov(report: &str) -> Result<BTreeMap<String, FileHits>, LcovError> {
@@ -55,12 +65,47 @@ pub fn parse_lcov(report: &str) -> Result<BTreeMap<String, FileHits>, LcovError>
                     *slot = hits;
                 }
             }
+            Ok(lcov::Record::BranchData {
+                line: lineno,
+                block,
+                branch,
+                taken,
+            }) => {
+                let path = current.clone().ok_or_else(|| LcovError::BranchOutsideSf {
+                    line: line.to_string(),
+                })?;
+                if lineno == 0 {
+                    return Err(LcovError::MalformedBranch {
+                        path: path.clone(),
+                        line: line.to_string(),
+                    });
+                }
+                let key = (lineno, block, branch);
+                let slot = files
+                    .entry(path)
+                    .or_default()
+                    .branches
+                    .entry(key)
+                    .or_insert(None);
+                *slot = merge_taken(*slot, taken);
+            }
             Ok(lcov::Record::EndOfRecord) => {
                 continue;
             }
             Ok(_) => {}
             Err(err) => {
                 let kind = line.split_once(':').map(|(k, _)| k).unwrap_or("");
+                if kind == "BRDA" {
+                    if current.is_none() {
+                        return Err(LcovError::BranchOutsideSf {
+                            line: line.to_string(),
+                        });
+                    }
+                    return Err(LcovError::MalformedBranch {
+                        path: current.clone().unwrap_or_default(),
+                        line: line.to_string(),
+                    });
+                }
                 if kind != "DA" {
                     continue;
                 }
@@ -102,6 +147,10 @@ pub fn merge_lcov_reports(documents: &[String]) -> Result<BTreeMap<String, FileH
                 if count > *cell {
                     *cell = count;
                 }
+            }
+            for (key, taken) in hits.branches {
+                let cell = slot.branches.entry(key).or_insert(None);
+                *cell = merge_taken(*cell, taken);
             }
         }
     }
@@ -155,12 +204,36 @@ pub fn validate_lcov_report(report: &str) -> Result<(), LcovError> {
                     });
                 }
             }
+            Ok(lcov::Record::BranchData { line: lineno, .. }) => {
+                if !open {
+                    return Err(LcovError::BranchOutsideSf {
+                        line: line.to_string(),
+                    });
+                }
+                if lineno == 0 {
+                    return Err(LcovError::MalformedBranch {
+                        path: current.clone().unwrap_or_default(),
+                        line: line.to_string(),
+                    });
+                }
+            }
             Ok(lcov::Record::EndOfRecord) => {
                 continue;
             }
             Ok(_) => {}
             Err(err) => {
                 let kind = line.split_once(':').map(|(k, _)| k).unwrap_or("");
+                if kind == "BRDA" {
+                    if !open {
+                        return Err(LcovError::BranchOutsideSf {
+                            line: line.to_string(),
+                        });
+                    }
+                    return Err(LcovError::MalformedBranch {
+                        path: current.clone().unwrap_or_default(),
+                        line: line.to_string(),
+                    });
+                }
                 if kind != "DA" {
                     continue;
                 }
@@ -220,6 +293,55 @@ mod tests {
         .unwrap();
         assert_eq!(report["a.rs"].lines.len(), 1);
         assert_eq!(report["a.rs"].lines[&1], 1);
+        assert_eq!(report["a.rs"].branches.len(), 1);
+        assert_eq!(report["a.rs"].branches[&(2, 0, 0)], Some(0));
+    }
+
+    #[test]
+    fn retains_branch_taken_and_untaken_outcomes() {
+        let report = parse_lcov(
+            "SF:a.rs\nDA:1,1\nDA:2,1\nBRDA:1,0,0,3\nBRDA:1,0,1,-\nBRDA:2,1,0,0\nend_of_record\n",
+        )
+        .unwrap();
+        assert_eq!(report["a.rs"].branches[&(1, 0, 0)], Some(3));
+        assert_eq!(report["a.rs"].branches[&(1, 0, 1)], None);
+        assert_eq!(report["a.rs"].branches[&(2, 1, 0)], Some(0));
+    }
+
+    #[test]
+    fn unions_duplicate_branch_records_with_max_taken() {
+        let report = parse_lcov(
+            "SF:a.rs\nDA:1,1\nBRDA:1,0,0,-\nend_of_record\nSF:a.rs\nDA:1,1\nBRDA:1,0,0,2\nBRDA:1,0,1,1\nend_of_record\n",
+        )
+        .unwrap();
+        assert_eq!(report["a.rs"].branches[&(1, 0, 0)], Some(2));
+        assert_eq!(report["a.rs"].branches[&(1, 0, 1)], Some(1));
+        let report = parse_lcov(
+            "SF:a.rs\nDA:1,1\nBRDA:2,0,0,5\nBRDA:2,0,0,3\nBRDA:3,0,0,1\nBRDA:3,0,0,-\nend_of_record\n",
+        )
+        .unwrap();
+        assert_eq!(report["a.rs"].branches[&(2, 0, 0)], Some(5));
+        assert_eq!(report["a.rs"].branches[&(3, 0, 0)], Some(1));
+    }
+
+    #[test]
+    fn rejects_branch_outside_sf() {
+        let err = parse_lcov("BRDA:1,0,0,1\n").unwrap_err();
+        assert!(err.to_string().contains("BRDA"), "{err}");
+        assert!(parse_lcov("BRDA:x,0,0,1\nend_of_record\n").is_err());
+        assert!(validate_lcov_report("BRDA:1,0,0,1\nend_of_record\n").is_err());
+        assert!(validate_lcov_report("BRDA:x,0,0,1\nend_of_record\n").is_err());
+        assert!(validate_lcov_report("SF:/a.rs\nBRDA:1,0,0,1\nend_of_record\n").is_ok());
+    }
+
+    #[test]
+    fn rejects_malformed_branch_records() {
+        assert!(parse_lcov("SF:a.rs\nBRDA:x,0,0,1\nend_of_record\n").is_err());
+        assert!(parse_lcov("SF:a.rs\nBRDA:1,x,0,1\nend_of_record\n").is_err());
+        assert!(parse_lcov("SF:a.rs\nBRDA:1,0\nend_of_record\n").is_err());
+        assert!(parse_lcov("SF:a.rs\nBRDA:0,0,0,1\nend_of_record\n").is_err());
+        assert!(validate_lcov_report("SF:/a.rs\nBRDA:x,0,0,1\nend_of_record\n").is_err());
+        assert!(validate_lcov_report("SF:/a.rs\nBRDA:0,0,0,1\nend_of_record\n").is_err());
     }
 
     #[test]
@@ -279,6 +401,23 @@ mod tests {
         assert_eq!(merged["a.rs"].lines[&3], 0);
         assert!(merge_lcov_reports(&[]).unwrap().is_empty());
         assert!(merge_lcov_reports(&["DA:1,1\n".to_owned()]).is_err());
+    }
+
+    #[test]
+    fn merges_branch_documents_with_max_taken_winning() {
+        let docs = [
+            "SF:a.rs\nDA:1,1\nBRDA:1,0,0,-\nBRDA:1,0,1,1\nBRDA:3,0,0,4\nBRDA:4,0,0,2\nend_of_record\n"
+                .to_owned(),
+            "SF:a.rs\nDA:1,1\nBRDA:1,0,0,2\nBRDA:2,0,0,0\nBRDA:3,0,0,6\nBRDA:4,0,0,-\nend_of_record\n"
+                .to_owned(),
+        ];
+        let merged = merge_lcov_reports(&docs).unwrap();
+        assert_eq!(merged["a.rs"].branches[&(1, 0, 0)], Some(2));
+        assert_eq!(merged["a.rs"].branches[&(1, 0, 1)], Some(1));
+        assert_eq!(merged["a.rs"].branches[&(2, 0, 0)], Some(0));
+        assert_eq!(merged["a.rs"].branches[&(3, 0, 0)], Some(6));
+        assert_eq!(merged["a.rs"].branches[&(4, 0, 0)], Some(2));
+        assert!(merge_lcov_reports(&["BRDA:1,0,0,1\n".to_owned()]).is_err());
     }
 
     #[test]

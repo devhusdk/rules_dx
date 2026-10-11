@@ -38,6 +38,29 @@ pub fn render(verdict: &GateVerdict) -> String {
         "measured lines: {} raw, {} ignored, {} eligible\n",
         verdict.instrumented, verdict.ignored, verdict.eligible
     ));
+    let branch_raw = verdict.branches_found + verdict.branches_ignored;
+    if branch_raw == 0 {
+        out.push_str("branch: unavailable (no BRDA records in report)\n");
+    } else {
+        out.push_str(&format!(
+            "measured branches: {} raw, {} ignored, {} measured, {} taken\n",
+            branch_raw, verdict.branches_ignored, verdict.branches_found, verdict.branches_hit
+        ));
+        if !verdict.branches_missed.is_empty() {
+            out.push_str(&format!(
+                "missed branches: {}\n",
+                verdict.branches_missed.join(", ")
+            ));
+        }
+        if verdict.branches_found > 0 {
+            let rate = verdict.branches_hit as f64 * 100.0 / verdict.branches_found as f64;
+            out.push_str(&format!(
+                "informational branch rate: {rate:.2}% (branch misses never change the line gate)\n"
+            ));
+        } else {
+            out.push_str("informational branch rate: n/a (no measured branches)\n");
+        }
+    }
     if !verdict.errors.is_empty() {
         out.push_str("errors:\n");
         for error in &verdict.errors {

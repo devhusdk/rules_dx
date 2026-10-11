@@ -40,6 +40,28 @@ fn check_file(
             eligible += 1;
         }
     }
+    let mut branches_found = 0;
+    let mut branches_hit = 0;
+    let mut branches_ignored = 0;
+    let mut branches_missed = Vec::new();
+    let mut branch_keys: Vec<(u32, u32, u32)> = hits.branches.keys().copied().collect();
+    branch_keys.sort();
+    for key in branch_keys {
+        let line = key.0;
+        if is_ignored(&ignores, line) {
+            branches_ignored += 1;
+        } else {
+            branches_found += 1;
+            match hits.branches[&key] {
+                Some(taken) if taken > 0 => {
+                    branches_hit += 1;
+                }
+                _ => {
+                    branches_missed.push(key);
+                }
+            }
+        }
+    }
     if hits.lines.is_empty() && ignores.singles.is_empty() && ignores.ranges.is_empty() {
         errors.push(format!(
             "no instrumented lines and no validated ignores for eligible source: {path}"
@@ -47,7 +69,7 @@ fn check_file(
     }
     if !hits.lines.is_empty() {
         for line in ignores.singles.keys() {
-            if !hits.lines.contains_key(line) {
+            if !hits.lines.contains_key(line) && !hits.branches.keys().any(|key| key.0 == *line) {
                 errors.push(format!(
                     "stale coverage ignore at {path}:{line}: no instrumented line; remove it"
                 ));
@@ -58,6 +80,10 @@ fn check_file(
                 .lines
                 .keys()
                 .any(|line| range.0 <= *line && *line <= range.1)
+                && !hits
+                    .branches
+                    .keys()
+                    .any(|key| range.0 <= key.0 && key.0 <= range.1)
             {
                 errors.push(format!(
                     "stale coverage range at {path}:{}-{}: covers no instrumented lines; remove it",
@@ -78,6 +104,10 @@ fn check_file(
         eligible,
         uncovered,
         ignored,
+        branches_found,
+        branches_hit,
+        branches_ignored,
+        branches_missed,
     })
 }
 
@@ -115,6 +145,11 @@ pub fn evaluate(
             if is_starlark(path) && !hits.lines.is_empty() {
                 verdict.errors.push(format!(
                     "unexpected Starlark line data for {path}: the gate has no Starlark line route"
+                ));
+            }
+            if is_starlark(path) && !hits.branches.is_empty() {
+                verdict.errors.push(format!(
+                    "unexpected Starlark branch data for {path}: the gate has no Starlark branch route"
                 ));
             }
         }
@@ -155,6 +190,14 @@ pub fn evaluate(
         verdict.covered += file.covered;
         verdict.eligible += file.eligible;
         verdict.ignored += file.ignored;
+        verdict.branches_found += file.branches_found;
+        verdict.branches_hit += file.branches_hit;
+        verdict.branches_ignored += file.branches_ignored;
+        for key in &file.branches_missed {
+            verdict
+                .branches_missed
+                .push(format!("{}:{}:{}:{}", file.path, key.0, key.1, key.2));
+        }
     }
     verdict.instrumented = verdict.eligible + verdict.ignored;
     let mut clean = verdict.errors.is_empty();

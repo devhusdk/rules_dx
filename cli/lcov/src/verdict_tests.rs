@@ -1078,6 +1078,137 @@ fn measured_python_empty_block_errors_as_uninstrumented() {
     );
 }
 
+fn mixed_report(
+    path: &str,
+    lines: &[(u32, u64)],
+    branches: &[((u32, u32, u32), Option<u64>)],
+) -> BTreeMap<String, FileHits> {
+    let mut file = FileHits::default();
+    for (line, count) in lines {
+        file.lines.insert(*line, *count);
+    }
+    for (key, taken) in branches {
+        file.branches.insert(*key, *taken);
+    }
+    let mut report = BTreeMap::new();
+    report.insert(path.to_string(), file);
+    report
+}
+
+#[test]
+fn branch_both_outcomes_count_separately_from_lines() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\nfn g() {}\n".to_string())]);
+    let report = mixed_report(
+        "elf.rs",
+        &[(1, 1), (2, 1)],
+        &[((1, 0, 0), Some(2)), ((1, 0, 1), None)],
+    );
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branches_found, 2);
+    assert_eq!(verdict.branches_hit, 1);
+    assert_eq!(verdict.branches_missed, vec!["elf.rs:1:0:1".to_string()]);
+    let text = render(&verdict);
+    assert!(
+        text.contains("measured branches: 2 raw, 0 ignored, 2 measured, 1 taken"),
+        "{text}"
+    );
+    assert!(text.contains("missed branches: elf.rs:1:0:1"), "{text}");
+    assert!(text.contains("informational branch rate: 50.00%"), "{text}");
+}
+
+#[test]
+fn branch_miss_never_changes_covered_line_gate() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let report = mixed_report("elf.rs", &[(1, 1)], &[((1, 0, 0), Some(0))]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branches_found, 1);
+    assert_eq!(verdict.branches_hit, 0);
+}
+
+#[test]
+fn branch_unavailable_is_explicit_never_full() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branches_found, 0);
+    assert!(verdict.branches_missed.is_empty());
+    let text = render(&verdict);
+    assert!(
+        text.contains("branch: unavailable (no BRDA records in report)"),
+        "{text}"
+    );
+    assert!(!text.contains("informational branch rate: 100"), "{text}");
+}
+
+#[test]
+fn branch_on_ignored_line_is_uncounted() {
+    let source = file_lines(&[
+        "fn f() {".to_string(),
+        format!(
+            "    return; // {} - reason: fixture, issue: 1055.",
+            marker("_LINE")
+        ),
+        "}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let report = mixed_report("elf.rs", &[(1, 1), (2, 0), (3, 1)], &[((2, 0, 0), None)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branches_found, 0);
+    assert_eq!(verdict.branches_ignored, 1);
+    let text = render(&verdict);
+    assert!(
+        text.contains("branch: unavailable")
+            || text.contains("measured branches: 1 raw, 1 ignored"),
+        "{text}"
+    );
+}
+
+#[test]
+fn starlark_branch_data_fails_with_branch_route() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let mut report = report_of("elf.rs", &[(1, 1)]);
+    let mut star = FileHits::default();
+    star.branches.insert((3, 0, 0), Some(1));
+    report.insert("defs.bzl".to_string(), star);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|e| e.contains("Starlark branch data")),
+        "{verdict:?}"
+    );
+}
+
 #[test]
 fn measured_python_pytest_block_with_functions_parses_and_passes() {
     let text = "SF:python/tests/fixtures/hello/hello.py\nFN:4,greet\nFNDA:1,greet\nFNF:1\nFNH:1\nDA:4,1\nDA:6,1\nLH:2\nLF:2\nend_of_record\n";

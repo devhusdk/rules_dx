@@ -448,6 +448,33 @@ pub fn release_run(
     Ok(out)
 }
 
+pub fn release_tree_dirty(status_output: Option<&str>) -> bool {
+    status_output.is_some_and(|out| !out.trim().is_empty())
+}
+
+pub fn release_tag_exists(tag_list_output: Option<&str>, tag: &str) -> bool {
+    tag_list_output.is_some_and(|out| out.lines().any(|line| line.trim() == tag))
+}
+
+pub fn driver_run(
+    argv: &[String],
+    get_env: &dyn Fn(&str) -> Option<String>,
+    git: &dyn Fn(&[&str]) -> Option<String>,
+) -> i32 {
+    let tag = argv.get(1).map(String::as_str).unwrap_or("v0.0.0-dryrun");
+    let approve = get_env("RELEASE_APPROVE").unwrap_or_else(|| "0".to_owned());
+    let dry_run = get_env("RELEASE_DRY_RUN").unwrap_or_else(|| "1".to_owned()) != "0";
+    let dirty = release_tree_dirty(git(&["status", "--porcelain"]).as_deref());
+    let exists = release_tag_exists(git(&["tag", "--list", "v*"]).as_deref(), tag);
+    match release_run(tag, &approve, dry_run, dirty, exists) {
+        Ok(text) => {
+            print!("{text}");
+            0
+        }
+        Err(diagnostic) => bin_error(diagnostic),
+    }
+}
+
 pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::Result<String> {
     let digest = dx_digest::sha256_file_hex(artifact)?;
     let base = basename(artifact)?;
@@ -904,6 +931,133 @@ mod tests {
         assert!(release_run("v1.2.3", "1", false, false, false).is_err());
         let live = release_run("v1.2.3", "1", false, false, true).expect("live");
         assert!(live.contains("owner-approved human-run release for v1.2.3"));
+    }
+
+    fn driver_argv(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_owned()).collect()
+    }
+
+    fn driver_env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+        let owned: Vec<(String, String)> = pairs
+            .iter()
+            .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+            .collect();
+        move |name| {
+            owned
+                .iter()
+                .find(|(key, _)| key == name)
+                .map(|(_, value)| value.clone())
+        }
+    }
+
+    fn driver_git(status: Option<&str>, tags: Option<&str>) -> impl Fn(&[&str]) -> Option<String> {
+        let status = status.map(str::to_owned);
+        let tags = tags.map(str::to_owned);
+        move |args| {
+            if args == ["status", "--porcelain"] {
+                status.clone()
+            } else if args == ["tag", "--list", "v*"] {
+                tags.clone()
+            } else {
+                None
+            }
+        }
+    }
+
+    #[test]
+    fn driver_tree_dirty_reads_porcelain_output() {
+        assert!(!release_tree_dirty(None));
+        assert!(!release_tree_dirty(Some("")));
+        assert!(!release_tree_dirty(Some("  \n")));
+        assert!(release_tree_dirty(Some(" M src/lib.rs\n")));
+        assert!(release_tree_dirty(Some("?? new-file\n")));
+    }
+
+    #[test]
+    fn driver_tag_exists_matches_exact_trimmed_lines() {
+        assert!(!release_tag_exists(None, "v1.2.3"));
+        assert!(!release_tag_exists(Some(""), "v1.2.3"));
+        assert!(!release_tag_exists(Some("v1.2.30\nv1.2.31\n"), "v1.2.3"));
+        assert!(release_tag_exists(Some("v1.2.3\n"), "v1.2.3"));
+        assert!(release_tag_exists(
+            Some("v1.2.2\n  v1.2.3  \nv1.2.4\n"),
+            "v1.2.3"
+        ));
+    }
+
+    #[test]
+    fn driver_defaults_to_a_dry_run_without_git_or_env() {
+        let env = driver_env(&[]);
+        let git = driver_git(None, None);
+        let code = driver_run(&driver_argv(&["release_driver"]), &env, &git);
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn driver_honors_argv_tag_and_live_env() {
+        let env = driver_env(&[("RELEASE_APPROVE", "1"), ("RELEASE_DRY_RUN", "0")]);
+        let git = driver_git(Some(""), Some("v1.2.3\n"));
+        let code = driver_run(&driver_argv(&["release_driver", "v1.2.3"]), &env, &git);
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn driver_live_run_refuses_without_approval_dirty_tree_or_tag() {
+        let unapproved = driver_env(&[("RELEASE_DRY_RUN", "0")]);
+        let clean_tagged = driver_git(Some(""), Some("v1.2.3\n"));
+        assert_eq!(
+            driver_run(
+                &driver_argv(&["release_driver", "v1.2.3"]),
+                &unapproved,
+                &clean_tagged
+            ),
+            1
+        );
+        let approved = driver_env(&[("RELEASE_APPROVE", "1"), ("RELEASE_DRY_RUN", "0")]);
+        let dirty = driver_git(Some(" M src/lib.rs\n"), Some("v1.2.3\n"));
+        assert_eq!(
+            driver_run(
+                &driver_argv(&["release_driver", "v1.2.3"]),
+                &approved,
+                &dirty
+            ),
+            1
+        );
+        let untagged = driver_git(Some(""), Some("v1.2.2\n"));
+        assert_eq!(
+            driver_run(
+                &driver_argv(&["release_driver", "v1.2.3"]),
+                &approved,
+                &untagged
+            ),
+            1
+        );
+        let placeholder = driver_git(Some(""), Some("v0.0.0-dryrun\n"));
+        assert_eq!(
+            driver_run(&driver_argv(&["release_driver"]), &approved, &placeholder),
+            1
+        );
+    }
+
+    #[test]
+    fn driver_queries_git_with_status_and_tag_list_argv() {
+        use std::cell::RefCell;
+        let seen: RefCell<Vec<Vec<String>>> = RefCell::new(Vec::new());
+        let git = |args: &[&str]| {
+            seen.borrow_mut()
+                .push(args.iter().map(|arg| (*arg).to_owned()).collect());
+            None
+        };
+        let env = driver_env(&[]);
+        let code = driver_run(&driver_argv(&["release_driver"]), &env, &git);
+        assert_eq!(code, 0);
+        assert_eq!(
+            *seen.borrow(),
+            vec![
+                vec!["status".to_owned(), "--porcelain".to_owned()],
+                vec!["tag".to_owned(), "--list".to_owned(), "v*".to_owned()],
+            ]
+        );
     }
 
     #[test]

@@ -145,4 +145,5 @@ bazel run @rules_dx//:dx -- coverage --min-coverage 96 //...
 
 Coverage ignores use `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`
 with a short `reason:` and `issue:`. Bare ignores without a reason fail the
-gate.
+gate. An ignore that matches no instrumented line fails as stale. The gate
+prints raw, excluded, and eligible line counts separately.

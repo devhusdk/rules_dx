@@ -270,7 +270,8 @@ mod tests {
         assert_eq!(code, 1);
         assert_eq!(
             printed.concat(),
-            "coverage gate: FAIL 1/1 executable lines\n  \
+            "coverage gate: FAIL 1/1 executable lines\n\
+             counts: 1 raw instrumented lines, 0 excluded, 1 eligible\n  \
              elf.rs: 1/1 (0 ignored)\n\
              errors:\n  \
              - unexpected Starlark line data for defs.bzl: the gate has no Starlark line route\n\

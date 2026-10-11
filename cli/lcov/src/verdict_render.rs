@@ -13,6 +13,12 @@ pub fn render(verdict: &GateVerdict) -> String {
             verdict.covered, verdict.eligible
         ));
     }
+    out.push_str(&format!(
+        "counts: {} raw instrumented lines, {} excluded, {} eligible\n",
+        verdict.eligible + verdict.ignored,
+        verdict.ignored,
+        verdict.eligible
+    ));
     for file in &verdict.files {
         if file.uncovered.is_empty() {
             out.push_str(&format!(

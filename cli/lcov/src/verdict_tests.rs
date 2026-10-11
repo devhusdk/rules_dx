@@ -69,6 +69,112 @@ fn valid_ignore_shrinks_denominator_only_for_its_line() {
 }
 
 #[test]
+fn stale_line_ignore_fails_with_location() {
+    let source = file_lines(&[
+        "fn f() {}".to_string(),
+        format!(
+            "// {} - reason: leftover marker, issue: 1055.",
+            marker("_LINE")
+        ),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|e| e.contains("stale coverage ignore at elf.rs:2")),
+        "{verdict:?}"
+    );
+}
+
+#[test]
+fn stale_range_ignore_fails_with_start_location() {
+    let source = file_lines(&[
+        format!(
+            "// {} - reason: removed shim, issue: 1055.",
+            marker("_START")
+        ),
+        "fn g() {}".to_string(),
+        format!(
+            "// {} - reason: end removed shim, issue: 1055.",
+            marker("_STOP")
+        ),
+        "fn f() {}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(4, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|e| e.contains("stale coverage ignore at elf.rs:1")),
+        "{verdict:?}"
+    );
+}
+
+#[test]
+fn used_range_markers_are_not_stale() {
+    let source = file_lines(&[
+        format!("// {} - reason: shim, issue: 1055.", marker("_START")),
+        "fn g() {}".to_string(),
+        format!("// {} - reason: shim end, issue: 1055.", marker("_STOP")),
+        "fn f() {}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(2, 0), (4, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.ignored, 1);
+}
+
+#[test]
+fn gate_totals_report_raw_excluded_and_eligible_counts() {
+    let source = file_lines(&[
+        "fn f() {}".to_string(),
+        format!(
+            "fn g() {{}} // {} - reason: fixture, issue: 1055.",
+            marker("_LINE")
+        ),
+    ]);
+    let live = file_lines(&["fn h() {}".to_string()]);
+    let files = BTreeMap::from([("shim.rs", source), ("elf.rs", live)]);
+    let mut report = report_of("elf.rs", &[(1, 1)]);
+    report.insert("shim.rs".to_string(), hits(&[(1, 1), (2, 0)]));
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs", "shim.rs"]),
+        &["elf.rs".to_string(), "shim.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.covered, 2);
+    assert_eq!(verdict.eligible, 2);
+    assert_eq!(verdict.ignored, 1);
+    let text = render(&verdict);
+    assert!(
+        text.contains("counts: 3 raw instrumented lines, 1 excluded, 2 eligible"),
+        "{text}"
+    );
+}
+
+#[test]
 fn uncovered_line_fails_with_location() {
     let files = BTreeMap::from([("elf.rs", "fn f() {\n    1\n}\n".to_string())]);
     let verdict = evaluate(

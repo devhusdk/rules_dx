@@ -40,6 +40,26 @@ fn check_file(
             eligible += 1;
         }
     }
+    if !hits.lines.is_empty() {
+        for line in ignores.singles.keys() {
+            if !hits.lines.contains_key(line) {
+                errors.push(format!(
+                    "stale coverage ignore at {path}:{line}: LINE directive matches no instrumented lines; remove it so added code stays counted"
+                ));
+            }
+        }
+        for (start, stop, _) in &ignores.ranges {
+            if !hits
+                .lines
+                .keys()
+                .any(|line| *start <= *line && *line <= *stop)
+            {
+                errors.push(format!(
+                    "stale coverage ignore at {path}:{start}: START directive matches no instrumented lines; remove it so added code stays counted"
+                ));
+            }
+        }
+    }
     if hits.lines.is_empty() && ignores.singles.is_empty() && ignores.ranges.is_empty() {
         errors.push(format!(
             "no instrumented lines and no validated ignores for eligible source: {path}"
@@ -120,6 +140,7 @@ pub fn evaluate(
     for file in &verdict.files {
         verdict.covered += file.covered;
         verdict.eligible += file.eligible;
+        verdict.ignored += file.ignored;
     }
     let mut clean = verdict.errors.is_empty();
     for file in &verdict.files {

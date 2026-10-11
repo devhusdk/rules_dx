@@ -2,15 +2,16 @@ use super::GateVerdict;
 
 pub fn render(verdict: &GateVerdict) -> String {
     let mut out = String::new();
+    let raw = verdict.eligible + verdict.ignored;
     if verdict.passed {
         out.push_str(&format!(
-            "coverage gate: PASS {}/{} executable lines\n",
-            verdict.covered, verdict.eligible
+            "coverage gate: PASS {}/{} executable lines ({} ignored, {} raw)\n",
+            verdict.covered, verdict.eligible, verdict.ignored, raw
         ));
     } else {
         out.push_str(&format!(
-            "coverage gate: FAIL {}/{} executable lines\n",
-            verdict.covered, verdict.eligible
+            "coverage gate: FAIL {}/{} executable lines ({} ignored, {} raw)\n",
+            verdict.covered, verdict.eligible, verdict.ignored, raw
         ));
     }
     for file in &verdict.files {
@@ -38,6 +39,12 @@ pub fn render(verdict: &GateVerdict) -> String {
         out.push_str("errors:\n");
         for error in &verdict.errors {
             out.push_str(&format!("  - {error}\n"));
+        }
+    }
+    if !verdict.support.is_empty() {
+        out.push_str("support sources (declared, not counted):\n");
+        for source in &verdict.support {
+            out.push_str(&format!("  - {source}\n"));
         }
     }
     if !verdict.other_sources.is_empty() {

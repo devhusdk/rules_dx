@@ -270,7 +270,7 @@ mod tests {
         assert_eq!(code, 1);
         assert_eq!(
             printed.concat(),
-            "coverage gate: FAIL 1/1 executable lines\n  \
+            "coverage gate: FAIL 1/1 executable lines (0 ignored, 1 raw)\n  \
              elf.rs: 1/1 (0 ignored)\n\
              errors:\n  \
              - unexpected Starlark line data for defs.bzl: the gate has no Starlark line route\n\
@@ -421,6 +421,30 @@ mod tests {
         assert_eq!(code, 2, "{printed:?}");
         assert!(
             printed.iter().any(|line| line.contains("usage")),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_enforces_ignored_pin_from_inventory_file() {
+        let mut stored = passing_store();
+        stored.insert("inventory.txt", "eligible elf.rs ignored=1\n");
+        let (code, printed) = run_harness(
+            stored,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+            ],
+        );
+        assert_eq!(code, 1, "{printed:?}");
+        assert!(
+            printed.iter().any(|line| line.contains(
+                "coverage ignore drift at elf.rs: excluded 0 instrumented lines, inventory pins 1"
+            )),
             "{printed:?}"
         );
     }

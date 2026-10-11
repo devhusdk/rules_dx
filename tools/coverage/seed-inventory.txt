@@ -1,19 +1,23 @@
-# Seed cell exact-gate inventory: `<eligible|support> <path>` rows, one per gated file.
+# Seed cell exact-gate inventory: `<eligible|support> <path>[ ignored=<n>]` rows, one per gated file.
 # support marks declared-but-uncounted sources: cfg(test)-only modules, line-less declarations, and the fully excluded entry shim.
-eligible cli/lcov/src/lib.rs
-eligible cli/lcov/src/ignores.rs
-eligible cli/lcov/src/ignores_find.rs
-eligible cli/lcov/src/ignores_policy.rs
-eligible cli/lcov/src/ignores_scan.rs
+# ignored=<n> pins the reviewed excluded instrumented-line count for that file on this
+# cell; the gate fails when markers exclude more or fewer lines, so growing a range
+# or deleting marked code needs pin review. Counts below were measured with
+# bazel coverage on seed-linux_x86_64; other cells pin their own counts.
+eligible cli/lcov/src/lib.rs ignored=0
+eligible cli/lcov/src/ignores.rs ignored=0
+eligible cli/lcov/src/ignores_find.rs ignored=0
+eligible cli/lcov/src/ignores_policy.rs ignored=0
+eligible cli/lcov/src/ignores_scan.rs ignored=0
 support cli/lcov/src/ignores_tests.rs
-eligible cli/lcov/src/inventory.rs
-eligible cli/lcov/src/parse.rs
-eligible cli/lcov/src/run.rs
+eligible cli/lcov/src/inventory.rs ignored=0
+eligible cli/lcov/src/parse.rs ignored=2
+eligible cli/lcov/src/run.rs ignored=1
 support cli/lcov/src/verdict.rs
-eligible cli/lcov/src/verdict_eval.rs
-eligible cli/lcov/src/verdict_lang.rs
-eligible cli/lcov/src/verdict_render.rs
+eligible cli/lcov/src/verdict_eval.rs ignored=0
+eligible cli/lcov/src/verdict_lang.rs ignored=0
+eligible cli/lcov/src/verdict_render.rs ignored=0
 support cli/lcov/src/verdict_tests.rs
-eligible quality/evaluator/src/lib.rs
-eligible quality/evaluator/src/main.rs
+eligible quality/evaluator/src/lib.rs ignored=0
+eligible quality/evaluator/src/main.rs ignored=8
 support tools/coverage/src/main.rs

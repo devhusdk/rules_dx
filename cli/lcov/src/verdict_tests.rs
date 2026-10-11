@@ -1,5 +1,5 @@
 use super::*;
-use crate::{find_ignores, FileHits, LcovError, ELIGIBLE, SUPPORT};
+use crate::{find_ignores, FileHits, InventoryRow, LcovError, ELIGIBLE, SUPPORT};
 use std::collections::BTreeMap;
 
 fn marker(kind: &str) -> String {
@@ -34,10 +34,30 @@ fn loader<'a>(files: BTreeMap<&'a str, String>) -> impl Fn(&str) -> Result<Strin
     }
 }
 
-fn eligible_inventory(paths: &[&str]) -> BTreeMap<String, String> {
+fn eligible_inventory(paths: &[&str]) -> BTreeMap<String, InventoryRow> {
     let mut inventory = BTreeMap::new();
     for path in paths {
-        inventory.insert(path.to_string(), ELIGIBLE.to_string());
+        inventory.insert(
+            path.to_string(),
+            InventoryRow {
+                disposition: ELIGIBLE.to_string(),
+                expected_ignored: None,
+            },
+        );
+    }
+    inventory
+}
+
+fn pinned_inventory(rows: &[(&str, u64)]) -> BTreeMap<String, InventoryRow> {
+    let mut inventory = BTreeMap::new();
+    for (path, pinned) in rows {
+        inventory.insert(
+            path.to_string(),
+            InventoryRow {
+                disposition: ELIGIBLE.to_string(),
+                expected_ignored: Some(*pinned),
+            },
+        );
     }
     inventory
 }
@@ -231,7 +251,13 @@ fn stale_eligible_inventory_fails() {
 #[test]
 fn unknown_disposition_fails() {
     let mut inventory = BTreeMap::new();
-    inventory.insert("elf.rs".to_string(), "maybe".to_string());
+    inventory.insert(
+        "elf.rs".to_string(),
+        InventoryRow {
+            disposition: "maybe".to_string(),
+            expected_ignored: None,
+        },
+    );
     let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
     let verdict = evaluate(
         &inventory,
@@ -323,14 +349,27 @@ fn support_hits_are_skipped_and_others_listed() {
     let live = "fn f() {}\n".to_string();
     let files = BTreeMap::from([("elf.rs", live)]);
     let mut inventory = eligible_inventory(&["elf.rs"]);
-    inventory.insert("tool.rs".to_string(), SUPPORT.to_string());
+    inventory.insert(
+        "tool.rs".to_string(),
+        InventoryRow {
+            disposition: SUPPORT.to_string(),
+            expected_ignored: None,
+        },
+    );
     let mut report = report_of("elf.rs", &[(1, 1)]);
     report.insert("tool.rs".to_string(), hits(&[(1, 0)]));
     report.insert("notes.txt".to_string(), hits(&[(7, 1)]));
-    let verdict = evaluate(&inventory, &["elf.rs".to_string()], &report, &loader(files));
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string(), "tool.rs".to_string()],
+        &report,
+        &loader(files),
+    );
     assert!(verdict.passed, "{verdict:?}");
     assert_eq!(verdict.covered, 1);
     assert_eq!(verdict.eligible, 1);
+    assert_eq!(verdict.ignored, 0);
+    assert_eq!(verdict.support, vec!["tool.rs".to_string()]);
     assert_eq!(verdict.other_sources, vec!["notes.txt".to_string()]);
     let text = render(&verdict);
     assert!(
@@ -801,7 +840,13 @@ fn zero_hit_source_fails_with_missing_instrumentation() {
 #[test]
 fn generated_support_source_is_declared_but_not_counted() {
     let mut inventory = eligible_inventory(&["elf.rs"]);
-    inventory.insert("gen/bindings.rs".to_string(), SUPPORT.to_string());
+    inventory.insert(
+        "gen/bindings.rs".to_string(),
+        InventoryRow {
+            disposition: SUPPORT.to_string(),
+            expected_ignored: None,
+        },
+    );
     let files = BTreeMap::from([
         ("elf.rs", "fn f() {}\n".to_string()),
         ("gen/bindings.rs", "fn g() {}\n".to_string()),
@@ -818,6 +863,8 @@ fn generated_support_source_is_declared_but_not_counted() {
     assert_eq!(verdict.files.len(), 1);
     assert_eq!(verdict.covered, 1);
     assert_eq!(verdict.eligible, 1);
+    assert_eq!(verdict.ignored, 0);
+    assert_eq!(verdict.support, vec!["gen/bindings.rs".to_string()]);
 }
 
 #[test]
@@ -855,4 +902,189 @@ fn arm_only_source_passes_in_its_own_cell_and_fails_cross_cell() {
         "{:?}",
         seed_verdict.errors
     );
+}
+
+#[test]
+fn pinned_ignored_count_passes_when_excluded_lines_match() {
+    let source = file_lines(&[
+        "pub fn classify(n: u32) -> u32 {".to_string(),
+        "    if n == 0 {".to_string(),
+        format!(
+            "        return 0; // {} - reason: fixture defensive branch, issue: 1055.",
+            marker("_LINE")
+        ),
+        "    }".to_string(),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &pinned_inventory(&[("elf.rs", 1)]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1), (2, 1), (3, 0), (5, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.ignored, 1);
+}
+
+#[test]
+fn broadened_range_fails_as_ignore_drift() {
+    let source = file_lines(&[
+        "pub fn classify(n: u32) -> u32 {".to_string(),
+        format!(
+            "    // {} - reason: fixture range opens, issue: 1055.",
+            marker("_START")
+        ),
+        "    if n == 0 {".to_string(),
+        "        return 0;".to_string(),
+        "    }".to_string(),
+        format!(
+            "    // {} - reason: fixture range closes, issue: 1055.",
+            marker("_STOP")
+        ),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &pinned_inventory(&[("elf.rs", 1)]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1), (3, 1), (4, 0), (7, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict.errors.iter().any(|error| error.contains(
+            "coverage ignore drift at elf.rs: excluded 2 instrumented lines, inventory pins 1"
+        )),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn removed_markers_fail_as_ignore_drift() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let verdict = evaluate(
+        &pinned_inventory(&[("elf.rs", 1)]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict.errors.iter().any(|error| error.contains(
+            "coverage ignore drift at elf.rs: excluded 0 instrumented lines, inventory pins 1"
+        )),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn unpinned_file_accepts_new_markers_without_drift_error() {
+    let source = file_lines(&[
+        "fn f() {".to_string(),
+        format!(
+            "    1 // {} - reason: fixture, issue: 1055.",
+            marker("_LINE")
+        ),
+        "}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1), (2, 0)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.ignored, 1);
+}
+
+#[test]
+fn stale_support_row_fails_when_not_declared_by_bazel() {
+    let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
+    let mut inventory = eligible_inventory(&["elf.rs"]);
+    inventory.insert(
+        "gone.rs".to_string(),
+        InventoryRow {
+            disposition: SUPPORT.to_string(),
+            expected_ignored: None,
+        },
+    );
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1)]),
+        &loader(files),
+    );
+    assert!(!verdict.passed);
+    assert!(
+        verdict
+            .errors
+            .iter()
+            .any(|error| error.contains("inventory support source not declared by Bazel: gone.rs")),
+        "{:?}",
+        verdict.errors
+    );
+}
+
+#[test]
+fn reclassified_support_file_stays_visible_in_output() {
+    let live = "fn f() {}\n".to_string();
+    let files = BTreeMap::from([("elf.rs", live)]);
+    let mut inventory = eligible_inventory(&["elf.rs"]);
+    inventory.insert(
+        "tool.rs".to_string(),
+        InventoryRow {
+            disposition: SUPPORT.to_string(),
+            expected_ignored: None,
+        },
+    );
+    let mut report = report_of("elf.rs", &[(1, 1)]);
+    report.insert("tool.rs".to_string(), hits(&[(1, 1)]));
+    let verdict = evaluate(
+        &inventory,
+        &["elf.rs".to_string(), "tool.rs".to_string()],
+        &report,
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.files.len(), 1);
+    let text = render(&verdict);
+    assert!(
+        text.contains("support sources (declared, not counted):\n  - tool.rs"),
+        "{text}"
+    );
+}
+
+#[test]
+fn render_reports_raw_excluded_and_eligible_counts() {
+    let source = file_lines(&[
+        "pub fn classify(n: u32) -> u32 {".to_string(),
+        "    if n == 0 {".to_string(),
+        format!(
+            "        return 0; // {} - reason: fixture defensive branch, issue: 1055.",
+            marker("_LINE")
+        ),
+        "    }".to_string(),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let verdict = evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report_of("elf.rs", &[(1, 1), (2, 1), (3, 0), (5, 1)]),
+        &loader(files),
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    let text = render(&verdict);
+    assert!(
+        text.contains("coverage gate: PASS 3/3 executable lines (1 ignored, 4 raw)"),
+        "{text}"
+    );
+    assert!(text.contains("elf.rs: 3/3 (1 ignored)"), "{text}");
 }

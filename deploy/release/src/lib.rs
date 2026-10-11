@@ -448,6 +448,38 @@ pub fn release_run(
     Ok(out)
 }
 
+pub fn release_tag(argv: &[String]) -> &str {
+    argv.get(1).map(String::as_str).unwrap_or("v0.0.0-dryrun")
+}
+
+pub fn release_dry_requested(raw: Option<String>) -> bool {
+    raw.as_deref() != Some("0")
+}
+
+pub fn release_tree_dirty(status: Option<String>) -> bool {
+    status.is_some_and(|out| !out.trim().is_empty())
+}
+
+pub fn release_tag_exists(listing: Option<String>, tag: &str) -> bool {
+    listing.is_some_and(|out| out.lines().any(|line| line.trim() == tag))
+}
+
+pub fn release_driver_run(
+    argv: &[String],
+    approve: &str,
+    dry_run: bool,
+    tree_dirty: bool,
+    tag_exists: bool,
+) -> i32 {
+    match release_run(release_tag(argv), approve, dry_run, tree_dirty, tag_exists) {
+        Ok(text) => {
+            print!("{text}");
+            0
+        }
+        Err(diagnostic) => bin_error(diagnostic),
+    }
+}
+
 pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::Result<String> {
     let digest = dx_digest::sha256_file_hex(artifact)?;
     let base = basename(artifact)?;
@@ -904,6 +936,78 @@ mod tests {
         assert!(release_run("v1.2.3", "1", false, false, false).is_err());
         let live = release_run("v1.2.3", "1", false, false, true).expect("live");
         assert!(live.contains("owner-approved human-run release for v1.2.3"));
+    }
+
+    #[test]
+    fn release_tag_defaults_to_dry_run_placeholder() {
+        assert_eq!(release_tag(&[]), "v0.0.0-dryrun");
+        assert_eq!(release_tag(&["release_driver".to_owned()]), "v0.0.0-dryrun");
+        assert_eq!(
+            release_tag(&["release_driver".to_owned(), "v1.2.3".to_owned()]),
+            "v1.2.3"
+        );
+    }
+
+    #[test]
+    fn release_dry_run_defaults_to_requested() {
+        assert!(release_dry_requested(None));
+        assert!(release_dry_requested(Some("1".to_owned())));
+        assert!(release_dry_requested(Some(String::new())));
+        assert!(!release_dry_requested(Some("0".to_owned())));
+    }
+
+    #[test]
+    fn release_tree_dirty_reads_porcelain_status() {
+        assert!(!release_tree_dirty(None));
+        assert!(!release_tree_dirty(Some(String::new())));
+        assert!(!release_tree_dirty(Some("  \n".to_owned())));
+        assert!(release_tree_dirty(Some(
+            " M deploy/release/src/lib.rs\n".to_owned()
+        )));
+    }
+
+    #[test]
+    fn release_tag_exists_matches_exact_tag_line() {
+        assert!(!release_tag_exists(None, "v1.2.3"));
+        assert!(!release_tag_exists(Some(String::new()), "v1.2.3"));
+        assert!(!release_tag_exists(Some("v1.2.30\n".to_owned()), "v1.2.3"));
+        assert!(release_tag_exists(Some("v1.2.3\n".to_owned()), "v1.2.3"));
+        assert!(release_tag_exists(
+            Some("v1.2.2\n  v1.2.3  \nv1.2.4\n".to_owned()),
+            "v1.2.3"
+        ));
+    }
+
+    #[test]
+    fn release_driver_run_maps_dispatch_to_exit_codes() {
+        fn argv(tag: &str) -> Vec<String> {
+            vec!["release_driver".to_owned(), tag.to_owned()]
+        }
+        assert_eq!(release_driver_run(&[], "0", true, false, false), 0);
+        assert_eq!(
+            release_driver_run(&argv("v1.2.3"), "0", true, false, false),
+            0
+        );
+        assert_eq!(
+            release_driver_run(&argv("v1.2.3"), "0", false, false, true),
+            1
+        );
+        assert_eq!(
+            release_driver_run(&argv("v0.0.0-dryrun"), "1", false, false, true),
+            1
+        );
+        assert_eq!(
+            release_driver_run(&argv("v1.2.3"), "1", false, true, true),
+            1
+        );
+        assert_eq!(
+            release_driver_run(&argv("v1.2.3"), "1", false, false, false),
+            1
+        );
+        assert_eq!(
+            release_driver_run(&argv("v1.2.3"), "1", false, false, true),
+            0
+        );
     }
 
     #[test]

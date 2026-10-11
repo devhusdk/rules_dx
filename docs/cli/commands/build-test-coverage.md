@@ -145,4 +145,8 @@ bazel run @rules_dx//:dx -- coverage --min-coverage 96 //...
 
 Coverage ignores use `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`
 with a short `reason:` and `issue:`. Bare ignores without a reason fail the
-gate.
+gate. Eligible inventory rows pin their excluded line count with
+`ignored=<n>`; the gate fails when markers exclude more or fewer lines, so
+changing marked code needs a pin update. Support rows stay Bazel-declared
+and are listed in the gate output. The output reports executable, ignored,
+and raw line counts separately.

@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use super::{is_covered_language, is_starlark, FileVerdict, GateVerdict};
-use crate::{find_ignores, is_ignored, FileHits, LcovError, ELIGIBLE, SUPPORT};
+use crate::{find_ignores, is_ignored, FileHits, InventoryRow, LcovError, ELIGIBLE, SUPPORT};
 
 fn check_file(
     path: &str,
     hits: &FileHits,
+    expected_ignored: Option<u64>,
     load_source: &dyn Fn(&str) -> Result<String, LcovError>,
     errors: &mut Vec<String>,
 ) -> Option<FileVerdict> {
@@ -45,6 +46,13 @@ fn check_file(
             "no instrumented lines and no validated ignores for eligible source: {path}"
         ));
     }
+    if let Some(pinned) = expected_ignored {
+        if ignored != pinned {
+            errors.push(format!(
+                "coverage ignore drift at {path}: excluded {ignored} instrumented lines, inventory pins {pinned}; update the pin after review"
+            ));
+        }
+    }
     Some(FileVerdict {
         path: path.to_string(),
         covered,
@@ -55,7 +63,7 @@ fn check_file(
 }
 
 pub fn evaluate(
-    inventory: &BTreeMap<String, String>,
+    inventory: &BTreeMap<String, InventoryRow>,
     bazel_sources: &[String],
     report: &BTreeMap<String, FileHits>,
     load_source: &dyn Fn(&str) -> Result<String, LcovError>,
@@ -73,14 +81,25 @@ pub fn evaluate(
                 None => verdict
                     .errors
                     .push(format!("instrumented source not in inventory: {path}")),
-                Some(disposition) if disposition == SUPPORT => {}
-                Some(disposition) if disposition == ELIGIBLE => {
-                    if let Some(file) = check_file(path, hits, load_source, &mut verdict.errors) {
+                Some(row) if row.disposition == SUPPORT => {
+                    if !verdict.support.contains(path) {
+                        verdict.support.push(path.clone());
+                    }
+                }
+                Some(row) if row.disposition == ELIGIBLE => {
+                    if let Some(file) = check_file(
+                        path,
+                        hits,
+                        row.expected_ignored,
+                        load_source,
+                        &mut verdict.errors,
+                    ) {
                         verdict.files.push(file);
                     }
                 }
-                Some(disposition) => verdict.errors.push(format!(
-                    "unknown disposition {disposition:?} for {path}; want \"eligible\" or \"support\""
+                Some(row) => verdict.errors.push(format!(
+                    "unknown disposition {:?} for {path}; want \"eligible\" or \"support\"",
+                    row.disposition
                 )),
             }
         } else {
@@ -99,8 +118,8 @@ pub fn evaluate(
             ));
         }
     }
-    for (path, disposition) in inventory {
-        if disposition == ELIGIBLE {
+    for (path, row) in inventory {
+        if row.disposition == ELIGIBLE {
             if !bazel_sources.contains(path) {
                 verdict.errors.push(format!(
                     "inventory eligible source not declared by Bazel: {path}"
@@ -111,15 +130,23 @@ pub fn evaluate(
                     "eligible source absent from coverage report: {path}"
                 ));
             }
-        } else if disposition != SUPPORT {
+        } else if row.disposition == SUPPORT {
+            if !bazel_sources.contains(path) {
+                verdict.errors.push(format!(
+                    "inventory support source not declared by Bazel: {path}"
+                ));
+            }
+        } else {
             verdict.errors.push(format!(
-                "unknown disposition {disposition:?} for {path}; want \"eligible\" or \"support\""
+                "unknown disposition {:?} for {path}; want \"eligible\" or \"support\"",
+                row.disposition
             ));
         }
     }
     for file in &verdict.files {
         verdict.covered += file.covered;
         verdict.eligible += file.eligible;
+        verdict.ignored += file.ignored;
     }
     let mut clean = verdict.errors.is_empty();
     for file in &verdict.files {

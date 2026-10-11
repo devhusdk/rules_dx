@@ -15,7 +15,9 @@ current directory tree. Args after `--` go to Bazel unchanged.
 - `--serve`: preview the last build locally after building. Serves the
   rendered site tree, so every page has its own URL. Needs `--apply`:
   without it `dx` builds and names the serve command instead of launching
-  the preview or the browser.
+  the preview or the browser. The preview serves the site tree Bazel
+  reports for the built scope, so an explicit scope previews its own tree.
+  Serve needs exactly one built site tree with an `index.html` entry page.
 - `--port <n>`, `--host <addr>`, `--open`: need `--serve`. `--open` opens
   the preview in a browser.
 - `--output text|json`: result shape. `diff` has no patch.

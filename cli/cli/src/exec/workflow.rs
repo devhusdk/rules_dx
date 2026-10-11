@@ -381,7 +381,7 @@ mod tests {
                 "--output_user_root=/tmp/b".to_owned(),
                 "query".to_owned(),
                 "--".to_owned(),
-                "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
+                "kind('rule', rdeps(//pkg/..., set(\"//pkg:a.py\"), 1))".to_owned(),
             ]
         );
         assert_eq!(run.argv.len(), 1, "{run:?}");

@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test", "rust_test")
 load(":cells.bzl", "INVENTORY_FILES", "coverage_cells")
 load(":cells_tests.bzl", "coverage_cells_tests")
 
@@ -7,7 +7,12 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files(INVENTORY_FILES)
 
-exports_files(["src/main.rs"])
+exports_files([
+    "src/main.rs",
+    "denominator.txt",
+    "measured.txt",
+    "applicability.txt",
+])
 
 coverage_cells(name = "cell_inventories")
 
@@ -42,4 +47,27 @@ rust_clippy_test(
     name = "coverage_bin_clippy_test",
     size = "small",
     targets = [":coverage_bin"],
+)
+
+rust_binary(
+    name = "refresh",
+    srcs = [
+        "src/denominator.rs",
+        "src/refresh.rs",
+    ],
+    crate_name = "refresh",
+    crate_root = "src/refresh.rs",
+    deps = ["//cli/lcov:dx_lcov"],
+)
+
+rustfmt_test(
+    name = "refresh_fmt_test",
+    size = "small",
+    targets = [":refresh"],
+)
+
+rust_clippy_test(
+    name = "refresh_clippy_test",
+    size = "small",
+    targets = [":refresh"],
 )

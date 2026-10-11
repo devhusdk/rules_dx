@@ -1,0 +1,1 @@
+# Cell applicability overrides: `<path> <cell>...` rows for files whose applicable cells differ from the path-marker default.

@@ -827,7 +827,7 @@ pub(super) fn clang_tidy_without_upstream_context_fails_closed() {
         error,
         RunnerError::ToolExecution {
             tool_id: "clang_tidy".to_owned(),
-            detail: "clang_tidy requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected"
+            detail: "clang_tidy requires the target compilation context: run through the C/C++ lint aspect with a declared .clang-tidy policy (direct execution without context is rejected)"
                 .to_owned(),
         }
     );

@@ -13,6 +13,7 @@ CONFIG_REQUIRED_TOOLS = {
     "biome": "Biome",
     "buildifier": "Buildifier",
     "checkstyle": "Checkstyle",
+    "clang_tidy": "ClangTidy",
     "eslint": "ESLint",
     "ruff": "Ruff",
     "vale": "Vale",

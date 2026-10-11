@@ -1,10 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use quality_adapter::exec::Scratch;
 use quality_adapter::launch::ResolvedTool;
 use quality_adapter::parsers::FileFinding;
 use quality_adapter::{commands, parsers};
 
 use super::*;
+
+const TIDY_BUNDLE_REL: &str = "compile_commands.json";
+
+const TIDY_TU_EXTENSIONS: [&str; 4] = ["c", "cc", "cpp", "cxx"];
 
 impl RealBackend {
     pub(super) fn run_check(
@@ -381,7 +386,7 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_clang_format(&out.stdout, out.code, &strs),
+                    parsers::parse_clang_format(&out.stderr, out.code, &strs),
                 )
             }
             "gofumpt" => {
@@ -395,10 +400,16 @@ impl RealBackend {
             "clang_tidy" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_clang_tidy_delegated(tool_id, tool, pairs)
+                } else if tool
+                    .tool_files
+                    .iter()
+                    .any(|(rel, _)| rel == TIDY_BUNDLE_REL)
+                {
+                    self.check_clang_tidy_with_bundle(tool_id, tool, pairs, scratch, config.as_deref())
                 } else {
                     Err(execution(
                         tool_id,
-                        "clang_tidy requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected".to_owned(),
+                        "clang_tidy requires the target compilation context: run through the C/C++ lint aspect with a declared .clang-tidy policy (direct execution without context is rejected)".to_owned(),
                     ))
                 }
             }
@@ -669,5 +680,65 @@ impl RealBackend {
                 ))
         });
         Ok(merged)
+    }
+
+    pub(super) fn check_clang_tidy_with_bundle(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+        scratch: &Scratch,
+        config: Option<&Path>,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let root = scratch.root();
+        let mut units: Vec<(String, PathBuf)> = Vec::new();
+        for (workspace, absolute) in pairs {
+            let extension = absolute
+                .extension()
+                .and_then(|raw| raw.to_str())
+                .unwrap_or_default();
+            if !TIDY_TU_EXTENSIONS.contains(&extension) {
+                continue;
+            }
+            let relative = absolute.strip_prefix(root).map_err(|_| {
+                execution(
+                    tool_id,
+                    format!("clang_tidy staged file escapes its scratch: {workspace}"),
+                )
+            })?;
+            units.push((workspace.clone(), relative.to_path_buf()));
+        }
+        if units.is_empty() {
+            return Ok(Vec::new());
+        }
+        let workspaces: Vec<&str> = units
+            .iter()
+            .map(|(workspace, _)| workspace.as_str())
+            .collect();
+        let rels: Vec<PathBuf> = units
+            .iter()
+            .map(|(_, relative)| relative.clone())
+            .collect();
+        let refs: Vec<&Path> = rels.iter().map(PathBuf::as_path).collect();
+        let invocation = commands::clang_tidy_check(&tool.binary, &refs, config, Some(root));
+        let out = self.run(tool_id, tool, &invocation, scratch)?;
+        if out.code != Some(0) && out.code != Some(1) {
+            let code = out
+                .code
+                .map_or_else(|| "signal".to_owned(), |code| code.to_string());
+            return Err(execution(
+                tool_id,
+                format!("clang_tidy exited {code} without reporting findings"),
+            ));
+        }
+        let mut findings = parsed(
+            tool_id,
+            parsers::parse_clang_tidy(&out.stdout, out.code, &workspaces),
+        )?;
+        for found in &mut findings {
+            let absolute = reanchor(tool_id, pairs, &found.file)?;
+            found.file = absolute.to_string_lossy().into_owned();
+        }
+        Ok(findings)
     }
 }

@@ -18,6 +18,7 @@ enum Mode {
     Diff0,
     Warn,
     Diff,
+    Clang,
     Listed,
     ListedRel,
     YamlReport,
@@ -58,6 +59,9 @@ fn mode_for(ext: &str) -> Mode {
         "jsonnet" | "pkl" | "mod" => Mode::Listed,
         "tf" => Mode::ListedRel,
         "yaml" => Mode::YamlReport,
+        "c" | "h" | "cc" | "cpp" | "cxx" | "hh" | "hpp" | "hxx" | "cu" | "cuh" => {
+            Mode::Clang
+        }
         _ => Mode::Diff,
     }
 }
@@ -295,6 +299,34 @@ fn emit_diff(file: &str, header: Header) {
     );
 }
 
+fn emit_clang(files: &[String]) -> i32 {
+    let mut dirty = false;
+    for file in files {
+        let bytes = match std::fs::read(file) {
+            Ok(bytes) => bytes,
+            Err(_) => continue,
+        };
+        let Some((line, column)) = marker_position(&bytes) else {
+            continue;
+        };
+        dirty = true;
+        let echo: String = String::from_utf8_lossy(&bytes)
+            .lines()
+            .nth(line as usize - 1)
+            .unwrap_or("")
+            .to_string();
+        let caret = format!("{:>width$}^", "", width = column as usize - 1);
+        eprintln!("{file}:{line}:{column}: error: code should be clang-formatted [-Wclang-format-violations]");
+        eprintln!("{echo}");
+        eprintln!("{caret}");
+    }
+    if dirty {
+        1
+    } else {
+        0
+    }
+}
+
 pub fn run(argv: &[String]) -> i32 {
     let cwd = match std::env::current_dir() {
         Ok(cwd) => cwd,
@@ -403,6 +435,7 @@ pub fn run(argv: &[String]) -> i32 {
                 0
             }
         }
+        Mode::Clang => emit_clang(&files),
         Mode::ListedRel => {
             let mut dirty = false;
             for file in &files {
@@ -494,6 +527,13 @@ mod tests {
     #[test]
     fn ruby_reports_rubocop_offenses_rather_than_a_diff() {
         assert_eq!(mode_for("rb"), Mode::Offenses);
+    }
+
+    #[test]
+    fn c_family_reports_clang_diagnostics_rather_than_a_diff() {
+        for ext in ["c", "h", "cc", "cpp", "cxx", "hh", "hpp", "hxx", "cu", "cuh"] {
+            assert_eq!(mode_for(ext), Mode::Clang, "{ext}");
+        }
     }
 
     #[test]

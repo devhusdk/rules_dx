@@ -23,7 +23,7 @@ const MAX_PACKAGE_DIRS: usize = 200;
 
 const MAX_VISITED_DIRS: usize = 2000;
 
-const QUERY_TIMEOUT: Duration = Duration::from_millis(1500);
+pub(crate) const QUERY_TIMEOUT: Duration = Duration::from_millis(1500);
 
 /// Serve the shell request in COMPLETE, and report whether there was one.
 pub fn try_complete() -> Result<bool, String> {

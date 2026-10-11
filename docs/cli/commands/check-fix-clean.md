@@ -55,7 +55,8 @@ dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]
 ```
 
 Reports unselected managed state under `.dx` by default and deletes
-nothing. Pass `--apply` to prune it. Never touches Bazel outputs unless
+nothing. Pass `--apply` to prune it. A generation a live reader still
+holds is never pruned. Never touches Bazel outputs unless
 `--bazel` is combined with `--apply` to also run `bazel clean`. Takes no
 scopes. `--dry-run` only lists what would go and always succeeds.
 

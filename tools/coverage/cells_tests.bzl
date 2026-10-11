@@ -7,6 +7,7 @@ _CELL_ROWS = [
     "qualified linux_arm64 tools/coverage/arm64-inventory.txt",
     "qualified macos_arm64 tools/coverage/macos-arm64-inventory.txt",
     "qualified windows_x86_64 tools/coverage/windows-x86_64-inventory.txt",
+    "qualified windows_arm64 tools/coverage/windows-arm64-inventory.txt",
 ]
 
 _CELL_ENTRIES = [
@@ -14,6 +15,7 @@ _CELL_ENTRIES = [
     "\"linux_arm64\": \"tools/coverage/arm64-inventory.txt\"",
     "\"macos_arm64\": \"tools/coverage/macos-arm64-inventory.txt\"",
     "\"windows_x86_64\": \"tools/coverage/windows-x86_64-inventory.txt\"",
+    "\"windows_arm64\": \"tools/coverage/windows-arm64-inventory.txt\"",
 ]
 
 def coverage_cells_tests(name):

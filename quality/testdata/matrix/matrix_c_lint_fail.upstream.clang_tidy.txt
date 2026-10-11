@@ -1,1 +1,6 @@
-matrix/clang_tidy_dirty.c:4:3: warning: do not use 'else' after 'return' [readability-else-after-return]
+matrix/clang_tidy_dirty.c:7:5: error: do not use 'else' after 'return' [readability-else-after-return,-warnings-as-errors]
+    7 |   } else {
+      |     ^~~~~~
+    8 |     return 0;
+    9 |   }
+      |   ~

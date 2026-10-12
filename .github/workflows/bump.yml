@@ -201,7 +201,7 @@ jobs:
           bazel run --noshow_progress "$@" //tools/bazelrc:preset_update -- --verify-only
           bazel build --noshow_progress //... "$@"
           bazel test --noshow_progress --test_timeout=300 //... "$@"
-          bazel run "$@" --noshow_progress //cli/cli:dx -- coverage --min-coverage 96 //... -- "$@"
+          bazel run "$@" --noshow_progress //cli/cli:dx -- coverage --min-coverage 100 //... -- "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- lint --check //... -- "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- typecheck --check //... -- "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- format --check //... -- "$@"
@@ -273,7 +273,7 @@ jobs:
           gh auth setup-git
           git push --set-upstream origin "$branch"
           # One dep per PR, never batch.
-          gh pr create --title "bump $SELECTOR to $VERSION" --body "Widen-one-requirement loop (issue #260): one dep per PR, never batch. Verification: regen, preset flag-diff, bazel build //..., bazel test //... (with CI flaky/timeout flags), dx coverage --min-coverage 96 //... plus dx lint/typecheck/format --check //... plus dx security/license //... dogfood gates (seed host; full host matrix in CI). Automerge toggle: $AUTOMERGE (on merges solely on the full required-check set; off leaves the PR open). Human merge path preserved." --label dependencies
+          gh pr create --title "bump $SELECTOR to $VERSION" --body "Widen-one-requirement loop (issue #260): one dep per PR, never batch. Verification: regen, preset flag-diff, bazel build //..., bazel test //... (with CI flaky/timeout flags), dx coverage --min-coverage 100 //... plus dx lint/typecheck/format --check //... plus dx security/license //... dogfood gates (seed host; full host matrix in CI). Automerge toggle: $AUTOMERGE (on merges solely on the full required-check set; off leaves the PR open). Human merge path preserved." --label dependencies
           if [[ "$AUTOMERGE" == "true" ]]; then
             # Automerge only on the full required-check set.
             gh pr merge --auto --squash "$branch"
@@ -292,4 +292,4 @@ jobs:
         if: always()
         run: |
           echo "### bump widen-one — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 96 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + fork-safety + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 100 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + fork-safety + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"

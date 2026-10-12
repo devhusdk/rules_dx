@@ -5,6 +5,7 @@ RELEASE_MATRIX = [
     ("dx-linux-arm64", "linux", "arm64", "qualified-host-evidence", "Required"),
     ("dx-macos-arm64", "macos", "arm64", "qualified-host-evidence", "Required"),
     ("dx-windows-x86_64", "windows", "x86_64", "qualified-host-evidence", "Required"),
+    ("dx-windows-arm64", "windows", "arm64", "unqualified-missing-native-evidence", "Required"),
 ]
 
 def release_matrix_names():

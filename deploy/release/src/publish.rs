@@ -202,6 +202,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             {"name": "dx-linux-arm64", "status": "qualified-host-evidence"},
             {"name": "dx-macos-arm64", "status": "qualified-host-evidence"},
             {"name": "dx-windows-x86_64", "status": "qualified-host-evidence"},
+            {"name": "dx-windows-arm64", "status": "unqualified-missing-native-evidence"},
         ],
         "sbom": {
             "linkage_ok": true,
@@ -387,6 +388,35 @@ mod tests {
         assert_eq!(report["draft_dry_run"]["ok"], serde_json::json!(true));
         assert_eq!(report["signing_dry_run"]["ok"], serde_json::json!(true));
         assert!(outcome.report.ends_with('\n'));
+    }
+
+    #[test]
+    fn report_release_matrix_names_all_five_cells() {
+        let dir = scratch();
+        let inputs = valid_inputs(dir.path());
+        let outcome = publish_dry_run_check(&inputs).expect("valid stage verifies");
+        let report: serde_json::Value =
+            serde_json::from_str(&outcome.report).expect("report is JSON");
+        let names: Vec<&str> = report["release_matrix"]
+            .as_array()
+            .expect("release_matrix is an array")
+            .iter()
+            .map(|cell| cell["name"].as_str().expect("cell has a name"))
+            .collect();
+        assert_eq!(
+            names,
+            vec![
+                "dx-linux-x86_64",
+                "dx-linux-arm64",
+                "dx-macos-arm64",
+                "dx-windows-x86_64",
+                "dx-windows-arm64",
+            ]
+        );
+        assert_eq!(
+            report["release_matrix"][4]["status"],
+            serde_json::json!("unqualified-missing-native-evidence")
+        );
     }
 
     #[test]

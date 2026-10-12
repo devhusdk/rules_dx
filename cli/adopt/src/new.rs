@@ -768,6 +768,85 @@ mod tests {
     }
 
     #[test]
+    fn rust_web_release_pins_track_qualified_metadata() {
+        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let root = std::path::Path::new(&source).join(workspace);
+        let versions = std::fs::read_to_string(root.join("modules/versions.bzl"))
+            .expect("modules/versions.bzl ships as test data");
+        let module = std::fs::read_to_string(root.join("MODULE.bazel"))
+            .expect("MODULE.bazel ships as test data");
+        let bazelversion = std::fs::read_to_string(root.join(".bazelversion"))
+            .expect(".bazelversion ships as test data");
+        for (key, value) in [
+            ("BAZEL_VERSION", RUST_WEB_BAZEL_VERSION),
+            ("PLATFORMS_VERSION", RUST_WEB_PLATFORMS_VERSION),
+            ("RUST_EDITION", RUST_WEB_EDITION),
+        ] {
+            assert!(
+                versions.contains(&format!("{key} = \"{value}\"")),
+                "{key} drifts from modules/versions.bzl"
+            );
+        }
+        assert_eq!(bazelversion.trim(), RUST_WEB_BAZEL_VERSION);
+        for needle in [
+            format!(
+                "bazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"{RULES_RUST_WASM_BINDGEN_VERSION}\")"
+            ),
+            format!(
+                "bazel_dep(name = \"platforms\", version = \"{RUST_WEB_PLATFORMS_VERSION}\")"
+            ),
+            format!("wasm-bindgen-{RUST_WEB_WASM_BINDGEN_CRATE_VERSION}"),
+        ] {
+            assert!(
+                module.contains(&needle),
+                "root MODULE.bazel drifts from the rust-web scaffold: {needle}"
+            );
+        }
+    }
+
+    #[test]
+    fn rust_web_repo_closure_matches_the_root_module_closure() {
+        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let module = std::fs::read_to_string(
+            std::path::Path::new(&source)
+                .join(workspace)
+                .join("MODULE.bazel"),
+        )
+        .expect("MODULE.bazel ships as test data");
+        let marker = "use_repo(\n    wasm_bindgen,";
+        let start = module
+            .find(marker)
+            .expect("root MODULE.bazel names no wasm_bindgen use_repo");
+        let rest = &module[start + marker.len()..];
+        let end = rest
+            .find("\n)")
+            .expect("root MODULE.bazel never closes the wasm_bindgen use_repo");
+        let mut pinned: Vec<String> = Vec::new();
+        for line in rest[..end].lines() {
+            let name = line.trim().trim_matches(',').trim_matches('"').to_owned();
+            if !name.is_empty() {
+                pinned.push(name);
+            }
+        }
+        let mut scaffolded: Vec<String> = RUST_WEB_WASM_REPOS
+            .iter()
+            .map(|repo| repo.to_string())
+            .collect();
+        pinned.sort();
+        scaffolded.sort();
+        assert_eq!(pinned, scaffolded);
+        let generated = rust_web_module_bazel("demo");
+        for repo in RUST_WEB_WASM_REPOS {
+            assert!(
+                generated.contains(&format!("\"{repo}\",")),
+                "scaffolded MODULE.bazel omits {repo}"
+            );
+        }
+    }
+
+    #[test]
     fn default_name_and_parent_collisions_are_explicit() {
         let files = plan_new_files("rust", "").expect("default name");
         assert!(files

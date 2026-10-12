@@ -35,6 +35,7 @@ filegroup(
         "consumer-ci/README.md",
         "docs-ci/README.md",
         "//examples/mixed/hello:README.md",
+        "//examples/shared-rust:README.md",
     ],
 )
 
@@ -56,6 +57,7 @@ real_source_target(
         "//examples/adopt-rust:README.md",
         "//examples/adopt-scala:README.md",
         "//examples/mixed/hello:README.md",
+        "//examples/shared-rust:README.md",
     ],
     markdown_srcs = [
         "README.md",

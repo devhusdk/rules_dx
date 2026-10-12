@@ -141,8 +141,8 @@ fn strict_typo_suggestions_come_from_the_same_grammar() {
 #[test]
 fn strict_repeated_flags_are_last_wins() {
     for (words, command) in [
-        (vec!["build", "--here", "--cwd"], Command::Build),
-        (vec!["build", "--cwd", "--here"], Command::Build),
+        (vec!["build", "--here", "--here"], Command::Build),
+        (vec!["lint", "--here", "--here"], Command::Lint),
         (vec!["lint", "--check", "--check"], Command::Lint),
         (vec!["lint", "--quiet", "--quiet"], Command::Lint),
         (vec!["build", "-vv"], Command::Build),
@@ -160,10 +160,22 @@ fn strict_repeated_flags_are_last_wins() {
         }
     }
     assert!(
-        parse(&strings(&["build", "--here", "--cwd"]))
+        parse(&strings(&["build", "--here", "--here"]))
             .expect("here")
             .here
     );
+    for words in [
+        vec!["build", "--here", "--cwd"],
+        vec!["build", "--cwd", "--here"],
+        vec!["lint", "--cwd"],
+        vec!["lint", "--cwd=true"],
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["--cwd", "--here"],
+        );
+    }
     assert!(parse(&strings(&["build", "-vv"])).expect("verbose").verbose);
     assert!(
         parse(&strings(&["build", "--debug", "--release"])).is_err(),

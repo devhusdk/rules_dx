@@ -55,7 +55,7 @@ Patterns, paths, and multiple labels are usage errors.
   to the owning targets. The ownership query covers the narrowest package
   scope containing the files instead of the whole workspace.
 - Paths with control characters in a file or directory name are refused.
-- `--here` (`--cwd` alias): the current directory tree (`//path/...`,
+- `--here`: the current directory tree (`//path/...`,
   `//...` at the root). Never combines with explicit scopes. Accepted by
   `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
   `dx format`, `dx generate`, `dx check`, `dx fix`, `dx security`,

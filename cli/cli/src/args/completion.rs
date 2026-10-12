@@ -755,6 +755,7 @@ mod tests {
             "--open",
             "--offline",
             "--frozen",
+            "--cwd",
         ] {
             assert!(
                 !flags.iter().any(|value| value == flag),

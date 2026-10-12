@@ -66,7 +66,7 @@ pub enum ArgsError {
         second: &'static str,
     },
     /// The here tree was asked for alongside explicit scopes.
-    #[error("option \"--here/--cwd\" cannot be combined with explicit scopes")]
+    #[error("option \"--here\" cannot be combined with explicit scopes")]
     ConflictingHere,
     /// No scope was given where one was required.
     #[error(

@@ -447,7 +447,7 @@ pub fn apply_here(
     let scope = here_scope(workspace, cwd)?;
     let mut next = invocation.clone();
     if !next.targets.is_empty() {
-        return Err("option \"--here/--cwd\" cannot be combined with explicit scopes".to_owned());
+        return Err("option \"--here\" cannot be combined with explicit scopes".to_owned());
     }
     next.targets = vec![scope];
     next.here = false;
@@ -632,14 +632,18 @@ mod tests {
             resolved.targets.is_empty(),
             "bare subdir must stay empty (=//...)"
         );
-        let aliased = crate::args::parse(
+        let err = crate::args::parse(
             &["lint", "--cwd"]
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
         )
-        .expect("cwd alias parses");
-        assert!(aliased.here, "--cwd must set here");
+        .unwrap_err();
+        let crate::args::ArgsError::Usage { text } = &err else {
+            panic!("--cwd must be unknown, got {err:?}");
+        };
+        assert!(text.contains("--cwd"), "tip names the retired flag: {text}");
+        assert!(text.contains("--here"), "tip points at --here: {text}");
     }
 
     fn parsed(words: &[&str]) -> Invocation {

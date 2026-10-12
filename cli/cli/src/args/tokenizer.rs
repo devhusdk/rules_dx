@@ -45,27 +45,42 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
                 text: Cli::command().render_version().to_string(),
             }
         }
-        clap::error::ErrorKind::UnknownArgument => {
-            unsupported_option(args, error).unwrap_or_else(|| ArgsError::Usage {
+        clap::error::ErrorKind::UnknownArgument => unsupported_option(args, error)
+            .or_else(|| retired_cwd_alias(error))
+            .unwrap_or_else(|| ArgsError::Usage {
                 text: without_usage(&error.render().to_string()),
-            })
-        }
+            }),
         _ => ArgsError::Usage {
             text: without_usage(&error.render().to_string()),
         },
     }
 }
 
-/// The flag name the parser reports, with visible aliases spelled canonically.
+/// The retired cwd alias, reported as unknown with a tip at here.
+fn retired_cwd_alias(error: &clap::Error) -> Option<ArgsError> {
+    use clap::error::{ContextKind, ContextValue};
+    let token = match error.get(ContextKind::InvalidArg) {
+        Some(ContextValue::String(token)) => token.clone(),
+        _ => return None,
+    };
+    let name = token.split('=').next().unwrap_or(&token);
+    if name != "--cwd" {
+        return None;
+    }
+    Some(ArgsError::Usage {
+        text: format!(
+            "error: unexpected argument '{token}' found\n\n  tip: a similar argument exists: '--here'"
+        ),
+    })
+}
+
+/// The flag name the parser reports.
 fn reported_flag(token: &str) -> Option<String> {
     if !token.starts_with("--") {
         return None;
     }
     let name = token.split('=').next().unwrap_or(token);
-    Some(match name {
-        "--cwd" => "--here".to_owned(),
-        _ => name.to_owned(),
-    })
+    Some(name.to_owned())
 }
 
 /// Every long flag name any command's grammar accepts.

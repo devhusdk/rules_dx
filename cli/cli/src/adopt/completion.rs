@@ -3,18 +3,13 @@ use std::io::Write;
 use crate::args::Invocation;
 use crate::exec::common::check_stdout_write;
 
-use super::{operational, pre_exec, summaries_suppressed};
-
-pub(crate) const CODE_COMPLETION_FAILED: &str = "completion_failed";
+use super::{pre_exec, summaries_suppressed};
 
 pub(crate) fn execute_completion(
     invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    if invocation.check {
-        return execute_completion_check(invocation, out, err);
-    }
     let shell = invocation.targets.first().map(String::as_str).unwrap_or("");
     if !crate::args::COMPLETION_SHELLS.contains(&shell) {
         return pre_exec(err, &format!("unknown-shell: {shell}"));
@@ -38,65 +33,6 @@ pub(crate) fn execute_completion(
         }
         Err(error) => pre_exec(err, &error.to_string()),
     }
-}
-
-fn execute_completion_check(
-    invocation: &Invocation,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-) -> i32 {
-    let shells: Vec<&str> = if invocation.targets.is_empty() {
-        crate::args::COMPLETION_SHELLS.to_vec()
-    } else {
-        vec![invocation.targets[0].as_str()]
-    };
-    for shell in &shells {
-        if !crate::args::COMPLETION_SHELLS.contains(shell) {
-            return pre_exec(err, &format!("unknown-shell: {shell}"));
-        }
-    }
-    if invocation.dry_run {
-        if !summaries_suppressed(invocation) {
-            if shells.len() == 1 {
-                if let Err(exit) =
-                    check_stdout_write(writeln!(out, "would check completion for {}", shells[0]))
-                {
-                    return exit;
-                }
-            } else {
-                if let Err(exit) = check_stdout_write(writeln!(out, "would check completion")) {
-                    return exit;
-                }
-            }
-        }
-        return 0;
-    }
-    for shell in &shells {
-        match crate::args::render_completion(shell) {
-            Ok(script) => {
-                if !crate::args::registers_callback(&script, shell) {
-                    return operational(
-                        invocation,
-                        out,
-                        err,
-                        CODE_COMPLETION_FAILED,
-                        &format!("completion check failed for {shell}"),
-                    );
-                }
-            }
-            Err(error) => return pre_exec(err, &error.to_string()),
-        }
-    }
-    if shells.len() == 1 {
-        if let Err(exit) = check_stdout_write(writeln!(out, "completion ok for {}", shells[0])) {
-            return exit;
-        }
-    } else {
-        if let Err(exit) = check_stdout_write(writeln!(out, "completion ok")) {
-            return exit;
-        }
-    }
-    0
 }
 
 #[cfg(test)]
@@ -170,36 +106,12 @@ mod tests {
     }
 
     #[test]
-    fn completion_check_verifies_without_writing() {
-        for words in [
-            vec!["completion", "bash", "--check"],
-            vec!["completion", "--check"],
-        ] {
-            let inv = invocation(&words);
-            let scratch = dx_test_scratch::scratch("dx-adopt-completion-check-");
-            let root = scratch.path().to_path_buf();
-            let (code, out, _err) = run(&inv, &root);
-            assert_eq!(code, 0, "words: {words:?}");
-            let text = out;
-            assert!(text.contains("completion ok"), "words: {words:?}: {text}");
-            assert!(
-                !text.contains("COMPREPLY=()") || text.contains("completion ok"),
-                "{text}"
-            );
-        }
-        let inv = invocation(&["completion", "bash", "--check"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-completion-check-one-");
+    fn completion_needs_one_known_shell() {
+        let inv = invocation(&["completion", "tcsh"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-completion-unknown-");
         let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        assert!(out.contains("completion ok for bash"));
-        let inv = invocation(&["completion", "tcsh", "--check"]);
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 2);
         assert!(err.contains("unknown-shell"));
-        let inv = invocation(&["completion", "--check", "--dry-run"]);
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        assert!(out.contains("would check completion"));
     }
 }

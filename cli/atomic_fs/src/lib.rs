@@ -60,7 +60,7 @@ pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::Try
                 }
                 std::thread::sleep(LOCK_POLL);
             }
-            Err(other) => return Err(other),
+            Err(other) => return Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
         }
     }
 }
@@ -268,6 +268,23 @@ mod tests {
         ));
         drop(held);
         drop(waiter);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn lock_exclusive_waits_then_acquires() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-lock-wait-");
+        let path = scratch.path().join(".commit.lock");
+        let held = open_lock_file(&path);
+        lock_exclusive(&held, Duration::from_secs(10)).expect("hold lock");
+        let waiter_path = path.clone();
+        let waiter = std::thread::spawn(move || {
+            let file = open_lock_file(&waiter_path);
+            lock_exclusive(&file, Duration::from_secs(30)).expect("waiter acquires");
+        });
+        std::thread::sleep(Duration::from_millis(500));
+        drop(held);
+        waiter.join().expect("waiter thread");
         scratch.close().expect("cleanup");
     }
 }

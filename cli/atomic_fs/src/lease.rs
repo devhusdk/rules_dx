@@ -90,7 +90,7 @@ pub fn lease_path(root: &Path, kind: GenerationUse, hex: &str) -> io::Result<Pat
 fn open_lease_file(path: &Path) -> io::Result<File> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
-    }
+    } // LCOV_EXCL_LINE - reason: lease paths always carry a parent, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
     OpenOptions::new()
         .read(true)
         .write(true)
@@ -118,7 +118,7 @@ pub fn acquire_shared(
                 }
                 std::thread::sleep(super::LOCK_POLL);
             }
-            Err(std::fs::TryLockError::Error(other)) => return Err(other),
+            Err(std::fs::TryLockError::Error(other)) => return Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
         }
     }
 }
@@ -134,7 +134,7 @@ pub fn try_acquire_exclusive(
     match file.try_lock() {
         Ok(()) => Ok(Some(ExclusiveLease { file })),
         Err(std::fs::TryLockError::WouldBlock) => Ok(None),
-        Err(std::fs::TryLockError::Error(other)) => Err(other),
+        Err(std::fs::TryLockError::Error(other)) => Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -279,6 +279,30 @@ mod tests {
     }
 
     #[test]
+    fn shared_handoff_keeps_the_generation_locked() {
+        let scratch = dx_test_scratch::scratch("dx-lease-shared-handoff-");
+        let root = root(scratch.path());
+        let shared = acquire_shared(
+            &root,
+            GenerationUse::Environment,
+            HEX_A,
+            Duration::from_secs(10),
+        )
+        .expect("shared");
+        let file = shared.into_file();
+        assert!(
+            shared_held(&root, GenerationUse::Environment, HEX_A).expect("handoff probe"),
+            "a handed-off shared handle keeps the generation locked"
+        );
+        drop(file);
+        assert!(
+            !shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"),
+            "the generation frees once the handed-off handle drops"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn inherit_value_round_trips_through_the_child_entry() {
         assert_eq!(inherit_value(&[]), "");
         let rendered = inherit_value(&[
@@ -299,6 +323,24 @@ mod tests {
             );
         }
         std::env::remove_var(LEASE_ENV_VAR);
+        assert!(
+            acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
+                .expect("absent inheritance")
+                .is_empty(),
+            "an absent inheritance entry holds no lease"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStrExt as _;
+            std::env::set_var(
+                LEASE_ENV_VAR,
+                std::ffi::OsStr::from_bytes(b"environments:\xff\xfe"),
+            );
+            let err = acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
+                .expect_err("non-UTF-8 inheritance fails closed");
+            assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+            std::env::remove_var(LEASE_ENV_VAR);
+        }
     }
 
     fn spawn_child(test: &str, root: &Path, entries: &str, mode: &str) -> std::process::Child {

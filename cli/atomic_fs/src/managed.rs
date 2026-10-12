@@ -279,6 +279,24 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
+    fn classify_reports_an_unreadable_path() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = scratch("dx-fs-classify-unreadable-");
+        let locked = scratch.path().join("locked");
+        std::fs::create_dir(&locked).expect("locked dir");
+        let child = locked.join("child.txt");
+        std::fs::write(&child, b"x\n").expect("child");
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000))
+            .expect("chmod 000");
+        let err = classify(&child).expect_err("an untraversable parent fails");
+        assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755))
+            .expect("chmod back");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn materializes_bytes_and_reports_the_mechanism() {
         let scratch = scratch("dx-fs-materialize-");
         let source = scratch.path().join("source.toml");
@@ -380,6 +398,33 @@ mod tests {
             EntryKind::Missing,
             "a required link never leaves a copy behind"
         );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn materialize_required_link_keeps_its_identity() {
+        let scratch = scratch("dx-fs-require-link-ok-");
+        let probe_source = scratch.path().join("probe.bin");
+        std::fs::write(&probe_source, b"probe\n").expect("probe source");
+        let probe_link = scratch.path().join("probe-link");
+        if skip_without_link_privileges(file_pointer(&probe_source, &probe_link)) {
+            scratch.close().expect("cleanup");
+            return;
+        }
+        remove_managed(&probe_link).expect("remove probe link");
+        let source = scratch.path().join("pointer.bin");
+        std::fs::write(&source, b"tool\n").expect("source");
+        let destination = scratch.path().join("current");
+        assert_eq!(
+            materialize_file(&source, &destination, LinkPolicy::RequireLink)
+                .expect("required link"),
+            Mechanism::Linked
+        );
+        assert_eq!(
+            std::fs::read_link(&destination).expect("link identity"),
+            source
+        );
+        assert_eq!(classify(&destination).expect("link"), EntryKind::Link);
         scratch.close().expect("cleanup");
     }
 

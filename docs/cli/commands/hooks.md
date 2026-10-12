@@ -23,6 +23,50 @@ Output: `--output text`.
 Exit codes: `0` success, `2` usage errors including extra positionals or an
 invalid module name, `1` scaffolding failed.
 
+### Consumer setup
+
+`dx init --apply` writes `MODULE.bazel.snippet` absent-only. Copy that
+snippet into `MODULE.bazel` to opt into the hermetic C/C++ and Rust
+defaults. The snippet pins `rules_cc`, `llvm`, `rules_rust`, and
+`platforms`, configures the upstream Rust toolchain, and registers the
+LLVM and Rust toolchains. Loading `@rules_dx//cc/rules:defs.bzl` or
+`@rules_dx//rust/rules:defs.bzl` alone registers nothing.
+
+```python
+bazel_dep(name = "rules_dx", version = "0.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "llvm", version = "0.8.19")
+bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "platforms", version = "1.1.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    versions = ["1.98.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@llvm//toolchain:all")
+register_toolchains("@rust_toolchains//:all")
+```
+
+Keep your own toolchains by registering them in your root `MODULE.bazel`.
+A root registration wins over the snippet defaults, so your selection
+applies while the wrappers stay unchanged. The wrappers take no toolchain
+and add no compiler flags. Native host builds are the default on every
+platform. Cross-target and Windows ABI choices
+are explicit advanced setup: the default Windows toolchain uses the GNU
+ABI, and MSVC ABI selection stays a manual step.
+
+```sh
+bazel run @rules_dx//:dx -- init --apply demo
+```
+
+Then build and test the consumer workspace with `bazel build //...`
+and `bazel test //...`. Only Bazel is required. Ordinary `cc_*` and
+`rust_*` rules need no linker paths, `--repo_env` hacks, or per-target
+driver flags.
+
 ## `dx hooks`
 
 ```text

@@ -100,6 +100,31 @@ pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
     Ok(module.to_owned())
 }
 
+pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.22";
+
+pub const CONSUMER_LLVM_VERSION: &str = "0.8.19";
+
+pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";
+
+pub const CONSUMER_PLATFORMS_VERSION: &str = "1.1.0";
+
+pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
+
+pub const CONSUMER_RUST_EDITION: &str = "2021";
+
+pub fn consumer_setup_snippet(module: &str) -> String {
+    format!(
+        "# Add to MODULE.bazel. Hermetic C/C++ and Rust defaults from rules_dx pins.\n# New projects opt in here. A root MODULE registration wins over these\n# defaults, so register your own toolchains to keep your selection. Loading\n# @rules_dx//cc/rules:defs.bzl or @rules_dx//rust/rules:defs.bzl alone\n# registers nothing.\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{rules_cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rules_rust}\")\nbazel_dep(name = \"platforms\", version = \"{platforms}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    versions = [\"{rust_version}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n# module: {module}\n",
+        dx = super::DX_VERSION,
+        rules_cc = CONSUMER_RULES_CC_VERSION,
+        llvm = CONSUMER_LLVM_VERSION,
+        rules_rust = CONSUMER_RULES_RUST_VERSION,
+        platforms = CONSUMER_PLATFORMS_VERSION,
+        edition = CONSUMER_RUST_EDITION,
+        rust_version = CONSUMER_RUST_VERSION,
+    )
+}
+
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
     Ok(vec![
@@ -143,9 +168,7 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         },
         ScaffoldFile {
             path: "MODULE.bazel.snippet".to_owned(),
-            content: format!(
-                "# Add to MODULE.bazel:\nbazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n# module: {module}\n"
-            ),
+            content: consumer_setup_snippet(&module),
         },
     ])
 }
@@ -454,6 +477,61 @@ mod tests {
             super::validate_init_module("Bad Name").unwrap_err().to_string(),
             "invalid module name for dx init: \"Bad Name\": module names start with [a-z0-9] and use [a-z0-9._-] only"
         );
+    }
+
+    #[test]
+    fn init_snippet_registers_the_hermetic_defaults() {
+        let files = plan_init_files("demo").expect("init plans");
+        let snippet = files
+            .iter()
+            .find(|f| f.path == "MODULE.bazel.snippet")
+            .expect("snippet");
+        assert_eq!(snippet.content, super::consumer_setup_snippet("demo"));
+        for wanted in [
+            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")",
+            "bazel_dep(name = \"rules_cc\", version = \"0.2.22\")",
+            "bazel_dep(name = \"llvm\", version = \"0.8.19\")",
+            "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")",
+            "bazel_dep(name = \"platforms\", version = \"1.1.0\")",
+            "use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")",
+            "rust.toolchain(",
+            "edition = \"2021\"",
+            "versions = [\"1.98.0\"]",
+            "use_repo(rust, \"rust_toolchains\")",
+            "register_toolchains(\"@llvm//toolchain:all\")",
+            "register_toolchains(\"@rust_toolchains//:all\")",
+            "registers nothing",
+            "# module: demo\n",
+        ] {
+            assert!(snippet.content.contains(wanted), "missing {wanted}");
+        }
+        assert!(
+            !snippet.content.contains("module(name ="),
+            "the snippet joins a consumer MODULE, it never declares one"
+        );
+        assert!(
+            !snippet.content.contains("local_path_override"),
+            "repository mapping stays with the consumer"
+        );
+    }
+
+    #[test]
+    fn init_snippet_round_trips_through_emitted_files() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-snippet-");
+        let root = scratch.path().to_path_buf();
+        let planned = plan_init_files("demo").expect("init plans");
+        apply_init(&root, "demo").expect("init applies");
+        for file in &planned {
+            let body = std::fs::read_to_string(root.join(&file.path))
+                .unwrap_or_else(|_| panic!("emitted {}", file.path));
+            assert_eq!(body, file.content, "emitted {}", file.path);
+        }
+        let second = apply_init(&root, "demo").expect("init again");
+        assert!(
+            second.iter().any(|p| p == "refused:MODULE.bazel.snippet"),
+            "the snippet is absent-only: {second:?}"
+        );
+        scratch.close().expect("cleanup");
     }
 
     #[test]

@@ -6,6 +6,15 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
 ```
 
+Loading the wrappers registers no toolchain. Opt into the hermetic
+defaults through the `MODULE.bazel.snippet` that `dx init --apply`
+writes. The snippet pins `rules_cc` and `llvm` and registers
+`@llvm//toolchain:all`. Keep your own toolchain by registering it in
+your root `MODULE.bazel`: a root registration wins over the snippet
+defaults. Native host builds are the default. The default Windows
+toolchain uses the GNU ABI. MSVC ABI selection stays a
+manual step.
+
 ## Options
 
 `copts`, `defines`, `features`, `includes` and `linkopts` reach the upstream rule exactly as written. A `select()` value stays a `select()` value. The requested language standard is never translated: `-std=c++23` compiles as C++23.

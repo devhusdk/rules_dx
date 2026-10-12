@@ -62,8 +62,10 @@ pub use preset_fragment::{
     PresetError, PRESET_BAZEL_VERSION,
 };
 pub use scaffold::{
-    apply_init, editor_disposition, editor_language_supported, plan_init_files,
-    scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
+    apply_init, consumer_setup_snippet, editor_disposition, editor_language_supported,
+    plan_init_files, scaffold_dest_within_root, validate_init_module, ScaffoldFile,
+    CONSUMER_LLVM_VERSION, CONSUMER_PLATFORMS_VERSION, CONSUMER_RULES_CC_VERSION,
+    CONSUMER_RULES_RUST_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, DEVCONTAINER_JSON,
     ENVRC_CONTENT,
 };
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};

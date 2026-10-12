@@ -66,7 +66,10 @@ pub use scaffold::{
     scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
     ENVRC_CONTENT,
 };
-pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
+pub use status::{
+    default_status_checks, observed_host_detail, render_status_json, render_status_text,
+    StatusCheck, StatusState,
+};
 pub use upgrade::{
     plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,
     upgrade_restore_command_for, upgrade_retry_command, UpgradePlan,

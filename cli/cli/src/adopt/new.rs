@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn new_rejects_unknown_language_pre_exec() {
-        let inv = invocation(&["new", "ruby", "demo"]);
+        let inv = invocation(&["new", "swift", "demo"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-new-unknown-");
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(&inv, &root);

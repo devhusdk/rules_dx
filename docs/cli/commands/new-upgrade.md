@@ -13,7 +13,8 @@ dx new [--apply] <language> [name]
 
 Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Never overwrites existing files.
+`fsharp`, `c`, `cc`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`,
+`svelte`, `vue`, or `mdx`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 Two spellings scaffold the same projects:
@@ -44,7 +45,9 @@ and `README.md`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `c` carries no package identity. `cc` carries no package
+takes NuGet ids. `ruby` takes gem names. `powershell` takes module names.
+`astro` takes npm names. `svelte` takes npm names. `vue` takes npm names.
+`mdx` takes npm names. `c` carries no package identity. `cc` carries no package
 identity. `cpp` carries no package identity. Rejected names fail before any
 file is written.
 

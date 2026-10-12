@@ -17,6 +17,12 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "cc",
     "cpp",
     "rust-web",
+    "ruby",
+    "powershell",
+    "astro",
+    "svelte",
+    "vue",
+    "mdx",
 ];
 
 pub const RUST_WEB_EDITION: &str = "2021";
@@ -203,12 +209,19 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
         "python" => {
             dx_identity::validate_dotted(&identity, "python project names use [A-Za-z0-9_.-] only")
         }
-        "javascript" | "typescript" => dx_identity::validate_npm(&identity),
+        "javascript" | "typescript" | "astro" | "svelte" | "vue" | "mdx" => {
+            dx_identity::validate_npm(&identity)
+        }
         "go" => dx_identity::validate_go(&identity),
         "java" | "kotlin" | "scala" => {
             dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
         }
         "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
+        "ruby" => dx_identity::validate_dotted(&identity, "ruby gem names use [A-Za-z0-9_.-] only"),
+        "powershell" => dx_identity::validate_dotted(
+            &identity,
+            "powershell module names use [A-Za-z0-9_.-] only",
+        ),
         _ => Ok(()),
     };
     check.map_err(|reason| AdoptError::NewInvalidIdentity {
@@ -514,6 +527,81 @@ fn new_language_files(
                 "module Hello\n\nlet greet name = \"hello \" + name\n".to_owned(),
             ),
         ],
+        "ruby" => vec![
+            (
+                "Gemfile".to_owned(),
+                "source \"https://rubygems.org\"\n".to_owned(),
+            ),
+            (
+                "hello.rb".to_owned(),
+                "module Hello\n  def self.hello(name)\n    \"hello #{name}\"\n  end\nend\n".to_owned(),
+            ),
+        ],
+        "powershell" => vec![
+            (
+                "Hello.ps1".to_owned(),
+                "#!/usr/bin/env pwsh\nWrite-Output \"hello powershell\"\n".to_owned(),
+            ),
+            (
+                "Greet.psm1".to_owned(),
+                "function Get-Greeting {\n    [OutputType([string])]\n    param([string]$Name = \"world\")\n    return \"hello $Name\"\n}\n".to_owned(),
+            ),
+            (
+                "Greet.psd1".to_owned(),
+                "@{\n    RootModule = 'Greet.psm1'\n    ModuleVersion = '0.1.0'\n    GUID = '11111111-1111-1111-1111-111111111111'\n    Author = 'rules_dx'\n    Description = 'Hello module.'\n    PowerShellVersion = '7.0'\n}\n".to_owned(),
+            ),
+        ],
+        "astro" => vec![
+            (
+                "package.json".to_owned(),
+                format!(
+                    "{{\n  \"name\": \"{json_name}\",\n  \"private\": true,\n  \"type\": \"module\"\n}}\n"
+                ),
+            ),
+            (
+                "Hello.astro".to_owned(),
+                "---\nconst message = \"hello world\";\n---\n\n<div class=\"hello\">{message}</div>\n"
+                    .to_owned(),
+            ),
+        ],
+        "svelte" => vec![
+            (
+                "package.json".to_owned(),
+                format!(
+                    "{{\n  \"name\": \"{json_name}\",\n  \"private\": true,\n  \"type\": \"module\"\n}}\n"
+                ),
+            ),
+            (
+                "Hello.svelte".to_owned(),
+                "<script>\n  let name = \"world\";\n</script>\n\n<div class=\"hello\">hello {name}</div>\n"
+                    .to_owned(),
+            ),
+        ],
+        "vue" => vec![
+            (
+                "package.json".to_owned(),
+                format!(
+                    "{{\n  \"name\": \"{json_name}\",\n  \"private\": true,\n  \"type\": \"module\"\n}}\n"
+                ),
+            ),
+            (
+                "Hello.vue".to_owned(),
+                "<template>\n  <div class=\"hello\">{{ message }}</div>\n</template>\n\n<script>\nexport default {\n  name: \"Hello\",\n  computed: {\n    message() {\n      return \"hello world\";\n    },\n  },\n};\n</script>\n"
+                    .to_owned(),
+            ),
+        ],
+        "mdx" => vec![
+            (
+                "package.json".to_owned(),
+                format!(
+                    "{{\n  \"name\": \"{json_name}\",\n  \"private\": true,\n  \"type\": \"module\"\n}}\n"
+                ),
+            ),
+            (
+                "Hello.mdx".to_owned(),
+                "# Hello\n\n<div class=\"hello\">hello</div>\n".to_owned(),
+            ),
+        ],
         _ => vec![
             (
                 "hello.cc".to_owned(),
@@ -575,11 +663,17 @@ mod tests {
         assert_eq!(normalize_new_language("cpp"), Some("cpp"));
         assert_eq!(normalize_new_language("c#"), Some("csharp"));
         assert_eq!(normalize_new_language("f#"), Some("fsharp"));
-        assert_eq!(normalize_new_language("ruby"), None);
+        assert_eq!(normalize_new_language("ruby"), Some("ruby"));
         assert!(new_is_known_language("go"));
         assert!(new_is_known_language("rust-web"));
+        assert!(new_is_known_language("ruby"));
+        assert!(new_is_known_language("powershell"));
+        assert!(new_is_known_language("astro"));
+        assert!(new_is_known_language("svelte"));
+        assert!(new_is_known_language("vue"));
+        assert!(new_is_known_language("mdx"));
         assert!(!new_is_known_language("swift"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 14);
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 20);
     }
 
     #[test]
@@ -642,10 +736,10 @@ mod tests {
             .find(|f| f.path == "demo/.dx/version")
             .expect("version");
         assert_eq!(version.content, format!("{DX_VERSION}\n"));
-        assert!(plan_new_files("ruby", "demo").is_err());
+        assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
-            plan_new_files("ruby", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: ruby (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web)"
+            plan_new_files("swift", "demo").unwrap_err().to_string(),
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx)"
         );
     }
 
@@ -765,6 +859,134 @@ mod tests {
             "{build:?}"
         );
         assert!(plan_new_files("rust-web", "+").is_err());
+    }
+
+    #[test]
+    fn ruby_template_plans_manifest_and_source() {
+        let files = plan_new_files("ruby", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        assert!(paths.contains(&"demo/Gemfile".to_owned()), "{paths:?}");
+        assert!(paths.contains(&"demo/hello.rb".to_owned()), "{paths:?}");
+        let gemfile = files
+            .iter()
+            .find(|f| f.path == "demo/Gemfile")
+            .expect("gemfile");
+        assert!(
+            gemfile.content.contains("source \"https://rubygems.org\""),
+            "{gemfile:?}"
+        );
+        let hello = files
+            .iter()
+            .find(|f| f.path == "demo/hello.rb")
+            .expect("hello");
+        assert!(hello.content.contains("module Hello"), "{hello:?}");
+        assert!(plan_new_files("ruby", "+").is_err());
+    }
+
+    #[test]
+    fn powershell_template_plans_module_and_entrypoint() {
+        let files = plan_new_files("powershell", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        for wanted in ["demo/Hello.ps1", "demo/Greet.psm1", "demo/Greet.psd1"] {
+            assert!(paths.contains(&wanted.to_owned()), "{paths:?}");
+        }
+        let entry = files
+            .iter()
+            .find(|f| f.path == "demo/Hello.ps1")
+            .expect("entry");
+        assert!(entry.content.contains("hello powershell"), "{entry:?}");
+        let module = files
+            .iter()
+            .find(|f| f.path == "demo/Greet.psm1")
+            .expect("module");
+        assert!(module.content.contains("Get-Greeting"), "{module:?}");
+        let manifest = files
+            .iter()
+            .find(|f| f.path == "demo/Greet.psd1")
+            .expect("manifest");
+        assert!(manifest.content.contains("RootModule"), "{manifest:?}");
+        assert!(plan_new_files("powershell", "+").is_err());
+    }
+
+    #[test]
+    fn framework_templates_plan_package_and_component() {
+        for (language, component) in [
+            ("astro", "demo/Hello.astro"),
+            ("svelte", "demo/Hello.svelte"),
+            ("vue", "demo/Hello.vue"),
+            ("mdx", "demo/Hello.mdx"),
+        ] {
+            let files = plan_new_files(language, "demo").expect("plans");
+            let paths = files
+                .iter()
+                .map(|file| file.path.clone())
+                .collect::<Vec<_>>();
+            assert!(
+                paths.contains(&"demo/package.json".to_owned()),
+                "{language} {paths:?}"
+            );
+            assert!(
+                paths.contains(&component.to_owned()),
+                "{language} {paths:?}"
+            );
+            let package = files
+                .iter()
+                .find(|f| f.path == "demo/package.json")
+                .expect("package");
+            assert!(
+                package.content.contains("\"name\": \"demo\""),
+                "{language} {package:?}"
+            );
+            let body = files
+                .iter()
+                .find(|f| f.path == component)
+                .expect("component");
+            assert!(body.content.contains("hello"), "{language} {body:?}");
+            assert!(plan_new_files(language, "+").is_err());
+        }
+    }
+
+    #[test]
+    fn new_language_identities_fold_hyphenated_destinations() {
+        let ruby = plan_new_files("ruby", "teams/My App").expect("plans");
+        assert!(ruby.iter().any(|f| f.path == "teams/My App/Gemfile"));
+        let powershell = plan_new_files("powershell", "teams/My App").expect("plans");
+        assert!(powershell
+            .iter()
+            .any(|f| f.path == "teams/My App/Hello.ps1"));
+        for language in ["astro", "svelte", "vue", "mdx"] {
+            let files = plan_new_files(language, "teams/My App").expect("plans");
+            let package = files
+                .iter()
+                .find(|f| f.path == "teams/My App/package.json")
+                .expect("package");
+            assert!(
+                package.content.contains("\"name\": \"my-app\""),
+                "{language} {package:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn new_language_identities_name_the_ecosystem_rule() {
+        let ruby = derive_new_identity("ruby", "+").unwrap_err();
+        assert_eq!(
+            ruby.to_string(),
+            "invalid package identity for dx new ruby: \"\": ruby gem names use [A-Za-z0-9_.-] only"
+        );
+        let powershell = derive_new_identity("powershell", "+").unwrap_err();
+        assert_eq!(
+            powershell.to_string(),
+            "invalid package identity for dx new powershell: \"\": powershell module names use [A-Za-z0-9_.-] only"
+        );
+        let astro = derive_new_identity("astro", "+").unwrap_err();
+        assert!(astro.to_string().contains("astro"), "{astro}");
     }
 
     #[test]

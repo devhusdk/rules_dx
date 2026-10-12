@@ -64,7 +64,7 @@ pub enum AdoptError {
     PinRecordUnreadable { detail: String },
     #[error("write pin record: {detail}")]
     WritePinRecord { detail: String },
-    #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web)")]
+    #[error("unknown language for dx new: {language} (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web, ruby, powershell, astro, svelte, vue, mdx)")]
     NewUnknownLanguage { language: String },
     #[error("invalid destination for dx new: {name:?}: {reason}")]
     NewInvalidDestination { name: String, reason: String },

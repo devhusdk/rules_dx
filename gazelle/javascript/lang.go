@@ -201,24 +201,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
 		p.entry = !p.test && IsEntryFile(src)
-		seen := make(map[string]bool)
-		p.local = make(map[string]bool)
-		for _, ref := range common.ParseImportRefs(content) {
-			if seen[ref.Root] {
-				if ref.Relative {
-					p.local[ref.Root] = true
-				}
-				continue
-			}
-			if !ref.Relative && common.IsNodeBuiltin(ref.Root) {
-				continue
-			}
-			seen[ref.Root] = true
-			if ref.Relative {
-				p.local[ref.Root] = true
-			}
-			p.imports = append(p.imports, ref.Root)
-		}
+		p.imports, p.local = accumulateImports(common.ParseImportRefs(content))
 		sort.Strings(p.imports)
 		plans = append(plans, p)
 	}
@@ -274,6 +257,29 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		}
 	}
 	return mergeStale(args.File, result)
+}
+
+func accumulateImports(refs []common.ImportRef) ([]string, map[string]bool) {
+	seen := make(map[string]bool)
+	local := make(map[string]bool)
+	var imports []string
+	for _, ref := range refs {
+		if seen[ref.Root] {
+			if ref.Relative {
+				local[ref.Root] = true
+			}
+			continue
+		}
+		if !ref.Relative && common.IsNodeBuiltin(ref.Root) {
+			continue
+		}
+		seen[ref.Root] = true
+		if ref.Relative {
+			local[ref.Root] = true
+		}
+		imports = append(imports, ref.Root)
+	}
+	return imports, local
 }
 
 func claimKind(c Claimant) string {

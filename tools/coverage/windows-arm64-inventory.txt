@@ -50,3 +50,7 @@ support gazelle/mdx/doc.go
 support gazelle/svelte/doc.go
 # package documentation only; ships no executable lines.
 support gazelle/vue/doc.go
+eligible gazelle/javascript/lang.go
+eligible gazelle/javascript/naming.go
+# package documentation only; ships no executable lines.
+support gazelle/javascript/doc.go

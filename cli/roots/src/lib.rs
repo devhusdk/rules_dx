@@ -181,6 +181,67 @@ mod tests {
     }
 
     #[test]
+    fn exact_scope_errors_render_actionable_messages() {
+        assert_eq!(
+            format!("{}", ExactScopeError::MultipleTargets { count: 3 }),
+            "expected at most one target, found 3"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                ExactScopeError::TargetPattern {
+                    value: label("//dx/..."),
+                }
+            ),
+            "invalid target \"//dx/...\": patterns never select scope"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                ExactScopeError::NotTargetLabel {
+                    value: label("dx:codegen"),
+                }
+            ),
+            "invalid target \"dx:codegen\": want an exact // or @ label"
+        );
+    }
+
+    #[test]
+    fn resolve_exact_target_accepts_only_single_exact_labels() {
+        assert_eq!(resolve_exact_target(&[]), Ok(None));
+        assert_eq!(
+            resolve_exact_target(&labels(&["//dx:codegen"])),
+            Ok(Some(label("//dx:codegen")))
+        );
+        assert_eq!(
+            resolve_exact_target(&labels(&["@rules_dx//dx:codegen"])),
+            Ok(Some(label("@rules_dx//dx:codegen")))
+        );
+        assert_eq!(
+            resolve_exact_target(&labels(&["//dx/..."])),
+            Err(ExactScopeError::TargetPattern {
+                value: label("//dx/..."),
+            })
+        );
+        assert_eq!(
+            resolve_exact_target(&labels(&["//dx:code*"])),
+            Err(ExactScopeError::TargetPattern {
+                value: label("//dx:code*"),
+            })
+        );
+        assert_eq!(
+            resolve_exact_target(&labels(&["dx:codegen"])),
+            Err(ExactScopeError::NotTargetLabel {
+                value: label("dx:codegen"),
+            })
+        );
+        assert_eq!(
+            resolve_exact_target(&labels(&["//dx:codegen", "//dx:env"])),
+            Err(ExactScopeError::MultipleTargets { count: 2 })
+        );
+    }
+
+    #[test]
     fn build_argv_composes_baseline_invocation() {
         let plan = repository_plan();
         let argv = build_argv(

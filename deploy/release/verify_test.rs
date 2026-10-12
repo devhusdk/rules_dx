@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use dx_release_tools::{notice_verify_files, sbom_verify_files};
+use dx_release_tools::{
+    bcr_candidate_error, notice_verify_files, render_candidate_metadata, sbom_verify_files,
+    write_bcr_source_for_archive,
+};
 
 fn data(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
@@ -199,4 +202,89 @@ fn an_inventory_entry_without_license_words_fails() {
         error.to_string().contains("missing-notice-text"),
         "got {error}"
     );
+}
+
+const CANDIDATE_VERSION: &str = "1.2.3-rc1";
+
+fn candidate_source(dir: &Path) -> (PathBuf, String) {
+    let (artifact, _, _) = sbom_inputs();
+    let digest = dx_digest::sha256_file_hex(&artifact)
+        .unwrap_or_else(|error| panic!("hash the archived artifact: {error}"));
+    let dst = dir.join("candidate.source.json");
+    write_bcr_source_for_archive(&dst, "rules_dx", CANDIDATE_VERSION, &artifact)
+        .unwrap_or_else(|error| panic!("write candidate source.json: {error}"));
+    (dst, digest)
+}
+
+#[test]
+fn candidate_source_metadata_binds_the_staged_archive() {
+    let dir = scratch();
+    let (source, digest) = candidate_source(dir.path());
+    let text = read(&source);
+    assert!(
+        text.contains("\"integrity\": \"sha256-"),
+        "candidate source.json carries a real SRI integrity, got {text}"
+    );
+    bcr_candidate_error(&text, "rules_dx", CANDIDATE_VERSION, &digest)
+        .unwrap_or_else(|error| panic!("candidate metadata must bind the staged archive: {error}"));
+    let module_dir = dir
+        .path()
+        .join("registry/modules/rules_dx")
+        .join(CANDIDATE_VERSION);
+    std::fs::create_dir_all(&module_dir)
+        .unwrap_or_else(|error| panic!("stage local registry: {error}"));
+    std::fs::write(module_dir.join("source.json"), &text)
+        .unwrap_or_else(|error| panic!("stage source.json: {error}"));
+    let metadata = render_candidate_metadata("rules_dx", CANDIDATE_VERSION)
+        .unwrap_or_else(|error| panic!("render registry metadata: {error}"));
+    std::fs::write(module_dir.join("METADATA.bazel"), &metadata)
+        .unwrap_or_else(|error| panic!("stage METADATA.bazel: {error}"));
+    let staged = read(&module_dir.join("source.json"));
+    bcr_candidate_error(&staged, "rules_dx", CANDIDATE_VERSION, &digest)
+        .unwrap_or_else(|error| panic!("staged registry metadata must bind one SHA: {error}"));
+    let staged_metadata = read(&module_dir.join("METADATA.bazel"));
+    assert!(
+        staged_metadata.contains("version = \"1.2.3-rc1\""),
+        "registry metadata carries the candidate version, got {staged_metadata}"
+    );
+}
+
+#[test]
+fn candidate_source_rejects_a_replaced_archive() {
+    let dir = scratch();
+    let (source, _) = candidate_source(dir.path());
+    let text = read(&source);
+    let zeros = "0".repeat(64);
+    let error = bcr_candidate_error(&text, "rules_dx", CANDIDATE_VERSION, &zeros)
+        .expect_err("a replaced archive for one version must not pass");
+    assert!(error.contains("integrity mismatch"), "got {error}");
+}
+
+#[test]
+fn candidate_source_rejects_wrong_prefix_and_url() {
+    let dir = scratch();
+    let (source, digest) = candidate_source(dir.path());
+    let text = read(&source);
+    let error = bcr_candidate_error(&text, "rules_dx", "1.2.4", &digest)
+        .expect_err("a wrong strip-prefix version must not pass");
+    assert!(error.contains("strip_prefix mismatch"), "got {error}");
+    let tampered = write(
+        dir.path(),
+        "tampered.source.json",
+        &text.replace("v1.2.3-rc1/rules_dx-1.2.3-rc1", "v9.9.9/rules_dx-9.9.9"),
+    );
+    let error = bcr_candidate_error(&read(&tampered), "rules_dx", CANDIDATE_VERSION, &digest)
+        .expect_err("a tampered url must not pass");
+    assert!(error.contains("url mismatch"), "got {error}");
+}
+
+#[test]
+fn interrupted_candidate_publication_fails_closed() {
+    let dir = scratch();
+    let (source, digest) = candidate_source(dir.path());
+    let text = read(&source);
+    let cut = write(dir.path(), "cut.source.json", &text[..text.len() / 2]);
+    let error = bcr_candidate_error(&read(&cut), "rules_dx", CANDIDATE_VERSION, &digest)
+        .expect_err("an interrupted publication must not pass");
+    assert!(error.contains("not JSON"), "got {error}");
 }

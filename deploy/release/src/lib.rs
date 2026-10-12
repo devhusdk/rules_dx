@@ -147,6 +147,186 @@ pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> io::Result<(
     Ok(())
 }
 
+const BASE64_ALPHABET: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+fn base64_encode(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let a = u32::from(chunk[0]);
+        let b = if chunk.len() > 1 {
+            u32::from(chunk[1])
+        } else {
+            0
+        };
+        let c = if chunk.len() > 2 {
+            u32::from(chunk[2])
+        } else {
+            0
+        };
+        let triple = (a << 16) | (b << 8) | c;
+        out.push(BASE64_ALPHABET[((triple >> 18) & 63) as usize] as char);
+        out.push(BASE64_ALPHABET[((triple >> 12) & 63) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(BASE64_ALPHABET[((triple >> 6) & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(BASE64_ALPHABET[(triple & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+pub fn bcr_integrity_of_digest(digest: &str) -> Result<String, String> {
+    let raw = dx_digest::parse_hex(digest).map_err(|_| {
+        format!("bcr: invalid sha256 digest {digest:?}: want 64 lowercase hex chars")
+    })?;
+    Ok(format!("sha256-{}", base64_encode(&raw)))
+}
+
+fn bcr_candidate_version_error(version: &str) -> Result<(), String> {
+    if version == "0.0.0" {
+        return Err("bcr: version 0.0.0 is unpublishable (shape check only); candidate source metadata needs an owner-approved SemVer release version".to_owned());
+    }
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() != 3
+        || parts
+            .iter()
+            .any(|part| part.chars().next().is_none_or(|c| !c.is_ascii_digit()))
+    {
+        return Err(format!(
+            "bcr: invalid version '{version}': want SemVer MAJOR.MINOR.PATCH (for example '1.2.3-rc1')"
+        ));
+    }
+    Ok(())
+}
+
+pub fn bcr_source_url(module: &str, version: &str) -> String {
+    format!(
+        "https://github.com/ralvik/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"
+    )
+}
+
+pub fn bcr_strip_prefix(module: &str, version: &str) -> String {
+    format!("{module}-{version}")
+}
+
+pub fn render_bcr_source_for_digest(
+    module: &str,
+    version: &str,
+    digest: &str,
+) -> Result<String, String> {
+    if module != BCR_WANT_MODULE {
+        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
+    }
+    bcr_candidate_version_error(version)?;
+    let integrity = bcr_integrity_of_digest(digest)?;
+    Ok(render_pretty(&serde_json::json!({
+        "integrity": integrity,
+        "strip_prefix": bcr_strip_prefix(module, version),
+        "url": bcr_source_url(module, version),
+    })))
+}
+
+pub fn write_bcr_source_for_archive(
+    dst: &Path,
+    module: &str,
+    version: &str,
+    archive: &Path,
+) -> io::Result<String> {
+    let digest = dx_digest::sha256_file_hex(archive)?;
+    let text = render_bcr_source_for_digest(module, version, &digest).map_err(io::Error::other)?;
+    std::fs::write(dst, text.as_bytes())?;
+    bcr_integrity_of_digest(&digest).map_err(io::Error::other)
+}
+
+pub fn render_candidate_metadata(module: &str, version: &str) -> Result<String, String> {
+    if module != BCR_WANT_MODULE {
+        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
+    }
+    bcr_candidate_version_error(version)?;
+    Ok(format!(
+        "module(\n    name = \"{module}\",\n    version = \"{version}\",\n    compatibility_level = 1,\n)\n"
+    ))
+}
+
+pub fn bcr_candidate_error(
+    source_text: &str,
+    module: &str,
+    version: &str,
+    digest: &str,
+) -> Result<(), String> {
+    let value: serde_json::Value = serde_json::from_str(source_text).map_err(|error| {
+        format!("bcr: candidate source.json is not JSON (interrupted publication?): {error}")
+    })?;
+    let want_integrity = bcr_integrity_of_digest(digest)?;
+    let integrity = value
+        .get("integrity")
+        .and_then(|field| field.as_str())
+        .unwrap_or("");
+    if integrity != want_integrity {
+        return Err(format!(
+            "bcr: candidate source.json integrity mismatch: archive sha256 {digest} wants {want_integrity:?}, metadata carries {integrity:?} (refusing to replace immutable version artifacts)"
+        ));
+    }
+    let want_prefix = bcr_strip_prefix(module, version);
+    let prefix = value
+        .get("strip_prefix")
+        .and_then(|field| field.as_str())
+        .unwrap_or("");
+    if prefix != want_prefix {
+        return Err(format!(
+            "bcr: candidate source.json strip_prefix mismatch: want {want_prefix:?}, got {prefix:?}"
+        ));
+    }
+    let want_url = bcr_source_url(module, version);
+    let url = value
+        .get("url")
+        .and_then(|field| field.as_str())
+        .unwrap_or("");
+    if url != want_url {
+        return Err(format!(
+            "bcr: candidate source.json url mismatch: want {want_url:?}, got {url:?}"
+        ));
+    }
+    Ok(())
+}
+
+pub fn parse_ls_remote_tag(output: &str, tag: &str) -> Option<String> {
+    let want = format!("refs/tags/{tag}");
+    let peeled = format!("refs/tags/{tag}^{{}}");
+    let mut direct: Option<String> = None;
+    for line in output.lines() {
+        let (sha, reference) = match line.split_once('\t') {
+            Some(pair) => pair,
+            None => continue,
+        };
+        if !dx_digest::is_commit_sha(sha) {
+            continue;
+        }
+        if reference == peeled {
+            return Some(sha.to_owned());
+        }
+        if reference == want {
+            direct = Some(sha.to_owned());
+        }
+    }
+    direct
+}
+
+pub fn release_remote_error(tag: &str, ls_remote: Option<&str>) -> Result<String, String> {
+    let output = ls_remote.ok_or_else(|| format!(
+        "release: cannot verify remote tag {tag} (git ls-remote --tags origin failed: no network?); push it beforehand with owner approval (this program never creates or pushes tags)"
+    ))?;
+    parse_ls_remote_tag(output, tag).ok_or_else(|| format!(
+        "release: remote has no tag {tag} (git ls-remote --tags origin); push it beforehand with owner approval (this program never creates or pushes tags)"
+    ))
+}
+
 pub const BCR_WANT_MODULE: &str = "rules_dx";
 pub const SIGNING_TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
 pub const SIGNING_COSIGN_VERSION: &str = "v2.4.1";
@@ -441,9 +621,11 @@ pub fn release_run(
     out.push_str(&format!(
         "release: owner-approved human-run release for {tag}\n"
     ));
-    out.push_str("release: proceeding step by step; any failure stops before publish\n");
     out.push_str(&format!(
-        "release: local tag {tag} exists; remote must already carry it (pushed beforehand with owner approval)\n"
+        "release: checked clean tree, explicit approval, and local tag {tag}; executed no release step\n"
+    ));
+    out.push_str(&format!(
+        "release: verify the remote tag SHA with `git ls-remote --tags origin {tag}` before any publish; this program never creates or pushes tags\n"
     ));
     Ok(out)
 }
@@ -904,6 +1086,208 @@ mod tests {
         assert!(release_run("v1.2.3", "1", false, false, false).is_err());
         let live = release_run("v1.2.3", "1", false, false, true).expect("live");
         assert!(live.contains("owner-approved human-run release for v1.2.3"));
+    }
+
+    #[test]
+    fn release_live_reports_checks_not_execution() {
+        let live = release_run("v1.2.3", "1", false, false, true).expect("live");
+        assert!(live.contains("executed no release step"));
+        assert!(live.contains("git ls-remote --tags origin v1.2.3"));
+        assert!(live.contains("never creates or pushes tags"));
+        assert!(!live.contains("proceeding step by step"));
+    }
+
+    #[test]
+    fn base64_encodes_short_inputs_with_padding() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
+        assert_eq!(base64_encode(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+    }
+
+    #[test]
+    fn bcr_integrity_comes_from_the_archive_sha256() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        assert_eq!(
+            bcr_integrity_of_digest(digest).expect("integrity"),
+            "sha256-qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc="
+        );
+        assert!(bcr_integrity_of_digest("").is_err());
+        assert!(bcr_integrity_of_digest("xyz").is_err());
+        assert!(bcr_integrity_of_digest(&"0".repeat(63)).is_err());
+        assert!(bcr_integrity_of_digest(&"0".repeat(64)).is_ok());
+        assert!(bcr_integrity_of_digest(
+            "A948904F2F0F479B8F8197694B30184B0D2ED1C1CD2A1EC0FB85D299A192A447"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn candidate_source_metadata_comes_from_one_sha() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let text =
+            render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
+        assert_eq!(
+            text,
+            "{\n  \"integrity\": \"sha256-qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc=\",\n  \"strip_prefix\": \"rules_dx-1.2.3-rc1\",\n  \"url\": \"https://github.com/ralvik/rules_dx/releases/download/v1.2.3-rc1/rules_dx-1.2.3-rc1.tar.gz\"\n}\n"
+        );
+        bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", digest).expect("self-validates");
+        assert_eq!(
+            bcr_source_url("rules_dx", "1.2.3"),
+            "https://github.com/ralvik/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz"
+        );
+        assert_eq!(bcr_strip_prefix("rules_dx", "1.2.3"), "rules_dx-1.2.3");
+    }
+
+    #[test]
+    fn candidate_metadata_rejects_shape_versions_and_foreign_modules() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        assert!(render_bcr_source_for_digest("other", "1.2.3", digest).is_err());
+        assert!(render_bcr_source_for_digest("rules_dx", "0.0.0", digest).is_err());
+        for bad in ["", "v1", "1.2", "1.2.3.4", "1..3", ".2.3"] {
+            assert!(
+                render_bcr_source_for_digest("rules_dx", bad, digest).is_err(),
+                "version {bad:?} must fail"
+            );
+        }
+        assert!(render_candidate_metadata("other", "1.2.3").is_err());
+        assert!(render_candidate_metadata("rules_dx", "0.0.0").is_err());
+        let metadata =
+            render_candidate_metadata("rules_dx", "1.2.3-rc1").expect("candidate metadata");
+        assert_eq!(
+            metadata,
+            "module(\n    name = \"rules_dx\",\n    version = \"1.2.3-rc1\",\n    compatibility_level = 1,\n)\n"
+        );
+    }
+
+    #[test]
+    fn candidate_source_rejects_a_swapped_archive_digest() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let text =
+            render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
+        let zeros = "0".repeat(64);
+        let error =
+            bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", &zeros).expect_err("swapped");
+        assert!(error.contains("integrity mismatch"), "got {error}");
+        assert!(error.contains("immutable version artifacts"), "got {error}");
+    }
+
+    #[test]
+    fn candidate_source_rejects_wrong_prefix_and_url() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let text =
+            render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
+        let error =
+            bcr_candidate_error(&text, "rules_dx", "1.2.4", digest).expect_err("wrong version");
+        assert!(error.contains("strip_prefix mismatch"), "got {error}");
+        let other_module =
+            render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
+        let error = bcr_candidate_error(&other_module, "other_rules", "1.2.3-rc1", digest)
+            .expect_err("wrong module");
+        assert!(error.contains("strip_prefix mismatch"), "got {error}");
+        let tampered = text.replace("v1.2.3-rc1/rules_dx-1.2.3-rc1", "v9.9.9/rules_dx-9.9.9");
+        let error =
+            bcr_candidate_error(&tampered, "rules_dx", "1.2.3-rc1", digest).expect_err("tampered");
+        assert!(error.contains("url mismatch"), "got {error}");
+    }
+
+    #[test]
+    fn interrupted_candidate_publication_fails_closed() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let text =
+            render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
+        let cut = text.len() / 2;
+        let error = bcr_candidate_error(&text[..cut], "rules_dx", "1.2.3-rc1", digest)
+            .expect_err("truncated");
+        assert!(error.contains("not JSON"), "got {error}");
+        let error =
+            bcr_candidate_error("{}", "rules_dx", "1.2.3-rc1", digest).expect_err("empty object");
+        assert!(error.contains("integrity mismatch"), "got {error}");
+        let error =
+            bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", "not-hex").expect_err("bad digest");
+        assert!(error.contains("invalid sha256 digest"), "got {error}");
+    }
+
+    #[test]
+    fn write_candidate_source_round_trips_the_archive() {
+        let scratch = scratch_dir();
+        let src = write_artifact(scratch.path(), "candidate.tar.gz", b"candidate bytes\n");
+        let digest = dx_digest::sha256_file_hex(&src).expect("digest");
+        let dst = scratch.path().join("candidate.source.json");
+        let integrity =
+            write_bcr_source_for_archive(&dst, "rules_dx", "1.2.3-rc1", &src).expect("write");
+        assert_eq!(
+            integrity,
+            bcr_integrity_of_digest(&digest).expect("integrity")
+        );
+        let text = std::fs::read_to_string(&dst).expect("read");
+        bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", &digest).expect("validates");
+        assert!(write_bcr_source_for_archive(&dst, "rules_dx", "0.0.0", &src).is_err());
+        assert!(write_bcr_source_for_archive(
+            &dst,
+            "rules_dx",
+            "1.2.3-rc1",
+            &scratch.path().join("missing")
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn ls_remote_parsing_prefers_the_peeled_commit() {
+        let direct = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
+        let peeled = "b948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
+        assert_eq!(
+            parse_ls_remote_tag(
+                &format!("{direct}\trefs/tags/v1.2.3\n{peeled}\trefs/tags/v1.2.3^{{}}\n"),
+                "v1.2.3"
+            ),
+            Some(peeled)
+        );
+        assert_eq!(
+            parse_ls_remote_tag(&format!("{direct}\trefs/tags/v1.2.3\n"), "v1.2.3"),
+            Some(direct)
+        );
+        assert_eq!(parse_ls_remote_tag("", "v1.2.3"), None);
+        assert_eq!(
+            parse_ls_remote_tag("not-a-sha\trefs/tags/v1.2.3\n", "v1.2.3"),
+            None
+        );
+        assert_eq!(
+            parse_ls_remote_tag("garbage without a tab\n", "v1.2.3"),
+            None
+        );
+    }
+
+    #[test]
+    fn ls_remote_matching_is_exact_per_tag() {
+        let sha = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
+        let output = format!("{sha}\trefs/tags/v1.2.30\n{sha}\trefs/tags/v1.2.3\n");
+        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), Some(sha.clone()));
+        let output = format!("{sha}\trefs/tags/v1.2.30\n");
+        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), None);
+        let output = format!("{sha}\trefs/heads/v1.2.3\n");
+        assert_eq!(parse_ls_remote_tag(&output, "v1.2.3"), None);
+    }
+
+    #[test]
+    fn remote_tag_error_fails_closed_without_network_or_tag() {
+        let sha = "a948904f2f0f479b8f8197694b30184b0d2ed1c1".to_owned();
+        let output = format!("{sha}\trefs/tags/v1.2.3\n");
+        assert_eq!(
+            release_remote_error("v1.2.3", Some(&output)).expect("remote"),
+            sha
+        );
+        let error = release_remote_error("v1.2.3", None).expect_err("no network");
+        assert!(error.contains("cannot verify remote tag"), "got {error}");
+        assert!(
+            error.contains("never creates or pushes tags"),
+            "got {error}"
+        );
+        let error = release_remote_error("v9.9.9", Some(&output)).expect_err("missing tag");
+        assert!(error.contains("remote has no tag v9.9.9"), "got {error}");
     }
 
     #[test]

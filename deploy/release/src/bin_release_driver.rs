@@ -65,11 +65,35 @@ fn tag_exists(tag: &str) -> bool {
     git(&["tag", "--list", "v*"]).is_some_and(|out| tag_exists_in(&out, tag))
 }
 
+fn ls_remote_output(tag: &str) -> Option<String> {
+    Command::new("git")
+        .args(["ls-remote", "--tags", "origin", &format!("refs/tags/{tag}")])
+        .output()
+        .ok()
+        .and_then(|out| {
+            if out.status.success() {
+                Some(String::from_utf8_lossy(&out.stdout).into_owned())
+            } else {
+                None
+            }
+        })
+}
+
 fn run(argv: &[String]) -> i32 {
     let tag = resolve_tag(argv).to_owned();
     let approve = approve_of(std::env::var("RELEASE_APPROVE").ok());
     let dry = dry_of(std::env::var("RELEASE_DRY_RUN").ok());
-    run_with(&tag, &approve, dry, tree_dirty(), tag_exists(&tag))
+    let code = run_with(&tag, &approve, dry, tree_dirty(), tag_exists(&tag));
+    if code != 0 || dry {
+        return code;
+    }
+    match dx_release_tools::release_remote_error(&tag, ls_remote_output(&tag).as_deref()) {
+        Ok(sha) => {
+            println!("release: remote tag {tag} verified at {sha} (git ls-remote --tags origin)");
+            0
+        }
+        Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
+    }
 }
 
 fn main() {

@@ -93,10 +93,12 @@ pub fn acquire_commit_lock(root: &ManagedRoot, timeout: Duration) -> Result<Comm
     match super::lock_exclusive(&file, timeout) {
         Ok(()) => Ok(CommitLock { file }),
         Err(std::fs::TryLockError::WouldBlock) => Err(LockError::Busy { path: path.clone() }),
+        // LCOV_EXCL_START - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
         Err(e) => Err(LockError::LockFailed {
             path: path.clone(),
             reason: format!("cannot lock commit lock: {e}"),
         }),
+        // LCOV_EXCL_STOP - reason: end non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 
@@ -160,6 +162,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-commit-lock-");
         let root = root_at(&scratch.path().join(DX_DIR_NAME));
         root.ensure_dir().expect("root");
+        assert_eq!(root.dir(), scratch.path().join(DX_DIR_NAME));
         assert_eq!(
             root.lock_path(),
             scratch.path().join(DX_DIR_NAME).join(COMMIT_LOCK_FILE_NAME)
@@ -301,6 +304,28 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 
+    #[test]
+    #[cfg(unix)]
+    fn stale_stage_in_a_read_only_directory_reports_without_clearing() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = dx_test_scratch::scratch("dx-commit-stage-readonly-");
+        let guarded = scratch.path().join("guarded");
+        std::fs::create_dir(&guarded).expect("guarded dir");
+        let stage = guarded.join("current.next");
+        std::fs::write(&stage, "stale").expect("staged file");
+        std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o555))
+            .expect("chmod 555");
+        let error = clear_stale_stage(&stage).expect_err("unremovable stage fails");
+        assert!(matches!(error, CommitError::Install { .. }));
+        std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o755))
+            .expect("chmod back");
+        assert_eq!(
+            std::fs::read(&stage).expect("refused stage survives"),
+            b"stale"
+        );
+        scratch.close().expect("cleanup");
+    }
+
     fn swap_in(dir: &Path, target: &str) -> PointerSwap {
         PointerSwap {
             current: dir.join("current"),
@@ -387,6 +412,27 @@ mod tests {
         assert_eq!(
             std::fs::read(&marker).expect("prior state survives"),
             b"prior"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn publish_stage_failure_keeps_the_prior_pointer() {
+        let scratch = dx_test_scratch::scratch("dx-commit-publish-stage-");
+        let dir = scratch.path().join("setups");
+        std::fs::create_dir_all(&dir).expect("setups dir");
+        publish_pointer_swap(&swap_in(&dir, "record-a")).expect("first publish");
+        let broken = PointerSwap {
+            current: dir.join("current"),
+            stage: dir.join("absent-parent").join("current.next"),
+            target: PathBuf::from("record-b"),
+            kind: PointerKind::Directory,
+        };
+        let error = publish_pointer_swap(&broken).expect_err("staging without a parent fails");
+        assert!(matches!(error, CommitError::Install { .. }));
+        assert_eq!(
+            std::fs::read_link(dir.join("current")).expect("prior pointer survives"),
+            PathBuf::from("record-a")
         );
         scratch.close().expect("cleanup");
     }

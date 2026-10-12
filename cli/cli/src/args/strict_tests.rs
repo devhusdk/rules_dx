@@ -145,7 +145,7 @@ fn strict_repeated_flags_are_last_wins() {
         (vec!["build", "--cwd", "--here"], Command::Build),
         (vec!["lint", "--check", "--check"], Command::Lint),
         (vec!["lint", "--quiet", "--quiet"], Command::Lint),
-        (vec!["build", "-vv"], Command::Build),
+        (vec!["lint", "--verbose", "--verbose"], Command::Lint),
         (vec!["update", "--offline", "--frozen"], Command::Update),
         (vec!["clean", "--bazel", "--bazel"], Command::Clean),
     ] {
@@ -164,7 +164,16 @@ fn strict_repeated_flags_are_last_wins() {
             .expect("here")
             .here
     );
-    assert!(parse(&strings(&["build", "-vv"])).expect("verbose").verbose);
+    assert!(
+        parse(&strings(&["lint", "--verbose", "--verbose"]))
+            .expect("verbose")
+            .verbose
+    );
+    assert_usage(
+        &["build", "-vv"],
+        parse(&strings(&["build", "-vv"])).unwrap_err(),
+        &["-v", "--verbose"],
+    );
     assert!(
         parse(&strings(&["build", "--debug", "--release"])).is_err(),
         "repeatable flags must not weaken the profile conflict"
@@ -216,13 +225,23 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
     for words in [
         vec!["lint", "--verbose", "--log-level=debug"],
         vec!["lint", "--log-level=debug", "--verbose"],
-        vec!["lint", "-v", "--log-level=info"],
-        vec!["lint", "--log-level=info", "-v"],
     ] {
         assert_usage(
             &words,
             parse(&strings(&words)).unwrap_err(),
             &["--log-level"],
+        );
+    }
+    for words in [
+        vec!["lint", "-v", "--log-level=info"],
+        vec!["lint", "--log-level=info", "-v"],
+        vec!["lint", "-v"],
+        vec!["lint", "-v=false"],
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["-v", "--verbose"],
         );
     }
     for (words, needle) in [

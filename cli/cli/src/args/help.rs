@@ -175,7 +175,7 @@ pub fn usage_banner() -> String {
     let commands = Command::pipe_list();
     let shells = COMPLETION_SHELLS.join("|");
     format!(
-        "usage: dx <{commands}> [--workspace DIR] [--dry-run] [--quiet] [--verbose|-v] \
+        "usage: dx <{commands}> [--workspace DIR] [--dry-run] [--quiet] [--verbose] \
  [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
 [--output text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
@@ -693,7 +693,6 @@ mod tests {
         for needle in [
             "--log-level",
             "--verbose",
-            "-v",
             "RUST_LOG",
             "NO_COLOR",
             "BUILD_WORKSPACE_DIRECTORY",

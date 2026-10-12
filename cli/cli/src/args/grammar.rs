@@ -167,7 +167,6 @@ flag_group! {
     VerboseFlag, {
         #[arg(
             long,
-            short = 'v',
             action = clap::ArgAction::Set,
             num_args = 0..=1,
             require_equals = true,
@@ -845,7 +844,6 @@ mod tests {
             vec!["build", "--debug", "--release"],
             vec!["build", "--release", "--debug"],
             vec!["lint", "--verbose", "--log-level=debug"],
-            vec!["lint", "-v", "--log-level=info"],
         ] {
             assert_eq!(
                 kind_of(&words),
@@ -900,6 +898,21 @@ mod tests {
             vec!["--quiet", "typecheck"],
             vec!["--verbose", "lint"],
             vec!["-v", "lint"],
+        ] {
+            assert_eq!(
+                kind_of(&words),
+                clap::error::ErrorKind::UnknownArgument,
+                "words: {words:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_short_verbose_form_is_unknown() {
+        for words in [
+            vec!["lint", "-v"],
+            vec!["lint", "-v=false"],
+            vec!["build", "-vv"],
         ] {
             assert_eq!(
                 kind_of(&words),

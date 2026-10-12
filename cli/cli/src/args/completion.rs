@@ -723,7 +723,7 @@ mod tests {
             "--workspace",
             "--dry-run",
             "--quiet",
-            "-v",
+            "--verbose",
             "--color",
             "--log-level",
             "--output",
@@ -737,6 +737,10 @@ mod tests {
                 "clap must offer {flag} for dx build: {flags:?}"
             );
         }
+        assert!(
+            !flags.iter().any(|value| value == "-v"),
+            "clap must not offer -v for dx build: {flags:?}"
+        );
         for flag in [
             "--report",
             "--fail-on",

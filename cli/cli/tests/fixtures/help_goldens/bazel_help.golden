@@ -22,7 +22,7 @@ Options:
           
           [possible values: true, false]
 
-  -v, --verbose[=<VERBOSE>]
+      --verbose[=<VERBOSE>]
           Show more logs. =false turns off an inherited default
           
           [possible values: true, false]

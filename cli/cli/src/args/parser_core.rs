@@ -334,8 +334,11 @@ fn verbose_parses_after_the_command_and_stays_orthogonal_to_quiet() {
     assert!(both.quiet);
     assert!(both.verbose);
     assert_eq!(both.output, OutputMode::Text { quiet: true });
-    let short = parse(&strings(&["lint", "-v"])).expect("parse -v");
-    assert!(short.verbose);
+    assert_usage(
+        &["lint", "-v"],
+        parse(&strings(&["lint", "-v"])).unwrap_err(),
+        &["-v", "--verbose"],
+    );
     let help = match parse(&strings(&["lint", "--verbose", "--help"])) {
         Err(ArgsError::Help { text }) => text,
         other => panic!("want Help, got {other:?}"),
@@ -375,7 +378,7 @@ fn log_level_parses_and_conflicts_with_verbose() {
     assert_usage(
         &["lint", "-v", "--log-level=info"],
         parse(&strings(&["lint", "-v", "--log-level=info"])).unwrap_err(),
-        &["--log-level"],
+        &["-v", "--verbose"],
     );
     assert_usage(
         &["lint", "--log-level"],

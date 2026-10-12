@@ -223,7 +223,6 @@ fn a_flag_turns_an_inherited_boolean_off() {
     assert!(!off("--dry-run=false").dry_run, "flag false beats the file");
     assert!(!off("--quiet=false").quiet, "flag false beats the file");
     assert!(!off("--verbose=false").verbose, "flag false beats the file");
-    assert!(!off("-v=false").verbose, "the short form takes a value too");
     let on = |flag: &str| {
         parse_with(&strings(&["lint", flag]), &env_of(&[]), &file)
             .unwrap_or_else(|error| panic!("{flag}: {error:?}"))
@@ -231,7 +230,6 @@ fn a_flag_turns_an_inherited_boolean_off() {
     assert!(on("--dry-run").dry_run, "the bare form stays true");
     assert!(on("--quiet").quiet, "the bare form stays true");
     assert!(on("--verbose").verbose, "the bare form stays true");
-    assert!(on("-v").verbose, "the bare short form stays true");
     assert!(on("--dry-run=true").dry_run, "an explicit true is true");
     let env = env_of(&[(DX_VERBOSE_ENV, "1")]);
     let got = parse_with(&strings(&["lint", "--verbose=false"]), &env, &file)
@@ -395,14 +393,12 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
         out.contains("would report version"),
         "an explicit false turns the inherited quiet off: {out}"
     );
-    for flag in ["--verbose=false", "-v=false"] {
-        let (code, _, err) = run(&["version", flag], &[]);
-        assert_eq!(code, Some(0), "{flag}: {err}");
-        assert!(
-            !err.contains("dx invocation parsed"),
-            "{flag} turns the inherited verbose off: {err}"
-        );
-    }
+    let (code, _, err) = run(&["version", "--verbose=false"], &[]);
+    assert_eq!(code, Some(0), "--verbose=false: {err}");
+    assert!(
+        !err.contains("dx invocation parsed"),
+        "--verbose=false turns the inherited verbose off: {err}"
+    );
     let (code, out, err) = run(&["version", "--output=json"], &[(DX_DRY_RUN_ENV, "1")]);
     assert_eq!(code, Some(0), "{err}");
     assert!(

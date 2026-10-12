@@ -63,7 +63,6 @@ pub const RUST_WEB_WASM_REPOS: &[&str] = &[
 ];
 
 pub const NEW_LANGUAGE_ALIASES: &[(&str, &str)] = &[
-    ("c", "cpp"),
     ("cc", "cpp"),
     ("c#", "csharp"),
     ("f#", "fsharp"),
@@ -388,6 +387,103 @@ fn python_manifest(identity: &str) -> Result<String, AdoptError> {
     })
 }
 
+fn c_build_bazel(identity: &str) -> String {
+    format!(
+        "load(\"@rules_dx//cc/rules:defs.bzl\", \"cc_binary\", \"cc_library\", \"cc_test\")\n\ncc_library(\n    name = \"{identity}\",\n    srcs = [\"hello.c\"],\n    hdrs = [\"hello.h\"],\n)\n\ncc_binary(\n    name = \"{identity}_bin\",\n    srcs = [\"main.c\"],\n    deps = [\":{identity}\"],\n)\n\ncc_test(\n    name = \"{identity}_test\",\n    srcs = [\"hello_test.c\"],\n    deps = [\":{identity}\"],\n)\n"
+    )
+}
+
+fn cpp_build_bazel(identity: &str) -> String {
+    format!(
+        "load(\"@rules_dx//cc/rules:defs.bzl\", \"cc_binary\", \"cc_library\", \"cc_test\")\n\ncc_library(\n    name = \"{identity}\",\n    srcs = [\"hello.cc\"],\n    hdrs = [\"hello.h\"],\n)\n\ncc_binary(\n    name = \"{identity}_bin\",\n    srcs = [\"main.cc\"],\n    deps = [\":{identity}\"],\n)\n\ncc_test(\n    name = \"{identity}_test\",\n    srcs = [\"hello_test.cc\"],\n    deps = [\":{identity}\"],\n)\n"
+    )
+}
+
+fn c_readme(identity: &str) -> String {
+    format!(
+        "# {identity}\n\nMinimal C consumer.\n\n```sh\nbazel build //...\nbazel test //...\n```\n"
+    )
+}
+
+fn cpp_readme(identity: &str) -> String {
+    format!(
+        "# {identity}\n\nMinimal C++ consumer.\n\n```sh\nbazel build //...\nbazel test //...\n```\n"
+    )
+}
+
+fn c_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    Ok(vec![
+        (
+            "hello.c".to_owned(),
+            "#include \"hello.h\"\n\nint AddC(int a, int b) {\n  return a + b;\n}\n".to_owned(),
+        ),
+        (
+            "hello.h".to_owned(),
+            "#pragma once\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nint AddC(int a, int b);\n\n#ifdef __cplusplus\n}\n#endif\n"
+                .to_owned(),
+        ),
+        (
+            "main.c".to_owned(),
+            "#include <stdio.h>\n\n#include \"hello.h\"\n\nint main(void) {\n  printf(\"hello %d\\n\", AddC(40, 2));\n  return 0;\n}\n"
+                .to_owned(),
+        ),
+        (
+            "hello_test.c".to_owned(),
+            "#include <assert.h>\n\n#include \"hello.h\"\n\nint main(void) {\n  assert(AddC(2, 3) == 5);\n  assert(AddC(-1, 1) == 0);\n  return 0;\n}\n"
+                .to_owned(),
+        ),
+        (
+            "BUILD.bazel".to_owned(),
+            c_build_bazel(identity),
+        ),
+        (
+            "MODULE.bazel".to_owned(),
+            super::render_consumer_cc_module(identity),
+        ),
+        (
+            ".bazelversion".to_owned(),
+            format!("{}\n", super::CONSUMER_BAZEL_VERSION),
+        ),
+        ("README.md".to_owned(), c_readme(identity)),
+    ])
+}
+
+fn cpp_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    Ok(vec![
+        (
+            "hello.cc".to_owned(),
+            "#include \"hello.h\"\n\nint Add(int a, int b) {\n  return a + b;\n}\n".to_owned(),
+        ),
+        (
+            "hello.h".to_owned(),
+            "#pragma once\n\nint Add(int a, int b);\n".to_owned(),
+        ),
+        (
+            "main.cc".to_owned(),
+            "#include <iostream>\n\n#include \"hello.h\"\n\nint main() {\n  std::cout << \"hello \" << Add(40, 2) << \"\\n\";\n  return 0;\n}\n"
+                .to_owned(),
+        ),
+        (
+            "hello_test.cc".to_owned(),
+            "#include <cassert>\n\n#include \"hello.h\"\n\nint main() {\n  assert(Add(2, 3) == 5);\n  assert(Add(-1, 1) == 0);\n  return 0;\n}\n"
+                .to_owned(),
+        ),
+        (
+            "BUILD.bazel".to_owned(),
+            cpp_build_bazel(identity),
+        ),
+        (
+            "MODULE.bazel".to_owned(),
+            super::render_consumer_cc_module(identity),
+        ),
+        (
+            ".bazelversion".to_owned(),
+            format!("{}\n", super::CONSUMER_BAZEL_VERSION),
+        ),
+        ("README.md".to_owned(), cpp_readme(identity)),
+    ])
+}
+
 fn new_language_files(
     canonical: &str,
     identity: &str,
@@ -514,6 +610,8 @@ fn new_language_files(
                 "module Hello\n\nlet greet name = \"hello \" + name\n".to_owned(),
             ),
         ],
+        "c" => c_files(identity)?,
+        "cpp" => cpp_files(identity)?,
         _ => vec![
             (
                 "hello.cc".to_owned(),
@@ -570,7 +668,7 @@ mod tests {
     #[test]
     fn new_aliases_normalize_to_canonical_templates() {
         assert_eq!(normalize_new_language("rust"), Some("rust"));
-        assert_eq!(normalize_new_language("c"), Some("cpp"));
+        assert_eq!(normalize_new_language("c"), Some("c"));
         assert_eq!(normalize_new_language("cc"), Some("cpp"));
         assert_eq!(normalize_new_language("cpp"), Some("cpp"));
         assert_eq!(normalize_new_language("c#"), Some("csharp"));
@@ -635,8 +733,11 @@ mod tests {
         assert!(go.iter().any(|f| f.path == "demo/go.mod"));
         let java = plan_new_files("java", "demo").expect("java");
         assert!(java.iter().any(|f| f.path == "demo/Hello.java"));
-        let cpp = plan_new_files("c", "demo").expect("c alias");
+        let cpp = plan_new_files("cpp", "demo").expect("cpp");
         assert!(cpp.iter().any(|f| f.path == "demo/hello.cc"));
+        let c = plan_new_files("c", "demo").expect("c");
+        assert!(c.iter().any(|f| f.path == "demo/hello.c"));
+        assert!(!c.iter().any(|f| f.path == "demo/hello.cc"));
         let version = rust
             .iter()
             .find(|f| f.path == "demo/.dx/version")
@@ -647,6 +748,202 @@ mod tests {
             plan_new_files("ruby", "demo").unwrap_err().to_string(),
             "unknown language for dx new: ruby (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web)"
         );
+    }
+
+    #[test]
+    fn c_template_is_pure_c_with_standalone_module() {
+        let files = plan_new_files("c", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        for wanted in [
+            "demo/hello.c",
+            "demo/hello.h",
+            "demo/main.c",
+            "demo/hello_test.c",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+        ] {
+            assert!(paths.contains(&wanted.to_owned()), "{paths:?}");
+        }
+        assert!(!paths.iter().any(|p| p.ends_with(".cc")));
+        let lib = files
+            .iter()
+            .find(|f| f.path == "demo/hello.c")
+            .expect("hello.c");
+        assert!(lib.content.contains("AddC"), "{lib:?}");
+        assert!(!lib.content.contains("std::"), "{lib:?}");
+        assert!(!lib.content.contains("<string>"), "{lib:?}");
+        assert!(!lib.content.contains("<iostream>"), "{lib:?}");
+        let header = files
+            .iter()
+            .find(|f| f.path == "demo/hello.h")
+            .expect("hello.h");
+        assert!(header.content.contains("AddC"), "{header:?}");
+        assert!(!header.content.contains("std::"), "{header:?}");
+        let main = files
+            .iter()
+            .find(|f| f.path == "demo/main.c")
+            .expect("main.c");
+        assert!(main.content.contains("printf"), "{main:?}");
+        assert!(!main.content.contains("iostream"), "{main:?}");
+        let build = files
+            .iter()
+            .find(|f| f.path == "demo/BUILD.bazel")
+            .expect("BUILD");
+        for wanted in [
+            "load(\"@rules_dx//cc/rules:defs.bzl\"",
+            "cc_library(",
+            "cc_binary(",
+            "cc_test(",
+            "hello.c",
+            "main.c",
+            "hello_test.c",
+            "name = \"demo\"",
+            "name = \"demo_bin\"",
+            "name = \"demo_test\"",
+        ] {
+            assert!(build.content.contains(wanted), "{wanted}");
+        }
+        assert!(!build.content.contains(".cc"), "{build:?}");
+        let module = files
+            .iter()
+            .find(|f| f.path == "demo/MODULE.bazel")
+            .expect("MODULE");
+        assert!(module.content.contains("module(name = \"demo\")"), "{module:?}");
+        assert!(
+            module.content.contains("register_toolchains(\"@llvm//toolchain:all\")"),
+            "{module:?}"
+        );
+        assert!(!module.content.contains("rules_rust"), "{module:?}");
+        let version = files
+            .iter()
+            .find(|f| f.path == "demo/.bazelversion")
+            .expect("bazelversion");
+        assert_eq!(version.content, format!("{}\n", super::CONSUMER_BAZEL_VERSION));
+        let readme = files
+            .iter()
+            .find(|f| f.path == "demo/README.md")
+            .expect("README");
+        assert!(readme.content.contains("bazel build //..."), "{readme:?}");
+        assert!(readme.content.contains("bazel test //..."), "{readme:?}");
+    }
+
+    #[test]
+    fn cpp_template_is_cxx_with_standalone_module() {
+        let files = plan_new_files("cpp", "demo").expect("plans");
+        let paths = files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect::<Vec<_>>();
+        for wanted in [
+            "demo/hello.cc",
+            "demo/hello.h",
+            "demo/main.cc",
+            "demo/hello_test.cc",
+            "demo/BUILD.bazel",
+            "demo/MODULE.bazel",
+            "demo/.bazelversion",
+            "demo/README.md",
+        ] {
+            assert!(paths.contains(&wanted.to_owned()), "{paths:?}");
+        }
+        assert!(!paths.iter().any(|p| p.ends_with("hello.c")));
+        let lib = files
+            .iter()
+            .find(|f| f.path == "demo/hello.cc")
+            .expect("hello.cc");
+        assert!(lib.content.contains("int Add(int a, int b)"), "{lib:?}");
+        let header = files
+            .iter()
+            .find(|f| f.path == "demo/hello.h")
+            .expect("hello.h");
+        assert!(header.content.contains("int Add(int a, int b);"), "{header:?}");
+        assert!(!header.content.contains("AddC"), "{header:?}");
+        let main = files
+            .iter()
+            .find(|f| f.path == "demo/main.cc")
+            .expect("main.cc");
+        assert!(main.content.contains("iostream"), "{main:?}");
+        let build = files
+            .iter()
+            .find(|f| f.path == "demo/BUILD.bazel")
+            .expect("BUILD");
+        for wanted in [
+            "load(\"@rules_dx//cc/rules:defs.bzl\"",
+            "hello.cc",
+            "main.cc",
+            "hello_test.cc",
+        ] {
+            assert!(build.content.contains(wanted), "{wanted}");
+        }
+        let module = files
+            .iter()
+            .find(|f| f.path == "demo/MODULE.bazel")
+            .expect("MODULE");
+        assert!(module.content.contains("module(name = \"demo\")"), "{module:?}");
+    }
+
+    #[test]
+    fn cc_spelling_shares_the_cpp_template() {
+        let cpp = plan_new_files("cpp", "demo").expect("cpp");
+        let cc = plan_new_files("cc", "demo").expect("cc");
+        let strip = |files: Vec<ScaffoldFile>| {
+            files
+                .into_iter()
+                .map(|f| (f.path, f.content))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(strip(cpp), strip(cc));
+        let c = plan_new_files("c", "demo").expect("c");
+        let c_paths = c.iter().map(|f| f.path.clone()).collect::<Vec<_>>();
+        let cpp_paths = plan_new_files("cpp", "demo")
+            .expect("cpp")
+            .iter()
+            .map(|f| f.path.clone())
+            .collect::<Vec<_>>();
+        assert_ne!(c_paths, cpp_paths);
+    }
+
+    #[test]
+    fn c_template_pins_come_from_supported_metadata() {
+        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let versions = std::fs::read_to_string(
+            std::path::Path::new(&source)
+                .join(workspace)
+                .join("modules/versions.bzl"),
+        )
+        .expect("modules/versions.bzl ships as test data");
+        for (key, value) in [
+            ("RULES_CC_VERSION", super::CONSUMER_RULES_CC_VERSION),
+            ("LLVM_VERSION", super::CONSUMER_LLVM_VERSION),
+            ("PLATFORMS_VERSION", super::CONSUMER_PLATFORMS_VERSION),
+            ("BAZEL_VERSION", super::CONSUMER_BAZEL_VERSION),
+        ] {
+            assert!(
+                versions.contains(&format!("{key} = \"{value}\"")),
+                "{key} drifts from modules/versions.bzl"
+            );
+        }
+        let files = plan_new_files("c", "demo").expect("plans");
+        let module = files
+            .iter()
+            .find(|f| f.path == "demo/MODULE.bazel")
+            .expect("MODULE");
+        for wanted in [
+            format!("bazel_dep(name = \"rules_cc\", version = \"{}\"", super::CONSUMER_RULES_CC_VERSION),
+            format!("bazel_dep(name = \"llvm\", version = \"{}\"", super::CONSUMER_LLVM_VERSION),
+            format!(
+                "bazel_dep(name = \"platforms\", version = \"{}\"",
+                super::CONSUMER_PLATFORMS_VERSION
+            ),
+        ] {
+            assert!(module.content.contains(&wanted), "{module:?}");
+        }
     }
 
     #[test]

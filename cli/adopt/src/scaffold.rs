@@ -38,6 +38,10 @@ pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.22";
 
 pub const CONSUMER_LLVM_VERSION: &str = "0.8.19";
 
+pub const CONSUMER_PLATFORMS_VERSION: &str = "1.1.0";
+
+pub const CONSUMER_BAZEL_VERSION: &str = "9.2.0";
+
 pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";
 
 pub const CONSUMER_RUST_EDITION: &str = "2021";
@@ -56,6 +60,16 @@ pub fn render_consumer_module_setup() -> String {
         edition = CONSUMER_RUST_EDITION,
         rustfmt = CONSUMER_RUSTFMT_VERSION,
         rust = CONSUMER_RUST_VERSION,
+    )
+}
+
+pub fn render_consumer_cc_module(identity: &str) -> String {
+    format!(
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"platforms\", version = \"{platforms}\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\n",
+        dx = DX_VERSION,
+        cc = CONSUMER_RULES_CC_VERSION,
+        llvm = CONSUMER_LLVM_VERSION,
+        platforms = CONSUMER_PLATFORMS_VERSION,
     )
 }
 
@@ -239,9 +253,10 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 mod tests {
     use super::super::{
         apply_init, editor_disposition, editor_language_supported, parse_consumer_setup,
-        plan_init_files, CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION,
-        CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION,
-        CONSUMER_RUST_VERSION, DEVCONTAINER_JSON, DX_VERSION,
+        plan_init_files, CONSUMER_BAZEL_VERSION, CONSUMER_LLVM_VERSION,
+        CONSUMER_PLATFORMS_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
+        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
 
@@ -574,6 +589,8 @@ mod tests {
         for (key, value) in [
             ("RULES_CC_VERSION", CONSUMER_RULES_CC_VERSION),
             ("LLVM_VERSION", CONSUMER_LLVM_VERSION),
+            ("PLATFORMS_VERSION", CONSUMER_PLATFORMS_VERSION),
+            ("BAZEL_VERSION", CONSUMER_BAZEL_VERSION),
             ("RULES_RUST_VERSION", CONSUMER_RULES_RUST_VERSION),
             ("RUST_EDITION", CONSUMER_RUST_EDITION),
             ("RUST_VERSION", CONSUMER_RUST_VERSION),

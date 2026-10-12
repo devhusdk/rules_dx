@@ -63,8 +63,9 @@ pub use preset_fragment::{
 };
 pub use scaffold::{
     apply_init, editor_disposition, editor_language_supported, plan_init_files,
-    render_consumer_module_setup, scaffold_dest_within_root, validate_init_module, ScaffoldFile,
-    CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
+    render_consumer_cc_module, render_consumer_module_setup, scaffold_dest_within_root,
+    validate_init_module, ScaffoldFile, CONSUMER_BAZEL_VERSION, CONSUMER_LLVM_VERSION,
+    CONSUMER_PLATFORMS_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
     CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, DEVCONTAINER_JSON,
     ENVRC_CONTENT,
 };

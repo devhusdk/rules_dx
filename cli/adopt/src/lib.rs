@@ -54,7 +54,7 @@ pub use migrate::{
 pub use new::{
     apply_new, default_new_name, derive_new_identity, new_is_known_language,
     new_language_name_list, normalize_new_language, plan_new_files, validate_new_destination,
-    NEW_LANGUAGE_ALIASES, SUPPORTED_NEW_LANGUAGES,
+    SUPPORTED_NEW_LANGUAGES,
 };
 pub use policy::{devcontainer_is_admissible, diagnostics_command_allowed};
 pub use preset_fragment::{

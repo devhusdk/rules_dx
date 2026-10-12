@@ -13,8 +13,6 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "scala",
     "csharp",
     "fsharp",
-    "c",
-    "cc",
     "cpp",
     "rust-web",
 ];
@@ -62,24 +60,11 @@ pub const RUST_WEB_WASM_REPOS: &[&str] = &[
     "safaridriver",
 ];
 
-pub const NEW_LANGUAGE_ALIASES: &[(&str, &str)] = &[
-    ("c", "cpp"),
-    ("cc", "cpp"),
-    ("c#", "csharp"),
-    ("f#", "fsharp"),
-];
-
 pub fn new_language_name_list() -> String {
     SUPPORTED_NEW_LANGUAGES.join(", ")
 }
 
 pub fn normalize_new_language(language: &str) -> Option<&'static str> {
-    if let Some((_, canonical)) = NEW_LANGUAGE_ALIASES
-        .iter()
-        .find(|(alias, _)| *alias == language)
-    {
-        return Some(canonical);
-    }
     SUPPORTED_NEW_LANGUAGES
         .iter()
         .copied()
@@ -568,18 +553,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_aliases_normalize_to_canonical_templates() {
+    fn retired_aliases_are_rejected() {
         assert_eq!(normalize_new_language("rust"), Some("rust"));
-        assert_eq!(normalize_new_language("c"), Some("cpp"));
-        assert_eq!(normalize_new_language("cc"), Some("cpp"));
         assert_eq!(normalize_new_language("cpp"), Some("cpp"));
-        assert_eq!(normalize_new_language("c#"), Some("csharp"));
-        assert_eq!(normalize_new_language("f#"), Some("fsharp"));
-        assert_eq!(normalize_new_language("ruby"), None);
+        assert_eq!(normalize_new_language("csharp"), Some("csharp"));
+        assert_eq!(normalize_new_language("fsharp"), Some("fsharp"));
+        for retired in ["c", "cc", "c#", "f#", "c-sharp", "f-sharp", "ruby"] {
+            assert_eq!(normalize_new_language(retired), None, "{retired}");
+            assert!(!new_is_known_language(retired), "{retired}");
+        }
         assert!(new_is_known_language("go"));
         assert!(new_is_known_language("rust-web"));
         assert!(!new_is_known_language("swift"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 14);
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 12);
     }
 
     #[test]
@@ -591,10 +577,6 @@ mod tests {
                 SUPPORTED_NEW_LANGUAGES.contains(&canonical),
                 "{language} normalizes to {canonical}, which is not a supported language"
             );
-        }
-        for (alias, canonical) in NEW_LANGUAGE_ALIASES {
-            assert_eq!(normalize_new_language(alias), Some(*canonical));
-            assert!(SUPPORTED_NEW_LANGUAGES.contains(canonical));
         }
         let mut seen: Vec<(String, Vec<String>)> = Vec::new();
         for language in SUPPORTED_NEW_LANGUAGES {
@@ -635,8 +617,11 @@ mod tests {
         assert!(go.iter().any(|f| f.path == "demo/go.mod"));
         let java = plan_new_files("java", "demo").expect("java");
         assert!(java.iter().any(|f| f.path == "demo/Hello.java"));
-        let cpp = plan_new_files("c", "demo").expect("c alias");
+        let cpp = plan_new_files("cpp", "demo").expect("cpp");
         assert!(cpp.iter().any(|f| f.path == "demo/hello.cc"));
+        for retired in ["c", "cc", "c#", "f#", "c-sharp", "f-sharp"] {
+            assert!(plan_new_files(retired, "demo").is_err(), "{retired}");
+        }
         let version = rust
             .iter()
             .find(|f| f.path == "demo/.dx/version")
@@ -645,7 +630,7 @@ mod tests {
         assert!(plan_new_files("ruby", "demo").is_err());
         assert_eq!(
             plan_new_files("ruby", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: ruby (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cc, cpp, rust-web)"
+            "unknown language for dx new: ruby (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, cpp, rust-web)"
         );
     }
 

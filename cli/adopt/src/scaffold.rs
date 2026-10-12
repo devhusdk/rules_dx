@@ -84,7 +84,7 @@ pub fn editor_disposition(language: &str) -> &'static str {
     match language {
         "rust" => "automatic: rust-analyzer discovery plus flycheck (Bazel-backed, separate IDE output base)",
         "go" => "automatic: upstream GOPACKAGESDRIVER (Bazel-backed, pure-Go boundary, cgo out of scope)",
-        "cpp" | "c" | "cc" => {
+        "cpp" => {
             "snapshot: action-derived compile commands via aquery plus managed clangd, manual dx setup refresh"
         }
         "python" => "projection: .venv interpreter plus imports via dx setup",
@@ -96,7 +96,7 @@ pub fn editor_disposition(language: &str) -> &'static str {
         "scala" => {
             "manual: setup projection plus semanticdb/classpath wiring via dx setup, no automatic Bazel-backed driver yet"
         }
-        "csharp" | "c#" | "fsharp" | "f#" => {
+        "csharp" | "fsharp" => {
             "manual: setup projection plus Paket lock wiring via dx setup, no automatic Bazel-backed driver yet"
         }
         _ => "unknown language",
@@ -115,11 +115,7 @@ pub fn editor_language_supported(language: &str) -> bool {
             | "kotlin"
             | "scala"
             | "csharp"
-            | "c#"
             | "fsharp"
-            | "f#"
-            | "c"
-            | "cc"
             | "cpp"
     )
 }
@@ -451,7 +447,6 @@ mod tests {
         assert!(editor_disposition("rust").starts_with("automatic:"));
         assert!(editor_disposition("go").starts_with("automatic:"));
         assert!(editor_disposition("cpp").starts_with("snapshot:"));
-        assert!(editor_disposition("c").starts_with("snapshot:"));
         assert!(editor_disposition("python").starts_with("projection:"));
         assert!(editor_disposition("java").starts_with("manual:"));
         assert!(editor_disposition("kotlin").starts_with("manual:"));
@@ -469,11 +464,13 @@ mod tests {
             "scala",
             "csharp",
             "fsharp",
-            "c",
-            "cc",
             "cpp",
         ] {
             assert!(editor_language_supported(lang), "{lang}");
+        }
+        for retired in ["c", "cc", "c#", "f#", "c-sharp", "f-sharp"] {
+            assert!(!editor_language_supported(retired), "{retired}");
+            assert_eq!(editor_disposition(retired), "unknown language", "{retired}");
         }
         assert!(!editor_language_supported("ruby"));
         assert!(!editor_language_supported("swift"));

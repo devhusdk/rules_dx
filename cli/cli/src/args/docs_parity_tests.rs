@@ -3103,16 +3103,14 @@ fn new_help_and_page_name_exactly_the_languages() {
     slot_lists(Command::New.flags(), registry);
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
     slot_lists(&page, registry);
-    for (alias, canonical) in dx_adopt::NEW_LANGUAGE_ALIASES {
+    for retired in ["`c`", "`cc`", "`c#`", "`f#`", "`c-sharp`", "`f-sharp`"] {
         assert!(
-            page.contains(&format!("`{alias}`")) && page.contains(&format!("`{canonical}`")),
-            "docs/cli/commands/new-upgrade.md must name the {alias} spelling of {canonical}"
+            !page.contains(retired),
+            "docs/cli/commands/new-upgrade.md must not name retired {retired}"
         );
-    }
-    for (alias, canonical) in dx_adopt::NEW_LANGUAGE_ALIASES {
         assert!(
-            Command::New.flags().contains(alias) && Command::New.flags().contains(canonical),
-            "dx new --help must name the {alias} spelling of {canonical}"
+            !Command::New.flags().contains(retired),
+            "dx new --help must not name retired {retired}"
         );
     }
 }

@@ -177,12 +177,14 @@ mod tests {
 
     #[test]
     fn new_rejects_unknown_language_pre_exec() {
-        let inv = invocation(&["new", "ruby", "demo"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-new-unknown-");
-        let root = scratch.path().to_path_buf();
-        let (code, _out, err) = run(&inv, &root);
-        assert_eq!(code, pre_exec_code());
-        assert!(err.contains("unknown language"));
+        for language in ["ruby", "c", "cc", "c#", "f#", "c-sharp", "f-sharp"] {
+            let inv = invocation(&["new", language, "demo"]);
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-unknown-");
+            let root = scratch.path().to_path_buf();
+            let (code, _out, err) = run(&inv, &root);
+            assert_eq!(code, pre_exec_code(), "{language}");
+            assert!(err.contains("unknown language"), "{language}: {err}");
+        }
     }
 
     #[test]

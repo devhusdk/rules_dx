@@ -202,9 +202,13 @@ rustfmt_test(
     targets = [
         ":dx_release_tools",
         ":sbom_spdx_gen",
+        ":sbom_spdx_gen_test",
         ":sbom_prov_gen",
+        ":sbom_prov_gen_test",
         ":bcr_source_gen",
+        ":bcr_source_gen_test",
         ":notice_gen",
+        ":notice_gen_test",
         ":publish_dry_run_check",
         ":publish_dry_run_check_test",
         ":release_driver",
@@ -296,6 +300,86 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":release_driver",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "sbom_spdx_gen_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":sbom_spdx_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "sbom_prov_gen_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":sbom_prov_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "bcr_source_gen_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":bcr_source_gen",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "notice_gen_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":notice_gen",
     deps = crate_deps(
         [
             "serde",

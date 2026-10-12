@@ -369,7 +369,7 @@ flag_group! {
 flag_group! {
     /// Use the current dir tree.
     HereFlag, {
-        #[arg(long, visible_alias = "cwd", overrides_with = "here")]
+        #[arg(long, overrides_with = "here")]
         here: bool,
     }
 }

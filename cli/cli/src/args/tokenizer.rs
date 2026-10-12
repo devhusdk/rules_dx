@@ -63,7 +63,6 @@ fn reported_flag(token: &str) -> Option<String> {
     }
     let name = token.split('=').next().unwrap_or(token);
     Some(match name {
-        "--cwd" => "--here".to_owned(),
         _ => name.to_owned(),
     })
 }

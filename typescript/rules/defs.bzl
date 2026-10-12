@@ -1,4 +1,4 @@
-"""Experimental minimal TypeScript wrappers."""
+"""Minimal TypeScript wrappers."""
 
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
@@ -235,7 +235,7 @@ def _typescript_wrap_project(name, srcs, declaration_srcs = None, visibility = N
     )
 
 def typescript_project(name, srcs, declaration_srcs = None, visibility = None, **kwargs):
-    """Experimental minimal wrapper over ts_project, isolated typecheck on by default; declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
+    """Minimal wrapper over ts_project, isolated typecheck on by default; declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 def _typescript_test_forward_impl(ctx):
@@ -303,7 +303,7 @@ def typescript_test_env(env_inherit):
     return env
 
 def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
-    """Experimental minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
+    """Minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
@@ -369,7 +369,7 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
     )
 
 def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
-    """Experimental minimal wrapper over js_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
+    """Minimal wrapper over js_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)

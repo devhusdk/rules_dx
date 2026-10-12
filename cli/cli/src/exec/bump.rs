@@ -865,7 +865,7 @@ dependencies = ["anyio>=4"]
                 "9.3.0\n",
             ),
             (
-                "gha:actions/checkout",
+                "github-actions:actions/checkout",
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 ".github/workflows/ci.yml",
                 "- uses: actions/checkout@v1\n",
@@ -1105,6 +1105,12 @@ dependencies = ["anyio>=4"]
         let harness = Harness::new("bump-dryrun-bad-version");
         let (code, _, err) = harness.run(&["bump", "cargo:anyhow", "nope!!!", "--dry-run"]);
         assert_eq!(code, 2, "{err}");
+        for selector in ["gha:actions/checkout", "gomod:example.com/mod"] {
+            let harness = Harness::new("bump-dryrun-retired-alias");
+            let sha = "a".repeat(40);
+            let (code, _, err) = harness.run(&["bump", selector, &sha, "--dry-run"]);
+            assert_eq!(code, 2, "{selector}: {err}");
+        }
     }
 
     #[test]

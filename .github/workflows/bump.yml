@@ -175,7 +175,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           set_name="${SELECTOR%%:*}"
-          if [[ "$set_name" == "github-actions" || "$set_name" == "gha" ]]; then
+          if [[ "$set_name" == "github-actions" ]]; then
             package="${SELECTOR#*:}"
             echo "Resolving GHA ref $VERSION for $package via the upstream GitHub releases client (gh api); dx bump parses the snapshot, never shell regex."
             commit_json="$(mktemp)"
@@ -188,7 +188,7 @@ jobs:
           bazel run "$@" --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$VERSION" -- "$@"
           set_name="${SELECTOR%%:*}"
           case "$set_name" in
-            cargo|npm|go|gomod|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
+            cargo|npm|go|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
             *) echo "File-only set ($set_name): no resolver refresh; preset flag-diff review plus build below." ;;
           esac
       - name: Bump-PR verification (regen, flag-diff, build, test, coverage, dogfood)
@@ -231,8 +231,8 @@ jobs:
           case "$set_name" in
             bazel) allowed=(.bazelversion MODULE.bazel MODULE.bazel.lock) ;;
             cargo) allowed=(rust/tests/fixtures/hello/Cargo.toml rust/tests/fixtures/hello/Cargo.lock cargo-bazel-lock.json) ;;
-            github-actions|gha) allowed=(.github/workflows) ;;
-            go|gomod) allowed=(third_party/go/go.mod third_party/go/go.sum) ;;
+            github-actions) allowed=(.github/workflows) ;;
+            go) allowed=(third_party/go/go.mod third_party/go/go.sum) ;;
             maven) allowed=(MODULE.bazel third_party/jvm/maven_install.json MODULE.bazel.lock) ;;
             npm) allowed=(package.json pnpm-lock.yaml) ;;
             nuget) allowed=(third_party/dotnet/paket.dependencies third_party/dotnet/paket.lock third_party/dotnet/deps) ;;

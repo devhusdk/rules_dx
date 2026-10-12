@@ -15,7 +15,7 @@ SELECTIVE_GO_FULL = "noop (pinned module lock tracks Gazelle)"
 SELECTIVE_CARGO_HINT = "use `dx update cargo` for the set"
 SELECTIVE_MAVEN_HINT = "use `dx update maven` for the set"
 SELECTIVE_NUGET_HINT = "use `dx update nuget` for the set"
-SELECTIVE_GO_HINT = "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump gomod:<module> <version>`"
+SELECTIVE_GO_HINT = "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump go:<module> <version>`"
 
 BUMP_FOLLOWUP_CARGO = "dx update cargo"
 BUMP_FOLLOWUP_NPM = "dx update npm:<pkg> or dx update npm"

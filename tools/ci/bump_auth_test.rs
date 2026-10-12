@@ -178,8 +178,8 @@ fn only_selector_scoped_manifests_stage() {
     for arm in [
         "bazel)",
         "cargo)",
-        "github-actions|gha)",
-        "go|gomod)",
+        "github-actions)",
+        "go)",
         "maven)",
         "npm)",
         "nuget)",

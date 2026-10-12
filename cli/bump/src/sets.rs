@@ -36,8 +36,8 @@ impl BumpSet {
         match text {
             "bazel" => Some(BumpSet::Bazel),
             "cargo" => Some(BumpSet::Cargo),
-            "github-actions" | "gha" => Some(BumpSet::GithubActions),
-            "go" | "gomod" => Some(BumpSet::Go),
+            "github-actions" => Some(BumpSet::GithubActions),
+            "go" => Some(BumpSet::Go),
             "maven" => Some(BumpSet::Maven),
             "npm" => Some(BumpSet::Npm),
             "nuget" => Some(BumpSet::NuGet),
@@ -132,9 +132,9 @@ mod tests {
     }
 
     #[test]
-    fn aliases_parse_to_canonical_sets() {
-        assert_eq!(BumpSet::parse("gomod"), Some(BumpSet::Go));
-        assert_eq!(BumpSet::parse("gha"), Some(BumpSet::GithubActions));
+    fn aliases_are_rejected() {
+        assert_eq!(BumpSet::parse("gha"), None);
+        assert_eq!(BumpSet::parse("gomod"), None);
         assert_eq!(BumpSet::parse("unknown"), None);
     }
 

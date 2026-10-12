@@ -203,7 +203,7 @@ pub fn plan(
         (SetId::Go, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Go, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name(),
-            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump gomod:<module> <version>`",
+            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump go:<module> <version>`",
         }),
         (SetId::Ruby, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Ruby, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
@@ -608,7 +608,7 @@ mod tests {
             "{error:?}"
         );
         assert!(error.to_string().contains("go"));
-        assert!(error.to_string().contains("dx bump gomod"));
+        assert!(error.to_string().contains("dx bump go:"));
     }
 
     #[test]

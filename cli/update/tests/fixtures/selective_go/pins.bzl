@@ -11,7 +11,7 @@ GO_SUM = "third_party/go/go.sum"
 SELECTIVE_GO_SELECTOR = "go:github.com/google/go-cmp/cmp"
 SELECTIVE_GO_SELECTOR_LABEL = "go:<module-path>"
 
-SELECTIVE_GO_HINT = "widen explicitly via `dx bump gomod:<module> <version>`"
+SELECTIVE_GO_HINT = "widen explicitly via `dx bump go:<module> <version>`"
 
 BUMP_FOLLOWUP_GO = "dx update go"
 

@@ -925,7 +925,7 @@ fn current_line(set: dx_update::sets::SetId) -> String {
 
 fn pinned_line(set: dx_update::sets::SetId) -> String {
     match set {
-        dx_update::sets::SetId::Go => "go pins are manual (track Gazelle for the shared go_deps extension; widen via `dx bump gomod:<module> <version>`); nothing to resolve"
+        dx_update::sets::SetId::Go => "go pins are manual (track Gazelle for the shared go_deps extension; widen via `dx bump go:<module> <version>`); nothing to resolve"
             .to_owned(),
         dx_update::sets::SetId::Ruby => {
             "ruby pins are manual (regenerate with `bundle lock` on the seed host); nothing to resolve"

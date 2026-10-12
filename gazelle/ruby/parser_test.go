@@ -45,6 +45,20 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 	}
 }
 
+func TestParseImportsBlockCommentsAndEmptyInert(t *testing.T) {
+	got := ParseImports([]byte("=begin\nrequire \"acme/hidden\"\n=end\nrequire \"json\"\n"))
+	want := []string{"json"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+	if got := ParseImports([]byte("require \" \"\nrequire \"json\"\n")); !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports blank require = %v, want %v", got, want)
+	}
+	if got := ParseImports([]byte("require \"./local\"\nrequire \"json\"\n")); !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports relative require = %v, want %v", got, want)
+	}
+}
+
 func TestParsePackageAlwaysEmpty(t *testing.T) {
 	if got, err := ParsePackage([]byte("module Demo; end\n")); err != nil || got != "" {
 		t.Errorf("ParsePackage = %q, %v; want empty", got, err)

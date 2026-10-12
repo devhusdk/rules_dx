@@ -55,8 +55,12 @@ func composedLanguages() []language.Language {
 }
 
 func unionApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
+	return unionApparentLoadsFrom(composedLanguages(), moduleToApparentName)
+}
+
+func unionApparentLoadsFrom(langs []language.Language, moduleToApparentName func(string) string) []rule.LoadInfo {
 	var loads []rule.LoadInfo
-	for _, lang := range composedLanguages() {
+	for _, lang := range langs {
 		if aware, ok := lang.(language.ModuleAwareLanguage); ok {
 			loads = append(loads, aware.ApparentLoads(moduleToApparentName)...)
 			continue

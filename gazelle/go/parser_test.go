@@ -49,6 +49,19 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 	}
 }
 
+func TestParseImportsEmptyPathInert(t *testing.T) {
+	got, err := ParseImports([]byte("package demo\n\nimport \"\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("ParseImports = %v, want empty", got)
+	}
+	if got := normalizeImport(""); got != "" {
+		t.Errorf("normalizeImport(\"\") = %q, want empty", got)
+	}
+}
+
 func TestParseImportsUnparseableFails(t *testing.T) {
 	if _, err := ParseImports([]byte("package demo\n\nimport (\n")); err == nil {
 		t.Fatal("ParseImports succeeded on an unparseable file")

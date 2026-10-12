@@ -43,6 +43,16 @@ func TestInheritedIgnoresReadsAnyIgnoreSource(t *testing.T) {
 	}
 }
 
+func TestIgnoreEntriesNilReceiver(t *testing.T) {
+	if got := (*IgnoreConfig)(nil).IgnoreEntries(); got != nil {
+		t.Fatalf("nil entries = %+v, want nil", got)
+	}
+	entries := []*IgnoreEntry{{Value: "Widget", Path: "pkg"}}
+	if got := (&IgnoreConfig{Ignores: entries}); len(got.IgnoreEntries()) != 1 {
+		t.Fatalf("entries = %+v, want the declared entry", got.IgnoreEntries())
+	}
+}
+
 func TestMergeIgnoresLeavesTheParentSliceAlone(t *testing.T) {
 	if got := MergeIgnores(nil, nil); got != nil {
 		t.Fatalf("empty merge = %+v, want nil", got)

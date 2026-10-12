@@ -37,6 +37,29 @@ func TestParseQuotedIncludesDedupedSorted(t *testing.T) {
 	}
 }
 
+func TestParseQuotedIncludesEscapedQuoteInPath(t *testing.T) {
+	got := ParseQuotedIncludes([]byte("#include \"dir/a\\\"b.h\"\n"))
+	want := []string{"a\\\"b.h"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseQuotedIncludes escaped quote = %v, want %v", got, want)
+	}
+}
+
+func TestParseQuotedIncludesMalformedRawStringsInert(t *testing.T) {
+	for _, inert := range []string{
+		`R"de lim(x)de lim"`,
+		`R"abc`,
+		`R"(hello`,
+	} {
+		if got := ParseQuotedIncludes([]byte(inert)); len(got) != 0 {
+			t.Errorf("inert %q: %v", inert, got)
+		}
+	}
+	if end, ok := skipRawString([]byte(`R"(hello`), 0); !ok || end != len(`R"(hello`) {
+		t.Errorf("skipRawString unterminated = (%d, %v), want (%d, true)", end, ok, len(`R"(hello`))
+	}
+}
+
 func TestDefinesMain(t *testing.T) {
 	if !DefinesMain([]byte("#include <iostream>\nint main() { return 0; }\n")) {
 		t.Error("DefinesMain missed a main definition")

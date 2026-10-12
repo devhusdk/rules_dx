@@ -478,6 +478,7 @@ func TestMaskMultiLineLiterals(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"verbatim", "x = @\"\nusing a.B;\n\";\n", "x =   \n          \n ;\n"},
 		{"interpolated verbatim", "x = $@\"\nusing a.B;\n\";\n", "x = $  \n          \n ;\n"},
+		{"interpolated verbatim reversed", "x = @$\"\nusing a.B;\n\";\n", "x =    \n          \n ;\n"},
 		{"verbatim escape", "x = @\"say \"\"hi\"\"\";\nusing a.B;\n", "x =              ;\nusing a.B;\n"},
 		{"raw", "x = \"\"\"\nusing a.B;\n\"\"\";\n", "x =    \n          \n   ;\n"},
 		{"unterminated verbatim", "x = @\"\nusing a.B;\n", "x =   \n          \n"},

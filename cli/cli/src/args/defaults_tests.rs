@@ -70,9 +70,9 @@ fn env_supplies_workspace_output_and_bools() {
     let env = env_of(&[
         ("DX_WORKSPACE", "/repo"),
         ("DX_OUTPUT", "json"),
-        ("DX_VERBOSE", "yes"),
-        ("DX_QUIET", "1"),
-        ("DX_DRY_RUN", "on"),
+        ("DX_VERBOSE", "true"),
+        ("DX_QUIET", "TRUE"),
+        ("DX_DRY_RUN", " True "),
         ("DX_FAIL_ON", "error"),
     ]);
     let got = parse_with(&strings(&["lint"]), &env, &empty).expect("env parse");
@@ -130,7 +130,7 @@ fn precedence_is_flag_over_env_over_file() {
     let got = parse_with(&strings(&["lint", "--verbose"]), &env_of(&[]), &file_bools)
         .expect("flag bool wins");
     assert!(got.verbose);
-    let env_true = env_of(&[("DX_VERBOSE", "1")]);
+    let env_true = env_of(&[("DX_VERBOSE", "true")]);
     let got = parse_with(
         &strings(&["lint"]),
         &env_true,
@@ -138,7 +138,7 @@ fn precedence_is_flag_over_env_over_file() {
     )
     .expect("env bool wins");
     assert!(got.verbose);
-    let env_false = env_of(&[("DX_VERBOSE", "0")]);
+    let env_false = env_of(&[("DX_VERBOSE", "false")]);
     let got = parse_with(
         &strings(&["lint"]),
         &env_false,
@@ -233,7 +233,7 @@ fn a_flag_turns_an_inherited_boolean_off() {
     assert!(on("--verbose").verbose, "the bare form stays true");
     assert!(on("-v").verbose, "the bare short form stays true");
     assert!(on("--dry-run=true").dry_run, "an explicit true is true");
-    let env = env_of(&[(DX_VERBOSE_ENV, "1")]);
+    let env = env_of(&[(DX_VERBOSE_ENV, "true")]);
     let got = parse_with(&strings(&["lint", "--verbose=false"]), &env, &file)
         .expect("flag false beats the environment");
     assert!(!got.verbose, "the flag beats the environment");
@@ -245,7 +245,7 @@ fn a_flag_turns_an_inherited_boolean_off() {
     .expect("last one wins");
     assert!(!got.dry_run, "the last occurrence wins");
     for (env_name, index) in [(DX_DRY_RUN_ENV, 0), (DX_QUIET_ENV, 1), (DX_VERBOSE_ENV, 2)] {
-        for value in ["0", "false", "no", "n", "off"] {
+        for value in ["false", "FALSE", " False "] {
             let env = owned_env(&[(env_name, value)]);
             let got = parse_with(&strings(&["lint"]), &env, &file)
                 .unwrap_or_else(|error| panic!("{env_name}={value}: {error:?}"));
@@ -265,7 +265,7 @@ fn a_flag_turns_an_inherited_boolean_off() {
                 "{env_name}={value} leaves the other defaults alone: {flags:?}"
             );
         }
-        for value in ["1", "true", "yes", "y", "on"] {
+        for value in ["true", "TRUE", " True "] {
             let env = owned_env(&[(env_name, value)]);
             let got = parse_with(&strings(&["lint"]), &env, &FileDefaults::default())
                 .unwrap_or_else(|error| panic!("{env_name}={value}: {error:?}"));
@@ -276,11 +276,18 @@ fn a_flag_turns_an_inherited_boolean_off() {
             );
         }
     }
-    for word in ["yes", "off", "n", "ON", "N", "1", "true", "0"] {
+    for word in ["true", "TRUE", " True ", "false", "FALSE", " False "] {
         let env = owned_env(&[(DX_DRY_RUN_ENV, word)]);
         let got = parse_with(&strings(&["lint"]), &env, &FileDefaults::default())
             .unwrap_or_else(|error| panic!("DX_DRY_RUN={word}: {error:?}"));
         assert_eq!(got.dry_run, parse_bool(word) == Some(true), "{word}");
+    }
+    for word in [
+        "1", "0", "yes", "y", "on", "no", "n", "off", "ON", "N", "2", "maybe",
+    ] {
+        let env = owned_env(&[(DX_DRY_RUN_ENV, word)]);
+        parse_with(&strings(&["lint"]), &env, &FileDefaults::default())
+            .expect_err(&format!("DX_DRY_RUN={word} is retired"));
     }
 }
 
@@ -292,6 +299,12 @@ fn a_boolean_value_outside_the_spellings_is_a_usage_error() {
         (DX_QUIET_ENV, "ture"),
         (DX_VERBOSE_ENV, "2"),
         (DX_DRY_RUN_ENV, "maybe"),
+        (DX_DRY_RUN_ENV, "1"),
+        (DX_QUIET_ENV, "0"),
+        (DX_VERBOSE_ENV, "yes"),
+        (DX_DRY_RUN_ENV, "on"),
+        (DX_QUIET_ENV, "no"),
+        (DX_VERBOSE_ENV, "off"),
     ] {
         let env = owned_env(&[(env_name, value)]);
         let error =
@@ -310,7 +323,7 @@ fn a_boolean_value_outside_the_spellings_is_a_usage_error() {
             "{error}"
         );
     }
-    for value in ["", "true", "on", "no", "off", "0", "1"] {
+    for value in ["", "true", "TRUE", " True ", "false", "FALSE", " False "] {
         let env = owned_env(&[(DX_DRY_RUN_ENV, value)]);
         assert!(
             parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).is_ok(),
@@ -337,7 +350,7 @@ fn boolean_precedence_runs_cli_then_env_then_dx_table_then_top_level() {
     assert!(got.quiet, "the top level beats the built-in default");
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &table_only).expect("dx table");
     assert!(got.quiet, "[dx] beats the top level");
-    let env = env_of(&[(DX_QUIET_ENV, "0")]);
+    let env = env_of(&[(DX_QUIET_ENV, "false")]);
     let got = parse_with(&strings(&["lint"]), &env, &table_only).expect("env");
     assert!(!got.quiet, "the environment beats the file");
     let got = parse_with(&strings(&["lint", "--quiet=false"]), &env, &table_only).expect("flag");
@@ -403,7 +416,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
             "{flag} turns the inherited verbose off: {err}"
         );
     }
-    let (code, out, err) = run(&["version", "--output=json"], &[(DX_DRY_RUN_ENV, "1")]);
+    let (code, out, err) = run(&["version", "--output=json"], &[(DX_DRY_RUN_ENV, "true")]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("\"dry_run\":true"),
@@ -411,7 +424,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     );
     let (code, out, err) = run(
         &["version", "--output=json", "--dry-run=false"],
-        &[(DX_DRY_RUN_ENV, "1")],
+        &[(DX_DRY_RUN_ENV, "true")],
     );
     assert_eq!(code, Some(0), "{err}");
     assert!(
@@ -435,7 +448,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
         "the diagnostic names the file and the key: {err}"
     );
     std::fs::write(&config, "[dx]\nquiet = true\n").expect("valid");
-    let (code, out, err) = run(&["version", "--output=json"], &[(DX_QUIET_ENV, "1")]);
+    let (code, out, err) = run(&["version", "--output=json"], &[(DX_QUIET_ENV, "true")]);
     assert_eq!(code, Some(0), "a documented spelling still parses: {err}");
     assert!(
         out.contains("\"dry_run\":false") && out.contains("\"command_finished\""),
@@ -712,7 +725,7 @@ fn no_default_source_selects_apply() {
     assert_eq!(
         parse_with(
             &strings(&["fix", "--apply"]),
-            &env_of(&[(DX_DRY_RUN_ENV, "1")]),
+            &env_of(&[(DX_DRY_RUN_ENV, "true")]),
             &FileDefaults::default(),
         ),
         Err(ArgsError::ConflictingModes {
@@ -733,7 +746,7 @@ fn no_default_source_selects_apply() {
 #[test]
 fn ci_ignores_preference_env_but_keeps_flags() {
     use super::parse_with_ci;
-    let env = env_of(&[("DX_OUTPUT", "json"), ("DX_VERBOSE", "1")]);
+    let env = env_of(&[("DX_OUTPUT", "json"), ("DX_VERBOSE", "true")]);
     let got = parse_with_ci(&strings(&["lint"]), &env, &FileDefaults::default(), true)
         .expect("ci parses");
     assert_eq!(got.output, OutputMode::Text { quiet: false });

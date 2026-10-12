@@ -154,8 +154,8 @@ default off.
 - `NO_COLOR=<any>`: disables color output.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
 
-A `<bool>` is on for `1`, `true`, `yes`, `y`, or `on`, and off for `0`, `false`,
-`no`, `n`, or `off`. Any other non-empty value is a usage error. An empty value
+A `<bool>` is `true` or `false`, case-insensitive with surrounding whitespace
+ignored. Any other non-empty value is a usage error. An empty value
 is unset.
 
 ## Config File
@@ -176,7 +176,7 @@ fail-on = "error"
 ```
 
 `dry_run` and `fail_on` also work. Values are TOML, so a boolean key takes
-`true` or `false`, not the `<bool>` spellings above. An empty value is unset.
+`true` or `false`, matching the `<bool>` spellings above. An empty value is unset.
 An unknown key is a usage error that names the key and the keys it accepts.
 
 Keys go under `[dx]` or at the top level, and `[dx]` wins. Commit shared

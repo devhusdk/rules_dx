@@ -20,13 +20,13 @@ pub const ENV_DEFAULTS: [(&str, &str, &str); 7] = [
 ];
 
 /// Spellings that turn a boolean environment default on.
-pub const TRUTHY: [&str; 5] = ["1", "true", "yes", "y", "on"];
+pub const TRUTHY: [&str; 1] = ["true"];
 
 /// Spellings that turn a boolean environment default off.
-pub const FALSEY: [&str; 5] = ["0", "false", "no", "n", "off"];
+pub const FALSEY: [&str; 1] = ["false"];
 
 /// Every documented boolean spelling, on spellings first.
-pub const BOOL_SPELLINGS: &str = "1|true|yes|y|on|0|false|no|n|off";
+pub const BOOL_SPELLINGS: &str = "true|false";
 
 /// The `.dx/config.toml` key that carries the same default as an env var.
 pub fn config_key(env: &str) -> Option<&'static str> {
@@ -384,21 +384,19 @@ mod tests {
 
     #[test]
     fn truthy_spellings_enable_only_documented_values() {
-        for truthy in [
-            "1", "true", "TRUE", " True ", "yes", "YES", "y", "Y", "on", "ON",
-        ] {
+        for truthy in ["true", "TRUE", " True "] {
             assert!(is_truthy(truthy), "{truthy:?} must enable");
         }
-        for falsy in ["", "0", "false", "no", "off", "tru", "2", "maybe"] {
+        for falsy in [
+            "", "false", "FALSE", "1", "0", "yes", "y", "on", "no", "n", "off", "tru", "2", "maybe",
+        ] {
             assert!(!is_truthy(falsy), "{falsy:?} must not enable");
         }
     }
 
     #[test]
     fn falsy_spellings_disable_and_anything_else_is_unreadable() {
-        for falsy in [
-            "0", "false", "FALSE", " False ", "no", "NO", "n", "N", "off", "OFF",
-        ] {
+        for falsy in ["false", "FALSE", " False "] {
             assert_eq!(parse_bool(falsy), Some(false), "{falsy:?} must disable");
             assert!(!is_truthy(falsy), "{falsy:?} must not enable");
         }
@@ -406,11 +404,12 @@ mod tests {
             assert_eq!(parse_bool(on), Some(true), "{on:?} must enable");
         }
         for unreadable in [
-            "", " ", "tru", "ture", "fals", "2", "-1", "maybe", "enabled",
+            "", " ", "tru", "ture", "fals", "2", "-1", "maybe", "enabled", "1", "0", "yes", "y",
+            "on", "no", "n", "off",
         ] {
             assert_eq!(parse_bool(unreadable), None, "{unreadable:?}");
         }
-        assert_eq!(BOOL_SPELLINGS, "1|true|yes|y|on|0|false|no|n|off");
+        assert_eq!(BOOL_SPELLINGS, "true|false");
     }
 
     #[test]
@@ -427,12 +426,12 @@ mod tests {
         );
         assert_eq!(
             error.to_string(),
-            "invalid invocation default DX_DRY_RUN=\"tru\": want one of 1|true|yes|y|on|0|false|no|n|off"
+            "invalid invocation default DX_DRY_RUN=\"tru\": want one of true|false"
         );
         for (name, value, wanted) in [
-            (DX_QUIET_ENV, "off", false),
-            (DX_VERBOSE_ENV, "NO", false),
-            (DX_DRY_RUN_ENV, "0", false),
+            (DX_QUIET_ENV, "false", false),
+            (DX_VERBOSE_ENV, "FALSE", false),
+            (DX_DRY_RUN_ENV, " False ", false),
         ] {
             let pairs = [(name, value)];
             let get = env_of(&pairs);
@@ -441,7 +440,7 @@ mod tests {
                 Some(wanted)
             );
         }
-        let get = env_of(&[(DX_DRY_RUN_ENV, ""), (DX_QUIET_ENV, "1")]);
+        let get = env_of(&[(DX_DRY_RUN_ENV, ""), (DX_QUIET_ENV, "true")]);
         assert_eq!(env_bool(&get, DX_DRY_RUN_ENV), Ok(None));
         assert_eq!(env_bool(&get, DX_QUIET_ENV), Ok(Some(true)));
         assert_eq!(env_bool(&env_of(&[]), DX_DRY_RUN_ENV), Ok(None));
@@ -461,8 +460,8 @@ mod tests {
                 DX_FAIL_ON_ENV
             ]
         );
-        assert_eq!(TRUTHY, ["1", "true", "yes", "y", "on"]);
-        assert_eq!(FALSEY, ["0", "false", "no", "n", "off"]);
+        assert_eq!(TRUTHY, ["true"]);
+        assert_eq!(FALSEY, ["false"]);
         for (env, flag, _) in ENV_DEFAULTS {
             assert_eq!(
                 config_key(env),
@@ -480,9 +479,9 @@ mod tests {
         assert_eq!(env_string(&get, DX_OUTPUT_ENV), None);
         assert_eq!(env_string(&get, DX_VERBOSE_ENV), None);
         assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(None));
-        let get = env_of(&[(DX_VERBOSE_ENV, "yes")]);
+        let get = env_of(&[(DX_VERBOSE_ENV, "true")]);
         assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(Some(true)));
-        let get = env_of(&[(DX_VERBOSE_ENV, "0")]);
+        let get = env_of(&[(DX_VERBOSE_ENV, "false")]);
         assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(Some(false)));
         assert_eq!(env_bool(&env_of(&[]), DX_QUIET_ENV), Ok(None));
     }

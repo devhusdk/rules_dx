@@ -5,11 +5,51 @@ fn staged(name: &str) -> PathBuf {
     dx_testing::resolve_runfiles(&rel)
 }
 
+fn binary_arch() -> &'static str {
+    std::env::consts::ARCH
+}
+
+fn normalize_arch(raw: &str) -> String {
+    let lower = raw.trim().to_ascii_lowercase();
+    match lower.as_str() {
+        "amd64" | "x86_64" | "x86-64" => "x86_64".to_owned(),
+        "arm64" | "aarch64" => "aarch64".to_owned(),
+        "x86" | "i386" | "i686" => "x86".to_owned(),
+        _ => lower,
+    }
+}
+
+#[cfg(not(windows))]
+fn host_arch() -> String {
+    let output = std::process::Command::new("uname")
+        .arg("-m")
+        .output()
+        .expect("uname -m must execute");
+    assert!(
+        output.status.success(),
+        "uname -m failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    normalize_arch(&String::from_utf8_lossy(&output.stdout))
+}
+
+#[cfg(windows)]
+fn host_arch() -> String {
+    if let Ok(native) = std::env::var("PROCESSOR_ARCHITEW6432") {
+        return normalize_arch(&native);
+    }
+    normalize_arch(
+        &std::env::var("PROCESSOR_ARCHITECTURE")
+            .unwrap_or_else(|_| panic!("PROCESSOR_ARCHITECTURE must be set")),
+    )
+}
+
 fn report() -> String {
     format!(
-        "preflight host={} arch={}",
+        "preflight host={} host_arch={} binary_arch={}",
         std::env::consts::OS,
-        std::env::consts::ARCH
+        host_arch(),
+        binary_arch()
     )
 }
 
@@ -53,10 +93,25 @@ fn native_fixture_builds_and_runs() {
 
 #[test]
 fn reports_host_and_binary_architecture() {
+    let binary = binary_arch();
     assert!(
-        matches!(std::env::consts::ARCH, "x86_64" | "aarch64"),
-        "unexpected native arch {}",
-        std::env::consts::ARCH
+        matches!(binary, "x86_64" | "aarch64"),
+        "unexpected binary arch {binary}"
+    );
+    let host = host_arch();
+    assert!(
+        matches!(host.as_str(), "x86_64" | "aarch64"),
+        "unexpected host arch {host}"
+    );
+    assert_eq!(
+        host.as_str(),
+        binary,
+        "emulated execution: host {host} differs from binary {binary}"
+    );
+    #[cfg(windows)]
+    assert!(
+        std::env::var("PROCESSOR_ARCHITEW6432").is_err(),
+        "emulated execution under WOW64"
     );
     println!("{}", report());
 }

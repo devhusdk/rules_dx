@@ -157,6 +157,33 @@ func TestGenerateFailures(t *testing.T) {
 	}
 }
 
+func TestGenerateFixturePathMarksTestonly(t *testing.T) {
+	root := t.TempDir()
+	for name, content := range map[string]string{
+		"pkg/fixtures/demo/demo.py":   "import helper\n",
+		"pkg/fixtures/demo/helper.py": "def suffix(tag):\n    return tag\n",
+	} {
+		writeFixture(t, root, name, content)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "fixtures", "demo"),
+		Rel:          "pkg/fixtures/demo",
+		RegularFiles: []string{"demo.py", "helper.py"},
+	})
+	if len(result.Gen) == 0 {
+		t.Fatal("fixture package generated no rules")
+	}
+	file := rule.EmptyFile("BUILD.bazel", "pkg/fixtures/demo")
+	for _, r := range result.Gen {
+		r.Insert(file)
+	}
+	out := string(file.Format())
+	if got := strings.Count(out, "testonly = True"); got != len(result.Gen) {
+		t.Errorf("testonly marks = %d, want one per generated rule in:\n%s", got, out)
+	}
+}
+
 func TestCheckClaims(t *testing.T) {
 	claimants := []Claimant{{Name: "demo", Source: "demo.py"}}
 	if err := checkClaims(nil, nil, claimants); err != nil {

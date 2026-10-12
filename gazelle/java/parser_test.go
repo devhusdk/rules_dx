@@ -74,3 +74,9 @@ func TestIsStdLib(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePackageDuplicateFails(t *testing.T) {
+	if _, err := ParsePackage([]byte("package a;\npackage b;\n")); err == nil || err.Error() != "java: duplicate package clause a" {
+		t.Fatalf("duplicate: %v", err)
+	}
+}

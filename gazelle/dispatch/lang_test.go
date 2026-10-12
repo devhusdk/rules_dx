@@ -259,6 +259,84 @@ func TestSingleLanguageFailureHeaders(t *testing.T) {
 	}
 }
 
+func TestLanguageInterfaceNoOps(t *testing.T) {
+	l, ok := NewLanguage().(*dispatchLang)
+	if !ok {
+		t.Fatalf("NewLanguage() = %T, want *dispatchLang", NewLanguage())
+	}
+	l.DoneGeneratingRules()
+	l.RegisterFlags(nil, "update", testConfig())
+	if err := l.CheckFlags(nil, testConfig()); err != nil {
+		t.Errorf("CheckFlags() = %v, want nil", err)
+	}
+	if got := l.KnownDirectives(); got != nil {
+		t.Errorf("KnownDirectives() = %v, want nil", got)
+	}
+	l.Configure(testConfig(), "app", nil)
+	if got := l.Kinds(); got != nil {
+		t.Errorf("Kinds() = %v, want nil", got)
+	}
+}
+
+func TestBeforeFailsClosedOnBadGenerateMode(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateMode, "bogus")
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "must be") {
+		t.Fatalf("errors = %v, want one generate-mode rejection", l.errors)
+	}
+	if l.manifest != nil {
+		t.Fatal("manifest must stay nil after a load failure")
+	}
+}
+
+func TestCollectUsedIgnoresTieBreaksOnLanguageAndValue(t *testing.T) {
+	cfg := testConfig()
+	cfg.Exts = map[string]interface{}{}
+	cfg.Exts["cc"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "b", Path: "pkg/same", Used: true},
+		{Value: "a", Path: "pkg/same", Used: true},
+	}}
+	cfg.Exts["java"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "c", Path: "pkg/same", Used: true},
+	}}
+	l := &dispatchLang{configs: []*config.Config{cfg}}
+	want := []common.IgnoredImport{
+		{Path: "pkg/same", Language: "cc", Value: "a"},
+		{Path: "pkg/same", Language: "cc", Value: "b"},
+		{Path: "pkg/same", Language: "java", Value: "c"},
+	}
+	got := l.collectUsedIgnores()
+	if len(got) != len(want) {
+		t.Fatalf("ignores = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+type plainLoadsLang struct {
+	language.BaseLang
+}
+
+func (plainLoadsLang) Loads() []rule.LoadInfo {
+	return []rule.LoadInfo{{Name: "//stub:defs.bzl"}}
+}
+
+func TestUnionApparentLoadsFallsBackToPlainLoads(t *testing.T) {
+	loads := unionApparentLoadsFrom([]language.Language{&plainLoadsLang{}}, func(string) string { return "" })
+	if len(loads) != 1 || loads[0].Name != "//stub:defs.bzl" {
+		t.Fatalf("loads = %v, want the plain stub load", loads)
+	}
+	if _, ok := interface{}(&plainLoadsLang{}).(language.ModuleAwareLanguage); ok {
+		t.Fatal("plainLoadsLang must stay outside ModuleAwareLanguage so the fallback is real")
+	}
+}
+
 func sortedKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for key := range m {

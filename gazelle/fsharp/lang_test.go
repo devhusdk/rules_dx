@@ -443,6 +443,29 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 	l.AfterResolvingDeps(context.Background())
 }
 
+func TestResolveMappingIgnoreConflict(t *testing.T) {
+	l := &fsharpLang{}
+	l.Before(context.Background())
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "fsharp fsharp Mapped //mapped:dep"}})
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import fsharp Mapped\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(LibraryKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"Mapped"}}, label.New("", "app", "app"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "both an exact resolve mapping and ignore") {
+		t.Errorf("conflict errors = %v", l.errors)
+	}
+}
+
+func TestOrderSourcesByDependencyMissingContent(t *testing.T) {
+	ordered, err := orderSourcesByDependency([]string{"A.fs"}, map[string][]byte{})
+	if err != nil || strings.Join(ordered, ",") != "A.fs" {
+		t.Errorf("orderSourcesByDependency = %v, %v; want A.fs", ordered, err)
+	}
+}
+
 func TestResolveAmbiguousFails(t *testing.T) {
 	l := &fsharpLang{}
 	index := resolverIndex(l,

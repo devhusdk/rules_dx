@@ -1,5 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":msvc.bzl", "msvc_boundary_tests")
 
 package(
     default_testonly = True,
@@ -29,12 +30,15 @@ cc_binary(
 
 exports_files(["pins.bzl"])
 
+msvc_boundary_tests(name = "msvc")
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "msvc.bzl",
         "pins.bzl",
     ],
     tags = ["corpus"],

@@ -1,4 +1,4 @@
-"""Experimental minimal Java wrappers."""
+"""Minimal Java wrappers."""
 
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library = "java_library", _java_test = "java_test")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
@@ -73,11 +73,11 @@ def _java_wrap_binary(name, srcs, visibility = None, **kwargs):
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = _java_with_werror(kwargs), **kwargs)
 
 def java_library(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over java_library."""
+    """Minimal wrapper over java_library."""
     _java_wrap_library(name, srcs, visibility = visibility, **kwargs)
 
 def java_binary(name, srcs = None, main_class = None, visibility = None, **kwargs):
-    """Experimental minimal wrapper over java_binary."""
+    """Minimal wrapper over java_binary."""
     effective_srcs = srcs if srcs != None else []
     upstream_kwargs = dict(kwargs)
     if main_class != None:
@@ -85,5 +85,5 @@ def java_binary(name, srcs = None, main_class = None, visibility = None, **kwarg
     _java_wrap_binary(name, effective_srcs, visibility = visibility, **upstream_kwargs)
 
 def java_test(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over java_test."""
+    """Minimal wrapper over java_test."""
     dx_wrap_test(name, _java_test, _java_forward_test, srcs, visibility = visibility, upstream_kwargs = _java_with_werror(kwargs), **kwargs)

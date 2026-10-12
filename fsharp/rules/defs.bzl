@@ -1,4 +1,4 @@
-"""Experimental minimal F# wrappers."""
+"""Minimal F# wrappers."""
 
 load("@rules_dotnet//dotnet:defs.bzl", _fsharp_binary = "fsharp_binary", _fsharp_library = "fsharp_library", _fsharp_test = "fsharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
@@ -73,14 +73,14 @@ def _fsharp_wrap_binary(name, srcs, visibility = None, **kwargs):
     dx_wrap_binary(name, _fsharp_binary, _fsharp_binary_forward, srcs, visibility = visibility, upstream_kwargs = _fsharp_with_tfm(kwargs), **kwargs)
 
 def fsharp_library(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over fsharp_library."""
+    """Minimal wrapper over fsharp_library."""
     _fsharp_wrap_library(name, srcs, visibility = visibility, **kwargs)
 
 def fsharp_binary(name, srcs = None, visibility = None, **kwargs):
-    """Experimental minimal wrapper over fsharp_binary."""
+    """Minimal wrapper over fsharp_binary."""
     effective_srcs = srcs if srcs != None else []
     _fsharp_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
 
 def fsharp_test(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over fsharp_test."""
+    """Minimal wrapper over fsharp_test."""
     dx_wrap_test(name, _fsharp_test, _fsharp_forward_test, srcs, visibility = visibility, upstream_kwargs = _fsharp_with_tfm(kwargs), **kwargs)

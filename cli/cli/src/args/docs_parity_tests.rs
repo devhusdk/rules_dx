@@ -3308,6 +3308,29 @@ fn every_workflow_coverage_floor_matches_the_required_check() {
     assert!(floors > 0, "no workflow runs dx coverage with a floor");
 }
 
+#[test]
+fn required_coverage_floor_is_exact_100() {
+    assert_eq!(
+        required_coverage_floor(),
+        "100",
+        "ci.yml must hold the v1 exact-coverage floor at 100"
+    );
+}
+
+#[test]
+fn publish_dry_run_enforces_the_required_coverage_floor() {
+    let expected = required_coverage_floor();
+    let (_, text) = workflows()
+        .into_iter()
+        .find(|(name, _)| name.ends_with("workflows/publish-dry-run.yml"))
+        .expect("publish-dry-run.yml ships as dx_cli_test data");
+    let floors = coverage_floors(&text);
+    assert!(
+        floors.iter().any(|floor| floor == &expected),
+        "publish-dry-run.yml must qualify the release with dx coverage at {expected}"
+    );
+}
+
 fn workflow_bazel_configs(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut rest = text;

@@ -35,6 +35,10 @@ jobs:
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Build seed-host release binary and standalone archive
         run: bazel build //cli/cli:dx //cli/cli:dx_standalone //deploy/release:all //deploy/release:release_artifacts
+      - name: Qualify exact owned line coverage
+        run: |
+          set -euo pipefail
+          bazel run //cli/cli:dx -- coverage --min-coverage 100 //...
       - name: Stage binary and emit dry-run report
         env:
           APPROVE: ${{ inputs.approve }}

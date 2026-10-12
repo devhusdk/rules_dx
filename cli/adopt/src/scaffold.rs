@@ -145,7 +145,46 @@ pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
     Ok(module.to_owned())
 }
 
+pub const CONSUMER_WORKFLOW_OWNER: &str = "rules_dx";
+
+pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
+
+pub const CONSUMER_WORKFLOW_PIN: &str = "78068c86f4cc5d5edf35f01315784f14196d01e4";
+
+pub fn render_consumer_caller() -> String {
+    format!(
+        "# Consumer caller template: pins the qualified reusable workflow at a reviewed commit.\n# Copy to .github/workflows/ci.yml in the consumer repo; do not copy per-check logic.\n# Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.\n# Required repository settings (see the GitHub CI docs, not configured here):\n# - approval policy: all_external_contributors for fork runs\n# - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)\n# - default workflow permissions: read-only\nname: ci\non:\n  pull_request: {{}}\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n      scheduling_mode: \"parallel\"\n      code_scanning_opt_in: false\n    secrets: inherit\n    # A called workflow can only narrow this job's token.\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
+        owner = CONSUMER_WORKFLOW_OWNER,
+        path = CONSUMER_WORKFLOW_PATH,
+        pin = CONSUMER_WORKFLOW_PIN,
+        version = DX_VERSION,
+    )
+}
+
+pub fn render_editor_settings(windows: bool) -> String {
+    let python = if windows {
+        ".dx/setups/current/.venv/bin/python.exe"
+    } else {
+        ".dx/setups/current/.venv/bin/python"
+    };
+    let clangd = if windows {
+        ".dx/bin/clangd.exe"
+    } else {
+        ".dx/bin/clangd"
+    };
+    format!(
+        "{{\"rust-analyzer.check.command\":\"bazel\",\"python.defaultInterpreterPath\":\"{python}\",\"typescript.tsdk\":\".dx/setups/current/node_modules/typescript/lib\",\"go.toolsManagement.checkForUpdates\":\"off\",\"clangd.path\":\"{clangd}\",\"clangd.arguments\":[\"--compile-commands-dir=.dx/setups/current\"],\"java.configuration.updateBuildConfiguration\":\"manual\",\"kotlin.languageServer.enabled\":true}}\n",
+    )
+}
+
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_for_host(module_name, cfg!(windows))
+}
+
+pub fn plan_init_files_for_host(
+    module_name: &str,
+    windows: bool,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
     Ok(vec![
         ScaffoldFile {
@@ -172,8 +211,7 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         },
         ScaffoldFile {
             path: ".vscode/settings.json".to_owned(),
-            content: "{\"rust-analyzer.check.command\":\"bazel\",\"python.defaultInterpreterPath\":\".dx/setups/current/.venv/bin/python\",\"typescript.tsdk\":\".dx/setups/current/node_modules/typescript/lib\",\"go.toolsManagement.checkForUpdates\":\"off\",\"clangd.path\":\".dx/bin/clangd\",\"clangd.arguments\":[\"--compile-commands-dir=.dx/setups/current\"],\"java.configuration.updateBuildConfiguration\":\"manual\",\"kotlin.languageServer.enabled\":true}\n"
-                .to_owned(),
+            content: render_editor_settings(windows),
         },
         ScaffoldFile {
             path: ".vscode/extensions.json".to_owned(),
@@ -182,9 +220,7 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         },
         ScaffoldFile {
             path: ".github/workflows/ci.yml".to_owned(),
-            content: format!(
-                "# Caller template: pins the qualified reusable workflow at a reviewed commit.\nname: ci\non:\n  push: {{}}\n  pull_request: {{}}\njobs:\n  dx:\n    uses: {module}/.github/workflows/reusable-consumer.yml@<reviewed-commit>\n"
-            ),
+            content: render_consumer_caller(),
         },
         ScaffoldFile {
             path: "MODULE.bazel.snippet".to_owned(),
@@ -260,9 +296,11 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 mod tests {
     use super::super::{
         apply_init, editor_disposition, editor_language_supported, parse_consumer_setup,
-        plan_init_files, render_consumer_own_toolchain_setup, render_consumer_renamed_setup,
+        plan_init_files, plan_init_files_for_host, render_consumer_caller,
+        render_consumer_own_toolchain_setup, render_consumer_renamed_setup, render_editor_settings,
         CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
-        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, DEVCONTAINER_JSON,
+        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION,
+        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, DEVCONTAINER_JSON,
         DX_VERSION,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
@@ -506,18 +544,145 @@ mod tests {
     }
 
     #[test]
-    fn init_module_names_cannot_break_the_ci_template() {
+    fn init_module_names_never_become_the_workflow_owner() {
+        let uses = format!(
+            "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}"
+        );
+        for module in ["demo", "my_project", "a.b-c_d"] {
+            let files = plan_init_files(module).expect("init plans");
+            let ci = files
+                .iter()
+                .find(|f| f.path == ".github/workflows/ci.yml")
+                .expect("ci scaffold");
+            assert_eq!(ci.content, render_consumer_caller(), "{module}");
+            let line = ci
+                .content
+                .lines()
+                .find(|line| line.trim_start().starts_with("uses:"))
+                .expect("caller has a uses line");
+            assert_eq!(line.trim(), uses, "{module}");
+            assert!(
+                !line.contains(module),
+                "module name must not guess the workflow owner: {line}"
+            );
+        }
         let files = plan_init_files("demo").expect("init plans");
-        let ci = files
-            .iter()
-            .find(|f| f.path == ".github/workflows/ci.yml")
-            .expect("ci scaffold");
-        assert!(ci.content.contains("uses: demo/.github/workflows/"));
         let snippet = files
             .iter()
             .find(|f| f.path == "MODULE.bazel.snippet")
             .expect("snippet");
         assert!(snippet.content.contains("# module: demo\n"));
+    }
+
+    #[test]
+    fn generated_caller_matches_the_checked_in_starter() {
+        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let starter = std::fs::read_to_string(
+            std::path::Path::new(&source)
+                .join(workspace)
+                .join("examples/consumer-ci/caller.yml"),
+        )
+        .expect("examples/consumer-ci/caller.yml ships as test data");
+        assert_eq!(render_consumer_caller(), starter);
+    }
+
+    #[test]
+    fn generated_caller_carries_the_required_inputs_permissions_and_secrets() {
+        let caller = render_consumer_caller();
+        let pin_ok = CONSUMER_WORKFLOW_PIN.len() == 40
+            && CONSUMER_WORKFLOW_PIN
+                .chars()
+                .all(|ch| ch.is_ascii_digit() || ('a'..='f').contains(&ch));
+        assert!(pin_ok, "caller must pin a full lowercase commit SHA");
+        assert!(
+            caller.contains(&format!(
+                "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}"
+            )),
+            "{caller}"
+        );
+        assert!(
+            caller.contains(&format!("rules_dx_version: \"{DX_VERSION}\"")),
+            "{caller}"
+        );
+        for required in [
+            "disabled_checks:",
+            "platforms: '[\"linux_x86_64\"]'",
+            "scheduling_mode: \"parallel\"",
+            "code_scanning_opt_in: false",
+            "secrets: inherit",
+            "permissions:",
+            "contents: read",
+            "checks: write",
+            "pull-requests: write",
+        ] {
+            assert!(
+                caller.contains(required),
+                "caller lacks {required}: {caller}"
+            );
+        }
+        assert!(!caller.contains("<reviewed-commit>"), "{caller}");
+    }
+
+    #[test]
+    fn editor_settings_use_host_native_interpreter_and_tool_names() {
+        for (windows, python, clangd) in [
+            (
+                false,
+                ".dx/setups/current/.venv/bin/python",
+                ".dx/bin/clangd",
+            ),
+            (
+                true,
+                ".dx/setups/current/.venv/bin/python.exe",
+                ".dx/bin/clangd.exe",
+            ),
+        ] {
+            let settings = render_editor_settings(windows);
+            let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
+            assert_eq!(
+                parsed["python.defaultInterpreterPath"],
+                serde_json::Value::from(python)
+            );
+            assert_eq!(parsed["clangd.path"], serde_json::Value::from(clangd));
+            assert!(settings.ends_with('\n'), "{settings}");
+        }
+        let unix = render_editor_settings(false);
+        let win = render_editor_settings(true);
+        assert_ne!(unix, win);
+        for key in [
+            "rust-analyzer.check.command",
+            "typescript.tsdk",
+            "go.toolsManagement.checkForUpdates",
+            "clangd.arguments",
+            "java.configuration.updateBuildConfiguration",
+            "kotlin.languageServer.enabled",
+        ] {
+            assert!(unix.contains(key) && win.contains(key), "lost {key}");
+        }
+    }
+
+    #[test]
+    fn init_scaffold_matches_on_both_hosts_except_native_names() {
+        let unix = plan_init_files_for_host("demo", false).expect("unix plans");
+        let win = plan_init_files_for_host("demo", true).expect("windows plans");
+        assert_eq!(unix.len(), win.len());
+        for (left, right) in unix.iter().zip(win.iter()) {
+            assert_eq!(left.path, right.path);
+            if left.path == ".vscode/settings.json" {
+                assert_eq!(left.content, render_editor_settings(false));
+                assert_eq!(right.content, render_editor_settings(true));
+            } else {
+                assert_eq!(left.content, right.content, "{}", left.path);
+            }
+        }
+        let host = plan_init_files("demo").expect("host plans");
+        let expected = plan_init_files_for_host("demo", cfg!(windows)).expect("host plans");
+        assert_eq!(
+            host.iter().map(|f| &f.path).collect::<Vec<_>>(),
+            expected.iter().map(|f| &f.path).collect::<Vec<_>>()
+        );
+        assert_eq!(host, expected);
     }
 
     #[test]

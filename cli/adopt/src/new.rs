@@ -898,7 +898,8 @@ mod tests {
             .iter()
             .find(|f| f.path == "My App/.github/workflows/ci.yml")
             .expect("ci wiring");
-        assert!(ci.content.contains("uses: my-app/.github/workflows/"));
+        assert!(ci.content.contains("uses: rules_dx/.github/workflows/"));
+        assert!(!ci.content.contains("uses: my-app/"));
         let nested = plan_new_files("javascript", "teams/My App").expect("plans");
         assert!(nested.iter().any(|f| f.path == "teams/My App/package.json"));
     }

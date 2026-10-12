@@ -84,10 +84,7 @@ mod tests {
     #[test]
     fn missing_tag_arg_falls_back_to_the_dry_run_placeholder() {
         assert_eq!(resolve_tag(&[]), DRY_RUN_TAG);
-        assert_eq!(
-            resolve_tag(&["release_driver".to_owned()]),
-            DRY_RUN_TAG
-        );
+        assert_eq!(resolve_tag(&["release_driver".to_owned()]), DRY_RUN_TAG);
     }
 
     #[test]

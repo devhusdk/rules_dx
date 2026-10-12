@@ -525,6 +525,228 @@ pub fn parse_module_dependency(text: &str) -> ModuleDependency {
     dependency
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConsumerSetup {
+    pub deps: Vec<(String, String)>,
+    pub extensions: Vec<(String, String)>,
+    pub repos: Vec<(String, String)>,
+    pub registered: Vec<String>,
+    pub tags: Vec<(String, String)>,
+}
+
+impl ConsumerSetup {
+    pub fn dep_version(&self, name: &str) -> Option<&str> {
+        self.deps
+            .iter()
+            .find(|(dep, _)| dep == name)
+            .map(|(_, version)| version.as_str())
+    }
+
+    pub fn tag_arg(&self, tag: &str, key: &str) -> Option<String> {
+        self.tags
+            .iter()
+            .find(|(name, _)| name == tag)
+            .and_then(|(_, args)| module_arg(args, key))
+    }
+
+    pub fn tag_list_arg(&self, tag: &str, key: &str) -> Vec<String> {
+        let Some(args) = self
+            .tags
+            .iter()
+            .find(|(name, _)| name == tag)
+            .map(|(_, a)| a)
+        else {
+            return Vec::new();
+        };
+        list_arg(args, key)
+    }
+}
+
+fn list_arg(args: &str, key: &str) -> Vec<String> {
+    for part in split_call_args(args) {
+        let part = part.trim();
+        if part.len() <= key.len() || !part.starts_with(key) {
+            continue;
+        }
+        let rest = part[key.len()..].trim_start();
+        if !rest.starts_with('=') {
+            continue;
+        }
+        let value = rest[1..].trim_start();
+        if !value.starts_with('[') || !value.ends_with(']') {
+            continue;
+        }
+        return split_call_args(&value[1..value.len() - 1])
+            .iter()
+            .filter_map(|item| unquote_part(item))
+            .collect();
+    }
+    Vec::new()
+}
+
+fn unquote_part(part: &str) -> Option<String> {
+    let value = part.trim();
+    let quote = value.as_bytes().first()?;
+    if *quote != b'"' && *quote != b'\'' {
+        return None;
+    }
+    let mut out = String::new();
+    let mut chars = value[1..].chars();
+    let mut closed = false;
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(next) = chars.next() {
+                out.push(next);
+            }
+            continue;
+        }
+        if c as u8 == *quote {
+            closed = true;
+            break;
+        }
+        out.push(c);
+    }
+    if closed {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+fn split_call_args(args: &str) -> Vec<String> {
+    let bytes = args.as_bytes();
+    let mut at = 0usize;
+    let mut quote: Option<u8> = None;
+    let mut escaped = false;
+    let mut depth = 0usize;
+    let mut part_start = 0usize;
+    let mut parts = Vec::new();
+    while at <= bytes.len() {
+        let byte = if at < bytes.len() { bytes[at] } else { b',' };
+        if let Some(open) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == open {
+                quote = None;
+            }
+            at += 1;
+            continue;
+        }
+        match byte {
+            b'"' | b'\'' => {
+                quote = Some(byte);
+                at += 1;
+            }
+            b'(' | b'[' | b'{' => {
+                depth += 1;
+                at += 1;
+            }
+            b')' | b']' | b'}' => {
+                depth = depth.saturating_sub(1);
+                at += 1;
+            }
+            b',' if depth == 0 => {
+                parts.push(args[part_start..at].to_owned());
+                at += 1;
+                part_start = at;
+            }
+            _ => {
+                at += 1;
+            }
+        }
+    }
+    parts
+}
+
+fn scan_setup_calls(text: &str) -> Vec<(String, String)> {
+    let clean = strip_module_comments(text);
+    let bytes = clean.as_bytes();
+    let mut at = 0usize;
+    let mut calls = Vec::new();
+    while at < bytes.len() {
+        if !(bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_') {
+            at += 1;
+            continue;
+        }
+        let start = at;
+        while at < bytes.len()
+            && (bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_' || bytes[at] == b'.')
+        {
+            at += 1;
+        }
+        let name = &clean[start..at];
+        let mut next = at;
+        while next < bytes.len() && bytes[next].is_ascii_whitespace() {
+            next += 1;
+        }
+        if next >= bytes.len() || bytes[next] != b'(' {
+            continue;
+        }
+        let Some((args, end)) = take_balanced(bytes, next + 1) else {
+            break;
+        };
+        at = end;
+        calls.push((name.to_owned(), args));
+    }
+    calls
+}
+
+pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
+    let mut setup = ConsumerSetup {
+        deps: Vec::new(),
+        extensions: Vec::new(),
+        repos: Vec::new(),
+        registered: Vec::new(),
+        tags: Vec::new(),
+    };
+    for (name, args) in scan_setup_calls(text) {
+        match name.as_str() {
+            "bazel_dep" => {
+                if let (Some(dep), Some(version)) =
+                    (module_arg(&args, "name"), module_arg(&args, "version"))
+                {
+                    setup.deps.push((dep, version));
+                }
+            }
+            "use_extension" => {
+                let parts = split_call_args(&args);
+                if parts.len() >= 2 {
+                    if let (Some(label), Some(tag)) =
+                        (unquote_part(&parts[0]), unquote_part(&parts[1]))
+                    {
+                        setup.extensions.push((label, tag));
+                    }
+                }
+            }
+            "use_repo" => {
+                let parts = split_call_args(&args);
+                if parts.len() >= 2 {
+                    let var = parts[0].trim().to_owned();
+                    for part in parts.iter().skip(1) {
+                        if let Some(repo) = unquote_part(part) {
+                            setup.repos.push((var.clone(), repo));
+                        }
+                    }
+                }
+            }
+            "register_toolchains" => {
+                for part in split_call_args(&args) {
+                    if let Some(label) = unquote_part(&part) {
+                        setup.registered.push(label);
+                    }
+                }
+            }
+            _ if name.contains('.') => {
+                setup.tags.push((name, args));
+            }
+            _ => {}
+        }
+    }
+    setup
+}
+
 pub fn read_module_dependency(root: &Path) -> ModuleDependency {
     let text = std::fs::read_to_string(root.join("MODULE.bazel")).unwrap_or_default();
     parse_module_dependency(&text)
@@ -821,5 +1043,75 @@ mod tests {
             "unknown (no rules_dx dependency in MODULE.bazel)"
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn consumer_setup_parses_the_default_snippet_shape() {
+        let setup = parse_consumer_setup(
+            "# Add to MODULE.bazel.\nmodule(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nbazel_dep(name = \"llvm\", version = \"0.8.19\")\nbazel_dep(name = 'rules_rust', version = '0.74.0')\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"2021\",\n    rustfmt_version = \"1.98.0\",\n    versions = [\"1.98.0\"],\n)\nuse_repo(\n    rust,\n    \"rust_toolchains\",\n)\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains('@rust_toolchains//:all')\n",
+        );
+        assert_eq!(
+            setup.deps,
+            vec![
+                ("rules_dx".to_owned(), "0.0.0".to_owned()),
+                ("rules_cc".to_owned(), "0.2.22".to_owned()),
+                ("llvm".to_owned(), "0.8.19".to_owned()),
+                ("rules_rust".to_owned(), "0.74.0".to_owned()),
+            ]
+        );
+        assert_eq!(
+            setup.extensions,
+            vec![(
+                "@rules_rust//rust:extensions.bzl".to_owned(),
+                "rust".to_owned()
+            )]
+        );
+        assert_eq!(
+            setup.repos,
+            vec![("rust".to_owned(), "rust_toolchains".to_owned())]
+        );
+        assert_eq!(
+            setup.registered,
+            vec![
+                "@llvm//toolchain:all".to_owned(),
+                "@rust_toolchains//:all".to_owned(),
+            ]
+        );
+        assert_eq!(
+            setup.tag_arg("rust.toolchain", "edition").as_deref(),
+            Some("2021")
+        );
+        assert_eq!(
+            setup
+                .tag_arg("rust.toolchain", "rustfmt_version")
+                .as_deref(),
+            Some("1.98.0")
+        );
+        assert_eq!(
+            setup.tag_list_arg("rust.toolchain", "versions"),
+            vec!["1.98.0".to_owned()]
+        );
+        assert_eq!(setup.dep_version("llvm"), Some("0.8.19"));
+        assert_eq!(setup.dep_version("missing"), None);
+        assert_eq!(setup.tag_arg("rust.toolchain", "missing"), None);
+        assert!(setup.tag_list_arg("rust.toolchain", "missing").is_empty());
+        assert!(setup.tag_list_arg("missing.tag", "versions").is_empty());
+    }
+
+    #[test]
+    fn consumer_setup_ignores_assignments_and_unknown_calls() {
+        let setup = parse_consumer_setup(
+            "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nsingle_version_override(module_name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\")\nregister_toolchains()\n",
+        );
+        assert_eq!(
+            setup.extensions,
+            vec![(
+                "@rules_rust//rust:extensions.bzl".to_owned(),
+                "rust".to_owned()
+            )]
+        );
+        assert!(setup.deps.is_empty());
+        assert!(setup.registered.is_empty());
+        assert!(setup.tags.is_empty());
     }
 }

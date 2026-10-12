@@ -11,7 +11,7 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, platform, tools, and pin drift. Takes no scopes and no
+Reports toolchain, platform, tools, host, and pin. Takes no scopes and no
 per-command flags. There is no `dx doctor`. Use `dx status` instead.
 
 Output: `--output text|json`.
@@ -23,18 +23,23 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 `dx status` prints one line per check:
 
 ```text
-toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
+toolchain: unprobed (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
+host: ok (observed invoking host linux/x86_64) hint: host fact only; toolchain selection stays declared until probed
 ```
 
-The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
-compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
-fails, and the hint is the fix, for example `dx version --pin <version>`.
-The `platform` check names the execution platforms tools resolve for. The
-target platform never selects tools.
+The five checks are `toolchain`, `platform`, `tools`, `host`, and `pin`.
+`pin` compares `.dx/version` with the `MODULE.bazel` pin. `host` reports the
+observed invoking host. `toolchain`, `platform`, and `tools` report declared
+defaults until probed, so they read `unprobed`, never `ok`. `ok` passes.
+`error` fails, and the hint is the fix, for example `dx version --pin <version>`.
+`unprobed` is declared but not observed; it never passes as `ok` and never
+fails the run. Only `error` fails a check. The `platform` check names the
+execution platforms tools resolve for. The target platform never selects tools.
 
 `--output=json` streams `command_started`, one `status` event per check with
-`name`, `status`, `detail`, and `hint`, then `command_finished`. A failed
-check adds a `status_pin_mismatch` error event and exit code `1`. A missing
+`name`, `status`, `detail`, and `hint`, then `command_finished`. `status` is
+one of `ok`, `error`, or `unprobed`. A failed check adds a
+`status_pin_mismatch` error event and exit code `1`. A missing
 or empty `.dx/version` fails the same way.
 
 ## `dx version`

@@ -19,7 +19,7 @@ pub const DEVCONTAINER_JSON: &str = concat!(    "{\n",
     "      \"extensions\": [\"rust-lang.rust-analyzer\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]\n",
     "    }\n",
     "  },\n",
-    "  \"postCreateCommand\": \"bazel run //dx:env && bazel run @rules_dx//:dx -- setup\"\n",
+    "  \"postCreateCommand\": \"bazel run @rules_dx//dx:env && bazel run @rules_dx//:dx -- setup\"\n",
     "}\n",
 );
 
@@ -27,7 +27,7 @@ pub const ENVRC_CONTENT: &str = concat!(
     "# Committed direnv entry scaffolded absent-only by `dx init`.\n",
     "# PATH-tools-only: adds managed `.dx/bin` to PATH, nothing else; never invokes Bazel.\n",
     "if [ ! -d \".dx/bin\" ]; then\n",
-    "  echo \"dx: missing .dx/bin; run `dx env` or `bazel run //dx:env` to regenerate\" >&2\n",
+    "  echo \"dx: missing .dx/bin; run `dx env` or `bazel run @rules_dx//dx:env` to regenerate\" >&2\n",
     "  return 1\n",
     "fi\n",
     "PATH_add .dx/bin\n",
@@ -333,7 +333,8 @@ mod tests {
         assert!(envrc.content.contains("PATH_add .dx/bin"));
         assert!(envrc.content.contains("watch_file .dx/bin"));
         assert!(envrc.content.contains("dx env"));
-        assert!(envrc.content.contains("bazel run //dx:env"));
+        assert!(envrc.content.contains("bazel run @rules_dx//dx:env"));
+        assert!(!envrc.content.contains("bazel run //dx:env"));
         assert!(envrc.content.contains("never invokes Bazel"));
     }
 
@@ -367,8 +368,12 @@ mod tests {
             .as_str()
             .expect("postCreateCommand string");
         assert!(
-            post_create.contains("bazel run //dx:env"),
+            post_create.contains("bazel run @rules_dx//dx:env"),
             "bootstrap first: {post_create}"
+        );
+        assert!(
+            !post_create.contains("bazel run //dx:env"),
+            "consumer scaffold must not use the repository-internal label: {post_create}"
         );
         assert!(
             !post_create.contains("bazel build //..."),
@@ -380,7 +385,15 @@ mod tests {
     #[test]
     fn devcontainer_scaffold_runs_dx_through_the_public_label() {
         assert!(
+            DEVCONTAINER_JSON.contains("bazel run @rules_dx//dx:env"),
+            "{DEVCONTAINER_JSON}"
+        );
+        assert!(
             DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- setup"),
+            "{DEVCONTAINER_JSON}"
+        );
+        assert!(
+            !DEVCONTAINER_JSON.contains("bazel run //dx:env"),
             "{DEVCONTAINER_JSON}"
         );
         assert!(

@@ -16,6 +16,7 @@ fn devcontainer_parity() {
         &dx,
         &[
             "init",
+            "--apply",
             "--workspace",
             scratch.to_string_lossy().as_ref(),
             "--quiet",

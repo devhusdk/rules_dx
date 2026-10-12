@@ -19,6 +19,64 @@ and a whole `min_coverage` from 0 to 100 are accepted.
 
 Set approval policy, branch protection, and least-privilege permissions manually.
 
+## Default C/C++ and Rust setup
+
+Generate the setup snippet:
+
+```sh
+bazel run @rules_dx//:dx -- init --apply my_project
+```
+
+Copy `MODULE.bazel.snippet` into `MODULE.bazel`. The snippet pins the
+hermetic LLVM and Rust toolchains and registers them:
+
+```python
+bazel_dep(name = "rules_dx", version = "0.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "llvm", version = "0.8.19")
+bazel_dep(name = "rules_rust", version = "0.74.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    rustfmt_version = "1.98.0",
+    versions = ["1.98.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@llvm//toolchain:all")
+register_toolchains("@rust_toolchains//:all")
+```
+
+Only Bazel/Bazelisk is required. Ordinary `cc_*` and `rust_*` rules need
+no linker paths or per-target flags. Native host builds are the default.
+Cross-target and Windows ABI choices are explicit advanced setup.
+Windows ARM64 builds stay unqualified.
+
+## Own toolchains
+
+Keep the `bazel_dep` lines and drop the `register_toolchains` lines, then
+register selected toolchains. Loading the rules never replaces consumer
+toolchains:
+
+```python
+cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
+use_repo(cc_configure, "local_config_cc", "local_config_cc_toolchains")
+register_toolchains("@local_config_cc_toolchains//:all")
+```
+
+A consumer that renames the module keeps working. Declare the rename once:
+
+```python
+bazel_dep(name = "rules_dx", version = "0.0.0", repo_name = "my_dx")
+```
+
+Then load through the new name:
+
+```python
+load("@my_dx//cc/rules:defs.bzl", "cc_binary")
+```
+
 ## Minimal targets
 
 Load the public rules through the module name. A Rust library looks like

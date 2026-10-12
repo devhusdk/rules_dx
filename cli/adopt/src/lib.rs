@@ -63,7 +63,9 @@ pub use preset_fragment::{
 };
 pub use scaffold::{
     apply_init, editor_disposition, editor_language_supported, plan_init_files,
-    scaffold_dest_within_root, validate_init_module, ScaffoldFile, DEVCONTAINER_JSON,
+    render_consumer_module_setup, scaffold_dest_within_root, validate_init_module, ScaffoldFile,
+    CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
+    CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, DEVCONTAINER_JSON,
     ENVRC_CONTENT,
 };
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
@@ -76,10 +78,11 @@ pub use verify_sets::{
     VERIFY_STEP_COMMANDS, VERIFY_TOML_REL,
 };
 pub use version::{
-    parse_module_dependency, parse_pin_record, read_module_dependency, read_pin_record,
-    read_version_pin, record_pin_operation, render_module_dependency, render_pin_record,
-    rollback_re_pins_previous, version_pin_matches_module, write_version_pin, ModuleDependency,
-    PinRecord, DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION, VERSION_HISTORY_REL,
+    parse_consumer_setup, parse_module_dependency, parse_pin_record, read_module_dependency,
+    read_pin_record, read_version_pin, record_pin_operation, render_module_dependency,
+    render_pin_record, rollback_re_pins_previous, version_pin_matches_module, write_version_pin,
+    ConsumerSetup, ModuleDependency, PinRecord, DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION,
+    VERSION_HISTORY_REL,
 };
 pub use watch::{
     coalesce_watch_paths, plan_watch, should_watch_path, watch_for_change, WATCHABLE_COMMANDS,

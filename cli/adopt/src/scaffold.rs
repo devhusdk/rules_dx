@@ -8,8 +8,7 @@ pub struct ScaffoldFile {
     pub content: String,
 }
 
-pub const DEVCONTAINER_JSON: &str = concat!(
-    "{\n",
+pub const DEVCONTAINER_JSON: &str = concat!(    "{\n",
     "  \"name\": \"rules_dx\",\n",
     "  \"image\": \"mcr.microsoft.com/devcontainers/base:ubuntu\",\n",
     "  \"features\": {\n",
@@ -34,6 +33,31 @@ pub const ENVRC_CONTENT: &str = concat!(
     "PATH_add .dx/bin\n",
     "watch_file .dx/bin\n",
 );
+
+pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.22";
+
+pub const CONSUMER_LLVM_VERSION: &str = "0.8.19";
+
+pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";
+
+pub const CONSUMER_RUST_EDITION: &str = "2021";
+
+pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
+
+pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
+
+pub fn render_consumer_module_setup() -> String {
+    format!(
+        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
+        dx = DX_VERSION,
+        cc = CONSUMER_RULES_CC_VERSION,
+        llvm = CONSUMER_LLVM_VERSION,
+        rust_rules = CONSUMER_RULES_RUST_VERSION,
+        edition = CONSUMER_RUST_EDITION,
+        rustfmt = CONSUMER_RUSTFMT_VERSION,
+        rust = CONSUMER_RUST_VERSION,
+    )
+}
 
 pub fn editor_disposition(language: &str) -> &'static str {
     match language {
@@ -144,7 +168,8 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         ScaffoldFile {
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
-                "# Add to MODULE.bazel:\nbazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n# module: {module}\n"
+                "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
+                setup = render_consumer_module_setup(),
             ),
         },
     ])
@@ -213,8 +238,10 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 #[cfg(test)]
 mod tests {
     use super::super::{
-        apply_init, editor_disposition, editor_language_supported, plan_init_files,
-        DEVCONTAINER_JSON,
+        apply_init, editor_disposition, editor_language_supported, parse_consumer_setup,
+        plan_init_files, CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION,
+        CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION,
+        CONSUMER_RUST_VERSION, DEVCONTAINER_JSON, DX_VERSION,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
 
@@ -469,6 +496,94 @@ mod tests {
             .find(|f| f.path == "MODULE.bazel.snippet")
             .expect("snippet");
         assert!(snippet.content.contains("# module: demo\n"));
+    }
+
+    #[test]
+    fn init_snippet_is_a_complete_consumer_setup() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-consumer-setup-");
+        let root = scratch.path().to_path_buf();
+        apply_init(&root, "demo").expect("init");
+        let text =
+            std::fs::read_to_string(root.join("MODULE.bazel.snippet")).expect("emitted snippet");
+        let setup = parse_consumer_setup(&text);
+        assert_eq!(
+            setup.deps,
+            vec![
+                ("rules_dx".to_owned(), DX_VERSION.to_owned()),
+                ("rules_cc".to_owned(), CONSUMER_RULES_CC_VERSION.to_owned()),
+                ("llvm".to_owned(), CONSUMER_LLVM_VERSION.to_owned()),
+                (
+                    "rules_rust".to_owned(),
+                    CONSUMER_RULES_RUST_VERSION.to_owned()
+                ),
+            ]
+        );
+        assert!(
+            setup
+                .extensions
+                .iter()
+                .any(|(label, tag)| label == "@rules_rust//rust:extensions.bzl" && tag == "rust"),
+            "snippet must opt into the upstream rust extension: {setup:?}"
+        );
+        assert_eq!(
+            setup.tag_arg("rust.toolchain", "edition").as_deref(),
+            Some(CONSUMER_RUST_EDITION)
+        );
+        assert_eq!(
+            setup
+                .tag_arg("rust.toolchain", "rustfmt_version")
+                .as_deref(),
+            Some(CONSUMER_RUSTFMT_VERSION)
+        );
+        assert_eq!(
+            setup.tag_list_arg("rust.toolchain", "versions"),
+            vec![CONSUMER_RUST_VERSION.to_owned()]
+        );
+        assert!(
+            setup
+                .repos
+                .iter()
+                .any(|(var, repo)| var == "rust" && repo == "rust_toolchains"),
+            "snippet must materialize the rust toolchains repo: {setup:?}"
+        );
+        assert!(
+            setup
+                .registered
+                .contains(&"@llvm//toolchain:all".to_owned()),
+            "snippet must register the hermetic LLVM toolchains: {setup:?}"
+        );
+        assert!(
+            setup
+                .registered
+                .contains(&"@rust_toolchains//:all".to_owned()),
+            "snippet must register the rust toolchains: {setup:?}"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn consumer_pins_match_toolchain_metadata() {
+        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let text = std::fs::read_to_string(
+            std::path::Path::new(&source)
+                .join(workspace)
+                .join("modules/versions.bzl"),
+        )
+        .expect("modules/versions.bzl ships as test data");
+        for (key, value) in [
+            ("RULES_CC_VERSION", CONSUMER_RULES_CC_VERSION),
+            ("LLVM_VERSION", CONSUMER_LLVM_VERSION),
+            ("RULES_RUST_VERSION", CONSUMER_RULES_RUST_VERSION),
+            ("RUST_EDITION", CONSUMER_RUST_EDITION),
+            ("RUST_VERSION", CONSUMER_RUST_VERSION),
+            ("RUSTFMT_VERSION", CONSUMER_RUSTFMT_VERSION),
+        ] {
+            assert!(
+                text.contains(&format!("{key} = \"{value}\"")),
+                "{key} drifts from modules/versions.bzl"
+            );
+        }
     }
 
     #[test]

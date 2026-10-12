@@ -14,6 +14,9 @@ Read [AGENTS.md](AGENTS.md) before changing code.
 - Update tests and user docs when behavior changes.
 - Do not edit generated files. Use the generator.
 - Library crates return typed errors. Only binaries map exit codes.
+- `libs/` holds shared code libraries. `tools/` holds runnable tooling targets.
+  `libs/testing` is Starlark only (`tested_stack.bzl`, records the tested stack).
+  `tools/testing` is the Rust test harness (`dx_testing`, probes, harnesses).
 - Every Rust crate root denies `clippy::expect_used`, `clippy::unwrap_used`,
   `clippy::unreachable` and `clippy::todo` outside `cfg(test)`, and
   `//:clippy_policy_test` names each one.

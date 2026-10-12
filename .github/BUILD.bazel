@@ -10,6 +10,7 @@ exports_files([
     "workflows/README.md",
     "workflows/bump.yml",
     "workflows/ci.yml",
+    "workflows/evidence.yml",
     "workflows/ghcr.yml",
     "workflows/publish-dry-run.yml",
     "workflows/reusable-consumer.yml",

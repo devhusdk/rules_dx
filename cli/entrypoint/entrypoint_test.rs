@@ -109,6 +109,137 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
 }
 
 #[test]
+fn consumer_new_applies_a_stdlib_cpp_project() {
+    let apply = read("DX_NEW_APPLY");
+    let wrote: Vec<&str> = apply
+        .lines()
+        .filter(|line| line.starts_with("wrote myproj/"))
+        .collect();
+    assert_eq!(
+        wrote.len(),
+        11,
+        "new --apply writes init wiring plus two C++ sources: {apply}"
+    );
+    for path in [
+        "wrote myproj/.dx/version",
+        "wrote myproj/MODULE.bazel.snippet",
+        "wrote myproj/hello.cc",
+        "wrote myproj/hello.h",
+    ] {
+        assert!(apply.contains(path), "apply lacks {path}: {apply}");
+    }
+    assert!(
+        apply.contains("exit=0"),
+        "apply records its exit code: {apply}"
+    );
+    let cc = read("DX_SCAFFOLD_HELLO_CC");
+    assert!(
+        cc.contains("#include \"hello.h\""),
+        "hello.cc includes its own header: {cc}"
+    );
+    let header = read("DX_SCAFFOLD_HELLO_H");
+    assert!(
+        header.contains("#pragma once"),
+        "hello.h is a guarded header: {header}"
+    );
+    assert!(
+        header.contains("#include <string>"),
+        "hello.h is stdlib-only: {header}"
+    );
+    let snippet = read("DX_SCAFFOLD_SNIPPET");
+    assert!(
+        snippet.contains("register_toolchains(\"@llvm//toolchain:all\")"),
+        "snippet registers hermetic LLVM: {snippet}"
+    );
+    assert!(
+        snippet.contains("register_toolchains(\"@rust_toolchains//:all\")"),
+        "snippet registers hermetic Rust: {snippet}"
+    );
+    assert!(
+        !read("DX_SCAFFOLD_VERSION").trim().is_empty(),
+        "the scaffolded project pins a dx version"
+    );
+}
+
+#[test]
+fn consumer_new_checks_before_applying_and_refuses_to_overwrite() {
+    let check = read("DX_NEW_CHECK");
+    assert!(
+        check.contains("new drift: missing"),
+        "check mode reports drift instead of writing: {check}"
+    );
+    assert!(
+        check.contains("checkonly/.dx/version"),
+        "check mode names the missing scaffold: {check}"
+    );
+    assert!(check.contains("exit=1"), "check mode fails: {check}");
+    let reapply = read("DX_NEW_REAPPLY");
+    assert!(
+        reapply.contains("absent-only, left untouched"),
+        "re-apply refuses existing files: {reapply}"
+    );
+    assert!(
+        reapply.contains("exit=0"),
+        "re-apply still succeeds: {reapply}"
+    );
+    let invalid = read("DX_NEW_INVALID");
+    assert!(
+        invalid.contains("unknown language"),
+        "an unknown language fails: {invalid}"
+    );
+    assert!(invalid.contains("exit=2"), "usage errors exit 2: {invalid}");
+}
+
+#[test]
+fn consumer_init_applies_and_rechecks_a_foreign_tree() {
+    let apply = read("DX_INIT_APPLY");
+    let wrote: Vec<&str> = apply
+        .lines()
+        .filter(|line| line.starts_with("wrote "))
+        .collect();
+    assert_eq!(
+        wrote.len(),
+        9,
+        "init --apply writes the nine wiring files: {apply}"
+    );
+    assert!(
+        apply.contains("wrote MODULE.bazel.snippet"),
+        "init scaffolds the consumer setup: {apply}"
+    );
+    assert!(
+        apply.contains("exit=0"),
+        "apply records its exit code: {apply}"
+    );
+    let check = read("DX_INIT_CHECK");
+    assert!(
+        check.contains("init drift: missing"),
+        "check mode reports drift instead of writing: {check}"
+    );
+    assert!(check.contains("exit=1"), "check mode fails: {check}");
+    let clean = read("DX_INIT_CLEAN");
+    assert!(
+        clean.contains("init current: demo"),
+        "an applied tree rechecks clean: {clean}"
+    );
+    assert!(clean.contains("exit=0"), "a clean tree passes: {clean}");
+    let bad = read("DX_INIT_BAD");
+    assert!(
+        bad.contains("invalid module name"),
+        "an invalid module fails: {bad}"
+    );
+    assert!(bad.contains("exit=2"), "usage errors exit 2: {bad}");
+    let snippet = read("DX_INIT_SNIPPET");
+    assert!(
+        snippet.contains("register_toolchains(\"@llvm//toolchain:all\")"),
+        "the init snippet matches the hermetic setup: {snippet}"
+    );
+    assert!(
+        !read("DX_INIT_VERSION").trim().is_empty(),
+        "the wired tree pins a dx version"
+    );
+}
+
+#[test]
 fn consumer_dependency_set_fixtures_fail_closed() {
     let overlap = read("DX_SETS_OVERLAP");
     assert!(

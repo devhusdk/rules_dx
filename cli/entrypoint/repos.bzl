@@ -216,3 +216,99 @@ def _consumer_sets_repo_impl(ctx):
 consumer_sets_repo = repository_rule(
     implementation = _consumer_sets_repo_impl,
 )
+
+_SCAFFOLD_BUILD_BAZEL = '''genrule(
+    name = "consumer_scaffold_probe",
+    outs = [
+        "new_apply.txt",
+        "new_check.txt",
+        "new_reapply.txt",
+        "new_invalid.txt",
+        "init_apply.txt",
+        "init_check.txt",
+        "init_clean.txt",
+        "init_bad.txt",
+        "foreign/myproj/hello.cc",
+        "foreign/myproj/hello.h",
+        "foreign/myproj/MODULE.bazel.snippet",
+        "foreign/myproj/.dx/version",
+        "fortree/.dx/version",
+        "fortree/MODULE.bazel.snippet",
+    ],
+    cmd = """
+set -eu
+public="$(location @rules_dx//:dx)"
+root="$$(dirname "$(location new_apply.txt)")"
+foreign="$$root/foreign"
+fortree="$$root/fortree"
+checktree="$$root/checktree"
+mkdir -p "$$foreign" "$$fortree" "$$checktree"
+"$$public" new --apply cpp myproj --workspace "$$foreign" > "$(location new_apply.txt)" 2>&1
+echo "exit=0" >> "$(location new_apply.txt)"
+grep -q "wrote myproj/hello.cc" "$(location new_apply.txt)"
+grep -q "wrote myproj/hello.h" "$(location new_apply.txt)"
+grep -q "wrote myproj/MODULE.bazel.snippet" "$(location new_apply.txt)"
+test -f "$$foreign/myproj/hello.cc"
+test -f "$$foreign/myproj/hello.h"
+test -f "$$foreign/myproj/MODULE.bazel.snippet"
+test -f "$$foreign/myproj/.dx/version"
+if "$$public" new cpp checkonly --workspace "$$checktree" > "$(location new_check.txt)" 2>&1; then
+  echo "check-mode applied a scaffold" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location new_check.txt)"
+fi
+grep -q "new drift: missing" "$(location new_check.txt)"
+test ! -e "$$checktree/checkonly"
+cp "$$foreign/myproj/hello.cc" "$$root/hello.cc.orig"
+"$$public" new --apply cpp myproj --workspace "$$foreign" > "$(location new_reapply.txt)" 2>&1
+echo "exit=0" >> "$(location new_reapply.txt)"
+grep -q "absent-only, left untouched" "$(location new_reapply.txt)"
+cmp "$$root/hello.cc.orig" "$$foreign/myproj/hello.cc"
+if "$$public" new --apply brainfuck bad --workspace "$$foreign" > "$(location new_invalid.txt)" 2>&1; then
+  echo "new accepted an unknown language" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location new_invalid.txt)"
+fi
+grep -q "unknown language" "$(location new_invalid.txt)"
+test ! -e "$$foreign/bad"
+"$$public" init --apply demo --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
+echo "exit=0" >> "$(location init_apply.txt)"
+grep -q "wrote MODULE.bazel.snippet" "$(location init_apply.txt)"
+grep -q "wrote .dx/version" "$(location init_apply.txt)"
+test -f "$$fortree/MODULE.bazel.snippet"
+test -f "$$fortree/.dx/version"
+if "$$public" init demo --workspace "$$checktree" > "$(location init_check.txt)" 2>&1; then
+  echo "check-mode applied a scaffold" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location init_check.txt)"
+fi
+grep -q "init drift: missing" "$(location init_check.txt)"
+test ! -e "$$checktree/.dx"
+"$$public" init demo --workspace "$$fortree" > "$(location init_clean.txt)" 2>&1
+echo "exit=0" >> "$(location init_clean.txt)"
+grep -q "init current: demo" "$(location init_clean.txt)"
+if "$$public" init "Bad Name" --workspace "$$fortree" > "$(location init_bad.txt)" 2>&1; then
+  echo "init accepted an invalid module" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location init_bad.txt)"
+fi
+grep -q "invalid module name" "$(location init_bad.txt)"
+""",
+    tools = [
+        "@rules_dx//:dx",
+    ],
+    visibility = ["//visibility:public"],
+)
+'''
+
+def _consumer_scaffold_repo_impl(ctx):
+    """Writes the consumer repository that scaffolds foreign trees with dx."""
+    ctx.file("BUILD.bazel", _SCAFFOLD_BUILD_BAZEL)
+
+consumer_scaffold_repo = repository_rule(
+    implementation = _consumer_scaffold_repo_impl,
+)

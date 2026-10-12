@@ -115,3 +115,10 @@ slice; unknown environments, wrong architectures, duplicates, and
 missing coverage fail. Resources stay relative workspace paths with
 non-empty names. Build, signing, and publication stay separate
 operations with their own prerequisites.
+
+## Scope
+
+Supported: `apple_provisioning` declarations plus `apple_ios_lib`, `apple_ios_app`, and `apple_ios_framework` selections.
+Loading these rules builds nothing. Launch runs only on a qualified macOS executor with Xcode.
+The exercised checks are the `apple.app` and `apple.lib` workflow capabilities.
+Out of scope: builds, launches, signing, publication, gazelle plugin, adopt example, acceptance inventory rows, update set, wrapper family.

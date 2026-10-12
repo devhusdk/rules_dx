@@ -27,3 +27,9 @@ wasi_test(
 environment entries, and directory preopens. Ambient environment and undeclared
 files stay denied. Point `runtime` at an executable acting like `wasmtime run` to
 override the managed default; it receives `DX_WASI_MANAGED_RUNTIME` for delegation.
+
+## Scope
+
+Supported: Rust crates on `wasm32-wasip1` through `wasi_binary` and `wasi_test` with Wasmtime 49.0.2.
+The runtime comes from the `wasmtime` module extension. The exercised consumer is `rust/tests/fixtures/consumer_wasi`.
+Out of scope: other languages, other WASI versions, gazelle plugin, adopt example, acceptance inventory rows, update set, wrapper family.

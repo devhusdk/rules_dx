@@ -1,6 +1,6 @@
 """Clang-format check plus fix wiring."""
 
-CLANG_FORMAT_VERSION = "hermetic-llvm v0.8.19 (LLVM 23.1.0)"
+CLANG_FORMAT_VERSION = "hermetic-llvm v0.8.24 (LLVM 23.1.2)"
 
 CLANG_FORMAT_ARTIFACT = "authoritative hermetic-llvm LLVM tool targets (clang-format), no separate acquisition"
 

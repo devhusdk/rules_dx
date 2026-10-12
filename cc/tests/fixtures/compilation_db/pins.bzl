@@ -1,6 +1,6 @@
 """Compilation-context fixture pins plus the target-coupling decision."""
 
-CC_CONTEXT_LLVM_VERSION = "hermetic-llvm v0.8.19 (clang-tidy)"
+CC_CONTEXT_LLVM_VERSION = "hermetic-llvm v0.8.24 (clang-tidy)"
 
 CC_CONTEXT_LLVM_LABEL = "@llvm//tools:clang-tidy"
 

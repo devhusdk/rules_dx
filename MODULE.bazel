@@ -5,8 +5,14 @@ module(
 
 bazel_dep(name = "rules_rust", version = "0.74.0")
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.74.0")
-bazel_dep(name = "rules_cc", version = "0.2.22")
-bazel_dep(name = "llvm", version = "0.8.19")
+bazel_dep(name = "rules_cc", version = "0.2.25")
+single_version_override(
+    module_name = "rules_cc",
+    patch_strip = 1,
+    patches = ["//patches:rules_cc_grep_includes.patch"],
+    version = "0.2.25",
+)
+bazel_dep(name = "llvm", version = "0.8.24")
 bazel_dep(name = "googletest", version = "1.18.0")
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "rules_go", version = "0.63.0")

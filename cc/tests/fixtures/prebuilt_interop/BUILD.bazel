@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -15,6 +15,13 @@ cc_library(
 
 cc_test(
     name = "interop_test",
+    srcs = ["interop_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [":interop"],
+)
+
+cc_binary(
+    name = "interop_check",
     srcs = ["interop_test.cc"],
     copts = ["-std=c++17"],
     deps = [":interop"],

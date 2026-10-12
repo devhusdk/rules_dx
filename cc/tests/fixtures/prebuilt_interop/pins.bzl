@@ -15,6 +15,12 @@ WINDOWS_COMPAT_LIMITS = "https://learn.microsoft.com/en-us/cpp/porting/binary-co
 WINDOWS_CLANG_COMPAT = "https://clang.llvm.org/docs/MSVCCompatibility.html"
 WINDOWS_REJECTED_OBJECTS = ["/GL", "/LTCG", "arbitrary CRT combinations", "vendor libraries"]
 
+WINDOWS_MSVC_PLATFORM = "@llvm//platforms:windows_x86_64_msvc"
+WINDOWS_MSVC_TARGET = "x86_64-pc-windows-msvc"
+WINDOWS_MSVC_DRIVER = "clang-cl with -fuse-ld=lld"
+WINDOWS_MSVC_SETUP = "--repo_env=BAZEL_MSVC_RUNTIME_VISUAL_STUDIO_EULA=1 --repo_env=BAZEL_WINDOWS_SDK_EULA=1"
+WINDOWS_MSVC_EXECUTION = "native Windows AMD64 runs the cross-built boundary binary with exit 0"
+
 LINUX_DEFAULT_CXX_LIB = "libc++"
 LINUX_ALT_CXX_LIB = "explicit dynamic libstdc++ (Linux glibc only)"
 LINUX_ALT_SCOPE = "Upstream supports it only on Linux glibc"
@@ -41,6 +47,7 @@ REJECTED_ALTERNATIVES = [
 
 PREBUILT_INTEROP_FIXTURE_LIB = "//cc/tests/fixtures/prebuilt_interop:interop"
 PREBUILT_INTEROP_FIXTURE_TEST = "//cc/tests/fixtures/prebuilt_interop:interop_test"
+PREBUILT_INTEROP_BOUNDARY_BIN = "//cc/tests/fixtures/prebuilt_interop:interop_check"
 PREBUILT_INTEROP_MIXED_CXX = "//rust/tests/fixtures/cxx_identity:bridge"
 PREBUILT_INTEROP_MIXED_RUST = "//rust/tests/fixtures/cxx_identity:cxx_identity"
 PREBUILT_INTEROP_STABLE_CC = "//cc/tests/fixtures/hello:hello"

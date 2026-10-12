@@ -4,7 +4,8 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
-load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs")
+load("//javascript/rules:jest.bzl", "jest_data_with_package_json", "jest_plain_rejection", "jest_reporter_rejection", "jest_test_env", "jest_test_forward", "jest_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_test_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_TS_PROJECT_PROVIDES = [
@@ -239,18 +240,7 @@ def typescript_project(name, srcs, declaration_srcs = None, visibility = None, *
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 def _typescript_test_forward_impl(ctx):
-    upstream = ctx.attr.upstream
-
-    env_inherit = list(ctx.attr.env_inherit) if ctx.attr.env_inherit else []
-    if "TESTBRIDGE_TEST_ONLY" not in env_inherit:
-        env_inherit.append("TESTBRIDGE_TEST_ONLY")
-    out = [
-        dx_symlink_default_info(ctx, "typescript_*"),
-        testing.TestEnvironment({}, env_inherit),
-        dx_quality_sources(ctx.files.srcs, _DX_TS_SOURCE_SPECS, str(ctx.label)),
-    ]
-
-    return out + dx_forwarded_optional(upstream, [InstrumentedFilesInfo, OutputGroupInfo], "typescript_*")
+    return jest_test_forward(ctx, "typescript_*", _DX_TS_SOURCE_SPECS)
 
 _typescript_test = rule(
     implementation = _typescript_test_forward_impl,
@@ -267,40 +257,15 @@ _typescript_test = rule(
 
 def typescript_test_rejection(kwargs):
     """Returns the rejection for forbidden typescript_test kwargs, or None."""
-    if kwargs.get("auto_configure_reporters", True) == False:
-        return ("typescript_test always uses jest with the standard " +
-                "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported. " +
-                "Use typescript_js_test for a custom runner.")
-    return None
-
-_TYPESCRIPT_JEST_ONLY_KEYS = [
-    "node_modules",
-    "config",
-    "snapshots",
-    "run_in_band",
-    "colors",
-    "auto_configure_reporters",
-    "auto_configure_test_sequencer",
-    "snapshots_ext",
-    "quiet_snapshot_updates",
-]
+    return jest_reporter_rejection("typescript_test", "typescript_js_test", kwargs)
 
 def typescript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden typescript_js_test kwargs, or None."""
-    for key in _TYPESCRIPT_JEST_ONLY_KEYS:
-        if key in kwargs:
-            return ("typescript_js_test runs plain Node via js_test without " +
-                    "Jest reporting; `" + key + "` is not supported. " +
-                    "Use typescript_test for Jest behavior.")
-    return None
+    return jest_plain_rejection("typescript_test", "typescript_js_test", kwargs)
 
 def typescript_test_env(env_inherit):
     """Computes the effective test-runtime inherited environment."""
-    env = list(env_inherit) if env_inherit != None else []
-    if "TESTBRIDGE_TEST_ONLY" not in env:
-        env.append("TESTBRIDGE_TEST_ONLY")
-    return env
+    return jest_test_env(env_inherit)
 
 def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
     """Experimental minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
@@ -334,20 +299,9 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
     )
 
     upstream_data = [":" + name + "_ts"] + list(deps or []) + list(data or [])
-    if "//:package_json" not in upstream_data:
-        upstream_data.append("//:package_json")
+    upstream_data = jest_data_with_package_json(upstream_data)
 
-    upstream_kwargs = dict(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
-    if tags != None:
-        upstream_tags = list(tags)
-        if "manual" not in upstream_tags:
-            upstream_tags.append("manual")
-        upstream_kwargs["tags"] = upstream_tags
-    elif upstream_kwargs.get("tags", None) == None:
-        upstream_kwargs["tags"] = ["manual"]
-    elif "manual" not in upstream_kwargs["tags"]:
-        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
+    upstream_kwargs = jest_upstream_kwargs(kwargs, tags)
 
     _jest_test(
         name = name + "_upstream",
@@ -400,20 +354,9 @@ def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconf
     )
 
     upstream_data = [":" + name + "_ts"] + list(deps or []) + list(data or [])
-    if "//:package_json" not in upstream_data:
-        upstream_data.append("//:package_json")
+    upstream_data = jest_data_with_package_json(upstream_data)
 
-    upstream_kwargs = dict(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
-    if tags != None:
-        upstream_tags = list(tags)
-        if "manual" not in upstream_tags:
-            upstream_tags.append("manual")
-        upstream_kwargs["tags"] = upstream_tags
-    elif upstream_kwargs.get("tags", None) == None:
-        upstream_kwargs["tags"] = ["manual"]
-    elif "manual" not in upstream_kwargs["tags"]:
-        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
+    upstream_kwargs = jest_upstream_kwargs(kwargs, tags)
 
     _js_test(
         name = name + "_upstream",

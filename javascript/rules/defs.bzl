@@ -4,8 +4,9 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_attrs", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_wrap")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_attrs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_test_forward_kwargs", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":jest.bzl", "jest_data_with_package_json", "jest_plain_rejection", "jest_reporter_rejection", "jest_test_env", "jest_test_forward", "jest_upstream_kwargs")
 
 _DX_JS_LIBRARY_PROVIDES = [
     _JsInfo,
@@ -148,16 +149,7 @@ def javascript_binary(name, srcs = None, visibility = None, **kwargs):
     _javascript_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
 
 def _javascript_test_forward_impl(ctx):
-    upstream = ctx.attr.upstream
-    env_inherit = list(ctx.attr.env_inherit) if ctx.attr.env_inherit else []
-    if "TESTBRIDGE_TEST_ONLY" not in env_inherit:
-        env_inherit.append("TESTBRIDGE_TEST_ONLY")
-    out = [
-        dx_symlink_default_info(ctx, "javascript_*"),
-        testing.TestEnvironment({}, env_inherit),
-        dx_quality_sources(ctx.files.srcs, _DX_JS_SOURCE_SPECS, str(ctx.label)),
-    ]
-    return out + dx_forwarded_optional(upstream, [InstrumentedFilesInfo, OutputGroupInfo], "javascript_*")
+    return jest_test_forward(ctx, "javascript_*", _DX_JS_SOURCE_SPECS)
 
 _javascript_test = rule(
     implementation = _javascript_test_forward_impl,
@@ -174,40 +166,15 @@ _javascript_test = rule(
 
 def javascript_test_rejection(kwargs):
     """Returns the rejection for forbidden javascript_test kwargs, or None."""
-    if kwargs.get("auto_configure_reporters", True) == False:
-        return ("javascript_test always uses jest with the standard " +
-                "auto-configured reporters (Bazel test logs); " +
-                "`auto_configure_reporters = False` is not supported. " +
-                "Use javascript_js_test for a custom runner.")
-    return None
-
-_JAVASCRIPT_JEST_ONLY_KEYS = [
-    "node_modules",
-    "config",
-    "snapshots",
-    "run_in_band",
-    "colors",
-    "auto_configure_reporters",
-    "auto_configure_test_sequencer",
-    "snapshots_ext",
-    "quiet_snapshot_updates",
-]
+    return jest_reporter_rejection("javascript_test", "javascript_js_test", kwargs)
 
 def javascript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden javascript_js_test kwargs, or None."""
-    for key in _JAVASCRIPT_JEST_ONLY_KEYS:
-        if key in kwargs:
-            return ("javascript_js_test runs plain Node via js_test without " +
-                    "Jest reporting; `" + key + "` is not supported. " +
-                    "Use javascript_test for Jest behavior.")
-    return None
+    return jest_plain_rejection("javascript_test", "javascript_js_test", kwargs)
 
 def javascript_test_env(env_inherit):
     """Computes the effective test-runtime inherited environment."""
-    env = list(env_inherit) if env_inherit != None else []
-    if "TESTBRIDGE_TEST_ONLY" not in env:
-        env.append("TESTBRIDGE_TEST_ONLY")
-    return env
+    return jest_test_env(env_inherit)
 
 def javascript_test(name, srcs, node_modules, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
     """Experimental minimal wrapper over jest_test."""
@@ -216,19 +183,8 @@ def javascript_test(name, srcs, node_modules, data = None, visibility = None, ta
     rejection = javascript_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
-    upstream_kwargs = dict(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
-    if tags != None:
-        upstream_tags = list(tags)
-        if "manual" not in upstream_tags:
-            upstream_tags.append("manual")
-        upstream_kwargs["tags"] = upstream_tags
-    elif upstream_kwargs.get("tags", None) == None:
-        upstream_kwargs["tags"] = ["manual"]
-    elif "manual" not in upstream_kwargs["tags"]:
-        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
-    if "//:package_json" not in upstream_data:
-        upstream_data.append("//:package_json")
+    upstream_kwargs = jest_upstream_kwargs(kwargs, tags)
+    upstream_data = jest_data_with_package_json(upstream_data)
     _jest_test(
         name = name + "_upstream",
         node_modules = node_modules,
@@ -255,19 +211,8 @@ def javascript_js_test(name, srcs, entry_point, data = None, visibility = None, 
         fail(rejection)
     upstream_data = list(srcs) + (list(data) if data != None else [])
     effective_env = javascript_test_env(env_inherit)
-    upstream_kwargs = dict(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
-    if tags != None:
-        upstream_tags = list(tags)
-        if "manual" not in upstream_tags:
-            upstream_tags.append("manual")
-        upstream_kwargs["tags"] = upstream_tags
-    elif upstream_kwargs.get("tags", None) == None:
-        upstream_kwargs["tags"] = ["manual"]
-    elif "manual" not in upstream_kwargs["tags"]:
-        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
-    if "//:package_json" not in upstream_data:
-        upstream_data.append("//:package_json")
+    upstream_kwargs = jest_upstream_kwargs(kwargs, tags)
+    upstream_data = jest_data_with_package_json(upstream_data)
     _js_test(
         name = name + "_upstream",
         entry_point = entry_point,

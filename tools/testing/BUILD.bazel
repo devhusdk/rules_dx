@@ -52,6 +52,7 @@ rustfmt_test(
     size = "small",
     targets = [
         ":dx_testing",
+        ":preflight_smoke_test",
         ":starlark_harness",
     ],
 )
@@ -61,6 +62,7 @@ rust_clippy_test(
     size = "small",
     targets = [
         ":dx_testing",
+        ":preflight_smoke_test",
         ":starlark_harness",
     ],
 )
@@ -96,6 +98,22 @@ rust_test(
         ["serde_json"],
         package_name = "tools/dx_testing",
     ) + ["//cli/path:dx_path"],
+)
+
+# keep
+rust_test(
+    name = "preflight_smoke_test",
+    size = "small",
+    srcs = ["preflight_smoke_test.rs"],
+    data = [
+        "//cc/tests/fixtures/hello",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_PREFLIGHT_DX": "$(rootpath //cli/cli:dx)",
+        "DX_PREFLIGHT_HELLO": "$(rootpath //cc/tests/fixtures/hello:hello)",
+    },
+    deps = ["//tools/testing:dx_testing"],
 )
 
 exports_files(["Cargo.toml"])

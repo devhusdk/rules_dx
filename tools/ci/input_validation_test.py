@@ -40,6 +40,7 @@ GATE_JOBS = (
     "dogfood",
     "docs",
     "devcontainer-check",
+    "preflight",
     "workflow-check",
 )
 CONSUMER_JOBS = ("validate", "advisory-snapshots", *CHECKS)

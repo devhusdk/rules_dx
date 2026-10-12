@@ -23,6 +23,36 @@ Output: `--output text`.
 Exit codes: `0` success, `2` usage errors including extra positionals or an
 invalid module name, `1` scaffolding failed.
 
+### Consumer setup
+
+`dx init --apply` writes `MODULE.bazel.snippet` absent-only. Copy that snippet into `MODULE.bazel` to opt into the hermetic C/C++ and Rust defaults. Loading `@rules_dx//cc/rules:defs.bzl` or `@rules_dx//rust/rules:defs.bzl` alone registers nothing.
+
+```python
+bazel_dep(name = "rules_dx", version = "0.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "llvm", version = "0.8.19")
+bazel_dep(name = "rules_rust", version = "0.74.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    rustfmt_version = "1.98.0",
+    versions = ["1.98.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@llvm//toolchain:all")
+register_toolchains("@rust_toolchains//:all")
+```
+
+Keep your own toolchains by registering them in your root `MODULE.bazel`. Native host builds are the default. Cross-target and Windows ABI choices are explicit advanced setup. The default Windows toolchain uses the GNU ABI.
+
+```sh
+bazel run @rules_dx//:dx -- init --apply demo
+```
+
+Then build and test the consumer workspace with `bazel build //...` and `bazel test //...`. Only Bazel is required. Ordinary `cc_*` and `rust_*` rules need no linker paths or per-target driver flags.
+
 ## `dx hooks`
 
 ```text

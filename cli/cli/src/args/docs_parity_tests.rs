@@ -3150,6 +3150,57 @@ fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
     );
 }
 
+#[test]
+fn init_consumer_snippet_tracks_the_canonical_toolchain_pins() {
+    let snippet = dx_adopt::render_consumer_module_setup();
+    for name in [
+        "RULES_CC_VERSION",
+        "LLVM_VERSION",
+        "RULES_RUST_VERSION",
+        "RUST_VERSION",
+        "RUST_EDITION",
+        "RUSTFMT_VERSION",
+    ] {
+        let pin = versions_pin(name);
+        assert!(
+            snippet.contains(&pin),
+            "the init consumer snippet never names the canonical {name} pin {pin}:\n{snippet}"
+        );
+    }
+    for wanted in [
+        "use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")",
+        "use_repo(rust, \"rust_toolchains\")",
+        "register_toolchains(\"@llvm//toolchain:all\")",
+        "register_toolchains(\"@rust_toolchains//:all\")",
+    ] {
+        assert!(
+            snippet.contains(wanted),
+            "the init consumer snippet never states {wanted}:\n{snippet}"
+        );
+    }
+    let planned = dx_adopt::plan_init_files("demo").expect("dx init plans");
+    let emitted = planned
+        .iter()
+        .find(|file| file.path == "MODULE.bazel.snippet")
+        .expect("dx init emits the consumer snippet");
+    assert!(
+        emitted.content.contains(&snippet),
+        "dx init must emit the canonical consumer snippet absent-only"
+    );
+}
+
+#[test]
+fn loading_the_public_wrappers_registers_no_toolchain() {
+    for path in ["cc/rules/defs.bzl", "rust/rules/defs.bzl"] {
+        let source = std::fs::read_to_string(workspace_root().join(path))
+            .unwrap_or_else(|error| panic!("{path} ships as test data: {error}"));
+        assert!(
+            !source.contains("register_toolchains"),
+            "{path} registers a toolchain, so loading the wrappers would replace a consumer toolchain"
+        );
+    }
+}
+
 fn workflow_exports() -> Vec<String> {
     let build = std::fs::read_to_string(workspace_root().join(".github/BUILD.bazel"))
         .expect(".github/BUILD.bazel ships as test data");

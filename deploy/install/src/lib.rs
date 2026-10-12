@@ -207,6 +207,50 @@ pub trait Verifier {
 
 pub struct SystemVerifier;
 
+fn atomic_install_copy(src: &Path, dst: &Path) -> io::Result<()> {
+    if let Some(parent) = dst.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    let base = dst
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("dx");
+    let staged = dst.with_file_name(format!(".{base}.tmp.{}", std::process::id()));
+    let stage = (|| -> io::Result<()> {
+        std::fs::copy(src, &staged)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
+        }
+        let want = dx_digest::sha256_file_hex(src)?;
+        let got = dx_digest::sha256_file_hex(&staged)?;
+        if want != got {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "byte mismatch for {} (expected sha256 {want}, got {got})",
+                    src.display(),
+                ),
+            ));
+        }
+        Ok(())
+    })();
+    if let Err(error) = stage {
+        let _ = std::fs::remove_file(&staged);
+        return Err(error);
+    }
+    match std::fs::rename(&staged, dst) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            let _ = std::fs::remove_file(&staged);
+            Err(error)
+        }
+    }
+}
+
 impl Verifier for SystemVerifier {
     fn is_nonempty_file(&self, path: &Path) -> bool {
         std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
@@ -248,16 +292,7 @@ impl Verifier for SystemVerifier {
     }
 
     fn install_copy(&self, src: &Path, dst: &Path) -> io::Result<()> {
-        if let Some(parent) = dst.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::copy(src, dst)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(dst, std::fs::Permissions::from_mode(0o755))?;
-        }
-        Ok(())
+        atomic_install_copy(src, dst)
     }
 
     fn read_text(&self, path: &Path) -> Option<String> {
@@ -430,13 +465,20 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             .sha256_file(&binary)
             .map_err(|error| format!("dx_verify: cannot hash {}: {error}", binary.display()))?;
         let dst = Path::new(&args.install_dir).join(base);
+        let prior = verifier.sha256_file(&dst).ok();
         verifier
             .install_copy(&binary, &dst)
             .map_err(|error| format!("dx_verify: cannot install {}: {error}", dst.display()))?;
-        out.push_str(&format!(
-            "dx_verify: installed {base} to {} (sha256 {digest}, verified via {verified})\n",
-            args.install_dir
-        ));
+        match prior {
+            Some(previous) => out.push_str(&format!(
+                "dx_verify: installed {base} to {} (sha256 {digest}, verified via {verified}, replaced prior sha256 {previous})\n",
+                args.install_dir
+            )),
+            None => out.push_str(&format!(
+                "dx_verify: installed {base} to {} (sha256 {digest}, verified via {verified}, fresh install: no prior binary)\n",
+                args.install_dir
+            )),
+        }
     } else {
         out.push_str(&format!(
             "dx_verify: OK (verified via {verified}; nothing installed, binary never executed)\n"
@@ -1099,5 +1141,205 @@ mod tests {
             "child env mutation dies with the child"
         );
         scratch.close().expect("cleanup");
+    }
+
+    struct FsStub {
+        cosign_ok: bool,
+    }
+
+    impl FsStub {
+        fn bundle_for(data: &[u8]) -> Vec<u8> {
+            format!("bundle-for-{}", dx_digest::sha256_hex(data)).into_bytes()
+        }
+    }
+
+    impl Verifier for FsStub {
+        fn is_nonempty_file(&self, path: &Path) -> bool {
+            std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
+        }
+
+        fn is_file(&self, path: &Path) -> bool {
+            path.is_file()
+        }
+
+        fn cosign_verify(
+            &self,
+            _cosign: &str,
+            bundle: &Path,
+            _identity: &str,
+            _issuer: &str,
+            subject: &Path,
+        ) -> bool {
+            if !self.cosign_ok {
+                return false;
+            }
+            match (std::fs::read(subject), std::fs::read(bundle)) {
+                (Ok(subject_bytes), Ok(bundle_bytes)) => {
+                    bundle_bytes == Self::bundle_for(&subject_bytes)
+                }
+                _ => false,
+            }
+        }
+
+        fn gh_verify(&self, _gh: &str, _subject: &Path, _owner: &str) -> bool {
+            false
+        }
+
+        fn cosign_bin(&self) -> String {
+            "cosign".to_owned()
+        }
+
+        fn gh_bin(&self) -> String {
+            "gh".to_owned()
+        }
+
+        fn have(&self, bin: &str) -> bool {
+            bin == "cosign"
+        }
+
+        fn sha256_file(&self, path: &Path) -> io::Result<String> {
+            dx_digest::sha256_file_hex(path)
+        }
+
+        fn install_copy(&self, src: &Path, dst: &Path) -> io::Result<()> {
+            super::atomic_install_copy(src, dst)
+        }
+
+        fn read_text(&self, path: &Path) -> Option<String> {
+            std::fs::read_to_string(path).ok()
+        }
+    }
+
+    fn stub_args(binary: &Path, bundle: &Path, install_dir: &Path) -> VerifyArgs {
+        VerifyArgs {
+            binary: binary.to_string_lossy().into_owned(),
+            bundle: bundle.to_string_lossy().into_owned(),
+            identity: "IDENT".to_owned(),
+            issuer: "ISSUER".to_owned(),
+            install_dir: install_dir.to_string_lossy().into_owned(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn install_output_distinguishes_fresh_and_upgrade() {
+        let mut fresh_args = valid_args();
+        fresh_args.install_dir = "/tmp/install".to_owned();
+        let out = verify(&fresh_args, &valid_fake()).expect("fresh");
+        assert!(out.contains("fresh install"), "got {out}");
+        let mut upgrade_args = valid_args();
+        upgrade_args.install_dir = "/tmp/install".to_owned();
+        let mut fake = valid_fake();
+        let old = b"old-binary-bytes";
+        fake.write("/tmp/install/dx-fake", old);
+        let out = verify(&upgrade_args, &fake).expect("upgrade");
+        assert!(
+            out.contains(&format!(
+                "replaced prior sha256 {}",
+                dx_digest::sha256_hex(old)
+            )),
+            "got {out}"
+        );
+    }
+
+    #[test]
+    fn verified_upgrade_replaces_prior_and_failed_verify_preserves_it() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let candidate = scratch.path().join("candidate");
+        std::fs::create_dir_all(&candidate).expect("candidate dir");
+        let binary = candidate.join("dx");
+        let bundle = candidate.join("dx.bundle");
+        let install_dir = scratch.path().join("install");
+        let installed = install_dir.join("dx");
+        let stub = FsStub { cosign_ok: true };
+        std::fs::write(&binary, b"dx-v1-bytes").expect("v1");
+        std::fs::write(&bundle, &FsStub::bundle_for(b"dx-v1-bytes")).expect("v1 bundle");
+        let out = verify(&stub_args(&binary, &bundle, &install_dir), &stub).expect("v1");
+        assert!(out.contains("fresh install"), "got {out}");
+        assert_eq!(std::fs::read(&installed).expect("read v1"), b"dx-v1-bytes");
+        let prior_digest = dx_digest::sha256_hex(b"dx-v1-bytes");
+        std::fs::write(&binary, b"dx-v2-bytes").expect("v2");
+        std::fs::write(&bundle, &FsStub::bundle_for(b"dx-v2-bytes")).expect("v2 bundle");
+        let out = verify(&stub_args(&binary, &bundle, &install_dir), &stub).expect("v2");
+        assert!(
+            out.contains(&format!("replaced prior sha256 {prior_digest}")),
+            "got {out}"
+        );
+        assert_eq!(std::fs::read(&installed).expect("read v2"), b"dx-v2-bytes");
+        std::fs::write(&binary, b"dx-v3-tampered").expect("v3");
+        let err =
+            verify(&stub_args(&binary, &bundle, &install_dir), &stub).expect_err("tamper fails");
+        assert!(err.contains("cosign verification failed"), "got {err}");
+        assert_eq!(
+            std::fs::read(&installed).expect("prior intact"),
+            b"dx-v2-bytes"
+        );
+    }
+
+    #[test]
+    fn install_copy_is_atomic_and_handles_special_paths() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let verifier = SystemVerifier;
+        let special_dir = scratch
+            .path()
+            .join("dir with spaces")
+            .join("ünicode-日本語");
+        std::fs::create_dir_all(&special_dir).expect("special dir");
+        let src = special_dir.join("dx binary β");
+        std::fs::write(&src, b"special-bytes").expect("src");
+        let dst = special_dir.join("installed dx γ");
+        verifier.install_copy(&src, &dst).expect("special copy");
+        assert_eq!(std::fs::read(&dst).expect("read special"), b"special-bytes");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            assert_eq!(
+                std::fs::metadata(&dst)
+                    .expect("copy metadata")
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o755
+            );
+        }
+        let prior = special_dir.join("prior binary");
+        std::fs::write(&prior, b"prior-bytes").expect("prior");
+        assert!(verifier
+            .install_copy(&scratch.path().join("missing-src"), &prior)
+            .is_err());
+        assert_eq!(std::fs::read(&prior).expect("prior intact"), b"prior-bytes");
+        let dir_dst = special_dir.join("a-directory");
+        std::fs::create_dir_all(&dir_dst).expect("dir dst");
+        std::fs::write(dir_dst.join("keep"), b"keep").expect("keep");
+        assert!(verifier.install_copy(&src, &dir_dst).is_err());
+        assert_eq!(
+            std::fs::read(dir_dst.join("keep")).expect("keep intact"),
+            b"keep"
+        );
+        assert!(dir_dst.is_dir());
+        let leftovers: Vec<_> = std::fs::read_dir(&special_dir)
+            .expect("list")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp."))
+            .collect();
+        assert!(leftovers.is_empty(), "staged temp files must be cleaned up");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn install_copy_falls_back_when_basename_is_not_utf8() {
+        use std::os::unix::ffi::OsStrExt as _;
+        let scratch = tempfile::tempdir().expect("scratch");
+        let verifier = SystemVerifier;
+        let src = scratch.path().join("src-bytes");
+        std::fs::write(&src, b"non-utf8-name-bytes").expect("src");
+        let dst = scratch
+            .path()
+            .join(std::ffi::OsStr::from_bytes(b"\xff\xfe"));
+        verifier.install_copy(&src, &dst).expect("non-utf8 copy");
+        assert_eq!(
+            std::fs::read(&dst).expect("read non-utf8"),
+            b"non-utf8-name-bytes"
+        );
     }
 }

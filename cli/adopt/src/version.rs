@@ -532,6 +532,7 @@ pub struct ConsumerSetup {
     pub repos: Vec<(String, String)>,
     pub registered: Vec<String>,
     pub tags: Vec<(String, String)>,
+    pub repo_names: Vec<(String, String)>,
 }
 
 impl ConsumerSetup {
@@ -540,6 +541,13 @@ impl ConsumerSetup {
             .iter()
             .find(|(dep, _)| dep == name)
             .map(|(_, version)| version.as_str())
+    }
+
+    pub fn repo_name(&self, name: &str) -> Option<&str> {
+        self.repo_names
+            .iter()
+            .find(|(dep, _)| dep == name)
+            .map(|(_, repo)| repo.as_str())
     }
 
     pub fn tag_arg(&self, tag: &str, key: &str) -> Option<String> {
@@ -700,6 +708,7 @@ pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
         repos: Vec::new(),
         registered: Vec::new(),
         tags: Vec::new(),
+        repo_names: Vec::new(),
     };
     for (name, args) in scan_setup_calls(text) {
         match name.as_str() {
@@ -707,7 +716,10 @@ pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
                 if let (Some(dep), Some(version)) =
                     (module_arg(&args, "name"), module_arg(&args, "version"))
                 {
-                    setup.deps.push((dep, version));
+                    setup.deps.push((dep.clone(), version));
+                    if let Some(repo) = module_arg(&args, "repo_name") {
+                        setup.repo_names.push((dep, repo));
+                    }
                 }
             }
             "use_extension" => {
@@ -1096,6 +1108,21 @@ mod tests {
         assert_eq!(setup.tag_arg("rust.toolchain", "missing"), None);
         assert!(setup.tag_list_arg("rust.toolchain", "missing").is_empty());
         assert!(setup.tag_list_arg("missing.tag", "versions").is_empty());
+    }
+
+    #[test]
+    fn consumer_setup_records_repo_name_renames() {
+        let setup = parse_consumer_setup(
+            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"my_dx\")\nbazel_dep(name = 'rules_cc', version = '0.2.22')\n",
+        );
+        assert_eq!(
+            setup.repo_names,
+            vec![("rules_dx".to_owned(), "my_dx".to_owned())]
+        );
+        assert_eq!(setup.repo_name("rules_dx"), Some("my_dx"));
+        assert_eq!(setup.repo_name("rules_cc"), None);
+        assert_eq!(setup.repo_name("missing"), None);
+        assert_eq!(setup.dep_version("rules_dx"), Some("0.0.0"));
     }
 
     #[test]

@@ -46,6 +46,27 @@ pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
 
+pub fn render_consumer_own_toolchain_setup() -> String {
+    format!(
+        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\ncc_configure = use_extension(\"@rules_cc//cc:extensions.bzl\", \"cc_configure_extension\")\nuse_repo(cc_configure, \"local_config_cc\", \"local_config_cc_toolchains\")\nregister_toolchains(\"@local_config_cc_toolchains//:all\")\n",
+        dx = DX_VERSION,
+        cc = CONSUMER_RULES_CC_VERSION,
+        llvm = CONSUMER_LLVM_VERSION,
+        rust_rules = CONSUMER_RULES_RUST_VERSION,
+        edition = CONSUMER_RUST_EDITION,
+        rustfmt = CONSUMER_RUSTFMT_VERSION,
+        rust = CONSUMER_RUST_VERSION,
+    )
+}
+
+pub fn render_consumer_renamed_setup(repo_name: &str) -> String {
+    render_consumer_module_setup().replacen(
+        "bazel_dep(name = \"rules_dx\", version = \"",
+        &format!("bazel_dep(name = \"rules_dx\", repo_name = \"{repo_name}\", version = \""),
+        1,
+    )
+}
+
 pub fn render_consumer_module_setup() -> String {
     format!(
         "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
@@ -239,9 +260,10 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 mod tests {
     use super::super::{
         apply_init, editor_disposition, editor_language_supported, parse_consumer_setup,
-        plan_init_files, CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION,
-        CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION,
-        CONSUMER_RUST_VERSION, DEVCONTAINER_JSON, DX_VERSION,
+        plan_init_files, render_consumer_own_toolchain_setup, render_consumer_renamed_setup,
+        CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
+        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
 
@@ -558,6 +580,96 @@ mod tests {
                 .contains(&"@rust_toolchains//:all".to_owned()),
             "snippet must register the rust toolchains: {setup:?}"
         );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn own_toolchain_setup_keeps_deps_and_registers_local_toolchain() {
+        let setup = parse_consumer_setup(&render_consumer_own_toolchain_setup());
+        assert_eq!(
+            setup.deps,
+            vec![
+                ("rules_dx".to_owned(), DX_VERSION.to_owned()),
+                ("rules_cc".to_owned(), CONSUMER_RULES_CC_VERSION.to_owned()),
+                ("llvm".to_owned(), CONSUMER_LLVM_VERSION.to_owned()),
+                (
+                    "rules_rust".to_owned(),
+                    CONSUMER_RULES_RUST_VERSION.to_owned()
+                ),
+            ]
+        );
+        assert!(
+            !setup
+                .registered
+                .contains(&"@llvm//toolchain:all".to_owned()),
+            "own toolchains must not register hermetic LLVM: {setup:?}"
+        );
+        assert!(
+            !setup
+                .registered
+                .contains(&"@rust_toolchains//:all".to_owned()),
+            "own toolchains must not register hermetic Rust: {setup:?}"
+        );
+        assert_eq!(
+            setup.registered,
+            vec!["@local_config_cc_toolchains//:all".to_owned()]
+        );
+        assert!(
+            setup
+                .extensions
+                .iter()
+                .any(|(label, tag)| label == "@rules_cc//cc:extensions.bzl"
+                    && tag == "cc_configure_extension"),
+            "own setup must opt into the upstream cc_configure extension: {setup:?}"
+        );
+        assert!(
+            setup
+                .repos
+                .iter()
+                .any(|(var, repo)| var == "cc_configure" && repo == "local_config_cc_toolchains"),
+            "own setup must materialize the local toolchains repo: {setup:?}"
+        );
+        assert!(
+            setup
+                .extensions
+                .iter()
+                .any(|(label, tag)| label == "@rules_rust//rust:extensions.bzl" && tag == "rust"),
+            "default Rust stays available beside the local C++ toolchain: {setup:?}"
+        );
+    }
+
+    #[test]
+    fn renamed_setup_maps_loads_through_the_new_name() {
+        let setup = parse_consumer_setup(&render_consumer_renamed_setup("my_dx"));
+        assert_eq!(setup.repo_name("rules_dx"), Some("my_dx"));
+        assert_eq!(setup.repo_name("rules_cc"), None);
+        assert_eq!(setup.dep_version("rules_dx"), Some(DX_VERSION));
+        let load = format!(
+            "@{}//cc/rules:defs.bzl",
+            setup.repo_name("rules_dx").expect("rename")
+        );
+        assert_eq!(load, "@my_dx//cc/rules:defs.bzl");
+        assert!(
+            setup
+                .registered
+                .contains(&"@llvm//toolchain:all".to_owned()),
+            "renamed setup keeps the hermetic registrations: {setup:?}"
+        );
+    }
+
+    #[test]
+    fn apply_init_snippet_is_absent_only() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-snippet-absent-");
+        let root = scratch.path().to_path_buf();
+        apply_init(&root, "demo").expect("init");
+        let snippet = root.join("MODULE.bazel.snippet");
+        std::fs::write(&snippet, "custom\n").expect("custom");
+        let second = apply_init(&root, "demo").expect("init again");
+        assert!(
+            second.iter().any(|p| p == "refused:MODULE.bazel.snippet"),
+            "snippet must stay absent-only: {second:?}"
+        );
+        assert_eq!(std::fs::read_to_string(&snippet).expect("read"), "custom\n");
         scratch.close().expect("cleanup");
     }
 

@@ -107,7 +107,7 @@ fn every_crate_root_denies_the_lints_clippy_toml_documents() {
     assert_eq!(
         roots, REGISTERED_CRATE_ROOTS,
         "the crate root sweep found {roots} roots; name every one of them in \
-         //:clippy_policy_test's data, then raise this count"
+         //quality:clippy_policy_test's data, then raise this count"
     );
 }
 

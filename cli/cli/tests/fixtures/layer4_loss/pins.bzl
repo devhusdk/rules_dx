@@ -16,7 +16,7 @@ BUILDIFIER_HERMETIC_TOOL = "@dx_tools//:buildifier"
 
 WIRING_HERMETIC_SMOKE = "bazel build //examples/adopt-rust/... --config=dx_dev"
 WIRING_HERMETIC_ASPECT = "//quality/testdata:real_aspect_presence"
-WIRING_HERMETIC_PRESET = "//:preset_parity_test"
+WIRING_HERMETIC_PRESET = "//quality:preset_parity_test"
 WIRING_SMOKE_ONLY = "smoke-only"
 
 HERMETIC_CUSTOMER_PATH = "hermetic pins stay the customer path"

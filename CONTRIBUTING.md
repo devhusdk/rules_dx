@@ -16,4 +16,4 @@ Read [AGENTS.md](AGENTS.md) before changing code.
 - Library crates return typed errors. Only binaries map exit codes.
 - Every Rust crate root denies `clippy::expect_used`, `clippy::unwrap_used`,
   `clippy::unreachable` and `clippy::todo` outside `cfg(test)`, and
-  `//:clippy_policy_test` names each one.
+  `//quality:clippy_policy_test` names each one.

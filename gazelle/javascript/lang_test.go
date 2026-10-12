@@ -189,6 +189,65 @@ func TestGenerateFailures(t *testing.T) {
 	}
 }
 
+func TestAccumulateImportsDedupesRepeats(t *testing.T) {
+	imports, local := accumulateImports([]common.ImportRef{
+		{Root: "helper", Relative: true},
+		{Root: "helper", Relative: true},
+		{Root: "pkg", Relative: false},
+		{Root: "pkg", Relative: false},
+		{Root: "fs", Relative: false},
+	})
+	if strings.Join(imports, ",") != "helper,pkg" {
+		t.Errorf("imports = %q, want helper,pkg", strings.Join(imports, ","))
+	}
+	if !local["helper"] || len(local) != 1 {
+		t.Errorf("local = %v, want map[helper:true]", local)
+	}
+	if imports, local := accumulateImports(nil); len(imports) != 0 || len(local) != 0 {
+		t.Errorf("empty imports = %q, %v, want empty", imports, local)
+	}
+}
+
+func TestGenerateFixturePathMarksTestonly(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/fixtures/demo/demo.js", "export const x = 1;\n")
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "fixtures", "demo"),
+		Rel:          "pkg/fixtures/demo",
+		RegularFiles: []string{"demo.js"},
+	})
+	if len(result.Gen) == 0 {
+		t.Fatal("generated no rules under a fixture path")
+	}
+	for _, r := range result.Gen {
+		if !r.AttrBool("testonly") {
+			t.Errorf("%s(%s) missing testonly under a fixture path", r.Kind(), r.Name())
+		}
+	}
+}
+
+func TestGenerateSkipsTestClaimedByOtherPlainRunner(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/plain_test.js", "import { test } from \"node:test\";\ntest(\"ok\", () => {});\n")
+	l := &javascriptLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"plain_test.js"},
+		OtherGen:     []*rule.Rule{rule.NewRule(plainTestKind, "plain_test")},
+	})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v, want none", l.errors)
+	}
+	for _, r := range result.Gen {
+		if r.Kind() == testKind && r.Name() == "plain_test" {
+			t.Fatalf("emitted %s(%s) beside other-pass %s", r.Kind(), r.Name(), plainTestKind)
+		}
+	}
+}
+
 func TestCheckClaims(t *testing.T) {
 	claimants := []Claimant{{Name: "demo", Source: "demo.js"}}
 	if err := checkClaims(nil, nil, claimants); err != nil {
@@ -342,6 +401,9 @@ func TestLanguageMetadata(t *testing.T) {
 	defaultApparent := l.ApparentLoads(func(string) string { return "" })
 	if defaultApparent[0].Name != "@rules_dx//javascript/rules:defs.bzl" {
 		t.Errorf("default apparent loads = %+v", defaultApparent)
+	}
+	if got := CollectUsedIgnores(config.New()); got != nil {
+		t.Errorf("unused ignores = %v, want none", got)
 	}
 }
 

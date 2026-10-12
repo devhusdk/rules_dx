@@ -36,7 +36,7 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx hooks`: needs a verb. `run` needs a trigger.
 - `dx new`: needs a language, plus an optional name.
 - `dx init`: optional module name.
-- `dx completion`: exactly one shell, or none with `--check`.
+- `dx completion`: exactly one shell.
 - `dx verify`: exactly one verification set name from `dx.verify.toml`.
 - `dx rerun`: exactly one run-output receipt path (`receipt.json`).
 

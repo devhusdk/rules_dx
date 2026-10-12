@@ -570,7 +570,7 @@ fn parse_inner<S: AsRef<OsStr>>(
                 if targets.len() > 1 {
                     return Err(extra_positional(command, &targets[1]));
                 }
-                if !check && targets.is_empty() {
+                if targets.is_empty() {
                     return Err(missing_positional(command));
                 }
             }

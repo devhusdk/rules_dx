@@ -1365,19 +1365,13 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
 }
 
 #[test]
-fn completion_check_verifies_without_writing() {
-    let one = parse(&strings(&["completion", "bash", "--check"])).expect("one shell check");
-    assert_eq!(one.command, Command::Completion);
-    assert!(one.check);
-    assert_eq!(one.targets, vec!["bash".to_owned()]);
-    let all = parse(&strings(&["completion", "--check"])).expect("all shells check");
-    assert_eq!(all.command, Command::Completion);
-    assert!(all.check);
-    assert!(all.targets.is_empty());
+fn completion_takes_exactly_one_shell_without_check() {
     let plain = parse(&strings(&["completion", "bash"])).expect("plain renders");
+    assert_eq!(plain.command, Command::Completion);
     assert!(!plain.check);
+    assert_eq!(plain.targets, vec!["bash".to_owned()]);
     assert_eq!(
-        parse(&strings(&["completion", "bash", "zsh", "--check"])),
+        parse(&strings(&["completion", "bash", "zsh"])),
         Err(ArgsError::UnsupportedOption {
             command: "completion",
             option: "zsh".to_owned(),
@@ -1387,6 +1381,20 @@ fn completion_check_verifies_without_writing() {
         parse(&strings(&["completion"])),
         Err(ArgsError::MissingValue {
             option: "<shell>".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["completion", "--check"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "completion",
+            option: "--check".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["completion", "bash", "--check"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "completion",
+            option: "--check".to_owned(),
         })
     );
     assert!(matches!(

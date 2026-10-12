@@ -95,6 +95,24 @@ Pull requests use the read-only cache config automatically.
 A called workflow can only narrow the calling job's token, so grant those
 scopes on the calling job. `examples/consumer-ci/caller.yml` does.
 
+## Evidence Workflow
+
+`evidence.yml` runs one Bazel scope on hosted runners for native evidence this
+repository cannot produce locally. Dispatch it per run; it never runs on push:
+
+```sh
+gh workflow run evidence.yml --ref <branch> -f scope=//cli/cli/...
+```
+
+- `scope`: Bazel scope to exercise. Must start with `//`.
+- `task`: `test` (default) or `build`.
+- `platforms`: JSON array of platform labels. Accepted: `linux_x86_64`,
+  `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
+
+A `validate` job rejects a bad input naming the accepted values. Each platform
+cell runs the task, uploads its log as the `evidence-<platform>` artifact, and
+writes the tail to the job summary.
+
 ## Advisory Snapshots
 
 `security-audit` reads `.dx/advisory/`. One `advisory snapshots (one run,

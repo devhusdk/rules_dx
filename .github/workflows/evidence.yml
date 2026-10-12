@@ -1,0 +1,142 @@
+name: evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Bazel scope to exercise (must start with //, e.g. //cli/cli/...)."
+        required: true
+      task:
+        description: "One of test or build."
+        required: false
+        default: "test"
+      platforms:
+        description: 'JSON array of platform labels (e.g. ["windows_x86_64"]).'
+        required: false
+        default: '["linux_x86_64"]'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  BAZELISK_VERSION: "1.29.0"
+  MSYS2_ARG_CONV_EXCL: "//"
+
+jobs:
+  validate:
+    name: validate evidence inputs
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      platforms: ${{ steps.inputs.outputs.platforms }}
+      runners: ${{ steps.inputs.outputs.runners }}
+      scope: ${{ steps.inputs.outputs.scope }}
+      task: ${{ steps.inputs.outputs.task }}
+    steps:
+      - name: Validate workflow inputs
+        id: inputs
+        env:
+          DX_SCOPE: ${{ inputs.scope }}
+          DX_TASK: ${{ inputs.task }}
+          DX_PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          python3 - <<'DX_EVIDENCE_INPUTS'
+          """Reads the dispatch inputs, rejects a bad one naming the accepted values."""
+          import json
+          import os
+          import sys
+
+          PLATFORMS = {
+              "linux_x86_64": "ubuntu-latest",
+              "linux_arm64": "ubuntu-24.04-arm",
+              "macos_arm64": "macos-14",
+              "windows_x86_64": "windows-latest",
+              "windows_arm64": "windows-11-arm",
+          }
+          TASKS = ("test", "build")
+
+          def fail(message):
+              print(f"evidence input rejected: {message}")
+              return 1
+
+          def main():
+              scope = os.environ.get("DX_SCOPE", "")
+              if not scope.startswith("//"):
+                  return fail(f"scope must start with //, got {scope!r}")
+              task = os.environ.get("DX_TASK", "")
+              if task not in TASKS:
+                  return fail(f"task must be one of {list(TASKS)}, got {task!r}")
+              try:
+                  platforms = json.loads(os.environ.get("DX_PLATFORMS", ""))
+              except ValueError:
+                  return fail("platforms must be a JSON array")
+              if not isinstance(platforms, list) or not platforms:
+                  return fail("platforms must be a non-empty JSON array")
+              unknown = [p for p in platforms if p not in PLATFORMS]
+              if unknown:
+                  return fail(f"unknown platforms {unknown}; accepted {sorted(PLATFORMS)}")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as handle:
+                  handle.write(f"scope={scope}\n")
+                  handle.write(f"task={task}\n")
+                  handle.write(f"platforms={json.dumps(platforms)}\n")
+                  handle.write(f"runners={json.dumps(PLATFORMS)}\n")
+              print(f"evidence inputs accepted: {task} {scope} on {platforms}")
+              return 0
+
+          if __name__ == "__main__":
+              sys.exit(main())
+          DX_EVIDENCE_INPUTS
+
+  evidence:
+    name: evidence (${{ matrix.platform }})
+    needs: [validate]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
+    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Run evidence task
+        env:
+          DX_SCOPE: ${{ needs.validate.outputs.scope }}
+          DX_TASK: ${{ needs.validate.outputs.task }}
+        run: |
+          set -o pipefail
+          if [ "$DX_TASK" = "build" ]; then
+            bazel build --noshow_progress "$DX_SCOPE" 2>&1 | tee evidence.log
+          else
+            bazel test --noshow_progress --test_timeout=600 "$DX_SCOPE" 2>&1 | tee evidence.log
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: evidence-${{ matrix.platform }}
+          path: evidence.log
+          retention-days: 7
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## Evidence ${{ matrix.platform }}"
+            echo ""
+            echo "Task \`${{ needs.validate.outputs.task }}\` on \`${{ needs.validate.outputs.scope }}\`."
+            tail -n 20 evidence.log
+          } >> "$GITHUB_STEP_SUMMARY"

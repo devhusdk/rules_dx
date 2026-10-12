@@ -99,19 +99,12 @@ fn open_lease_file(path: &Path) -> io::Result<File> {
         .open(path)
 }
 
-/// Holds a shared lease, waiting up to `timeout` for exclusive holders.
-pub fn acquire_shared(
-    root: &Path,
-    kind: GenerationUse,
-    hex: &str,
-    timeout: Duration,
-) -> io::Result<SharedLease> {
-    let path = lease_path(root, kind, hex)?;
-    let file = open_lease_file(&path)?;
+/// Holds the shared lock on one open lease file, waiting up to `timeout`.
+fn lock_shared(file: &File, timeout: Duration) -> io::Result<()> {
     let start = std::time::Instant::now();
     loop {
         match file.try_lock_shared() {
-            Ok(()) => return Ok(SharedLease { file }),
+            Ok(()) => return Ok(()),
             Err(std::fs::TryLockError::WouldBlock) => {
                 if start.elapsed() >= timeout {
                     return Err(io::Error::from(io::ErrorKind::WouldBlock));
@@ -123,6 +116,28 @@ pub fn acquire_shared(
     }
 }
 
+/// Reports whether the exclusive lock on one open lease file is free.
+fn try_lock_exclusive(file: &File) -> io::Result<bool> {
+    match file.try_lock() {
+        Ok(()) => Ok(true),
+        Err(std::fs::TryLockError::WouldBlock) => Ok(false),
+        Err(std::fs::TryLockError::Error(other)) => Err(other),
+    }
+}
+
+/// Holds a shared lease, waiting up to `timeout` for exclusive holders.
+pub fn acquire_shared(
+    root: &Path,
+    kind: GenerationUse,
+    hex: &str,
+    timeout: Duration,
+) -> io::Result<SharedLease> {
+    let path = lease_path(root, kind, hex)?;
+    let file = open_lease_file(&path)?;
+    lock_shared(&file, timeout)?;
+    Ok(SharedLease { file })
+}
+
 /// Holds the exclusive lease when no shared holder exists.
 pub fn try_acquire_exclusive(
     root: &Path,
@@ -131,10 +146,10 @@ pub fn try_acquire_exclusive(
 ) -> io::Result<Option<ExclusiveLease>> {
     let path = lease_path(root, kind, hex)?;
     let file = open_lease_file(&path)?;
-    match file.try_lock() {
-        Ok(()) => Ok(Some(ExclusiveLease { file })),
-        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
-        Err(std::fs::TryLockError::Error(other)) => Err(other),
+    if try_lock_exclusive(&file)? {
+        Ok(Some(ExclusiveLease { file }))
+    } else {
+        Ok(None)
     }
 }
 
@@ -286,6 +301,13 @@ mod tests {
             (GenerationUse::Generated, HEX_B),
         ]);
         assert_eq!(rendered, format!("environments:{HEX_A},generated:{HEX_B}"));
+        std::env::remove_var(LEASE_ENV_VAR);
+        assert!(
+            acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
+                .expect("absent inheritance")
+                .is_empty(),
+            "absent inheritance holds no leases"
+        );
         for bad in ["no-separator", "unknown-kind", "environments:short"] {
             let entry = if bad == "unknown-kind" {
                 format!("unknown-kind:{HEX_A}")
@@ -296,6 +318,18 @@ mod tests {
             assert!(
                 acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO).is_err(),
                 "malformed inheritance fails closed"
+            );
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStrExt as _;
+            std::env::set_var(
+                LEASE_ENV_VAR,
+                std::ffi::OsStr::from_bytes(b"environments:\xff"),
+            );
+            assert!(
+                acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO).is_err(),
+                "non-UTF-8 inheritance fails closed"
             );
         }
         std::env::remove_var(LEASE_ENV_VAR);
@@ -312,14 +346,45 @@ mod tests {
             .expect("spawn lease child")
     }
 
-    fn wait_for(path: &Path, what: &str) {
+    fn wait_for(path: &Path, what: &str, timeout: Duration) {
         let start = std::time::Instant::now();
         while !path.exists() {
-            if start.elapsed() > Duration::from_secs(30) {
+            if start.elapsed() > timeout {
                 panic!("timed out waiting for {what}");
             }
             std::thread::sleep(Duration::from_millis(25));
         }
+    }
+
+    fn released_within(
+        root: &Path,
+        kind: GenerationUse,
+        hex: &str,
+        timeout: Duration,
+    ) -> io::Result<bool> {
+        let start = std::time::Instant::now();
+        loop {
+            if !shared_held(root, kind, hex)? {
+                return Ok(true);
+            }
+            if start.elapsed() > timeout {
+                return Ok(false);
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+
+    fn maybe_run_as_child() -> bool {
+        let Some(mode) =
+            std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
+        else {
+            return false;
+        };
+        let root = std::env::var_os("DX_LEASE_ROOT")
+            .map(PathBuf::from)
+            .expect("child root");
+        child_main(&root, &mode);
+        true
     }
 
     fn child_main(root: &Path, mode: &str) {
@@ -331,14 +396,14 @@ mod tests {
                     .expect("child acquires its inherited lease");
                 assert_eq!(held.len(), 1);
                 std::fs::write(&ready, b"ready").expect("signal ready");
-                wait_for(&release, "release");
+                wait_for(&release, "release", Duration::from_secs(30));
                 drop(held);
             }
             "die" => {
                 let _held = acquire_shared(root, GenerationUse::Generated, HEX_B, Duration::ZERO)
                     .expect("child acquires");
                 std::fs::write(&ready, b"ready").expect("signal ready");
-                wait_for(&release, "release");
+                wait_for(&release, "release", Duration::from_secs(30));
             }
             "contend" => {
                 let verdict = match acquire_shared(
@@ -352,29 +417,27 @@ mod tests {
                         "acquired"
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock => "blocked",
-                    Err(error) => panic!("contention probe wants WouldBlock, got {error:?}"),
+                    Err(error) => panic!("contention probe wants WouldBlock, got {error:?}"), // LCOV_EXCL_LINE - reason: defensive probe arm, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
                 };
                 std::fs::write(root.join("child-verdict"), verdict).expect("signal verdict");
             }
-            other => panic!("unknown child mode {other:?}"),
+            other => panic!("unknown child mode {other:?}"), // LCOV_EXCL_LINE - reason: literal modes only, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
         }
     }
 
     #[test]
     fn killed_holder_releases_the_generation() {
-        if let Some(mode) =
-            std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
-        {
-            let root = std::env::var_os("DX_LEASE_ROOT")
-                .map(PathBuf::from)
-                .expect("child root");
-            child_main(&root, &mode);
-            return;
+        if maybe_run_as_child() {
+            return; // LCOV_EXCL_LINE - reason: killed child never flushes, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
         }
         let scratch = dx_test_scratch::scratch("dx-lease-crash-");
         let root = root(scratch.path());
         let mut child = spawn_child("killed_holder_releases_the_generation", &root, "", "die");
-        wait_for(&root.join("child-ready"), "child ready");
+        wait_for(
+            &root.join("child-ready"),
+            "child ready",
+            Duration::from_secs(30),
+        );
         assert!(
             shared_held(&root, GenerationUse::Generated, HEX_B).expect("held probe"),
             "the live child blocks exclusivity"
@@ -382,28 +445,22 @@ mod tests {
         child.kill().expect("kill the holder");
         let status = child.wait().expect("reap the holder");
         assert!(!status.success(), "the holder dies abnormally");
-        let start = std::time::Instant::now();
-        loop {
-            if !shared_held(&root, GenerationUse::Generated, HEX_B).expect("release probe") {
-                break;
-            }
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("a killed holder must release its lease");
-            }
-            std::thread::sleep(Duration::from_millis(25));
-        }
+        assert!(
+            released_within(
+                &root,
+                GenerationUse::Generated,
+                HEX_B,
+                Duration::from_secs(30)
+            )
+            .expect("release probe"),
+            "a killed holder must release its lease"
+        );
         scratch.close().expect("cleanup");
     }
 
     #[test]
     fn surviving_child_keeps_the_generation_after_its_parent_releases() {
-        if let Some(mode) =
-            std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
-        {
-            let root = std::env::var_os("DX_LEASE_ROOT")
-                .map(PathBuf::from)
-                .expect("child root");
-            child_main(&root, &mode);
+        if maybe_run_as_child() {
             return;
         }
         let scratch = dx_test_scratch::scratch("dx-lease-inherit-");
@@ -422,7 +479,11 @@ mod tests {
             &entries,
             "hold",
         );
-        wait_for(&root.join("child-ready"), "child ready");
+        wait_for(
+            &root.join("child-ready"),
+            "child ready",
+            Duration::from_secs(30),
+        );
         drop(parent);
         assert!(
             shared_held(&root, GenerationUse::Environment, HEX_A).expect("inherited probe"),
@@ -440,13 +501,7 @@ mod tests {
 
     #[test]
     fn shared_acquire_fails_closed_while_cleanup_holds_exclusive() {
-        if let Some(mode) =
-            std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
-        {
-            let root = std::env::var_os("DX_LEASE_ROOT")
-                .map(PathBuf::from)
-                .expect("child root");
-            child_main(&root, &mode);
+        if maybe_run_as_child() {
             return;
         }
         let scratch = dx_test_scratch::scratch("dx-lease-contend-");
@@ -460,7 +515,11 @@ mod tests {
             "",
             "contend",
         );
-        wait_for(&root.join("child-verdict"), "contention verdict");
+        wait_for(
+            &root.join("child-verdict"),
+            "contention verdict",
+            Duration::from_secs(30),
+        );
         let status = blocked.wait().expect("reap the contender");
         assert!(status.success(), "the contender exits cleanly");
         assert_eq!(
@@ -476,13 +535,155 @@ mod tests {
             "",
             "contend",
         );
-        wait_for(&root.join("child-verdict"), "admission verdict");
+        wait_for(
+            &root.join("child-verdict"),
+            "admission verdict",
+            Duration::from_secs(30),
+        );
         let status = admitted.wait().expect("reap the admitted child");
         assert!(status.success(), "the admitted child exits cleanly");
         assert_eq!(
             std::fs::read_to_string(root.join("child-verdict")).expect("read the verdict"),
             "acquired",
             "releasing the exclusive hold admits shared acquirers again"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn shared_into_file_keeps_the_lock_until_dropped() {
+        let scratch = dx_test_scratch::scratch("dx-lease-handoff-");
+        let root = root(scratch.path());
+        let shared = acquire_shared(
+            &root,
+            GenerationUse::Environment,
+            HEX_A,
+            Duration::from_secs(10),
+        )
+        .expect("shared");
+        let file = shared.into_file();
+        assert!(
+            try_acquire_exclusive(&root, GenerationUse::Environment, HEX_A)
+                .expect("handoff probe")
+                .is_none(),
+            "a handed-off handle keeps the generation locked"
+        );
+        drop(file);
+        assert!(
+            try_acquire_exclusive(&root, GenerationUse::Environment, HEX_A)
+                .expect("probe after drop")
+                .is_some(),
+            "dropping the handed-off handle frees the generation"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    /// Linux O_PATH handles accept no locks, so the kernel fails each lock
+    /// call with EBADF: a deterministic OS error at the lock boundary.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn lock_failures_surface_os_errors_instead_of_waiting() {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        let probe = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(0o10000000)
+            .open("/")
+            .expect("open an O_PATH probe");
+        let error = lock_shared(&probe, Duration::ZERO).expect_err("lock must fail");
+        assert!(
+            error.kind() != io::ErrorKind::WouldBlock && error.raw_os_error().is_some(),
+            "a lock failure surfaces its OS error, got {error:?}"
+        );
+        let error = try_lock_exclusive(&probe).expect_err("exclusive probe must fail");
+        assert!(
+            error.kind() != io::ErrorKind::WouldBlock && error.raw_os_error().is_some(),
+            "an exclusive probe surfaces its OS error, got {error:?}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn open_parentless_path_fails_closed() {
+        assert!(
+            open_lease_file(Path::new("/")).is_err(),
+            "a parentless lease path fails instead of creating directories"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "timed out waiting")]
+    fn waiting_gives_up_after_its_bound() {
+        let scratch = dx_test_scratch::scratch("dx-lease-wait-");
+        wait_for(
+            &scratch.path().join("never-appears"),
+            "missing sentinel",
+            Duration::from_millis(50),
+        );
+    }
+
+    #[test]
+    fn release_poll_times_out_while_a_holder_stays_alive() {
+        let scratch = dx_test_scratch::scratch("dx-lease-poll-");
+        let root = root(scratch.path());
+        let held = acquire_shared(
+            &root,
+            GenerationUse::Generated,
+            HEX_B,
+            Duration::from_secs(10),
+        )
+        .expect("holder acquires");
+        assert!(
+            !released_within(
+                &root,
+                GenerationUse::Generated,
+                HEX_B,
+                Duration::from_millis(50)
+            )
+            .expect("bounded poll"),
+            "a live holder keeps the generation past a short bound"
+        );
+        drop(held);
+        assert!(
+            released_within(
+                &root,
+                GenerationUse::Generated,
+                HEX_B,
+                Duration::from_secs(10)
+            )
+            .expect("release poll"),
+            "a released generation polls free"
+        );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn released_holder_exits_cleanly_and_frees_the_generation() {
+        if maybe_run_as_child() {
+            return;
+        }
+        let scratch = dx_test_scratch::scratch("dx-lease-release-");
+        let root = root(scratch.path());
+        let mut child = spawn_child(
+            "released_holder_exits_cleanly_and_frees_the_generation",
+            &root,
+            "",
+            "die",
+        );
+        wait_for(
+            &root.join("child-ready"),
+            "child ready",
+            Duration::from_secs(30),
+        );
+        assert!(
+            shared_held(&root, GenerationUse::Generated, HEX_B).expect("held probe"),
+            "the live child blocks exclusivity"
+        );
+        std::fs::write(root.join("child-release"), b"go").expect("release the child");
+        let status = child.wait().expect("reap the child");
+        assert!(status.success(), "the released child exits cleanly");
+        assert!(
+            !shared_held(&root, GenerationUse::Generated, HEX_B).expect("final probe"),
+            "the generation frees once the holder exits"
         );
         scratch.close().expect("cleanup");
     }

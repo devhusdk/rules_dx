@@ -1,4 +1,5 @@
-# Windows x86_64 cell inventory: the same rows as the seed cell.
+# Windows x86_64 cell inventory: the same rows as the seed cell except
+# cli/atomic_fs/src/lease.rs, which stays seed-gated until native proof.
 # support marks declared-but-uncounted sources: cfg(test)-only modules, line-less declarations, and the fully excluded entry shim.
 eligible cli/lcov/src/lib.rs
 eligible cli/lcov/src/ignores.rs

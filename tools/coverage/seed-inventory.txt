@@ -21,6 +21,8 @@ eligible quality/evaluator/src/lib.rs
 eligible quality/evaluator/src/main.rs
 # process entry shim; behavior exercised through run() unit tests.
 support tools/coverage/src/main.rs
+# Lease owner: portable generation-use leases, seed-gated; other cells follow natively.
+eligible cli/atomic_fs/src/lease.rs
 # Go seed: the fully covered gazelle language packages in the measured
 # //gazelle/... combined report; every other package keeps a zero-hit
 # line and stays out until covered.

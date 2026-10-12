@@ -1166,6 +1166,175 @@ fn selected_test_observes_its_selection_argv_probe_marker() {
     );
 }
 
+struct MinimalFs;
+
+impl Fs for MinimalFs {
+    fn is_file(&self, path: &Path) -> bool {
+        let _ = path;
+        false
+    }
+}
+
+#[test]
+fn fs_default_marker_hint_returns_none() {
+    assert_eq!(MinimalFs.broken_marker_hint(Path::new("/any/dir")), None);
+}
+
+#[test]
+fn real_fs_marker_hint_covers_present_and_dir_target() {
+    let scratch = dx_test_scratch::scratch("dx-marker-hint-");
+    let root = scratch.path().to_path_buf();
+    std::fs::create_dir_all(&root).expect("dirs");
+    std::fs::write(root.join("MODULE.bazel"), "module(name = \"t\")\n").expect("marker");
+    assert_eq!(RealFs.broken_marker_hint(&root), None);
+    std::fs::remove_file(root.join("MODULE.bazel")).expect("remove");
+    std::fs::create_dir_all(root.join("MODULE.bazel")).expect("marker dir");
+    assert_eq!(
+        RealFs.broken_marker_hint(&root),
+        Some("symlink target is not a regular file".to_owned())
+    );
+    scratch.close().expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn expand_tilde_keeps_non_utf8_path() {
+    use std::os::unix::ffi::OsStrExt;
+    let raw = std::ffi::OsStr::from_bytes(b"\xff\xfe/foo");
+    let path = Path::new(raw);
+    assert!(path.to_str().is_none());
+    assert_eq!(expand_tilde(path), path.to_path_buf());
+}
+
+#[test]
+fn workspace_start_prefers_absolute_build_workspace_directory() {
+    let saved = std::env::var_os("BUILD_WORKSPACE_DIRECTORY");
+    let scratch = dx_test_scratch::scratch("dx-workspace-start-");
+    let cwd = scratch.path().to_path_buf();
+    let canonical_cwd = std::fs::canonicalize(&cwd).expect("canonical cwd");
+    let absolute = std::env::temp_dir();
+    let canonical_absolute = std::fs::canonicalize(&absolute).expect("canonical absolute");
+    unsafe {
+        std::env::set_var("BUILD_WORKSPACE_DIRECTORY", &absolute);
+    }
+    assert_eq!(workspace_start(&cwd), canonical_absolute);
+    unsafe {
+        std::env::set_var("BUILD_WORKSPACE_DIRECTORY", "relative/path");
+    }
+    assert_eq!(workspace_start(&cwd), canonical_cwd);
+    unsafe {
+        std::env::remove_var("BUILD_WORKSPACE_DIRECTORY");
+    }
+    assert_eq!(workspace_start(&cwd), canonical_cwd);
+    match saved {
+        Some(value) => unsafe {
+            std::env::set_var("BUILD_WORKSPACE_DIRECTORY", value);
+        },
+        None => unsafe {
+            std::env::remove_var("BUILD_WORKSPACE_DIRECTORY");
+        },
+    }
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn discover_real_remaps_legacy_override_to_display() {
+    let scratch = dx_test_scratch::scratch("dx-legacy-display-");
+    let root = scratch.path().to_path_buf();
+    let legacy = root.join("legacy");
+    std::fs::create_dir_all(&legacy).expect("dirs");
+    std::fs::write(legacy.join("WORKSPACE"), "").expect("legacy marker");
+    let start = root.join("start");
+    std::fs::create_dir_all(&start).expect("start");
+    let raw = legacy.join(".").join("..").join("legacy");
+    let effective_start = std::fs::canonicalize(&start).expect("canonical start");
+    let display = resolve_override_display(raw.as_path(), &effective_start);
+    let err = discover_real(&start, Some(raw.as_path())).expect_err("legacy override");
+    assert_eq!(
+        err,
+        DiscoverError::UnsupportedLegacy {
+            dir: display.clone()
+        }
+    );
+    assert!(err.to_string().contains(&display.display().to_string()));
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn runner_defaults_delegate_and_report_absent_git_tool() {
+    let runner = FakeRunner {
+        status: ChildStatus { code: Some(7) },
+    };
+    let status = runner
+        .run_hermetic(&["tool".to_owned()], Path::new("."), &[])
+        .expect("default delegates to run");
+    assert_eq!(status.code, Some(7));
+    assert!(runner.git_tool().is_none());
+}
+
+#[test]
+fn system_runner_bounded_maps_output_limit() {
+    let outcome = SystemRunner
+        .run_bounded(
+            &probe_strings(&["--stdout-bytes=17"]),
+            &std::env::temp_dir(),
+            &[],
+            TimeBound {
+                timeout: Duration::from_secs(10),
+                max_bytes: 16,
+            },
+        )
+        .expect("oversize maps through the runner");
+    assert_eq!(outcome, BoundedOutcome::OutputTooLarge { limit: 16 });
+}
+
+#[test]
+fn system_tool_paths_require_absolute_entries() {
+    let saved_gitleaks = std::env::var_os("DX_GITLEAKS_BIN");
+    let saved_git = std::env::var_os("DX_GIT_BIN");
+    let runner = SystemRunner;
+    unsafe {
+        std::env::set_var("DX_GITLEAKS_BIN", "/abs/gitleaks");
+    }
+    assert_eq!(runner.gitleaks_tool(), Some(PathBuf::from("/abs/gitleaks")));
+    unsafe {
+        std::env::set_var("DX_GITLEAKS_BIN", "relative/gitleaks");
+    }
+    assert_eq!(runner.gitleaks_tool(), None);
+    unsafe {
+        std::env::remove_var("DX_GITLEAKS_BIN");
+    }
+    assert_eq!(runner.gitleaks_tool(), None);
+    unsafe {
+        std::env::set_var("DX_GIT_BIN", "/abs/git");
+    }
+    assert_eq!(runner.git_tool(), Some(PathBuf::from("/abs/git")));
+    unsafe {
+        std::env::set_var("DX_GIT_BIN", "relative/git");
+    }
+    assert_eq!(runner.git_tool(), None);
+    unsafe {
+        std::env::remove_var("DX_GIT_BIN");
+    }
+    assert_eq!(runner.git_tool(), None);
+    match saved_gitleaks {
+        Some(value) => unsafe {
+            std::env::set_var("DX_GITLEAKS_BIN", value);
+        },
+        None => unsafe {
+            std::env::remove_var("DX_GITLEAKS_BIN");
+        },
+    }
+    match saved_git {
+        Some(value) => unsafe {
+            std::env::set_var("DX_GIT_BIN", value);
+        },
+        None => unsafe {
+            std::env::remove_var("DX_GIT_BIN");
+        },
+    }
+}
+
 #[test]
 #[ignore]
 fn ignored_selection_probe_runs_only_when_explicitly_selected() {

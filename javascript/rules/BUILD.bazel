@@ -27,6 +27,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "frameworks.bzl",
+        "v1_promises.bzl",
         "web.bzl",
         "wrapper_tests.bzl",
     ],

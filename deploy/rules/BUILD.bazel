@@ -834,6 +834,7 @@ real_source_target(
         "pypi_tests.bzl",
         "resources.bzl",
         "resources_tests.bzl",
+        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

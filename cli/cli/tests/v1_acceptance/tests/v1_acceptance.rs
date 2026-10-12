@@ -21,9 +21,56 @@ fn data(name: &str) -> String {
     read_runfiles(name)
 }
 
+const PROMISE_FILES: &[&str] = &[
+    "v1_promises.bzl",
+    ".github/v1_promises.bzl",
+    "astro/rules/v1_promises.bzl",
+    "cc/rules/v1_promises.bzl",
+    "cli/cli/v1_promises.bzl",
+    "cli/process/v1_promises.bzl",
+    "csharp/rules/v1_promises.bzl",
+    "deploy/install/v1_promises.bzl",
+    "deploy/offline/v1_promises.bzl",
+    "deploy/release/v1_promises.bzl",
+    "deploy/rules/v1_promises.bzl",
+    "docs/v1_promises.bzl",
+    "examples/v1_promises.bzl",
+    "fsharp/rules/v1_promises.bzl",
+    "go/rules/v1_promises.bzl",
+    "java/rules/v1_promises.bzl",
+    "javascript/rules/v1_promises.bzl",
+    "kotlin/rules/v1_promises.bzl",
+    "mdx/rules/v1_promises.bzl",
+    "modules/v1_promises.bzl",
+    "powershell/rules/v1_promises.bzl",
+    "python/rules/v1_promises.bzl",
+    "quality/v1_promises.bzl",
+    "quality/markdown/v1_promises.bzl",
+    "quality/tools/javascript/bin/v1_promises.bzl",
+    "quality/tools/jvm/v1_promises.bzl",
+    "quality/tools/python/v1_promises.bzl",
+    "ruby/rules/v1_promises.bzl",
+    "rust/rules/v1_promises.bzl",
+    "rust/toolchains/v1_promises.bzl",
+    "scala/rules/v1_promises.bzl",
+    "svelte/rules/v1_promises.bzl",
+    "typescript/rules/v1_promises.bzl",
+    "vue/rules/v1_promises.bzl",
+];
+
 fn inventory() -> Vec<Promise> {
-    let text = data("acceptance/v1_inventory.bzl");
     let mut rows: Vec<Promise> = Vec::new();
+    for file in PROMISE_FILES {
+        parse_inventory(&data(file), &mut rows);
+    }
+    assert!(
+        !rows.is_empty(),
+        "the per-owner promise files parsed no promise row"
+    );
+    rows
+}
+
+fn parse_inventory(text: &str, rows: &mut Vec<Promise>) {
     let mut current: Option<Promise> = None;
     let mut in_evidence = false;
     for line in text.lines() {
@@ -82,11 +129,6 @@ fn inventory() -> Vec<Promise> {
             _ => {}
         }
     }
-    assert!(
-        !rows.is_empty(),
-        "the frozen inventory parsed no promise row"
-    );
-    rows
 }
 
 fn field(line: &str) -> Option<(String, String)> {

@@ -34,6 +34,7 @@ real_source_target(
         "rust.bzl",
         "toolchains.bzl",
         "ruby.bzl",
+        "v1_promises.bzl",
         "versions.bzl",
         "versions_tests.bzl",
     ],

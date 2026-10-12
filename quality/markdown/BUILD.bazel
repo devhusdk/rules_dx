@@ -89,6 +89,11 @@ exports_files([
     "src/main.rs",
 ])
 
+exports_files(
+    ["v1_promises.bzl"],
+    visibility = ["//cli/cli/tests/v1_acceptance:__pkg__"],
+)
+
 rust_test(
     name = "quality_markdown_test",
     aliases = aliases(
@@ -115,7 +120,10 @@ rust_test(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "v1_promises.bzl",
+    ],
     tags = ["corpus"],
 )
 

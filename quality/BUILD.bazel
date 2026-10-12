@@ -400,6 +400,7 @@ real_source_target(
         "sources_tests.bzl",
         "support.bzl",
         "support_tests.bzl",
+        "v1_promises.bzl",
         "wrapper_owners.bzl",
     ],
     tags = ["corpus"],

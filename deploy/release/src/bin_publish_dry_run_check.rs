@@ -8,7 +8,6 @@
     )
 )]
 
-// LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::{publish_dry_run_check, sha256sum_line, PublishDryRunInputs};
@@ -23,7 +22,30 @@ fn flag_value(argv: &[String], name: &str) -> Option<String> {
     })
 }
 
-fn run(argv: &[String]) -> i32 {
+fn approve_of(raw: &str) -> Option<bool> {
+    match raw {
+        "true" | "1" => Some(true),
+        "false" | "0" => Some(false),
+        _ => None,
+    }
+}
+
+fn notice_texts_of(raw: &str) -> Vec<PathBuf> {
+    if raw.is_empty() {
+        Vec::new()
+    } else {
+        raw.split(':').map(PathBuf::from).collect()
+    }
+}
+
+struct ParsedInputs {
+    inputs: PublishDryRunInputs,
+    report_path: String,
+    binary_sha_path: String,
+    archive_sha_path: String,
+}
+
+fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
     let mut missing: Option<String> = None;
     let mut get = |name: &str| -> String {
         match flag_value(argv, name) {
@@ -57,68 +79,71 @@ fn run(argv: &[String]) -> i32 {
     let binary_sha_path = get("--binary-sha256-out");
     let archive_sha_path = get("--archive-sha256-out");
     if let Some(diagnostic) = missing {
-        return dx_release_tools::bin_error(diagnostic);
+        return Err(diagnostic);
     }
-    let approve = match approve_raw.as_str() {
-        "true" | "1" => true,
-        "false" | "0" => false,
-        _ => {
-            return dx_release_tools::bin_error(
-                "publish_dry_run_check: --approve wants true/false (dry run records approval, never publishes)",
-            );
-        }
-    };
-    let inputs = PublishDryRunInputs {
-        binary: PathBuf::from(binary),
-        archive: PathBuf::from(archive),
-        sbom_artifact: PathBuf::from(sbom_artifact),
-        spdx: PathBuf::from(spdx),
-        provenance: PathBuf::from(provenance),
-        notice: PathBuf::from(notice),
-        notice_manifest: PathBuf::from(notice_manifest),
-        notice_texts: if notice_texts_raw.is_empty() {
-            Vec::new()
-        } else {
-            notice_texts_raw.split(':').map(PathBuf::from).collect()
+    let approve = approve_of(&approve_raw).ok_or_else(|| {
+        "publish_dry_run_check: --approve wants true/false (dry run records approval, never publishes)".to_owned()
+    })?;
+    Ok(ParsedInputs {
+        inputs: PublishDryRunInputs {
+            binary: PathBuf::from(binary),
+            archive: PathBuf::from(archive),
+            sbom_artifact: PathBuf::from(sbom_artifact),
+            spdx: PathBuf::from(spdx),
+            provenance: PathBuf::from(provenance),
+            notice: PathBuf::from(notice),
+            notice_manifest: PathBuf::from(notice_manifest),
+            notice_texts: notice_texts_of(&notice_texts_raw),
+            release_artifacts_list: PathBuf::from(release_artifacts),
+            draft_log: PathBuf::from(draft_log),
+            signing_log: PathBuf::from(signing_log),
+            bcr_log: PathBuf::from(bcr_log),
+            human_run_log: PathBuf::from(human_run_log),
+            release_tests_log: PathBuf::from(release_tests_log),
+            module_bazel: PathBuf::from(module_bazel),
+            verify_refusal_log: PathBuf::from(verify_refusal_log),
+            approve,
         },
-        release_artifacts_list: PathBuf::from(release_artifacts),
-        draft_log: PathBuf::from(draft_log),
-        signing_log: PathBuf::from(signing_log),
-        bcr_log: PathBuf::from(bcr_log),
-        human_run_log: PathBuf::from(human_run_log),
-        release_tests_log: PathBuf::from(release_tests_log),
-        module_bazel: PathBuf::from(module_bazel),
-        verify_refusal_log: PathBuf::from(verify_refusal_log),
-        approve,
+        report_path,
+        binary_sha_path,
+        archive_sha_path,
+    })
+}
+
+// LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+fn run(argv: &[String]) -> i32 {
+    let parsed = match parse_inputs(argv) {
+        Ok(parsed) => parsed,
+        Err(diagnostic) => return dx_release_tools::bin_error(diagnostic),
     };
-    match publish_dry_run_check(&inputs) {
+    match publish_dry_run_check(&parsed.inputs) {
         Ok(outcome) => {
-            if let Err(error) = std::fs::write(&report_path, outcome.report.as_bytes()) {
+            if let Err(error) = std::fs::write(&parsed.report_path, outcome.report.as_bytes()) {
                 return dx_release_tools::bin_cannot_write(
                     "publish_dry_run_check",
-                    Path::new(&report_path),
+                    Path::new(&parsed.report_path),
                     error,
                 );
             }
             let binary_line = sha256sum_line(&outcome.binary_digest, "dx-linux-x86_64");
-            if let Err(error) = std::fs::write(&binary_sha_path, binary_line.as_bytes()) {
+            if let Err(error) = std::fs::write(&parsed.binary_sha_path, binary_line.as_bytes()) {
                 return dx_release_tools::bin_cannot_write(
                     "publish_dry_run_check",
-                    Path::new(&binary_sha_path),
+                    Path::new(&parsed.binary_sha_path),
                     error,
                 );
             }
             let archive_line = sha256sum_line(&outcome.archive_digest, "dx-standalone.tar.gz");
-            if let Err(error) = std::fs::write(&archive_sha_path, archive_line.as_bytes()) {
+            if let Err(error) = std::fs::write(&parsed.archive_sha_path, archive_line.as_bytes()) {
                 return dx_release_tools::bin_cannot_write(
                     "publish_dry_run_check",
-                    Path::new(&archive_sha_path),
+                    Path::new(&parsed.archive_sha_path),
                     error,
                 );
             }
             print!(
                 "seed binary sha256: {}\nstandalone archive sha256: {}\nsbom subject digest: {} (linkage ok: true)\npackaging ok: true (SBOM pair plus NOTICE signed together)\ndraft dry-run ok: true\nsigning dry-run ok: true\nbcr dry-run ok: true\napproved: {}; published: False (dry run never publishes)\n",
-                outcome.binary_digest, outcome.archive_digest, outcome.sbom_digest, approve,
+                outcome.binary_digest, outcome.archive_digest, outcome.sbom_digest, parsed.inputs.approve,
             );
             0
         }
@@ -129,4 +154,151 @@ fn run(argv: &[String]) -> i32 {
 fn main() {
     std::process::exit(run(&std::env::args().collect::<Vec<_>>()));
 }
-// LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+// LCOV_EXCL_STOP - reason: end process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn argv_of(pairs: &[(&str, &str)]) -> Vec<String> {
+        let mut argv = vec!["publish_dry_run_check".to_owned()];
+        for (name, value) in pairs {
+            argv.push((*name).to_owned());
+            argv.push((*value).to_owned());
+        }
+        argv
+    }
+
+    fn full_argv_without(name: &str) -> Vec<String> {
+        let mut argv = Vec::new();
+        let mut pairs = full_argv("1").into_iter();
+        argv.push(pairs.next().expect("program name"));
+        while let (Some(flag), Some(value)) = (pairs.next(), pairs.next()) {
+            if flag != name {
+                argv.push(flag);
+                argv.push(value);
+            }
+        }
+        argv
+    }
+
+    fn full_argv(approve: &str) -> Vec<String> {
+        argv_of(&[
+            ("--binary", "binary"),
+            ("--archive", "archive"),
+            ("--sbom-artifact", "sbom"),
+            ("--spdx", "spdx"),
+            ("--provenance", "provenance"),
+            ("--notice", "notice"),
+            ("--notice-manifest", "manifest"),
+            ("--notice-texts", "a:b"),
+            ("--release-artifacts", "artifacts"),
+            ("--draft-log", "draft"),
+            ("--signing-log", "signing"),
+            ("--bcr-log", "bcr"),
+            ("--human-run-log", "human"),
+            ("--release-tests-log", "tests"),
+            ("--module-bazel", "module"),
+            ("--verify-refusal-log", "refusal"),
+            ("--approve", approve),
+            ("--report", "report"),
+            ("--binary-sha256-out", "binary_sha"),
+            ("--archive-sha256-out", "archive_sha"),
+        ])
+    }
+
+    #[test]
+    fn flag_value_reads_the_pair_after_a_name() {
+        let argv = argv_of(&[("--binary", "staged")]);
+        assert_eq!(flag_value(&argv, "--binary"), Some("staged".to_owned()));
+        assert_eq!(flag_value(&argv, "--archive"), None);
+    }
+
+    #[test]
+    fn flag_value_ignores_a_trailing_name_without_value() {
+        let argv = vec!["publish_dry_run_check".to_owned(), "--binary".to_owned()];
+        assert_eq!(flag_value(&argv, "--binary"), None);
+    }
+
+    #[test]
+    fn approve_accepts_spelled_and_numeric_forms() {
+        assert_eq!(approve_of("true"), Some(true));
+        assert_eq!(approve_of("1"), Some(true));
+        assert_eq!(approve_of("false"), Some(false));
+        assert_eq!(approve_of("0"), Some(false));
+    }
+
+    #[test]
+    fn approve_rejects_anything_else() {
+        for raw in ["", "True", "yes", "2", "true "] {
+            assert_eq!(approve_of(raw), None, "{raw:?}");
+        }
+    }
+
+    #[test]
+    fn notice_texts_splits_colon_lists_and_keeps_empty_empty() {
+        assert!(notice_texts_of("").is_empty());
+        assert_eq!(notice_texts_of("a"), vec![PathBuf::from("a")]);
+        assert_eq!(
+            notice_texts_of("a:b"),
+            vec![PathBuf::from("a"), PathBuf::from("b")]
+        );
+    }
+
+    #[test]
+    fn empty_argv_reports_the_last_missing_flag() {
+        let error = parse_inputs(&["publish_dry_run_check".to_owned()])
+            .err()
+            .expect("missing flag must fail");
+        assert_eq!(
+            error,
+            "publish_dry_run_check: missing required --archive-sha256-out <path>"
+        );
+    }
+
+    #[test]
+    fn single_missing_flag_names_that_flag() {
+        let error = parse_inputs(&full_argv_without("--archive"))
+            .err()
+            .expect("missing flag must fail");
+        assert_eq!(
+            error,
+            "publish_dry_run_check: missing required --archive <path>"
+        );
+    }
+
+    #[test]
+    fn invalid_approve_fails_before_any_filesystem_use() {
+        let error = parse_inputs(&full_argv("maybe"))
+            .err()
+            .expect("bad approve must fail");
+        assert_eq!(
+            error,
+            "publish_dry_run_check: --approve wants true/false (dry run records approval, never publishes)"
+        );
+    }
+
+    #[test]
+    fn valid_argv_assembles_inputs_with_split_texts() {
+        let parsed = parse_inputs(&full_argv("1")).unwrap();
+        assert_eq!(parsed.inputs.binary, PathBuf::from("binary"));
+        assert!(parsed.inputs.approve);
+        assert_eq!(
+            parsed.inputs.notice_texts,
+            vec![PathBuf::from("a"), PathBuf::from("b")]
+        );
+        assert_eq!(parsed.report_path, "report");
+        assert_eq!(parsed.binary_sha_path, "binary_sha");
+        assert_eq!(parsed.archive_sha_path, "archive_sha");
+    }
+
+    #[test]
+    fn run_without_flags_exits_nonzero_without_touching_files() {
+        assert_eq!(run(&["publish_dry_run_check".to_owned()]), 1);
+    }
+
+    #[test]
+    fn run_with_invalid_approve_exits_nonzero_before_any_io() {
+        assert_eq!(run(&full_argv("maybe")), 1);
+    }
+}

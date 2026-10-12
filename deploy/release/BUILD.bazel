@@ -206,7 +206,9 @@ rustfmt_test(
         ":bcr_source_gen",
         ":notice_gen",
         ":publish_dry_run_check",
+        ":publish_dry_run_check_test",
         ":release_driver",
+        ":release_driver_test",
     ],
 )
 
@@ -254,6 +256,46 @@ rust_binary(
     crate_name = "release_driver",
     crate_root = "src/bin_release_driver.rs",
     edition = "2021",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "publish_dry_run_check_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":publish_dry_run_check",
+    deps = crate_deps(
+        [
+            "serde",
+            "serde_json",
+            "spdx",
+        ],
+        package_name = "deploy/dx_release_tools",
+    ) + [":dx_release_tools"],
+)
+
+# keep
+rust_test(
+    name = "release_driver_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":release_driver",
     deps = crate_deps(
         [
             "serde",

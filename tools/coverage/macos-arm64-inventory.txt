@@ -24,6 +24,11 @@ support tools/coverage/src/main.rs
 # Go seed: the fully covered gazelle language packages in the measured
 # //gazelle/... combined report; every other package keeps a zero-hit
 # line and stays out until covered.
+eligible gazelle/cc/lang.go
+eligible gazelle/cc/naming.go
+eligible gazelle/cc/parser.go
+# package documentation only; ships no executable lines.
+support gazelle/cc/doc.go
 eligible gazelle/astro/lang.go
 eligible gazelle/astro/naming.go
 eligible gazelle/astro/parser.go

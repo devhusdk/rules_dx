@@ -3308,6 +3308,15 @@ fn every_workflow_coverage_floor_matches_the_required_check() {
     assert!(floors > 0, "no workflow runs dx coverage with a floor");
 }
 
+#[test]
+fn required_coverage_floor_is_exact_hundred() {
+    assert_eq!(
+        required_coverage_floor(),
+        "100",
+        "the v1 repository gate requires exact 100% owned production line coverage"
+    );
+}
+
 fn workflow_bazel_configs(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut rest = text;

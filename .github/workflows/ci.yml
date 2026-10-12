@@ -26,7 +26,7 @@ jobs:
     with:
       rules_dx_version: "0.0.0"
       platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'
-      min_coverage: "96"
+      min_coverage: "100"
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
     permissions:

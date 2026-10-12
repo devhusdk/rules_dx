@@ -27,34 +27,14 @@ module(
 
 The check reads the file as text. It never runs it.
 
-- A multiline call, reordered arguments and comments are fine.
-- A commented-out pin never counts.
-- The version must be a quoted string.
-- One declaration only. A second one fails.
-- An unrelated dependency at the same version never passes.
-- A missing, ambiguous or mismatched pin fails with the line, the declared
-  version and the expected one.
-
 The step needs `python3` on `PATH` on every platform.
 
 ## Consumer Workflow
 
 `examples/consumer-ci/` calls `reusable-consumer.yml`. Nine checks run on
-every platform in `platforms`:
-
-- `lint`: `dx lint --check //...`
-- `typecheck`: `dx typecheck --check //...`
-- `format`: `dx format --check //...`
-- `generate`: `dx generate --check //...`
-- `security-audit`: `dx security //...`
-- `license-audit`: `dx license //...`
-- `test`: `dx test //...`
-- `build`: `dx build //...`
-- `coverage`: `dx coverage //...`, plus `--min-coverage <percent>` when
-  `min_coverage` is set.
-
-`--check` applies to the four quality checks. `dx security`, `dx license`,
-`dx test`, `dx build`, and `dx coverage` reject it.
+every platform in `platforms`: `lint`, `typecheck`, `format`, `generate`,
+`security-audit`, `license-audit`, `test`, `build`, and `coverage`. Coverage
+enforces `--min-coverage <percent>` when `min_coverage` is set.
 
 A `validate` job runs first. It reads every input, rejects a bad one with the
 accepted values, and starts no check.
@@ -64,29 +44,18 @@ Inputs:
 - `rules_dx_version`: the version your `rules_dx` declaration carries. The
   pin check compares it with `MODULE.bazel`.
 - `disabled_checks`: job IDs above to skip, comma-separated. Empty runs all
-  nine. Surrounding spaces are ignored. An unknown ID, a repeated ID and an
-  empty ID fail.
+  nine. Surrounding spaces are ignored.
 - `platforms`: JSON array of platform labels, such as `["linux_x86_64"]`.
   Omit it to run `["linux_x86_64"]`. Valid labels: `linux_x86_64`, `linux_arm64`,
-  `macos_arm64`, `windows_x86_64`, `windows_arm64`. Malformed JSON, a JSON value
-  that is not an array, an empty array, a repeated label, an unknown label and a
-  label carrying spaces all fail.
-- `scheduling_mode`: `parallel` only. `sequential` fails; checks always run in
-  parallel.
-- `code_scanning_opt_in`: `false` only. `true` fails; no SARIF upload step ships
+  `macos_arm64`, `windows_x86_64`, `windows_arm64`.
+- `scheduling_mode`: `parallel` only; checks always run in parallel.
+- `code_scanning_opt_in`: `false` only; no SARIF upload step ships
   in this workflow.
 - `min_coverage`: fails below that percent, a whole number from 0 to 100 such as
-  `80`. Empty collects without enforcing a threshold. `80%`, `80.5`, `-1`, `101`,
-  `eighty` and a leading space fail. Coverage comes from `dx coverage`.
+  `80`. Empty collects without enforcing a threshold. Coverage comes from
+  `dx coverage`.
 
-A rejected input fails in the `validate` job before any check starts. The nine
-checks need it, so none of them run. `dx-ci (aggregate)` names the validation
-failure and fails with them.
-
-`dx-ci (aggregate)` passes only when every check succeeds. It fails when a check
-fails or is cancelled, when a declared check never reports a result, and when a
-check is skipped without being listed in `disabled_checks`. A check you disabled
-stays distinguishable from a check that never ran.
+`dx-ci (aggregate)` passes only when every check succeeds.
 
 The workflow needs `contents: read` plus `checks: write` for check runs.
 `coverage` also needs `pull-requests: write` for its pull-request comment.
@@ -108,10 +77,6 @@ gh workflow run evidence.yml --ref <branch> -f scope=//cli/cli/...
 - `task`: `test` (default) or `build`.
 - `platforms`: JSON array of platform labels. Accepted: `linux_x86_64`,
   `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
-
-A `validate` job rejects a bad input naming the accepted values. Each platform
-cell runs the task, uploads its log as the `evidence-<platform>` artifact, and
-writes the tail to the job summary.
 
 ## Advisory Snapshots
 

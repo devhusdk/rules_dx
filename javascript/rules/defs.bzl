@@ -1,4 +1,4 @@
-"""Experimental minimal JavaScript wrappers."""
+"""Minimal JavaScript wrappers."""
 
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
@@ -75,7 +75,7 @@ def _javascript_wrap_binary(name, srcs, visibility = None, **kwargs):
     )
 
 def javascript_library(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over js_library."""
+    """Minimal wrapper over js_library."""
     _javascript_wrap_library(name, srcs, visibility = visibility, **kwargs)
 
 def _javascript_wasm_bindgen_library_impl(ctx):
@@ -143,7 +143,7 @@ def javascript_wasm_bindgen_library(name, bindgen, deps = None, visibility = Non
     )
 
 def javascript_binary(name, srcs = None, visibility = None, **kwargs):
-    """Experimental minimal wrapper over js_binary."""
+    """Minimal wrapper over js_binary."""
     effective_srcs = srcs if srcs != None else []
     _javascript_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
 
@@ -210,7 +210,7 @@ def javascript_test_env(env_inherit):
     return env
 
 def javascript_test(name, srcs, node_modules, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
-    """Experimental minimal wrapper over jest_test."""
+    """Minimal wrapper over jest_test."""
     upstream_data = list(srcs) + (list(data) if data != None else [])
     effective_env = javascript_test_env(env_inherit)
     rejection = javascript_test_rejection(kwargs)
@@ -249,7 +249,7 @@ def javascript_test(name, srcs, node_modules, data = None, visibility = None, ta
     )
 
 def javascript_js_test(name, srcs, entry_point, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
-    """Experimental minimal wrapper over js_test."""
+    """Minimal wrapper over js_test."""
     rejection = javascript_js_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)

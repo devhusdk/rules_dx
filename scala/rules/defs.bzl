@@ -1,4 +1,4 @@
-"""Experimental minimal Scala wrappers."""
+"""Minimal Scala wrappers."""
 
 load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_library = "scala_library", _scala_test = "scala_test")
@@ -72,11 +72,11 @@ def _scala_wrap_binary(name, srcs, visibility = None, **kwargs):
     dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = _scala_with_werror(kwargs), **kwargs)
 
 def scala_library(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over scala_library."""
+    """Minimal wrapper over scala_library."""
     _scala_wrap_library(name, srcs, visibility = visibility, **kwargs)
 
 def scala_binary(name, srcs = None, main_class = None, visibility = None, **kwargs):
-    """Experimental minimal wrapper over scala_binary."""
+    """Minimal wrapper over scala_binary."""
     effective_srcs = srcs if srcs != None else []
     upstream_kwargs = dict(kwargs)
     if main_class != None:
@@ -84,5 +84,5 @@ def scala_binary(name, srcs = None, main_class = None, visibility = None, **kwar
     _scala_wrap_binary(name, effective_srcs, visibility = visibility, **upstream_kwargs)
 
 def scala_test(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over scala_test."""
+    """Minimal wrapper over scala_test."""
     dx_wrap_test(name, _scala_test, _scala_forward_test, srcs, visibility = visibility, upstream_kwargs = _scala_with_werror(kwargs), **kwargs)

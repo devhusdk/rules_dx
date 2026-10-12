@@ -19,7 +19,7 @@ pub const DEVCONTAINER_JSON: &str = concat!(    "{\n",
     "      \"extensions\": [\"rust-lang.rust-analyzer\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]\n",
     "    }\n",
     "  },\n",
-    "  \"postCreateCommand\": \"bazel run //dx:env && bazel run @rules_dx//:dx -- setup\"\n",
+    "  \"postCreateCommand\": \"bazel run @rules_dx//dx:env && bazel run @rules_dx//:dx -- setup\"\n",
     "}\n",
 );
 
@@ -27,7 +27,7 @@ pub const ENVRC_CONTENT: &str = concat!(
     "# Committed direnv entry scaffolded absent-only by `dx init`.\n",
     "# PATH-tools-only: adds managed `.dx/bin` to PATH, nothing else; never invokes Bazel.\n",
     "if [ ! -d \".dx/bin\" ]; then\n",
-    "  echo \"dx: missing .dx/bin; run `dx env` or `bazel run //dx:env` to regenerate\" >&2\n",
+    "  echo \"dx: missing .dx/bin; run `dx env` or `bazel run @rules_dx//dx:env` to regenerate\" >&2\n",
     "  return 1\n",
     "fi\n",
     "PATH_add .dx/bin\n",
@@ -45,6 +45,35 @@ pub const CONSUMER_RUST_EDITION: &str = "2021";
 pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
+
+pub const CONSUMER_WORKFLOW_PIN: &str = "78068c86f4cc5d5edf35f01315784f14196d01e4";
+
+pub fn render_consumer_workflow() -> String {
+    format!(
+        "# Consumer caller: pins the qualified reusable workflow at a reviewed commit.\n# Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.\n# Required repository settings (see the GitHub CI docs, not configured here):\n# - approval policy: all_external_contributors for fork runs\n# - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)\n# - default workflow permissions: read-only\nname: ci\non:\n  pull_request: {{}}\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: rules_dx/.github/workflows/reusable-consumer.yml@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n      scheduling_mode: \"parallel\"\n      code_scanning_opt_in: false\n    secrets: inherit\n    # A called workflow can only narrow this job's token.\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
+        pin = CONSUMER_WORKFLOW_PIN,
+        version = DX_VERSION,
+    )
+}
+
+pub fn vscode_python_path(windows: bool) -> &'static str {
+    if windows {
+        ".dx/setups/current/.venv/Scripts/python.exe"
+    } else {
+        ".dx/setups/current/.venv/bin/python"
+    }
+}
+
+pub fn render_vscode_settings_for(windows: bool) -> String {
+    format!(
+        "{{\"rust-analyzer.check.command\":\"bazel\",\"python.defaultInterpreterPath\":\"{python}\",\"typescript.tsdk\":\".dx/setups/current/node_modules/typescript/lib\",\"go.toolsManagement.checkForUpdates\":\"off\",\"clangd.path\":\".dx/bin/clangd\",\"clangd.arguments\":[\"--compile-commands-dir=.dx/setups/current\"],\"java.configuration.updateBuildConfiguration\":\"manual\",\"kotlin.languageServer.enabled\":true}}\n",
+        python = vscode_python_path(windows),
+    )
+}
+
+pub fn render_vscode_settings() -> String {
+    render_vscode_settings_for(cfg!(windows))
+}
 
 pub fn render_consumer_own_toolchain_setup() -> String {
     format!(
@@ -172,8 +201,7 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         },
         ScaffoldFile {
             path: ".vscode/settings.json".to_owned(),
-            content: "{\"rust-analyzer.check.command\":\"bazel\",\"python.defaultInterpreterPath\":\".dx/setups/current/.venv/bin/python\",\"typescript.tsdk\":\".dx/setups/current/node_modules/typescript/lib\",\"go.toolsManagement.checkForUpdates\":\"off\",\"clangd.path\":\".dx/bin/clangd\",\"clangd.arguments\":[\"--compile-commands-dir=.dx/setups/current\"],\"java.configuration.updateBuildConfiguration\":\"manual\",\"kotlin.languageServer.enabled\":true}\n"
-                .to_owned(),
+            content: render_vscode_settings(),
         },
         ScaffoldFile {
             path: ".vscode/extensions.json".to_owned(),
@@ -182,9 +210,7 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
         },
         ScaffoldFile {
             path: ".github/workflows/ci.yml".to_owned(),
-            content: format!(
-                "# Caller template: pins the qualified reusable workflow at a reviewed commit.\nname: ci\non:\n  push: {{}}\n  pull_request: {{}}\njobs:\n  dx:\n    uses: {module}/.github/workflows/reusable-consumer.yml@<reviewed-commit>\n"
-            ),
+            content: render_consumer_workflow(),
         },
         ScaffoldFile {
             path: "MODULE.bazel.snippet".to_owned(),
@@ -295,7 +321,7 @@ mod tests {
         assert!(envrc.content.contains("PATH_add .dx/bin"));
         assert!(envrc.content.contains("watch_file .dx/bin"));
         assert!(envrc.content.contains("dx env"));
-        assert!(envrc.content.contains("bazel run //dx:env"));
+        assert!(envrc.content.contains("bazel run @rules_dx//dx:env"));
         assert!(envrc.content.contains("never invokes Bazel"));
     }
 
@@ -329,7 +355,7 @@ mod tests {
             .as_str()
             .expect("postCreateCommand string");
         assert!(
-            post_create.contains("bazel run //dx:env"),
+            post_create.contains("bazel run @rules_dx//dx:env"),
             "bootstrap first: {post_create}"
         );
         assert!(
@@ -342,11 +368,19 @@ mod tests {
     #[test]
     fn devcontainer_scaffold_runs_dx_through_the_public_label() {
         assert!(
+            DEVCONTAINER_JSON.contains("bazel run @rules_dx//dx:env"),
+            "{DEVCONTAINER_JSON}"
+        );
+        assert!(
             DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- setup"),
             "{DEVCONTAINER_JSON}"
         );
         assert!(
             !DEVCONTAINER_JSON.contains("//cli/cli:dx"),
+            "{DEVCONTAINER_JSON}"
+        );
+        assert!(
+            !DEVCONTAINER_JSON.contains("bazel run //dx:env"),
             "{DEVCONTAINER_JSON}"
         );
     }
@@ -512,12 +546,138 @@ mod tests {
             .iter()
             .find(|f| f.path == ".github/workflows/ci.yml")
             .expect("ci scaffold");
-        assert!(ci.content.contains("uses: demo/.github/workflows/"));
+        assert!(
+            ci.content.contains(
+                "uses: rules_dx/.github/workflows/reusable-consumer.yml@78068c86f4cc5d5edf35f01315784f14196d01e4"
+            ),
+            "{}",
+            ci.content
+        );
+        assert!(!ci.content.contains("demo"), "{}", ci.content);
+        assert!(!ci.content.contains("<reviewed-commit>"), "{}", ci.content);
+        assert!(
+            ci.content
+                .contains(&format!("rules_dx_version: \"{DX_VERSION}\"")),
+            "{}",
+            ci.content
+        );
         let snippet = files
             .iter()
             .find(|f| f.path == "MODULE.bazel.snippet")
             .expect("snippet");
         assert!(snippet.content.contains("# module: demo\n"));
+    }
+
+    #[test]
+    fn consumer_workflow_carries_the_starter_caller_contract() {
+        let workflow = super::render_consumer_workflow();
+        for wanted in [
+            "name: ci",
+            "pull_request: {}",
+            "branches: [main]",
+            "workflow_dispatch: {}",
+            "uses: rules_dx/.github/workflows/reusable-consumer.yml@",
+            "rules_dx_version:",
+            "disabled_checks:",
+            "platforms: '[\"linux_x86_64\"]'",
+            "scheduling_mode: \"parallel\"",
+            "code_scanning_opt_in: false",
+            "secrets: inherit",
+            "permissions:",
+            "contents: read",
+            "checks: write",
+            "pull-requests: write",
+        ] {
+            assert!(workflow.contains(wanted), "missing {wanted}:\n{workflow}");
+        }
+        let uses = workflow
+            .lines()
+            .find_map(|line| line.trim().strip_prefix("uses: "))
+            .expect("workflow has a uses line");
+        let pin = uses
+            .strip_prefix("rules_dx/.github/workflows/reusable-consumer.yml@")
+            .expect("uses names the distribution workflow");
+        assert_eq!(pin.len(), 40, "pin is a full commit SHA: {uses}");
+        assert!(
+            pin.chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+            "pin is lowercase hex: {uses}"
+        );
+    }
+
+    #[test]
+    fn consumer_workflow_pin_matches_the_starter_caller() {
+        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let caller = std::fs::read_to_string(
+            std::path::Path::new(&source)
+                .join(workspace)
+                .join("examples/consumer-ci/caller.yml"),
+        )
+        .expect("examples/consumer-ci/caller.yml ships as test data");
+        let pinned = caller
+            .lines()
+            .find_map(|line| line.trim().strip_prefix("uses: "))
+            .expect("caller has a uses line");
+        let pin = pinned
+            .strip_prefix("rules_dx/.github/workflows/reusable-consumer.yml@")
+            .expect("caller names the distribution workflow");
+        assert_eq!(
+            pin,
+            super::CONSUMER_WORKFLOW_PIN,
+            "scaffold pin drifts from the starter"
+        );
+        assert!(
+            caller.contains(&format!("rules_dx_version: \"{DX_VERSION}\"")),
+            "starter version drifts from DX_VERSION"
+        );
+        assert!(
+            super::render_consumer_workflow().contains(pin),
+            "rendered workflow drops the reviewed pin"
+        );
+    }
+
+    #[test]
+    fn vscode_python_path_is_host_correct() {
+        assert_eq!(
+            super::vscode_python_path(false),
+            ".dx/setups/current/.venv/bin/python"
+        );
+        assert_eq!(
+            super::vscode_python_path(true),
+            ".dx/setups/current/.venv/Scripts/python.exe"
+        );
+        for (windows, interpreter) in [
+            (false, ".dx/setups/current/.venv/bin/python"),
+            (true, ".dx/setups/current/.venv/Scripts/python.exe"),
+        ] {
+            let content = super::render_vscode_settings_for(windows);
+            let parsed: serde_json::Value =
+                serde_json::from_str(&content).expect("settings stay valid JSON");
+            assert_eq!(
+                parsed["python.defaultInterpreterPath"],
+                serde_json::Value::from(interpreter),
+                "windows={windows}"
+            );
+            assert_eq!(
+                parsed["typescript.tsdk"],
+                serde_json::Value::from(".dx/setups/current/node_modules/typescript/lib"),
+                "windows={windows}"
+            );
+            assert_eq!(
+                parsed["clangd.path"],
+                serde_json::Value::from(".dx/bin/clangd"),
+                "windows={windows}"
+            );
+        }
+        let content = super::render_vscode_settings();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&content).expect("settings stay valid JSON");
+        let expected = super::vscode_python_path(cfg!(windows));
+        assert_eq!(
+            parsed["python.defaultInterpreterPath"],
+            serde_json::Value::from(expected)
+        );
     }
 
     #[test]

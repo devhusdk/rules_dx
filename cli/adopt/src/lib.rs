@@ -64,10 +64,11 @@ pub use preset_fragment::{
 pub use scaffold::{
     apply_init, editor_disposition, editor_language_supported, plan_init_files,
     render_consumer_module_setup, render_consumer_own_toolchain_setup,
-    render_consumer_renamed_setup, scaffold_dest_within_root, validate_init_module, ScaffoldFile,
-    CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
-    CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, DEVCONTAINER_JSON,
-    ENVRC_CONTENT,
+    render_consumer_renamed_setup, render_consumer_workflow, render_vscode_settings,
+    render_vscode_settings_for, scaffold_dest_within_root, validate_init_module,
+    vscode_python_path, ScaffoldFile, CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION,
+    CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION,
+    CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_PIN, DEVCONTAINER_JSON, ENVRC_CONTENT,
 };
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{

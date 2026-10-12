@@ -1277,6 +1277,36 @@ mod tests {
     }
 
     #[test]
+    fn verified_install_runs_independently_after_relocate() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let candidate = scratch.path().join("candidate");
+        std::fs::create_dir_all(&candidate).expect("candidate dir");
+        let binary = candidate.join("dx");
+        let bundle = candidate.join("dx.bundle");
+        let install_dir = scratch.path().join("relocated install");
+        let installed = install_dir.join("dx");
+        let stub = FsStub { cosign_ok: true };
+        let script = b"#!/bin/sh\necho dx-relocated-ok\n";
+        std::fs::write(&binary, script).expect("candidate binary");
+        std::fs::write(&bundle, &FsStub::bundle_for(script)).expect("candidate bundle");
+        let out = verify(&stub_args(&binary, &bundle, &install_dir), &stub).expect("install");
+        assert!(out.contains("fresh install"), "got {out}");
+        std::fs::remove_dir_all(&candidate).expect("drop candidate tree");
+        let run = std::process::Command::new(&installed)
+            .output()
+            .expect("run relocated binary");
+        assert!(
+            run.status.success(),
+            "relocated run failed: {}",
+            String::from_utf8_lossy(&run.stderr)
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&run.stdout).trim(),
+            "dx-relocated-ok"
+        );
+    }
+
+    #[test]
     fn install_copy_is_atomic_and_handles_special_paths() {
         let scratch = tempfile::tempdir().expect("scratch");
         let verifier = SystemVerifier;

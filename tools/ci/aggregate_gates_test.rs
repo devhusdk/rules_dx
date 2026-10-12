@@ -54,7 +54,13 @@ fn needs_of(workflow: &str, job: &str) -> Vec<String> {
 #[test]
 fn the_outer_gate_requires_every_declared_dependency() {
     let document = document(CI_WORKFLOW);
-    let wanted = json!(["dogfood", "docs", "devcontainer-check", "workflow-check"]);
+    let wanted = json!([
+        "dogfood",
+        "docs",
+        "devcontainer-check",
+        "preflight",
+        "workflow-check"
+    ]);
     assert_eq!(
         document["jobs"][GATE]["needs"], wanted,
         "{CI_WORKFLOW} job {GATE} must need every job it gates"

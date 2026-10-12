@@ -16,8 +16,9 @@ Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one lang
 `fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
-Two spellings scaffold the same projects:
+Three spellings scaffold the same projects:
 
+- `cc` scaffolds `cpp`.
 - `c#` scaffolds `csharp`.
 - `f#` scaffolds `fsharp`.
 
@@ -37,16 +38,20 @@ names such as `CON` and `NUL` are rejected. Nested destinations such as
 The package identity derives from the final destination segment: it is
 lowercased, and every other run of characters folds to `-`. `My App`
 scaffolds the `my-app` package. The derived identity must satisfy the
-language rule. `rust` takes Cargo names. `rust-web` takes Cargo names and
+language rule. `rust` takes Cargo names and scaffolds a standalone
+consumer: `Cargo.toml`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`,
+`.bazelversion`, and `README.md`. `rust-web` takes Cargo names and
 scaffolds a shared core with native and browser targets: `Cargo.toml`,
 `src/lib.rs`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`, `.bazelversion`,
 and `README.md`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `c` carries no package identity. `cc` carries no package
-identity. `cpp` carries no package identity. Rejected names fail before any
-file is written.
+takes NuGet ids. `c` carries no package identity and scaffolds C sources
+with `BUILD.bazel`, `MODULE.bazel`, `.bazelversion`, and `README.md`.
+`cc` plus `cpp` carry no package identity and scaffold C++ sources with the
+same standalone files. `c` compiles as C. `cc` plus `cpp` compile as C++.
+Rejected names fail before any file is written.
 
 ## `dx new rust-web`
 
@@ -83,6 +88,36 @@ destination or package identity, `1` scaffolding failed.
 
 The browser test is manual. It needs Firefox and geckodriver on a
 qualified host. Scaffolding into an existing directory adds absent files
+only and leaves custom files untouched.
+
+## `dx new c`, `dx new cpp`, `dx new rust`
+
+```text
+dx new [--apply] c [name]
+dx new [--apply] cpp [name]
+dx new [--apply] rust [name]
+```
+
+Scaffolds a standalone consumer that builds and tests with Bazel.
+Versions come from the rules_dx pins. Never overwrites existing files.
+
+```sh
+bazel run @rules_dx//:dx -- new --apply c demo
+```
+
+Build and test inside the new project:
+
+```text
+bazel build //...
+bazel test //...
+```
+
+Output: `--output text`.
+
+Exit codes: `0` success, `2` usage errors including an invalid
+destination or package identity, `1` scaffolding failed.
+
+Scaffolding into an existing directory adds absent files
 only and leaves custom files untouched.
 
 ## `dx upgrade`

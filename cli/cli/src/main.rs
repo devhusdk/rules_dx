@@ -8,10 +8,9 @@
     )
 )]
 
+use std::ffi::OsString;
 use std::io::{self, Write};
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use dx_cli::args::{
     early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request,
@@ -21,20 +20,14 @@ use dx_cli::exec::common::flush_out;
 use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
 use dx_output::OutputMode;
+use dx_process::lifecycle::{self, EnvPolicy, Exit, StreamMode, StreamOutcome, STREAM_DRAIN_WAIT};
 use dx_process::{
     discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
 };
 
-static CHILD_PID: AtomicU32 = AtomicU32::new(0);
-
 #[cfg(unix)]
 extern "C" fn forward_to_child(signo: libc::c_int) {
-    let pid = CHILD_PID.load(Ordering::SeqCst);
-    if pid != 0 {
-        unsafe {
-            libc::kill(pid as libc::pid_t, signo);
-        }
-    }
+    lifecycle::interrupt(signo);
 }
 
 #[cfg(unix)]
@@ -58,6 +51,18 @@ struct BinaryRunner {
     inherit_stdout: bool,
 }
 
+fn reraise(exit: &Exit) {
+    #[cfg(unix)]
+    if let Exit::Signal(signo) = exit {
+        unsafe {
+            libc::signal(*signo, libc::SIG_DFL);
+            libc::raise(*signo);
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = exit;
+}
+
 fn spawn_streamed(
     argv: &[String],
     cwd: &Path,
@@ -65,52 +70,42 @@ fn spawn_streamed(
     clear_env: bool,
     inherit_stdout: bool,
 ) -> io::Result<ChildStatus> {
-    let (binary, args) = argv
-        .split_first()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
-    let mut command = Command::new(binary);
-    command.args(args).current_dir(cwd).stderr(Stdio::inherit());
-    if clear_env {
-        command.env_clear();
-    }
-    command.envs(env.iter().copied());
-    if inherit_stdout {
-        command.stdout(Stdio::inherit());
-    } else {
-        command.stdout(Stdio::piped());
-    }
-    let mut child = command.spawn()?;
-    CHILD_PID.store(child.id(), Ordering::SeqCst);
-    let pump = if inherit_stdout {
-        None
-    } else {
-        let stdout = child.stdout.take();
-        Some(std::thread::spawn(move || {
-            if let Some(mut stdout) = stdout {
-                let mut stderr = io::stderr();
-                let _ = io::copy(&mut stdout, &mut stderr);
-            }
-        }))
+    let variables: Vec<(OsString, OsString)> = env
+        .iter()
+        .map(|(key, value)| (OsString::from(*key), OsString::from(*value)))
+        .collect();
+    let spec = lifecycle::StreamSpec {
+        argv: argv.iter().map(OsString::from).collect(),
+        cwd: cwd.to_path_buf(),
+        env: if clear_env {
+            EnvPolicy::Controlled { vars: variables }
+        } else {
+            EnvPolicy::Inherited { extra: variables }
+        },
+        streams: if inherit_stdout {
+            StreamMode::Inherited
+        } else {
+            StreamMode::StdoutToStderr
+        },
+        drain: STREAM_DRAIN_WAIT,
     };
-    let status = child.wait();
-    CHILD_PID.store(0, Ordering::SeqCst);
-    if let Some(pump) = pump {
-        let _ = pump.join();
-    }
-    let status = status?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::ExitStatusExt;
-        if let Some(signo) = status.signal() {
-            unsafe {
-                libc::signal(signo, libc::SIG_DFL);
-                libc::raise(signo);
-            }
+    let code = match lifecycle::run_streamed(&spec)? {
+        StreamOutcome::Finished { exit } => {
+            reraise(&exit);
+            exit.code()
         }
-    }
-    Ok(ChildStatus {
-        code: status.code(),
-    })
+        StreamOutcome::Cancelled { exit } => {
+            if let Some(exit) = &exit {
+                reraise(exit);
+            }
+            None
+        }
+        StreamOutcome::Undrained { exit } => {
+            reraise(&exit);
+            None
+        }
+    };
+    Ok(ChildStatus { code })
 }
 
 impl Runner for BinaryRunner {
@@ -167,6 +162,13 @@ fn usage_error(message: &str, json: bool) -> i32 {
 fn main() {
     install_forwarding();
     let code = run();
+    #[cfg(unix)]
+    if let Some(signo) = lifecycle::interrupted() {
+        unsafe {
+            libc::signal(signo, libc::SIG_DFL);
+            libc::raise(signo);
+        }
+    }
     std::process::exit(code);
 }
 

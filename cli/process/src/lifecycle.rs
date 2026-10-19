@@ -10,6 +10,7 @@ use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicI32, AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -83,6 +84,48 @@ const GRACEFUL_WAIT: Duration = Duration::from_secs(2);
 const FORCED_WAIT: Duration = Duration::from_secs(2);
 const DRAIN_WAIT: Duration = Duration::from_secs(5);
 
+/// The process group of the operation this process currently owns, zero when idle.
+static OWNED_GROUP: AtomicU32 = AtomicU32::new(0);
+/// The last cancellation signal forwarded to an owned operation, zero when none.
+static INTERRUPTED: AtomicI32 = AtomicI32::new(0);
+
+/// Forwards one cancellation signal to the operation this process owns.
+///
+/// Only an atomic load and a process-group signal run here, so a signal
+/// handler may call it. Returns false when no operation is owned or the
+/// platform has no forwarding backend yet.
+pub fn interrupt(signo: i32) -> bool {
+    INTERRUPTED.store(signo, Ordering::SeqCst);
+    let group = OWNED_GROUP.load(Ordering::SeqCst);
+    group != 0 && backend::signal_group(group, signo)
+}
+
+/// The cancellation signal forwarded through [`interrupt`], if any.
+pub fn interrupted() -> Option<i32> {
+    match INTERRUPTED.load(Ordering::SeqCst) {
+        0 => None,
+        signo => Some(signo),
+    }
+}
+
+/// Registration token for the owned process group; clears it on drop.
+struct Ownership {
+    group: u32,
+}
+
+impl Ownership {
+    fn take(group: u32) -> Ownership {
+        OWNED_GROUP.store(group, Ordering::SeqCst);
+        Ownership { group }
+    }
+}
+
+impl Drop for Ownership {
+    fn drop(&mut self) {
+        let _ = OWNED_GROUP.compare_exchange(self.group, 0, Ordering::SeqCst, Ordering::SeqCst);
+    }
+}
+
 /// Run one child to a bounded outcome.
 ///
 /// The child waits at most `timeout`, then the owned tree is asked to stop
@@ -112,6 +155,7 @@ pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
         }
     }
     let mut owned = backend::spawn_owned(&mut command)?;
+    let _ownership = Ownership::take(backend::owned_group(&owned));
     let limit = spec.capture.max_bytes;
     let stdout_rx = drain_pipe(owned.take_stdout(), limit);
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);
@@ -175,6 +219,163 @@ pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
             let _ = collect(&stderr_rx, hard);
             Ok(ChildOutcome::TimedOut)
         }
+    }
+}
+
+/// How a streamed child attaches its standard streams.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StreamMode {
+    /// stdout and stderr inherit the caller's handles.
+    Inherited,
+    /// stderr inherits; stdout merges into the caller's stderr.
+    StdoutToStderr,
+}
+
+/// Everything one streamed spawn needs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreamSpec {
+    /// The binary followed by its arguments. Empty is rejected before spawning.
+    pub argv: Vec<OsString>,
+    /// The directory the child starts in.
+    pub cwd: PathBuf,
+    /// Inherited or controlled environment.
+    pub env: EnvPolicy,
+    /// Where the child's standard output goes.
+    pub streams: StreamMode,
+    /// Bound for draining the streams once the child exits.
+    pub drain: Duration,
+}
+
+/// Default drain bound for public streamed execution.
+pub const STREAM_DRAIN_WAIT: Duration = DRAIN_WAIT;
+
+/// What one streamed spawn produced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StreamOutcome {
+    /// The child ended and its streams drained inside the drain bound.
+    Finished { exit: Exit },
+    /// A forwarded cancellation stopped the owned tree before a clean end.
+    Cancelled { exit: Option<Exit> },
+    /// A descendant held a stream open past the drain bound.
+    Undrained { exit: Exit },
+}
+
+/// Run one streamed child without a build-duration deadline.
+///
+/// The child keeps the caller's stdin and stderr, and stdout per
+/// `spec.streams`. No fixed duration bound applies while it runs. After it
+/// exits the streams drain at most `spec.drain`; a descendant that still
+/// holds them makes the run stop the owned tree and report
+/// [`StreamOutcome::Undrained`]. A signal forwarded through [`interrupt`]
+/// stops the owned tree with bounded cleanup and reports
+/// [`StreamOutcome::Cancelled`], never success.
+pub fn run_streamed(spec: &StreamSpec) -> io::Result<StreamOutcome> {
+    let (program, args) = spec
+        .argv
+        .split_first()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
+    let mut command = Command::new(program);
+    command
+        .args(args)
+        .current_dir(&spec.cwd)
+        .stdin(Stdio::inherit())
+        .stderr(Stdio::inherit());
+    match spec.streams {
+        StreamMode::Inherited => {
+            command.stdout(Stdio::inherit());
+        }
+        StreamMode::StdoutToStderr => {
+            command.stdout(Stdio::piped());
+        }
+    }
+    match &spec.env {
+        EnvPolicy::Inherited { extra } => {
+            command.envs(extra.iter().map(|(key, value)| (key, value)));
+        }
+        EnvPolicy::Controlled { vars } => {
+            command.env_clear();
+            command.envs(vars.iter().map(|(key, value)| (key, value)));
+        }
+    }
+    let mut owned = backend::spawn_owned(&mut command)?;
+    let _ownership = Ownership::take(backend::owned_group(&owned));
+    let (pump, drained_rx) = match spec.streams {
+        StreamMode::Inherited => (None, None),
+        StreamMode::StdoutToStderr => {
+            let stdout = owned.take_stdout();
+            let (tx, rx) = mpsc::channel();
+            let pump = std::thread::spawn(move || {
+                if let Some(mut stdout) = stdout {
+                    let mut stderr = io::stderr();
+                    let _ = io::copy(&mut stdout, &mut stderr);
+                }
+                let _ = tx.send(());
+            });
+            (Some(pump), Some(rx))
+        }
+    };
+    let mut status = None;
+    let mut wait_error = None;
+    loop {
+        match owned.try_wait() {
+            Ok(Some(exit)) => {
+                status = Some(exit);
+                break;
+            }
+            Ok(None) => {
+                if interrupted().is_some() {
+                    backend::terminate_graceful(&mut owned);
+                    status = poll_exit(&mut owned, Instant::now() + GRACEFUL_WAIT);
+                    if status.is_none() {
+                        backend::terminate_forced(&mut owned);
+                        status = poll_exit(&mut owned, Instant::now() + FORCED_WAIT);
+                    }
+                    break;
+                }
+                std::thread::sleep(POLL_INTERVAL);
+            }
+            Err(err) => {
+                wait_error = Some(err);
+                break;
+            }
+        }
+    }
+    if let Some(err) = wait_error {
+        backend::terminate_forced(&mut owned);
+        let _ = poll_exit(&mut owned, Instant::now() + FORCED_WAIT);
+        let _ = drain_within(&drained_rx, FORCED_WAIT);
+        return Err(err);
+    }
+    let cancelled = interrupted().is_some();
+    let mut drained = drain_within(&drained_rx, spec.drain);
+    if !drained {
+        backend::terminate_graceful(&mut owned);
+        drained = drain_within(&drained_rx, GRACEFUL_WAIT);
+        if !drained {
+            backend::terminate_forced(&mut owned);
+            drained = drain_within(&drained_rx, FORCED_WAIT);
+        }
+    }
+    if let Some(pump) = pump {
+        if drained {
+            let _ = pump.join();
+        }
+    }
+    let exit = status.map(|status| exit_of(&status));
+    if cancelled {
+        return Ok(StreamOutcome::Cancelled { exit });
+    }
+    match exit {
+        Some(exit) if drained => Ok(StreamOutcome::Finished { exit }),
+        Some(exit) => Ok(StreamOutcome::Undrained { exit }),
+        None => Err(io::Error::other("streamed child could not be reaped")),
+    }
+}
+
+fn drain_within(rx: &Option<mpsc::Receiver<()>>, bound: Duration) -> bool {
+    match rx {
+        None => true,
+        Some(rx) => matches!(rx.recv_timeout(bound), Ok(())),
     }
 }
 
@@ -288,19 +489,21 @@ mod backend {
             })
         }
 
-        fn signal_group(owned: &mut OwnedChild, signo: i32) {
-            let pgid = -(owned.child.id() as i32);
-            unsafe {
-                kill(pgid, signo);
-            }
+        pub fn owned_group(owned: &OwnedChild) -> u32 {
+            owned.child.id()
+        }
+
+        pub fn signal_group(group: u32, signo: i32) -> bool {
+            let pgid = -(group as i32);
+            unsafe { kill(pgid, signo) == 0 }
         }
 
         pub fn terminate_graceful(owned: &mut OwnedChild) {
-            signal_group(owned, SIGTERM);
+            let _ = signal_group(owned.child.id(), SIGTERM);
         }
 
         pub fn terminate_forced(owned: &mut OwnedChild) {
-            signal_group(owned, SIGKILL);
+            let _ = signal_group(owned.child.id(), SIGKILL);
         }
 
         pub fn termination_signal(status: &ExitStatus) -> Option<i32> {
@@ -457,6 +660,15 @@ mod backend {
             }
         }
 
+        pub fn owned_group(owned: &OwnedChild) -> u32 {
+            owned.child.id()
+        }
+
+        /// Native console control for an owned job arrives with its own evidence.
+        pub fn signal_group(_group: u32, _signo: i32) -> bool {
+            false
+        }
+
         pub fn terminate_graceful(_owned: &mut OwnedChild) {}
 
         pub fn terminate_forced(owned: &mut OwnedChild) {
@@ -470,11 +682,13 @@ mod backend {
 
     #[cfg(unix)]
     pub use unix::{
-        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
+        owned_group, signal_group, spawn_owned, terminate_forced, terminate_graceful,
+        termination_signal, OwnedChild,
     };
     #[cfg(windows)]
     pub use windows::{
-        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
+        owned_group, signal_group, spawn_owned, terminate_forced, terminate_graceful,
+        termination_signal, OwnedChild,
     };
 
     #[cfg(not(any(unix, windows)))]
@@ -507,6 +721,14 @@ mod backend {
             })
         }
 
+        pub fn owned_group(owned: &OwnedChild) -> u32 {
+            owned.child.id()
+        }
+
+        pub fn signal_group(_group: u32, _signo: i32) -> bool {
+            false
+        }
+
         pub fn terminate_graceful(_owned: &mut OwnedChild) {}
 
         pub fn terminate_forced(owned: &mut OwnedChild) {
@@ -520,7 +742,8 @@ mod backend {
 
     #[cfg(not(any(unix, windows)))]
     pub use portable::{
-        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
+        owned_group, signal_group, spawn_owned, terminate_forced, terminate_graceful,
+        termination_signal, OwnedChild,
     };
 }
 

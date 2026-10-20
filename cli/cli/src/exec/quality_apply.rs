@@ -19,6 +19,16 @@ pub(crate) fn apply_collected_changes(
     complete: bool,
     changes: &[FileChange],
 ) -> ApplyOutcome {
+    apply_collected_changes_with(workspace, apply, complete, changes, &RealFileSystem)
+}
+
+fn apply_collected_changes_with(
+    workspace: &Path,
+    apply: bool,
+    complete: bool,
+    changes: &[FileChange],
+    fs: &dyn FileSystem,
+) -> ApplyOutcome {
     let mut sources: BTreeMap<String, SourceRead> = BTreeMap::new();
     for change in changes {
         sources
@@ -26,7 +36,6 @@ pub(crate) fn apply_collected_changes(
             .or_insert_with(|| read_verified(workspace, &change.path, &change.original_digest));
     }
 
-    let fs = RealFileSystem;
     let mut applied: BTreeMap<String, bool> = BTreeMap::new();
     let mut not_applied: Vec<(String, &'static str)> = Vec::new();
     if !apply {
@@ -40,15 +49,17 @@ pub(crate) fn apply_collected_changes(
             let reason = match sources.get(&change.path) {
                 Some(SourceRead::Bytes(original)) => {
                     match apply_to_bytes(original, &change.edits) {
-                        Some(candidate) => {
-                            match fs.write_atomic(&workspace.join(&change.path), &candidate) {
+                        Some(candidate) => match verify_current(fs, workspace, change) {
+                            Ok(()) => match fs.write_atomic(&workspace.join(&change.path), &candidate)
+                            {
                                 Ok(()) => {
                                     applied.insert(change.path.clone(), true);
                                     None
                                 }
                                 Err(_) => Some(REASON_UNREADABLE_SOURCE),
-                            }
-                        }
+                            },
+                            Err(reason) => Some(reason),
+                        },
                         None => Some(REASON_INVALID_EDITS),
                     }
                 }
@@ -65,6 +76,19 @@ pub(crate) fn apply_collected_changes(
         sources,
         applied,
         not_applied,
+    }
+}
+
+/// Rechecks the source at the commit boundary so an intervening edit wins.
+fn verify_current(
+    fs: &dyn FileSystem,
+    workspace: &Path,
+    change: &FileChange,
+) -> Result<(), &'static str> {
+    match fs.read(&workspace.join(&change.path)) {
+        Ok(Some(bytes)) if dx_digest::blake3(&bytes) == change.original_digest => Ok(()),
+        Ok(Some(_)) => Err(REASON_STALE_SOURCE),
+        Ok(None) | Err(_) => Err(REASON_UNREADABLE_SOURCE),
     }
 }
 

@@ -5,15 +5,23 @@ use crate::plan::OUTPUT_GROUP;
 use dx_output::{DiagnosticEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
-use super::common::{collect_targets, FileChange};
+use super::common::{
+    apply_to_bytes, collect_targets, FileChange, REASON_CONFLICTING_EDITS,
+    REASON_CONFLICTING_ORIGINAL_DIGEST, REASON_CONFLICTING_TERMINAL_DIGEST,
+};
+
+struct Candidate {
+    change: FileChange,
+    producers: Vec<String>,
+}
 
 #[derive(Default)]
 struct Staged {
     tools: Vec<String>,
     initial: Vec<DiagnosticEvent>,
     terminal: Vec<DiagnosticEvent>,
-    changes: Vec<FileChange>,
-    digests: Vec<(String, [u8; 32])>,
+    changes: Vec<Candidate>,
+    digests: Vec<(String, [u8; 32], String)>,
 }
 
 impl Staged {
@@ -24,6 +32,130 @@ impl Staged {
         self.changes.extend(other.changes);
         self.digests.extend(other.digests);
     }
+}
+
+/// One workspace path whose producers disagree, kept out of every projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Conflict {
+    pub(crate) path: String,
+    pub(crate) reason: &'static str,
+    pub(crate) producers: Vec<String>,
+}
+
+/// Merges same-path candidates into one change or one explicit conflict.
+fn reconcile_changes(
+    workspace: &Path,
+    candidates: Vec<Candidate>,
+) -> (Vec<FileChange>, Vec<Conflict>) {
+    let mut by_path: BTreeMap<String, Vec<Candidate>> = BTreeMap::new();
+    for candidate in candidates {
+        by_path
+            .entry(candidate.change.path.clone())
+            .or_default()
+            .push(candidate);
+    }
+    let mut changes = Vec::with_capacity(by_path.len());
+    let mut conflicts = Vec::new();
+    for (path, mut group) in by_path {
+        group.sort_by(|a, b| {
+            a.producers
+                .cmp(&b.producers)
+                .then_with(|| a.change.original_digest.cmp(&b.change.original_digest))
+                .then_with(|| a.change.edits.cmp(&b.change.edits))
+        });
+        if group.len() == 1 {
+            if let Some(candidate) = group.pop() {
+                changes.push(candidate.change);
+            }
+            continue;
+        }
+        let producers = producers_of(&group);
+        if group
+            .iter()
+            .any(|candidate| candidate.change.original_digest != group[0].change.original_digest)
+        {
+            conflicts.push(Conflict {
+                path,
+                reason: REASON_CONFLICTING_ORIGINAL_DIGEST,
+                producers,
+            });
+            continue;
+        }
+        let agreed = match terminal_candidates(workspace, &path, &group) {
+            Some(terminals) => terminals.len() == 1,
+            None => group
+                .iter()
+                .all(|candidate| candidate.change.edits == group[0].change.edits),
+        };
+        if agreed {
+            if let Some(candidate) = group.pop() {
+                changes.push(candidate.change);
+            }
+        } else {
+            conflicts.push(Conflict {
+                path,
+                reason: REASON_CONFLICTING_EDITS,
+                producers,
+            });
+        }
+    }
+    (changes, conflicts)
+}
+
+fn producers_of(group: &[Candidate]) -> Vec<String> {
+    group
+        .iter()
+        .flat_map(|candidate| candidate.producers.iter().cloned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn terminal_candidates(
+    workspace: &Path,
+    path: &str,
+    group: &[Candidate],
+) -> Option<BTreeSet<Vec<u8>>> {
+    let original = std::fs::read(workspace.join(path)).ok()?;
+    if dx_digest::blake3(&original) != group[0].change.original_digest {
+        return None;
+    }
+    group
+        .iter()
+        .map(|candidate| apply_to_bytes(&original, &candidate.change.edits))
+        .collect()
+}
+
+fn reconcile_digests(
+    digests: Vec<(String, [u8; 32], String)>,
+) -> (BTreeMap<String, [u8; 32]>, Vec<Conflict>) {
+    let mut by_path: BTreeMap<String, Vec<([u8; 32], String)>> = BTreeMap::new();
+    for (path, digest, producer) in digests {
+        by_path.entry(path).or_default().push((digest, producer));
+    }
+    let mut agreed = BTreeMap::new();
+    let mut conflicts = Vec::new();
+    for (path, values) in by_path {
+        let unique: BTreeSet<[u8; 32]> = values.iter().map(|(digest, _)| *digest).collect();
+        if unique.len() == 1 {
+            if let Some(digest) = unique.into_iter().next() {
+                agreed.insert(path, digest);
+            }
+            continue;
+        }
+        let producers = values
+            .into_iter()
+            .map(|(_, producer)| producer)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        conflicts.push(Conflict {
+            path,
+            reason: REASON_CONFLICTING_TERMINAL_DIGEST,
+            producers,
+        });
+    }
+    (agreed, conflicts)
 }
 
 /// Decodes one result artifact into the collected shape, or None when it is not one.
@@ -39,7 +171,9 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
     }
     for snapshot in &result.terminal_snapshot {
         let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
-        staged.digests.push((snapshot.path.clone(), digest));
+        staged
+            .digests
+            .push((snapshot.path.clone(), digest, result.producer.clone()));
     }
     for diagnostic in &result.initial_diagnostics {
         staged
@@ -52,7 +186,10 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
             .push(map_diagnostic(diagnostic, Snapshot::Terminal)?);
     }
     for file in &result.replacements {
-        staged.changes.push(map_change(file)?);
+        staged.changes.push(Candidate {
+            change: map_change(file)?,
+            producers: vec![result.producer.clone()],
+        });
     }
     Some(staged)
 }
@@ -62,6 +199,7 @@ pub(crate) struct Collected {
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
+    pub(crate) conflicts: Vec<Conflict>,
     pub(crate) terminal_digests: BTreeMap<String, [u8; 32]>,
     pub(crate) complete: bool,
 }
@@ -139,10 +277,13 @@ pub(crate) fn collect_results_in(
         let mut staged = Staged::default();
         let mut staged_ok = true;
         for artifact in &target.artifacts {
-            let Some(part) = stage_artifact(&artifact.bytes) else {
+            let Some(mut part) = stage_artifact(&artifact.bytes) else {
                 staged_ok = false;
                 break;
             };
+            for candidate in &mut part.changes {
+                candidate.producers.push(target.label.clone());
+            }
             staged.absorb(part);
         }
         if !staged_ok {
@@ -155,11 +296,31 @@ pub(crate) fn collect_results_in(
         changes.extend(staged.changes);
         terminal_digests.extend(staged.digests);
     }
+    let (changes, mut conflicts) = reconcile_changes(workspace, changes);
+    let (terminal_digests, digest_conflicts) = reconcile_digests(terminal_digests);
+    for conflict in digest_conflicts {
+        if !conflicts
+            .iter()
+            .any(|existing| existing.path == conflict.path)
+        {
+            conflicts.push(conflict);
+        }
+    }
+    conflicts.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
+    let conflicted: BTreeSet<&str> = conflicts
+        .iter()
+        .map(|conflict| conflict.path.as_str())
+        .collect();
+    let terminal_digests = terminal_digests
+        .into_iter()
+        .filter(|(path, _)| !conflicted.contains(path.as_str()))
+        .collect();
     Ok(Collected {
         tools: tools.into_iter().collect(),
         initial,
         terminal,
         changes,
+        conflicts,
         terminal_digests,
         complete,
     })

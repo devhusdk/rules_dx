@@ -14,11 +14,8 @@ pub(crate) const CODE_QUERY_FAILED: &str = "bazel_failed";
 pub(crate) const CODE_UNSUPPORTED: &str = "unsupported_framework";
 pub(crate) const CODE_NO_CASES: &str = "no_cases";
 pub(crate) const CODE_CASE_FAILED: &str = "case_failed";
-pub(crate) const CODE_TRUNCATED: &str = "cases_truncated";
 
 const SUPPORTED_CASE_KINDS: [&str; 2] = ["rust_test", "_rust_forward_test"];
-const MAX_CASES_PER_TARGET: usize = 2000;
-const MAX_CASES_TOTAL: usize = 5000;
 
 struct Ctx<'a> {
     invocation: &'a Invocation,
@@ -344,20 +341,13 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
                     ));
                     continue;
                 }
-                let mut cases = parse_cases(&result.stdout);
+                let cases = parse_cases(&result.stdout);
                 if cases.is_empty() {
                     problems.push((
                         CODE_NO_CASES.to_owned(),
                         format!("{label} reported no libtest cases"),
                     ));
                     continue;
-                }
-                if cases.len() > MAX_CASES_PER_TARGET {
-                    cases.truncate(MAX_CASES_PER_TARGET);
-                    problems.push((
-                        CODE_TRUNCATED.to_owned(),
-                        format!("{label} truncated at {MAX_CASES_PER_TARGET} cases"),
-                    ));
                 }
                 for case in cases {
                     listed.push((label.clone(), case));
@@ -370,11 +360,6 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
     }
     listed.sort();
     listed.dedup();
-    let mut truncated_total = false;
-    if listed.len() > MAX_CASES_TOTAL {
-        listed.truncate(MAX_CASES_TOTAL);
-        truncated_total = true;
-    }
     if !empty_scopes.is_empty() {
         let mut scopes = empty_scopes.to_vec();
         scopes.sort();
@@ -384,15 +369,15 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
             format!("no tests for {}", scopes.join(" ")),
         ));
     }
-    if truncated_total {
-        problems.push((
-            CODE_TRUNCATED.to_owned(),
-            format!("truncated at {MAX_CASES_TOTAL} total cases"),
-        ));
-    }
     let code = if problems.is_empty() { 0 } else { 1 };
+    let summary = format!(
+        "{} cases from {} targets, {}",
+        listed.len(),
+        pairs.len(),
+        if problems.is_empty() { "complete" } else { "incomplete" }
+    );
     if ctx.is_json {
-        return emit_cases_json(ctx, &listed, &problems, code);
+        return emit_cases_json(ctx, &listed, &problems, &summary, code);
     }
     for (label, case) in &listed {
         if let Err(exit) = check_stdout_write(writeln!(ctx.out, "{label}: {case}")) {
@@ -402,6 +387,7 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
     for (problem, detail) in &problems {
         let _ = writeln!(ctx.err, "dx: {problem}: {detail}");
     }
+    let _ = writeln!(ctx.err, "dx: cases: {summary}");
     code
 }
 
@@ -409,6 +395,7 @@ fn emit_cases_json(
     ctx: &mut Ctx,
     listed: &[(String, String)],
     problems: &[(String, String)],
+    summary: &str,
     code: i32,
 ) -> i32 {
     if let Ok(event) = command_started("list-tests", "default") {
@@ -440,6 +427,16 @@ fn emit_cases_json(
             }
         }
     }
+    if let Ok(event) = status_event(&StatusEvent {
+        name: "list-tests-summary".to_owned(),
+        status: if problems.is_empty() { "ok" } else { "warn" }.to_owned(),
+        detail: summary.to_owned(),
+        hint: "cases".to_owned(),
+    }) {
+        if let Err(exit) = emit_event(ctx.out, &event) {
+            return exit;
+        }
+    }
     if let Err(exit) = emit_event(ctx.out, &command_finished(code, &FinishedCounts::default())) {
         return exit;
     }
@@ -449,7 +446,6 @@ fn emit_cases_json(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use super::*;
     use crate::resolve::QueryResult;
 
     fn script_output(query: &ScriptQuery, stdout: &str) {
@@ -628,11 +624,19 @@ mod tests {
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let details: Vec<&str> = events_of_kind(&events, "status")
-            .into_iter()
+        let statuses = events_of_kind(&events, "status");
+        let details: Vec<&str> = statuses
+            .iter()
+            .filter(|event| event["name"] == "list-tests")
             .map(|event| event["detail"].as_str().expect("detail"))
             .collect();
         assert_eq!(details, vec!["alpha"]);
+        let summary = statuses
+            .iter()
+            .find(|event| event["name"] == "list-tests-summary")
+            .expect("summary");
+        assert_eq!(summary["status"], "warn");
+        assert!(summary["detail"].as_str().expect("detail").ends_with("incomplete"));
         let codes: Vec<&str> = events_of_kind(&events, "error")
             .into_iter()
             .map(|event| event["code"].as_str().expect("code"))
@@ -641,18 +645,38 @@ mod tests {
     }
 
     #[test]
-    fn cases_truncation_is_not_success() {
-        let harness = Harness::new("tests-truncate");
+    fn cases_are_not_capped_and_report_complete() {
+        let harness = Harness::new("tests-uncapped");
         script_output(&harness.query, "rust_test rule //a:one\n");
         let mut lines = String::new();
-        for index in 0..MAX_CASES_PER_TARGET + 10 {
+        for index in 0..6000 {
             lines.push_str(&format!("case_{index:05}: test\n"));
         }
         script_output(&harness.query, &lines);
         let (code, out, err) = harness.run(&["list-tests", "--cases", "//a:one"]);
-        assert_eq!(code, 1);
-        assert!(err.contains("cases_truncated"), "{err}");
-        assert_eq!(out.lines().count(), MAX_CASES_PER_TARGET);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out.lines().count(), 6000);
+        assert!(err.contains("6000 cases from 1 targets, complete"), "{err}");
+    }
+
+    #[test]
+    fn default_listing_only_queries_and_never_runs_targets() {
+        let harness = Harness::new("tests-no-exec");
+        script_output(&harness.query, "rust_test rule //a:init_side_effects\n");
+        let (code, out, err) = harness.run(&["list-tests", "//a:init_side_effects"]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "//a:init_side_effects\n");
+        let calls = harness.query.calls.borrow();
+        assert!(!calls.is_empty());
+        for call in calls.iter() {
+            assert!(
+                call.iter().any(|arg| arg == "query"),
+                "non-query call: {call:?}"
+            );
+            for verb in ["run", "build", "test", "--list"] {
+                assert!(!call.iter().any(|arg| arg == verb), "{verb} in {call:?}");
+            }
+        }
     }
 
     #[test]

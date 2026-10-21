@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
+load(":launcher.bzl", "rlocation_path")
 
 _VALID_TAG_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
 _VALID_PACKAGE_CHARS = _VALID_TAG_CHARS + "@/"
@@ -53,13 +54,19 @@ def _npm_launcher_impl(ctx):
     launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
     ctx.actions.write(
         output = launcher,
-        content = "fn main() { std::process::exit(dx_deploy_tools::npm_deploy_main(&std::env::args().collect::<Vec<_>>())); }\n",
+        content = "fn main() {{ std::process::exit(dx_deploy_tools::npm_deploy_main(&std::env::args().collect::<Vec<_>>(), {feed}, {tarball})); }}\n".format(
+            feed = json.encode(rlocation_path(ctx, ctx.file.feed)),
+            tarball = json.encode(rlocation_path(ctx, ctx.file.tarball)),
+        ),
     )
     return [DefaultInfo(files = depset([launcher]))]
 
 _npm_launcher = rule(
     implementation = _npm_launcher_impl,
-    attrs = {},
+    attrs = {
+        "feed": attr.label(allow_single_file = True, mandatory = True, doc = "Packed feed JSON."),
+        "tarball": attr.label(allow_single_file = True, mandatory = True, doc = "Packed tarball."),
+    },
 )
 
 def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", profile = "release"):
@@ -92,6 +99,8 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
 
     _npm_launcher(
         name = launcher_target,
+        feed = ":" + feed,
+        tarball = ":" + tarball,
     )
 
     rust_binary(

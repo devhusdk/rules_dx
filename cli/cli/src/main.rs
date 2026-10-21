@@ -193,7 +193,8 @@ fn run() -> i32 {
     let flag_workspace = early_workspace_flag(&args);
     let env_workspace = std::env::var(DX_WORKSPACE_ENV)
         .ok()
-        .filter(|value| !value.is_empty());
+        .filter(|value| !value.is_empty())
+        .filter(|_| !dx_cli::args::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
     let (mut file_defaults, file_redirect) =
         match select_startup_defaults(&initial_start, flag_workspace, env_workspace) {
             Ok(selected) => (selected.defaults, selected.file_workspace),

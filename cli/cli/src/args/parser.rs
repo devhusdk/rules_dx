@@ -194,6 +194,8 @@ pub fn select_startup_defaults_with_ci(
     env_workspace: Option<String>,
     is_ci: bool,
 ) -> Result<StartupDefaults, String> {
+    let env_workspace =
+        env_workspace.filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
     let preliminary = flag_workspace.or(env_workspace);
     let dir = match &preliminary {
         Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
@@ -277,18 +279,30 @@ pub fn parse_with_ci<S: AsRef<OsStr>>(
     is_ci: bool,
 ) -> Result<Invocation, ArgsError> {
     if is_ci {
-        let filtered = |name: &str| match name {
-            dx_adopt::defaults::DX_WORKSPACE_ENV
-            | dx_adopt::defaults::DX_OUTPUT_ENV
-            | dx_adopt::defaults::DX_VERBOSE_ENV
-            | dx_adopt::defaults::DX_COLOR_ENV
-            | dx_adopt::defaults::DX_QUIET_ENV
-            | dx_adopt::defaults::DX_FAIL_ON_ENV => None,
-            _ => env_get(name),
+        let filtered = |name: &str| {
+            if ci_ignores_env(name, true) {
+                None
+            } else {
+                env_get(name)
+            }
         };
         return parse_inner(args, &filtered, file);
     }
     parse_inner(args, env_get, file)
+}
+
+/// Whether CI ignores this environment default.
+pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
+    is_ci
+        && matches!(
+            name,
+            dx_adopt::defaults::DX_WORKSPACE_ENV
+                | dx_adopt::defaults::DX_OUTPUT_ENV
+                | dx_adopt::defaults::DX_VERBOSE_ENV
+                | dx_adopt::defaults::DX_COLOR_ENV
+                | dx_adopt::defaults::DX_QUIET_ENV
+                | dx_adopt::defaults::DX_FAIL_ON_ENV
+        )
 }
 
 fn parse_inner<S: AsRef<OsStr>>(
@@ -853,10 +867,22 @@ mod startup_tests {
             "the flag workspace supplies the defaults"
         );
         assert_eq!(selected.file_workspace, None);
-        let selected =
-            select_startup_defaults(&a_root, None, Some(b.path().to_string_lossy().into_owned()))
-                .expect("loads the environment workspace");
+        let selected = select_startup_defaults_with_ci(
+            &a_root,
+            None,
+            Some(b.path().to_string_lossy().into_owned()),
+            false,
+        )
+        .expect("loads the environment workspace");
         assert_eq!(selected.defaults.output, Some("text".to_owned()));
+        let selected = select_startup_defaults_with_ci(
+            &a_root,
+            None,
+            Some(b.path().to_string_lossy().into_owned()),
+            true,
+        )
+        .expect("ci ignores the environment workspace");
+        assert_eq!(selected.defaults.output, Some("json".to_owned()));
         let missing = a_root.join("no-such-dir");
         let selected = select_startup_defaults(&missing, None, None).expect("walks up");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));

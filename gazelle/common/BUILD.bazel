@@ -17,7 +17,7 @@ go_library(
         "nodestdlib.go",
         "singlelang.go",
     ],
-    importpath = "github.com/ralvik/rules_dx/gazelle/common",
+    importpath = "github.com/devhusdk/rules_dx/gazelle/common",
     visibility = [
         "//gazelle/astro:__pkg__",
         "//gazelle/cc:__pkg__",

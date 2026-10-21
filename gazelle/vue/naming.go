@@ -1,6 +1,6 @@
 package vue
 
-import "github.com/ralvik/rules_dx/gazelle/common"
+import "github.com/devhusdk/rules_dx/gazelle/common"
 
 var SupportedExts = []string{".vue"}
 

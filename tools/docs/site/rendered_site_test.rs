@@ -336,7 +336,7 @@ fn the_404_page_resolves_its_assets_from_any_base_url() {
         "the 404 page must use a base URL that works at / and /rules_dx/"
     );
     assert!(
-        !not_found.contains("ralvik.github.io"),
+        !not_found.contains("devhusdk.github.io"),
         "the 404 page must not hardcode a production URL"
     );
 }

@@ -1,7 +1,7 @@
 package svelte
 
 import (
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
 func ParseImports(content []byte) []string {

@@ -368,6 +368,7 @@ rust_test(
     size = "small",
     srcs = ["user_docs_test.rs"],
     data = [
+        "//:README.md",
         "//docs:README.md",
         "//docs:command_docs",
         "//docs:github-ci.md",

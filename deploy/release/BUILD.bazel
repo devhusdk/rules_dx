@@ -424,7 +424,7 @@ signed_release(
         ":sbom_demo_provenance",
         ":notice_demo_notice",
     ],
-    identity = "https://github.com/ralvik/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
+    identity = "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
 )
 
 filegroup(

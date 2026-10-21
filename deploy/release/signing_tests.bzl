@@ -70,7 +70,7 @@ def signing_unit_tests(name):
             ),
             expect_equal(
                 "signing identity accepts the release workflow identity",
-                signing_identity_error("https://github.com/ralvik/rules_dx/.github/workflows/release.yml@refs/tags/v1.2.3", "https://token.actions.githubusercontent.com"),
+                signing_identity_error("https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v1.2.3", "https://token.actions.githubusercontent.com"),
                 "",
             ),
             expect_equal(
@@ -80,7 +80,7 @@ def signing_unit_tests(name):
             ),
             expect_equal(
                 "signing identity rejects a foreign issuer",
-                signing_identity_error("https://github.com/ralvik/rules_dx/.github/workflows/release.yml@refs/tags/v1.2.3", "https://evil.example"),
+                signing_identity_error("https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v1.2.3", "https://evil.example"),
                 "signing: invalid issuer 'https://evil.example': want 'https://token.actions.githubusercontent.com' (Sigstore keyless via GitHub OIDC)",
             ),
         ],

@@ -18,8 +18,8 @@ def sbom_predicate_error(predicate):
                 "': want 'https://slsa.dev/provenance/v1' (selected wire profile)")
     return ""
 
-SBOM_BUILDER_DRY_RUN = "https://github.com/ralvik/rules_dx/.github/workflows/publish-dry-run.yml"
-SBOM_BUILDER_RELEASE = "https://github.com/ralvik/rules_dx/.github/workflows/release.yml"
+SBOM_BUILDER_DRY_RUN = "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml"
+SBOM_BUILDER_RELEASE = "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml"
 
 def sbom_builder_error(builder_id):
     """Validates one SLSA builder id against the allowlist."""
@@ -29,7 +29,7 @@ def sbom_builder_error(builder_id):
             "': want '" + SBOM_BUILDER_DRY_RUN + "' (dry-run demo only) or '" +
             SBOM_BUILDER_RELEASE + "' (owner-approved release)")
 
-def sbom_release(name, artifact, package_name = "dx", supplier = "rules_dx", builder_id = "https://github.com/ralvik/rules_dx/.github/workflows/publish-dry-run.yml"):
+def sbom_release(name, artifact, package_name = "dx", supplier = "rules_dx", builder_id = "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml"):
     """Generates SPDX 2.3 JSON + SLSA provenance for one release artifact."""
     spdx_err = sbom_spdx_error("SPDX-2.3")
     if spdx_err != "":

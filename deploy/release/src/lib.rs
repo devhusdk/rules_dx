@@ -57,7 +57,7 @@ pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> S
         data_license: spdx::DATA_LICENSE.to_owned(),
         id: spdx::DOCUMENT_ID.to_owned(),
         name: format!("{package}-{base}"),
-        namespace: format!("https://github.com/ralvik/rules_dx/releases/{base}-{digest}"),
+        namespace: format!("https://github.com/devhusdk/rules_dx/releases/{base}-{digest}"),
         creation_info: Some(spdx::SpdxCreationInfo {
             created: "1970-01-01T00:00:00Z".to_owned(),
             creators: vec!["Tool: rules_dx-sbom-1.0".to_owned()],
@@ -101,7 +101,7 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
         "_type": "https://in-toto.io/Statement/v1",
         "predicate": {
             "buildDefinition": {
-                "buildType": "https://github.com/ralvik/rules_dx/release@v1",
+                "buildType": "https://github.com/devhusdk/rules_dx/release@v1",
                 "externalParameters": {"artifact": base},
             },
             "runDetails": {
@@ -118,7 +118,7 @@ pub fn render_bcr_source(module: &str, version: &str) -> String {
     render_pretty(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
         "strip_prefix": format!("{module}-{version}"),
-        "url": format!("https://github.com/ralvik/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"),
+        "url": format!("https://github.com/devhusdk/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"),
     }))
 }
 
@@ -207,7 +207,7 @@ fn bcr_candidate_version_error(version: &str) -> Result<(), String> {
 
 pub fn bcr_source_url(module: &str, version: &str) -> String {
     format!(
-        "https://github.com/ralvik/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"
+        "https://github.com/devhusdk/rules_dx/releases/download/v{version}/{module}-{version}.tar.gz"
     )
 }
 
@@ -333,9 +333,9 @@ pub const SIGNING_COSIGN_VERSION: &str = "v2.4.1";
 pub const SIGNING_BUNDLE_MEDIA_TYPE: &str = "application/vnd.dev.sigstore.bundle.v0.3+json";
 pub const SIGNING_ISSUER_DEFAULT: &str = "https://token.actions.githubusercontent.com";
 pub const PROVENANCE_BUILDER_DRY_RUN: &str =
-    "https://github.com/ralvik/rules_dx/.github/workflows/publish-dry-run.yml";
+    "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml";
 pub const PROVENANCE_BUILDER_RELEASE: &str =
-    "https://github.com/ralvik/rules_dx/.github/workflows/release.yml";
+    "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml";
 
 pub fn provenance_builder_error(builder: &str) -> Result<(), String> {
     if builder == PROVENANCE_BUILDER_DRY_RUN || builder == PROVENANCE_BUILDER_RELEASE {
@@ -923,7 +923,7 @@ mod tests {
         assert_eq!(
             value["documentNamespace"],
             serde_json::json!(format!(
-                "https://github.com/ralvik/rules_dx/releases/artifact.bin-{digest}"
+                "https://github.com/devhusdk/rules_dx/releases/artifact.bin-{digest}"
             ))
         );
         let lines: Vec<&str> = text.lines().collect();
@@ -971,7 +971,7 @@ mod tests {
         let text = render_bcr_source("rules_dx", "1.2.3");
         assert_eq!(
             text,
-            "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3\",\n  \"url\": \"https://github.com/ralvik/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
+            "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
         );
     }
 
@@ -1132,12 +1132,12 @@ mod tests {
             render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
         assert_eq!(
             text,
-            "{\n  \"integrity\": \"sha256-qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc=\",\n  \"strip_prefix\": \"rules_dx-1.2.3-rc1\",\n  \"url\": \"https://github.com/ralvik/rules_dx/releases/download/v1.2.3-rc1/rules_dx-1.2.3-rc1.tar.gz\"\n}\n"
+            "{\n  \"integrity\": \"sha256-qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc=\",\n  \"strip_prefix\": \"rules_dx-1.2.3-rc1\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3-rc1/rules_dx-1.2.3-rc1.tar.gz\"\n}\n"
         );
         bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", digest).expect("self-validates");
         assert_eq!(
             bcr_source_url("rules_dx", "1.2.3"),
-            "https://github.com/ralvik/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz"
+            "https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz"
         );
         assert_eq!(bcr_strip_prefix("rules_dx", "1.2.3"), "rules_dx-1.2.3");
     }
@@ -1682,7 +1682,7 @@ mod tests {
             }
             std::env::set_var("PATH", &dir);
             signing_run(
-                "https://github.com/ralvik/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
+                "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
                 SIGNING_ISSUER_DEFAULT,
                 &assets,
                 false,

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
 func mustParse(t *testing.T, path, src string) *FileFacts {

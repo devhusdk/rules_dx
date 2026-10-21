@@ -19,27 +19,83 @@ const MARKER: &str = "DX_MODULE_PIN";
 
 const STEP_KEY: &str = "        ";
 
+const OWNER: &str = "devhusdk";
+
+const REPO: &str = "rules_dx";
+
+struct Uses<'a> {
+    owner: &'a str,
+    repo: &'a str,
+    path: &'a str,
+    commit: &'a str,
+}
+
+fn parse_uses(value: &str) -> Result<Uses<'_>, String> {
+    let (target, commit) = value
+        .split_once('@')
+        .ok_or_else(|| format!("{value} has no @<commit>"))?;
+    let mut parts = target.splitn(3, '/');
+    let owner = parts.next().unwrap_or_default();
+    let repo = parts.next().ok_or_else(|| format!("{value} has no repository"))?;
+    let path = parts
+        .next()
+        .ok_or_else(|| format!("{value} has no workflow path"))?;
+    Ok(Uses {
+        owner,
+        repo,
+        path,
+        commit,
+    })
+}
+
+fn check_uses(value: &str, workflow: &str) -> Result<String, String> {
+    let uses = parse_uses(value)?;
+    if uses.owner != OWNER {
+        return Err(format!("owner must be {OWNER}, found {}", uses.owner));
+    }
+    if uses.repo != REPO {
+        return Err(format!("repository must be {REPO}, found {}", uses.repo));
+    }
+    let want = format!(".github/workflows/{workflow}");
+    if uses.path != want {
+        return Err(format!("workflow path must be {want}, found {}", uses.path));
+    }
+    let hex = uses
+        .commit
+        .chars()
+        .all(|ch| ch.is_ascii_digit() || ('a'..='f').contains(&ch));
+    if uses.commit.len() != 40 || !hex {
+        return Err(format!(
+            "must pin a full lowercase commit SHA, found {}",
+            uses.commit
+        ));
+    }
+    Ok(uses.commit.to_owned())
+}
+
 fn pinned_commit(caller: &str, workflow: &str) -> String {
-    let want = format!("rules_dx/.github/workflows/{workflow}@");
     let text = read_runfiles(caller);
     let line = text
         .lines()
         .map(str::trim)
         .find_map(|line| line.strip_prefix("uses: "))
         .unwrap_or_else(|| panic!("{caller} has no uses: line"));
-    assert!(
-        line.starts_with(&want),
-        "{caller} must call {want}<commit>, found {line}"
-    );
-    let commit = line[want.len()..].to_owned();
-    let hex = commit
-        .chars()
-        .all(|ch| ch.is_ascii_digit() || ('a'..='f').contains(&ch));
-    assert!(
-        commit.len() == 40 && hex,
-        "{caller} must pin a full lowercase commit SHA, found {commit}"
-    );
-    commit
+    check_uses(line, workflow).unwrap_or_else(|err| panic!("{caller}: {err}"))
+}
+
+#[test]
+fn uses_check_rejects_a_missing_owner() {
+    let sha = "78068c86f4cc5d5edf35f01315784f14196d01e4";
+    let bad = format!("rules_dx/.github/workflows/reusable-docs.yml@{sha}");
+    assert!(check_uses(&bad, "reusable-docs.yml").is_err());
+    let good = format!("devhusdk/rules_dx/.github/workflows/reusable-docs.yml@{sha}");
+    assert_eq!(check_uses(&good, "reusable-docs.yml").unwrap(), sha);
+    let wrong_repo = format!("devhusdk/other/.github/workflows/reusable-docs.yml@{sha}");
+    assert!(check_uses(&wrong_repo, "reusable-docs.yml").is_err());
+    let wrong_path = format!("devhusdk/rules_dx/.github/workflows/other.yml@{sha}");
+    assert!(check_uses(&wrong_path, "reusable-docs.yml").is_err());
+    let short = "devhusdk/rules_dx/.github/workflows/reusable-docs.yml@main";
+    assert!(check_uses(short, "reusable-docs.yml").is_err());
 }
 
 #[test]

@@ -55,7 +55,7 @@ pub use scaffold::{
     scaffold_dest_within_root, validate_init_module, ScaffoldFile, CONSUMER_LLVM_VERSION,
     CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
     CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
-    CONSUMER_WORKFLOW_PIN, DEVCONTAINER_JSON, ENVRC_CONTENT,
+    CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, ENVRC_CONTENT,
 };
 pub use status::{
     default_status_checks, observed_status_checks, render_status_json, render_status_text,

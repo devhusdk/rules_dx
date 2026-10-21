@@ -145,7 +145,9 @@ pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
     Ok(module.to_owned())
 }
 
-pub const CONSUMER_WORKFLOW_OWNER: &str = "rules_dx";
+pub const CONSUMER_WORKFLOW_OWNER: &str = "devhusdk";
+
+pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
@@ -153,8 +155,9 @@ pub const CONSUMER_WORKFLOW_PIN: &str = "78068c86f4cc5d5edf35f01315784f14196d01e
 
 pub fn render_consumer_caller() -> String {
     format!(
-        "# Consumer caller template: pins the qualified reusable workflow at a reviewed commit.\n# Copy to .github/workflows/ci.yml in the consumer repo; do not copy per-check logic.\n# Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.\n# Required repository settings (see the GitHub CI docs, not configured here):\n# - approval policy: all_external_contributors for fork runs\n# - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)\n# - default workflow permissions: read-only\nname: ci\non:\n  pull_request: {{}}\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n      scheduling_mode: \"parallel\"\n      code_scanning_opt_in: false\n    secrets: inherit\n    # A called workflow can only narrow this job's token.\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
+        "# Consumer caller template: pins the qualified reusable workflow at a reviewed commit.\n# Copy to .github/workflows/ci.yml in the consumer repo; do not copy per-check logic.\n# Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.\n# Required repository settings (see the GitHub CI docs, not configured here):\n# - approval policy: all_external_contributors for fork runs\n# - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)\n# - default workflow permissions: read-only\nname: ci\non:\n  pull_request: {{}}\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n      scheduling_mode: \"parallel\"\n      code_scanning_opt_in: false\n    secrets: inherit\n    # A called workflow can only narrow this job's token.\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
+        repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
         pin = CONSUMER_WORKFLOW_PIN,
         version = DX_VERSION,
@@ -290,8 +293,8 @@ mod tests {
         render_consumer_own_toolchain_setup, render_consumer_renamed_setup, render_editor_settings,
         CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
         CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION,
-        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, DEVCONTAINER_JSON,
-        DX_VERSION,
+        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
+        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
     };
     use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
 
@@ -531,7 +534,7 @@ mod tests {
     #[test]
     fn init_module_names_never_become_the_workflow_owner() {
         let uses = format!(
-            "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}"
+            "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}"
         );
         for module in ["demo", "my_project", "a.b-c_d"] {
             let files = plan_init_files(module).expect("init plans");
@@ -582,7 +585,7 @@ mod tests {
         assert!(pin_ok, "caller must pin a full lowercase commit SHA");
         assert!(
             caller.contains(&format!(
-                "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}"
+                "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}"
             )),
             "{caller}"
         );

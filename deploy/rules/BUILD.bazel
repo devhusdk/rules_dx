@@ -79,6 +79,7 @@ rust_library(
             "serde",
             "serde_json",
             "tar",
+            "zip",
         ],
         package_name = "deploy/dx_deploy_tools",
     ) + [
@@ -130,6 +131,7 @@ rust_test(
             "flate2",
             "tar",
             "tempfile",
+            "zip",
         ],
         package_name = "deploy/dx_deploy_tools",
     ),
@@ -677,7 +679,7 @@ npm_debug_analysis_tests(name = "npm_debug_analysis")
 genrule(
     name = "nuget_demo_nupkg",
     outs = ["nuget_demo.0.0.0.nupkg"],
-    cmd = "printf 'nuget-demo-nupkg-bytes-v1' > $@",
+    cmd = "python3 -c \"import sys,zipfile;z=zipfile.ZipFile(sys.argv[1],'w');z.writestr('nuget_demo.nuspec','<?xml version=\\\"1.0\\\"?><package><metadata><id>nuget_demo</id><version>0.0.0</version></metadata></package>')\" $@",
 )
 
 nuget_deploy(

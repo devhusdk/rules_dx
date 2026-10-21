@@ -108,10 +108,11 @@ def _nuget_launcher_impl(ctx):
     ctx.actions.write(
         output = launcher,
         content = "const NUPKG_RLOC: &str = \"" + nupkg_rloc + "\";\n" +
+                  "const TARGET_NAME: &str = \"" + ctx.label.name + "\";\n" +
                   "const PACKAGE_ID: &str = \"" + ctx.attr.package_id + "\";\n" +
                   "const PACKAGE_VERSION: &str = \"" + ctx.attr.version + "\";\n" +
                   "const PACKAGE_SOURCE: &str = \"" + ctx.attr.source + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::nuget_main(NUPKG_RLOC, PACKAGE_ID, PACKAGE_VERSION, PACKAGE_SOURCE, &std::env::args().collect::<Vec<_>>())); }\n",
+                  "fn main() { std::process::exit(dx_deploy_tools::nuget_main(NUPKG_RLOC, TARGET_NAME, PACKAGE_ID, PACKAGE_VERSION, PACKAGE_SOURCE, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -122,26 +123,27 @@ _nuget_launcher = rule(
             allow_single_file = True,
             mandatory = True,
         ),
-        "package_id": attr.string(
-            mandatory = True,
-        ),
+        "package_id": attr.string(),
         "source": attr.string(
             mandatory = True,
         ),
-        "version": attr.string(
-            mandatory = True,
-        ),
+        "version": attr.string(),
     },
 )
 
-def nuget_deploy(name, nupkg, version = "0.0.0", source = NUGET_DEFAULT_SOURCE, profile = "release"):
-    """Publishes one nupkg as a local-first NuGet deployment."""
+def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFAULT_SOURCE, profile = "release"):
+    """Publishes one nupkg after checking its nuspec id and version."""
     name_error = nuget_id_error(name)
     if name_error != "":
         fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    version_error = nuget_version_error(version)
-    if version_error != "":
-        fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    if package_id != "":
+        id_error = nuget_id_error(package_id)
+        if id_error != "":
+            fail(id_error + " (in " + native.package_name() + ":" + name + ")")
+    if version != "":
+        version_error = nuget_version_error(version)
+        if version_error != "":
+            fail(version_error + " (in " + native.package_name() + ":" + name + ")")
     source_error = nuget_source_error(source)
     if source_error != "":
         fail(source_error + " (in " + native.package_name() + ":" + name + ")")
@@ -151,7 +153,7 @@ def nuget_deploy(name, nupkg, version = "0.0.0", source = NUGET_DEFAULT_SOURCE, 
     _nuget_launcher(
         name = launcher_target,
         nupkg = nupkg,
-        package_id = name,
+        package_id = package_id,
         source = source,
         version = version,
     )

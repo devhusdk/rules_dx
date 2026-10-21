@@ -12,6 +12,8 @@ use dx_output::{
 
 pub(crate) const CODE_STATUS_PIN_MISMATCH: &str = "status_pin_mismatch";
 
+pub(crate) const CODE_STATUS_CHECK_FAILED: &str = "status_check_failed";
+
 use super::operational;
 
 fn effect_of(command: Command) -> &'static str {
@@ -57,12 +59,17 @@ fn command_capability(command: Command) -> CapabilityEvent {
     }
 }
 
-fn unobserved_tools() -> CapabilityEvent {
+fn tools_capability(tools: &dx_adopt::StatusCheck) -> CapabilityEvent {
+    let availability = match tools.status.as_str() {
+        "ok" => "available",
+        "error" => "unavailable",
+        _ => "unknown",
+    };
     CapabilityEvent {
         name: "workspace:tools".to_owned(),
-        source: "unobserved".to_owned(),
-        availability: "unknown".to_owned(),
-        detail: "tool availability is not probed by status".to_owned(),
+        source: "workspace-record".to_owned(),
+        availability: availability.to_owned(),
+        detail: tools.detail.clone(),
         flags: Vec::new(),
         outputs: Vec::new(),
         reports: Vec::new(),
@@ -72,13 +79,34 @@ fn unobserved_tools() -> CapabilityEvent {
     }
 }
 
-fn capabilities() -> Vec<CapabilityEvent> {
+fn capabilities(tools: &dx_adopt::StatusCheck) -> Vec<CapabilityEvent> {
     let mut records: Vec<CapabilityEvent> = Command::value_variants()
         .iter()
         .map(|command| command_capability(*command))
         .collect();
-    records.push(unobserved_tools());
+    records.push(tools_capability(tools));
     records
+}
+
+fn failure(checks: &[dx_adopt::StatusCheck]) -> Option<(&'static str, String)> {
+    let failed: Vec<&str> = checks
+        .iter()
+        .filter(|check| check.status == "error")
+        .map(|check| check.name.as_str())
+        .collect();
+    if failed.contains(&"pin") {
+        return Some((
+            CODE_STATUS_PIN_MISMATCH,
+            "pin mismatch (see hint)".to_owned(),
+        ));
+    }
+    if failed.is_empty() {
+        return None;
+    }
+    Some((
+        CODE_STATUS_CHECK_FAILED,
+        format!("failed checks: {} (see hint)", failed.join(", ")),
+    ))
 }
 
 fn capability_line(capability: &CapabilityEvent) -> String {
@@ -122,7 +150,9 @@ pub(crate) fn execute_status(
             return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
     };
-    let checks = dx_adopt::observed_status_checks(workspace, &pinned);
+    let tools = super::status_tools::managed_tools_check(workspace);
+    let records = capabilities(&tools);
+    let checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -141,7 +171,7 @@ pub(crate) fn execute_status(
                 }
             }
         }
-        for capability in &capabilities() {
+        for capability in &records {
             match capability_event(capability) {
                 Ok(event) => {
                     if let Err(exit) = emit_event(out, &event) {
@@ -153,15 +183,8 @@ pub(crate) fn execute_status(
                 }
             }
         }
-        let failed = checks.iter().any(|c| c.status == "error");
-        if failed {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_STATUS_PIN_MISMATCH,
-                "pin mismatch (see hint)",
-            );
+        if let Some((code, message)) = failure(&checks) {
+            return operational(invocation, out, err, code, &message);
         }
         if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
             return exit;
@@ -173,19 +196,13 @@ pub(crate) fn execute_status(
     {
         return exit;
     }
-    for capability in &capabilities() {
+    for capability in &records {
         if let Err(exit) = check_stdout_write(writeln!(out, "{}", capability_line(capability))) {
             return exit;
         }
     }
-    if checks.iter().any(|c| c.status == "error") {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_STATUS_PIN_MISMATCH,
-            "pin mismatch (see hint)",
-        );
+    if let Some((code, message)) = failure(&checks) {
+        return operational(invocation, out, err, code, &message);
     }
     0
 }
@@ -338,7 +355,7 @@ mod tests {
     }
 
     #[test]
-    fn status_text_lists_every_command_and_unobserved_tools() {
+    fn status_text_lists_every_command_and_workspace_tools() {
         let inv = invocation(&["status"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-text-");
         let root = scratch.path().to_path_buf();
@@ -384,6 +401,7 @@ mod tests {
             .find(|event| event["name"] == serde_json::json!("workspace:tools"))
             .expect("tools record");
         assert_eq!(tools["availability"], serde_json::json!("unknown"));
+        assert_eq!(tools["source"], serde_json::json!("workspace-record"));
     }
 
     #[test]
@@ -417,6 +435,72 @@ mod tests {
             );
         }
         assert_eq!(std::fs::read_dir(&root).expect("dir").count(), before);
+        let error = events
+            .iter()
+            .find(|event| event["event"] == serde_json::json!("error"))
+            .expect("error event");
+        assert_eq!(error["code"], serde_json::json!(CODE_STATUS_CHECK_FAILED));
+        assert_eq!(
+            error["message"],
+            serde_json::json!("failed checks: module (see hint)")
+        );
+    }
+
+    #[test]
+    fn health_findings_never_report_a_pin_mismatch() {
+        for words in [vec!["status"], vec!["status", "--output=json"]] {
+            let inv = invocation(&words);
+            let scratch = dx_test_scratch::scratch("dx-adopt-status-bare-");
+            let root = scratch.path().to_path_buf();
+            std::fs::create_dir_all(root.join(".dx")).expect("dx");
+            std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+            std::fs::write(root.join("MODULE.bazel"), "module(name = \"app\")\n").expect("module");
+            let (code, out, err) = run(&inv, &root);
+            assert_eq!(code, 1, "words: {words:?}");
+            assert!(err.contains(CODE_STATUS_CHECK_FAILED), "{err}");
+            assert!(!err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
+            assert!(out.contains("dx init"), "{out}");
+        }
+    }
+
+    #[test]
+    fn a_real_pin_mismatch_wins_over_other_findings() {
+        let inv = invocation(&["status"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-both-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
+        let (code, _, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
+    }
+
+    #[test]
+    fn a_missing_managed_tool_fails_status() {
+        let inv = invocation(&["status", "--output=json"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-tool-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx/setups")).expect("setups");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        write_module(&root);
+        std::fs::write(root.join(".dx/setups/current"), "foreign").expect("foreign");
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains(CODE_STATUS_CHECK_FAILED), "{err}");
+        let events = json_events(&out);
+        let tools = events
+            .iter()
+            .find(|event| {
+                event["event"] == serde_json::json!("status")
+                    && event["name"] == serde_json::json!("tools")
+            })
+            .expect("tools check");
+        assert_eq!(tools["status"], serde_json::json!("error"));
+        let record = events
+            .iter()
+            .find(|event| event["name"] == serde_json::json!("workspace:tools"))
+            .expect("tools record");
+        assert_eq!(record["availability"], serde_json::json!("unavailable"));
     }
 
     #[test]

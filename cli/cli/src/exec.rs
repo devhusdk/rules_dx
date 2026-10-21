@@ -32,6 +32,7 @@ mod workflow;
 use crate::args::{Command, Invocation};
 
 pub use common::Env;
+pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Family {

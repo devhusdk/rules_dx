@@ -48,6 +48,145 @@ fn the_public_label_reports_a_drifted_consumer_pin() {
     );
 }
 
+struct StatusRun {
+    exit: i32,
+    events: Vec<dx_testing::serde_json::Value>,
+    stderr: String,
+}
+
+fn status_run(key: &str) -> StatusRun {
+    let text = read(key);
+    let mut run = StatusRun {
+        exit: -1,
+        events: Vec::new(),
+        stderr: String::new(),
+    };
+    for line in text.lines() {
+        if let Some(code) = line.strip_prefix("exit=") {
+            run.exit = code.parse().expect("exit code");
+        } else if line.starts_with('{') && run.exit < 0 {
+            run.events
+                .push(dx_testing::serde_json::from_str(line).expect("status JSON line"));
+        } else {
+            run.stderr.push_str(line);
+            run.stderr.push('\n');
+        }
+    }
+    run
+}
+
+impl StatusRun {
+    fn check(&self, name: &str) -> &dx_testing::serde_json::Value {
+        self.events
+            .iter()
+            .find(|event| event["event"] == "status" && event["name"] == name)
+            .unwrap_or_else(|| panic!("no {name} check in {:?}", self.events))
+    }
+
+    fn tools_record(&self) -> &dx_testing::serde_json::Value {
+        self.events
+            .iter()
+            .find(|event| event["event"] == "capability" && event["name"] == "workspace:tools")
+            .expect("workspace:tools record")
+    }
+
+    fn error_code(&self) -> Option<&str> {
+        self.events
+            .iter()
+            .find(|event| event["event"] == "error")
+            .and_then(|event| event["code"].as_str())
+    }
+}
+
+#[test]
+fn consumer_status_reports_a_healthy_selected_tool() {
+    let run = status_run("DX_STATUS_HEALTHY");
+    assert_eq!(run.exit, 0, "{}", run.stderr);
+    assert_eq!(run.check("module")["status"], "ok");
+    assert_eq!(run.check("pin")["status"], "ok");
+    let tools = run.check("tools");
+    assert_eq!(tools["status"], "ok", "{tools}");
+    assert_eq!(
+        tools["detail"],
+        "available: 1 managed tool in environment aaaaaaaaaaaa"
+    );
+    assert_eq!(run.tools_record()["availability"], "available");
+    assert_eq!(run.tools_record()["source"], "workspace-record");
+    assert_eq!(run.error_code(), None);
+}
+
+#[test]
+fn consumer_status_keeps_unobserved_evidence_unknown() {
+    let run = status_run("DX_STATUS_UNSELECTED");
+    assert_eq!(run.exit, 0, "{}", run.stderr);
+    let tools = run.check("tools");
+    assert_eq!(tools["status"], "warn");
+    assert!(
+        tools["detail"]
+            .as_str()
+            .expect("detail")
+            .starts_with("unknown:"),
+        "{tools}"
+    );
+    assert_eq!(tools["hint"], "dx env --apply");
+    assert_eq!(run.tools_record()["availability"], "unknown");
+}
+
+#[test]
+fn consumer_status_findings_use_their_own_error_code() {
+    let bare = status_run("DX_STATUS_BARE");
+    assert_eq!(bare.exit, 1);
+    assert_eq!(bare.error_code(), Some("status_check_failed"));
+    assert!(
+        !bare.stderr.contains("status_pin_mismatch"),
+        "{}",
+        bare.stderr
+    );
+    assert_eq!(bare.check("module")["status"], "error");
+    assert_eq!(bare.check("module")["hint"], "dx init");
+    assert_eq!(bare.check("pin")["status"], "ok");
+    let skew = status_run("DX_STATUS_SKEW");
+    assert_eq!(skew.exit, 1);
+    assert_eq!(skew.error_code(), Some("status_check_failed"));
+    let module = skew.check("module");
+    assert!(
+        module["detail"].as_str().expect("detail").contains("9.9.9"),
+        "{module}"
+    );
+    let pin = status_run("DX_STATUS_PIN");
+    assert_eq!(pin.exit, 1);
+    assert_eq!(pin.error_code(), Some("status_pin_mismatch"));
+}
+
+#[test]
+fn consumer_status_detects_missing_and_corrupt_tools() {
+    for (key, problem) in [
+        (
+            "DX_STATUS_MISSING_TOOL",
+            "tool points at a missing Bazel artifact",
+        ),
+        ("DX_STATUS_CORRUPT_TOOL", "tool is not a managed link"),
+    ] {
+        let run = status_run(key);
+        assert_eq!(run.exit, 1, "{key}");
+        assert_eq!(run.error_code(), Some("status_check_failed"), "{key}");
+        assert!(
+            run.stderr.contains("failed checks: tools"),
+            "{key}: {}",
+            run.stderr
+        );
+        let tools = run.check("tools");
+        assert_eq!(tools["status"], "error", "{key}");
+        assert_eq!(
+            tools["detail"],
+            format!("unavailable: environment aaaaaaaaaaaa: {problem}").as_str(),
+            "{key}"
+        );
+        assert_eq!(tools["hint"], "dx env --apply", "{key}");
+        assert_eq!(run.tools_record()["availability"], "unavailable", "{key}");
+    }
+}
+
 #[test]
 fn consumer_dependency_sets_audit_and_reject_bump() {
     let security = read("DX_SETS_SECURITY");

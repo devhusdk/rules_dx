@@ -4,6 +4,10 @@ use dx_atomic_fs::lease::SharedLease;
 use std::collections::BTreeMap;
 use std::path::Path;
 
+pub(crate) const ENV_ARTIFACTS_DIR: &str = "artifacts";
+
+pub(crate) const ENV_VALUES_FILE: &str = "values.json";
+
 pub(crate) type ManagedEnvCollection = (Vec<dx_bep::TargetOutput>, dx_env_plan::CollectedPlan);
 
 pub(crate) fn collect_managed_env(
@@ -63,7 +67,7 @@ pub(crate) fn stage_env_generation(
             }
         }
     }
-    let artifacts = dir.join("artifacts");
+    let artifacts = dir.join(ENV_ARTIFACTS_DIR);
     std::fs::create_dir_all(&artifacts).map_err(|e| {
         (
             CODE_MANAGED_COMMIT_FAILED.to_owned(),
@@ -127,7 +131,7 @@ pub(crate) fn stage_env_generation(
             format!("cannot render values.json: {e}"),
         )
     })?;
-    let target = dir.join("values.json");
+    let target = dir.join(ENV_VALUES_FILE);
     dx_atomic_fs::write_atomic(&target, rendered.as_bytes()).map_err(|e| {
         (
             CODE_MANAGED_COMMIT_FAILED.to_owned(),

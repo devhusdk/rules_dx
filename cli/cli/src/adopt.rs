@@ -3,6 +3,7 @@ mod init;
 mod new;
 mod rollback;
 mod status;
+mod status_tools;
 #[cfg(test)]
 mod test_support;
 mod upgrade;

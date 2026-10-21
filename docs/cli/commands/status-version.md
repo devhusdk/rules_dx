@@ -38,8 +38,12 @@ and `pin`.
 - `host`: checks the machine is a v1 execution platform. This is not native qualification.
 - `platform`: names the execution platforms tools resolve for. The target
   platform never selects tools.
-- `tools`: always `warn`. Pinned tools resolve at build time, so status
-  does not probe them.
+- `tools`: reads the managed tools `dx env --apply` selected under
+  `.dx/setups/current`. `warn` when none is selected. `error` when the
+  selection is foreign, its environment or `values.json` is missing or
+  corrupt, or a tool link is missing, is not a link, or points at a missing
+  Bazel artifact. Pinned quality tools resolve at build time and are not
+  probed.
 - `pin`: compares `.dx/version` with the `MODULE.bazel` pin.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
@@ -55,11 +59,19 @@ command, then `capability workspace:tools`.
 and one for `workspace:tools`, then `command_finished`. A `capability` event
 has `name`, `source`, `availability`, `detail`, `flags`, `outputs`,
 `reports`, `scope_policy`, `effect`, and `passthrough`. `source` is
-`cli-grammar` or `unobserved`. `availability` is `available`,
-`unavailable`, or `unknown`. A grammar record says the command is accepted,
-not that its tools are installed. `unknown` means status did not observe it. A failed
-check adds a `status_pin_mismatch` error event and exit code `1`. A missing
-or empty `.dx/version` fails the same way.
+`cli-grammar` for commands and `workspace-record` for `workspace:tools`.
+`availability` is `available`, `unavailable`, or `unknown`, and
+`workspace:tools` follows the `tools` check. A grammar record says the
+command is accepted, not that its tools are installed.
+
+A failed `pin` check adds a `status_pin_mismatch` error event and exit code
+`1`. A missing or empty `.dx/version` fails the same way. Any other failed
+check adds a `status_check_failed` error event that names the failed checks,
+and exit code `1`.
+
+```text
+dx: status_check_failed: failed checks: module, tools (see hint)
+```
 
 ## `dx version`
 

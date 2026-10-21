@@ -213,8 +213,11 @@ fn host_check(os: &str, arch: &str) -> StatusCheck {
     }
 }
 
-pub fn observed_status_checks(root: &Path, pinned: &str) -> Vec<StatusCheck> {
+pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> Vec<StatusCheck> {
     let mut checks = default_status_checks(pinned);
+    for check in checks.iter_mut().filter(|check| check.name == tools.name) {
+        *check = tools.clone();
+    }
     checks.insert(1, bazel_check(root, std::env::var_os("PATH")));
     checks.insert(2, module_check(root));
     checks.insert(3, host_check(std::env::consts::OS, std::env::consts::ARCH));
@@ -348,6 +351,34 @@ mod tests {
         assert_eq!(super::module_check(&dir).status, "ok");
         std::fs::write(dir.join("MODULE.bazel"), "module(name = \"app\")\n").expect("module");
         assert_eq!(super::module_check(&dir).status, "error");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn observed_checks_take_the_observed_tools_check() {
+        let dir = std::env::temp_dir().join(format!("dx-status-observed-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let tools = StatusCheck {
+            name: "tools".to_owned(),
+            status: "error".to_owned(),
+            detail: "unavailable: observed".to_owned(),
+            hint: "dx env --apply".to_owned(),
+        };
+        let checks = super::observed_status_checks(&dir, MODULE_VERSION, tools.clone());
+        let names: Vec<&str> = checks.iter().map(|check| check.name.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "toolchain",
+                "bazel",
+                "module",
+                "host",
+                "platform",
+                "tools",
+                "pin"
+            ]
+        );
+        assert_eq!(checks[5], tools);
         std::fs::remove_dir_all(&dir).ok();
     }
 

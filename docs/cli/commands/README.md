@@ -63,8 +63,8 @@ commands. See [Version Skew](status-version.md#version-skew).
   `generate`, `codegen`, `env`, `clean`, `check`, `fix`, `update`,
   `version`, and `docs`.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
-  `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, `watch`, and `docs`. It never combines with `--check`.
+  `format`, `generate`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
+  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, and `watch`. It never combines with `--check`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means
   release.

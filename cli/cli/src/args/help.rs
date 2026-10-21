@@ -185,9 +185,9 @@ version --check; docs --check|--serve|--port|--host|--open; \
 completion <{shells}>. \
 --check is per-command only (quality/codegen/env/clean/version/update/docs/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
-where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env selection, run/deploy launch, clean pruning, \
+where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env selection, deploy, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, \
-rollback pin restore, docs rendering/serving); \
+rollback pin restore); \
 every other command rejects it, and --apply never combines with --check. \
 by default lint, typecheck, format, fix, generate, codegen, env, and clean only check, while --apply writes \
 (fix then verifies with a read-only check). \

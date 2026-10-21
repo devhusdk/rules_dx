@@ -579,7 +579,7 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx run` accepts.
-    Run => 9, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
+    Run => 9, AppTail, { own: ProfileArgs, };
     /// The flags `dx deploy` accepts.
     Deploy => 10, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
     /// The flags `dx check` accepts.
@@ -645,7 +645,6 @@ command_args! {
     /// The flags `dx docs` accepts.
     Docs => 29, BazelTail, {
         check: CheckFlag,
-        apply: ApplyFlag,
         here: HereFlag,
         own: ServeArgs,
     };

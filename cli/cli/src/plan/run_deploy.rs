@@ -28,20 +28,6 @@ pub fn plan_run(
     plan_run_targets(&[target.to_owned()], app_args, profile, startup_options)
 }
 
-pub fn plan_run_build(
-    targets: &[String],
-    profile: crate::args::Profile,
-    startup_options: &[String],
-) -> BuildPlan {
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.reserve(2 + targets.len());
-    argv.push("build".to_owned());
-    argv.push(profile.config_flag());
-    argv.extend(targets.iter().cloned());
-    let summary = format!("Running run build for {}", targets.join(" "));
-    BuildPlan { argv, summary }
-}
-
 pub fn shell_join(words: &[String]) -> String {
     words
         .iter()
@@ -152,26 +138,6 @@ mod tests {
     }
 
     #[test]
-    fn run_build_plan_builds_without_launching() {
-        let plan = plan_run_build(&strings(&["//a:one", "//b:two"]), Profile::Dev, &[]);
-        assert_eq!(
-            plan.argv,
-            strings(&[
-                "bazel",
-                "--nohome_rc",
-                "--nosystem_rc",
-                "build",
-                "--config=dx_dev",
-                "//a:one",
-                "//b:two",
-            ])
-        );
-        assert!(!plan.argv.contains(&"run".to_owned()));
-        assert!(!plan.argv.contains(&"--".to_owned()));
-        assert!(plan.summary.contains("//a:one //b:two"));
-    }
-
-    #[test]
     fn run_plan_inserts_startup_options_before_the_verb() {
         let plan = plan_run(
             "//app:bin",
@@ -191,41 +157,24 @@ mod tests {
                 "//app:bin",
             ])
         );
-        let build = plan_run_build(
-            &strings(&["//a:one"]),
-            Profile::Dev,
-            &["--output_user_root=/tmp/b".to_owned()],
-        );
-        assert_eq!(
-            build.argv,
-            strings(&[
-                "bazel",
-                "--nohome_rc",
-                "--nosystem_rc",
-                "--output_user_root=/tmp/b",
-                "build",
-                "--config=dx_dev",
-                "//a:one",
-            ])
-        );
     }
 
     #[test]
     fn shell_join_quotes_only_unsafe_words() {
         assert_eq!(
-            shell_join(&strings(&["dx", "run", "--apply", "//app:bin"])),
-            "dx run --apply //app:bin"
+            shell_join(&strings(&["dx", "run", "--debug", "//app:bin"])),
+            "dx run --debug //app:bin"
         );
         assert_eq!(
             shell_join(&strings(&[
                 "dx",
                 "run",
-                "--apply",
+                "--debug",
                 "//app:bin",
                 "--",
                 "--port=8080"
             ])),
-            "dx run --apply //app:bin -- --port=8080"
+            "dx run --debug //app:bin -- --port=8080"
         );
         assert_eq!(
             shell_join(&strings(&["dx", "run", "--", "two words"])),

@@ -361,8 +361,8 @@ pub static COMMANDS: [CommandMeta; 32] = [
         name: "run",
         scope_policy: "require",
         describe: "build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)",
-        usage: "Usage: dx run [--apply] [--debug|--release] <label> ... [-- app-args ...]",
-        flags: "Per-command flags: --apply (authorizes launching the built target). --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
+        usage: "Usage: dx run [--debug|--release] <label> ... [-- app-args ...]",
+        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Requires a scope (empty scope is a usage error); file/dir scopes need exactly one runnable.",
         is_audit_update: false,
         is_managed: false,
@@ -901,8 +901,8 @@ pub static COMMANDS: [CommandMeta; 32] = [
         name: "docs",
         scope_policy: "default-repo",
         describe: "build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)",
-        usage: "Usage: dx docs [--check] [--apply] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--serve/--port/--host/--open (docs only; `-- --bazel-options` pass through to the docs build; --check validates the book without rendering it, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch). --apply authorizes rendering and serving.",
+        usage: "Usage: dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --check/--serve/--port/--host/--open (docs only; `-- --bazel-options` pass through to the docs build; --check validates the book without rendering it, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//tools/docs/site:user_site, //tools/docs/site:user_site_check in --check). Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -1057,7 +1057,6 @@ impl Command {
                 | Command::Typecheck
                 | Command::Format
                 | Command::Generate
-                | Command::Run
                 | Command::Deploy
                 | Command::Fix
                 | Command::Clean
@@ -1071,7 +1070,6 @@ impl Command {
                 | Command::Upgrade
                 | Command::Watch
                 | Command::Rollback
-                | Command::Docs
         )
     }
 

@@ -313,8 +313,8 @@ mod tests {
     #[test]
     fn watch_preserves_the_wrapped_apply_mode() {
         for (words, verb) in [
-            (vec!["watch", "run", "//app:bin"], "build"),
-            (vec!["watch", "--apply", "run", "//app:bin"], "run"),
+            (vec!["watch", "run", "//app:bin"], "run"),
+            (vec!["watch", "build", "//app:bin"], "build"),
         ] {
             let mut harness = Harness::new("dx-watch-apply-");
             let code = harness.run(&words, Some(1), &mut |_| Ok(Vec::new()));
@@ -614,8 +614,9 @@ mod tests {
     fn watch_parses_wrapped_options_like_the_wrapped_command() {
         let got = invocation(&["watch", "build", "//...", "--", "--jobs=4"]);
         assert_eq!(got.bazel_options, vec!["--jobs=4".to_owned()]);
-        let got = invocation(&["watch", "--apply", "run", "//app:bin"]);
+        let got = invocation(&["watch", "--apply", "fix", "//app:bin"]);
         assert!(got.apply);
+        assert!(crate::args::parse(&["watch", "--apply", "run", "//app:bin"]).is_err());
         let got = invocation(&["watch", "lint", "--fail-on=error", "--report=sarif=a.sarif"]);
         assert_eq!(got.fail_on, dx_output::Threshold::Error);
         assert_eq!(got.reports.len(), 1);

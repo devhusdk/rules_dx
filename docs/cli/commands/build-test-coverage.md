@@ -58,26 +58,23 @@ reported as `passed_after_retry` with its attempt number.
 ## `dx run`
 
 ```text
-dx run [--apply] [--debug|--release] <label...> [-- args...]
+dx run [--debug|--release] <label...> [-- args...]
 ```
 
-Builds the runnable targets in scope without launching them. Pass
-`--apply` to launch the built targets in scope order. Explicit labels
-and patterns run sequentially. File and directory scopes must resolve
-to exactly one runnable target. Args after `--` go to the app, and only
-reach it on an `--apply` launch. `dx run` works with `CI=true`. The
-default check validates without launching. Pass `--apply` to launch a
-noninteractive target in CI.
+Builds the runnable targets in scope, then launches them in scope
+order. Explicit labels and patterns run sequentially. File and directory
+scopes must resolve to exactly one runnable target. Args after `--` go to
+the app. The default profile is development; `--release` selects release.
+`dx run` works with `CI=true`. `dx run --apply` is a usage error.
 
 Output: `--output text|json`. `dx run` has no report format.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
-a launch failure. The app's own code is the exit code. A passing check
-names the `--apply` command that launches.
+a launch failure. The app's own code is the exit code.
 
 ```sh
 bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
-bazel run @rules_dx//:dx -- run --apply @rules_dx//:dx -- --help
+bazel run @rules_dx//:dx -- run --release @rules_dx//:dx -- --help
 ```
 
 ## `dx deploy`

@@ -140,8 +140,7 @@ fn strict_typo_suggestions_come_from_the_same_grammar() {
 #[test]
 fn strict_repeated_flags_are_last_wins() {
     for (words, command) in [
-        (vec!["build", "--here", "--cwd"], Command::Build),
-        (vec!["build", "--cwd", "--here"], Command::Build),
+        (vec!["build", "--here", "--here"], Command::Build),
         (vec!["lint", "--check", "--check"], Command::Lint),
         (vec!["lint", "--quiet", "--quiet"], Command::Lint),
         (vec!["build", "-vv"], Command::Build),
@@ -159,7 +158,7 @@ fn strict_repeated_flags_are_last_wins() {
         }
     }
     assert!(
-        parse(&strings(&["build", "--here", "--cwd"]))
+        parse(&strings(&["build", "--here", "--here"]))
             .expect("here")
             .here
     );

@@ -1186,8 +1186,10 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         assert!(got.here, "command: {command}");
         assert!(got.targets.is_empty(), "command: {command}");
         assert!(got.command.supports_here(), "command: {command}");
-        let alias = parse(&strings(&[command, "--cwd"])).expect("cwd alias parses");
-        assert!(alias.here, "command: {command}");
+        assert!(
+            parse(&strings(&[command, "--cwd"])).is_err(),
+            "command: {command}"
+        );
         let bare = parse(&strings(&[command])).expect("bare parses");
         assert!(!bare.here, "command: {command}");
         assert!(bare.targets.is_empty(), "command: {command}");
@@ -1195,7 +1197,7 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
     for words in [
         vec!["build", "--here", "//a:one"],
         vec!["lint", "src/a.py", "--here"],
-        vec!["test", "--cwd", "//..."],
+        vec!["test", "--here", "//..."],
         vec!["security", "--here", "//a:one"],
         vec!["license", "cli/cli", "--here"],
     ] {

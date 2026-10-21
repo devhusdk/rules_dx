@@ -391,13 +391,6 @@ fn here_flag_selects_cwd_tree_without_query() {
     assert!(out.contains("Running lint analysis for //src/..."), "{out}");
     assert!(harness.query.calls.borrow().is_empty());
 
-    let mut alias = Harness::new("here-alias");
-    alias.write_source("src/a.py", "x = 1\n");
-    alias.cwd = alias.workspace.join("src");
-    let (code, out, _) = alias.run(&["lint", "--cwd"]);
-    assert_eq!(code, 0);
-    assert!(out.contains("Running lint analysis for //src/..."), "{out}");
-
     let root = Harness::new("here-root");
     root.write_source("src/a.py", "x = 1\n");
     let (code, out, _) = root.run(&["lint", "--here"]);

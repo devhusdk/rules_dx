@@ -111,7 +111,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     );
     if invocation.here {
         let Env { err, .. } = env;
-        return common::pre_exec(err, "option \"--here/--cwd\" needs cwd resolution");
+        return common::pre_exec(err, "option \"--here\" needs cwd resolution");
     }
     if invocation.command == Command::Watch {
         return crate::adopt::watch::execute_watch(invocation, env);

@@ -577,44 +577,6 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
 }
 
 #[test]
-fn audit_dry_run_json_emits_lifecycle() {
-    let harness = Harness::new("audit-dryrun-json");
-    let (code, out, err) = harness.run(&["security", "--dry-run", "--output=json"]);
-    assert_eq!(code, 0, "{out}{err}");
-    let events = json_events(&out);
-    let kinds = event_kinds(&events);
-    assert_eq!(kinds, vec!["command_started", "command_finished"]);
-    assert_eq!(
-        events.last().expect("finished")["exit_code"],
-        serde_json::json!(0)
-    );
-    assert!(
-        harness.seen_env.borrow().is_empty(),
-        "dry-run launches nothing"
-    );
-}
-
-#[test]
-fn audit_update_dry_run_quiet_prints_nothing() {
-    for argv in [
-        vec!["security", "--dry-run", "--quiet"],
-        vec!["license", "--dry-run", "--quiet"],
-        vec!["update", "--dry-run", "--quiet"],
-    ] {
-        let name = format!("dryrun-quiet-{}", argv[0]);
-        let harness = Harness::new(&name);
-        let (code, out, err) = harness.run(&argv);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(out, "", "{out}");
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "dry-run launches nothing"
-        );
-    }
-}
-
-#[test]
 fn audit_reports_sarif_and_spdx_to_files() {
     use crate::args::parse;
     let runner = AuditRunner::clean();
@@ -1219,38 +1181,6 @@ fn audit_report_write_failure_json_reports_error_event() {
     assert!(out_text.contains("report_failed"), "{out_text}");
     assert!(out_text.contains("command_finished"), "{out_text}");
     assert!(out_text.contains("results_complete"), "{out_text}");
-}
-
-#[test]
-fn offline_dry_run_plans_cache_only_without_launching() {
-    let harness = Harness::new("audit-offline-dryrun");
-    let (code, out, err) = harness.run(&["security", "--offline", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(
-        out, "Running audit security for //... (offline, cache-only)\n",
-        "{out}"
-    );
-    assert_eq!(err, "", "{err}");
-    assert!(
-        harness.seen_env.borrow().is_empty(),
-        "offline dry-run launches nothing"
-    );
-    let alias = Harness::new("audit-frozen-dryrun");
-    let (code, out, err) = alias.run(&["license", "--frozen", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(
-        out, "Running audit license for //... (frozen, no resolution changes)\n",
-        "{out}"
-    );
-    assert!(
-        !out.contains("offline"),
-        "frozen no longer implies offline: {out}"
-    );
-    let online = Harness::new("audit-online-dryrun");
-    let (code, out, err) = online.run(&["security", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(out, "Running audit security for //...\n", "{out}");
-    assert_eq!(err, "", "{err}");
 }
 
 #[test]

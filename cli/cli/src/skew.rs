@@ -14,13 +14,7 @@ pub fn disposition(invocation: &Invocation, skewed: bool) -> SkewDisposition {
     match governing_command(invocation).meta().skew {
         crate::args::command::SkewKind::Proceed => SkewDisposition::Proceed,
         crate::args::command::SkewKind::Warn => SkewDisposition::Warn,
-        crate::args::command::SkewKind::Refuse => {
-            if invocation.dry_run {
-                SkewDisposition::Warn
-            } else {
-                SkewDisposition::Refuse
-            }
-        }
+        crate::args::command::SkewKind::Refuse => SkewDisposition::Refuse,
     }
 }
 
@@ -107,10 +101,9 @@ mod tests {
         Command::Bazel,
     ];
 
-    fn stub(command: Command, dry_run: bool, wrapped: Option<&str>) -> Invocation {
+    fn stub(command: Command, wrapped: Option<&str>) -> Invocation {
         let mut invocation = crate::args::parse(&["status"]).expect("status");
         invocation.command = command;
-        invocation.dry_run = dry_run;
         invocation.targets = match wrapped {
             Some(wrapped) => vec![wrapped.to_owned(), "//...".to_owned()],
             None => vec!["//...".to_owned()],
@@ -119,15 +112,11 @@ mod tests {
     }
 
     fn of(command: Command) -> Invocation {
-        stub(command, false, None)
-    }
-
-    fn dry_run(command: Command) -> Invocation {
-        stub(command, true, None)
+        stub(command, None)
     }
 
     fn watched(wrapped: &str) -> Invocation {
-        stub(Command::Watch, false, Some(wrapped))
+        stub(Command::Watch, Some(wrapped))
     }
 
     fn with_skew(kind: SkewKind) -> Vec<Command> {
@@ -206,18 +195,6 @@ mod tests {
             with_skew(SkewKind::Refuse),
             sorted(REFUSE),
             "the REFUSE list must be every command the registry marks Refuse"
-        );
-    }
-
-    #[test]
-    fn dry_run_downgrades_refusal_to_warning() {
-        assert_eq!(
-            disposition(&dry_run(Command::Build), SKEWED),
-            SkewDisposition::Warn
-        );
-        assert_eq!(
-            disposition(&dry_run(Command::Generate), SKEWED),
-            SkewDisposition::Warn
         );
     }
 

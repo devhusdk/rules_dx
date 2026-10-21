@@ -11,12 +11,6 @@ pub(crate) fn execute_bazel(invocation: &Invocation, env: Env<'_>) -> i32 {
         ..
     } = env;
     let plan = plan_bazel(&invocation.bazel_options);
-    if invocation.dry_run {
-        if invocation.chatty() {
-            let _ = writeln!(out, "{}", plan.summary);
-        }
-        return 0;
-    }
     if invocation.chatty() {
         let _ = writeln!(out, "{}", plan.summary);
     }
@@ -55,7 +49,7 @@ mod tests {
     #[test]
     fn bazel_passthrough_forwards_a_dry_run_argv_verbatim() {
         let harness = Harness::new("bazel-dry");
-        let inv = invocation(&["bazel", "build", "--jobs=4"]);
+        let inv = invocation(&["bazel", "build", "--", "--dry-run", "--jobs=4"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         assert_eq!(run.code, 0);
         assert_eq!(
@@ -63,6 +57,7 @@ mod tests {
             vec![vec![
                 "bazel".to_owned(),
                 "build".to_owned(),
+                "--dry-run".to_owned(),
                 "--jobs=4".to_owned()
             ]],
             "dx bazel forwards every word verbatim"

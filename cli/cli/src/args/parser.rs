@@ -296,7 +296,6 @@ pub fn parse_with_ci<S: AsRef<OsStr>>(
             | dx_adopt::defaults::DX_VERBOSE_ENV
             | dx_adopt::defaults::DX_COLOR_ENV
             | dx_adopt::defaults::DX_QUIET_ENV
-            | dx_adopt::defaults::DX_DRY_RUN_ENV
             | dx_adopt::defaults::DX_FAIL_ON_ENV => None,
             _ => env_get(name),
         };
@@ -313,11 +312,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     if let Some(error) = super::help::help_verb_error_in(args) {
         return Err(error);
     }
+    dx_adopt::defaults::reject_removed_env(env_get).map_err(bad_default)?;
     let tokenized = tokenize(args)?;
     let command = tokenized.command;
     let Flags {
         workspace: workspace_os,
-        dry_run,
         quiet,
         verbose,
         log_level: log_level_name,
@@ -371,18 +370,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         invocation_defaults::env_string(env_get, invocation_defaults::DX_WORKSPACE_ENV),
         file.workspace.clone(),
     );
-    let dry_run = invocation_defaults::resolve_bool(
-        dry_run,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_DRY_RUN_ENV)
-            .map_err(bad_default)?,
-        file.dry_run,
-    );
-    if dry_run && apply {
-        return Err(ArgsError::ConflictingModes {
-            first: "--dry-run",
-            second: "--apply",
-        });
-    }
     let quiet = invocation_defaults::resolve_bool(
         quiet,
         invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
@@ -655,7 +642,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         debug,
         release,
         workspace,
-        dry_run,
         quiet,
         verbose,
         log_level,

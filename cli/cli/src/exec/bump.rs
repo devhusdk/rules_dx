@@ -23,7 +23,6 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command,
         &invocation.reports,
         &invocation.output,
-        invocation.dry_run,
     ) {
         Ok(_) => {}
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -75,35 +74,11 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.frozen,
     );
     let verbose = invocation.chatty();
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                let _ = write_event(out, &event);
-            }
-            if let Ok(event) = notice_event(&NoticeEvent {
-                level: "info".to_owned(),
-                code: "bump_planned".to_owned(),
-                message: summary,
-                related_command: Some("bump".to_owned()),
-                scope: Some(vec![request.selector.clone()]),
-                path: Some(request.target_manifest().to_owned()),
-                language: None,
-                import: None,
-            }) {
-                let _ = write_event(out, &event);
-            }
-            let finished = command_finished(0, &FinishedCounts::default());
-            let _ = write_event(out, &finished);
-        } else if verbose {
-            let _ = writeln!(out, "{summary}");
-        }
-        return 0;
-    }
     if !invocation.applies() {
         return check_bump(invocation, out, err, workspace, &request, verbose);
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), "default") {
             let _ = write_event(out, &event);
         }
     } else if verbose {
@@ -359,7 +334,7 @@ fn check_bump(
     verbose: bool,
 ) -> i32 {
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+        if let Ok(event) = command_started(invocation.command.name(), "check") {
             let _ = write_event(out, &event);
         }
     }
@@ -756,14 +731,6 @@ fn bump_frozen_failed(
 mod tests {
     use super::super::test_support::*;
 
-    const CARGO_MANIFEST: &str = "rust/tests/fixtures/hello/Cargo.toml";
-    const ANYHOW_REQUIREMENT: &str = "[dependencies]\nanyhow = \"1\"\n";
-    const BUMP_SUMMARY: &str =
-        "Widen cargo:anyhow to 1.2.3 in rust/tests/fixtures/hello/Cargo.toml \
-(then refresh via `dx update cargo` automatically); if major bump, run `dx migrate --from <old> \
---to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 \
-missing-versions)";
-
     const CONSUMER_DX_TOML: &str = r#"
 schema_version = 1
 
@@ -1038,72 +1005,12 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn dry_run_plans_without_writing() {
-        let harness = Harness::new("bump-dryrun");
-        harness.write_source(CARGO_MANIFEST, ANYHOW_REQUIREMENT);
-        let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(out, format!("{BUMP_SUMMARY}\n"), "{out}");
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "dry-run launches nothing"
-        );
-        assert_eq!(
-            std::fs::read_to_string(harness.workspace.join(CARGO_MANIFEST)).expect("read"),
-            ANYHOW_REQUIREMENT
-        );
-    }
-
-    #[test]
-    fn dry_run_json_streams_started_planned_notice_and_finished() {
-        let harness = Harness::new("bump-dryrun-json");
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.toml",
-            "[dependencies]\ndemo = \"1\"\n",
-        );
-        let (code, out, err) =
-            harness.run(&["bump", "cargo:demo", "1.2.3", "--dry-run", "--output=json"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(err, "", "{err}");
-        let events = json_events(&out);
-        assert_eq!(events.len(), 3, "{events:?}");
-        let started = event(&events, "command_started");
-        assert_eq!(started["command"], "bump");
-        assert_eq!(started["dry_run"], true);
-        let planned = event(&events, "notice");
-        assert_eq!(planned["code"], "bump_planned");
-        assert_eq!(planned["level"], "info");
-        assert_eq!(planned["related_command"], "bump");
-        assert_eq!(planned["scope"][0], "cargo:demo");
-        assert_eq!(planned["path"], "rust/tests/fixtures/hello/Cargo.toml");
-        assert!(
-            planned["message"]
-                .as_str()
-                .is_some_and(|message| message.contains("Widen cargo:demo to 1.2.3")),
-            "{planned}"
-        );
-        let finished = events.last().expect("finished");
-        assert_eq!(finished["event"], "command_finished");
-        assert_eq!(finished["exit_code"], 0);
-        assert_eq!(
-            std::fs::read_to_string(
-                harness
-                    .workspace
-                    .join("rust/tests/fixtures/hello/Cargo.toml")
-            )
-            .expect("read"),
-            "[dependencies]\ndemo = \"1\"\n"
-        );
-    }
-
-    #[test]
     fn dry_run_rejects_bad_selector_and_version() {
         let harness = Harness::new("bump-dryrun-bad-selector");
-        let (code, _, err) = harness.run(&["bump", "crates", "1.2.3", "--dry-run"]);
+        let (code, _, err) = harness.run(&["bump", "crates", "1.2.3"]);
         assert_eq!(code, 2, "{err}");
         let harness = Harness::new("bump-dryrun-bad-version");
-        let (code, _, err) = harness.run(&["bump", "cargo:anyhow", "nope!!!", "--dry-run"]);
+        let (code, _, err) = harness.run(&["bump", "cargo:anyhow", "nope!!!"]);
         assert_eq!(code, 2, "{err}");
     }
 
@@ -1630,18 +1537,7 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn major_bump_plans_carry_migrate_hint_with_exit_mapping() {
-        let harness = Harness::new("bump-major-hint-dryrun");
-        harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.toml",
-            "[dependencies]\nanyhow = \"1\"\n",
-        );
-        let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "2.0.0", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("major bump"), "{out}");
-        assert!(out.contains("dx migrate --from"), "{out}");
-        assert!(out.contains("migrate_failed"), "{out}");
-        assert!(out.contains("missing-versions"), "{out}");
+    fn major_bump_carries_migrate_hint() {
         let harness = Harness::new("bump-major-hint-live");
         harness.write_source(
             "rust/tests/fixtures/hello/Cargo.toml",
@@ -1654,29 +1550,6 @@ dependencies = ["anyio>=4"]
         assert!(out.contains("migrate_failed"), "{out}");
         assert!(out.contains("missing-versions"), "{out}");
     }
-    #[test]
-    fn offline_dry_run_plans_cache_only_without_writing() {
-        let harness = Harness::new("bump-offline-dryrun");
-        harness.write_source(CARGO_MANIFEST, ANYHOW_REQUIREMENT);
-        let (code, out, err) =
-            harness.run(&["bump", "cargo:anyhow", "1.2.3", "--offline", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(
-            out,
-            format!("{BUMP_SUMMARY} (offline, cache-only)\n"),
-            "{out}"
-        );
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "offline dry-run launches nothing"
-        );
-        assert_eq!(
-            std::fs::read_to_string(harness.workspace.join(CARGO_MANIFEST)).expect("read"),
-            ANYHOW_REQUIREMENT
-        );
-    }
-
     #[test]
     fn offline_live_resolver_fails_before_widen_without_mutation() {
         let harness = Harness::new("bump-offline-resolver");

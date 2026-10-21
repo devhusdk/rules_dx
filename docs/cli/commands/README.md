@@ -36,8 +36,6 @@ commands. See [Version Skew](status-version.md#version-skew).
 ## Global Flags
 
 - `--workspace <dir>`: run in another workspace.
-- `--dry-run[=bool]`: print the plan without running it. Bare means `true`, and
-  `=false` turns off a default inherited from the environment or a config file.
 - `--quiet[=bool]`, `--verbose[=bool]`: less or more output. Bare means `true`,
   and `=false` turns off a default inherited from the environment or a config
   file.
@@ -76,7 +74,7 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
   `codegen`, `env`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, and `docs`.
-  Every other command rejects it. It never combines with `--check` or `--dry-run`.
+  Every other command rejects it. It never combines with `--check`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means
   release. Every other command rejects them.
@@ -108,13 +106,11 @@ the process exit code and `results_complete: false`.
 bazel run @rules_dx//:dx -- lint --check //... --output=json
 ```
 
-- `command_started`: the command, whether it is a dry run, and its mode.
+- `command_started`: the command and its mode.
 - `capability`: one declared capability, with `name`, `source`,
   `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
   `effect`, and `passthrough`.
-- `operation`: a phase, with the scopes it resolved to. Quality dry runs add a
-  `provenance` object with the command, mode, scope, policy origin, aspects,
-  settings, reports, redacted inputs, and unknown execution facts.
+- `operation`: a phase, with the scopes it resolved to.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
@@ -140,11 +136,10 @@ them by target or set.
 ## Environment
 
 Every variable below supplies a default. A flag on the command line wins, and
-`--dry-run=false`, `--quiet=false`, and `--verbose=false` turn an inherited
+`--quiet=false`, and `--verbose=false` turn an inherited
 default off.
 
 - `DX_WORKSPACE=<dir>`: default for `--workspace`.
-- `DX_DRY_RUN=<bool>`: default for `--dry-run`.
 - `DX_QUIET=<bool>`: default for `--quiet`.
 - `DX_VERBOSE=<bool>`: default for `--verbose`.
 - `DX_COLOR=<mode>`: default for `--color`.
@@ -166,7 +161,6 @@ is the flag name without `--`.
 ```toml
 [dx]
 workspace = "/path/to/repo"
-dry-run = true
 quiet = true
 verbose = true
 color = "never"
@@ -174,7 +168,7 @@ output = "json"
 fail-on = "error"
 ```
 
-`dry_run` and `fail_on` also work. Values are TOML, so a boolean key takes
+`fail_on` also works. Values are TOML, so a boolean key takes
 `true` or `false`. An empty value is unset.
 An unknown key is a usage error that names the key and the keys it accepts.
 

@@ -53,7 +53,7 @@ previous pin for `--rollback`.
 - `--rollback` with `--apply`: restore the last recorded pin. Conflicts
 with `--pin`. Refuses without a record, after manual pin edits, or after
 the record is deleted.
-Flags: `--check`, `--apply`, `--pin`, `--rollback`, `--dry-run`.
+Flags: `--check`, `--apply`, `--pin`, `--rollback`.
 Scopes: none.
 
 Output: `--output text|json`. Bare JSON adds a `dependency` status event.
@@ -76,7 +76,7 @@ Every command reads the pin in `.dx/version` and compares it with the
 - Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`, `verify`, `rerun`, `tests`.
 - Stops with exit code `1`: every other command.
 
-`--dry-run` turns a stop into a warning. `watch` answers for the command it
+`watch` answers for the command it
 wraps. A missing or empty `.dx/version` is not skew, so only the `pin` check
 in `dx status` fails on it.
 

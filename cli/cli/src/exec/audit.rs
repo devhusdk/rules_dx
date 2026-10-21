@@ -1010,7 +1010,6 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command,
         &invocation.reports,
         &invocation.output,
-        invocation.dry_run,
     ) {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -1034,18 +1033,6 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         .iter()
         .any(|report| report.destination == Destination::Stdout);
     let verbose = invocation.chatty() && !stdout_report;
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                let _ = write_event(out, &event);
-            }
-            let finished = command_finished(0, &FinishedCounts::default());
-            let _ = write_event(out, &finished);
-        } else if verbose {
-            let _ = writeln!(out, "{summary}");
-        }
-        return 0;
-    }
     let registry = match dx_adopt::dependency_sets::load(workspace) {
         Ok(registry) => registry,
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -1076,7 +1063,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let sets = targets;
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), "default") {
             let _ = write_event(out, &event);
         }
     } else if verbose {

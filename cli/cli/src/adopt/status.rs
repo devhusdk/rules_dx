@@ -8,7 +8,7 @@ use dx_output::{
 
 pub(crate) const CODE_STATUS_PIN_MISMATCH: &str = "status_pin_mismatch";
 
-use super::{operational, summaries_suppressed};
+use super::operational;
 
 pub(crate) fn execute_status(
     invocation: &Invocation,
@@ -16,23 +16,6 @@ pub(crate) fn execute_status(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-                return exit;
-            }
-        } else if !summaries_suppressed(invocation) {
-            if let Err(exit) = check_stdout_write(writeln!(out, "would report status")) {
-                return exit;
-            }
-        }
-        return 0;
-    }
     let pinned = match dx_adopt::read_version_pin(workspace) {
         Ok(pin) => pin,
         Err(error) => {
@@ -47,7 +30,7 @@ pub(crate) fn execute_status(
     };
     let checks = dx_adopt::default_status_checks(&pinned);
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
             }
@@ -135,11 +118,6 @@ mod tests {
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         assert!(kinds.contains(&"status"), "{kinds:?}");
         assert!(!kinds.contains(&"error"), "{kinds:?}");
-        assert_eq!(
-            events[0]["dry_run"],
-            serde_json::Value::Bool(false),
-            "{events:?}"
-        );
         assert_eq!(
             events.last().expect("finished")["exit_code"],
             serde_json::json!(0)
@@ -234,38 +212,6 @@ mod tests {
         assert_eq!(code, 1);
         assert!(err.contains("pin mismatch"));
         assert!(!out.contains("pin: ok"));
-    }
-
-    #[test]
-    fn status_dry_run_plans_without_executing() {
-        let inv = invocation(&["status", "--dry-run"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-dry-");
-        let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        assert!(out.contains("would report status"));
-        let inv = invocation(&["status", "--dry-run", "--quiet"]);
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        assert!(out.is_empty());
-    }
-
-    #[test]
-    fn status_dry_run_json_emits_lifecycle_only() {
-        let inv = invocation(&["status", "--dry-run", "--output=json"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-status-dry-json-");
-        let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        let text = out;
-        let events = json_events(&text);
-        let kinds = event_kinds(&events);
-        assert_eq!(kinds, vec!["command_started", "command_finished"]);
-        assert_eq!(events[0]["dry_run"], serde_json::json!(true));
-        assert_eq!(
-            events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
-        );
     }
 
     struct BrokenPipeWriter;

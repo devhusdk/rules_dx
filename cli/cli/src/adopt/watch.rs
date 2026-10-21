@@ -51,14 +51,6 @@ fn watch(
         Ok(iteration) => iteration,
         Err(message) => return pre_exec(&mut err, &message),
     };
-    if invocation.dry_run {
-        if !suppressed {
-            if let Err(exit) = check_stdout_write(writeln!(out, "would {plan} scope={scope}")) {
-                return exit;
-            }
-        }
-        return 0;
-    }
     let session = match dx_adopt::watch::WatchSession::start(workspace) {
         Ok(session) => session,
         Err(error) => {
@@ -445,20 +437,6 @@ mod tests {
     }
 
     #[test]
-    fn watch_dry_run_plans_without_running_or_waiting() {
-        let mut harness = Harness::new("dx-watch-dry-run-");
-        let code = harness.run(&["watch", "--dry-run", "lint", "//..."], None, &mut |_| {
-            panic!("dry run never waits for changes")
-        });
-        assert_eq!(code, 0);
-        assert!(harness.seen.borrow().is_empty(), "launches nothing");
-        assert_eq!(
-            harness.stdout(),
-            "would watch:lint:debounce=200ms scope=//...\n"
-        );
-    }
-
-    #[test]
     fn watch_quiet_drops_summaries_and_keeps_running() {
         let mut harness = Harness::new("dx-watch-quiet-");
         let code = harness.run(&["watch", "--quiet", "build", "//..."], None, &mut |_| {
@@ -514,7 +492,7 @@ mod tests {
     fn watch_broken_pipe_on_the_summary_returns_141() {
         for words in [
             vec!["watch", "build", "//..."],
-            vec!["watch", "--dry-run", "build", "//..."],
+            vec!["watch", "build", "//..."],
         ] {
             let mut harness = Harness::new("dx-watch-pipe-");
             assert_eq!(
@@ -672,23 +650,6 @@ mod tests {
             crate::args::parse(&["watch".to_owned(), "--here".to_owned(), "build".to_owned()])
                 .is_err()
         );
-    }
-
-    #[test]
-    fn watch_dry_run_still_validates_the_wrapped_request() {
-        let mut harness = Harness::new("dx-watch-dry-run-valid-");
-        let code = harness.run(&["watch", "--dry-run", "lint", "//..."], None, &mut |_| {
-            panic!("dry run never waits for changes")
-        });
-        assert_eq!(code, 0);
-        let mut harness = Harness::new("dx-watch-dry-run-invalid-");
-        let code = harness.run(
-            &["watch", "--dry-run", "--debug", "lint", "//..."],
-            None,
-            &mut |_| panic!("invalid dry run never waits for changes"),
-        );
-        assert_eq!(code, 2);
-        assert!(harness.stderr().contains("--debug|--release"));
     }
 
     #[test]

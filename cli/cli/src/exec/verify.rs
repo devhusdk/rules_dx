@@ -121,7 +121,6 @@ impl StepCollector {
         err: &mut dyn Write,
         output: OutputMode,
         chatty: bool,
-        dry_run: bool,
         name: &str,
     ) {
         if self.green() {
@@ -132,11 +131,7 @@ impl StepCollector {
                     .filter(|step| step.state == StepState::Passed)
                     .count();
                 let total = self.steps.len();
-                if dry_run {
-                    let _ = writeln!(out, "Planned {name}: {total}/{total} steps.");
-                } else {
-                    let _ = writeln!(out, "Verified {name}: {planned}/{total} steps passed.");
-                }
+                let _ = writeln!(out, "Verified {name}: {planned}/{total} steps passed.");
             }
             return;
         }
@@ -221,7 +216,6 @@ fn step_invocation(invocation: &Invocation, command: Command, step: &ResolvedSte
         debug: false,
         release: false,
         workspace: invocation.workspace.clone(),
-        dry_run: invocation.dry_run,
         quiet: invocation.quiet,
         verbose: invocation.verbose,
         log_level: invocation.log_level,
@@ -302,7 +296,7 @@ pub(crate) fn execute_verify(invocation: &Invocation, env: Env<'_>) -> i32 {
     } = env;
     let name = invocation.targets.first().cloned().unwrap_or_default();
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started("verify", invocation.dry_run, "check") {
+        if let Ok(event) = command_started("verify", "check") {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
             }
@@ -386,14 +380,7 @@ pub(crate) fn execute_verify(invocation: &Invocation, env: Env<'_>) -> i32 {
         },
     };
     if stdout_exit.is_none() {
-        collector.summarize(
-            out,
-            err,
-            invocation.output,
-            invocation.chatty(),
-            invocation.dry_run,
-            &name,
-        );
+        collector.summarize(out, err, invocation.output, invocation.chatty(), &name);
     }
     if invocation.output == OutputMode::Json {
         let _ = write_event(
@@ -626,25 +613,6 @@ steps = [
     }
 
     #[test]
-    fn dry_run_plans_the_set_without_launching() {
-        let harness = harness_with("verify-dry-run", TWO_BUILDS);
-        let inv = parsed(&["verify", "pre-pr", "--dry-run"]);
-        let run = Scripted::run_with(&harness, &inv, vec![Some(0), Some(0)]);
-        assert_eq!(run.code, 0, "{}{}", run.out, run.err);
-        assert!(run.argv.is_empty(), "dry run launches nothing");
-        assert!(
-            run.out.contains("Planned pre-pr: 2/2 steps."),
-            "a plan never claims steps passed: {}",
-            run.out
-        );
-        assert!(
-            !run.out.contains("passed"),
-            "a plan never claims steps passed: {}",
-            run.out
-        );
-    }
-
-    #[test]
     fn json_envelope_correlates_every_step() {
         let harness = harness_with("verify-json", TWO_BUILDS);
         let inv = parsed(&["verify", "pre-pr", "--output=json"]);
@@ -807,23 +775,9 @@ steps = [
     }
 
     #[test]
-    fn live_binary_plans_a_consumer_set_without_launching() {
-        let scratch = consumer_root("plan");
-        let (code, out, err) = run_dx(scratch.path(), &["verify", "pre-pr", "--dry-run"]);
-        assert_eq!(code, Some(0), "{out}{err}");
-        let (code, out, err) = run_dx(
-            scratch.path(),
-            &["verify", "pre-pr", "--dry-run", "--output=json"],
-        );
-        assert_eq!(code, Some(0), "{out}{err}");
-        assert!(out.contains("\"command\":\"verify\""), "{out}");
-        assert!(out.contains("\"command_finished\""), "{out}");
-    }
-
-    #[test]
     fn live_binary_rejects_unknown_sets_as_usage_errors() {
         let scratch = consumer_root("unknown");
-        let (code, _, err) = run_dx(scratch.path(), &["verify", "other", "--dry-run"]);
+        let (code, _, err) = run_dx(scratch.path(), &["verify", "other"]);
         assert_eq!(code, Some(2), "{err}");
         assert!(err.contains("no set \"other\""), "{err}");
         let (code, _, _) = run_dx(scratch.path(), &["verify"]);

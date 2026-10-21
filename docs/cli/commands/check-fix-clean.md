@@ -51,14 +51,14 @@ bazel run @rules_dx//:dx -- fix --apply //...
 ## `dx clean`
 
 ```text
-dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]
+dx clean [--check] [--apply] [--bazel] [--prune-unobserved]
 ```
 
 Reports unselected managed state under `.dx` by default and deletes
 nothing. Pass `--apply` to prune it. A generation a live reader still
 holds is never pruned. Never touches Bazel outputs unless
 `--bazel` is combined with `--apply` to also run `bazel clean`. Takes no
-scopes. `--dry-run` only lists what would go and always succeeds.
+scopes.
 
 Output: `--output text|json`.
 
@@ -67,6 +67,6 @@ prune or launch failure. With `--bazel`, a `bazel clean` failure keeps
 Bazel's code.
 
 ```sh
-bazel run @rules_dx//:dx -- clean --dry-run
+bazel run @rules_dx//:dx -- clean --check
 bazel run @rules_dx//:dx -- clean --apply
 ```

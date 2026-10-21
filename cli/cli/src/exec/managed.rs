@@ -93,7 +93,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         (dx_setup::SetupScope::Repository, None) => None,
     };
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, mode) {
+        if let Ok(event) = command_started(invocation.command.name(), mode) {
             let _ = write_event(out, &event);
         }
         if let Ok(event) =
@@ -101,14 +101,6 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         {
             let _ = write_event(out, &event);
         }
-    }
-    if invocation.dry_run {
-        if json {
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if verbose {
-            let _ = writeln!(out, "{}", plan.summary);
-        }
-        return 0;
     }
     if !json && verbose {
         let _ = writeln!(out, "{}", plan.summary);
@@ -351,47 +343,6 @@ mod tests {
     use dx_setup::{read_current_pair, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME};
 
     #[test]
-    fn managed_dry_run_prints_summary_without_launching() {
-        for command in ["codegen", "env"] {
-            let name = format!("managed-dryrun-{command}");
-            let harness = Harness::new(&name);
-            let (code, out, err) = harness.run(&[command, "--dry-run"]);
-            assert_eq!(code, 0, "{out}{err}");
-            assert!(
-                out.contains(&format!("Running {command} for //...")),
-                "{out}"
-            );
-            assert_eq!(err, "", "{err}");
-            assert!(
-                harness.seen_env.borrow().is_empty(),
-                "dry-run launches nothing"
-            );
-        }
-    }
-
-    #[test]
-    fn managed_dry_run_exact_scope_selects_label() {
-        let harness = Harness::new("managed-dryrun-exact");
-        let (code, out, err) = harness.run(&["env", "//a:one", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("Running env for //a:one"), "{out}");
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "dry-run launches nothing"
-        );
-    }
-
-    #[test]
-    fn managed_dry_run_quiet_prints_nothing() {
-        let harness = Harness::new("managed-dryrun-quiet");
-        let (code, out, err) = harness.run(&["env", "--dry-run", "--quiet"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(out, "", "{out}");
-        assert_eq!(err, "", "{err}");
-    }
-
-    #[test]
     fn managed_live_empty_selection_commits_with_empty_counterparts() {
         for command in ["codegen", "env"] {
             let name = format!("managed-commit-{command}");
@@ -456,27 +407,21 @@ mod tests {
 
     #[test]
     fn managed_exact_codegen_expands_bare_schema_to_projections() {
-        let harness = Harness::new("managed-expand-dryrun");
+        let harness = Harness::new("managed-expand-check");
         harness
             .query
             .script_owners("//generation:codegen_prost_fixture\n");
-        let (code, out, err) = harness.run(&["codegen", "//generation:result_proto", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
+        let (_, out, err) = harness.run(&["codegen", "//generation:result_proto"]);
         assert!(
             out.contains(
                 "Running codegen for //generation:codegen_prost_fixture //generation:result_proto"
             ),
-            "{out}"
-        );
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "dry-run launches no build"
+            "{out}{err}"
         );
         assert_eq!(
             harness.query.calls.borrow().len(),
             1,
-            "dry-run still runs the expansion query"
+            "check mode still runs the expansion query"
         );
         assert!(
             harness.query.calls.borrow()[0].last().expect("expression")
@@ -644,42 +589,6 @@ mod tests {
             harness.seen_env.borrow().is_empty(),
             "policy conflict launches nothing"
         );
-    }
-
-    #[test]
-    fn managed_dry_run_json_streams_planning_events() {
-        for command in ["codegen", "env"] {
-            let name = format!("managed-dry-json-{command}");
-            let harness = Harness::new(&name);
-            let (code, out, err) = harness.run(&[command, "--dry-run", "--output=json"]);
-            assert_eq!(code, 0, "{out}{err}");
-            let events = json_events(&out);
-            let kinds = event_kinds(&events);
-            assert_eq!(
-                kinds,
-                vec!["command_started", "operation", "command_finished"]
-            );
-            let op = event(&events, "operation");
-            assert_eq!(op["command"], serde_json::json!(command));
-            assert_eq!(op["phase"], serde_json::json!("collect"));
-            assert!(op.get("scope").is_none(), "{op}");
-            assert_eq!(
-                events.last().expect("finished")["exit_code"],
-                serde_json::json!(0)
-            );
-            assert_eq!(err, "", "{err}");
-        }
-    }
-
-    #[test]
-    fn managed_dry_run_json_exact_scope_includes_scope() {
-        let harness = Harness::new("managed-dry-json-exact");
-        let (code, out, err) = harness.run(&["env", "//a:one", "--dry-run", "--output=json"]);
-        assert_eq!(code, 0, "{out}{err}");
-        let events = json_events(&out);
-        let op = event(&events, "operation");
-        assert_eq!(op["scope"], serde_json::json!(["//a:one"]));
-        assert_eq!(err, "", "{err}");
     }
 
     #[test]

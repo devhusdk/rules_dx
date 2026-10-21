@@ -1,5 +1,5 @@
 use super::super::common::{frozen_summary, offline_summary, pre_exec, Env};
-use super::{emit_dry_run, record_named, RunMode};
+use super::{record_named, RunMode};
 use crate::args::Invocation;
 use dx_adopt::dependency_sets::{self, ResolvedSet, ResolvedTarget, Selection};
 use std::collections::BTreeMap;
@@ -10,13 +10,7 @@ pub(super) fn execute_configured(
     registry: &dependency_sets::Registry,
     verbose: bool,
 ) -> i32 {
-    let mode = if invocation.dry_run {
-        if invocation.check {
-            RunMode::Check
-        } else {
-            RunMode::Update
-        }
-    } else if invocation.applies() {
+    let mode = if invocation.applies() {
         RunMode::Update
     } else {
         RunMode::Check
@@ -40,18 +34,8 @@ pub(super) fn execute_configured(
         offline_summary(display_summary(&resolved, mode), invocation.offline),
         invocation.frozen,
     );
-    if invocation.dry_run {
-        return emit_dry_run(
-            invocation,
-            out,
-            &summary,
-            verbose,
-            mode_text,
-            plans(&resolved, mode, invocation.offline, invocation.frozen),
-        );
-    }
     if invocation.output == dx_output::OutputMode::Json {
-        if let Ok(event) = dx_output::command_started(invocation.command.name(), false, mode_text) {
+        if let Ok(event) = dx_output::command_started(invocation.command.name(), mode_text) {
             let _ = dx_output::write_event(out, &event);
         }
     } else if verbose {
@@ -239,48 +223,6 @@ fn run_configured_target(
                 );
             }
         },
-    }
-}
-
-fn plans(resolved: &[ResolvedTarget], mode: RunMode, offline: bool, frozen: bool) -> Vec<String> {
-    resolved
-        .iter()
-        .map(|target| describe_plan(&target.set, &target.request, mode, offline, frozen))
-        .collect()
-}
-
-fn describe_plan(
-    set: &ResolvedSet,
-    request: &Selection,
-    mode: RunMode,
-    offline: bool,
-    frozen: bool,
-) -> String {
-    let verb = match mode {
-        RunMode::Update => "update",
-        RunMode::Check => "check",
-    };
-    let planned =
-        match mode {
-            RunMode::Update => dx_update::backend::plan_configured(set, request, offline, frozen)
-                .map(|plan| match plan {
-                    dx_update::backend::BackendPlan::Run { argv, .. } => Some(argv.join(" ")),
-                    dx_update::backend::BackendPlan::Noop => None,
-                }),
-            RunMode::Check => dx_update::backend::check_configured(set, request, offline, frozen)
-                .map(|plan| match plan {
-                    dx_update::backend::CheckPlan::Run { argv, .. } => Some(argv.join(" ")),
-                    dx_update::backend::CheckPlan::Pinned => None,
-                    dx_update::backend::CheckPlan::Unavailable => None,
-                }),
-        };
-    match planned {
-        Ok(Some(argv)) => format!("Would {verb} {}: {argv}", set.name),
-        Ok(None) => format!(
-            "Would leave {} pinned (manual pins; nothing to resolve)",
-            set.name
-        ),
-        Err(error) => format!("Cannot {verb} {}: {error}", set.name),
     }
 }
 
@@ -571,31 +513,6 @@ writable = false
             std::fs::read(harness.workspace.join("dx.toml")).expect("config"),
             DX_TOML.as_bytes()
         );
-    }
-
-    #[test]
-    fn consumer_dry_run_plans_without_launching() {
-        let harness = consumer_harness("dry-run", DX_TOML, true);
-        let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--dry-run", "worker"], &runner, &harness);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(
-            out.contains("Would update worker: uv lock --directory services/worker"),
-            "{out}"
-        );
-        assert_eq!(runner.calls.borrow().len(), 0);
-        let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(
-            &["update", "--check", "--dry-run", "worker"],
-            &runner,
-            &harness,
-        );
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(
-            out.contains("Would check worker: uv lock --check --directory services/worker"),
-            "{out}"
-        );
-        assert_eq!(runner.calls.borrow().len(), 0);
     }
 
     #[test]

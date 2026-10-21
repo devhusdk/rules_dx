@@ -1,5 +1,3 @@
-pub const DRY_RUN_FLAG: &str = "--dry-run";
-
 pub const BAZEL_FLAG: &str = "--bazel";
 
 pub const PRUNE_UNOBSERVED_FLAG: &str = "--prune-unobserved";
@@ -17,7 +15,6 @@ mod tests {
 
     #[test]
     fn flag_shape_is_frozen() {
-        assert_eq!(DRY_RUN_FLAG, "--dry-run");
         assert_eq!(BAZEL_FLAG, "--bazel");
         assert_eq!(PRUNE_UNOBSERVED_FLAG, "--prune-unobserved");
         assert_eq!(bazel_forward_argv(), vec!["clean".to_owned()]);

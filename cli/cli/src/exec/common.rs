@@ -55,7 +55,7 @@ pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
 }
 
 pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), i32> {
-    if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, "default") {
+    if let Ok(event) = command_started(invocation.command.name(), "default") {
         emit_event(out, &event)?;
     }
     Ok(())

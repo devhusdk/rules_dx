@@ -165,9 +165,6 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
         err,
         is_json: invocation.output == OutputMode::Json,
     };
-    if invocation.dry_run {
-        return dry_run_tests(&mut ctx);
-    }
     let resolved = match resolve_for_test_with_selection(
         &invocation.targets,
         ctx.workspace,
@@ -229,59 +226,6 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
     emit_cases(&mut ctx, &pairs, &empty_scopes)
 }
 
-fn dry_run_tests(ctx: &mut Ctx) -> i32 {
-    let mut cache = crate::resolve::PackageCache::default();
-    let classified =
-        match crate::resolve::classify_scopes(&ctx.invocation.targets, ctx.workspace, &mut cache) {
-            Ok(classified) => classified,
-            Err(error) => return pre_exec(ctx.err, &error.to_string()),
-        };
-    let mut exprs: Vec<String> = Vec::new();
-    if ctx.invocation.targets.is_empty() {
-        exprs.push(inventory_expression("//..."));
-    }
-    for label in &classified.labels {
-        exprs.push(inventory_expression(label));
-    }
-    for pattern in &classified.patterns {
-        exprs.push(inventory_expression(pattern));
-    }
-    for file in &classified.files {
-        exprs.push(format!("tests(rdeps(//..., {}, 1))", file.label));
-    }
-    if ctx.is_json {
-        if let Ok(event) = command_started("tests", true, "default") {
-            if let Err(exit) = emit_event(ctx.out, &event) {
-                return exit;
-            }
-        }
-        if let Err(exit) = emit_event(ctx.out, &command_finished(0, &FinishedCounts::default())) {
-            return exit;
-        }
-        return 0;
-    }
-    if ctx.invocation.chatty() {
-        for expr in &exprs {
-            if let Err(exit) = check_stdout_write(writeln!(
-                ctx.out,
-                "would run bazel {} --output=label_kind -- {expr}",
-                ctx.verb
-            )) {
-                return exit;
-            }
-        }
-        if ctx.invocation.cases {
-            if let Err(exit) = check_stdout_write(writeln!(
-                ctx.out,
-                "would build and list cases via bazel run <label> -- --list for each supported test"
-            )) {
-                return exit;
-            }
-        }
-    }
-    0
-}
-
 fn emit_inventory_text(
     ctx: &mut Ctx,
     pairs: &[(String, String, String)],
@@ -313,7 +257,7 @@ fn emit_inventory_json(
     empty_scopes: &[String],
     code: i32,
 ) -> i32 {
-    if let Ok(event) = command_started("tests", false, "default") {
+    if let Ok(event) = command_started("tests", "default") {
         if let Err(exit) = emit_event(ctx.out, &event) {
             return exit;
         }
@@ -450,7 +394,7 @@ fn emit_cases_json(
     problems: &[(String, String)],
     code: i32,
 ) -> i32 {
-    if let Ok(event) = command_started("tests", false, "default") {
+    if let Ok(event) = command_started("tests", "default") {
         if let Err(exit) = emit_event(ctx.out, &event) {
             return exit;
         }
@@ -590,34 +534,6 @@ mod tests {
         let (code, _, err) = harness.run(&["tests", "//..."]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_failed"), "{err}");
-    }
-
-    #[test]
-    fn inventory_dry_run_plans_without_query() {
-        let harness = Harness::new("tests-dry");
-        let (code, out, _) = harness.run(&["tests", "//a/...", "--dry-run"]);
-        assert_eq!(code, 0);
-        assert!(out.contains("would run bazel query"), "{out}");
-        assert!(out.contains("tests(//a/...)"), "{out}");
-        assert!(harness.query.calls.borrow().is_empty());
-        let (code, out, _) = harness.run(&["tests", "--dry-run", "--output=json"]);
-        assert_eq!(code, 0);
-        let events = json_events(&out);
-        assert_eq!(
-            event_kinds(&events),
-            vec!["command_started", "command_finished"]
-        );
-        assert_eq!(events[0]["dry_run"], serde_json::json!(true));
-    }
-
-    #[test]
-    fn cases_dry_run_plans_enumeration_without_query() {
-        let harness = Harness::new("tests-cases-dry");
-        let (code, out, _) = harness.run(&["tests", "--cases", "//a/...", "--dry-run"]);
-        assert_eq!(code, 0);
-        assert!(out.contains("would run bazel query"), "{out}");
-        assert!(out.contains("bazel run <label> -- --list"), "{out}");
-        assert!(harness.query.calls.borrow().is_empty());
     }
 
     #[test]

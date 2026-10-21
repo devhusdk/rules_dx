@@ -265,7 +265,7 @@ mod tests {
     #[test]
     fn run_reports_the_code_and_what_reached_each_stream() {
         let scratch = dx_test_scratch::scratch("dx-adopt-run-streams-");
-        let (code, out, err) = run(&invocation(&["init", "--dry-run"]), scratch.path());
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), scratch.path());
         assert_eq!(code, 0);
         assert!(out.contains(".dx/version"), "{out}");
         assert!(err.is_empty(), "{err}");

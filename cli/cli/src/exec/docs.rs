@@ -174,7 +174,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, mode) {
+        if let Ok(event) = command_started(invocation.command.name(), mode) {
             let _ = write_event(out, &event);
         }
         for action in actions {
@@ -182,23 +182,6 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
                 let _ = write_event(out, &event);
             }
         }
-    }
-    if invocation.dry_run {
-        if json {
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if invocation.chatty() {
-            let _ = writeln!(out, "{summary}");
-            if invocation.serve {
-                let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
-                let host = invocation.host.as_deref().unwrap_or(DOCS_DEFAULT_HOST);
-                let url = preview_url(host, port);
-                let _ = writeln!(out, "would serve at {url}");
-                if invocation.open {
-                    let _ = writeln!(out, "would open {url}");
-                }
-            }
-        }
-        return 0;
     }
     if !json && invocation.chatty() {
         let _ = writeln!(out, "{summary}");
@@ -369,20 +352,9 @@ mod tests {
                 "--output=text"
             };
             let harness = Harness::new("docs-scope");
-            let (code, out, err) = harness.run(&[
-                "docs",
-                "//docs:page",
-                "--dry-run",
-                "--serve",
-                "--open",
-                output,
-            ]);
+            let (code, out, err) = harness.run(&["docs", "//docs:page", "--check", output]);
             assert_eq!(code, 0, "{out}{err}");
-            assert!(out.contains("//docs:page"));
-            assert!(harness.seen_env.borrow().is_empty());
-            if !json {
-                assert!(out.contains("would open http://127.0.0.1:8000/"));
-            }
+            assert!(out.contains("//docs:page"), "{out}");
             for signalled in [false, true] {
                 let mut harness = Harness::new("docs-process-failure");
                 harness.signalled = signalled;
@@ -652,18 +624,6 @@ mod tests {
         assert!(!err_text.contains("launch_failed"), "{err_text}");
         let text = String::from_utf8(out).expect("out");
         assert!(text.contains("serve_failed"), "{text}");
-    }
-
-    #[test]
-    fn docs_dry_run_plans_without_launch() {
-        let harness = Harness::new("docs-dry");
-        let (code, out, _) = harness.run(&["docs", "--check", "--dry-run"]);
-        assert_eq!(code, 0, "{out}");
-        assert!(out.contains("Running docs check"), "{out}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "dry-run launches nothing"
-        );
     }
 
     #[test]

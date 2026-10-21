@@ -98,34 +98,12 @@ pub(super) fn run_with(argv: &[&str], runner: &ScriptRunner) -> (i32, String, St
 }
 
 #[test]
-pub(super) fn dry_run_resolves_without_launching() {
-    let harness = Harness::new("update-dryrun-live");
-    let (code, out, err) = harness.run(&["update", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(
-        out.contains("Running update for all dependency sets"),
-        "{out}"
-    );
-    assert_eq!(err, "", "{err}");
-    assert!(
-        harness.seen_env.borrow().is_empty(),
-        "dry-run launches nothing"
-    );
-
-    let harness = Harness::new("update-dryrun-npm");
-    let (code, out, err) = harness.run(&["update", "npm:jest", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("Running update for npm:jest"), "{out}");
-    assert_eq!(err, "", "{err}");
-}
-
-#[test]
 pub(super) fn dry_run_rejects_unknown_and_unowned() {
     let harness = Harness::new("update-dryrun-unknown");
-    let (code, _, err) = harness.run(&["update", "crates", "--dry-run"]);
+    let (code, _, err) = harness.run(&["update", "crates"]);
     assert_eq!(code, 2, "{err}");
     let harness = Harness::new("update-dryrun-unowned");
-    let (code, _, err) = harness.run(&["update", "docs/cli/README.md", "--dry-run"]);
+    let (code, _, err) = harness.run(&["update", "docs/cli/README.md"]);
     assert_eq!(code, 2, "{err}");
 }
 
@@ -307,16 +285,6 @@ pub(super) fn manifest_projects_to_correlated_change_and_mutation() {
     assert!(super::project_manifest_events(&empty)
         .expect("empty")
         .is_empty());
-}
-
-#[test]
-pub(super) fn live_dry_run_json_still_plans_without_per_set() {
-    let harness = Harness::new("update-dryrun-json-live");
-    let (code, out, err) = harness.run(&["update", "--dry-run", "--output=json"]);
-    assert_eq!(code, 0, "{out}{err}");
-    let events = json_events(&out);
-    let kinds = event_kinds(&events);
-    assert_eq!(kinds, vec!["command_started", "command_finished"]);
 }
 
 #[test]

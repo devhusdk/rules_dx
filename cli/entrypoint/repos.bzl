@@ -55,11 +55,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "bump_unsupported.txt",
         "license_json.txt",
         "nolock_license.txt",
-        "overlap_dryrun.txt",
         "security_json.txt",
-        "update_check_dryrun.txt",
-        "update_dryrun.txt",
-        "update_dryrun_one.txt",
         "sets_ok/dx.toml",
         "sets_ok/MODULE.bazel",
         "sets_ok/.dx/version",
@@ -163,18 +159,6 @@ EOF
 done
 cp "$(location sets_ok/apps/frontend/uv.lock)" /tmp/consumer_sets_frontend_uv_lock.orig
 cp "$(location sets_ok/services/worker/uv.lock)" /tmp/consumer_sets_worker_uv_lock.orig
-"$$public" update --dry-run --verbose --workspace "$$ok" > "$(location update_dryrun.txt)"
-grep -q "Running update for frontend, worker" "$(location update_dryrun.txt)"
-grep -q "Would update frontend: uv lock --directory apps/frontend" "$(location update_dryrun.txt)"
-grep -q "Would update worker: uv lock --directory services/worker" "$(location update_dryrun.txt)"
-"$$public" update --dry-run --verbose --workspace "$$ok" worker > "$(location update_dryrun_one.txt)"
-grep -q "Running update for worker" "$(location update_dryrun_one.txt)"
-if grep -q frontend "$(location update_dryrun_one.txt)"; then
-  echo "selective dry-run leaked the unselected set" >&2
-  exit 1
-fi
-"$$public" update --check --dry-run --verbose --workspace "$$ok" > "$(location update_check_dryrun.txt)"
-grep -q "Would check frontend: uv lock --check --directory apps/frontend" "$(location update_check_dryrun.txt)"
 if "$$public" security --output=json --workspace "$$ok" > "$(location security_json.txt)" 2>/dev/null; then
   echo "note: security passed with the hermetic gitleaks tool present" >&2
 fi
@@ -186,9 +170,7 @@ if "$$public" bump frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsuppor
   exit 1
 fi
 grep -q "bump is not supported for ecosystem uv set frontend" "$(location bump_unsupported.txt)"
-"$$public" update --dry-run --verbose --workspace "$$overlap" apps/shared/thing > "$(location overlap_dryrun.txt)"
-grep -q "Running update for left, right" "$(location overlap_dryrun.txt)"
-if "$$public" update --dry-run --workspace "$$bad" > "$(location bad_kind.txt)" 2>&1; then
+if "$$public" update --workspace "$$bad" > "$(location bad_kind.txt)" 2>&1; then
   echo "update accepted an unknown ecosystem" >&2
   exit 1
 fi

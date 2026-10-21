@@ -438,8 +438,10 @@ mod tests {
         assert!(plan.prune_generations.is_empty());
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale_hex]);
         assert_eq!(plan.preserved_unobserved_generations.len(), 2);
-        let listing =
-            super::super::bytes::render_dry_run(&plan, &super::super::bytes::PruneBytes::default());
+        let listing = super::super::bytes::render_prune_listing(
+            &plan,
+            &super::super::bytes::PruneBytes::default(),
+        );
         assert!(listing.contains("observation unavailable"));
         assert!(!listing.contains("nothing to prune"));
         let _ = fs::remove_dir_all(&root);

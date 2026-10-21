@@ -44,25 +44,6 @@ pub(crate) fn execute_new(
         );
         return pre_exec_code();
     }
-    if invocation.dry_run {
-        if !summaries_suppressed(invocation) {
-            match dx_adopt::plan_new_files(language, name) {
-                Ok(files) => {
-                    for file in files {
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "would write {}", file.path))
-                        {
-                            return exit;
-                        }
-                    }
-                }
-                Err(error) => {
-                    return invalid_name_code(invocation, out, err, &error);
-                }
-            }
-        }
-        return 0;
-    }
     if !invocation.applies() {
         return check_new(invocation, workspace, language, name, out, err);
     }
@@ -129,19 +110,6 @@ mod tests {
     use super::*;
     use crate::adopt::test_support::{invocation, run};
     use std::path::PathBuf;
-
-    #[test]
-    fn new_dry_run_lists_without_writing() {
-        let inv = invocation(&["new", "rust", "demo", "--dry-run"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-new-dry-");
-        let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        let text = out;
-        assert!(text.contains("demo/Cargo.toml"), "{text}");
-        assert!(text.contains("demo/.dx/version"), "{text}");
-        assert!(!root.join("demo/Cargo.toml").exists());
-    }
 
     #[test]
     fn new_applies_absent_only() {
@@ -221,13 +189,29 @@ mod tests {
     }
 
     #[test]
-    fn new_dry_run_rejects_escape_names_without_writing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-new-dry-escape-");
+    fn new_rejects_escape_names_without_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-escape-");
         let root = scratch.path().to_path_buf();
-        let inv = invocation(&["new", "rust", "../evil", "--dry-run"]);
+        let inv = invocation(&["new", "rust", "../evil"]);
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, pre_exec_code());
         assert!(err.contains("invalid destination"), "{err}");
+    }
+
+    #[test]
+    fn new_validates_destinations_with_and_without_quiet() {
+        for words in [
+            vec!["new", "rust", "../evil"],
+            vec!["new", "rust", "../evil", "--quiet"],
+            vec!["new", "--apply", "rust", "../evil"],
+            vec!["new", "--apply", "rust", "../evil", "--quiet"],
+        ] {
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-quiet-escape-");
+            let root = scratch.path().to_path_buf();
+            let (code, _out, err) = run(&invocation(&words), &root);
+            assert_eq!(code, pre_exec_code(), "{words:?}");
+            assert!(err.contains("invalid destination"), "{words:?}: {err}");
+        }
     }
 
     #[test]
@@ -239,27 +223,6 @@ mod tests {
         assert_eq!(code, 0);
         let cargo = std::fs::read_to_string(root.join("teams/My App/Cargo.toml")).expect("cargo");
         assert!(cargo.contains("name = \"my-app\""), "{cargo}");
-    }
-
-    #[test]
-    fn new_rust_web_dry_run_lists_template_without_writing() {
-        let inv = invocation(&["new", "rust-web", "demo", "--dry-run"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-new-web-dry-");
-        let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        for wanted in [
-            "demo/Cargo.toml",
-            "demo/src/lib.rs",
-            "demo/src/main.rs",
-            "demo/BUILD.bazel",
-            "demo/MODULE.bazel",
-            "demo/.bazelversion",
-            "demo/README.md",
-        ] {
-            assert!(out.contains(wanted), "{out}");
-        }
-        assert!(!root.join("demo/Cargo.toml").exists());
     }
 
     #[test]

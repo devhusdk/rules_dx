@@ -25,12 +25,12 @@ Commands:
   clean         prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
   update        update dependencies per set through qualified resolvers (check by default; --apply writes updates)
   bump          widen one declared requirement to a new version (check by default; --apply widens)
-  migrate       rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates; --dry-run plans without writes)
+  migrate       rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)
   codegen       collect codegen outputs with atomic commit (check by default; --apply writes managed state)
   env           collect the managed development environment (check by default; --apply writes managed state)
   init          scaffold dx into a foreign tree (absent-only; check by default; --apply scaffolds)
   new           scaffold a minimal qualified project for one language (absent-only; check by default; --apply scaffolds)
-  upgrade       one-shot pin+migrate+setup composition with recovery pointer (check by default; --apply upgrades; --dry-run plans without writes)
+  upgrade       one-shot pin+migrate+setup composition with recovery pointer (check by default; --apply upgrades)
   hooks         manage Git hooks via hermetic Git (check by default; --apply installs)
   status        report workspace and target status
   version       report version and pin drift
@@ -56,8 +56,6 @@ Options:
 Environment:
   DX_WORKSPACE=<dir>
       Default for --workspace.
-  DX_DRY_RUN=<bool>
-      Default for --dry-run.
   DX_QUIET=<bool>
       Default for --quiet.
   DX_VERBOSE=<bool>

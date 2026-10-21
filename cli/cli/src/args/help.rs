@@ -175,7 +175,7 @@ pub fn usage_banner() -> String {
     let commands = Command::pipe_list();
     let shells = COMPLETION_SHELLS.join("|");
     format!(
-        "usage: dx <{commands}> [--workspace DIR] [--dry-run] [--quiet] [--verbose|-v] \
+        "usage: dx <{commands}> [--workspace DIR] [--quiet] [--verbose|-v] \
  [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
 [--output text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
@@ -192,7 +192,7 @@ see `dx <command> --help`). --apply is per-command only and authorizes the manag
 where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env selection, run/deploy launch, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \
 version --pin/--rollback, docs rendering/serving); \
-every other command rejects it, and --apply never combines with --check or --dry-run. \
+every other command rejects it, and --apply never combines with --check. \
 by default lint, typecheck, format, fix, generate, codegen, env, and clean only check, while --apply writes \
 (fix then verifies with a read-only check). \
 no dx doctor; use `dx status` for diagnostics. \
@@ -502,7 +502,7 @@ mod tests {
             other => panic!("clean --help: want Help, got {other:?}"),
         };
         assert!(
-            clean.contains("clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]"),
+            clean.contains("clean [--check] [--apply] [--bazel] [--prune-unobserved]"),
             "clean usage:\n{clean}"
         );
         assert!(clean.contains("--apply"), "clean flags:\n{clean}");

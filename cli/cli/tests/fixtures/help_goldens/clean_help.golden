@@ -2,7 +2,7 @@ dx clean - prune unselected managed state, never Bazel outputs unless --bazel (c
 
 prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
 
-Usage: dx clean [--check] [--apply] [--dry-run] [--bazel] [--prune-unobserved]
+Usage: dx clean [--check] [--apply] [--bazel] [--prune-unobserved]
 
 Arguments:
   [TARGETS]...
@@ -11,11 +11,6 @@ Arguments:
 Options:
       --workspace <WORKSPACE>
           Use this workspace dir
-
-      --dry-run[=<DRY_RUN>]
-          Show the plan without running it. =false turns off an inherited default
-          
-          [possible values: true, false]
 
       --quiet[=<QUIET>]
           Hide summaries. =false turns off an inherited default

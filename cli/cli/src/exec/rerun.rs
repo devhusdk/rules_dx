@@ -416,7 +416,6 @@ fn rerun_invocation(invocation: &Invocation, receipt: &Receipt) -> Invocation {
         debug,
         release,
         workspace: invocation.workspace.clone(),
-        dry_run: invocation.dry_run,
         quiet: invocation.quiet,
         verbose: invocation.verbose,
         log_level: invocation.log_level,
@@ -461,7 +460,7 @@ pub(crate) fn execute_rerun(invocation: &Invocation, env: Env<'_>) -> i32 {
     } = env;
     if invocation.output == OutputMode::Json {
         let mode = if invocation.check { "check" } else { "default" };
-        if let Ok(event) = command_started("rerun", invocation.dry_run, mode) {
+        if let Ok(event) = command_started("rerun", mode) {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
             }
@@ -1006,20 +1005,6 @@ mod tests {
             run.argv[0].iter().any(|arg| arg == "--config=dx_release"),
             "recorded profile reaches Bazel: {:?}",
             run.argv[0]
-        );
-    }
-
-    #[test]
-    fn rerun_dry_run_plans_without_launching() {
-        let harness = Harness::new("rerun-dry");
-        let rel = write_receipt(&harness, "failed.json", &base_receipt(&["//a:bad"]));
-        let inv = invocation(&["rerun", rel.as_str(), "--dry-run"]);
-        let run = Recording::run_with(&harness, &inv, vec![Some(0)], Vec::new());
-        assert_eq!(run.code, 0, "{}{}", run.out, run.err);
-        assert!(
-            run.argv.is_empty(),
-            "dry run launches nothing: {:?}",
-            run.argv
         );
     }
 }

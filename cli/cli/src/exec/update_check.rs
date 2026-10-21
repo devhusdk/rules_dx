@@ -2,44 +2,6 @@ use super::super::test_support::*;
 use super::update_live::*;
 
 #[test]
-fn preset_check_dry_run_never_reads_or_writes() {
-    for json in [false, true] {
-        let harness = Harness::new("update-check-dry");
-        let output = if json {
-            "--output=json"
-        } else {
-            "--output=text"
-        };
-        let (code, out, err) = harness.run(&["update", "--check", "--dry-run", output]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(harness.seen_env.borrow().is_empty());
-        assert!(!harness.workspace.join("tools").exists());
-        if json {
-            let events: Vec<serde_json::Value> = out
-                .lines()
-                .map(|line| serde_json::from_str(line).expect("event"))
-                .collect();
-            assert_eq!(events.len(), 2);
-            assert_eq!(events[0]["dry_run"], true);
-            assert_eq!(events[0]["mode"], serde_json::json!("check"));
-            assert_eq!(events[1]["exit_code"], 0);
-        } else {
-            assert!(
-                out.contains("Running update --check for all dependency sets"),
-                "{out}"
-            );
-            assert!(
-                out.contains(
-                    "Would check uv: uv lock --check --directory python/tests/fixtures/hello"
-                ),
-                "{out}"
-            );
-            assert!(out.contains("Would leave go pinned"), "{out}");
-        }
-    }
-}
-
-#[test]
 fn updater_spawn_and_signal_failures_keep_other_sets_independent() {
     for spawn_error in [false, true] {
         let mut runner = ScriptRunner::new(&[("cargo", None)]);
@@ -376,42 +338,6 @@ fn update_json_completeness_is_per_set_plus_finished() {
 }
 
 #[test]
-fn update_json_check_current_and_dryrun_emit_no_file_events_or_counts() {
-    let harness = Harness::new("update-586-check-json");
-    harness.write_source("python/tests/fixtures/hello/uv.lock", "lock-bytes\n");
-    let (code, out, err) = harness.run(&["update", "--check", "uv", "--output=json"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(!out.contains("\"event\":\"change\""), "{out}");
-    assert!(!out.contains("\"event\":\"mutation\""), "{out}");
-    let events = json_events(&out);
-    assert!(
-        events
-            .iter()
-            .any(|event| event["code"] == serde_json::json!("update_set_current")),
-        "{out}"
-    );
-    let finished = events.last().expect("finished");
-    assert!(finished.get("changes").is_none(), "{out}");
-    assert!(finished.get("mutations").is_none(), "{out}");
-    assert!(finished.get("diagnostics").is_none(), "{out}");
-    assert_eq!(
-        std::fs::read_to_string(
-            harness
-                .workspace
-                .join("python/tests/fixtures/hello/uv.lock")
-        )
-        .expect("read"),
-        "lock-bytes\n"
-    );
-
-    let dry = Harness::new("update-586-dryrun-json");
-    let (code, out, err) = dry.run(&["update", "--dry-run", "--output=json"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(!out.contains("\"event\":\"change\""), "{out}");
-    assert!(!out.contains("\"event\":\"mutation\""), "{out}");
-}
-
-#[test]
 fn update_failure_reports_recovery_in_text_and_json() {
     let runner = ScriptRunner::new(&[("maven", Some(1))]);
     let (code, out, err) = run_with(&["update", "--apply"], &runner);
@@ -441,120 +367,6 @@ fn update_success_emits_no_recovery() {
     let (code, out, err) = run_with(&["update", "--apply", "--output=json"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("update_recovery"), "{out}");
-}
-
-#[test]
-fn offline_dry_run_plans_cache_only_without_launching() {
-    fn offline_line(set: &str) -> String {
-        format!(
-            "Cannot update {set}: offline_required: cannot update {set} without network (re-run without --offline once connected)"
-        )
-    }
-    fn pinned_line(set: &str) -> String {
-        format!("Would leave {set} pinned (manual pins; nothing to resolve)")
-    }
-    let expected = format!(
-        "{}\n{}\n",
-        "Running update for all dependency sets (offline, cache-only)",
-        [
-            offline_line("cargo"),
-            pinned_line("go"),
-            offline_line("maven"),
-            offline_line("npm"),
-            offline_line("npm-adopt"),
-            offline_line("npm-adopt-polyglot"),
-            offline_line("npm-tools"),
-            offline_line("nuget"),
-            pinned_line("powershell"),
-            pinned_line("ruby"),
-            offline_line("uv"),
-            offline_line("uv-adopt"),
-            offline_line("uv-adopt-polyglot"),
-            offline_line("uv-tools"),
-        ]
-        .join("\n")
-    );
-    let harness = Harness::new("update-offline-dryrun");
-    let (code, out, err) = harness.run(&["update", "--offline", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(out, expected, "{out}");
-    assert_eq!(err, "", "{err}");
-    assert!(
-        harness.seen_env.borrow().is_empty(),
-        "offline dry-run launches nothing"
-    );
-    let online = Harness::new("update-online-dryrun");
-    let (code, out, err) = online.run(&["update", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(
-        out.starts_with("Running update for all dependency sets\n"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update cargo: bazel build //rust/tests/fixtures/hello:hello"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update maven: bazel run @maven//:pin"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update npm: bazel run @pnpm//:pnpm -- --dir"),
-        "{out}"
-    );
-    assert!(
-        out.contains("Would update uv: uv lock --directory python/tests/fixtures/hello"),
-        "{out}"
-    );
-    assert!(out.contains("Would leave go pinned"), "{out}");
-    assert_eq!(out.lines().count(), 15, "{out}");
-    assert_eq!(err, "", "{err}");
-}
-
-#[test]
-fn frozen_dry_run_locks_resolution_without_launching() {
-    fn frozen_line(set: &str) -> String {
-        format!(
-            "Cannot update {set}: frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)"
-        )
-    }
-    fn pinned_line(set: &str) -> String {
-        format!("Would leave {set} pinned (manual pins; nothing to resolve)")
-    }
-    let expected = format!(
-        "{}\n{}\n",
-        "Running update for all dependency sets (frozen, no resolution changes)",
-        [
-            frozen_line("cargo"),
-            pinned_line("go"),
-            frozen_line("maven"),
-            frozen_line("npm"),
-            frozen_line("npm-adopt"),
-            frozen_line("npm-adopt-polyglot"),
-            frozen_line("npm-tools"),
-            frozen_line("nuget"),
-            pinned_line("powershell"),
-            pinned_line("ruby"),
-            frozen_line("uv"),
-            frozen_line("uv-adopt"),
-            frozen_line("uv-adopt-polyglot"),
-            frozen_line("uv-tools"),
-        ]
-        .join("\n")
-    );
-    let harness = Harness::new("update-frozen-dryrun");
-    let (code, out, err) = harness.run(&["update", "--frozen", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert_eq!(out, expected, "{out}");
-    assert_eq!(err, "", "{err}");
-    assert!(
-        harness.seen_env.borrow().is_empty(),
-        "frozen dry-run launches nothing"
-    );
-    assert!(
-        !out.contains("offline"),
-        "frozen no longer implies offline: {out}"
-    );
 }
 
 #[test]

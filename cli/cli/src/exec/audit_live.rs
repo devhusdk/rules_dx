@@ -236,29 +236,6 @@ pub(super) fn write_all_empty_advisories(harness: &Harness) {
 }
 
 #[test]
-pub(super) fn audit_dry_run_plans_families_without_launching() {
-    let harness = Harness::new("audit-dryrun");
-    let (code, out, err) = harness.run(&["security", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("Running audit security for //..."), "{out}");
-    assert_eq!(err, "", "{err}");
-    assert!(
-        harness.seen_env.borrow().is_empty(),
-        "dry-run launches nothing"
-    );
-
-    let harness = Harness::new("audit-dryrun-family");
-    let (code, out, err) = harness.run(&["license", "--dry-run"]);
-    assert_eq!(code, 0, "{out}{err}");
-    assert!(out.contains("Running audit license for //..."), "{out}");
-    assert_eq!(err, "", "{err}");
-    assert!(
-        harness.seen_env.borrow().is_empty(),
-        "dry-run launches nothing"
-    );
-}
-
-#[test]
 pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["security"], &runner, &|harness| {

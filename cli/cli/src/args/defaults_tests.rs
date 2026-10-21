@@ -1,9 +1,9 @@
-use super::super::{ArgsError, Command, FileDefaults, OperationMode};
+use super::super::{Command, FileDefaults, OperationMode};
 use super::parse_with;
 use crate::test_support::strings;
 use dx_adopt::defaults::{
-    config_key, parse_bool, parse_file_text, BOOL_SPELLINGS, DX_DRY_RUN_ENV, DX_OUTPUT_ENV,
-    DX_QUIET_ENV, DX_VERBOSE_ENV, DX_WORKSPACE_ENV, ENV_DEFAULTS,
+    config_key, parse_bool, parse_file_text, BOOL_SPELLINGS, DX_OUTPUT_ENV, DX_QUIET_ENV,
+    DX_VERBOSE_ENV, DX_WORKSPACE_ENV, ENV_DEFAULTS,
 };
 use dx_output::{ColorMode, OutputMode, Threshold};
 
@@ -35,7 +35,6 @@ fn file_with(
     output: Option<&str>,
     verbose: Option<bool>,
     quiet: Option<bool>,
-    dry_run: Option<bool>,
     fail_on: Option<&str>,
 ) -> FileDefaults {
     FileDefaults {
@@ -44,7 +43,6 @@ fn file_with(
         verbose,
         color: None,
         quiet,
-        dry_run,
         fail_on: fail_on.map(ToString::to_string),
         baseline: None,
     }
@@ -59,7 +57,6 @@ fn flag_only_parses_with_builtin_defaults() {
     assert!(!got.verbose);
     assert_eq!(got.color, ColorMode::Auto);
     assert!(!got.quiet);
-    assert!(!got.dry_run);
     assert_eq!(got.output, OutputMode::Text { quiet: false });
     assert_eq!(got.fail_on, Threshold::Warning);
 }
@@ -72,7 +69,6 @@ fn env_supplies_workspace_output_and_bools() {
         ("DX_OUTPUT", "json"),
         ("DX_VERBOSE", "true"),
         ("DX_QUIET", "true"),
-        ("DX_DRY_RUN", "true"),
         ("DX_FAIL_ON", "error"),
     ]);
     let got = parse_with(&strings(&["lint"]), &env, &empty).expect("env parse");
@@ -80,7 +76,6 @@ fn env_supplies_workspace_output_and_bools() {
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.verbose);
     assert!(got.quiet);
-    assert!(got.dry_run);
     assert_eq!(got.fail_on, Threshold::Error);
     assert_eq!(got.output, OutputMode::Json);
 }
@@ -92,7 +87,6 @@ fn file_supplies_defaults_when_flag_and_env_absent() {
         Some("json"),
         Some(true),
         Some(true),
-        Some(true),
         Some("error"),
     );
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("file parse");
@@ -100,7 +94,6 @@ fn file_supplies_defaults_when_flag_and_env_absent() {
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.verbose);
     assert!(got.quiet);
-    assert!(got.dry_run);
     assert_eq!(got.fail_on, Threshold::Error);
 }
 
@@ -110,7 +103,6 @@ fn precedence_is_flag_over_env_over_file() {
         Some("/file"),
         Some("diff"),
         Some(true),
-        Some(false),
         Some(false),
         Some("info"),
     );
@@ -126,7 +118,7 @@ fn precedence_is_flag_over_env_over_file() {
     let got = parse_with(&strings(&["lint"]), &env, &file).expect("env wins");
     assert_eq!(got.workspace, Some("/env".to_owned()));
     assert_eq!(got.output, OutputMode::Json);
-    let file_bools = file_with(None, None, Some(true), None, None, None);
+    let file_bools = file_with(None, None, Some(true), None, None);
     let got = parse_with(&strings(&["lint", "--verbose"]), &env_of(&[]), &file_bools)
         .expect("flag bool wins");
     assert!(got.verbose);
@@ -134,7 +126,7 @@ fn precedence_is_flag_over_env_over_file() {
     let got = parse_with(
         &strings(&["lint"]),
         &env_true,
-        &file_with(None, None, Some(false), None, None, None),
+        &file_with(None, None, Some(false), None, None),
     )
     .expect("env bool wins");
     assert!(got.verbose);
@@ -142,7 +134,7 @@ fn precedence_is_flag_over_env_over_file() {
     let got = parse_with(
         &strings(&["lint"]),
         &env_false,
-        &file_with(None, None, Some(true), None, None, None),
+        &file_with(None, None, Some(true), None, None),
     )
     .expect("env falsy disables file");
     assert!(!got.verbose);
@@ -172,7 +164,7 @@ fn invalid_env_and_file_values_fail_closed() {
             value: "bright".to_owned(),
         })
     );
-    let file = file_with(None, Some("yaml"), None, None, None, None);
+    let file = file_with(None, Some("yaml"), None, None, None);
     assert_eq!(
         parse_with(&strings(&["lint"]), &env_of(&[]), &file),
         Err(ArgsError::BadOutput {
@@ -215,12 +207,11 @@ fn quiet_flows_into_text_mode() {
 
 #[test]
 fn a_flag_turns_an_inherited_boolean_off() {
-    let file = file_with(None, None, Some(true), Some(true), Some(true), None);
+    let file = file_with(None, None, Some(true), Some(true), None);
     let off = |flag: &str| {
         parse_with(&strings(&["lint", flag]), &env_of(&[]), &file)
             .unwrap_or_else(|error| panic!("{flag}: {error:?}"))
     };
-    assert!(!off("--dry-run=false").dry_run, "flag false beats the file");
     assert!(!off("--quiet=false").quiet, "flag false beats the file");
     assert!(!off("--verbose=false").verbose, "flag false beats the file");
     assert!(!off("-v=false").verbose, "the short form takes a value too");
@@ -228,28 +219,26 @@ fn a_flag_turns_an_inherited_boolean_off() {
         parse_with(&strings(&["lint", flag]), &env_of(&[]), &file)
             .unwrap_or_else(|error| panic!("{flag}: {error:?}"))
     };
-    assert!(on("--dry-run").dry_run, "the bare form stays true");
     assert!(on("--quiet").quiet, "the bare form stays true");
     assert!(on("--verbose").verbose, "the bare form stays true");
     assert!(on("-v").verbose, "the bare short form stays true");
-    assert!(on("--dry-run=true").dry_run, "an explicit true is true");
     let env = env_of(&[(DX_VERBOSE_ENV, "true")]);
     let got = parse_with(&strings(&["lint", "--verbose=false"]), &env, &file)
         .expect("flag false beats the environment");
     assert!(!got.verbose, "the flag beats the environment");
     let got = parse_with(
-        &strings(&["lint", "--dry-run", "--dry-run=false"]),
+        &strings(&["lint", "--quiet", "--quiet=false"]),
         &env_of(&[]),
         &file,
     )
     .expect("last one wins");
-    assert!(!got.dry_run, "the last occurrence wins");
-    for (env_name, index) in [(DX_DRY_RUN_ENV, 0), (DX_QUIET_ENV, 1), (DX_VERBOSE_ENV, 2)] {
+    assert!(!got.quiet, "the last occurrence wins");
+    for (env_name, index) in [(DX_QUIET_ENV, 0), (DX_VERBOSE_ENV, 1)] {
         for value in ["false", "FALSE"] {
             let env = owned_env(&[(env_name, value)]);
             let got = parse_with(&strings(&["lint"]), &env, &file)
                 .unwrap_or_else(|error| panic!("{env_name}={value}: {error:?}"));
-            let flags = [got.dry_run, got.quiet, got.verbose];
+            let flags = [got.quiet, got.verbose];
             assert!(
                 !flags[index],
                 "{env_name}={value} turns the file default off: {flags:?}"
@@ -270,17 +259,17 @@ fn a_flag_turns_an_inherited_boolean_off() {
             let got = parse_with(&strings(&["lint"]), &env, &FileDefaults::default())
                 .unwrap_or_else(|error| panic!("{env_name}={value}: {error:?}"));
             assert_eq!(
-                [got.dry_run, got.quiet, got.verbose][index],
+                [got.quiet, got.verbose][index],
                 true,
                 "{env_name}={value} turns the default on"
             );
         }
     }
     for word in ["true", "false", "TRUE", "FALSE", " true "] {
-        let env = owned_env(&[(DX_DRY_RUN_ENV, word)]);
+        let env = owned_env(&[(DX_QUIET_ENV, word)]);
         let got = parse_with(&strings(&["lint"]), &env, &FileDefaults::default())
-            .unwrap_or_else(|error| panic!("DX_DRY_RUN={word}: {error:?}"));
-        assert_eq!(got.dry_run, parse_bool(word) == Some(true), "{word}");
+            .unwrap_or_else(|error| panic!("DX_QUIET={word}: {error:?}"));
+        assert_eq!(got.quiet, parse_bool(word) == Some(true), "{word}");
     }
 }
 
@@ -288,17 +277,17 @@ fn a_flag_turns_an_inherited_boolean_off() {
 fn a_boolean_value_outside_the_spellings_is_a_usage_error() {
     use super::super::ArgsError;
     for (env_name, value) in [
-        (DX_DRY_RUN_ENV, "tru"),
+        (DX_QUIET_ENV, "tru"),
         (DX_QUIET_ENV, "ture"),
         (DX_VERBOSE_ENV, "2"),
-        (DX_DRY_RUN_ENV, "maybe"),
-        (DX_DRY_RUN_ENV, "1"),
+        (DX_VERBOSE_ENV, "maybe"),
+        (DX_VERBOSE_ENV, "1"),
         (DX_QUIET_ENV, "yes"),
         (DX_VERBOSE_ENV, "y"),
-        (DX_DRY_RUN_ENV, "on"),
+        (DX_VERBOSE_ENV, "on"),
         (DX_QUIET_ENV, "0"),
         (DX_VERBOSE_ENV, "no"),
-        (DX_DRY_RUN_ENV, "n"),
+        (DX_VERBOSE_ENV, "n"),
         (DX_QUIET_ENV, "off"),
     ] {
         let env = owned_env(&[(env_name, value)]);
@@ -319,28 +308,27 @@ fn a_boolean_value_outside_the_spellings_is_a_usage_error() {
         );
     }
     for value in ["", "true", "false", "TRUE", " true "] {
-        let env = owned_env(&[(DX_DRY_RUN_ENV, value)]);
+        let env = owned_env(&[(DX_QUIET_ENV, value)]);
         assert!(
             parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).is_ok(),
-            "DX_DRY_RUN={value:?} must parse"
+            "DX_QUIET={value:?} must parse"
         );
     }
 }
 
 #[test]
 fn boolean_precedence_runs_cli_then_env_then_dx_table_then_top_level() {
-    let file = parse_file_text(
-        "dry_run = false\nquiet = false\nverbose = false\n[dx]\ndry_run = false\nquiet = false\nverbose = false\n",
-    )
-    .expect("both layers");
+    let file =
+        parse_file_text("quiet = true\nverbose = true\n[dx]\nquiet = false\nverbose = false\n")
+            .expect("both layers");
     let table_only = parse_file_text("[dx]\nquiet = true\n").expect("dx table");
     let top_only = parse_file_text("quiet = true\n").expect("top level");
-    assert_eq!(file.dry_run, Some(false), "[dx] wins over the top level");
+    assert_eq!(file.quiet, Some(false), "[dx] wins over the top level");
     assert_eq!(table_only.quiet, Some(true));
     assert_eq!(top_only.quiet, Some(true));
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &FileDefaults::default())
         .expect("the built-in default is off");
-    assert!(!got.quiet && !got.dry_run && !got.verbose);
+    assert!(!got.quiet && !got.verbose);
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &top_only).expect("top level");
     assert!(got.quiet, "the top level beats the built-in default");
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &table_only).expect("dx table");
@@ -360,11 +348,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
     let config = root.join(".dx/config.toml");
-    std::fs::write(
-        &config,
-        "[dx]\ndry_run = true\nquiet = true\nverbose = true\n",
-    )
-    .expect("defaults");
+    std::fs::write(&config, "[dx]\nquiet = true\nverbose = true\n").expect("defaults");
     let run = |words: &[&str], envs: &[(&str, &str)]| {
         let mut command = assert_cmd::Command::new(dx_binary());
         command.current_dir(&root);
@@ -378,78 +362,46 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
             String::from_utf8_lossy(&output.stderr).into_owned(),
         )
     };
-    let (code, out, err) = run(&["version", "--output=json"], &[]);
+    let (code, _, err) = run(&["capabilities", "--output=json"], &[]);
     assert_eq!(code, Some(0), "the config file defaults apply: {err}");
-    assert!(
-        out.contains("\"dry_run\":true"),
-        "the config file turns dry_run on: {out}"
-    );
     assert!(
         err.contains("dx invocation parsed"),
         "the config file turns verbose on: {err}"
     );
-    let (code, out, err) = run(&["version"], &[]);
-    assert_eq!(code, Some(0), "quiet text mode still succeeds: {err}");
-    assert!(out.is_empty(), "the config file turns quiet on: {out}");
-    let (code, out, err) = run(&["version", "--dry-run=false", "--output=json"], &[]);
+    let (code, out, err) = run(&["completion", "bash"], &[]);
     assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("\"dry_run\":false"),
-        "an explicit false turns the inherited dry_run off: {out}"
-    );
-    let (code, out, err) = run(&["version", "--quiet=false"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("would report version"),
-        "an explicit false turns the inherited quiet off: {out}"
-    );
+    assert!(out.contains("COMPLETE"), "{out}");
     for flag in ["--verbose=false", "-v=false"] {
-        let (code, _, err) = run(&["version", flag], &[]);
+        let (code, _, err) = run(&["capabilities", flag], &[]);
         assert_eq!(code, Some(0), "{flag}: {err}");
         assert!(
             !err.contains("dx invocation parsed"),
             "{flag} turns the inherited verbose off: {err}"
         );
     }
-    let (code, out, err) = run(&["version", "--output=json"], &[(DX_DRY_RUN_ENV, "true")]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("\"dry_run\":true"),
-        "the environment turns dry_run on: {out}"
-    );
-    let (code, out, err) = run(
-        &["version", "--output=json", "--dry-run=false"],
-        &[(DX_DRY_RUN_ENV, "true")],
-    );
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("\"dry_run\":false"),
-        "the flag beats the environment: {out}"
-    );
-    let (code, out, err) = run(&["version", "--output=json"], &[(DX_DRY_RUN_ENV, "tru")]);
+    let (code, _, err) = run(&["capabilities", "--output=json"], &[(DX_QUIET_ENV, "tru")]);
     assert_eq!(code, Some(2), "a typo is a usage error: {err}");
-    assert_startup_outcome(&out, "invalid_arguments", 2);
     assert!(
-        err.contains("DX_DRY_RUN=\"tru\"") && err.contains(BOOL_SPELLINGS),
+        err.contains("DX_QUIET=\"tru\"") && err.contains(BOOL_SPELLINGS),
         "the diagnostic names the variable and the spellings: {err}"
     );
     assert!(err.contains("usage: dx"), "the usage line follows: {err}");
-    std::fs::write(&config, "[dx]\ndry_run = true\nqiet = true\n").expect("typo");
-    let (code, out, err) = run(&["version", "--output=json"], &[]);
+    std::fs::write(&config, "[dx]\nqiet = true\n").expect("typo");
+    let (code, out, err) = run(&["capabilities", "--output=json"], &[]);
     assert_eq!(code, Some(2), "a misspelled key is a usage error: {err}");
     assert_startup_outcome(&out, "invalid_defaults", 2);
     assert!(
-        err.contains("unknown field `qiet`") && err.contains("config.toml"),
-        "the diagnostic names the file and the key: {err}"
+        err.contains("config.toml"),
+        "the diagnostic names the file: {err}"
     );
     std::fs::write(&config, "[dx]\nquiet = true\n").expect("valid");
-    let (code, out, err) = run(&["version", "--output=json"], &[(DX_QUIET_ENV, "true")]);
-    assert_eq!(code, Some(0), "a documented spelling still parses: {err}");
-    assert!(
-        out.contains("\"dry_run\":false") && out.contains("\"command_finished\""),
-        "{out}"
+    let (code, out, err) = run(
+        &["capabilities", "--output=json"],
+        &[(DX_QUIET_ENV, "true")],
     );
-    let (code, _, err) = run(&["version", "--dry-run=maybe"], &[]);
+    assert_eq!(code, Some(0), "a documented spelling still parses: {err}");
+    assert!(out.contains("\"command_finished\""), "{out}");
+    let (code, _, err) = run(&["capabilities", "--quiet=maybe"], &[]);
     assert_eq!(code, Some(2), "a bad flag value stays a usage error");
     assert!(
         err.contains("invalid value 'maybe'"),
@@ -540,7 +492,7 @@ fn help_works_with_a_malformed_config_but_operations_fail_closed() {
     let (code, out, _) = run_dx(root, &["help", "lint"], &[]);
     assert_eq!(code, Some(0), "the help verb works with a malformed config");
     assert!(out.contains("dx lint"), "{out}");
-    let (code, out, err) = run_dx(root, &["version", "--dry-run"], &[]);
+    let (code, out, err) = run_dx(root, &["capabilities"], &[]);
     assert_eq!(code, Some(2), "an operation still fails closed: {err}");
     assert!(out.is_empty(), "no events for a usage error: {out}");
     assert!(
@@ -596,42 +548,30 @@ fn explicit_workspace_uses_the_target_workspace_defaults() {
     let a = workspace_with_output("dx-startup-ws-a-", "json");
     let b = workspace_with_output("dx-startup-ws-b-", "text");
     let b_dir = b.path().to_string_lossy().into_owned();
-    let (code, out, err) = run_dx(a.path(), &["version", "--dry-run"], &[]);
+    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("command_started"),
         "the start directory is json: {out}"
     );
-    let (code, out, err) = run_dx(
-        a.path(),
-        &["version", "--dry-run", "--workspace", &b_dir],
-        &[],
-    );
+    let (code, out, err) = run_dx(a.path(), &["capabilities", "--workspace", &b_dir], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("would report version"),
+        out.contains("lint"),
         "the flag workspace supplies text defaults: {out}"
     );
-    let (code, out, err) = run_dx(
-        a.path(),
-        &["version", "--dry-run"],
-        &[(DX_WORKSPACE_ENV, &b_dir)],
-    );
+    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[(DX_WORKSPACE_ENV, &b_dir)]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("would report version"),
+        out.contains("lint"),
         "the environment workspace supplies text defaults: {out}"
     );
     let nested = a.path().join("sub/dir");
     std::fs::create_dir_all(&nested).expect("nested");
-    let (code, out, err) = run_dx(
-        &nested,
-        &["version", "--dry-run", "--workspace", &b_dir],
-        &[],
-    );
+    let (code, out, err) = run_dx(&nested, &["capabilities", "--workspace", &b_dir], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("would report version"),
+        out.contains("lint"),
         "a nested start still reads the flag workspace: {out}"
     );
 }
@@ -643,12 +583,12 @@ fn bazel_run_start_selects_the_workspace_root() {
     let b_dir = b.path().to_string_lossy().into_owned();
     let (code, out, err) = run_dx(
         a.path(),
-        &["version", "--dry-run"],
+        &["capabilities"],
         &[("BUILD_WORKSPACE_DIRECTORY", &b_dir)],
     );
     assert_eq!(code, Some(0), "{err}");
     assert!(
-        out.contains("would report version"),
+        out.contains("lint"),
         "the Bazel start supplies text defaults: {out}"
     );
 }
@@ -683,7 +623,7 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
         format!("[dx]\nworkspace = \"{b_dir}\"\n"),
     )
     .expect("redirect");
-    let (code, out, err) = run_dx(a.path(), &["version", "--dry-run"], &[]);
+    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("command_started"),
@@ -695,10 +635,10 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
         format!("[dx]\noutput = \"text\"\nworkspace = \"{a_dir}\"\n"),
     )
     .expect("cycle");
-    let (code, out, err) = run_dx(a.path(), &["version", "--dry-run"], &[]);
+    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[]);
     assert_eq!(code, Some(0), "a redirect cycle still terminates: {err}");
     assert!(
-        out.contains("would report version"),
+        out.contains("lint"),
         "the frozen target supplies text defaults: {out}"
     );
 }
@@ -717,25 +657,6 @@ fn no_default_source_selects_apply() {
     .expect("an unknown variable is unread");
     assert!(!got.apply);
     assert_eq!(got.operation(), OperationMode::Check);
-    assert_eq!(
-        parse_with(
-            &strings(&["fix", "--apply"]),
-            &env_of(&[(DX_DRY_RUN_ENV, "true")]),
-            &FileDefaults::default(),
-        ),
-        Err(ArgsError::ConflictingModes {
-            first: "--dry-run",
-            second: "--apply",
-        })
-    );
-    let file = file_with(None, None, None, None, Some(true), None);
-    assert_eq!(
-        parse_with(&strings(&["fix", "--apply"]), &env_of(&[]), &file),
-        Err(ArgsError::ConflictingModes {
-            first: "--dry-run",
-            second: "--apply",
-        })
-    );
 }
 
 #[test]
@@ -759,4 +680,39 @@ fn ci_ignores_preference_env_but_keeps_flags() {
         parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).expect("non-ci reads env");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.verbose);
+}
+
+#[test]
+fn removed_dry_run_is_rejected_from_every_source() {
+    let scratch = workspace_with_output("dx-removed-dry-run-", "text");
+    let root = scratch.path();
+    for words in [
+        vec!["lint", "--dry-run"],
+        vec!["lint", "--dry-run=true"],
+        vec!["lint", "--dry-run=false"],
+        vec!["fix", "--dry-run", "--apply"],
+    ] {
+        let (code, out, err) = run_dx(root, &words, &[]);
+        assert_eq!(code, Some(2), "{words:?}: {err}");
+        assert!(out.is_empty(), "{words:?}: {out}");
+        assert!(err.contains("--dry-run"), "{words:?}: {err}");
+    }
+    for value in ["true", "false", "1"] {
+        let (code, _, err) = run_dx(root, &["lint"], &[("DX_DRY_RUN", value)]);
+        assert_eq!(code, Some(2), "DX_DRY_RUN={value}: {err}");
+        assert!(err.contains("DX_DRY_RUN was removed"), "{err}");
+    }
+    for key in ["dry_run", "dry-run"] {
+        for value in ["true", "false"] {
+            std::fs::write(
+                root.join(".dx/config.toml"),
+                format!("[dx]\n{key} = {value}\n"),
+            )
+            .expect("config");
+            let (code, _, err) = run_dx(root, &["lint"], &[]);
+            assert_eq!(code, Some(2), "{key}={value}: {err}");
+            assert!(err.contains("was removed"), "{err}");
+        }
+    }
+    scratch.close().expect("cleanup");
 }

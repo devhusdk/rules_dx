@@ -49,47 +49,6 @@ fn the_public_label_reports_a_drifted_consumer_pin() {
 }
 
 #[test]
-fn consumer_dependency_sets_plan_update_from_their_own_directories() {
-    let dryrun = read("DX_SETS_DRYRUN");
-    assert!(
-        dryrun.contains("Running update for frontend, worker"),
-        "bare update selects exactly the configured sets: {dryrun}"
-    );
-    assert!(
-        dryrun.contains("Would update frontend: uv lock --directory apps/frontend"),
-        "frontend plans from its own directory: {dryrun}"
-    );
-    assert!(
-        dryrun.contains("Would update worker: uv lock --directory services/worker"),
-        "worker plans from its own directory: {dryrun}"
-    );
-    for phantom in [
-        "cargo",
-        "pnpm",
-        "maven",
-        "nuget",
-        "examples/",
-        "third_party/",
-    ] {
-        assert!(
-            !dryrun.contains(phantom),
-            "no rules_dx builtin set may appear: {dryrun}"
-        );
-    }
-    let one = read("DX_SETS_DRYRUN_ONE");
-    assert!(
-        one.contains("Running update for worker"),
-        "selective update narrows to one set: {one}"
-    );
-    assert!(!one.contains("frontend"), "selective update leaks: {one}");
-    let check = read("DX_SETS_CHECK_DRYRUN");
-    assert!(
-        check.contains("Would check frontend: uv lock --check --directory apps/frontend"),
-        "check mode plans read-only: {check}"
-    );
-}
-
-#[test]
 fn consumer_dependency_sets_audit_and_reject_bump() {
     let security = read("DX_SETS_SECURITY");
     assert!(
@@ -241,11 +200,6 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
 
 #[test]
 fn consumer_dependency_set_fixtures_fail_closed() {
-    let overlap = read("DX_SETS_OVERLAP");
-    assert!(
-        overlap.contains("Running update for left, right"),
-        "an overlapping scope selects every owner: {overlap}"
-    );
     let bad = read("DX_SETS_BAD_KIND");
     assert!(
         bad.contains("unknown ecosystem"),

@@ -1,18 +1,17 @@
 use super::common::*;
 use crate::args::Invocation;
 use dx_clean::{
-    apply_plan, bazel_forward_argv, collect_inventory_with_scan, measure_prune_bytes,
-    render_prune_listing, UnobservedPolicy, RECOVERY_GUIDANCE,
+    apply_plan, collect_inventory_with_scan, measure_prune_bytes, render_prune_listing,
+    UnobservedPolicy,
 };
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, operation_event, write_event,
-    FinishedCounts, NoticeEvent, OutputMode,
+    command_finished, command_started, notice_event, operation_event, write_event, FinishedCounts,
+    NoticeEvent, OutputMode,
 };
 
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
-        runner,
         out,
         err,
         ..
@@ -48,7 +47,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let verbose = invocation.chatty();
     if !apply {
-        return check_clean(invocation, out, &plan, &bytes, json, verbose);
+        return check_clean(out, &plan, &bytes, json, verbose);
     }
     let outcome = match apply_plan(workspace, &plan) {
         Ok(outcome) => outcome,
@@ -79,47 +78,13 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             );
         }
     }
-    if !invocation.bazel_clean {
-        if json {
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        }
-        return 0;
-    }
-    let mut argv = vec!["bazel".to_owned()];
-    argv.extend(invocation.bazel_startup_options.iter().cloned());
-    argv.extend(bazel_forward_argv());
-    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
-        Ok(code) => code,
-        Err(exit) => return exit,
-    };
     if json {
-        if bazel_code != 0 {
-            if let Ok(event) = error_event(
-                "bazel_failed",
-                &format!(
-                    "Bazel clean forward failed with exit {bazel_code} (see stderr diagnostics)"
-                ),
-                None,
-                None,
-                Some("execute"),
-            ) {
-                let _ = write_event(out, &event);
-            }
-        }
-        let _ = write_event(
-            out,
-            &command_finished(bazel_code, &FinishedCounts::default()),
-        );
-        return bazel_code;
+        let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
     }
-    if verbose {
-        let _ = writeln!(out, "{}", RECOVERY_GUIDANCE);
-    }
-    bazel_code
+    0
 }
 
 fn check_clean(
-    invocation: &Invocation,
     out: &mut dyn std::io::Write,
     plan: &dx_clean::CleanPlan,
     bytes: &dx_clean::PruneBytes,
@@ -144,12 +109,7 @@ fn check_clean(
     }
     if verbose {
         let _ = writeln!(out, "{}", render_prune_listing(plan, bytes));
-        if invocation.bazel_clean {
-            let _ = writeln!(out, "run `dx clean --apply --bazel` to prune it");
-            let _ = writeln!(out, "would forward: bazel clean");
-        } else {
-            let _ = writeln!(out, "run `dx clean --apply` to prune it");
-        }
+        let _ = writeln!(out, "run `dx clean --apply` to prune it");
     }
     1
 }
@@ -421,66 +381,25 @@ mod tests {
     }
 
     #[test]
-    fn clean_bazel_forward_runs_after_prune_and_propagates_code() {
-        let harness = Harness::new("clean-bazel");
-        let (code, out, err) = harness.run(&["clean", "--apply", "--bazel"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("nothing to prune"), "{out}");
-        assert!(out.contains("re-run `dx env`"), "{out}");
-        assert_eq!(
-            harness.seen_env.borrow().len(),
-            1,
-            "exactly one Bazel launch for the explicit forward"
-        );
-
-        let mut failing = Harness::new("clean-bazel-fail");
-        failing.bazel_code = 3;
-        let (code, _, err) = failing.run(&["clean", "--apply", "--bazel"]);
-        assert_eq!(code, 3, "{err}");
-
-        let check = Harness::new("clean-bazel-check");
-        let (code, out, err) = check.run(&["clean", "--bazel"]);
-        assert_eq!(code, 0, "{out}{err}");
+    fn clean_rejects_bazel_flag_without_launch_or_deletion() {
+        let harness = Harness::new("clean-bazel-rejected");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let _current = commit_clean_pair(&harness, '1', '2');
+        for words in [
+            &["clean", "--bazel"][..],
+            &["clean", "--apply", "--bazel"][..],
+        ] {
+            let (code, out, err) = harness.run(words);
+            assert_eq!(code, 2, "{out}{err}");
+            assert!(err.contains("bazel clean"), "{err}");
+        }
         assert!(
-            check.seen_env.borrow().is_empty(),
-            "check mode never launches the forward"
+            harness.seen_env.borrow().is_empty(),
+            "a rejected flag never launches Bazel"
         );
-    }
-
-    #[test]
-    fn clean_bazel_forward_uses_selected_startup_options() {
-        let harness = Harness::new("clean-bazel-startup");
-        let inv = invocation(&[
-            "clean",
-            "--apply",
-            "--bazel",
-            "--bazel-startup-option=--output_base=/tmp/isolated-base",
-            "--bazel-startup-option=--output_user_root=/tmp/isolated-root",
-        ]);
-        let run = harness.probe_with(&inv, &[Some(0)]);
-        assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(run.argv.len(), 1, "{run:?}");
-        assert_eq!(
-            run.argv[0],
-            vec![
-                "bazel".to_owned(),
-                "--output_base=/tmp/isolated-base".to_owned(),
-                "--output_user_root=/tmp/isolated-root".to_owned(),
-                "clean".to_owned(),
-            ]
-        );
-    }
-
-    #[test]
-    fn clean_bazel_forward_without_startup_options_stays_bare() {
-        let harness = Harness::new("clean-bazel-bare");
-        let inv = invocation(&["clean", "--apply", "--bazel"]);
-        let run = harness.probe_with(&inv, &[Some(0)]);
-        assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(
-            run.argv,
-            vec![vec!["bazel".to_owned(), "clean".to_owned()]],
-            "{run:?}"
+        assert!(
+            harness.workspace.join(".dx/setups").join(&stale).exists(),
+            "a rejected flag prunes nothing"
         );
     }
 
@@ -611,29 +530,6 @@ mod tests {
         assert_eq!(default_out, explicit_out);
         assert_eq!(default_code, 1, "{default_out}");
         assert!(default_out.contains("run `dx clean --apply` to prune it"));
-    }
-
-    #[test]
-    fn clean_check_with_bazel_reports_without_forwarding() {
-        let harness = Harness::new("clean-check-bazel");
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--bazel"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains(&stale), "{out}");
-        assert!(
-            out.contains("run `dx clean --apply --bazel` to prune it"),
-            "{out}"
-        );
-        assert!(out.contains("would forward: bazel clean"), "{out}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "check never forwards bazel clean"
-        );
-        assert!(
-            harness.workspace.join(".dx/setups").join(&stale).exists(),
-            "check prunes nothing"
-        );
     }
 
     #[test]

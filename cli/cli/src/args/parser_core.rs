@@ -587,15 +587,15 @@ fn inline_flag_values_and_empty_workspace_fail() {
 }
 
 #[test]
-fn clean_parses_bazel() {
+fn clean_parses_prune_unobserved() {
     let got = parse(&strings(&["clean"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
-    assert!(!got.bazel_clean);
     assert!(!got.prune_unobserved);
-    let got = parse(&strings(&["clean", "--bazel"])).expect("parse");
-    assert_eq!(got.command, Command::Clean);
-    assert!(got.bazel_clean);
-    assert!(!got.prune_unobserved);
+    assert_usage(
+        &["clean", "--bazel"],
+        parse(&strings(&["clean", "--bazel"])).unwrap_err(),
+        &["unsupported option '--bazel'", "bazel clean"],
+    );
     let got = parse(&strings(&["clean", "--prune-unobserved"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
     assert!(got.prune_unobserved);
@@ -659,20 +659,6 @@ fn clean_rejects_scopes_and_quality_options() {
         &["clean", "--bazel=yes"],
         parse(&strings(&["clean", "--bazel=yes"])).unwrap_err(),
         &["--bazel"],
-    );
-    assert_eq!(
-        parse(&strings(&["lint", "--bazel"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "lint",
-            option: "--bazel".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["build", "--bazel"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "build",
-            option: "--bazel".to_owned(),
-        })
     );
 }
 

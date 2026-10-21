@@ -21,7 +21,7 @@ pub mod records;
 pub use apply::{apply_plan, apply_plan_with_timeout, CleanOutcome, CLEAN_LOCK_TIMEOUT};
 
 pub use bytes::{measure_prune_bytes, render_prune_listing, PruneBytes};
-pub use flags::{bazel_forward_argv, BAZEL_FLAG, PRUNE_UNOBSERVED_FLAG, RECOVERY_GUIDANCE};
+pub use flags::PRUNE_UNOBSERVED_FLAG;
 pub use inventory::{collect_inventory, walk_filtered, CollectedInventory};
 pub use live::{
     collect_inventory_with_scan, collect_inventory_with_scan_from, scan_live_observation,

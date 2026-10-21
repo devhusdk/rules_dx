@@ -169,7 +169,6 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--apply", None),
     ("--debug", None),
     ("--release", None),
-    ("--bazel", None),
     ("--configured", None),
     ("--from", Some("2.0.0")),
     ("--to", Some("2.0.0")),

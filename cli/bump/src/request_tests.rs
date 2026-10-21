@@ -70,20 +70,6 @@ fn fallback_edits_preserve_the_same_bytes_as_regex_edits() {
         );
     }
     for input in [
-        "version = \"1.0.0\"",
-        "version=\"1.0.0\" # keep",
-        "no attribute",
-        "version",
-        "version = 1",
-        "version = \"unterminated",
-    ] {
-        assert_eq!(
-            replace_version_attr_fallback(input, "2.0.0"),
-            replace_version_attr(input, "2.0.0"),
-            "{input}"
-        );
-    }
-    for input in [
         "\"demo\": \"1.0.0\",",
         "\"demo\":\"1.0.0\"",
         "missing colon",
@@ -735,15 +721,70 @@ fn regex_cargo_boundary_prefers_exact_table_key() {
 }
 
 #[test]
-fn regex_version_attr_and_json_keep_spacing() {
-    let tight = "bazel_dep(name = \"rules_rust\",version=\"0.74.0\")\n";
-    let replaced = replace_version_attr(tight, "0.75.0").expect("tight");
-    assert!(replaced.contains("version=\"0.75.0\""), "{replaced}");
+fn module_bazel_edits_one_literal_version_token() {
+    let bump = BumpRequest::parse("bazel:rules_rust", "0.75.0").expect("module");
+    for (before, after) in [
+        (
+            "bazel_dep(name = \"rules_rust\",version=\"0.74.0\")\n",
+            "bazel_dep(name = \"rules_rust\",version=\"0.75.0\")\n",
+        ),
+        (
+            "bazel_dep(name = \"rules_rust\", version   =   \"0.74.0\")\n",
+            "bazel_dep(name = \"rules_rust\", version   =   \"0.75.0\")\n",
+        ),
+        (
+            "bazel_dep(\n    version = '0.74.0',  # (pinned)\n    name = 'rules_rust',\n)\n",
+            "bazel_dep(\n    version = '0.75.0',  # (pinned)\n    name = 'rules_rust',\n)\n",
+        ),
+        (
+            "# bazel_dep(name = \"rules_rust\", version = \"0.1.0\")\nX = \"bazel_dep(name = 'rules_rust', version = '0.2.0')\"\nbazel_dep(name = \"rules_rust\", version = \"\"\"0.74.0\"\"\", dev_dependency = [1, (2)] != [])\n",
+            "# bazel_dep(name = \"rules_rust\", version = \"0.1.0\")\nX = \"bazel_dep(name = 'rules_rust', version = '0.2.0')\"\nbazel_dep(name = \"rules_rust\", version = \"\"\"0.75.0\"\"\", dev_dependency = [1, (2)] != [])\n",
+        ),
+    ] {
+        assert_eq!(
+            bump.plan_edit_outcome(before).expect(before),
+            BumpPlanOutcome::Changed(after.to_owned())
+        );
+        assert_eq!(
+            bump.plan_edit_outcome(after).expect(after),
+            BumpPlanOutcome::Unchanged
+        );
+    }
+    for (source, reason) in [
+        (
+            "bazel_dep(name = \"rules_rust\", version = V)\n",
+            "bazel_dep \"rules_rust\" at line 1 has a computed version",
+        ),
+        (
+            "bazel_dep(name = \"rules_rust\")\n",
+            "bazel_dep \"rules_rust\" at line 1 has no version",
+        ),
+        (
+            "bazel_dep(name = NAME, version = \"0.74.0\")\n",
+            "bazel_dep at line 1 has no literal name",
+        ),
+        (
+            "bazel_dep(name = \"rules_rust\", version = \"0.74.0\"\n",
+            "MODULE.bazel does not parse at line 2: Parse error: unexpected new line, expected symbol ')'",
+        ),
+    ] {
+        assert_eq!(
+            bump.plan_edit(source),
+            Err(BumpError::UnsupportedManifest {
+                manifest: "MODULE.bazel".to_owned(),
+                reason: reason.to_owned(),
+            }),
+            "{source}"
+        );
+    }
+    assert!(matches!(
+        bump.plan_edit("# bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n"),
+        Err(BumpError::NotFound { .. })
+    ));
+}
 
-    let spaced = "bazel_dep(name = \"rules_rust\", version   =   \"0.74.0\")\n";
-    let replaced = replace_version_attr(spaced, "0.75.0").expect("spaced");
-    assert!(replaced.contains("version   =   \"0.75.0\""), "{replaced}");
-
+#[test]
+fn json_keeps_spacing() {
     let line = "    \"jest\": \"30.2.0\",";
     let replaced = replace_first_quoted_version_after_colon(line, "30.3.0").expect("json");
     assert!(replaced.contains("\"jest\": \"30.3.0\""), "{replaced}");

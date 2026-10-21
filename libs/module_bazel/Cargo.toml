@@ -1,0 +1,12 @@
+[package]
+name = "dx_module_bazel"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_module_bazel"
+path = "src/lib.rs"
+
+[dependencies]
+starlark_syntax = "0.14"
+thiserror = "2"

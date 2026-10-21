@@ -44,38 +44,27 @@ pub(super) fn plan_module_bazel(
             });
         }
     };
-    let needle = format!("name = \"{package}\"");
-    let mut matches = 0usize;
-    let mut out = String::with_capacity(content.len());
-    for line in content.split_inclusive('\n') {
-        if line.contains("bazel_dep(") && line.contains(&needle) {
-            match replace_version_attr(line, &new) {
-                Some(replaced) => {
-                    matches += 1;
-                    out.push_str(&replaced);
-                    continue;
-                }
-                None => {
-                    return Err(BumpError::UnsupportedManifest {
-                        manifest: "MODULE.bazel".to_owned(),
-                        reason: format!("bazel_dep {package:?} has no quoted version on its line"),
-                    });
-                }
-            }
-        }
-        out.push_str(line);
-    }
-    match matches {
-        1 => Ok(out),
-        0 => Err(BumpError::NotFound {
+    let module = dx_module_bazel::ModuleFile::parse(content).map_err(module_error(package))?;
+    module
+        .set_bazel_dep_version(package, &new)
+        .map_err(module_error(package))
+}
+
+fn module_error(package: &str) -> impl Fn(dx_module_bazel::ModuleError) -> BumpError + '_ {
+    move |error| match error {
+        dx_module_bazel::ModuleError::NotFound { .. } => BumpError::NotFound {
             manifest: "MODULE.bazel".to_owned(),
             package: package.to_owned(),
-        }),
-        count => Err(BumpError::Ambiguous {
+        },
+        dx_module_bazel::ModuleError::Ambiguous { count, .. } => BumpError::Ambiguous {
             manifest: "MODULE.bazel".to_owned(),
             package: package.to_owned(),
             count,
-        }),
+        },
+        other => BumpError::UnsupportedManifest {
+            manifest: "MODULE.bazel".to_owned(),
+            reason: other.to_string(),
+        },
     }
 }
 
@@ -509,41 +498,6 @@ pub(super) fn replace_gha_sha(line: &str, needle: &str, sha: &str) -> Option<Str
     replaced.push_str(&line[..at]);
     replaced.push_str(sha);
     replaced.push_str(&rest[end..]);
-    Some(replaced)
-}
-
-pub(super) fn version_attr_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r#"version(?P<eq>\s*=\s*)"(?P<old>[^"]*)""#).ok());
-    RE.as_ref()
-}
-
-pub(super) fn replace_version_attr(line: &str, new: &str) -> Option<String> {
-    if let Some(re) = version_attr_re() {
-        if re.is_match(line) {
-            let replaced = re.replacen(line, 1, |caps: &regex::Captures<'_>| {
-                format!("version{}\"{new}\"", &caps["eq"])
-            });
-            return Some(replaced.into_owned());
-        }
-        return None;
-    }
-    replace_version_attr_fallback(line, new)
-}
-
-pub(super) fn replace_version_attr_fallback(line: &str, new: &str) -> Option<String> {
-    let version_at = line.find("version")?;
-    let after_version = &line[version_at + "version".len()..];
-    let eq_rel = after_version.find('=')?;
-    let after_eq = &after_version[eq_rel + 1..];
-    let quote_rel = after_eq.find('"')?;
-    let start = version_at + "version".len() + eq_rel + 1 + quote_rel;
-    let after_start = &line[start + 1..];
-    let end_rel = after_start.find('"')?;
-    let mut replaced = String::with_capacity(line.len());
-    replaced.push_str(&line[..=start]);
-    replaced.push_str(new);
-    replaced.push_str(&after_start[end_rel..]);
     Some(replaced)
 }
 

@@ -10,7 +10,7 @@ const AUDIT: &str = "security-audit";
 
 const VALIDATE: &str = "validate";
 
-const ARTIFACT: &str = "advisory-snapshots";
+const ARTIFACT: &str = "${{ needs.validate.outputs.snapshot_artifact }}";
 
 const RETRIEVED_AT: &str = "${{ needs.advisory-snapshots.outputs.retrieved_at }}";
 
@@ -370,4 +370,24 @@ fn the_audit_still_runs_when_the_preparation_is_empty() {
         .find(|step| step["name"] == json!("Resolve hermetic Gitleaks"))
         .expect("gitleaks step exists");
     assert!(gitleaks.get("if").is_none());
+}
+
+#[test]
+fn the_artifact_name_and_concurrency_carry_the_validated_invocation() {
+    let document = document();
+    let group = document["concurrency"]["group"]
+        .as_str()
+        .expect("concurrency group");
+    assert!(
+        group.contains("inputs.invocation_id"),
+        "{WORKFLOW} concurrency group must separate sibling calls: {group}"
+    );
+    assert_eq!(
+        job(VALIDATE)["outputs"]["snapshot_artifact"],
+        json!("${{ steps.validate.outputs.snapshot_artifact }}")
+    );
+    assert!(
+        document["on"]["workflow_call"]["inputs"]["invocation_id"].is_object(),
+        "{WORKFLOW} must declare the invocation_id input"
+    );
 }

@@ -17,6 +17,7 @@ DISABLED_ENV = "DX_DISABLED_CHECKS"
 SCHEDULING_ENV = "DX_SCHEDULING_MODE"
 SCANNING_ENV = "DX_CODE_SCANNING_OPT_IN"
 MIN_COVERAGE_ENV = "DX_MIN_COVERAGE"
+INVOCATION_ENV = "DX_INVOCATION_ID"
 OUTPUT_ENV = "GITHUB_OUTPUT"
 
 PLATFORMS = {
@@ -40,6 +41,8 @@ CHECKS = (
 )
 SCHEDULING = "parallel"
 WHOLE_PERCENT = re.compile(r"[0-9]+")
+INVOCATION_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
+SNAPSHOT_ARTIFACT = "advisory-snapshots"
 
 
 def fail(message):
@@ -177,6 +180,20 @@ def validate_min_coverage(text):
     return text
 
 
+def validate_invocation(text):
+    """Returns the invocation ID, or None after a diagnostic."""
+    if text == "":
+        return ""
+    if INVOCATION_ID.fullmatch(text) is None:
+        fail(
+            f"{INVOCATION_ENV}={text!r} is not 1 to 40 letters, digits, underscores "
+            "or hyphens. Give every call in one parent run its own ID, or omit it "
+            "for a single call."
+        )
+        return None
+    return text
+
+
 def compact(value):
     """Returns value as JSON without spaces."""
     return json.dumps(value, separators=(",", ":"))
@@ -202,6 +219,7 @@ def main():
         SCHEDULING_ENV: validate_scheduling(os.environ.get(SCHEDULING_ENV, SCHEDULING)),
         SCANNING_ENV: validate_scanning(os.environ.get(SCANNING_ENV, "false")),
         MIN_COVERAGE_ENV: validate_min_coverage(os.environ.get(MIN_COVERAGE_ENV, "")),
+        INVOCATION_ENV: validate_invocation(os.environ.get(INVOCATION_ENV, "")),
     }
     if any(value is None for value in accepted_values.values()):
         return 1
@@ -210,6 +228,9 @@ def main():
         "runners": compact(PLATFORMS),
         "disabled": ",".join(accepted_values[DISABLED_ENV]),
         "min_coverage": accepted_values[MIN_COVERAGE_ENV],
+        "snapshot_artifact": "-".join(
+            part for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV]) if part
+        ),
     }
     if not write_outputs(outputs):
         return 1
@@ -218,6 +239,7 @@ def main():
     print(f"{SCHEDULING_ENV} {accepted_values[SCHEDULING_ENV]}")
     print(f"{SCANNING_ENV} {accepted_values[SCANNING_ENV]}")
     print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
+    print(f"{INVOCATION_ENV} {accepted_values[INVOCATION_ENV] or '(none)'}")
     return 0
 
 

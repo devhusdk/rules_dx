@@ -32,13 +32,15 @@ commands. See [Version Skew](status-version.md#version-skew).
 
 ## Global Flags
 
+- `--help` (`-h`): print help.
+- `--version` (`-V`): print the dx version.
 - `--workspace <dir>`: run in another workspace.
-- `--quiet[=bool]`, `--verbose[=bool]`: less or more output. Bare means `true`,
-  and `=false` turns off a default inherited from the environment or a config
-  file.
+- `--quiet[=bool]` (`-q`), `--verbose[=bool]` (`-v`): less or more output. Bare means
+  `true`, and `=false` turns off a default inherited from the environment or a
+  config file. Short flags cluster (`-qv`); repeating `-v` changes nothing.
 - `--color auto|always|never`: color output. Default `auto`.
-- `--output text|diff|json`: result shape. `diff` is limited to `lint`,
-  `typecheck`, `format`, `generate`, `check`, and `fix`. `deploy`, `init`, `new`,
+- `--output text|diff|json` (`-o`): result shape. `-o json` and `-ojson` both
+  work. `diff` is limited to `lint`, `typecheck`, `format`, `generate`, `check`, and `fix`. `deploy`, `init`, `new`,
   `watch`, `completion`, and `bazel` take `text` only.
 - `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
   `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the

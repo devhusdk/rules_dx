@@ -1,0 +1,14 @@
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/serde-491a1485ecc992c1.d: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/serde-c0f05d80cfeb4ff4/out/private.rs
+
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/libserde-491a1485ecc992c1.rlib: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/serde-c0f05d80cfeb4ff4/out/private.rs
+
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/libserde-491a1485ecc992c1.rmeta: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/serde-c0f05d80cfeb4ff4/out/private.rs
+
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs:
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/serde-c0f05d80cfeb4ff4/out/private.rs:
+
+# env-dep:OUT_DIR=/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/serde-c0f05d80cfeb4ff4/out

@@ -293,6 +293,45 @@ fn verbose_parses_after_the_command_and_stays_orthogonal_to_quiet() {
 }
 
 #[test]
+fn short_options_match_their_long_forms() {
+    let long = parse(&strings(&["lint", "--quiet", "--verbose", "--output=json"])).expect("long");
+    for words in [
+        vec!["lint", "-q", "-v", "-o", "json"],
+        vec!["lint", "-q", "-v", "-ojson"],
+        vec!["lint", "-qv", "-o=json"],
+        vec!["lint", "-vq", "--output", "json"],
+    ] {
+        let got = parse(&strings(&words)).unwrap_or_else(|error| panic!("{words:?}: {error:?}"));
+        assert!(got.quiet && got.verbose, "{words:?}");
+        assert_eq!(got.output, long.output, "{words:?}");
+    }
+    let repeated = parse(&strings(&["lint", "-v", "-v"])).expect("-v -v");
+    assert!(repeated.verbose);
+    let sub = parse(&strings(&["lint", "-q=false"])).expect("-q=false");
+    assert!(!sub.quiet);
+}
+
+#[test]
+fn short_booleans_leave_the_target_alone() {
+    let got = parse(&strings(&["build", "-q", "//app:bin"])).expect("parse");
+    assert!(got.quiet);
+    assert_eq!(got.targets, strings(&["//app:bin"]));
+}
+
+#[test]
+fn short_options_after_the_separator_belong_to_the_payload() {
+    let got = parse(&strings(&["run", "//app:bin", "--", "-v", "-q", "-o", "x"])).expect("parse");
+    assert!(!got.verbose && !got.quiet);
+    assert_eq!(got.bazel_options, strings(&["-v", "-q", "-o", "x"]));
+}
+
+#[test]
+fn short_output_rejects_missing_and_invalid_values() {
+    assert!(parse(&strings(&["lint", "-o"])).is_err());
+    assert!(parse(&strings(&["lint", "-o", "nope"])).is_err());
+}
+
+#[test]
 fn log_level_is_rejected() {
     for words in [
         vec!["lint", "--log-level=debug"],
@@ -483,7 +522,7 @@ fn workflow_commands_reject_quality_only_options() {
 fn unknown_options_fail() {
     for (words, needle) in [
         (vec!["lint", "--jobs=4"], "--jobs"),
-        (vec!["lint", "-q"], "-q"),
+        (vec!["lint", "-z"], "-z"),
         (vec!["lint", "--dry-run"], "--dry-run"),
         (vec!["-"], "-"),
     ] {

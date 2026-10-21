@@ -1,5 +1,7 @@
 use std::path::{Path, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
+use url::Url;
+
 use serde_sarif::sarif::{ArtifactLocation, Invocation, Notification, Region, ResultLevel, Sarif};
 
 use super::{check_output_size, code_name, FileFinding, ParseError};
@@ -11,12 +13,6 @@ fn sarif_severity(level: Option<ResultLevel>) -> ToolSeverity {
         Some(ResultLevel::Error) => ToolSeverity::Error,
         Some(ResultLevel::Note) | Some(ResultLevel::None) => ToolSeverity::Info,
     }
-}
-
-fn strip_file_uri(uri: &str) -> &str {
-    uri.strip_prefix("file://")
-        .or_else(|| uri.strip_prefix("file:"))
-        .unwrap_or(uri)
 }
 
 fn drive_rooted(path: &str) -> bool {
@@ -57,26 +53,6 @@ fn suffix_for(path: &str) -> String {
     }
 }
 
-fn percent_decode(path: &str) -> Option<String> {
-    if !path.contains('%') {
-        return None;
-    }
-    let bytes = path.as_bytes();
-    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' {
-            let pair = str::from_utf8(bytes.get(index + 1..index + 3)?).ok()?;
-            out.push(u8::from_str_radix(pair, 16).ok()?);
-            index += 3;
-        } else {
-            out.push(bytes[index]);
-            index += 1;
-        }
-    }
-    String::from_utf8(out).ok()
-}
-
 fn match_spelling<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
     if let Some(hit) = files.iter().find(|file| **file == path) {
         return Some(*hit);
@@ -90,6 +66,31 @@ fn unique_suffix<'a>(files: &[&'a str], suffix: &str) -> Option<&'a str> {
     hits.next().is_none().then_some(*hit)
 }
 
+fn parse_reference(tool: &'static str, base: &Url, text: &str) -> Result<Url, ParseError> {
+    let mut chars = text.chars();
+    let drive_like =
+        matches!((chars.next(), chars.next()), (Some(c), Some(':')) if c.is_ascii_alphabetic());
+    let text = if drive_like {
+        format!("./{text}")
+    } else {
+        text.to_owned()
+    };
+    let url = Url::options()
+        .base_url(Some(base))
+        .parse(&text)
+        .map_err(|err| ParseError::Shape {
+            tool,
+            detail: format!("malformed URI {text:?}: {err}"),
+        })?;
+    if url.scheme() != "file" {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("unsupported URI scheme in {text:?}"),
+        });
+    }
+    Ok(url)
+}
+
 fn resolve_file<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -97,37 +98,45 @@ fn resolve_file<'a>(
     base_id: Option<&str>,
     bases: &std::collections::BTreeMap<String, ArtifactLocation>,
 ) -> Result<&'a str, ParseError> {
-    let mut joined = String::new();
-    if let Some(id) = base_id {
-        let base = bases.get(id).ok_or_else(|| ParseError::Shape {
+    let root = parse_reference(
+        tool,
+        &Url::from_directory_path("/").map_err(|()| ParseError::Shape {
             tool,
-            detail: format!("unknown uriBaseId: {id}"),
-        })?;
-        let base_path = strip_file_uri(base.uri.as_deref().unwrap_or_default());
-        joined.push_str(base_path.strip_suffix('/').unwrap_or(base_path));
-        joined.push('/');
-        joined.push_str(strip_file_uri(uri));
-    } else {
-        joined.push_str(strip_file_uri(uri));
-    }
-    let normalized = normalize_path(&joined);
-    if let Some(hit) = match_spelling(files, &normalized) {
-        return Ok(hit);
-    }
-    if rooted(&normalized) {
-        let raw = strip_file_uri(uri);
-        let raw_suffix = suffix_for(&dx_path::native(Path::new(raw)));
-        if let Some(hit) = unique_suffix(files, &raw_suffix) {
+            detail: "no root URL".to_owned(),
+        })?,
+        "/",
+    )?;
+    let base = match base_id {
+        Some(id) => {
+            let location = bases.get(id).ok_or_else(|| ParseError::Shape {
+                tool,
+                detail: format!("unknown uriBaseId: {id}"),
+            })?;
+            let text = location.uri.as_deref().unwrap_or_default();
+            let text = if text.ends_with('/') {
+                text.to_owned()
+            } else {
+                format!("{text}/")
+            };
+            parse_reference(tool, &root, &text)?
+        }
+        None => root,
+    };
+    let target = parse_reference(tool, &base, uri)?;
+    let path = dx_path::uri_to_path(target.as_str()).map_err(|err| ParseError::Shape {
+        tool,
+        detail: format!("unsupported file URI {uri:?}: {err}"),
+    })?;
+    let spelled = path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
+    let normalized = normalize_path(&spelled);
+    if base_id.is_none() && !uri.starts_with('/') && !uri.starts_with("file:") {
+        let relative = normalized.trim_start_matches(MAIN_SEPARATOR);
+        if let Some(hit) = files.iter().find(|file| **file == relative) {
             return Ok(hit);
         }
     }
-    if let Some(decoded) = percent_decode(&joined) {
-        let decoded = normalize_path(&decoded);
-        if decoded != normalized {
-            if let Some(hit) = match_spelling(files, &decoded) {
-                return Ok(hit);
-            }
-        }
+    if let Some(hit) = match_spelling(files, &normalized) {
+        return Ok(hit);
     }
     Err(ParseError::UnknownFile {
         tool,
@@ -429,27 +438,6 @@ mod tests {
 
     #[test]
     fn a_percent_encoded_uri_resolves_to_the_native_file_name() {
-        assert_eq!(
-            percent_decode("src/my%20file.cs").as_deref(),
-            Some("src/my file.cs")
-        );
-        assert_eq!(
-            percent_decode("src/caf%C3%A9.cs").as_deref(),
-            Some("src/café.cs")
-        );
-        assert_eq!(
-            percent_decode("src/a%2Fb.cs").as_deref(),
-            Some("src/a/b.cs")
-        );
-        for raw in [
-            "src/a.cs",
-            "src/100%/a.cs",
-            "src/a%.cs",
-            "src/a%2.cs",
-            "src/a%zz.cs",
-        ] {
-            assert_eq!(percent_decode(raw), None, "raw: {raw:?}");
-        }
         let sep = std::path::MAIN_SEPARATOR;
         let drive = format!("C:{sep}src{sep}my file.cs");
         let stdout = log(
@@ -468,9 +456,33 @@ mod tests {
         let both = [literal.as_str(), relative.as_str()];
         let findings = parse_sarif(TOOL, &relative_uri, Some(1), &both).expect("both spellings");
         assert_eq!(
-            findings[0].file, literal,
-            "the raw spelling names the file that holds it"
+            findings[0].file, relative,
+            "the encoded URI names the decoded file, not the literal-percent one"
         );
+        let double = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///scratch/src/my%2520file.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let findings = parse_sarif(TOOL, &double, Some(1), &both).expect("double encoded");
+        assert_eq!(findings[0].file, literal);
+        let single = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///scratch/src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let findings = parse_sarif(TOOL, &single, Some(1), &both).expect("single encoded");
+        assert_eq!(findings[0].file, relative);
+        let only_literal = [literal.as_str()];
+        assert!(
+            parse_sarif(TOOL, &single, Some(1), &only_literal).is_err(),
+            "a literal-percent file is not the decoded name"
+        );
+        let local = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file://localhost/scratch/src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        let findings = parse_sarif(TOOL, &local, Some(1), &both).expect("localhost");
+        assert_eq!(findings[0].file, relative);
+        let foreign = log(
+            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"https://x/a.cs"},"region":{"startLine":3}}}]}"#,
+        );
+        assert!(parse_sarif(TOOL, &foreign, Some(1), &both).is_err());
         let ambiguous = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"my%20file.cs"},"region":{"startLine":3}}}]}"#,
         );

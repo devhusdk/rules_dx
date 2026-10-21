@@ -87,6 +87,7 @@ rust_library(
             "serde_json",
             "tempfile",
             "thiserror",
+            "url",
         ],
         package_name = "quality/quality_adapter",
     ) + [
@@ -120,6 +121,7 @@ rust_test(
             "serde_json",
             "tempfile",
             "thiserror",
+            "url",
         ],
         package_name = "quality/quality_adapter",
     ) + [

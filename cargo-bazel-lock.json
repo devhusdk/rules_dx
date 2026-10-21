@@ -1,5 +1,5 @@
 {
-  "checksum": "9367d6e1cf0fdcafbde78a62a303dbb1590e37cf7e49c7f5e81e79de36fb069d",
+  "checksum": "0d04bb6a95df37e0d647cd54e2eaaede7b0515c96cf1e130ddae8cf74d45a02a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7837,6 +7837,10 @@
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          },
+          {
+            "id": "url 2.5.8",
+            "target": "url"
           }
         ],
         "edition": "2021"

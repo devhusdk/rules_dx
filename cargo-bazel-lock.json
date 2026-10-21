@@ -1,5 +1,5 @@
 {
-  "checksum": "98674e23b9b1eb9101160d62301649ce5f260ce43e13f8e8de72f26011c28094",
+  "checksum": "9367d6e1cf0fdcafbde78a62a303dbb1590e37cf7e49c7f5e81e79de36fb069d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -54,6 +54,7 @@
     ],
     "cfg(all(target_os = \"uefi\", getrandom_backend = \"efi_rng\"))": [],
     "cfg(any())": [],
+    "cfg(any(all(target_arch = \"arm\", target_pointer_width = \"32\"), target_arch = \"mips\", target_arch = \"powerpc\"))": [],
     "cfg(any(target_arch = \"aarch64\", target_arch = \"x86_64\", target_arch = \"x86\"))": [
       "aarch64-apple-darwin",
       "aarch64-pc-windows-msvc",
@@ -100,6 +101,7 @@
       "x86_64-unknown-linux-gnu",
       "x86_64-unknown-nixos-gnu"
     ],
+    "cfg(fuzzing)": [],
     "cfg(target_family = \"wasm\")": [
       "wasm32-unknown-unknown",
       "wasm32-wasip1"
@@ -196,6 +198,36 @@
         }
       ],
       "version": "0.11.4"
+    },
+    "adler2 2.0.1": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "adler2",
+      "license": "0BSD OR MIT OR Apache-2.0",
+      "license_file": "LICENSE-0BSD",
+      "license_ids": [
+        "0BSD",
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "adler2",
+      "package_url": "https://github.com/oyvindln/adler2",
+      "repository": {
+        "Http": {
+          "sha256": "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
+          "url": "https://static.crates.io/crates/adler2/2.0.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "adler2",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "2.0.1"
     },
     "aho-corasick 1.1.5": {
       "common_attrs": {
@@ -551,6 +583,35 @@
         }
       ],
       "version": "1.0.104"
+    },
+    "arbitrary 1.5.0": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "arbitrary",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "arbitrary",
+      "package_url": "https://github.com/rust-fuzz/arbitrary/",
+      "repository": {
+        "Http": {
+          "sha256": "3bc62ac97cc33321f50863d514c3bc38a453947a8f9e781137e47c7401020aed",
+          "url": "https://static.crates.io/crates/arbitrary/1.5.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "arbitrary",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.5.0"
     },
     "arrayvec 0.7.8": {
       "common_attrs": {
@@ -2157,6 +2218,49 @@
       ],
       "version": "0.1.7"
     },
+    "derive_arbitrary 1.5.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 3.0.5",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "derive_arbitrary",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "derive_arbitrary",
+      "package_url": "https://github.com/rust-fuzz/arbitrary",
+      "repository": {
+        "Http": {
+          "sha256": "1b034bd7d5f032402a2479444dcc6f74e36a03f31854d41680fb240ef682a1ac",
+          "url": "https://static.crates.io/crates/derive_arbitrary/1.5.0/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "derive_arbitrary",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.5.0"
+    },
     "deunicode 1.6.2": {
       "common_attrs": {
         "crate_features": [
@@ -2902,6 +3006,10 @@
           {
             "id": "tar 0.4.46",
             "target": "tar"
+          },
+          {
+            "id": "zip 2.6.1",
+            "target": "zip"
           }
         ],
         "deps_dev": [
@@ -3856,6 +3964,8 @@
           "any_impl",
           "any_zlib",
           "libz-sys",
+          "miniz_oxide",
+          "rust_backend",
           "zlib"
         ],
         "deps": [
@@ -3866,6 +3976,10 @@
           {
             "id": "libz-sys 1.1.29",
             "target": "libz_sys"
+          },
+          {
+            "id": "miniz_oxide 0.9.1",
+            "target": "miniz_oxide"
           }
         ],
         "edition": "2018"
@@ -6194,6 +6308,52 @@
         }
       ],
       "version": "2.8.3"
+    },
+    "miniz_oxide 0.9.1": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "simd",
+          "simd-adler32",
+          "with-alloc"
+        ],
+        "deps": [
+          {
+            "id": "adler2 2.0.1",
+            "target": "adler2"
+          },
+          {
+            "id": "simd-adler32 0.3.10",
+            "target": "simd_adler32"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "miniz_oxide",
+      "license": "MIT OR Zlib OR Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT",
+        "Zlib"
+      ],
+      "name": "miniz_oxide",
+      "package_url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+      "repository": {
+        "Http": {
+          "sha256": "b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c",
+          "url": "https://static.crates.io/crates/miniz_oxide/0.9.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "miniz_oxide",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.9.1"
     },
     "mio 1.2.3": {
       "common_attrs": {
@@ -9363,6 +9523,37 @@
         }
       ],
       "version": "2.0.1"
+    },
+    "simd-adler32 0.3.10": {
+      "common_attrs": {
+        "crate_features": [
+          "std"
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "simd_adler32",
+      "license": "MIT",
+      "license_file": "LICENSE.md",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "simd-adler32",
+      "package_url": "https://github.com/mcountryman/simd-adler32",
+      "repository": {
+        "Http": {
+          "sha256": "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea",
+          "url": "https://static.crates.io/crates/simd-adler32/0.3.10/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "simd_adler32",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.3.10"
     },
     "similar 2.7.0": {
       "common_attrs": {
@@ -13728,6 +13919,90 @@
       ],
       "version": "0.11.6"
     },
+    "zip 2.6.1": {
+      "build_script_attrs": {},
+      "common_attrs": {
+        "crate_features": [
+          "_deflate-any",
+          "deflate",
+          "deflate-flate2",
+          "deflate-zopfli",
+          "flate2",
+          "zopfli"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "crc32fast 1.5.2",
+              "target": "crc32fast"
+            },
+            {
+              "id": "flate2 1.1.10",
+              "target": "flate2"
+            },
+            {
+              "id": "indexmap 2.14.2",
+              "target": "indexmap"
+            },
+            {
+              "id": "memchr 2.8.3",
+              "target": "memchr"
+            },
+            {
+              "id": "zopfli 0.8.4",
+              "target": "zopfli"
+            }
+          ],
+          "selects": {
+            "cfg(any(all(target_arch = \"arm\", target_pointer_width = \"32\"), target_arch = \"mips\", target_arch = \"powerpc\"))": [
+              {
+                "id": "crossbeam-utils 0.8.23",
+                "target": "crossbeam_utils"
+              }
+            ],
+            "cfg(fuzzing)": [
+              {
+                "id": "arbitrary 1.5.0",
+                "target": "arbitrary"
+              }
+            ]
+          }
+        },
+        "edition": "2021",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "zip",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "zip",
+      "package_url": "https://github.com/zip-rs/zip2.git",
+      "repository": {
+        "Http": {
+          "sha256": "1dcb24d0152526ae49b9b96c1dcf71850ca1e0b882e4e28ed898a93c41334744",
+          "url": "https://static.crates.io/crates/zip/2.6.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "zip",
+            "crate_root": "src/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "src/build.rs"
+          }
+        }
+      ],
+      "version": "2.6.1"
+    },
     "zmij 1.0.23": {
       "build_script_attrs": {},
       "common_attrs": {
@@ -13765,6 +14040,57 @@
         }
       ],
       "version": "1.0.23"
+    },
+    "zopfli 0.8.4": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "gzip",
+          "std",
+          "zlib"
+        ],
+        "deps": [
+          {
+            "id": "bumpalo 3.20.3",
+            "target": "bumpalo"
+          },
+          {
+            "id": "crc32fast 1.5.2",
+            "target": "crc32fast"
+          },
+          {
+            "id": "log 0.4.34",
+            "target": "log"
+          },
+          {
+            "id": "simd-adler32 0.3.10",
+            "target": "simd_adler32"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "zopfli",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "zopfli",
+      "package_url": "https://github.com/zopfli-rs/zopfli",
+      "repository": {
+        "Http": {
+          "sha256": "aaf7fc5d30c28483d93805c4a5e12b05bbb52407fa67c5f8bd552374cd01fb11",
+          "url": "https://static.crates.io/crates/zopfli/0.8.4/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "zopfli",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.4"
     }
   },
   "direct_deps": [
@@ -13818,7 +14144,8 @@
     "walkdir 2.5.0",
     "wasm-bindgen 0.2.128",
     "yaml_serde 0.10.7",
-    "yarn-lock-parser 0.14.0"
+    "yarn-lock-parser 0.14.0",
+    "zip 2.6.1"
   ],
   "direct_dev_deps": [
     "assert_cmd 2.2.2",

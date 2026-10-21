@@ -213,7 +213,10 @@ Inputs:
 
 - `rules_dx_version`: the version your `rules_dx` declaration carries. The
   pin check compares it with `MODULE.bazel`.
-- `docs_scope`: scope covered by the docs check. Default `//...`.
+- `docs_scope`: target patterns covered by the docs check, separated by
+  spaces, such as `//... //docs:all`. Default `//...`. Each pattern reaches
+  `dx` as one argument. A value with quotes, shell characters, wildcards, a
+  leading `-` or anything but a target pattern fails with one error naming it.
 - `publish`: build the rendered site and deploy to Pages. Default false.
 - `environment`: Pages environment name. Default `github-pages`.
 

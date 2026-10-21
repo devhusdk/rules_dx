@@ -65,6 +65,28 @@ python_test(
 
 # keep
 python_library(
+    name = "docs_scope",
+    srcs = ["docs_scope.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_test(
+    name = "docs_scope_test",
+    size = "small",
+    srcs = ["docs_scope_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        "docs_scope.py",
+        "//.github:workflows/reusable-docs.yml",
+    ],
+    dep_group = "hello",
+    deps = ["@pypi//pytest"],
+)
+
+# keep
+python_library(
     name = "module_pin",
     srcs = ["module_pin.py"],
     aspect_hints = ["//:ruff_config"],

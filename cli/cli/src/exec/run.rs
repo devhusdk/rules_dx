@@ -620,8 +620,6 @@ mod tests {
             bazel_options: Vec::new(),
             bazel_clean: false,
             prune_unobserved: false,
-            pin: None,
-            rollback: false,
             configured: false,
             from: None,
             to: None,

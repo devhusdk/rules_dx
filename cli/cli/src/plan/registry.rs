@@ -151,6 +151,7 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Init
         | Command::New
         | Command::Upgrade
+        | Command::Rollback
         | Command::Hooks
         | Command::Status
         | Command::Capabilities

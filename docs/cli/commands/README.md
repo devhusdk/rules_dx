@@ -25,7 +25,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx verify`](verify.md)
 - [`dx rerun`](rerun.md)
 - [`dx migrate`](migrate.md)
-- [`dx new`, `dx upgrade`](new-upgrade.md)
+- [`dx new`, `dx upgrade`, `dx rollback`](new-upgrade.md)
 - [`dx watch`](watch.md)
 
 Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
@@ -73,7 +73,7 @@ commands. See [Version Skew](status-version.md#version-skew).
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, and `docs`.
+  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, `hooks`, `watch`, and `docs`.
   Every other command rejects it. It never combines with `--check`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means

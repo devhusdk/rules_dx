@@ -6,6 +6,18 @@ pub const DX_VERSION: &str = "0.0.0";
 pub const MODULE_VERSION: &str = "0.0.0";
 pub const PREVIOUS_VERSION: &str = "0.0.0";
 
+pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
+    if pinned.is_empty() {
+        "dx init".to_owned()
+    } else if version_pin_matches_module(pinned, module_version) {
+        "dx version --check".to_owned()
+    } else if super::migrate_is_upgrade(pinned, module_version) {
+        format!("dx upgrade --from {pinned} --to {module_version}")
+    } else {
+        "dx rollback".to_owned()
+    }
+}
+
 pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> bool {
     if dx_version.is_empty() || module_version.is_empty() {
         return false;
@@ -813,6 +825,17 @@ mod tests {
             "1.2.3-alpha.2"
         ));
         assert!(!version_pin_matches_module("1.2.3", "1.2.3-alpha.1"));
+    }
+
+    #[test]
+    fn pin_fix_hint_names_only_surviving_commands() {
+        assert_eq!(pin_fix_hint("1.2.3", "1.2.3"), "dx version --check");
+        assert_eq!(
+            pin_fix_hint("1.2.3", "2.0.0"),
+            "dx upgrade --from 1.2.3 --to 2.0.0"
+        );
+        assert_eq!(pin_fix_hint("2.0.0", "1.2.3"), "dx rollback");
+        assert_eq!(pin_fix_hint("", "1.2.3"), "dx init");
     }
 
     #[test]

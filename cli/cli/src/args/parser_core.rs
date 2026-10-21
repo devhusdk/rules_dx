@@ -182,7 +182,6 @@ fn check_and_apply_conflict() {
         vec!["lint", "--apply", "--check"],
         vec!["fix", "--check", "--apply"],
         vec!["update", "--check", "--apply"],
-        vec!["version", "--check", "--apply"],
         vec!["docs", "--check", "--apply"],
     ] {
         assert_eq!(
@@ -430,6 +429,30 @@ fn setup_is_rejected_with_env_and_codegen_tip() {
             &["unsupported command 'setup'", "dx env", "dx codegen"],
         );
     }
+}
+
+#[test]
+fn removed_version_flags_fail_with_explicit_command_tips() {
+    for (words, tip) in [
+        (vec!["version", "--pin", "1.0.0"], "dx upgrade --from"),
+        (vec!["version", "--pin=1.0.0"], "dx upgrade --from"),
+        (vec!["version", "--rollback"], "dx rollback --apply"),
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["unsupported option", "dx version only reports", tip],
+        );
+    }
+}
+
+#[test]
+fn rollback_parses_with_apply_only() {
+    let got = parse(&strings(&["rollback", "--apply"])).expect("parse");
+    assert_eq!(got.command, Command::Rollback);
+    assert!(got.apply);
+    assert!(parse(&strings(&["rollback", "--check"])).is_err());
+    assert!(parse(&strings(&["rollback", "//a:one"])).is_err());
 }
 
 #[test]

@@ -185,13 +185,13 @@ per-command flags: capabilities --workspace-capabilities (adds workspace facts f
 clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
 distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
 coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy|watch --debug|--release; \
-version --check|--pin|--rollback; docs --check|--serve|--port|--host|--open; \
+version --check; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/codegen/env/clean/version/update/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
 where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env selection, run/deploy launch, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \
-version --pin/--rollback, docs rendering/serving); \
+rollback pin restore, docs rendering/serving); \
 every other command rejects it, and --apply never combines with --check. \
 by default lint, typecheck, format, fix, generate, codegen, env, and clean only check, while --apply writes \
 (fix then verifies with a read-only check). \
@@ -240,8 +240,6 @@ const COMMAND_FLAGS: &[&str] = &[
     "--release",
     "--bazel",
     "--prune-unobserved",
-    "--pin",
-    "--rollback",
     "--configured",
     "--cases",
     "--from",
@@ -564,7 +562,7 @@ mod tests {
             Err(ArgsError::Help { text }) => text,
             other => panic!("version --help: want Help, got {other:?}"),
         };
-        assert!(version.contains("--pin"), "version flags:\n{version}");
+        assert!(version.contains("--check"), "version flags:\n{version}");
         for argv in [["lint", "--help"], ["status", "--help"]] {
             let text = match parse(&strings(&argv)) {
                 Err(ArgsError::Help { text }) => text,

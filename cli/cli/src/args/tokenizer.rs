@@ -46,6 +46,9 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
             }
         }
         clap::error::ErrorKind::UnknownArgument => {
+            if let Some(text) = removed_version_flag(args, error) {
+                return ArgsError::Usage { text };
+            }
             unsupported_option(args, error).unwrap_or_else(|| ArgsError::Usage {
                 text: without_usage(&error.render().to_string()),
             })
@@ -67,6 +70,33 @@ fn removed_setup(error: &clap::Error) -> bool {
         error.get(clap::error::ContextKind::InvalidSubcommand),
         Some(clap::error::ContextValue::String(word)) if word == "setup"
     )
+}
+
+fn removed_version_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<String> {
+    use clap::error::{ContextKind, ContextValue};
+    let flag = match error.get(ContextKind::InvalidArg) {
+        Some(ContextValue::String(token)) => reported_flag(token)?,
+        _ => return None,
+    };
+    if !matches!(flag.as_str(), "--pin" | "--rollback") {
+        return None;
+    }
+    let is_version = args
+        .iter()
+        .filter_map(|word| word.as_ref().to_str())
+        .find(|word| Command::parse(word).is_some())
+        == Some("version");
+    if !is_version {
+        return None;
+    }
+    let tip = if flag == "--pin" {
+        "run `dx upgrade --from <version> --to <version>` to change the pin"
+    } else {
+        "run `dx rollback --apply` to restore the previous pin"
+    };
+    Some(format!(
+        "error: unsupported option '{flag}' for dx version\n\n  tip: dx version only reports; {tip}"
+    ))
 }
 
 /// The flag name the parser reports, with visible aliases spelled canonically.

@@ -32,6 +32,7 @@ NOT_WATCHABLE_COMMANDS = [
     "new",
     "owners",
     "rerun",
+    "rollback",
     "security",
     "status",
     "tests",
@@ -42,7 +43,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 28
+NOT_WATCHABLE_COUNT = 29
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -98,6 +99,7 @@ REPORT_NONE = [
     "deps",
     "why",
     "upgrade",
+    "rollback",
     "completion",
     "bazel",
     "capabilities",

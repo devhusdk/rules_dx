@@ -30,7 +30,7 @@ Commands:
   env           collect the managed development environment (check by default; --apply writes managed state)
   init          scaffold dx into a foreign tree (absent-only; check by default; --apply scaffolds)
   new           scaffold a minimal qualified project for one language (absent-only; check by default; --apply scaffolds)
-  upgrade       one-shot pin+migrate+setup composition with recovery pointer (check by default; --apply upgrades)
+  upgrade       one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)
   hooks         manage Git hooks via hermetic Git (check by default; --apply installs)
   status        report workspace and target status
   version       report version and pin drift
@@ -45,6 +45,7 @@ Commands:
   verify        run one committed verification set from dx.verify.toml in order (non-mutating; stops after the first required failure)
   rerun         rerun the failed test targets recorded in a run-output receipt on the current workspace (never a historical reproduction)
   tests         list configured test targets with optional Rust case enumeration (non-mutating; --cases builds and lists without running bodies)
+  rollback      restore the previous recorded pin (check by default; --apply restores)
 
 Options:
   -h, --help

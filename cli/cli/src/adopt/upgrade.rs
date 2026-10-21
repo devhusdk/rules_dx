@@ -18,7 +18,11 @@ pub(crate) fn execute_upgrade(
     let (Some(from), Some(to)) = (invocation.from.as_deref(), invocation.to.as_deref()) else {
         return pre_exec(err, "upgrade needs --from <version> --to <version>");
     };
-    let syntax = match dx_adopt::plan_upgrade(from, to) {
+    let intent = dx_adopt::UpgradeIntent {
+        apply: invocation.applies(),
+        workspace: invocation.workspace.clone(),
+    };
+    let syntax = match dx_adopt::plan_upgrade(from, to, &intent) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
@@ -28,7 +32,7 @@ pub(crate) fn execute_upgrade(
     } else {
         "check"
     };
-    let plan = match dx_adopt::plan_released_upgrade(from, to) {
+    let plan = match dx_adopt::plan_released_upgrade(from, to, &intent) {
         Ok(plan) => plan,
         Err(error) => {
             let message = format!("{error}; {}", syntax.message);
@@ -40,7 +44,7 @@ pub(crate) fn execute_upgrade(
                 }
             } else if verbose {
                 let live_summary = format!(
-                    "Upgrade {} -> {} via {} (pin {}, migrate, setup)",
+                    "Upgrade {} -> {} via {} (pin {}, migrate, env, codegen)",
                     syntax.from, syntax.to, syntax.manifest, syntax.to
                 );
                 if let Err(exit) = check_stdout_write(writeln!(out, "{live_summary}")) {
@@ -51,7 +55,7 @@ pub(crate) fn execute_upgrade(
         }
     };
     let live_summary = format!(
-        "Upgrade {} -> {} via {} (pin {}, migrate, setup)",
+        "Upgrade {} -> {} via {} (pin {}, migrate, env, codegen)",
         plan.from, plan.to, plan.manifest, plan.to
     );
     let message = format!(
@@ -131,7 +135,45 @@ mod tests {
             err_text.contains("dx upgrade --from 1.2.3 --to 2.0.0"),
             "{err_text}"
         );
-        assert!(err_text.contains("dx env"), "{err_text}");
+        assert!(err_text.contains("recovery: rerun"), "{err_text}");
+        for banned in ["--apply", "dx env", "dx codegen", "dx rollback", "dx setup"] {
+            assert!(
+                !err_text.contains(banned),
+                "check run named {banned}: {err_text}"
+            );
+        }
+    }
+
+    #[test]
+    fn upgrade_apply_recovery_names_surviving_commands_and_keeps_workspace() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-recovery-");
+        let root = scratch.path().to_path_buf();
+        let workspace = format!("--workspace={}", root.display());
+        let inv = invocation(&[
+            "upgrade",
+            "--apply",
+            "--from=1.2.3",
+            "--to=2.0.0",
+            &workspace,
+        ]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(
+            err.contains("dx upgrade --from 1.2.3 --to 2.0.0 --apply"),
+            "{err}"
+        );
+        assert!(err.contains("dx rollback --apply"), "{err}");
+        assert!(err.contains("dx env --apply"), "{err}");
+        assert!(err.contains("dx codegen --apply"), "{err}");
+        assert!(err.contains("--workspace"), "{err}");
+        for banned in [
+            "dx setup",
+            "dx version --pin",
+            "dx version --rollback",
+            "--apply --apply",
+        ] {
+            assert!(!err.contains(banned), "recovery named {banned}: {err}");
+        }
     }
 
     #[test]

@@ -73,18 +73,19 @@ pub use scaffold::{
 pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{
     plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,
-    upgrade_restore_command_for, upgrade_retry_command, UpgradePlan,
+    upgrade_refresh_commands, upgrade_restore_command_for, upgrade_retry_command, UpgradeIntent,
+    UpgradePlan,
 };
 pub use verify_sets::{
     load_verify_set, ResolvedSet, ResolvedStep, VerifySetError, VERIFY_SCHEMA_VERSION,
     VERIFY_STEP_COMMANDS, VERIFY_TOML_REL,
 };
 pub use version::{
-    parse_consumer_setup, parse_module_dependency, parse_pin_record, read_module_dependency,
-    read_pin_record, read_version_pin, record_pin_operation, render_module_dependency,
-    render_pin_record, rollback_re_pins_previous, version_pin_matches_module, write_version_pin,
-    ConsumerSetup, ModuleDependency, PinRecord, DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION,
-    VERSION_HISTORY_REL,
+    parse_consumer_setup, parse_module_dependency, parse_pin_record, pin_fix_hint,
+    read_module_dependency, read_pin_record, read_version_pin, record_pin_operation,
+    render_module_dependency, render_pin_record, rollback_re_pins_previous,
+    version_pin_matches_module, write_version_pin, ConsumerSetup, ModuleDependency, PinRecord,
+    DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION, VERSION_HISTORY_REL,
 };
 pub use watch::{
     coalesce_watch_paths, plan_watch, should_watch_path, watch_for_change, WATCHABLE_COMMANDS,

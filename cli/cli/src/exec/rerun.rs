@@ -428,8 +428,6 @@ fn rerun_invocation(invocation: &Invocation, receipt: &Receipt) -> Invocation {
         bazel_options,
         bazel_clean: false,
         prune_unobserved: false,
-        pin: None,
-        rollback: false,
         configured: false,
         from: None,
         to: None,

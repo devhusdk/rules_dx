@@ -4,6 +4,7 @@ mod hooks;
 mod init;
 mod inspect;
 mod new;
+mod rollback;
 mod status;
 #[cfg(test)]
 mod test_support;
@@ -51,6 +52,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
             capabilities::execute_capabilities(invocation, workspace, out, err)
         }
         Command::Version => version::execute_version(invocation, workspace, out, err),
+        Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),
         Command::Owners | Command::Deps | Command::Why => {
             inspect::execute_inspect(invocation, workspace, query_runner, out, err)
         }
@@ -217,12 +219,6 @@ mod tests {
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(!out.is_empty());
-
-        let inv = invocation(&["version", "--apply", "--pin=0.0.0", "--quiet"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-version-pin-");
-        let root = scratch.path().to_path_buf();
-        let (code, _out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
 
         let inv = invocation(&["version", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-version-");

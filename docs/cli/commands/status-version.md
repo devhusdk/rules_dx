@@ -28,7 +28,7 @@ toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel bui
 
 The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
 compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
-fails, and the hint is the fix, for example `dx version --pin <version>`.
+fails, and the hint is the fix, for example `dx upgrade --from <version> --to <version>`.
 The `platform` check names the execution platforms tools resolve for. The
 target platform never selects tools.
 
@@ -40,31 +40,30 @@ or empty `.dx/version` fails the same way.
 ## `dx version`
 
 ```text
-dx version [--check] [--apply] [--pin <version>|--rollback]
+dx version [--check]
 ```
 
-Prints the version. Checks by default; `--apply` authorizes `--pin` and
-`--rollback`. Bare `dx version` also prints the `rules_dx` dependency the
-workspace declares, including any override and its source.
+Prints the version. Read-only: it never writes the pin. Bare `dx version`
+also prints the `rules_dx` dependency the workspace declares, including any
+override and its source.
 
 - `--check`: verify the pin without changing it.
-- `--pin <version>` with `--apply`: re-pin to this version. Records the
-previous pin for `--rollback`.
-- `--rollback` with `--apply`: restore the last recorded pin. Conflicts
-with `--pin`. Refuses without a record, after manual pin edits, or after
-the record is deleted.
-Flags: `--check`, `--apply`, `--pin`, `--rollback`.
+
+To change the pin, run `dx upgrade`. To restore the previous pin, run
+`dx rollback`. `dx version --pin` and `dx version --rollback` exit `2` and
+name those commands.
+
+Flags: `--check`.
 Scopes: none.
 
 Output: `--output text|json`. Bare JSON adds a `dependency` status event.
 
-Exit codes: `0` success, `2` usage errors including conflicting flags, `1`
-pin drift or a refused pin.
+Exit codes: `0` success, `2` usage errors including removed flags, `1` pin
+drift.
 
 ```sh
+bazel run @rules_dx//:dx -- version
 bazel run @rules_dx//:dx -- version --check
-bazel run @rules_dx//:dx -- version --apply --pin 0.0.0
-bazel run @rules_dx//:dx -- version --apply --rollback
 ```
 
 ## Version Skew
@@ -72,7 +71,7 @@ bazel run @rules_dx//:dx -- version --apply --rollback
 Every command reads the pin in `.dx/version` and compares it with the
 `MODULE.bazel` pin before it runs. A mismatch is version skew.
 
-- Runs anyway: `version`, `status`, `completion`, `capabilities`.
+- Runs anyway: `version`, `status`, `rollback`, `completion`, `capabilities`.
 - Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`, `verify`, `rerun`, `tests`.
 - Stops with exit code `1`: every other command.
 
@@ -87,6 +86,6 @@ error event, then `command_finished` with `exit_code` `1` and
 
 ```sh
 bazel run @rules_dx//:dx -- version --check
-bazel run @rules_dx//:dx -- version --apply --pin 0.0.0
+bazel run @rules_dx//:dx -- rollback
 bazel run @rules_dx//:dx -- build //...
 ```

@@ -333,8 +333,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         release,
         bazel_clean,
         prune_unobserved,
-        pin,
-        rollback,
         configured,
         from,
         to,
@@ -548,8 +546,8 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(extra_positional(command, &targets[0]));
                 }
             }
-            Command::Version => {
-                if !targets.is_empty() && pin.is_none() {
+            Command::Version | Command::Rollback => {
+                if !targets.is_empty() {
                     return Err(extra_positional(command, &targets[0]));
                 }
             }
@@ -654,8 +652,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         bazel_options,
         bazel_clean,
         prune_unobserved,
-        pin,
-        rollback,
         configured,
         from,
         to,
@@ -775,7 +771,7 @@ mod startup_tests {
             None
         );
         assert_eq!(
-            early_output_flag(&strings(&["lint", "--pin", "--output"])),
+            early_output_flag(&strings(&["lint", "--from", "--output"])),
             None,
             "a value slot swallows the next word"
         );

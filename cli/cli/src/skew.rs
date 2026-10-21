@@ -31,7 +31,7 @@ fn governing_command(invocation: &Invocation) -> Command {
 
 pub fn diagnostic(pin: &str) -> String {
     format!(
-        "version skew: binary {} pin {pin} module {}; fix with `dx version --pin {}` or `dx version --rollback`",
+        "version skew: binary {} pin {pin} module {}; fix with `dx upgrade --from {pin} --to {}` or `dx rollback --apply`",
         dx_adopt::DX_VERSION,
         dx_adopt::MODULE_VERSION,
         dx_adopt::MODULE_VERSION,
@@ -58,6 +58,7 @@ mod tests {
 
     const PROCEED: &[Command] = &[
         Command::Version,
+        Command::Rollback,
         Command::Status,
         Command::Completion,
         Command::Capabilities,
@@ -204,8 +205,9 @@ mod tests {
         assert!(message.contains(dx_adopt::DX_VERSION), "{message}");
         assert!(message.contains("9.9.9"), "{message}");
         assert!(message.contains(dx_adopt::MODULE_VERSION), "{message}");
-        assert!(message.contains("dx version --pin"), "{message}");
-        assert!(message.contains("dx version --rollback"), "{message}");
+        assert!(message.contains("dx upgrade --from 9.9.9"), "{message}");
+        assert!(message.contains("dx rollback --apply"), "{message}");
+        assert!(!message.contains("dx version --"), "{message}");
     }
 
     #[test]

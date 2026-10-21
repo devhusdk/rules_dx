@@ -1,9 +1,7 @@
 use super::{execute_adoption, AdoptEnv, Invocation};
 use crate::resolve::{QueryResult, QueryRunner};
-use dx_process::{ChildStatus, Runner};
-use std::cell::RefCell;
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub(crate) use crate::args::parsed as invocation;
 pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, json_events};
@@ -21,69 +19,6 @@ impl QueryRunner for NullQuery {
     }
 }
 
-/// A runner that launches nothing, reports success, and selects a hermetic Git.
-pub(crate) struct HermeticRunner;
-
-impl Runner for HermeticRunner {
-    fn run(&self, _argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        Ok(ChildStatus { code: Some(0) })
-    }
-
-    fn git_tool(&self) -> Option<PathBuf> {
-        Some(PathBuf::from("/hermetic/git"))
-    }
-}
-
-/// A query runner that answers every call with the same recorded output.
-pub(crate) struct RepeatQuery {
-    code: Option<i32>,
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
-    seen: RefCell<Vec<Vec<String>>>,
-}
-
-impl RepeatQuery {
-    /// Answers every call with one hooks dir discovery line.
-    pub(crate) fn hooks_dir(dir: &str) -> Self {
-        Self::result(Some(0), &format!("{dir}\n"), "")
-    }
-
-    /// Answers every call with the same code and streams.
-    pub(crate) fn result(code: Option<i32>, stdout: &str, stderr: &str) -> Self {
-        Self {
-            code,
-            stdout: stdout.as_bytes().to_vec(),
-            stderr: stderr.as_bytes().to_vec(),
-            seen: RefCell::new(Vec::new()),
-        }
-    }
-
-    /// Reports every argv the runner received, in order.
-    pub(crate) fn calls(&self) -> Vec<Vec<String>> {
-        self.seen.borrow().clone()
-    }
-}
-
-impl QueryRunner for RepeatQuery {
-    fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
-        self.seen.borrow_mut().push(argv.to_vec());
-        Ok(QueryResult {
-            code: self.code,
-            stdout: self.stdout.clone(),
-            stderr: self.stderr.clone(),
-        })
-    }
-}
-
-/// A runner that launches nothing and reports success.
-pub(crate) struct NullRunner;
-
-impl Runner for NullRunner {
-    fn run(&self, _argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        Ok(ChildStatus { code: Some(0) })
-    }
-}
-
 /// The adoption environment wired to the null query runner.
 pub(crate) fn env<'a>(
     root: &'a Path,
@@ -93,7 +28,6 @@ pub(crate) fn env<'a>(
     AdoptEnv {
         workspace: root,
         query_runner: &NullQuery,
-        runner: &NullRunner,
         out,
         err,
     }
@@ -109,24 +43,6 @@ pub(crate) fn env_with_query<'a>(
     AdoptEnv {
         workspace: root,
         query_runner: query,
-        runner: &NullRunner,
-        out,
-        err,
-    }
-}
-
-/// The same, with a caller-chosen query runner and process runner.
-pub(crate) fn env_with<'a>(
-    root: &'a Path,
-    query: &'a dyn QueryRunner,
-    runner: &'a dyn Runner,
-    out: &'a mut dyn Write,
-    err: &'a mut dyn Write,
-) -> AdoptEnv<'a> {
-    AdoptEnv {
-        workspace: root,
-        query_runner: query,
-        runner,
         out,
         err,
     }
@@ -149,19 +65,6 @@ pub(crate) fn run_with_query(
     let mut out = Vec::new();
     let mut err = Vec::new();
     let code = execute_adoption(inv, env_with_query(root, query, &mut out, &mut err));
-    spoken(code, out, err)
-}
-
-/// The same, with a caller-chosen query runner and process runner.
-pub(crate) fn run_with(
-    inv: &Invocation,
-    root: &Path,
-    query: &dyn QueryRunner,
-    runner: &dyn Runner,
-) -> (i32, String, String) {
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute_adoption(inv, env_with(root, query, runner, &mut out, &mut err));
     spoken(code, out, err)
 }
 
@@ -257,12 +160,6 @@ mod tests {
     }
 
     #[test]
-    fn null_runner_launches_nothing_and_succeeds() {
-        let status = NullRunner.run(&[], Path::new("/"), &[]).expect("launch");
-        assert_eq!(status.code, Some(0));
-    }
-
-    #[test]
     fn run_reports_the_code_and_what_reached_each_stream() {
         let scratch = dx_test_scratch::scratch("dx-adopt-run-streams-");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), scratch.path());
@@ -296,24 +193,6 @@ mod tests {
         );
         assert_eq!(code, 1);
         assert!(!out.contains("//app:server"), "{out}");
-        assert!(err.contains("no owner"), "{err}");
-    }
-
-    #[test]
-    fn run_with_answers_from_the_query_and_the_runner_it_is_given() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-run-with-");
-        let inv = invocation(&["why", "src/lib.rs", "//app:server"]);
-        let (code, _out, err) = run_with(
-            &inv,
-            scratch.path(),
-            &FixedQuery("//owner:lib\n"),
-            &NullRunner,
-        );
-        assert_eq!(code, 0);
-        assert!(err.is_empty(), "{err}");
-
-        let (code, _out, err) = run_with(&inv, scratch.path(), &FixedQuery(""), &NullRunner);
-        assert_eq!(code, 1);
         assert!(err.contains("no owner"), "{err}");
     }
 

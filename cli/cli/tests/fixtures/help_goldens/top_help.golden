@@ -31,7 +31,6 @@ Commands:
   init        scaffold dx into a foreign tree (absent-only; check by default; --apply scaffolds)
   new         scaffold a minimal qualified project for one language (absent-only; check by default; --apply scaffolds)
   upgrade     one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)
-  hooks       manage Git hooks via hermetic Git (check by default; --apply installs)
   status      report workspace status and machine-readable capabilities
   version     report version and pin drift
   watch       watch for changes and rebuild (local only)

@@ -33,7 +33,6 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx why`: exactly one file plus one label.
 - `dx owners`, `dx deps`: need at least one scope.
 - `dx watch`: needs a watchable command plus its scopes.
-- `dx hooks`: needs a verb. `run` needs a trigger.
 - `dx new`: needs a language, plus an optional name.
 - `dx init`: optional module name.
 - `dx completion`: exactly one shell, or none with `--check`.

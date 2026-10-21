@@ -12,7 +12,6 @@ fn strict_unknown_options_fail_with_whole_token() {
         vec!["lint", "--check=x"],
         vec!["clean", "--bazel=yes"],
         vec!["init", "--force"],
-        vec!["hooks", "install", "--force"],
         vec!["-"],
         vec!["lint", "--bogus"],
         vec!["lint", "--bogus=1"],

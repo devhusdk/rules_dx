@@ -4,26 +4,6 @@ pub enum AdoptError {
     CreateParent { parent: String, detail: String },
     #[error("write {path}: {detail}")]
     WriteFile { path: String, detail: String },
-    #[error("create hooks dir: {detail}")]
-    CreateHooksDir { detail: String },
-    #[error("read hook {trigger}: {detail}")]
-    ReadHook { trigger: String, detail: String },
-    #[error("unmanaged hook refuses install: {trigger}")]
-    UnmanagedInstall { trigger: String },
-    #[error("write hook {trigger}: {detail}")]
-    WriteHook { trigger: String, detail: String },
-    #[error("stat hook {trigger}: {detail}")]
-    StatHook { trigger: String, detail: String },
-    #[error("chmod hook {trigger}: {detail}")]
-    ChmodHook { trigger: String, detail: String },
-    #[error("write overlay: {detail}")]
-    WriteOverlay { detail: String },
-    #[error("render overlay: {detail}")]
-    RenderOverlay { detail: String },
-    #[error("unmanaged hook refuses uninstall: {trigger}")]
-    UnmanagedUninstall { trigger: String },
-    #[error("remove hook {trigger}: {detail}")]
-    RemoveHook { trigger: String, detail: String },
     #[error("read version pin: {detail}")]
     ReadVersionPin { detail: String },
     #[error("refuses empty version")]
@@ -78,12 +58,6 @@ pub enum AdoptError {
     InitInvalidModule { module: String, reason: String },
     #[error("scaffold path escapes the workspace root: {path}")]
     ScaffoldEscapesRoot { path: String },
-    #[error("invalid hooks config: {detail}")]
-    InvalidHooks { detail: String },
-    #[error("invalid hooks timings: {detail}")]
-    InvalidTimings { detail: String },
-    #[error("render timings: {detail}")]
-    RenderTimings { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
     /// A boolean environment default is neither a documented on nor a documented off.
@@ -204,13 +178,6 @@ mod tests {
         assert_eq!(
             AdoptError::EmptyVersion.to_string(),
             "refuses empty version"
-        );
-        assert_eq!(
-            AdoptError::UnmanagedInstall {
-                trigger: "pre-commit".to_owned()
-            }
-            .to_string(),
-            "unmanaged hook refuses install: pre-commit"
         );
         assert_eq!(
             AdoptError::ReadVersionPin {

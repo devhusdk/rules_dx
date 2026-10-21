@@ -188,7 +188,7 @@ completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/codegen/env/clean/version/update/docs/completion/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
 where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env selection, run/deploy launch, clean pruning, \
-update/bump/migrate/upgrade writes, init/new scaffolding, hooks install/uninstall/run, \
+update/bump/migrate/upgrade writes, init/new scaffolding, \
 rollback pin restore, docs rendering/serving); \
 every other command rejects it, and --apply never combines with --check. \
 by default lint, typecheck, format, fix, generate, codegen, env, and clean only check, while --apply writes \
@@ -604,7 +604,6 @@ mod tests {
             Command::Migrate | Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
             Command::Why => owned(&["README.md", "//:all"]),
             Command::Completion => owned(&["bash"]),
-            Command::Hooks => owned(&["install"]),
             Command::Watch => owned(&["build"]),
             Command::Owners | Command::Deps => owned(&["//:all"]),
             Command::New => owned(&["rust"]),

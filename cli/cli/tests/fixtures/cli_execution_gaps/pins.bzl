@@ -23,7 +23,6 @@ NOT_WATCHABLE_COMMANDS = [
     "docs",
     "env",
     "generate",
-    "hooks",
     "init",
     "license",
     "migrate",
@@ -39,7 +38,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 25
+NOT_WATCHABLE_COUNT = 24
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -87,7 +86,6 @@ REPORT_NONE = [
     "env",
     "init",
     "new",
-    "hooks",
     "status",
     "version",
     "watch",

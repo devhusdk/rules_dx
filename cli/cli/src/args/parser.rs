@@ -537,12 +537,6 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(missing_positional(command));
                 }
             }
-            Command::Hooks if targets.is_empty() => {
-                return Err(missing_positional(command));
-            }
-            Command::Hooks if targets.len() > 2 => {
-                return Err(extra_positional(command, &targets[2]));
-            }
             Command::Watch | Command::Owners | Command::Deps if targets.is_empty() => {
                 return Err(missing_positional(command));
             }

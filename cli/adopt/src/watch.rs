@@ -169,7 +169,6 @@ mod tests {
             "docs",
             "env",
             "generate",
-            "hooks",
             "init",
             "migrate",
             "owners",

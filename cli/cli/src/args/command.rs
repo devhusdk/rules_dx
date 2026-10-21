@@ -22,7 +22,6 @@ pub enum Command {
     Init,
     New,
     Upgrade,
-    Hooks,
     Status,
     Version,
     Watch,
@@ -41,7 +40,6 @@ pub enum FirstSlot {
     UpdateSets,
     BumpSets,
     NewLanguages,
-    HookVerbs,
     WatchTasks,
     CompletionShells,
 }
@@ -112,10 +110,9 @@ pub struct CommandMeta {
     pub workflow_verb: Option<WorkflowVerb>,
     pub first_slot: FirstSlot,
     pub labels: LabelsPolicy,
-    pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 33] = [
+pub static COMMANDS: [CommandMeta; 32] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -142,7 +139,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::License,
@@ -170,7 +166,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Lint,
@@ -198,7 +193,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Typecheck,
@@ -226,7 +220,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Format,
@@ -254,7 +247,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Generate,
@@ -282,7 +274,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Build,
@@ -310,7 +301,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: Some(WorkflowVerb::Build),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Test,
@@ -338,7 +328,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: Some(WorkflowVerb::Test),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Coverage,
@@ -366,7 +355,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: Some(WorkflowVerb::Coverage),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Run,
@@ -394,7 +382,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: Some(WorkflowVerb::Run),
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Deploy,
@@ -422,7 +409,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::OnlyEmpty,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Check,
@@ -450,7 +436,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Fix,
@@ -478,7 +463,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Clean,
@@ -506,7 +490,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Update,
@@ -534,7 +517,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::UpdateSets,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Bump,
@@ -562,7 +544,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::BumpSets,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Migrate,
@@ -590,7 +571,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Codegen,
@@ -618,7 +598,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::OnlyEmpty,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Env,
@@ -646,7 +625,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::OnlyEmpty,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Init,
@@ -674,7 +652,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::New,
@@ -702,7 +679,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::NewLanguages,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Upgrade,
@@ -730,35 +706,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
-    },
-    CommandMeta {
-        command: Command::Hooks,
-        name: "hooks",
-        scope_policy: "require",
-        describe: "manage Git hooks via hermetic Git (check by default; --apply installs)",
-        usage: "Usage: dx hooks [--apply] <install|uninstall|status|run> [pre-commit|pre-push]",
-        flags: "Per-command flags: --apply (authorizes install/uninstall/run; verbs install|uninstall|status|run [pre-commit|pre-push]; --check/--fail-on/--report/--output json|diff and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
-        scopes: "Scopes: verb install|uninstall|status|run (run requires pre-commit|pre-push); no Bazel scopes; `-- --bazel-options` does not apply.",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: true,
-        supports_json: false,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Refuse,
-        workflow_verb: None,
-        first_slot: FirstSlot::HookVerbs,
-        labels: LabelsPolicy::Never,
-        hook_triggers_on_run: true,
     },
     CommandMeta {
         command: Command::Status,
@@ -786,7 +733,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Version,
@@ -814,7 +760,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Watch,
@@ -842,7 +787,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::WatchTasks,
         labels: LabelsPolicy::OnlyNonEmpty,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Owners,
@@ -870,7 +814,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Deps,
@@ -898,7 +841,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Why,
@@ -926,7 +868,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::FewerThanTwo,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Completion,
@@ -954,7 +895,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::CompletionShells,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Docs,
@@ -982,7 +922,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Tests,
@@ -1010,7 +949,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
     },
     CommandMeta {
         command: Command::Rollback,
@@ -1038,7 +976,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
     },
 ];
 
@@ -1132,7 +1069,6 @@ impl Command {
                 | Command::Init
                 | Command::New
                 | Command::Upgrade
-                | Command::Hooks
                 | Command::Watch
                 | Command::Rollback
                 | Command::Docs
@@ -1292,7 +1228,6 @@ mod tests {
             Command::Init,
             Command::New,
             Command::Upgrade,
-            Command::Hooks,
             Command::Status,
             Command::Version,
             Command::Watch,
@@ -1340,7 +1275,6 @@ mod tests {
             "fix",
             "format",
             "generate",
-            "hooks",
             "init",
             "license",
             "lint",
@@ -1362,7 +1296,7 @@ mod tests {
         ];
         want.sort_unstable();
         assert_eq!(got, want, "Command registry drifted from the final 33");
-        assert_eq!(Command::value_variants().len(), 33);
+        assert_eq!(Command::value_variants().len(), 32);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1397,7 +1331,6 @@ mod tests {
             Command::New,
             Command::Upgrade,
             Command::Init,
-            Command::Hooks,
             Command::Status,
             Command::Version,
             Command::Watch,
@@ -1434,7 +1367,6 @@ mod tests {
             Command::New,
             Command::Upgrade,
             Command::Rollback,
-            Command::Hooks,
         ] {
             assert!(
                 command.describe().contains("check by default"),
@@ -1508,7 +1440,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            33,
+            32,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1526,7 +1458,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|tests|rollback",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|owners|deps|why|completion|docs|tests|rollback",
             "pipe_list order must match declaration order"
         );
     }
@@ -1534,7 +1466,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 33);
+        assert_eq!(Command::value_variants().len(), 32);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1724,7 +1656,6 @@ mod tests {
                     Command::Bump
                         | Command::Completion
                         | Command::Deps
-                        | Command::Hooks
                         | Command::New
                         | Command::Owners
                         | Command::Watch
@@ -1740,7 +1671,6 @@ mod tests {
                 ("bump", Some("<set:package> <version>")),
                 ("completion", Some("<shell>")),
                 ("deps", Some("<scope>")),
-                ("hooks", Some("<install|uninstall|status|run>")),
                 ("new", Some("<language>")),
                 ("owners", Some("<scope>")),
                 (
@@ -1755,7 +1685,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 33);
+        assert_eq!(COMMANDS.len(), 32);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

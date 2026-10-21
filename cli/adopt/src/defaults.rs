@@ -164,8 +164,6 @@ struct ConfigFile {
     quality: Option<QualityTable>,
     #[serde(default)]
     dependency_set: Option<Vec<toml::Value>>,
-    #[serde(default)]
-    hooks: Option<toml::Value>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -275,7 +273,7 @@ fn check_consumer_schema(version: Option<u32>) -> Result<(), super::AdoptError> 
 
 pub fn shares_file_with_other_tables(text: &str) -> bool {
     let parsed: ConfigFile = toml::from_str(text).unwrap_or_default();
-    parsed.dependency_set.is_some() || parsed.hooks.is_some()
+    parsed.dependency_set.is_some()
 }
 
 pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefaults {
@@ -778,11 +776,7 @@ mod tests {
     }
 
     #[test]
-    fn new_files_ignore_sets_and_hooks_tables() {
-        let text = "schema_version = 1\n[dx]\noutput = \"json\"\n[hooks]\npre_commit = []\n";
-        let parsed = parse_file_text(text).expect("hooks ignored");
-        assert_eq!(parsed.output, Some("json".to_owned()));
-        assert!(shares_file_with_other_tables(text));
+    fn new_files_ignore_sets_tables() {
         assert!(!shares_file_with_other_tables("[dx]\nquiet = true\n"));
         let text = "schema_version = 1\n[dx]\nquiet = true\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
         let parsed = parse_file_text(text).expect("sets ignored");
@@ -794,6 +788,7 @@ mod tests {
     fn new_files_reject_unknown_keys_and_bad_schema() {
         assert!(parse_file_text("[dx]\nqiet = true\n").is_err());
         assert!(parse_file_text("[extra]\nquiet = true\n").is_err());
+        assert!(parse_file_text("[hooks]\npre_commit = []\n").is_err());
         assert!(parse_file_text("schema_version = 2\n[dx]\nquiet = true\n").is_err());
         let ok = parse_file_text("schema_version = 1\n[dx]\nquiet = true\n").expect("versioned");
         assert_eq!(ok.quiet, Some(true));

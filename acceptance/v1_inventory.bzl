@@ -778,20 +778,10 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "command.hooks",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "hooks.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
         "id": "command.init",
         "native": True,
         "owner": "//cli/cli:dx",
-        "page": "hooks.md",
+        "page": "init.md",
         "state": "evidenced",
     },
     {
@@ -1609,10 +1599,10 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "doc.hooks.md",
+        "id": "doc.init.md",
         "native": False,
         "owner": "//docs:command_docs",
-        "page": "hooks.md",
+        "page": "init.md",
         "state": "evidenced",
     },
     {
@@ -3217,7 +3207,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 347
+PROMISE_COUNT = 346
 
 PROMISE_FAMILIES = [
     "artifact",

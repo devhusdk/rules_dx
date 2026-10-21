@@ -129,7 +129,6 @@ fn required_words(command: Command) -> Vec<String> {
         "run" | "deploy" => &["//:demo"],
         "owners" | "deps" => &["//:demo"],
         "why" => &["a.rs", "//:demo"],
-        "hooks" => &["status"],
         "new" => &["rust"],
         "watch" => &["build"],
         "completion" => &["bash"],
@@ -2064,15 +2063,12 @@ fn literal_for(key: &str) -> &'static str {
 
 #[test]
 fn tool_path_env_vars_are_documented_where_the_command_needs_them() {
-    let cases: Vec<(&str, Option<&str>, &str, &str)> = vec![
-        (
-            dx_audit::secrets::TOOL_ENV_VAR,
-            Some(dx_audit::secrets::TOOL_LABEL),
-            "audit-update.md",
-            "dx security",
-        ),
-        (dx_adopt::HOOK_GIT_ENV_VAR, None, "hooks.md", "dx hooks run"),
-    ];
+    let cases: Vec<(&str, Option<&str>, &str, &str)> = vec![(
+        dx_audit::secrets::TOOL_ENV_VAR,
+        Some(dx_audit::secrets::TOOL_LABEL),
+        "audit-update.md",
+        "dx security",
+    )];
     for (var, label, page_name, command) in cases {
         let page = std::fs::read_to_string(docs_dir().join(page_name))
             .unwrap_or_else(|error| panic!("{page_name} ships as test data: {error}"));
@@ -2982,26 +2978,6 @@ fn completion_help_banner_and_page_name_exactly_the_shells() {
     }
     let page = std::fs::read_to_string(docs_dir().join("completion.md")).expect("completion page");
     slot_lists(&page, registry);
-}
-
-#[test]
-fn hooks_help_and_page_name_exactly_the_verbs_and_triggers() {
-    let command = Command::Hooks;
-    for text in [command.usage(), command.flags(), command.scopes_text()] {
-        slot_lists(text, dx_adopt::HOOK_VERBS);
-        slot_lists(text, dx_adopt::HOOK_TRIGGERS);
-    }
-    let page = std::fs::read_to_string(docs_dir().join("hooks.md")).expect("hooks page");
-    slot_lists(&page, dx_adopt::HOOK_VERBS);
-    slot_lists(&page, dx_adopt::HOOK_TRIGGERS);
-    assert_eq!(
-        bullet_terms(&page),
-        dx_adopt::HOOK_VERBS
-            .iter()
-            .map(|verb| (*verb).to_owned())
-            .collect::<Vec<_>>(),
-        "the hooks.md bullets must document every verb, and nothing else"
-    );
 }
 
 #[test]

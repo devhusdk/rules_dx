@@ -489,10 +489,6 @@ pub trait Runner {
     fn gitleaks_tool(&self) -> Option<PathBuf> {
         None
     }
-
-    fn git_tool(&self) -> Option<PathBuf> {
-        None
-    }
 }
 
 pub fn spawn_output(
@@ -602,12 +598,6 @@ impl Runner for SystemRunner {
 
     fn gitleaks_tool(&self) -> Option<PathBuf> {
         std::env::var_os("DX_GITLEAKS_BIN")
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
-    }
-
-    fn git_tool(&self) -> Option<PathBuf> {
-        std::env::var_os("DX_GIT_BIN")
             .map(PathBuf::from)
             .filter(|path| path.is_absolute())
     }

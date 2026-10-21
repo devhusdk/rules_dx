@@ -91,7 +91,6 @@ fn family(command: Command) -> Family {
         | Command::New
         | Command::Upgrade
         | Command::Rollback
-        | Command::Hooks
         | Command::Status
         | Command::Version
         | Command::Watch
@@ -121,7 +120,6 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         Family::Adoption => {
             let Env {
                 workspace,
-                runner,
                 query_runner,
                 out,
                 err,
@@ -132,7 +130,6 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                 crate::adopt::AdoptEnv {
                     workspace,
                     query_runner,
-                    runner,
                     out,
                     err,
                 },
@@ -174,7 +171,7 @@ mod tests {
                 .entry(family(meta.command).name())
                 .or_insert(false) |= meta.supports_diff;
         }
-        assert_eq!(any_supports_diff.len(), 12, "every family classified");
+        assert_eq!(any_supports_diff.len(), 11, "every family classified");
         for meta in COMMANDS {
             let name = family(meta.command).name();
             assert_eq!(
@@ -194,10 +191,10 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            33,
+            32,
             "every variant classified"
         );
-        assert_eq!(counts.get("adoption"), Some(&12));
+        assert_eq!(counts.get("adoption"), Some(&11));
         assert_eq!(counts.get("workflow"), Some(&5));
         assert_eq!(counts.get("quality"), Some(&3));
         assert_eq!(counts.get("managed"), Some(&2));

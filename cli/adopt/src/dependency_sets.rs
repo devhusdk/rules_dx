@@ -196,8 +196,6 @@ struct DxToml {
     #[serde(default)]
     dx: Option<toml::Value>,
     #[serde(default)]
-    hooks: Option<toml::Value>,
-    #[serde(default)]
     quality: Option<QualityTable>,
 }
 
@@ -251,8 +249,7 @@ pub fn parse(text: &str, rel: &str) -> Result<Option<Registry>, DependencySetsEr
             rel: rel.to_owned(),
             detail: error.to_string(),
         })?;
-    let has_defaults =
-        document.dx.is_some() || document.hooks.is_some() || document.quality.is_some();
+    let has_defaults = document.dx.is_some() || document.quality.is_some();
     match document.schema_version {
         None if document.dependency_set.is_empty() && has_defaults => return Ok(None),
         None => {

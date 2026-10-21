@@ -195,3 +195,33 @@ fn the_publish_job_smokes_the_page_url_it_deployed_before_the_clean_proof() {
         "{WORKFLOW} job {PUBLISH} must smoke the deployment at {smoke} before the clean proof at {clean}"
     );
 }
+
+#[test]
+fn the_docs_scope_reaches_the_shell_only_through_the_environment() {
+    let text = read_runfiles(WORKFLOW);
+    assert!(
+        !text.contains("${{ inputs.docs_scope }} --"),
+        "{WORKFLOW} must not interpolate docs_scope into a script"
+    );
+    let step = steps(CHECK)
+        .into_iter()
+        .find(|step| field(step, "name") == "Lint the docs scope")
+        .unwrap_or_else(|| panic!("{WORKFLOW} job {CHECK} has no scope lint step"));
+    assert_eq!(
+        step["env"]["DX_DOCS_SCOPE"],
+        json!("${{ inputs.docs_scope }}"),
+        "{WORKFLOW} must pass docs_scope through DX_DOCS_SCOPE"
+    );
+    assert!(
+        !field(&step, "run").contains("${{"),
+        "{WORKFLOW} scope step must not interpolate expressions into its script"
+    );
+    for (name, job_steps) in [(CHECK, steps(CHECK)), (PUBLISH, steps(PUBLISH))] {
+        for other in job_steps {
+            assert!(
+                !field(&other, "run").contains("inputs.docs_scope"),
+                "{WORKFLOW} job {name} must not read docs_scope inside a script"
+            );
+        }
+    }
+}

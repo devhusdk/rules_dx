@@ -174,6 +174,86 @@ fn timeout_reaps_a_descendant_holding_the_pipes() {
     }
 }
 
+const INTERACTIVE: CleanupBudget = CleanupBudget {
+    graceful: Duration::from_millis(100),
+    forced: Duration::from_millis(100),
+    drain: Duration::from_millis(100),
+};
+
+#[test]
+fn the_standard_budget_keeps_its_bounds() {
+    assert_eq!(CleanupBudget::STANDARD.total(), Duration::from_secs(9));
+    assert_eq!(INTERACTIVE.total(), Duration::from_millis(300));
+}
+
+#[test]
+fn a_tight_budget_bounds_a_blocked_child() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-tight-blocked").expect("scratch");
+    let marker = scratch.join("child.finished");
+    let spec = controlled_spec(
+        probe_argv(&["--sleep-ms=2000", &format!("--marker={}", marker.display())]),
+        Duration::from_millis(200),
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed < Duration::from_millis(1500),
+        "a blocked child held a tight budget for {elapsed:?}"
+    );
+    std::thread::sleep(Duration::from_millis(2500).saturating_sub(started.elapsed()));
+    assert!(!marker.exists(), "the blocked child survived the run");
+}
+
+#[test]
+fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-tight-descendant").expect("scratch");
+    let marker = scratch.join("descendant.finished");
+    let spec = controlled_spec(
+        probe_argv(&[
+            "--stdout-text=//pkg:one",
+            "--detached-descendant",
+            "--descendant-sleep-ms=2000",
+            &format!("--descendant-marker={}", marker.display()),
+        ]),
+        Duration::from_millis(200),
+    );
+    let started = Instant::now();
+    assert_eq!(
+        run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed < Duration::from_millis(1500),
+        "a descendant held a tight budget for {elapsed:?}"
+    );
+    std::thread::sleep(Duration::from_millis(2500).saturating_sub(started.elapsed()));
+    assert!(!marker.exists(), "the owned descendant survived the run");
+}
+
+#[test]
+fn a_tight_budget_drains_large_output_concurrently() {
+    let mut spec = controlled_spec(
+        probe_argv(&["--stdout-bytes=1048576"]),
+        Duration::from_secs(5),
+    );
+    spec.capture = CapturePolicy { max_bytes: 4096 };
+    let started = Instant::now();
+    assert_eq!(
+        run_within(&spec, INTERACTIVE).expect("oversize is an outcome"),
+        ChildOutcome::OutputTooLarge { limit: 4096 }
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "a producer past pipe capacity must not wait for the deadline: {:?}",
+        started.elapsed()
+    );
+}
+
 #[test]
 fn large_output_drains_without_a_timeout() {
     let spec = controlled_spec(

@@ -14,8 +14,8 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use dx_cli::args::{
-    early_workspace_flag, freeze_workspace, is_discovery_exempt, is_help_request,
-    json_output_intent, parse_with_ci, select_startup_defaults, DX_WORKSPACE_ENV,
+    early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
+    load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
 };
 use dx_cli::exec::common::flush_out;
 use dx_cli::plan::create_run_temp_dir;
@@ -196,42 +196,28 @@ fn run() -> i32 {
         .ok()
         .filter(|value| !value.is_empty())
         .filter(|_| !dx_cli::args::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
-    let (mut file_defaults, file_redirect) =
-        match select_startup_defaults(&initial_start, flag_workspace, env_workspace) {
-            Ok(selected) => (selected.defaults, selected.file_workspace),
-            Err(detail) => {
+    let file_defaults =
+        match load_startup_defaults(&initial_start, flag_workspace, env_workspace, is_ci) {
+            Ok(defaults) => defaults,
+            Err(failure) => {
                 if is_help_request(&args) {
-                    (dx_cli::args::FileDefaults::default(), None)
+                    *failure.partial
                 } else {
+                    let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
                     return startup_failure(
-                        &format!("dx: {detail}\n{}", dx_cli::args::help::usage_banner()),
+                        &format!(
+                            "dx: {}\n{}",
+                            failure.detail,
+                            dx_cli::args::help::usage_banner()
+                        ),
                         "invalid_defaults",
-                        &detail,
-                        pre_exec_code(),
-                        bare_intent,
-                    );
-                }
-            }
-        };
-    if let Some(target) = file_redirect {
-        match select_startup_defaults(&initial_start, Some(target.clone()), None) {
-            Ok(selected) => {
-                file_defaults = freeze_workspace(&selected.defaults, &target);
-            }
-            Err(detail) => {
-                if !is_help_request(&args) {
-                    let json = json_output_intent(&args, &env_get, &file_defaults, is_ci);
-                    return startup_failure(
-                        &format!("dx: {detail}\n{}", dx_cli::args::help::usage_banner()),
-                        "invalid_defaults",
-                        &detail,
+                        &failure.detail,
                         pre_exec_code(),
                         json,
                     );
                 }
             }
-        }
-    };
+        };
     let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, is_ci) {
         Ok(invocation) => invocation,
         Err(dx_cli::args::ArgsError::Help { text }) => {

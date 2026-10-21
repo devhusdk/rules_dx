@@ -1,6 +1,11 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
+
+use dx_process::lifecycle::{
+    CapturePolicy, ChildOutcome, CleanupBudget, EnvPolicy, Exit, SpawnSpec,
+};
 
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
 
@@ -22,7 +27,15 @@ const MAX_PACKAGE_DIRS: usize = 200;
 
 const MAX_VISITED_DIRS: usize = 2000;
 
-const QUERY_TIMEOUT: Duration = Duration::from_millis(1500);
+const QUERY_TIMEOUT: Duration = Duration::from_millis(1200);
+
+const QUERY_CLEANUP: CleanupBudget = CleanupBudget {
+    graceful: Duration::from_millis(100),
+    forced: Duration::from_millis(100),
+    drain: Duration::from_millis(100),
+};
+
+const QUERY_STARTUP_OPTS: &[&str] = &["--noblock_for_lock"];
 
 const QUERY_MAX_BYTES: usize = 256 * 1024;
 
@@ -35,14 +48,23 @@ pub fn try_complete() -> Result<bool, String> {
 
 /// Give every command the completer for its own scope slot.
 pub fn with_scope_completers(
-    mut command: clap::Command,
+    command: clap::Command,
     words: impl IntoIterator<Item = OsString>,
     start: &Path,
 ) -> clap::Command {
-    let words: Vec<OsString> = words.into_iter().collect();
-    let workspace = select_workspace(start, &words);
-    let prior = prior_scopes(&words);
-    let startup = startup_options_from_words(&words);
+    let request = Request {
+        words: words.into_iter().collect(),
+        start: start.to_path_buf(),
+        env_workspace: std::env::var(super::DX_WORKSPACE_ENV).ok(),
+        is_ci: dx_process::is_ci(),
+    };
+    with_request(command, request)
+}
+
+fn with_request(mut command: clap::Command, request: Request) -> clap::Command {
+    let prior = prior_scopes(&request.words);
+    let request = Arc::new(request);
+    let selection: Arc<OnceLock<Selection>> = Arc::new(OnceLock::new());
     for entry in COMMANDS.iter() {
         if entry.command.scope_policy() == "passthrough" {
             continue;
@@ -50,8 +72,8 @@ pub fn with_scope_completers(
         let completer = ArgValueCompleter::new(ScopeCompleter {
             command: entry.command,
             prior: prior.clone(),
-            workspace: workspace.clone(),
-            startup: startup.clone(),
+            request: Arc::clone(&request),
+            selection: Arc::clone(&selection),
         });
         let mut attached = false;
         command = command.mut_subcommand(entry.name, |sub| {
@@ -129,12 +151,63 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
     out
 }
 
+/// The typed words, the start directory, and the environment one request reads.
+struct Request {
+    words: Vec<OsString>,
+    start: PathBuf,
+    env_workspace: Option<String>,
+    is_ci: bool,
+}
+
+/// The workspace and Bazel startup tokens a request selects.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Selection {
+    workspace: PathBuf,
+    startup: Vec<String>,
+}
+
+impl Request {
+    /// Select the way a run does, falling back to the start directory.
+    fn select(&self) -> Selection {
+        let (flag, tokens) =
+            super::tokenizer::selected_identity(typed_words(&self.words)).unwrap_or_default();
+        let flag = flag
+            .and_then(|value| value.into_string().ok())
+            .filter(|value| !value.is_empty());
+        let raw = super::parser::startup_workspace(
+            &self.start,
+            flag,
+            self.env_workspace.clone(),
+            self.is_ci,
+        );
+        let workspace = dx_process::discover_real(&self.start, raw.as_deref().map(Path::new))
+            .unwrap_or_else(|_| self.start.clone());
+        let startup = tokens
+            .iter()
+            .filter_map(|token| dx_process::validate_startup_option(token).ok())
+            .collect();
+        Selection { workspace, startup }
+    }
+}
+
+/// The words after the program name, without the word in hand.
+fn typed_words(words: &[OsString]) -> &[OsString] {
+    let mut typed: &[OsString] = words;
+    if typed.first().is_some_and(|first| first == "--") {
+        typed = typed.get(2..).unwrap_or_default();
+    } else if typed.first().is_some_and(|first| first == "dx") {
+        typed = &typed[1..];
+    }
+    typed.split_last().map_or(typed, |(_, rest)| rest)
+}
+
 /// The candidates one command offers for its scope slot.
+#[derive(Clone)]
 struct ScopeCompleter {
     command: Command,
     prior: Vec<String>,
-    workspace: PathBuf,
-    startup: Vec<String>,
+    request: Arc<Request>,
+    selection: Arc<OnceLock<Selection>>,
 }
 
 impl ValueCompleter for ScopeCompleter {
@@ -146,15 +219,16 @@ impl ValueCompleter for ScopeCompleter {
         let current = current.to_string_lossy();
         let (mut names, allows_labels) = slot_candidates(self.command, &self.prior, &current);
         if allows_labels {
+            let selection = self.selection.get_or_init(|| self.request.select());
             names.extend(label_hint(&current));
             names.extend(label_candidates_from_workspace(
-                &self.workspace,
+                &selection.workspace,
                 &current,
                 MAX_LABEL_CANDIDATES,
             ));
             names.extend(target_candidates(
-                &self.workspace,
-                &self.startup,
+                &selection.workspace,
+                &selection.startup,
                 &current,
                 MAX_LABEL_CANDIDATES,
             ));
@@ -166,32 +240,6 @@ impl ValueCompleter for ScopeCompleter {
             .map(CompletionCandidate::new)
             .collect::<Vec<CompletionCandidate>>()
     }
-}
-
-/// The explicit workspace the typed words select, if one is spelled.
-fn workspace_override_from_words(words: &[OsString]) -> Option<PathBuf> {
-    let mut trimmed: &[OsString] = words;
-    if trimmed.first().is_some_and(|first| first == "--") {
-        trimmed = &trimmed[1..];
-        if trimmed.first().is_some_and(|first| first == "dx") {
-            trimmed = &trimmed[1..];
-        }
-    } else if trimmed.first().is_some_and(|first| first == "dx") {
-        trimmed = &trimmed[1..];
-    }
-    let flag = super::parser::early_workspace_flag(trimmed)?;
-    if flag.is_empty() {
-        None
-    } else {
-        Some(PathBuf::from(flag))
-    }
-}
-
-/// The workspace completion reads: the flag override or the start directory.
-fn select_workspace(start: &Path, words: &[OsString]) -> PathBuf {
-    let override_dir = workspace_override_from_words(words);
-    dx_process::discover_real(start, override_dir.as_deref())
-        .unwrap_or_else(|_| start.to_path_buf())
 }
 
 /// Whether the directory opens another workspace.
@@ -254,57 +302,34 @@ fn query_expression(package: &str) -> String {
     format!("kind(rule, {package}:*)")
 }
 
-/// The validated Bazel startup options typed before the word in hand.
-fn startup_options_from_words(words: &[OsString]) -> Vec<String> {
-    let mut words: Vec<&str> = words.iter().filter_map(|word| word.to_str()).collect();
-    words.pop();
-    let mut out = Vec::new();
-    let mut index = 0;
-    while index < words.len() {
-        let word = words[index];
-        index += 1;
-        if word == "--" && index > 1 {
-            break;
-        }
-        let value = if let Some(value) = word.strip_prefix("--bazel-startup-option=") {
-            Some(value)
-        } else if word == "--bazel-startup-option" {
-            let next = words.get(index).copied();
-            index += 1;
-            next
-        } else {
-            if !word.contains('=') && VALUE_OPTIONS.contains(&word) {
-                index += 1;
-            }
-            None
-        };
-        if let Some(Ok(kept)) = value.map(dx_process::validate_startup_option) {
-            out.push(kept);
-        }
-    }
-    out
-}
-
-/// The labels one bounded query returns, empty when it cannot.
-fn bazel_query_labels(workspace: &Path, startup: &[String], package: &str) -> Vec<String> {
-    let mut argv: Vec<std::ffi::OsString> = dx_process::startup_argv(startup)
-        .into_iter()
-        .map(OsString::from)
-        .collect();
+/// The bounded query for one package under the selected startup identity.
+fn query_spec(workspace: &Path, startup: &[String], package: &str) -> SpawnSpec {
+    let mut argv: Vec<OsString> = vec![OsString::from(dx_process::launcher_argv0())];
+    argv.extend(
+        dx_process::WORKFLOW_STARTUP_OPTS
+            .iter()
+            .chain(QUERY_STARTUP_OPTS)
+            .map(OsString::from),
+    );
+    argv.extend(startup.iter().map(OsString::from));
     argv.extend(["query", "--output=label"].into_iter().map(OsString::from));
     argv.push(OsString::from(query_expression(package)));
-    let spec = dx_process::lifecycle::SpawnSpec {
+    SpawnSpec {
         argv,
         cwd: workspace.to_path_buf(),
-        env: dx_process::lifecycle::EnvPolicy::Inherited { extra: Vec::new() },
-        capture: dx_process::lifecycle::CapturePolicy {
+        env: EnvPolicy::Inherited { extra: Vec::new() },
+        capture: CapturePolicy {
             max_bytes: QUERY_MAX_BYTES,
         },
         timeout: QUERY_TIMEOUT,
-    };
-    match dx_process::lifecycle::run(&spec) {
-        Ok(dx_process::lifecycle::ChildOutcome::Finished {
-            exit: dx_process::lifecycle::Exit::Code(0),
+    }
+}
+
+/// The labels one bounded query returns, empty when it cannot.
+fn run_label_query(spec: &SpawnSpec) -> Vec<String> {
+    match dx_process::lifecycle::run_within(spec, QUERY_CLEANUP) {
+        Ok(ChildOutcome::Finished {
+            exit: Exit::Code(0),
             stdout,
             ..
         }) => parse_labels(&stdout),
@@ -336,7 +361,7 @@ fn target_candidates(
     limit: usize,
 ) -> Vec<String> {
     target_candidates_with_query(workspace, current, limit, |workspace, package| {
-        bazel_query_labels(workspace, startup, package)
+        run_label_query(&query_spec(workspace, startup, package))
     })
 }
 
@@ -518,8 +543,13 @@ mod tests {
         passed: Vec<OsString>,
         workspace: &Path,
     ) -> Vec<String> {
-        let mut command =
-            with_scope_completers(super::super::grammar::Cli::command(), passed, workspace);
+        let request = Request {
+            words: passed,
+            start: workspace.to_path_buf(),
+            env_workspace: None,
+            is_ci: false,
+        };
+        let mut command = with_request(super::super::grammar::Cli::command(), request);
         let index = words.len() - 1;
         clap_complete::engine::complete(&mut command, words.to_vec(), index, Some(workspace))
             .expect("complete")
@@ -937,41 +967,150 @@ mod tests {
         argv.iter().map(OsString::from).collect()
     }
 
+    fn select(words: &[&str], start: &Path, env_workspace: Option<&str>, is_ci: bool) -> Selection {
+        Request {
+            words: words_of(words),
+            start: start.to_path_buf(),
+            env_workspace: env_workspace.map(str::to_owned),
+            is_ci,
+        }
+        .select()
+    }
+
+    fn real(path: &Path) -> PathBuf {
+        dx_process::canonicalize_or_keep(path)
+    }
+
     #[test]
-    fn workspace_override_reads_both_spellings() {
-        let flag = workspace_override_from_words(&words_of(&["build", "--workspace=/tmp/ws", ""]));
-        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
-        let flag =
-            workspace_override_from_words(&words_of(&["build", "--workspace", "/tmp/ws", ""]));
-        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
-        assert!(workspace_override_from_words(&words_of(&["build", ""])).is_none());
+    fn the_workspace_flag_selects_in_both_spellings() {
+        let start = workspace_with_packages(&["alpha"]);
+        let other = workspace_with_packages(&["beta"]);
+        let other_text = other.path().to_string_lossy().into_owned();
+        let joined = format!("--workspace={other_text}");
+        for words in [
+            vec!["build", joined.as_str(), ""],
+            vec!["build", "--workspace", other_text.as_str(), ""],
+            vec!["--", "dx", "build", "--workspace", other_text.as_str(), ""],
+            vec!["--", "./bin/dx", "build", joined.as_str(), "//pkg:"],
+        ] {
+            assert_eq!(
+                select(&words, start.path(), None, false).workspace,
+                real(other.path()),
+                "{words:?}"
+            );
+        }
+        for words in [
+            vec!["build", ""],
+            vec!["--", "dx", "build", ""],
+            vec!["build", "--workspace", "--quiet", ""],
+            vec!["build", "--bogus", "--workspace", other_text.as_str(), ""],
+        ] {
+            assert_eq!(
+                select(&words, start.path(), None, false).workspace,
+                real(start.path()),
+                "{words:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_environment_and_config_select_like_a_run() {
+        let start = workspace_with_packages(&["alpha"]);
+        let env = workspace_with_packages(&["beta"]);
+        let file = workspace_with_packages(&["gamma"]);
+        let env_text = env.path().to_string_lossy().into_owned();
+        let file_text = file.path().to_string_lossy().into_owned();
+        let bare = ["build", ""];
+        assert_eq!(
+            select(&bare, start.path(), Some(&env_text), false).workspace,
+            real(env.path())
+        );
+        assert_eq!(
+            select(&bare, start.path(), Some(&env_text), true).workspace,
+            real(start.path()),
+            "CI ignores DX_WORKSPACE"
+        );
+        assert_eq!(
+            select(&bare, start.path(), Some(""), false).workspace,
+            real(start.path())
+        );
+        std::fs::write(
+            start.path().join("dx.toml"),
+            format!("[dx]\nworkspace = \"{file_text}\"\n"),
+        )
+        .expect("config");
+        assert_eq!(
+            select(&bare, start.path(), None, false).workspace,
+            real(file.path())
+        );
+        assert_eq!(
+            select(&bare, start.path(), Some(&env_text), false).workspace,
+            real(env.path()),
+            "the environment beats the config"
+        );
+        let flagged = ["build", "--workspace", env_text.as_str(), ""];
+        assert_eq!(
+            select(&flagged, start.path(), None, false).workspace,
+            real(env.path()),
+            "the flag beats the config"
+        );
+        let got = complete_in(&["dx", "build", ""], start.path(), None);
         assert!(
-            workspace_override_from_words(&words_of(&["build", "--workspace", "--quiet", ""]))
-                .is_none()
+            got.iter().any(|value| value == "//gamma/..."),
+            "config workspace lists gamma: {got:?}"
+        );
+        assert!(
+            !got.iter().any(|value| value == "//alpha/..."),
+            "config workspace hides alpha: {got:?}"
+        );
+        let got = complete_in(&["dx", "build", ""], start.path(), Some(&env_text));
+        assert!(
+            got.iter().any(|value| value == "//beta/..."),
+            "environment workspace lists beta: {got:?}"
         );
     }
 
     #[test]
-    fn workspace_override_ignores_shell_separator_and_dx() {
-        let flag = workspace_override_from_words(&words_of(&[
-            "--",
-            "dx",
-            "build",
-            "--workspace",
-            "/tmp/ws",
-            "",
-        ]));
-        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
-        let flag = workspace_override_from_words(&words_of(&[
-            "--",
-            "dx",
-            "build",
-            "--workspace=/tmp/ws",
-            "",
-        ]));
-        assert_eq!(flag, Some(PathBuf::from("/tmp/ws")));
-        let flag = workspace_override_from_words(&words_of(&["--", "dx", "build", ""]));
-        assert!(flag.is_none());
+    fn broken_defaults_complete_quietly_from_the_start_workspace() {
+        let start = workspace_with_packages(&["alpha"]);
+        std::fs::write(start.path().join("dx.toml"), "not toml = [").expect("config");
+        assert_eq!(
+            select(&["build", ""], start.path(), None, false).workspace,
+            real(start.path())
+        );
+        let got = complete_in(&["dx", "build", ""], start.path(), None);
+        assert!(
+            got.iter().any(|value| value == "//alpha/..."),
+            "broken defaults still list alpha: {got:?}"
+        );
+        let missing = start.path().join("missing");
+        std::fs::write(
+            start.path().join("dx.toml"),
+            format!("[dx]\nworkspace = \"{}\"\n", missing.display()),
+        )
+        .expect("config");
+        assert_eq!(
+            select(&["build", ""], start.path(), None, false).workspace,
+            real(start.path())
+        );
+    }
+
+    fn complete_in(argv: &[&str], start: &Path, env_workspace: Option<&str>) -> Vec<String> {
+        let words: Vec<OsString> = argv.iter().map(OsString::from).collect();
+        let mut passed = vec![OsString::from("--")];
+        passed.extend(words.iter().cloned());
+        let request = Request {
+            words: passed,
+            start: start.to_path_buf(),
+            env_workspace: env_workspace.map(str::to_owned),
+            is_ci: false,
+        };
+        let mut command = with_request(super::super::grammar::Cli::command(), request);
+        clap_complete::engine::complete(&mut command, words.clone(), words.len() - 1, Some(start))
+            .expect("complete")
+            .iter()
+            .map(|candidate| candidate.get_value().to_string_lossy().into_owned())
+            .collect()
     }
 
     #[test]
@@ -1225,36 +1364,195 @@ mod tests {
         );
     }
 
-    fn words(list: &[&str]) -> Vec<OsString> {
-        list.iter().map(OsString::from).collect()
-    }
-
     #[test]
-    fn startup_options_are_read_in_order_in_both_spellings() {
-        let got = startup_options_from_words(&words(&[
-            "--",
-            "dx",
-            "build",
-            "--bazel-startup-option=--output_base=/tmp/a b/\u{fc}",
-            "--bazel-startup-option",
-            "--output_user_root=/tmp/u",
-            "//pkg:",
-        ]));
+    fn startup_tokens_follow_the_grammar_in_order() {
+        let start = workspace_with_packages(&["pkg"]);
+        let got = select(
+            &[
+                "--",
+                "dx",
+                "build",
+                "--bazel-startup-option=--output_base=/tmp/a b/\u{fc}",
+                "--bazel-startup-option=--output_user_root=/tmp/u",
+                "--bazel-startup-option=--output_base=/tmp/last",
+                "//pkg:",
+            ],
+            start.path(),
+            None,
+            false,
+        );
         assert_eq!(
-            got,
-            vec!["--output_base=/tmp/a b/\u{fc}", "--output_user_root=/tmp/u"]
+            got.startup,
+            vec![
+                "--output_base=/tmp/a b/\u{fc}",
+                "--output_user_root=/tmp/u",
+                "--output_base=/tmp/last",
+            ]
+        );
+        let rejected = select(
+            &[
+                "build",
+                "--bazel-startup-option",
+                "--output_user_root=/tmp/u",
+                "//pkg:",
+            ],
+            start.path(),
+            None,
+            false,
+        );
+        assert!(
+            rejected.startup.is_empty(),
+            "a run rejects a separated dashed token: {:?}",
+            rejected.startup
         );
     }
 
     #[test]
-    fn startup_options_skip_invalid_and_the_word_in_hand() {
-        let got = startup_options_from_words(&words(&[
-            "build",
-            "--bazel-startup-option=--bogus=1",
-            "--bazel-startup-option=--output_base",
-            "--bazel-startup-option=--output_base=/tmp/last",
-        ]));
-        assert!(got.is_empty());
+    fn startup_tokens_skip_invalid_the_word_in_hand_and_the_payload() {
+        let start = workspace_with_packages(&["pkg"]);
+        let got = select(
+            &[
+                "build",
+                "--bazel-startup-option=--bogus=1",
+                "--bazel-startup-option=--output_base",
+                "--bazel-startup-option=--output_base=/tmp/last",
+            ],
+            start.path(),
+            None,
+            false,
+        );
+        assert!(got.startup.is_empty(), "{:?}", got.startup);
+        let got = select(
+            &[
+                "build",
+                "--",
+                "--bazel-startup-option=--output_base=/tmp/payload",
+                "",
+            ],
+            start.path(),
+            None,
+            false,
+        );
+        assert!(got.startup.is_empty(), "{:?}", got.startup);
+    }
+
+    #[test]
+    fn the_query_puts_startup_tokens_before_the_verb() {
+        let start = workspace_with_packages(&["pkg"]);
+        let startup = vec![
+            "--output_base=/tmp/a b/\u{fc}".to_owned(),
+            "--output_user_root=/tmp/u".to_owned(),
+        ];
+        let spec = query_spec(start.path(), &startup, "//pkg");
+        let argv: Vec<String> = spec
+            .argv
+            .iter()
+            .map(|word| word.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            argv,
+            vec![
+                "bazel",
+                "--nohome_rc",
+                "--nosystem_rc",
+                "--noblock_for_lock",
+                "--output_base=/tmp/a b/\u{fc}",
+                "--output_user_root=/tmp/u",
+                "query",
+                "--output=label",
+                "kind(rule, //pkg:*)",
+            ]
+        );
+        assert_eq!(spec.cwd, start.path());
+        assert_eq!(spec.timeout, QUERY_TIMEOUT);
+        assert_eq!(spec.capture.max_bytes, QUERY_MAX_BYTES);
+        assert!(
+            QUERY_TIMEOUT + QUERY_CLEANUP.total() <= Duration::from_millis(1500),
+            "the whole query fits the interactive budget"
+        );
+    }
+
+    fn probe_spec(flags: &[&str], max_bytes: usize) -> SpawnSpec {
+        let mut argv = vec![dx_testing::process_probe().into_os_string()];
+        argv.extend(flags.iter().map(OsString::from));
+        SpawnSpec {
+            argv,
+            cwd: std::env::temp_dir(),
+            env: EnvPolicy::Inherited { extra: Vec::new() },
+            capture: CapturePolicy { max_bytes },
+            timeout: QUERY_TIMEOUT,
+        }
+    }
+
+    fn budget() -> Duration {
+        QUERY_TIMEOUT + QUERY_CLEANUP.total() + Duration::from_millis(500)
+    }
+
+    #[test]
+    fn a_probe_listing_labels_yields_whole_label_records() {
+        let spec = probe_spec(
+            &["--stdout-text=//pkg:two\n//pkg:one\nnoise line\n//pkg:one\n"],
+            QUERY_MAX_BYTES,
+        );
+        let started = std::time::Instant::now();
+        assert_eq!(run_label_query(&spec), vec!["//pkg:one", "//pkg:two"]);
+        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
+        let failing = probe_spec(
+            &["--stdout-text=//pkg:one\n", "--exit-code=7"],
+            QUERY_MAX_BYTES,
+        );
+        assert!(run_label_query(&failing).is_empty());
+    }
+
+    #[test]
+    fn a_probe_past_the_byte_bound_falls_back_without_waiting() {
+        let spec = probe_spec(&["--stdout-bytes=1048576"], QUERY_MAX_BYTES);
+        let started = std::time::Instant::now();
+        assert!(run_label_query(&spec).is_empty());
+        assert!(
+            started.elapsed() < budget(),
+            "output past pipe capacity must drain while the child runs: {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn a_blocked_probe_is_stopped_within_the_budget() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let marker = scratch.path().join("blocked.finished");
+        let spec = probe_spec(
+            &[
+                "--stdout-text=//pkg:late\n",
+                "--sleep-ms=3000",
+                &format!("--marker={}", marker.display()),
+            ],
+            QUERY_MAX_BYTES,
+        );
+        let started = std::time::Instant::now();
+        assert!(run_label_query(&spec).is_empty());
+        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
+        std::thread::sleep(Duration::from_millis(3500).saturating_sub(started.elapsed()));
+        assert!(!marker.exists(), "the blocked probe survived the query");
+    }
+
+    #[test]
+    fn a_descendant_holding_stdout_is_stopped_within_the_budget() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let marker = scratch.path().join("descendant.finished");
+        let spec = probe_spec(
+            &[
+                "--stdout-text=//pkg:one\n",
+                "--detached-descendant",
+                "--descendant-sleep-ms=3000",
+                &format!("--descendant-marker={}", marker.display()),
+            ],
+            QUERY_MAX_BYTES,
+        );
+        let started = std::time::Instant::now();
+        assert!(run_label_query(&spec).is_empty());
+        assert!(started.elapsed() < budget(), "{:?}", started.elapsed());
+        std::thread::sleep(Duration::from_millis(3500).saturating_sub(started.elapsed()));
+        assert!(!marker.exists(), "the owned descendant survived the query");
     }
 
     #[test]

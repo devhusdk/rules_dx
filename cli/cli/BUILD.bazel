@@ -298,7 +298,11 @@ rust_test(
         "//tools/bazelrc:BUILD.bazel",
         "//tools/bazelrc:preset.bazelrc",
         "//tools/repin_all:src/main.rs",
+        "//tools/testing/process_probe",
     ],
+    env = {
+        "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
+    },
     deps = crate_deps(
         [
             "assert_cmd",
@@ -340,6 +344,7 @@ rust_test(
         "//cli/update:dx_update",
         "//generation/result:generation_result",
         "//quality/result:quality_result",
+        "//tools/testing:dx_testing",
     ],
 )
 

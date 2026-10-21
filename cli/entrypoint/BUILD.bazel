@@ -82,6 +82,30 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "consumer_dx_completion",
+    size = "small",
+    srcs = ["completion_test.rs"],
+    data = [
+        "@dx_consumer_completion//:completion_argv.txt",
+        "@dx_consumer_completion//:completion_broken.txt",
+        "@dx_consumer_completion//:completion_config.txt",
+        "@dx_consumer_completion//:completion_env.txt",
+        "@dx_consumer_completion//:completion_failed_query.txt",
+        "@dx_consumer_completion//:completion_flag.txt",
+    ],
+    env = {
+        "DX_COMPLETION_ARGV": "$(rootpath @dx_consumer_completion//:completion_argv.txt)",
+        "DX_COMPLETION_BROKEN": "$(rootpath @dx_consumer_completion//:completion_broken.txt)",
+        "DX_COMPLETION_CONFIG": "$(rootpath @dx_consumer_completion//:completion_config.txt)",
+        "DX_COMPLETION_ENV": "$(rootpath @dx_consumer_completion//:completion_env.txt)",
+        "DX_COMPLETION_FAILED_QUERY": "$(rootpath @dx_consumer_completion//:completion_failed_query.txt)",
+        "DX_COMPLETION_FLAG": "$(rootpath @dx_consumer_completion//:completion_flag.txt)",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
@@ -95,6 +119,9 @@ real_source_target(
 real_source_target(
     name = "corpus_rust",
     aspect_hints = ["//:rustfmt_config"],
-    rust_srcs = ["entrypoint_test.rs"],
+    rust_srcs = [
+        "completion_test.rs",
+        "entrypoint_test.rs",
+    ],
     tags = ["corpus"],
 )

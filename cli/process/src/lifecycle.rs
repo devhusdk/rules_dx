@@ -79,18 +79,45 @@ pub enum ChildOutcome {
 }
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
-const GRACEFUL_WAIT: Duration = Duration::from_secs(2);
-const FORCED_WAIT: Duration = Duration::from_secs(2);
-const DRAIN_WAIT: Duration = Duration::from_secs(5);
+
+/// How long cleanup may take once the deadline passes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CleanupBudget {
+    /// Wait after asking the owned tree to stop.
+    pub graceful: Duration,
+    /// Wait after forcing the owned tree to stop.
+    pub forced: Duration,
+    /// Wait for the pipes to close.
+    pub drain: Duration,
+}
+
+impl CleanupBudget {
+    /// The budget for tool runs and passthrough.
+    pub const STANDARD: CleanupBudget = CleanupBudget {
+        graceful: Duration::from_secs(2),
+        forced: Duration::from_secs(2),
+        drain: Duration::from_secs(5),
+    };
+
+    /// The whole cleanup bound.
+    pub fn total(&self) -> Duration {
+        self.graceful + self.forced + self.drain
+    }
+}
+
+/// Run one child to a bounded outcome under the standard cleanup budget.
+pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
+    run_within(spec, CleanupBudget::STANDARD)
+}
 
 /// Run one child to a bounded outcome.
 ///
 /// The child waits at most `timeout`, then the owned tree is asked to stop
 /// gracefully, then forced, then the pipes are drained. The call returns no
-/// later than the timeout plus the graceful, forced, and drain bounds above.
-/// Spawn and wait failures are I/O errors. A tree that escapes its owner is
-/// reported as a timeout, never as success.
-pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
+/// later than the timeout plus the cleanup budget. Spawn and wait failures
+/// are I/O errors. A tree that escapes its owner is reported as a timeout,
+/// never as success.
+pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildOutcome> {
     let (program, args) = spec
         .argv
         .split_first()
@@ -117,7 +144,7 @@ pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);
     let start = Instant::now();
     let soft = start + spec.timeout;
-    let hard = soft + GRACEFUL_WAIT + FORCED_WAIT + DRAIN_WAIT;
+    let hard = soft + cleanup.total();
     let mut status = None;
     let mut wait_error = None;
     while Instant::now() < soft {
@@ -166,10 +193,10 @@ pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
         }
         None => {
             backend::terminate_graceful(&mut owned);
-            let exit = poll_exit(&mut owned, hard.min(Instant::now() + GRACEFUL_WAIT));
+            let exit = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
             if exit.is_none() {
                 backend::terminate_forced(&mut owned);
-                let _ = poll_exit(&mut owned, hard.min(Instant::now() + FORCED_WAIT));
+                let _ = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
             }
             let _ = collect(&stdout_rx, hard);
             let _ = collect(&stderr_rx, hard);

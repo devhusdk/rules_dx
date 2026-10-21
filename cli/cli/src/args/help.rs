@@ -172,9 +172,9 @@ pub fn usage_banner() -> String {
     let commands = Command::pipe_list();
     let shells = COMPLETION_SHELLS.join("|");
     format!(
-        "usage: dx <{commands}> [--workspace DIR] [--quiet] [--verbose|-v] \
+        "usage: dx <{commands}> [--workspace DIR] [--quiet|-q] [--verbose|-v] \
 [--color auto|always|never] \
-[--output text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
+[--output|-o text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \

@@ -1,0 +1,11 @@
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/quick_junit-f0cf8147d593d9b8.d: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/deserialize.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/errors.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/report.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/serialize.rs
+
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/libquick_junit-f0cf8147d593d9b8.rlib: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/deserialize.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/errors.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/report.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/serialize.rs
+
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/libquick_junit-f0cf8147d593d9b8.rmeta: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/deserialize.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/errors.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/report.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/serialize.rs
+
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/lib.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/deserialize.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/errors.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/report.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quick-junit-0.8.0/src/serialize.rs:

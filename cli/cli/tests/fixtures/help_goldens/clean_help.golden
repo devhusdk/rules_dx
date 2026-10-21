@@ -12,7 +12,7 @@ Options:
       --workspace <WORKSPACE>
           Use this workspace dir
 
-      --quiet[=<QUIET>]
+  -q, --quiet[=<QUIET>]
           Hide summaries. =false turns off an inherited default
           
           [possible values: true, false]
@@ -25,7 +25,7 @@ Options:
       --color <COLOR>
           Set color output
 
-      --output <OUTPUT>
+  -o, --output <OUTPUT>
           Set output format
 
       --bazel-startup-option <TOKEN>

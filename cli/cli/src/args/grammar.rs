@@ -128,6 +128,7 @@ flag_group! {
     QuietFlag, {
         #[arg(
             long,
+            short = 'q',
             action = clap::ArgAction::Set,
             num_args = 0..=1,
             require_equals = true,
@@ -167,7 +168,7 @@ flag_group! {
 flag_group! {
     /// Set output format.
     OutputFlag, {
-        #[arg(long, allow_negative_numbers = true, overrides_with = "output")]
+        #[arg(long, short = 'o', allow_negative_numbers = true, overrides_with = "output")]
         output: Option<String>,
     }
 }
@@ -675,6 +676,7 @@ pub fn cli_command() -> clap::Command {
 pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--workspace",
     "--output",
+    "-o",
     "--report",
     "--fail-on",
     "--min-coverage",

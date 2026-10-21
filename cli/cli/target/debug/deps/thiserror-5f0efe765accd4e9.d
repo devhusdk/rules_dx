@@ -1,0 +1,14 @@
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/thiserror-5f0efe765accd4e9.d: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/thiserror-35c6000b0895e27f/out/private.rs
+
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/libthiserror-5f0efe765accd4e9.rlib: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/thiserror-35c6000b0895e27f/out/private.rs
+
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/deps/libthiserror-5f0efe765accd4e9.rmeta: /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs /home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs /home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/thiserror-35c6000b0895e27f/out/private.rs
+
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/lib.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/aserror.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/display.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/var.rs:
+/home/marti/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.21/src/private.rs:
+/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/thiserror-35c6000b0895e27f/out/private.rs:
+
+# env-dep:OUT_DIR=/home/marti/code/rules_dx/.claude/worktrees/issue-1658/cli/cli/target/debug/build/thiserror-35c6000b0895e27f/out

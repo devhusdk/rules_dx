@@ -6,7 +6,7 @@ use crate::test_support::strings;
 fn strict_unknown_options_fail_with_whole_token() {
     for words in [
         vec!["lint", "--jobs=4"],
-        vec!["lint", "-q"],
+        vec!["lint", "-z"],
         vec!["lint", "--dry-run=yes"],
         vec!["lint", "--quiet=x"],
         vec!["lint", "--check=x"],

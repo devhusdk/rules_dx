@@ -687,10 +687,10 @@ mod tests {
         let flags = complete(&["dx", "build", "-"], root);
         for flag in [
             "--workspace",
-            "--quiet",
+            "-q",
             "-v",
             "--color",
-            "--output",
+            "-o",
             "--debug",
             "--release",
             "--here",

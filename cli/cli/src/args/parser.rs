@@ -80,34 +80,10 @@ pub struct StartupDefaults {
     pub config_source: Option<std::path::PathBuf>,
 }
 
-/// Reads the `--workspace` value off the raw command line, if one is spelled.
+/// Reads the workspace the canonical grammar selects, last flag winning.
 pub fn early_workspace_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
-    let words: Vec<&str> = args
-        .iter()
-        .map(|word| word.as_ref().to_str())
-        .take_while(|word| word.is_some_and(|word| word != "--"))
-        .map(|word| word.unwrap_or(""))
-        .collect();
-    let mut index = 0;
-    while index < words.len() {
-        let word = words[index];
-        if let Some(value) = word.strip_prefix("--workspace=") {
-            return (!value.is_empty()).then(|| value.to_owned());
-        }
-        if word == "--workspace" {
-            match words.get(index + 1) {
-                Some(next) if !next.is_empty() && !next.starts_with('-') => {
-                    return Some((*next).to_owned());
-                }
-                _ => return None,
-            }
-        }
-        if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
-            index += 1;
-        }
-        index += 1;
-    }
-    None
+    let value = super::tokenizer::selected_workspace(args)?;
+    value.into_string().ok().filter(|value| !value.is_empty())
 }
 
 /// Reads the last `--output` value off the raw command line, if one is spelled.
@@ -637,7 +613,7 @@ mod startup_tests {
         );
         assert_eq!(
             early_workspace_flag(&strings(&["--workspace", "/repo", "lint"])),
-            Some("/repo".to_owned())
+            None
         );
         assert_eq!(early_workspace_flag(&strings(&["lint"])), None);
         assert_eq!(
@@ -665,6 +641,32 @@ mod startup_tests {
                 "/repo"
             ])),
             Some("/repo".to_owned())
+        );
+    }
+
+    #[test]
+    fn early_workspace_flag_follows_the_last_spelling() {
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--workspace", "/a", "--workspace=/b"])),
+            Some("/b".to_owned())
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--workspace=/a", "--workspace", "/b"])),
+            Some("/b".to_owned())
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&[
+                "lint",
+                "--workspace",
+                "/a",
+                "--output",
+                "--workspace"
+            ])),
+            None
+        );
+        assert_eq!(
+            early_workspace_flag(&strings(&["lint", "--output", "--workspace", "//..."])),
+            None
         );
     }
 

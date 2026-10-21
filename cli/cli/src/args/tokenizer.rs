@@ -311,6 +311,17 @@ fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Option<Verb>, ArgsError> 
     .map_err(|error| map_clap_error(args, &error))
 }
 
+/// The workspace value the grammar selects, or none when the words do not parse.
+pub(crate) fn selected_workspace<S: AsRef<OsStr>>(args: &[S]) -> Option<OsString> {
+    let cli = Cli::try_parse_from(
+        std::iter::once(OsString::from("dx"))
+            .chain(args.iter().map(|arg| arg.as_ref().to_os_string())),
+    )
+    .ok()?;
+    let (_, flags, _, _) = cli.verb?.into_parts();
+    flags.workspace
+}
+
 /// The parsed invocation: the command, its flags, its scopes, and its `--` payload.
 pub(crate) struct Tokenized {
     pub(crate) command: Command,

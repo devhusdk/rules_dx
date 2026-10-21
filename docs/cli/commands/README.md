@@ -149,7 +149,7 @@ Any other non-empty value is a usage error. An empty value is unset.
 ## Config File
 
 `dx.toml` (committed) and `dx.local.toml` (local-only, gitignored) set the
-same defaults. `.dx/config.toml` and `.dx/config` are the legacy paths. A key
+same defaults. A key
 is the flag name without `--`.
 
 ```toml
@@ -170,10 +170,7 @@ Other supported sections in the same file stay valid.
 
 Commit shared
 defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local
-beats committed. When a directory holds both `.dx/config.toml` and
-`.dx/config`, the `.toml` one wins. A legacy file with a new file present is
-a usage error naming both files. Move legacy keys into `[dx]` in `dx.toml`
-or `dx.local.toml`, then remove the legacy file.
+beats committed. No other file is read for defaults.
 The nearest file to the working directory wins, and its values sit below the environment. The search
 reads the working directory and each directory above it, so a neighboring or
 nested workspace tree never supplies defaults. Under `bazel run` the search

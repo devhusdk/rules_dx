@@ -1969,7 +1969,7 @@ fn every_env_default_names_a_real_global_flag() {
         assert_eq!(
             dx_adopt::defaults::config_key(env),
             Some(flag.trim_start_matches("--")),
-            "{env} has no matching .dx/config.toml key"
+            "{env} has no matching dx.toml key"
         );
     }
 }
@@ -1999,8 +1999,8 @@ fn config_file_section_names_the_keys_and_files_the_parser_reads() {
         .map(|(_, body)| body)
         .expect("docs/cli/commands/README.md has a Config File section");
     for name in [
-        dx_adopt::defaults::CONFIG_TOML_REL,
-        dx_adopt::defaults::CONFIG_REL,
+        dx_adopt::defaults::DX_TOML_REL,
+        dx_adopt::defaults::DX_LOCAL_TOML_REL,
     ] {
         assert!(
             body.contains(&format!("`{name}`")),
@@ -2043,7 +2043,7 @@ fn config_file_section_names_the_keys_and_files_the_parser_reads() {
         "live only under `[dx]`",
         "boolean key takes",
         "`true` or `false`",
-        "the `.toml` one wins",
+        "No other file is read for defaults",
         "nearest file to the working directory wins",
     ] {
         assert!(

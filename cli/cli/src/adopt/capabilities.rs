@@ -440,7 +440,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-cap-secret-");
         std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx");
         std::fs::write(
-            scratch.path().join(".dx/config.toml"),
+            scratch.path().join("dx.toml"),
             "[dx]\noutput = \"text\"\n# redacted-secret-token-xyz\n",
         )
         .expect("config");

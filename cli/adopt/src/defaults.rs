@@ -26,16 +26,13 @@ pub const FALSEY: [&str; 1] = ["false"];
 /// Every documented boolean spelling, on spellings first.
 pub const BOOL_SPELLINGS: &str = "true|false";
 
-/// The `.dx/config.toml` key that carries the same default as an env var.
+/// The `dx.toml` key that carries the same default as an env var.
 pub fn config_key(env: &str) -> Option<&'static str> {
     ENV_DEFAULTS
         .iter()
         .find(|(name, _, _)| *name == env)
         .map(|(_, flag, _)| flag.trim_start_matches("--"))
 }
-
-pub const CONFIG_TOML_REL: &str = ".dx/config.toml";
-pub const CONFIG_REL: &str = ".dx/config";
 
 pub const DX_TOML_REL: &str = "dx.toml";
 pub const DX_LOCAL_TOML_REL: &str = "dx.local.toml";
@@ -175,7 +172,6 @@ struct ConfigFile {
 pub struct ConfigSources {
     pub committed: Option<PathBuf>,
     pub local: Option<PathBuf>,
-    pub legacy: Option<PathBuf>,
 }
 
 fn non_empty(value: Option<String>) -> Option<String> {
@@ -319,12 +315,7 @@ pub fn find_new_configs(start: &Path) -> (Option<PathBuf>, Option<PathBuf>) {
 
 pub fn find_config_sources(start: &Path) -> ConfigSources {
     let (committed, local) = find_new_configs(start);
-    let legacy = find_config(start);
-    ConfigSources {
-        committed,
-        local,
-        legacy,
-    }
+    ConfigSources { committed, local }
 }
 
 fn read_defaults_file(path: &Path) -> Result<FileDefaults, super::AdoptError> {
@@ -350,22 +341,6 @@ pub fn load_defaults_with_mode(
     } else {
         sources.local.clone()
     };
-    let legacy = sources.legacy.clone();
-    if (committed.is_some() || local.is_some()) && legacy.is_some() {
-        return Err(super::AdoptError::InvalidDefaults {
-            detail: format!(
-                "legacy {} and new {} both present; move [dx] keys into dx.toml (committed) or dx.local.toml (local-only), then remove {}; no automatic edits",
-                legacy.as_ref().map(|p| p.display().to_string()).unwrap_or_default(),
-                [committed.as_ref(), local.as_ref()]
-                    .into_iter()
-                    .flatten()
-                    .map(|p| p.display().to_string())
-                    .collect::<Vec<_>>()
-                    .join(" and "),
-                legacy.as_ref().map(|p| p.display().to_string()).unwrap_or_default(),
-            ),
-        });
-    }
     if committed.is_some() || local.is_some() {
         let mut merged = FileDefaults::default();
         if let Some(path) = &committed {
@@ -377,28 +352,7 @@ pub fn load_defaults_with_mode(
         let primary = local.or(committed);
         return Ok((merged, primary));
     }
-    let Some(path) = legacy else {
-        return Ok((FileDefaults::default(), None));
-    };
-    Ok((read_defaults_file(&path)?, Some(path)))
-}
-
-/// The nearest config file at or above `start`, `.dx/config.toml` before `.dx/config`.
-///
-/// The search reads `start` and then every ancestor directory up to the filesystem
-/// root. It never reads a descendant, a sibling, or an unrelated workspace tree.
-pub fn find_config(start: &Path) -> Option<PathBuf> {
-    for dir in start.ancestors() {
-        let toml = dir.join(CONFIG_TOML_REL);
-        if toml.is_file() {
-            return Some(toml);
-        }
-        let plain = dir.join(CONFIG_REL);
-        if plain.is_file() {
-            return Some(plain);
-        }
-    }
-    None
+    Ok((FileDefaults::default(), None))
 }
 
 pub fn load_defaults(start: &Path) -> Result<(FileDefaults, Option<PathBuf>), super::AdoptError> {
@@ -731,19 +685,17 @@ mod tests {
         let sub = root.join("sub/dir");
         std::fs::create_dir_all(sub.join(".dx")).expect("dirs");
         std::fs::create_dir_all(root.join(".dx")).expect("root dx");
-        std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n")
-            .expect("root config");
-        std::fs::write(sub.join(".dx/config.toml"), "[dx]\noutput = \"diff\"\n")
-            .expect("sub config");
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("root config");
+        std::fs::write(sub.join("dx.toml"), "[dx]\noutput = \"diff\"\n").expect("sub config");
         assert_eq!(
-            find_config(&sub),
-            Some(sub.join(".dx/config.toml")),
+            find_new_configs(&sub).0,
+            Some(sub.join("dx.toml")),
             "nearest file wins"
         );
         let (defaults, path) = load_defaults(&sub).expect("loads nearest");
         assert_eq!(defaults.output, Some("diff".to_owned()));
-        assert_eq!(path, Some(sub.join(".dx/config.toml")));
-        std::fs::remove_file(sub.join(".dx/config.toml")).expect("remove sub");
+        assert_eq!(path, Some(sub.join("dx.toml")));
+        std::fs::remove_file(sub.join("dx.toml")).expect("remove sub");
         let (defaults, _) = load_defaults(&sub).expect("falls back upward");
         assert_eq!(defaults.output, Some("json".to_owned()));
         scratch.close().expect("cleanup");
@@ -760,34 +712,31 @@ mod tests {
         std::fs::create_dir_all(neighbor.join(".dx")).expect("neighbor dx");
         std::fs::create_dir_all(&mine).expect("mine");
         std::fs::create_dir_all(below.join(".dx")).expect("deeper dx");
-        std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n")
-            .expect("root config");
-        std::fs::write(
-            neighbor.join(".dx/config.toml"),
-            "[dx]\noutput = \"diff\"\n",
-        )
-        .expect("neighbor config");
-        std::fs::write(below.join(".dx/config.toml"), "[dx]\noutput = \"text\"\n")
-            .expect("deeper config");
+        std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("root config");
+        std::fs::write(neighbor.join("dx.toml"), "[dx]\noutput = \"diff\"\n")
+            .expect("neighbor config");
+        std::fs::write(below.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("deeper config");
         assert_eq!(
-            find_config(&below),
-            Some(below.join(".dx/config.toml")),
+            find_new_configs(&below).0,
+            Some(below.join("dx.toml")),
             "the nearest ancestor supplies the defaults"
         );
         assert_eq!(
-            find_config(&mine),
-            Some(root.join(".dx/config.toml")),
+            find_new_configs(&mine).0,
+            Some(root.join("dx.toml")),
             "a descendant never supplies the defaults"
         );
-        let found = find_config(&root.join("mine")).expect("parent discovery is intentional");
-        assert_eq!(found, root.join(".dx/config.toml"));
+        let found = find_new_configs(&root.join("mine"))
+            .0
+            .expect("parent discovery is intentional");
+        assert_eq!(found, root.join("dx.toml"));
         assert!(
             !found.starts_with(&neighbor),
             "a neighboring workspace never supplies the defaults: {found:?}"
         );
         let (defaults, path) = load_defaults(&root.join("mine")).expect("loads the ancestor");
         assert_eq!(defaults.output, Some("json".to_owned()));
-        assert_eq!(path, Some(root.join(".dx/config.toml")));
+        assert_eq!(path, Some(root.join("dx.toml")));
         scratch.close().expect("cleanup");
     }
 
@@ -799,9 +748,9 @@ mod tests {
         assert_eq!(defaults, FileDefaults::default());
         assert_eq!(path, None);
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/config.toml"), "not toml = [").expect("bad config");
+        std::fs::write(root.join("dx.toml"), "not toml = [").expect("bad config");
         assert!(load_defaults(&root).is_err());
-        std::fs::write(root.join(".dx/config.toml"), "[dx]\nqiet = true\n").expect("typo");
+        std::fs::write(root.join("dx.toml"), "[dx]\nqiet = true\n").expect("typo");
         let error = load_defaults(&root).expect_err("a misspelled key is not ignored");
         let rendered = error.to_string();
         assert!(
@@ -809,7 +758,7 @@ mod tests {
             "the diagnostic names the file and the key: {rendered}"
         );
         assert!(
-            rendered.contains(&root.join(".dx/config.toml").display().to_string()),
+            rendered.contains(&root.join("dx.toml").display().to_string()),
             "the diagnostic names the file: {rendered}"
         );
         scratch.close().expect("cleanup");
@@ -885,17 +834,24 @@ mod tests {
     }
 
     #[test]
-    fn legacy_and_new_together_fail_with_both_paths() {
-        let scratch = dx_test_scratch::scratch("dx-defaults-conflict-");
+    fn obsolete_dx_config_files_are_never_read() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-obsolete-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/config.toml"), "[dx]\noutput = \"json\"\n").expect("legacy");
+        let bad = "not toml = [";
+        std::fs::write(root.join(".dx/config.toml"), bad).expect("obsolete toml");
+        std::fs::write(root.join(".dx/config"), bad).expect("obsolete plain");
+        let (defaults, path) = load_defaults(&root).expect("obsolete files are ignored");
+        assert_eq!(defaults, FileDefaults::default());
+        assert_eq!(path, None);
         std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("new");
-        let error = load_defaults(&root).expect_err("conflict fails");
-        let rendered = error.to_string();
-        assert!(rendered.contains(".dx/config.toml"), "{rendered}");
-        assert!(rendered.contains("dx.toml"), "{rendered}");
-        assert!(rendered.contains("dx.local.toml"), "{rendered}");
+        let (defaults, path) = load_defaults(&root).expect("new file loads");
+        assert_eq!(defaults.output, Some("text".to_owned()));
+        assert_eq!(path, Some(root.join("dx.toml")));
+        for name in ["config.toml", "config"] {
+            let bytes = std::fs::read_to_string(root.join(".dx").join(name)).expect("read");
+            assert_eq!(bytes, bad);
+        }
         scratch.close().expect("cleanup");
     }
 

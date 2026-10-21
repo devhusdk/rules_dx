@@ -339,7 +339,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     std::fs::create_dir(root.join(".dx")).expect("dx");
     std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-    let config = root.join(".dx/config.toml");
+    let config = root.join("dx.toml");
     std::fs::write(&config, "[dx]\nquiet = true\nverbose = true\n").expect("defaults");
     let run = |words: &[&str], envs: &[(&str, &str)]| {
         let mut command = assert_cmd::Command::new(dx_binary());
@@ -383,7 +383,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     assert_eq!(code, Some(2), "a misspelled key is a usage error: {err}");
     assert_startup_outcome(&out, "invalid_defaults", 2);
     assert!(
-        err.contains("config.toml"),
+        err.contains("dx.toml"),
         "the diagnostic names the file: {err}"
     );
     std::fs::write(&config, "[dx]\nquiet = true\n").expect("valid");
@@ -461,7 +461,7 @@ fn workspace_with_output(name: &str, output: &str) -> dx_test_scratch::TempDir {
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
     std::fs::write(
-        scratch.path().join(".dx/config.toml"),
+        scratch.path().join("dx.toml"),
         format!("[dx]\noutput = \"{output}\"\n"),
     )
     .expect("defaults");
@@ -473,7 +473,7 @@ fn help_works_with_a_malformed_config_but_operations_fail_closed() {
     let scratch = dx_test_scratch::scratch("dx-startup-malformed-help-");
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
-    std::fs::write(scratch.path().join(".dx/config.toml"), "not toml = [").expect("bad config");
+    std::fs::write(scratch.path().join("dx.toml"), "not toml = [").expect("bad config");
     let root = scratch.path();
     let (code, out, _) = run_dx(root, &["--help"], &[]);
     assert_eq!(code, Some(0), "--help works with a malformed config");
@@ -488,7 +488,7 @@ fn help_works_with_a_malformed_config_but_operations_fail_closed() {
     assert_eq!(code, Some(2), "an operation still fails closed: {err}");
     assert!(out.is_empty(), "no events for a usage error: {out}");
     assert!(
-        err.contains("config.toml"),
+        err.contains("dx.toml"),
         "the diagnostic names the file: {err}"
     );
     scratch.close().expect("cleanup");
@@ -611,7 +611,7 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
     std::fs::write(a.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(a.path().join(".dx")).expect("dx");
     std::fs::write(
-        a.path().join(".dx/config.toml"),
+        a.path().join("dx.toml"),
         format!("[dx]\nworkspace = \"{b_dir}\"\n"),
     )
     .expect("redirect");
@@ -623,7 +623,7 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
     );
     let a_dir = a.path().to_string_lossy().into_owned();
     std::fs::write(
-        b.path().join(".dx/config.toml"),
+        b.path().join("dx.toml"),
         format!("[dx]\noutput = \"text\"\nworkspace = \"{a_dir}\"\n"),
     )
     .expect("cycle");
@@ -696,11 +696,8 @@ fn removed_dry_run_is_rejected_from_every_source() {
     }
     for key in ["dry_run", "dry-run"] {
         for value in ["true", "false"] {
-            std::fs::write(
-                root.join(".dx/config.toml"),
-                format!("[dx]\n{key} = {value}\n"),
-            )
-            .expect("config");
+            std::fs::write(root.join("dx.toml"), format!("[dx]\n{key} = {value}\n"))
+                .expect("config");
             let (code, _, err) = run_dx(root, &["lint"], &[]);
             assert_eq!(code, Some(2), "{key}={value}: {err}");
             assert!(err.contains("was removed"), "{err}");

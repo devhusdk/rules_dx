@@ -428,31 +428,23 @@ fn file_defaults_load_from_workspace_and_reject_invalid_toml() {
     );
     std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("workspace");
     std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
-    std::fs::write(
-        scratch.path().join(".dx/config.toml"),
-        "[dx]\nquiet = true\n",
-    )
-    .expect("defaults");
+    std::fs::write(scratch.path().join("dx.toml"), "[dx]\nquiet = true\n").expect("defaults");
     assert_eq!(
         super::load_file_defaults(scratch.path())
             .expect("defaults")
             .quiet,
         Some(true)
     );
-    std::fs::write(scratch.path().join(".dx/config.toml"), "[broken").expect("bad defaults");
+    std::fs::write(scratch.path().join("dx.toml"), "[broken").expect("bad defaults");
     assert!(super::load_file_defaults(scratch.path()).is_err());
-    std::fs::write(
-        scratch.path().join(".dx/config.toml"),
-        "[dx]\nqiet = true\n",
-    )
-    .expect("misspelled key");
+    std::fs::write(scratch.path().join("dx.toml"), "[dx]\nqiet = true\n").expect("misspelled key");
     let detail = super::load_file_defaults(scratch.path()).expect_err("a typo is not ignored");
     assert!(
         detail.contains("unknown field `qiet`"),
         "the diagnostic names the key: {detail}"
     );
     assert!(
-        detail.contains("config.toml"),
+        detail.contains("dx.toml"),
         "the diagnostic names the file: {detail}"
     );
 }

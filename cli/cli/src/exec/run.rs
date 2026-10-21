@@ -439,7 +439,6 @@ mod tests {
             min_coverage: None,
             targets: vec!["//app:bin".to_owned()],
             bazel_options: Vec::new(),
-            bazel_clean: false,
             prune_unobserved: false,
             configured: false,
             from: None,

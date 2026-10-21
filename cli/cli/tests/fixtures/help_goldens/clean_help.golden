@@ -1,8 +1,8 @@
-dx clean - prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
+dx clean - prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
 
-prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
+prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
 
-Usage: dx clean [--check] [--apply] [--bazel] [--prune-unobserved]
+Usage: dx clean [--check] [--apply] [--prune-unobserved]
 
 Arguments:
   [TARGETS]...
@@ -37,16 +37,13 @@ Options:
       --apply
           Authorize the managed mutation or effect
 
-      --bazel
-          Also run bazel clean
-
       --prune-unobserved
           Prune generations process observation cannot see
 
   -h, --help
           Print help
 
-Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).
+Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). Never touches Bazel outputs; --output text|json only, diff has no patch. --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).
 
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.

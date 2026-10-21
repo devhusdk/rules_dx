@@ -68,7 +68,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 8] = [
     (
         "--configured",
         &["--configured"],
@@ -80,7 +80,6 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
     ("--port", &["--serve", "--port=8080"], &["docs"]),
     ("--host", &["--serve", "--host=127.0.0.1"], &["docs"]),
     ("--open", &["--serve", "--open"], &["docs"]),
-    ("--bazel", &["--bazel"], &["clean"]),
     ("--prune-unobserved", &["--prune-unobserved"], &["clean"]),
 ];
 
@@ -1102,7 +1101,6 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         vec!["env", "--from=0.1.0"],
         vec!["codegen", "--configured"],
         vec!["env", "--configured"],
-        vec!["codegen", "--bazel"],
     ] {
         assert!(
             matches!(

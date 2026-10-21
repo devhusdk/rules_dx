@@ -145,7 +145,10 @@ fn strict_repeated_flags_are_last_wins() {
         (vec!["lint", "--quiet", "--quiet"], Command::Lint),
         (vec!["build", "-vv"], Command::Build),
         (vec!["update", "--offline", "--frozen"], Command::Update),
-        (vec!["clean", "--bazel", "--bazel"], Command::Clean),
+        (
+            vec!["clean", "--prune-unobserved", "--prune-unobserved"],
+            Command::Clean,
+        ),
     ] {
         let got =
             parse(&strings(&words)).unwrap_or_else(|error| panic!("words: {words:?}: {error}"));
@@ -349,7 +352,6 @@ fn strict_known_flags_on_wrong_commands_fail_as_unsupported() {
         vec!["build", "--open"],
         vec!["lint", "--min-coverage=80"],
         vec!["build", "--check"],
-        vec!["lint", "--bazel"],
     ] {
         assert!(
             matches!(

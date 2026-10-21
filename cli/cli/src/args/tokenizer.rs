@@ -49,6 +49,9 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
             if let Some(text) = removed_version_flag(args, error) {
                 return ArgsError::Usage { text };
             }
+            if let Some(text) = removed_clean_flag(args, error) {
+                return ArgsError::Usage { text };
+            }
             if let Some(text) = removed_receipt_flag(error) {
                 return ArgsError::Usage { text };
             }
@@ -103,6 +106,29 @@ fn removed_receipt_flag(error: &clap::Error) -> Option<String> {
     Some(format!(
         "error: unsupported option '{flag}'\n\n  tip: {tip}"
     ))
+}
+
+fn removed_clean_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<String> {
+    use clap::error::{ContextKind, ContextValue};
+    let flag = match error.get(ContextKind::InvalidArg) {
+        Some(ContextValue::String(token)) => reported_flag(token)?,
+        _ => return None,
+    };
+    if flag != "--bazel" {
+        return None;
+    }
+    let is_clean = args
+        .iter()
+        .filter_map(|word| word.as_ref().to_str())
+        .find(|word| Command::parse(word).is_some())
+        == Some("clean");
+    if !is_clean {
+        return None;
+    }
+    Some(
+        "error: unsupported option '--bazel' for dx clean\n\n  tip: dx clean only prunes managed state; run `bazel clean` to clean Bazel outputs"
+            .to_owned(),
+    )
 }
 
 fn removed_version_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<String> {

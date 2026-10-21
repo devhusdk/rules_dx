@@ -22,7 +22,7 @@ Commands:
   deploy      build and run a single deployable target
   check       run format+lint+typecheck+generate checks in order (non-mutating)
   fix         apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
-  clean       prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
+  clean       prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
   update      update dependencies per set through qualified resolvers (check by default; --apply writes updates)
   bump        widen one declared requirement to a new version (check by default; --apply widens)
   migrate     rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)

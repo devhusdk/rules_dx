@@ -178,8 +178,7 @@ pub fn usage_banner() -> String {
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
-per-command flags: clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
---prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
+per-command flags: clean --prune-unobserved (prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
 coverage --min-coverage; build|run|test|deploy|watch --debug|--release; \
 version --check; docs --check|--serve|--port|--host|--open; \
 completion <{shells}>. \
@@ -431,11 +430,10 @@ mod tests {
             other => panic!("clean --help: want Help, got {other:?}"),
         };
         assert!(
-            clean.contains("clean [--check] [--apply] [--bazel] [--prune-unobserved]"),
+            clean.contains("clean [--check] [--apply] [--prune-unobserved]"),
             "clean usage:\n{clean}"
         );
         assert!(clean.contains("--apply"), "clean flags:\n{clean}");
-        assert!(clean.contains("--bazel"), "clean flags:\n{clean}");
         assert!(
             clean.contains("--prune-unobserved"),
             "clean flags:\n{clean}"
@@ -468,8 +466,8 @@ mod tests {
             };
             assert!(text.contains("[--configured]"), "{command} usage:\n{text}");
             assert!(
-                text.contains("distinct from `dx clean --bazel`"),
-                "{command} disambiguation:\n{text}"
+                !text.contains("dx clean --bazel"),
+                "{command} help:\n{text}"
             );
         }
         let coverage = match parse(&strings(&["coverage", "--help"])) {

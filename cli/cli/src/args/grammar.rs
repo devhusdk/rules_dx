@@ -61,7 +61,6 @@ pub(crate) struct Flags {
     pub(crate) apply: bool,
     pub(crate) debug: bool,
     pub(crate) release: bool,
-    pub(crate) bazel_clean: bool,
     pub(crate) prune_unobserved: bool,
     pub(crate) configured: bool,
     pub(crate) from: Option<String>,
@@ -252,14 +251,6 @@ flag_group! {
     ReleaseFlag, {
         #[arg(long, overrides_with = "release", conflicts_with = "debug")]
         release: bool,
-    }
-}
-
-flag_group! {
-    /// Also run bazel clean.
-    BazelCleanFlag, {
-        #[arg(long = "bazel", overrides_with = "bazel_clean")]
-        bazel_clean: bool,
     }
 }
 
@@ -598,7 +589,7 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, own: BazelCleanFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         offline: OfflineFlag,

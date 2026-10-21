@@ -67,9 +67,6 @@ mod tests {
         Command::Check,
         Command::Security,
         Command::License,
-        Command::Owners,
-        Command::Deps,
-        Command::Why,
         Command::Tests,
     ];
 

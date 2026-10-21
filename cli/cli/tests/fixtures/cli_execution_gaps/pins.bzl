@@ -18,7 +18,6 @@ NOT_WATCHABLE_COMMANDS = [
     "codegen",
     "completion",
     "coverage",
-    "deps",
     "deploy",
     "docs",
     "env",
@@ -27,7 +26,6 @@ NOT_WATCHABLE_COMMANDS = [
     "license",
     "migrate",
     "new",
-    "owners",
     "rollback",
     "security",
     "status",
@@ -36,9 +34,8 @@ NOT_WATCHABLE_COMMANDS = [
     "upgrade",
     "version",
     "watch",
-    "why",
 ]
-NOT_WATCHABLE_COUNT = 24
+NOT_WATCHABLE_COUNT = 21
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -89,9 +86,6 @@ REPORT_NONE = [
     "status",
     "version",
     "watch",
-    "owners",
-    "deps",
-    "why",
     "upgrade",
     "rollback",
     "completion",

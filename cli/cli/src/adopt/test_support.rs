@@ -27,22 +27,6 @@ pub(crate) fn env<'a>(
 ) -> AdoptEnv<'a> {
     AdoptEnv {
         workspace: root,
-        query_runner: &NullQuery,
-        out,
-        err,
-    }
-}
-
-/// The same, with a caller-chosen query runner.
-pub(crate) fn env_with_query<'a>(
-    root: &'a Path,
-    query: &'a dyn QueryRunner,
-    out: &'a mut dyn Write,
-    err: &'a mut dyn Write,
-) -> AdoptEnv<'a> {
-    AdoptEnv {
-        workspace: root,
-        query_runner: query,
         out,
         err,
     }
@@ -53,18 +37,6 @@ pub(crate) fn run(inv: &Invocation, root: &Path) -> (i32, String, String) {
     let mut out = Vec::new();
     let mut err = Vec::new();
     let code = execute_adoption(inv, env(root, &mut out, &mut err));
-    spoken(code, out, err)
-}
-
-/// The same, with a caller-chosen query runner.
-pub(crate) fn run_with_query(
-    inv: &Invocation,
-    root: &Path,
-    query: &dyn QueryRunner,
-) -> (i32, String, String) {
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute_adoption(inv, env_with_query(root, query, &mut out, &mut err));
     spoken(code, out, err)
 }
 
@@ -134,19 +106,6 @@ mod tests {
     use super::*;
     use dx_process::pre_exec_code;
 
-    /// A query runner that answers every call with the same targets.
-    struct FixedQuery(&'static str);
-
-    impl QueryRunner for FixedQuery {
-        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
-            Ok(QueryResult {
-                code: Some(0),
-                stdout: self.0.as_bytes().to_vec(),
-                stderr: Vec::new(),
-            })
-        }
-    }
-
     fn kind(result: io::Result<usize>) -> Result<usize, io::ErrorKind> {
         result.map_err(|error| error.kind())
     }
@@ -172,28 +131,6 @@ mod tests {
         assert_eq!(code, pre_exec_code());
         assert!(out.is_empty(), "{out}");
         assert!(err.contains("unknown language"), "{err}");
-    }
-
-    #[test]
-    fn run_with_query_answers_from_the_query_it_is_given() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-run-query-");
-        let (code, out, err) = run_with_query(
-            &invocation(&["owners", "//a:one"]),
-            scratch.path(),
-            &FixedQuery("//z:other\n"),
-        );
-        assert_eq!(code, 0);
-        assert_eq!(out, "//z:other\n");
-        assert!(err.is_empty(), "{err}");
-
-        let (code, out, err) = run_with_query(
-            &invocation(&["why", "src/lib.rs", "//app:server"]),
-            scratch.path(),
-            &FixedQuery(""),
-        );
-        assert_eq!(code, 1);
-        assert!(!out.contains("//app:server"), "{out}");
-        assert!(err.contains("no owner"), "{err}");
     }
 
     #[test]

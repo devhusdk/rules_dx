@@ -13,7 +13,6 @@ rust_library(
         "src/adopt.rs",
         "src/adopt/completion.rs",
         "src/adopt/init.rs",
-        "src/adopt/inspect.rs",
         "src/adopt/new.rs",
         "src/adopt/rollback.rs",
         "src/adopt/status.rs",

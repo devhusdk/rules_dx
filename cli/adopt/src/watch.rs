@@ -161,19 +161,16 @@ mod tests {
             "codegen",
             "completion",
             "coverage",
-            "deps",
             "deploy",
             "docs",
             "env",
             "generate",
             "init",
             "migrate",
-            "owners",
             "status",
             "update",
             "version",
             "watch",
-            "why",
         ] {
             let err = plan_watch(not_watchable, false).expect_err("not watchable");
             assert_eq!(

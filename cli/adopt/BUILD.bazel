@@ -12,7 +12,6 @@ dx_rust_crate(
         "src/dependency_sets.rs",
         "src/error.rs",
         "src/git_changes.rs",
-        "src/inspect.rs",
         "src/lib.rs",
         "src/migrate.rs",
         "src/new.rs",

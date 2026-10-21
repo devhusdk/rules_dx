@@ -178,7 +178,7 @@ pub fn usage_banner() -> String {
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
-per-command flags: clean --prune-unobserved (prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
+per-command flags: clean --prune-unobserved (prunes generations no observation protects); tests --configured (cquery); tests --cases (enumerate supported cases); \
 coverage --min-coverage; build|run|test|deploy|watch --debug|--release; \
 version --check; docs --check|--serve|--port|--host|--open; \
 completion <{shells}>. \
@@ -459,17 +459,6 @@ mod tests {
             check_help.contains("non-mutating"),
             "check mode:\n{check_help}"
         );
-        for command in ["owners", "deps", "why"] {
-            let text = match parse(&strings(&[command, "--help"])) {
-                Err(ArgsError::Help { text }) => text,
-                other => panic!("{command} --help: want Help, got {other:?}"),
-            };
-            assert!(text.contains("[--configured]"), "{command} usage:\n{text}");
-            assert!(
-                !text.contains("dx clean --bazel"),
-                "{command} help:\n{text}"
-            );
-        }
         let coverage = match parse(&strings(&["coverage", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("coverage --help: want Help, got {other:?}"),
@@ -537,10 +526,8 @@ mod tests {
         match command {
             Command::Bump => owned(&["rust:serde", "1.0.0"]),
             Command::Migrate | Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
-            Command::Why => owned(&["README.md", "//:all"]),
             Command::Completion => owned(&["bash"]),
             Command::Watch => owned(&["build"]),
-            Command::Owners | Command::Deps => owned(&["//:all"]),
             Command::New => owned(&["rust"]),
             _ => Vec::new(),
         }

@@ -16,12 +16,6 @@ pub enum AdoptError {
     WatchRefusesCi,
     #[error("not watchable: {command}")]
     NotWatchable { command: String },
-    #[error("rejected scope: {scope}")]
-    RejectedScope { scope: String },
-    #[error("dx why needs <file> <label>: resolve the file owner first, then plan_somepath")]
-    WhyNeedsOwner,
-    #[error("unknown inspect: {kind}")]
-    UnknownInspect { kind: String },
     #[error("unknown-shell: {shell}")]
     UnknownShell { shell: String },
     #[error("watch spawn failed: {detail}")]
@@ -151,29 +145,11 @@ mod tests {
             "not watchable: docs"
         );
         assert_eq!(
-            AdoptError::RejectedScope {
-                scope: "//a:one".to_owned()
-            }
-            .to_string(),
-            "rejected scope: //a:one"
-        );
-        assert_eq!(
             AdoptError::UnknownShell {
                 shell: "tcsh".to_owned()
             }
             .to_string(),
             "unknown-shell: tcsh"
-        );
-        assert_eq!(
-            AdoptError::UnknownInspect {
-                kind: "bogus".to_owned()
-            }
-            .to_string(),
-            "unknown inspect: bogus"
-        );
-        assert_eq!(
-            AdoptError::WhyNeedsOwner.to_string(),
-            "dx why needs <file> <label>: resolve the file owner first, then plan_somepath"
         );
         assert_eq!(
             AdoptError::EmptyVersion.to_string(),

@@ -143,9 +143,6 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Status
         | Command::Version
         | Command::Watch
-        | Command::Owners
-        | Command::Deps
-        | Command::Why
         | Command::Completion => CommandSpec {
             command,
             aspects: &[],

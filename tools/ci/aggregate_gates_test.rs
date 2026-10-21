@@ -134,3 +134,48 @@ fn the_consumer_gate_requires_every_declared_check() {
         );
     }
 }
+
+/// Returns the trigger table of a workflow, whichever way the parser keys `on`.
+fn triggers(workflow: &str) -> Value {
+    let document = document(workflow);
+    if document["on"].is_object() {
+        return document["on"].clone();
+    }
+    document["true"].clone()
+}
+
+#[test]
+fn every_gate_workflow_runs_on_merge_group_checks_requested() {
+    for workflow in [
+        CI_WORKFLOW,
+        "examples/consumer-ci/caller.yml",
+        "examples/docs-ci/caller.yml",
+    ] {
+        let on = triggers(workflow);
+        assert_eq!(
+            on["merge_group"]["types"],
+            json!(["checks_requested"]),
+            "{workflow} must subscribe to merge_group checks_requested: {on}"
+        );
+    }
+}
+
+#[test]
+fn pull_request_comments_stay_pull_request_only() {
+    let text = read_runfiles(CONSUMER_WORKFLOW);
+    assert!(
+        text.contains("if: github.event_name == 'pull_request'\n        env:\n          GH_TOKEN"),
+        "the PR comment step must stay gated to pull_request"
+    );
+}
+
+#[test]
+fn pages_publication_stays_on_main_push_only() {
+    let text = read_runfiles("examples/docs-ci/caller.yml");
+    assert!(
+        text.contains(
+            "publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
+        ),
+        "publish must be limited to pushes to main"
+    );
+}

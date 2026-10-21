@@ -29,7 +29,7 @@ rust_library(
         "src/lib_tests.rs",
     ],
     aliases = aliases(
-        package_name = "docs/site/site_browser",
+        package_name = "tools/docs/site/site_browser",
         normal = True,
     ),
     crate_name = "dx_site_browser",
@@ -37,7 +37,7 @@ rust_library(
     edition = "2021",
     deps = crate_deps(
         ["serde_json"],
-        package_name = "docs/site/site_browser",
+        package_name = "tools/docs/site/site_browser",
     ),
 )
 
@@ -45,14 +45,14 @@ rust_test(
     name = "dx_site_browser_test",
     size = "small",
     aliases = aliases(
-        package_name = "docs/site/site_browser",
+        package_name = "tools/docs/site/site_browser",
         normal = True,
         normal_dev = True,
     ),
     crate = ":dx_site_browser",
     deps = crate_deps(
         ["serde_json"],
-        package_name = "docs/site/site_browser",
+        package_name = "tools/docs/site/site_browser",
     ) + ["//tools/testing:dx_testing"],
 )
 

@@ -2,8 +2,8 @@ load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 
-# gazelle:resolve rust proto //docs/ir:doc_ir_proto_rs
-# gazelle:resolve rust doc_ir_proto //docs/ir:doc_ir_proto_rs
+# gazelle:resolve rust proto //tools/docs/ir:doc_ir_proto_rs
+# gazelle:resolve rust doc_ir_proto //tools/docs/ir:doc_ir_proto_rs
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -11,7 +11,7 @@ rust_library(
     name = "documentation_ir",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "docs/ir/documentation_ir",
+        package_name = "tools/docs/ir/documentation_ir",
         normal = True,
     ),
     crate_name = "documentation_ir",
@@ -19,12 +19,12 @@ rust_library(
     edition = "2021",
     deps = crate_deps(
         [],
-        package_name = "docs/ir/documentation_ir",
+        package_name = "tools/docs/ir/documentation_ir",
     ) + [
         "//cli/path:dx_path",
         "//cli/proto_validate:dx_proto_validate",
         "//cli/schema:dx_schema",
-        "//docs/ir:doc_ir_proto_rs",
+        "//tools/docs/ir:doc_ir_proto_rs",
     ],
 )
 
@@ -32,16 +32,16 @@ rust_test(
     name = "documentation_ir_test",
     size = "small",
     aliases = aliases(
-        package_name = "docs/ir/documentation_ir",
+        package_name = "tools/docs/ir/documentation_ir",
         normal = True,
         normal_dev = True,
     ),
     crate = ":documentation_ir",
     deps = crate_deps(
         [],
-        package_name = "docs/ir/documentation_ir",
+        package_name = "tools/docs/ir/documentation_ir",
     ) + [
-        "//docs/ir:doc_ir_proto_rs",
+        "//tools/docs/ir:doc_ir_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -51,7 +51,7 @@ rust_test(
     name = "site_shard_test",
     size = "small",
     srcs = ["site_shard_test.rs"],
-    data = ["//docs/site:demo_extract"],
+    data = ["//tools/docs/site:demo_extract"],
     deps = [
         ":documentation_ir",
         "//tools/testing:dx_testing",

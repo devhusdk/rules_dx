@@ -224,13 +224,13 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- docs -- "$@"
           stage="$RUNNER_TEMP/pages"
-          site="$(bazel cquery "$@" --output=files //docs/site:user_site)"
+          site="$(bazel cquery "$@" --output=files //tools/docs/site:user_site)"
           test -f "$site/index.html"
           test -f "$site/searchindex.js"
           rm -rf "$stage"
           mkdir -p "$stage"
           cp -R "$site/." "$stage/"
-          bazel run "$@" //docs/site/check:site_check -- --rendered "$stage" --landing \
+          bazel run "$@" //tools/docs/site/check:site_check -- --rendered "$stage" --landing \
             --forbid "Treat warnings as errors" \
             --forbid "AccountService" \
             --forbid "Python demo package"
@@ -422,7 +422,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           stage="$RUNNER_TEMP/pages"
-          site="$(bazel cquery "$@" --output=files //docs/site:user_site)"
+          site="$(bazel cquery "$@" --output=files //tools/docs/site:user_site)"
           test -f "$site/index.html"
           test -f "$site/searchindex.js"
           test -f "$site/css/general.css"
@@ -436,7 +436,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" //docs/site/check:site_check -- --rendered "$PAGES_STAGE" --landing \
+          bazel run "$@" //tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" --landing \
             --forbid "Treat warnings as errors" \
             --forbid "AccountService" \
             --forbid "Python demo package"
@@ -455,7 +455,7 @@ jobs:
           test -n "$PAGES_URL"
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test "$@" --test_env=DX_PAGES_URL="$PAGES_URL" //docs/site:deploy_smoke_test
+          bazel test "$@" --test_env=DX_PAGES_URL="$PAGES_URL" //tools/docs/site:deploy_smoke_test
       - name: Prove checkout left clean
         # Bazel rewrites the lockfile on BCR drift; renderer dirt fails here.
         run: |

@@ -1,7 +1,7 @@
 use documentation_ir::{decode_shard_text, encode_shard, proto, SCHEMA_MAJOR, SCHEMA_MINOR};
 use proto::{DocIr, Symbol};
 
-const SHARD: &str = "docs/site/demo_extract.ir.textproto";
+const SHARD: &str = "tools/docs/site/demo_extract.ir.textproto";
 
 const ID_NAMES: [&str; 6] = [
     "AccountService",

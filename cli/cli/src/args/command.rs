@@ -995,7 +995,7 @@ pub static COMMANDS: [CommandMeta; 37] = [
         describe: "build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)",
         usage: "Usage: dx docs [--check] [--apply] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]",
         flags: "Per-command flags: --check/--serve/--port/--host/--open (docs only; `-- --bazel-options` pass through to the docs build; --check validates the book without rendering it, --serve previews the last build locally, --port/--host/--open require --serve; --output text|json only, diff has no patch). --apply authorizes rendering and serving.",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//docs/site:user_site, //docs/site:user_site_check in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//tools/docs/site:user_site, //tools/docs/site:user_site_check in --check). Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
         is_adoption: false,

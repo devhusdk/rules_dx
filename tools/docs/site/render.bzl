@@ -1,7 +1,7 @@
 """Real upstream mdBook rendering of the documentation site."""
 
-_MDBOOK = "//docs/site/mdbook:mdbook"
-_SITE_BUILD = "//docs/site/build:site_build"
+_MDBOOK = "//tools/docs/site/mdbook:mdbook"
+_SITE_BUILD = "//tools/docs/site/build:site_build"
 
 def mdbook_index(title, intro):
     """Returns the generated landing chapter of one book."""

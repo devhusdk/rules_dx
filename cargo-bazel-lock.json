@@ -1,5 +1,5 @@
 {
-  "checksum": "ad59417bd6e0bdc4f6b246728c22ba43e43129558389761ff1e124e6d5a1e270",
+  "checksum": "98674e23b9b1eb9101160d62301649ce5f260ce43e13f8e8de72f26011c28094",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -13829,7 +13829,7 @@
   "workspace_members": {
     "cc_context 0.0.0": "cc/cc_context",
     "codegen_shard 0.0.0": "generation/codegen_shard",
-    "documentation_ir 0.0.0": "docs/ir/documentation_ir",
+    "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",
@@ -13876,8 +13876,8 @@
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
     "repin_all 0.0.0": "tools/repin_all",
-    "site_browser 0.0.0": "docs/site/site_browser",
-    "site_build 0.0.0": "docs/site/site_build",
-    "site_check 0.0.0": "docs/site/site_check"
+    "site_browser 0.0.0": "tools/docs/site/site_browser",
+    "site_build 0.0.0": "tools/docs/site/site_build",
+    "site_check 0.0.0": "tools/docs/site/site_check"
   }
 }

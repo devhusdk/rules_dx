@@ -653,11 +653,11 @@ mod tests {
                     "k8-fastbuild".to_owned(),
                     "bin".to_owned()
                 ],
-                "docs/site/a.md"
+                "tools/docs/site/a.md"
             ),
             want_path(
                 "/ws",
-                &["bazel-out", "k8-fastbuild", "bin", "docs/site/a.md"]
+                &["bazel-out", "k8-fastbuild", "bin", "tools/docs/site/a.md"]
             )
         );
         let locations = OutputLocations::new(ws);

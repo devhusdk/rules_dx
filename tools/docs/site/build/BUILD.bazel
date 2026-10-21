@@ -19,7 +19,7 @@ rust_library(
         "src/lib_tests.rs",
     ],
     aliases = aliases(
-        package_name = "docs/site/site_build",
+        package_name = "tools/docs/site/site_build",
         normal = True,
     ),
     crate_name = "dx_site_build",
@@ -28,21 +28,21 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = crate_deps(
         [],
-        package_name = "docs/site/site_build",
+        package_name = "tools/docs/site/site_build",
     ),
 )
 
 rust_test(
     name = "dx_site_build_test",
     aliases = aliases(
-        package_name = "docs/site/site_build",
+        package_name = "tools/docs/site/site_build",
         normal = True,
         normal_dev = True,
     ),
     crate = ":dx_site_build",
     deps = crate_deps(
         [],
-        package_name = "docs/site/site_build",
+        package_name = "tools/docs/site/site_build",
     ),
 )
 
@@ -50,7 +50,7 @@ rust_binary(
     name = "site_build",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "docs/site/site_build",
+        package_name = "tools/docs/site/site_build",
         normal = True,
     ),
     crate_name = "site_build",
@@ -58,7 +58,7 @@ rust_binary(
     edition = "2021",
     deps = crate_deps(
         [],
-        package_name = "docs/site/site_build",
+        package_name = "tools/docs/site/site_build",
     ) + [":dx_site_build"],
 )
 

@@ -47,7 +47,7 @@ lockfile, so a scope narrows which sets run, never which packages inside a
 lockfile.
 
 ```text
-//cli/..., //docs/ir/..., //env/..., //generation/..., //quality/..., //rust/...      cargo
+//cli/..., //tools/docs/..., //env/..., //generation/..., //quality/..., //rust/...      cargo
 //examples/adopt-rust/...                                                             cargo
 //csharp/..., //fsharp/..., //third_party/dotnet/...                                  nuget
 //examples/adopt-csharp/..., //examples/adopt-fsharp/...                              nuget

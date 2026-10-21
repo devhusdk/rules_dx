@@ -12,9 +12,9 @@ const PUBLISH: &str = "docs-publish";
 
 const RENDER: &str = "bazel run \"$@\" @rules_dx//:dx -- docs -- \"$@\"";
 
-const DECLARED_SITE: &str = "bazel cquery \"$@\" --output=files //docs/site:user_site";
+const DECLARED_SITE: &str = "bazel cquery \"$@\" --output=files //tools/docs/site:user_site";
 
-const STAGED_CHECK: &str = "//docs/site/check:site_check -- --rendered";
+const STAGED_CHECK: &str = "//tools/docs/site/check:site_check -- --rendered";
 
 const FORBIDDEN: [&str; 3] = [
     "--forbid \"Treat warnings as errors\"",
@@ -26,7 +26,7 @@ const PAGE_ARTIFACT: &str = "actions/upload-pages-artifact";
 
 const PAGE_DEPLOY: &str = "actions/deploy-pages";
 
-const SMOKE: &str = "//docs/site:deploy_smoke_test";
+const SMOKE: &str = "//tools/docs/site:deploy_smoke_test";
 
 const PAGE_URL: &str = "${{ steps.deploy.outputs.page_url }}";
 
@@ -126,7 +126,7 @@ fn the_publish_job_reads_the_declared_site_instead_of_a_guessed_path() {
         "{WORKFLOW} job {PUBLISH} must read the declared site: {script}"
     );
     assert!(
-        !script.contains("bazel-bin/docs/site/user_site"),
+        !script.contains("bazel-bin/tools/docs/site/user_site"),
         "{WORKFLOW} job {PUBLISH} must not guess a bazel-bin path: {script}"
     );
     assert!(

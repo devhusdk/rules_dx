@@ -133,7 +133,7 @@ const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
         &[SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot],
     ),
     ("python", &[SetId::Uv]),
-    ("docs/ir", &[SetId::Cargo]),
+    ("tools/docs", &[SetId::Cargo]),
     ("rust", &[SetId::Cargo]),
     ("cli", &[SetId::Cargo]),
     ("generation", &[SetId::Cargo]),
@@ -515,7 +515,7 @@ mod tests {
                 "examples/adopt-polyglot/frontend",
                 vec![SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot],
             ),
-            ("docs/ir/ir", vec![SetId::Cargo]),
+            ("tools/docs/ir/ir", vec![SetId::Cargo]),
         ] {
             assert_eq!(owning_sets(path), expected, "{path}");
         }
@@ -640,9 +640,9 @@ mod tests {
             ]
         );
         assert_eq!(
-            owning_sets("//docs/..."),
+            owning_sets("//tools/docs/..."),
             vec![SetId::Cargo],
-            "docs/ir is a cargo crate"
+            "tools/docs holds cargo crates"
         );
         assert_eq!(
             owning_sets("//examples/..."),

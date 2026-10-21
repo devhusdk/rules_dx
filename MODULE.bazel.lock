@@ -413,99 +413,9 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "//docs/site/browser:repos.bzl%firefox": {
-      "general": {
-        "bzlTransitiveDigest": "GjsWQtdl+oxXE9JciMbHq0614ya59aY9H9EjNniMf/s=",
-        "usagesDigest": "uQFv4oZKHTBF1moFOlnTx1/Y02RUXVqWXJhfG+aAJdo=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "dx_firefox_linux_arm64": {
-            "repoRuleId": "@@//docs/site/browser:repos.bzl%_firefox_repo",
-            "attributes": {
-              "archive_format": "tar.xz",
-              "asset": "firefox-157.0.tar.xz",
-              "executable": "firefox/firefox",
-              "sha256": "73fc3d6f6f4d3fcdeee59db90156568af9959405120ad686e535f572995074d0",
-              "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-aarch64/en-US/firefox-157.0.tar.xz"
-            }
-          },
-          "dx_firefox_linux_x86_64": {
-            "repoRuleId": "@@//docs/site/browser:repos.bzl%_firefox_repo",
-            "attributes": {
-              "archive_format": "tar.xz",
-              "asset": "firefox-157.0.tar.xz",
-              "executable": "firefox/firefox",
-              "sha256": "42f2c62a562316982ef5a796738c57602bf84a984f5c616e80bcff4627f78fff",
-              "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-x86_64/en-US/firefox-157.0.tar.xz"
-            }
-          },
-          "dx_firefox": {
-            "repoRuleId": "@@//docs/site/browser:repos.bzl%_firefox_hub_repo",
-            "attributes": {}
-          }
-        }
-      }
-    },
-    "//docs/site/mdbook:repos.bzl%mdbook": {
-      "general": {
-        "bzlTransitiveDigest": "6jpUQmrmWiNnIfpDnc+6+GmCFEd8w6ifoMUoJzoiLoI=",
-        "usagesDigest": "VLTSZOIep5jAbPE6r/DwOnN8lESvwiV8PauFls4iniA=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "dx_mdbook_linux_arm64": {
-            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "tar.gz",
-              "asset": "mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
-              "executable": "mdbook",
-              "executable_sha256": "207696773a2ce4f37c58782d0853f4179694a289cb7508eaa93e0dc595407294",
-              "sha256": "7273dda980915a1e2f114d63d432aa6284551e37f0358e3ce7653d1e49e6fa3f",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz"
-            }
-          },
-          "dx_mdbook_linux_x86_64": {
-            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "tar.gz",
-              "asset": "mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
-              "executable": "mdbook",
-              "executable_sha256": "29b7e5ba01321e3bbc4487012544cea516f01377ffd1e26b4adeed9b8ed875a9",
-              "sha256": "c0b903f01dd8f4edc644372ad2b80b1fdddd12552d37b6a098657cbd8eddd768",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz"
-            }
-          },
-          "dx_mdbook_macos_arm64": {
-            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "tar.gz",
-              "asset": "mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
-              "executable": "mdbook",
-              "executable_sha256": "80ca3d4d6dfc1a12d231b14ece0dd6bd9cf6233f74b45f3c7ff915b6923eeac5",
-              "sha256": "4aee6a8ff54dc59fbe9bcf1c38b8f58583fba63535dff7a5ec8205f0cffc3fd4",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-apple-darwin.tar.gz"
-            }
-          },
-          "dx_mdbook_windows_x86_64": {
-            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "zip",
-              "asset": "mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
-              "executable": "mdbook.exe",
-              "executable_sha256": "8400c017423686ad8025532baaf4b1683b8caf7147fbe6fc4cddf7a85902cbde",
-              "sha256": "33510a5745c593e06f4b8e21f531d9204c6f4444846b4bd57994e82a7bdfec98",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-pc-windows-msvc.zip"
-            }
-          },
-          "dx_mdbook": {
-            "repoRuleId": "@@//docs/site/mdbook:repos.bzl%_mdbook_hub_repo",
-            "attributes": {}
-          }
-        }
-      }
-    },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "qpLt5JUViRO7mXQgvWLGRRoS5td590yarPO/nWgbyvA=",
+        "bzlTransitiveDigest": "6Ro3ov6z/J79qivR1cb0Re/0GsRBKlRZzb90cPmqA3Y=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -819,6 +729,50 @@
               "executable_sha256": "c9e82ada36ef4b8d4caf1f97fa89289048c8f4a33c2c76ffffc88bfe09ff00c5"
             }
           },
+          "dx_shfmt_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_amd64",
+              "sha256": "d9fbb2a9c33d13f47e7618cf362a914d029d02a6df124064fff04fd688a745ea",
+              "asset": "shfmt_v3.12.0_linux_amd64",
+              "archive_format": "none",
+              "executable": "shfmt_v3.12.0_linux_amd64",
+              "executable_sha256": "d9fbb2a9c33d13f47e7618cf362a914d029d02a6df124064fff04fd688a745ea"
+            }
+          },
+          "dx_shfmt_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_arm64",
+              "sha256": "5f3fe3fa6a9f766e6a182ba79a94bef8afedafc57db0b1ad32b0f67fae971ba4",
+              "asset": "shfmt_v3.12.0_linux_arm64",
+              "archive_format": "none",
+              "executable": "shfmt_v3.12.0_linux_arm64",
+              "executable_sha256": "5f3fe3fa6a9f766e6a182ba79a94bef8afedafc57db0b1ad32b0f67fae971ba4"
+            }
+          },
+          "dx_shfmt_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_darwin_arm64",
+              "sha256": "d903802e0ce3ecbc82b98512f55ba370b0d37a93f3f78de394f5b657052b33dd",
+              "asset": "shfmt_v3.12.0_darwin_arm64",
+              "archive_format": "none",
+              "executable": "shfmt_v3.12.0_darwin_arm64",
+              "executable_sha256": "d903802e0ce3ecbc82b98512f55ba370b0d37a93f3f78de394f5b657052b33dd"
+            }
+          },
+          "dx_shfmt_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_windows_amd64.exe",
+              "sha256": "c8bda517ba1c640ce4a715c0fa665439ddbe4357ba5e9b77b0e51e70e2b9c94b",
+              "asset": "shfmt_v3.12.0_windows_amd64.exe",
+              "archive_format": "none",
+              "executable": "shfmt_v3.12.0_windows_amd64.exe",
+              "executable_sha256": "c8bda517ba1c640ce4a715c0fa665439ddbe4357ba5e9b77b0e51e70e2b9c94b"
+            }
+          },
           "dx_taplo_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -954,7 +908,7 @@
           "dx_tools": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_hub_repo",
             "attributes": {
-              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"}}",
+              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"}}",
               "os_linux": "'@@platforms//os:linux'",
               "os_macos": "'@@platforms//os:macos'",
               "os_windows": "'@@platforms//os:windows'",
@@ -1036,6 +990,96 @@
                 "https://github.com/spotbugs/spotbugs/releases/download/4.10.4/spotbugs-4.10.4.tgz"
               ]
             }
+          }
+        }
+      }
+    },
+    "//tools/docs/site/browser:repos.bzl%firefox": {
+      "general": {
+        "bzlTransitiveDigest": "GjsWQtdl+oxXE9JciMbHq0614ya59aY9H9EjNniMf/s=",
+        "usagesDigest": "atFrdA2bTlHnAvczl4sTe6Iy4wdyB0s2ZIZRUHGfaMc=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_firefox_linux_arm64": {
+            "repoRuleId": "@@//tools/docs/site/browser:repos.bzl%_firefox_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "firefox-157.0.tar.xz",
+              "executable": "firefox/firefox",
+              "sha256": "73fc3d6f6f4d3fcdeee59db90156568af9959405120ad686e535f572995074d0",
+              "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-aarch64/en-US/firefox-157.0.tar.xz"
+            }
+          },
+          "dx_firefox_linux_x86_64": {
+            "repoRuleId": "@@//tools/docs/site/browser:repos.bzl%_firefox_repo",
+            "attributes": {
+              "archive_format": "tar.xz",
+              "asset": "firefox-157.0.tar.xz",
+              "executable": "firefox/firefox",
+              "sha256": "42f2c62a562316982ef5a796738c57602bf84a984f5c616e80bcff4627f78fff",
+              "url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0/linux-x86_64/en-US/firefox-157.0.tar.xz"
+            }
+          },
+          "dx_firefox": {
+            "repoRuleId": "@@//tools/docs/site/browser:repos.bzl%_firefox_hub_repo",
+            "attributes": {}
+          }
+        }
+      }
+    },
+    "//tools/docs/site/mdbook:repos.bzl%mdbook": {
+      "general": {
+        "bzlTransitiveDigest": "6jpUQmrmWiNnIfpDnc+6+GmCFEd8w6ifoMUoJzoiLoI=",
+        "usagesDigest": "kCzlv/3igKpLbW/WzsBifuQV5jDsBbalAqm7I4HDquQ=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_mdbook_linux_arm64": {
+            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "tar.gz",
+              "asset": "mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "207696773a2ce4f37c58782d0853f4179694a289cb7508eaa93e0dc595407294",
+              "sha256": "7273dda980915a1e2f114d63d432aa6284551e37f0358e3ce7653d1e49e6fa3f",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz"
+            }
+          },
+          "dx_mdbook_linux_x86_64": {
+            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "tar.gz",
+              "asset": "mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "29b7e5ba01321e3bbc4487012544cea516f01377ffd1e26b4adeed9b8ed875a9",
+              "sha256": "c0b903f01dd8f4edc644372ad2b80b1fdddd12552d37b6a098657cbd8eddd768",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz"
+            }
+          },
+          "dx_mdbook_macos_arm64": {
+            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "tar.gz",
+              "asset": "mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "80ca3d4d6dfc1a12d231b14ece0dd6bd9cf6233f74b45f3c7ff915b6923eeac5",
+              "sha256": "4aee6a8ff54dc59fbe9bcf1c38b8f58583fba63535dff7a5ec8205f0cffc3fd4",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-apple-darwin.tar.gz"
+            }
+          },
+          "dx_mdbook_windows_x86_64": {
+            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
+            "attributes": {
+              "archive_format": "zip",
+              "asset": "mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+              "executable": "mdbook.exe",
+              "executable_sha256": "8400c017423686ad8025532baaf4b1683b8caf7147fbe6fc4cddf7a85902cbde",
+              "sha256": "33510a5745c593e06f4b8e21f531d9204c6f4444846b4bd57994e82a7bdfec98",
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-pc-windows-msvc.zip"
+            }
+          },
+          "dx_mdbook": {
+            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_hub_repo",
+            "attributes": {}
           }
         }
       }

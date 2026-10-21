@@ -1,6 +1,0 @@
-# Fixture-scale quickstart guide steps. One executable step per
-# non-comment line; every step is executed in CI with no unexecuted
-# steps allowed.
-bazel build //docs/site:demo_extract --noshow_progress
-bazel build //docs/site:demo_aggregate --noshow_progress
-bazel test //docs/site:site_unit --noshow_progress

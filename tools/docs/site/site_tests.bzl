@@ -1,6 +1,6 @@
 """Unit plus execution tests for docs site execution."""
 
-load("//docs/site/mdbook:repos.bzl", "MDBOOK_VERSION")
+load("//tools/docs/site/mdbook:repos.bzl", "MDBOOK_VERSION")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":render.bzl", "mdbook_chapters_error", "mdbook_index", "mdbook_index_text", "mdbook_page", "mdbook_page_list", "mdbook_route_error", "mdbook_section", "mdbook_summary_text")
 load(":site.bzl", "DOC_IR_SCHEMA_MAJOR", "DOC_IR_SCHEMA_MINOR", "site_api_name", "site_api_path", "site_guide_step_error", "site_header_value_error", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_shard_name", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
@@ -256,17 +256,17 @@ def site_unit_tests(name):
             expect_equal(
                 "unexecuted guide steps fail closed with no silent pass",
                 [
-                    site_guide_step_error("bazel build //docs/site:demo_extract"),
+                    site_guide_step_error("bazel build //tools/docs/site:demo_extract"),
                     site_guide_step_error(""),
                     site_guide_step_error("# comment lines are skipped"),
-                    site_guide_step_error("bazel build //docs/site:demo_extract # TODO"),
+                    site_guide_step_error("bazel build //tools/docs/site:demo_extract # TODO"),
                     site_guide_step_error("UNEXECUTED step"),
                 ],
                 [
                     "",
                     "",
                     "",
-                    "docs_site: unexecuted guide step 'bazel build //docs/site:demo_extract # TODO'",
+                    "docs_site: unexecuted guide step 'bazel build //tools/docs/site:demo_extract # TODO'",
                     "docs_site: unexecuted guide step 'UNEXECUTED step'",
                 ],
             ),

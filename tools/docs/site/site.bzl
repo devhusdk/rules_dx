@@ -22,7 +22,7 @@ _AWK_SYMBOLS = (
 
 _AWK_MISSING_SEPARATOR = "index($$0, \"|\") < 2 { print }"
 
-SITE_CHECK = "//docs/site/check:site_check"
+SITE_CHECK = "//tools/docs/site/check:site_check"
 
 def site_check_args(api, shards, prose, data = []):
     """Returns the site_check arguments for one aggregate's inputs."""

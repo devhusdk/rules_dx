@@ -356,14 +356,18 @@ impl RealBackend {
                 parsed(tool_id, parsers::parse_pmd(&out.stdout, out.code, &strs))
             }
             "spotbugs" => {
-                let jar_targets: Vec<PathBuf> = tool
-                    .tool_files
-                    .iter()
-                    .filter(|(rel, _)| rel.ends_with(".jar"))
-                    .map(|(rel, _)| scratch.root().join(rel))
-                    .collect();
-                let targets: Vec<&Path> = jar_targets.iter().map(PathBuf::as_path).collect();
-                let invocation = commands::spotbugs_check(&tool.binary, &targets);
+                let staged = |prefix: &str| -> Vec<PathBuf> {
+                    tool.tool_files
+                        .iter()
+                        .filter(|(rel, _)| rel.starts_with(prefix) && rel.ends_with(".jar"))
+                        .map(|(rel, _)| scratch.root().join(rel))
+                        .collect()
+                };
+                let owned = staged("dx-spotbugs/owned/");
+                let auxiliary = staged("dx-spotbugs/aux/");
+                let targets: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+                let aux_refs: Vec<&Path> = auxiliary.iter().map(PathBuf::as_path).collect();
+                let invocation = commands::spotbugs_check(&tool.binary, &targets, &aux_refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,

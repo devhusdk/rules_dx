@@ -662,7 +662,7 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
     );
     let hinted = pmd_check(Path::new(BIN), &[java], Some(cfg));
     assert!(argv_strings(&hinted).contains(&"--rulesets".to_owned()));
-    let spot = spotbugs_check(Path::new(BIN), &[java]);
+    let spot = spotbugs_check(Path::new(BIN), &[java], &[]);
     assert_eq!(
         argv_strings(&spot),
         vec![
@@ -670,6 +670,23 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "-textui",
             "-effort:default",
             "-sarif",
+            "/scratch/src/Hello.java"
+        ]
+    );
+    let with_aux = spotbugs_check(
+        Path::new(BIN),
+        &[java],
+        &[Path::new("/scratch/a.jar"), Path::new("/scratch/b.jar")],
+    );
+    assert_eq!(
+        argv_strings(&with_aux),
+        vec![
+            BIN,
+            "-textui",
+            "-effort:default",
+            "-sarif",
+            "-auxclasspath",
+            "/scratch/a.jar:/scratch/b.jar",
             "/scratch/src/Hello.java"
         ]
     );

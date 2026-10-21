@@ -689,8 +689,23 @@ pub fn pmd_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invoc
     }
 }
 
-pub fn spotbugs_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, SPOTBUGS_ARGS, files, "")
+pub fn spotbugs_check(binary: &Path, files: &[&Path], auxiliary: &[&Path]) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(SPOTBUGS_ARGS.iter().map(OsString::from));
+    if !auxiliary.is_empty() {
+        let joined = auxiliary
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join(":");
+        argv.push(OsString::from("-auxclasspath"));
+        argv.push(OsString::from(joined));
+    }
+    argv.extend(files.iter().map(|f| f.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn ktlint_check(binary: &Path, files: &[&Path]) -> Invocation {

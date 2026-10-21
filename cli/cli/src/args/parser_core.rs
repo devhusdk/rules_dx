@@ -120,10 +120,9 @@ fn plain_words(command: Command) -> Vec<String> {
         Command::Migrate | Command::Upgrade => {
             words.extend(strings(&["--from=1.0.0", "--to=2.0.0"]));
         }
-        Command::Run | Command::Deploy | Command::Owners | Command::Deps => {
+        Command::Run | Command::Deploy => {
             words.push("//:demo".to_owned());
         }
-        Command::Why => words.extend(strings(&["a.rs", "//:demo"])),
         Command::New => words.push("rust".to_owned()),
         Command::Watch => words.extend(strings(&["run", "//:demo"])),
         Command::Completion => words.push("bash".to_owned()),
@@ -759,14 +758,14 @@ fn startup_options_parse_repeatably_and_stay_ordered() {
             "--output_user_root=/tmp/b".to_owned(),
         ]
     );
-    let owners = parse(&strings(&[
-        "owners",
+    let build = parse(&strings(&[
+        "build",
         "--bazel-startup-option=--output_base=/tmp/a",
         "//:demo",
     ]))
-    .expect("owners takes the global flag");
+    .expect("build takes the global flag");
     assert_eq!(
-        owners.bazel_startup_options,
+        build.bazel_startup_options,
         vec!["--output_base=/tmp/a".to_owned()]
     );
 }

@@ -9,12 +9,11 @@ use dx_output::OutputMode;
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
         "security", "license", "update", "bump", "migrate", "upgrade", "docs", "status", "version",
-        "owners", "deps", "init", "new",
+        "init", "new",
     ] {
         let base = match command {
             "bump" => vec![command, "cargo:demo", "1.0.0"],
             "migrate" | "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
-            "owners" | "deps" => vec![command, "//:demo"],
             "new" => vec![command, "rust"],
             _ => vec![command],
         };
@@ -54,8 +53,6 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         vec!["version", "extra"],
         vec!["init", "one", "two"],
         vec!["watch"],
-        vec!["owners"],
-        vec!["deps"],
         vec!["docs", ":relative"],
         vec!["docs", ""],
         vec!["generate", ":relative"],
@@ -69,11 +66,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
 }
 
 const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 8] = [
-    (
-        "--configured",
-        &["--configured"],
-        &["owners", "deps", "why", "tests"],
-    ),
+    ("--configured", &["--configured"], &["tests"]),
     ("--cases", &["--cases"], &["tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
     ("--serve", &["--serve"], &["docs"]),
@@ -88,8 +81,6 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "bump" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
-        "owners" | "deps" => &["//:demo"],
-        "why" => &["a.rs", "//:demo"],
         "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
@@ -798,21 +789,6 @@ fn output_contract_has_no_silent_ignore() {
     let got = parse(&strings(&["version", "--output=json"])).expect("version json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Version.supports_json());
-    let got = parse(&strings(&["owners", "//a:one", "--output=json"])).expect("owners json");
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(Command::Owners.supports_json());
-    let got = parse(&strings(&["deps", "//a:one", "--output=json"])).expect("deps json");
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(Command::Deps.supports_json());
-    let got = parse(&strings(&[
-        "why",
-        "src/main.rs",
-        "//a:one",
-        "--output=json",
-    ]))
-    .expect("why json");
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(Command::Why.supports_json());
     for command in ["lint", "typecheck", "format", "generate", "check", "fix"] {
         let got = parse(&strings(&[command, "--output=diff"])).expect("diff capable");
         assert_eq!(got.output, OutputMode::Diff, "command: {command}");
@@ -829,9 +805,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["new", "rust", "demo", "--output=diff"],
         vec!["watch", "test", "--output=json"],
         vec!["version", "--output=diff"],
-        vec!["owners", "//a:one", "--output=diff"],
-        vec!["deps", "//a:one", "--output=diff"],
-        vec!["why", "src/main.rs", "//a:one", "--output=diff"],
         vec!["completion", "bash", "--output=json"],
     ] {
         assert!(
@@ -852,9 +825,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["update", "--output=diff"],
         vec!["status", "--output=diff"],
         vec!["version", "--output=diff"],
-        vec!["owners", "//a:one", "--output=diff"],
-        vec!["deps", "//a:one", "--output=diff"],
-        vec!["why", "src/main.rs", "//a:one", "--output=diff"],
         vec!["clean", "--output=diff"],
         vec!["codegen", "--output=diff"],
         vec!["env", "--output=diff"],
@@ -915,13 +885,13 @@ fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
 fn version_rollback_check_and_configured_parse() {
     let got = parse(&strings(&["version", "--check"])).expect("parse");
     assert!(got.check);
-    let got = parse(&strings(&["deps", "--configured", "//a:one"])).expect("parse");
-    assert_eq!(got.command, Command::Deps);
+    let got = parse(&strings(&["tests", "--configured", "//a:one"])).expect("parse");
+    assert_eq!(got.command, Command::Tests);
     assert!(got.configured);
     for words in [
         vec!["status", "--serve"],
         vec!["status", "--check"],
-        vec!["owners", "//a:one", "--from=0.1.0"],
+        vec!["tests", "//a:one", "--from=0.1.0"],
         vec!["build", "//a:one", "--configured"],
         vec!["lint", "--serve"],
         vec!["check", "//...", "--configured"],
@@ -1129,31 +1099,13 @@ fn managed_commands_parse_repo_and_exact_scopes() {
 }
 
 #[test]
-fn why_requires_file_and_label() {
-    let got = parse(&strings(&["why", "src/a.rs", "//a:one"])).expect("parse");
-    assert_eq!(got.command, Command::Why);
-    assert_eq!(
-        got.targets,
-        vec!["src/a.rs".to_owned(), "//a:one".to_owned()]
-    );
+fn owners_deps_and_why_are_unknown_commands() {
     for words in [
-        vec!["why", "src/a.rs"],
-        vec!["why", "src/a.rs", "//a:one", "//b:two"],
+        vec!["owners", "//a:one"],
+        vec!["deps", "--configured", "//a:one"],
+        vec!["why", "src/a.rs", "//a:one"],
     ] {
-        assert_eq!(
-            parse(&strings(&words)),
-            if words.len() < 3 {
-                Err(ArgsError::MissingValue {
-                    option: "<file> <label>".to_owned(),
-                })
-            } else {
-                Err(ArgsError::UnsupportedOption {
-                    command: "why",
-                    option: "//b:two".to_owned(),
-                })
-            },
-            "words: {words:?}"
-        );
+        assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }
 }
 
@@ -1216,7 +1168,6 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         vec!["deploy", "//app:bin", "--here"],
         vec!["status", "--here"],
         vec!["version", "--here"],
-        vec!["owners", "//a:one", "--here"],
         vec!["completion", "bash", "--here"],
     ] {
         assert_eq!(

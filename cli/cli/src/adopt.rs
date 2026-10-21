@@ -1,6 +1,5 @@
 mod completion;
 mod init;
-mod inspect;
 mod new;
 mod rollback;
 mod status;
@@ -13,14 +12,12 @@ pub(crate) mod watch;
 use std::io::Write;
 
 use crate::args::{Command, Invocation};
-use crate::resolve::QueryRunner;
 use dx_output::OutputMode;
 
 pub(crate) use crate::exec::common::{operational, pre_exec};
 
 pub struct AdoptEnv<'a> {
     pub workspace: &'a std::path::Path,
-    pub query_runner: &'a dyn QueryRunner,
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
 }
@@ -32,7 +29,6 @@ fn summaries_suppressed(invocation: &Invocation) -> bool {
 pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
     let AdoptEnv {
         workspace,
-        query_runner,
         out,
         err,
     } = env;
@@ -43,9 +39,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Version => version::execute_version(invocation, workspace, out, err),
         Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),
-        Command::Owners | Command::Deps | Command::Why => {
-            inspect::execute_inspect(invocation, workspace, query_runner, out, err)
-        }
         Command::Completion => completion::execute_completion(invocation, out, err),
         _ => pre_exec(err, "not an adoption command"),
     }

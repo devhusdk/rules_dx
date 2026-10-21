@@ -718,16 +718,6 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "command.deps",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "inspect.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
         "id": "command.docs",
         "native": True,
         "owner": "//cli/cli:dx",
@@ -822,16 +812,6 @@ PROMISES = [
         "native": True,
         "owner": "//cli/cli:dx",
         "page": "new-upgrade.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "command.owners",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "inspect.md",
         "state": "evidenced",
     },
     {
@@ -942,16 +922,6 @@ PROMISES = [
         "native": True,
         "owner": "//cli/cli:dx",
         "page": "watch.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "command.why",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "inspect.md",
         "state": "evidenced",
     },
     {
@@ -1603,16 +1573,6 @@ PROMISES = [
         "native": False,
         "owner": "//docs:command_docs",
         "page": "init.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "doc.inspect.md",
-        "native": False,
-        "owner": "//docs:command_docs",
-        "page": "inspect.md",
         "state": "evidenced",
     },
     {
@@ -3207,7 +3167,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 346
+PROMISE_COUNT = 342
 
 PROMISE_FAMILIES = [
     "artifact",

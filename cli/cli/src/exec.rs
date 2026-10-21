@@ -94,9 +94,6 @@ fn family(command: Command) -> Family {
         | Command::Status
         | Command::Version
         | Command::Watch
-        | Command::Owners
-        | Command::Deps
-        | Command::Why
         | Command::Completion => Family::Adoption,
         Command::Docs => Family::Docs,
     }
@@ -120,7 +117,6 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         Family::Adoption => {
             let Env {
                 workspace,
-                query_runner,
                 out,
                 err,
                 ..
@@ -129,7 +125,6 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                 invocation,
                 crate::adopt::AdoptEnv {
                     workspace,
-                    query_runner,
                     out,
                     err,
                 },
@@ -191,10 +186,10 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            32,
+            29,
             "every variant classified"
         );
-        assert_eq!(counts.get("adoption"), Some(&11));
+        assert_eq!(counts.get("adoption"), Some(&8));
         assert_eq!(counts.get("workflow"), Some(&5));
         assert_eq!(counts.get("quality"), Some(&3));
         assert_eq!(counts.get("managed"), Some(&2));

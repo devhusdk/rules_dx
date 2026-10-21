@@ -625,28 +625,22 @@ command_args! {
         report: ReportFlag,
         own: ProfileArgs,
     };
-    /// The flags `dx owners` accepts.
-    Owners => 25, NoPassthroughTail, { own: ConfiguredFlag, };
-    /// The flags `dx deps` accepts.
-    Deps => 26, NoPassthroughTail, { own: ConfiguredFlag, };
-    /// The flags `dx why` accepts.
-    Why => 27, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx completion` accepts.
-    Completion => 28, NoPassthroughTail, {};
+    Completion => 25, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 29, BazelTail, {
+    Docs => 26, BazelTail, {
         check: CheckFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx tests` accepts.
-    Tests => 30, BazelTail, {
+    Tests => 27, BazelTail, {
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 31, NoPassthroughTail, { apply: ApplyFlag, };
+    Rollback => 28, NoPassthroughTail, { apply: ApplyFlag, };
 }
 
 #[derive(Parser)]

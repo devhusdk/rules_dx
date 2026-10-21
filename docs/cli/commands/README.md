@@ -18,7 +18,6 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx docs`](docs.md)
 - [`dx init`](init.md)
 - [`dx status`, `dx version`](status-version.md)
-- [`dx owners`, `dx deps`, `dx why`](inspect.md)
 - [`dx tests`](tests.md)
 - [`dx completion`](completion.md)
 - [`dx migrate`](migrate.md)
@@ -29,6 +28,23 @@ Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`
 
 A `.dx/version` pin that disagrees with the `MODULE.bazel` pin stops most
 commands. See [Version Skew](status-version.md#version-skew).
+
+## Inspecting The Graph
+
+`dx` has no owners, deps, or why command. Use native Bazel. Quote every
+expression.
+
+```text
+bazel query 'rdeps(//..., //pkg:target, 1)'
+bazel query 'deps(//pkg:target)'
+bazel query 'somepath(//app:server, //lib:core)'
+bazel cquery 'deps(//pkg:target)' --platforms=//platforms:linux_x86_64
+bazel query 'kind(rule, rdeps(//..., @repo//pkg:target, 1))'
+```
+
+`query` reads the unconfigured graph. `cquery` reads the graph for the
+selected platform and flags. An empty result is not a pass: check the exit
+code.
 
 ## Global Flags
 

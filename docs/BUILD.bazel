@@ -38,7 +38,6 @@ real_source_target(
         "cli/commands/environment-codegen.md",
         "cli/commands/generate.md",
         "cli/commands/init.md",
-        "cli/commands/inspect.md",
         "cli/commands/migrate.md",
         "cli/commands/new-upgrade.md",
         "cli/commands/quality.md",

@@ -34,9 +34,6 @@ Commands:
   status      report workspace status and machine-readable capabilities
   version     report version and pin drift
   watch       watch for changes and rebuild (local only)
-  owners      query owners of files via Bazel query
-  deps        query dependencies of targets
-  why         explain why a target depends on another
   completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell)
   docs        build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
   tests       list configured test targets with optional Rust case enumeration (non-mutating; --cases builds and lists without running bodies)

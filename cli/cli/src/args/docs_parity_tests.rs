@@ -127,8 +127,6 @@ fn required_words(command: Command) -> Vec<String> {
         "bump" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
-        "owners" | "deps" => &["//:demo"],
-        "why" => &["a.rs", "//:demo"],
         "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],

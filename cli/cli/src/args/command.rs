@@ -25,9 +25,6 @@ pub enum Command {
     Status,
     Version,
     Watch,
-    Owners,
-    Deps,
-    Why,
     Completion,
     Docs,
     Tests,
@@ -112,7 +109,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 32] = [
+pub static COMMANDS: [CommandMeta; 29] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -789,87 +786,6 @@ pub static COMMANDS: [CommandMeta; 32] = [
         labels: LabelsPolicy::OnlyNonEmpty,
     },
     CommandMeta {
-        command: Command::Owners,
-        name: "owners",
-        scope_policy: "require",
-        describe: "query owners of files via Bazel query",
-        usage: "Usage: dx owners [--configured] <scope> ...",
-        flags: "Per-command flags: --configured (use `bazel cquery` instead of `bazel query`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label).",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/scope-defaults.md).",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Warn,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
-        command: Command::Deps,
-        name: "deps",
-        scope_policy: "require",
-        describe: "query dependencies of targets",
-        usage: "Usage: dx deps [--configured] <scope> ...",
-        flags: "Per-command flags: --configured (use `bazel cquery` instead of `bazel query`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label).",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/scope-defaults.md).",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Warn,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
-        command: Command::Why,
-        name: "why",
-        scope_policy: "require-file+label",
-        describe: "explain why a target depends on another",
-        usage: "Usage: dx why [--configured] <file> <label>",
-        flags: "Per-command flags: --configured (use `bazel cquery` instead of `bazel query`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label).",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/scope-defaults.md).",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Warn,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::FewerThanTwo,
-    },
-    CommandMeta {
         command: Command::Completion,
         name: "completion",
         scope_policy: "require",
@@ -1229,9 +1145,6 @@ mod tests {
             Command::Status,
             Command::Version,
             Command::Watch,
-            Command::Owners,
-            Command::Deps,
-            Command::Why,
             Command::Completion,
             Command::Docs,
             Command::Tests,
@@ -1266,7 +1179,6 @@ mod tests {
             "codegen",
             "completion",
             "coverage",
-            "deps",
             "deploy",
             "docs",
             "env",
@@ -1278,7 +1190,6 @@ mod tests {
             "lint",
             "migrate",
             "new",
-            "owners",
             "rollback",
             "run",
             "security",
@@ -1290,11 +1201,10 @@ mod tests {
             "upgrade",
             "version",
             "watch",
-            "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 33");
-        assert_eq!(Command::value_variants().len(), 32);
+        assert_eq!(got, want, "Command registry drifted from the final 29");
+        assert_eq!(Command::value_variants().len(), 29);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1332,9 +1242,6 @@ mod tests {
             Command::Status,
             Command::Version,
             Command::Watch,
-            Command::Owners,
-            Command::Deps,
-            Command::Why,
             Command::Completion,
             Command::Docs,
             Command::Tests,
@@ -1438,7 +1345,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            32,
+            29,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1456,7 +1363,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|owners|deps|why|completion|docs|tests|rollback",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|tests|rollback",
             "pipe_list order must match declaration order"
         );
     }
@@ -1464,7 +1371,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 32);
+        assert_eq!(Command::value_variants().len(), 29);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1651,13 +1558,7 @@ mod tests {
             .filter(|command| {
                 matches!(
                     command,
-                    Command::Bump
-                        | Command::Completion
-                        | Command::Deps
-                        | Command::New
-                        | Command::Owners
-                        | Command::Watch
-                        | Command::Why
+                    Command::Bump | Command::Completion | Command::New | Command::Watch
                 )
             })
             .map(|command| (command.name(), command.required_slot()))
@@ -1668,14 +1569,11 @@ mod tests {
             vec![
                 ("bump", Some("<set:package> <version>")),
                 ("completion", Some("<shell>")),
-                ("deps", Some("<scope>")),
                 ("new", Some("<language>")),
-                ("owners", Some("<scope>")),
                 (
                     "watch",
                     Some("<build|test|run|lint|typecheck|format|check|fix>")
                 ),
-                ("why", Some("<file> <label>")),
             ]
         );
     }
@@ -1683,7 +1581,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 32);
+        assert_eq!(COMMANDS.len(), 29);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

@@ -606,7 +606,7 @@ mod tests {
                 "{command:?} must be deterministic"
             );
         }
-        assert_eq!(Command::value_variants().len(), 32);
+        assert_eq!(Command::value_variants().len(), 29);
     }
 
     #[test]
@@ -634,23 +634,15 @@ mod tests {
         for command in [
             Command::Build,
             Command::Run,
-            Command::Owners,
             Command::Security,
             Command::License,
             Command::Update,
-            Command::Why,
         ] {
             assert!(
                 slot_candidates(command, &one, "").1,
                 "{command:?} must stay open for more scopes"
             );
         }
-        let two = vec![String::from("a"), String::from("b")];
-        assert_eq!(
-            slot_candidates(Command::Why, &two, ""),
-            (Vec::new(), false),
-            "Why must close after its pair"
-        );
     }
 
     #[test]
@@ -835,7 +827,7 @@ mod tests {
             ["//pkg"]
         );
         assert_eq!(
-            prior_scopes(&words(&["--", "dx", "why", "a.rs", ""])),
+            prior_scopes(&words(&["--", "dx", "tests", "a.rs", ""])),
             ["a.rs"]
         );
         assert_eq!(

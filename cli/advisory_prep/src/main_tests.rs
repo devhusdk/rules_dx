@@ -116,3 +116,27 @@ fn an_unknown_flag_is_refused() {
     let error = Cli::try_parse_from(["advisory_prep", "--retries", "many"]).expect_err("refuses");
     assert!(error.to_string().contains("many"), "{error}");
 }
+
+#[test]
+fn the_status_file_receives_an_empty_status_for_a_dependency_free_workspace() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let status = dir.path().join("out.txt");
+    std::fs::write(&status, "retrieved_at=2026-09-22\n").expect("seeds");
+    let lines = run(parse(&[
+        "--workspace",
+        dir.path().to_str().expect("utf-8"),
+        "--out",
+        dir.path().join("snap").to_str().expect("utf-8"),
+        "--date",
+        "2026-09-22",
+        "--status-file",
+        status.to_str().expect("utf-8"),
+    ]))
+    .expect("empty preparation succeeds");
+    assert_eq!(lines.len(), 1);
+    assert_eq!(
+        std::fs::read_to_string(&status).expect("reads"),
+        "retrieved_at=2026-09-22\nstatus=empty\necosystems=0\nfamilies=\n"
+    );
+    assert!(!dir.path().join("snap").exists());
+}

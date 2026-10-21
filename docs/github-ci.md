@@ -140,6 +140,15 @@ the archive lists them in.
 - `--retry-delay <seconds>`: pause between two attempts. Default 5.
 - `--archive FAMILY=PATH`: convert a local archive instead of fetching it.
   Repeatable.
+- `--status-file <file>`: append `status`, `ecosystems` and `families` as
+  `key=value` lines. The workflow passes `$GITHUB_OUTPUT`.
+
+A repository whose locks need no advisory ecosystem prepares nothing. The
+command prints `no advisory ecosystems needed`, exits `0` and reports
+`status=empty` and `ecosystems=0`. The job then uploads no artifact, the
+`security-audit` cells download none, and secret scanning still runs. Dependency
+sets without a lock are not audited. A missing artifact for a needed ecosystem
+still fails the audit and `dx-ci (aggregate)`.
 
 Only `https` and `file` URLs are fetched, a redirect stays on `https`, and an
 archive entry is refused when its length or checksum disagrees with the

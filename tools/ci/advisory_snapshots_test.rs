@@ -323,3 +323,51 @@ fn the_shared_artifact_needs_no_token_scope_or_secret() {
         "{WORKFLOW} job {AUDIT} never publishes snapshots of its own"
     );
 }
+
+#[test]
+fn an_empty_preparation_skips_the_upload_and_the_download() {
+    assert_eq!(
+        job(PREP)["outputs"]["status"],
+        json!("${{ steps.prepare.outputs.status }}")
+    );
+    assert_eq!(
+        job(PREP)["outputs"]["ecosystems"],
+        json!("${{ steps.prepare.outputs.ecosystems }}")
+    );
+    let prep = steps(PREP);
+    let upload = action_step(&prep, "actions/upload-artifact");
+    assert_eq!(
+        upload["if"],
+        json!("${{ steps.prepare.outputs.status != 'empty' }}")
+    );
+    let script = script_running(PREP, PREP_TARGET);
+    assert!(
+        script.contains("--status-file \"$GITHUB_OUTPUT\""),
+        "{WORKFLOW} job {PREP} must publish the native status: {script}"
+    );
+    let audit = steps(AUDIT);
+    let download = action_step(&audit, "actions/download-artifact");
+    assert_eq!(
+        download["if"],
+        json!("${{ needs.advisory-snapshots.outputs.status != 'empty' }}")
+    );
+}
+
+#[test]
+fn the_audit_still_runs_when_the_preparation_is_empty() {
+    let audit = steps(AUDIT);
+    let run = audit
+        .iter()
+        .find(|step| {
+            step["run"]
+                .as_str()
+                .is_some_and(|script| script.contains("@rules_dx//:dx -- security"))
+        })
+        .expect("the audit step exists");
+    assert!(run.get("if").is_none(), "secret scanning must always run");
+    let gitleaks = audit
+        .iter()
+        .find(|step| step["name"] == json!("Resolve hermetic Gitleaks"))
+        .expect("gitleaks step exists");
+    assert!(gitleaks.get("if").is_none());
+}

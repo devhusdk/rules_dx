@@ -54,6 +54,39 @@ pub struct Prepared {
     pub advisories: usize,
 }
 
+/// Outcome of one preparation run.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Summary {
+    pub status: &'static str,
+    pub ecosystems: usize,
+    pub families: Vec<String>,
+}
+
+impl Summary {
+    /// Builds the summary of the snapshots one run published.
+    pub fn of(prepared: &[Prepared]) -> Self {
+        Summary {
+            status: if prepared.is_empty() {
+                "empty"
+            } else {
+                "prepared"
+            },
+            ecosystems: prepared.len(),
+            families: prepared.iter().map(|entry| entry.family.clone()).collect(),
+        }
+    }
+
+    /// Renders the key=value lines a workflow step output takes.
+    pub fn render(&self) -> String {
+        format!(
+            "status={}\necosystems={}\nfamilies={}\n",
+            self.status,
+            self.ecosystems,
+            self.families.join(",")
+        )
+    }
+}
+
 /// The families and upstream archives one preparation run will convert.
 pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, PrepError> {
     let mut out = Vec::new();

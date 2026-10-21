@@ -38,9 +38,8 @@ commands. See [Version Skew](status-version.md#version-skew).
   file.
 - `--color auto|always|never`: color output. Default `auto`.
 - `--output text|diff|json`: result shape. `diff` is limited to `lint`,
-  `typecheck`, `format`, `generate`, `check`, and `fix`. `json` is rejected by
-  `deploy`, `init`, `new`, `watch`, `completion`, and `bazel`, which
-  take `text` only.
+  `typecheck`, `format`, `generate`, `check`, and `fix`. `deploy`, `init`, `new`,
+  `watch`, `completion`, and `bazel` take `text` only.
 - `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
   `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the
   Bazel verb for every managed invocation. Isolated output bases isolate
@@ -48,7 +47,7 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
   `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
   `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
-  Every other command rejects `--report`. A relative `<dest>` anchors at the
+  Other commands do not take `--report`. A relative `<dest>` anchors at the
   workspace root wherever dx runs; an absolute `<dest>` writes outside the
   workspace as given. Two flags resolving to the same file fail before anything
   runs, including `./` and `parent/../` spellings of one path. Parent directories
@@ -56,25 +55,21 @@ commands. See [Version Skew](status-version.md#version-skew).
   nonzero, and keeps the previous file bytes.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`. Taken by
   `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
-  Every other command rejects it.
 - `--min-coverage <percent>`: fail `coverage` below this percent. Taken by
-  `coverage`. Every other command rejects it.
+  `coverage`.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `codegen`, `env`, `clean`, `check`, `fix`, `update`,
   `version`, and `docs`.
-  Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, `watch`, and `docs`.
-  Every other command rejects it. It never combines with `--check`.
+  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, `watch`, and `docs`. It never combines with `--check`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means
-  release. Every other command rejects them.
+  release.
 - `--offline`: no network; use pinned cached snapshots or fail. Taken by
-  `security`, `license`, `update`, and `bump`. Every other command rejects it.
+  `security`, `license`, `update`, and `bump`.
 - `--frozen`: no manifest or lock resolution changes; may fetch already pinned
-  content. Taken by `security`, `license`, `update`, and `bump`. Every other
-  command rejects it. Combine with `--offline` for both policies. Older dx
+  content. Taken by `security`, `license`, `update`, and `bump`. Combine with `--offline` for both policies. Older dx
   versions spelled offline as `--frozen`: pass `--offline` for that behavior.
 - `--here`: limit to the current directory tree.
 - `-h`, `--help`: print help for a command.

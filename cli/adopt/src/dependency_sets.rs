@@ -199,20 +199,6 @@ struct DxToml {
     hooks: Option<toml::Value>,
     #[serde(default)]
     quality: Option<QualityTable>,
-    #[serde(default)]
-    workspace: Option<toml::Value>,
-    #[serde(default)]
-    output: Option<toml::Value>,
-    #[serde(default)]
-    verbose: Option<toml::Value>,
-    #[serde(default)]
-    color: Option<toml::Value>,
-    #[serde(default)]
-    quiet: Option<toml::Value>,
-    #[serde(default, alias = "dry-run")]
-    dry_run: Option<toml::Value>,
-    #[serde(default, alias = "fail-on")]
-    fail_on: Option<toml::Value>,
 }
 
 #[derive(serde::Deserialize)]
@@ -265,16 +251,8 @@ pub fn parse(text: &str, rel: &str) -> Result<Option<Registry>, DependencySetsEr
             rel: rel.to_owned(),
             detail: error.to_string(),
         })?;
-    let has_defaults = document.dx.is_some()
-        || document.hooks.is_some()
-        || document.quality.is_some()
-        || document.workspace.is_some()
-        || document.output.is_some()
-        || document.verbose.is_some()
-        || document.color.is_some()
-        || document.quiet.is_some()
-        || document.dry_run.is_some()
-        || document.fail_on.is_some();
+    let has_defaults =
+        document.dx.is_some() || document.hooks.is_some() || document.quality.is_some();
     match document.schema_version {
         None if document.dependency_set.is_empty() && has_defaults => return Ok(None),
         None => {
@@ -804,10 +782,6 @@ scopes = ["services/worker"]
             .expect("defaults-only parses")
             .is_none();
         assert!(registry, "defaults without sets mean no registry");
-        let registry = parse("output = \"json\"\nschema_version = 1\n", rel)
-            .expect("top-level order parses")
-            .is_none();
-        assert!(registry, "key order never matters");
     }
 
     #[test]

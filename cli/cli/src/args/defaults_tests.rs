@@ -317,22 +317,14 @@ fn a_boolean_value_outside_the_spellings_is_a_usage_error() {
 }
 
 #[test]
-fn boolean_precedence_runs_cli_then_env_then_dx_table_then_top_level() {
-    let file =
-        parse_file_text("quiet = true\nverbose = true\n[dx]\nquiet = false\nverbose = false\n")
-            .expect("both layers");
+fn boolean_precedence_runs_cli_then_env_then_dx_table() {
     let table_only = parse_file_text("[dx]\nquiet = true\n").expect("dx table");
-    let top_only = parse_file_text("quiet = true\n").expect("top level");
-    assert_eq!(file.quiet, Some(false), "[dx] wins over the top level");
     assert_eq!(table_only.quiet, Some(true));
-    assert_eq!(top_only.quiet, Some(true));
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &FileDefaults::default())
         .expect("the built-in default is off");
     assert!(!got.quiet && !got.verbose);
-    let got = parse_with(&strings(&["lint"]), &env_of(&[]), &top_only).expect("top level");
-    assert!(got.quiet, "the top level beats the built-in default");
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &table_only).expect("dx table");
-    assert!(got.quiet, "[dx] beats the top level");
+    assert!(got.quiet, "[dx] beats the built-in default");
     let env = env_of(&[(DX_QUIET_ENV, "false")]);
     let got = parse_with(&strings(&["lint"]), &env, &table_only).expect("env");
     assert!(!got.quiet, "the environment beats the file");

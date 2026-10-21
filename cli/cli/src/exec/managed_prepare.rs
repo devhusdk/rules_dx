@@ -17,7 +17,6 @@ pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> (String, String)
 
 pub(crate) fn prepare_managed_sides(
     command: Command,
-    repository: bool,
     workspace: &Path,
     state_root: &Path,
     bep: &Path,
@@ -55,33 +54,6 @@ pub(crate) fn prepare_managed_sides(
                     ..empties()
                 },
                 vec![lease],
-            ))
-        }
-        Command::Setup => {
-            let (codegen_outputs, codegen_plan) = collect_managed_codegen(bep, workspace)?;
-            let (env_outputs, env_plan) = collect_managed_env(bep, workspace)?;
-            let mut leases = Vec::new();
-            let prepared_generated = if repository || !codegen_outputs.is_empty() {
-                let (generated, lease) = stage_codegen_side(state_root, workspace, &codegen_plan)?;
-                leases.push(lease);
-                Some(generated)
-            } else {
-                None
-            };
-            let prepared_environment = if repository || !env_outputs.is_empty() {
-                let (environment, lease) = stage_env_side(state_root, &env_plan)?;
-                leases.push(lease);
-                Some(environment)
-            } else {
-                None
-            };
-            Ok((
-                dx_setup::PreparedSides {
-                    prepared_environment,
-                    prepared_generated,
-                    ..empties()
-                },
-                leases,
             ))
         }
         // LCOV_EXCL_START - reason: unreached command, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

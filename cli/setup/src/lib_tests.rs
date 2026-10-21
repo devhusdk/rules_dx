@@ -68,69 +68,10 @@ fn malformed_records_and_foreign_parent_files_fail_closed() {
 }
 
 #[test]
-fn frozen_identities_match_codegen_and_env() {
-    assert_eq!(
-        CODEGEN_ASPECT,
-        "//generation:codegen.bzl%dx_codegen_plan_aspect"
-    );
-    assert_eq!(ENV_ASPECT, "//env:plan.bzl%dx_env_plan_aspect");
-    assert_eq!(CODEGEN_OUTPUT_GROUP, "dx_codegen_plans");
-    assert_eq!(ENV_OUTPUT_GROUP, "dx_env_plans");
-    assert_eq!(CODEGEN_REPOSITORY_TARGET, "//dx:codegen");
-    assert_eq!(ENV_REPOSITORY_TARGET, "//dx:env");
-}
-
-#[test]
-fn empty_scope_selects_both_repository_targets() {
-    assert_eq!(resolve_scope(&[]), Ok(SetupScope::Repository));
-    assert_eq!(
-        scope_targets(&SetupScope::Repository),
-        vec!["//dx:codegen", "//dx:env"]
-    );
-}
-
-#[test]
-fn root_plan_composes_baseline_combined_request() {
-    let plan = dx_roots::repository_plan();
-    assert_eq!(
-        targets_for_root_plan(&plan),
-        vec!["//dx:codegen", "//dx:env"]
-    );
-    let request = plan_request_for_root_plan(&plan);
-    assert_eq!(request, plan_request(&SetupScope::Repository));
-    assert_eq!(
-        build_argv_for_plan(&plan),
-        vec![
-            "build".to_owned(),
-            "//dx:codegen".to_owned(),
-            "//dx:env".to_owned(),
-            format!("--aspects={CODEGEN_ASPECT}"),
-            format!("--aspects={ENV_ASPECT}"),
-            format!("--output_groups={CODEGEN_OUTPUT_GROUP}"),
-            format!("--output_groups={ENV_OUTPUT_GROUP}"),
-        ]
-    );
-}
-
-#[test]
-fn root_plan_passes_aggregate_roots_through() {
-    let plan = dx_roots::RepositoryRootPlan::monolithic_aggregate("//dx:setup_roots");
-    assert_eq!(
-        targets_for_root_plan(&plan),
-        vec!["//dx:setup_roots".to_owned()]
-    );
-    assert_eq!(
-        plan_request_for_root_plan(&plan).roots,
-        vec!["//dx:setup_roots".to_owned()]
-    );
-}
-
-#[test]
 fn exact_labels_pass_through() {
     for label in ["//app:server", "@rules_dx//generation:result_proto_rs"] {
         let scope = resolve_scope(&[label.to_owned()]).expect("exact label");
         assert_eq!(scope, SetupScope::Exact(label.to_owned()));
-        assert_eq!(scope_targets(&scope), vec![label.to_owned()]);
     }
 }
 
@@ -165,38 +106,6 @@ fn scope_errors_display() {
     assert!(ScopeError::MultipleTargets { count: 2 }
         .to_string()
         .contains("at most one target"));
-}
-
-#[test]
-fn repository_request_unions_both_sides() {
-    let request = plan_request(&SetupScope::Repository);
-    assert_eq!(request.roots, vec!["//dx:codegen", "//dx:env"]);
-    assert_eq!(
-        request.aspects,
-        vec![
-            "//generation:codegen.bzl%dx_codegen_plan_aspect",
-            "//env:plan.bzl%dx_env_plan_aspect",
-        ]
-    );
-    assert_eq!(
-        request.output_groups,
-        vec!["dx_codegen_plans", "dx_env_plans"]
-    );
-}
-
-#[test]
-fn exact_request_applies_both_sides_to_one_root() {
-    let request = plan_request(&SetupScope::Exact("//app:server".to_owned()));
-    assert_eq!(request.roots, vec!["//app:server"]);
-    assert_eq!(request.aspects.len(), 2);
-    assert_eq!(request.output_groups.len(), 2);
-}
-
-#[test]
-fn request_sides_are_deterministic() {
-    let first = plan_request(&SetupScope::Repository);
-    let second = plan_request(&SetupScope::Repository);
-    assert_eq!(first, second);
 }
 
 fn generation(tag: char) -> GenerationId {

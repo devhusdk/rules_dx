@@ -628,7 +628,7 @@ mod tests {
                 "{command:?} must be deterministic"
             );
         }
-        assert_eq!(Command::value_variants().len(), 37);
+        assert_eq!(Command::value_variants().len(), 36);
     }
 
     #[test]
@@ -653,7 +653,6 @@ mod tests {
         for command in [
             Command::Codegen,
             Command::Env,
-            Command::Setup,
             Command::Bump,
             Command::New,
             Command::Completion,

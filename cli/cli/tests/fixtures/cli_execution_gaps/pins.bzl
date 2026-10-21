@@ -33,7 +33,6 @@ NOT_WATCHABLE_COMMANDS = [
     "owners",
     "rerun",
     "security",
-    "setup",
     "status",
     "tests",
     "update",
@@ -43,7 +42,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 29
+NOT_WATCHABLE_COUNT = 28
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -89,7 +88,6 @@ REPORT_NONE = [
     "migrate",
     "codegen",
     "env",
-    "setup",
     "init",
     "new",
     "hooks",

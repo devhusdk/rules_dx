@@ -19,7 +19,6 @@ pub enum Command {
     Migrate,
     Codegen,
     Env,
-    Setup,
     Init,
     New,
     Upgrade,
@@ -119,7 +118,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 37] = [
+pub static COMMANDS: [CommandMeta; 36] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -601,9 +600,9 @@ pub static COMMANDS: [CommandMeta; 37] = [
         name: "codegen",
         scope_policy: "default-repo|exact-label",
         describe: "collect codegen outputs with atomic commit (check by default; --apply writes managed state)",
-        usage: "Usage: dx codegen|env|setup [--check] [--apply] [<label>] [-- bazel-options ...]",
+        usage: "Usage: dx codegen|env [--check] [--apply] [<label>] [-- bazel-options ...]",
         flags: "Per-command flags: --check (validate the intended selection without writing; default). --apply (authorizes writing managed state; repository-wide or one exact // or @ label; --fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
-        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen-setup.md).",
+        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
         is_audit_update: false,
         is_managed: true,
         is_adoption: false,
@@ -629,37 +628,9 @@ pub static COMMANDS: [CommandMeta; 37] = [
         name: "env",
         scope_policy: "default-repo|exact-label",
         describe: "collect the managed development environment (check by default; --apply writes managed state)",
-        usage: "Usage: dx codegen|env|setup [--check] [--apply] [<label>] [-- bazel-options ...]",
+        usage: "Usage: dx codegen|env [--check] [--apply] [<label>] [-- bazel-options ...]",
         flags: "Per-command flags: --check (validate the intended selection without writing; default). --apply (authorizes writing managed state; repository-wide or one exact // or @ label; --fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
-        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen-setup.md).",
-        is_audit_update: false,
-        is_managed: true,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: true,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Refuse,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::OnlyEmpty,
-        hook_triggers_on_run: false,
-    },
-    CommandMeta {
-        command: Command::Setup,
-        name: "setup",
-        scope_policy: "default-repo|exact-label",
-        describe: "collect setup outputs with atomic commit (check by default; --apply writes managed state)",
-        usage: "Usage: dx codegen|env|setup [--check] [--apply] [<label>] [-- bazel-options ...]",
-        flags: "Per-command flags: --check (validate the intended selection without writing; default). --apply (authorizes writing managed state; repository-wide or one exact // or @ label; --fail-on/--report/--output diff and version/clean/inspect/migrate flags do not apply; --output text|json only; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
-        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen-setup.md).",
+        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
         is_audit_update: false,
         is_managed: true,
         is_adoption: false,
@@ -1245,7 +1216,6 @@ impl Command {
                 | Command::Migrate
                 | Command::Codegen
                 | Command::Env
-                | Command::Setup
                 | Command::Init
                 | Command::New
                 | Command::Upgrade
@@ -1377,10 +1347,8 @@ mod tests {
         assert_eq!(Command::Run.name(), "run");
         assert_eq!(Command::Codegen.name(), "codegen");
         assert_eq!(Command::Env.name(), "env");
-        assert_eq!(Command::Setup.name(), "setup");
         assert!(Command::Codegen.is_managed());
         assert!(Command::Env.is_managed());
-        assert!(Command::Setup.is_managed());
         assert!(!Command::Codegen.is_adoption());
         assert!(!Command::Clean.is_managed());
         assert_eq!(Command::Bazel.name(), "bazel");
@@ -1418,7 +1386,6 @@ mod tests {
             Command::Migrate,
             Command::Codegen,
             Command::Env,
-            Command::Setup,
             Command::Init,
             Command::New,
             Command::Upgrade,
@@ -1485,7 +1452,6 @@ mod tests {
             "rerun",
             "run",
             "security",
-            "setup",
             "status",
             "test",
             "tests",
@@ -1498,8 +1464,8 @@ mod tests {
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 37");
-        assert_eq!(Command::value_variants().len(), 37);
+        assert_eq!(got, want, "Command registry drifted from the final 36");
+        assert_eq!(Command::value_variants().len(), 36);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1527,7 +1493,6 @@ mod tests {
             Command::Generate,
             Command::Codegen,
             Command::Env,
-            Command::Setup,
             Command::Clean,
             Command::Update,
             Command::Bump,
@@ -1567,7 +1532,6 @@ mod tests {
             Command::Generate,
             Command::Codegen,
             Command::Env,
-            Command::Setup,
             Command::Clean,
             Command::Update,
             Command::Bump,
@@ -1650,7 +1614,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            37,
+            36,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1668,7 +1632,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|setup|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun|tests",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun|tests",
             "pipe_list order must match declaration order"
         );
     }
@@ -1676,7 +1640,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 37);
+        assert_eq!(Command::value_variants().len(), 36);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1895,7 +1859,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 37);
+        assert_eq!(COMMANDS.len(), 36);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

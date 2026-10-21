@@ -181,7 +181,7 @@ mod tests {
             err_text.contains("dx upgrade --from 1.2.3 --to 2.0.0"),
             "{err_text}"
         );
-        assert!(err_text.contains("dx setup"), "{err_text}");
+        assert!(err_text.contains("dx env"), "{err_text}");
     }
 
     #[test]

@@ -701,7 +701,7 @@ PROMISES = [
         "id": "command.codegen",
         "native": True,
         "owner": "//cli/cli:dx",
-        "page": "environment-codegen-setup.md",
+        "page": "environment-codegen.md",
         "state": "evidenced",
     },
     {
@@ -761,7 +761,7 @@ PROMISES = [
         "id": "command.env",
         "native": True,
         "owner": "//cli/cli:dx",
-        "page": "environment-codegen-setup.md",
+        "page": "environment-codegen.md",
         "state": "evidenced",
     },
     {
@@ -892,16 +892,6 @@ PROMISES = [
         "native": True,
         "owner": "//cli/cli:dx",
         "page": "audit-update-bazel.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "command.setup",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "environment-codegen-setup.md",
         "state": "evidenced",
     },
     {
@@ -1629,10 +1619,10 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "doc.environment-codegen-setup.md",
+        "id": "doc.environment-codegen.md",
         "native": False,
         "owner": "//docs:command_docs",
-        "page": "environment-codegen-setup.md",
+        "page": "environment-codegen.md",
         "state": "evidenced",
     },
     {
@@ -3287,7 +3277,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 354
+PROMISE_COUNT = 353
 
 PROMISE_FAMILIES = [
     "artifact",

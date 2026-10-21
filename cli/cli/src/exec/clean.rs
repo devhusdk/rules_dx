@@ -485,7 +485,7 @@ mod tests {
         let (code, out, err) = harness.run(&["clean", "--apply", "--bazel"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("nothing to prune"), "{out}");
-        assert!(out.contains("re-run `dx setup`"), "{out}");
+        assert!(out.contains("re-run `dx env`"), "{out}");
         assert_eq!(
             harness.seen_env.borrow().len(),
             1,

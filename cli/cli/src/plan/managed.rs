@@ -45,7 +45,6 @@ pub fn plan_managed(
             };
             dx_env_plan::scope_targets(&scope)
         }
-        Command::Setup => dx_setup::plan_request(scope).roots,
         _ => return Err(unsupported()),
     };
     let argv = managed_argv(command, &roots, bazel_options, bep_path, startup_options)?;
@@ -90,16 +89,6 @@ fn managed_argv(
         Command::Env => (
             vec![dx_env_plan::ENV_ASPECT.to_owned()],
             vec![dx_env_plan::OUTPUT_GROUP.to_owned()],
-        ),
-        Command::Setup => (
-            vec![
-                dx_setup::CODEGEN_ASPECT.to_owned(),
-                dx_setup::ENV_ASPECT.to_owned(),
-            ],
-            vec![
-                dx_setup::CODEGEN_OUTPUT_GROUP.to_owned(),
-                dx_setup::ENV_OUTPUT_GROUP.to_owned(),
-            ],
         ),
         _ => return Err(unsupported()),
     };
@@ -188,40 +177,13 @@ mod tests {
             .any(|arg| arg == "--output_groups=dx_env_plans"));
         assert_eq!(plan.argv.last(), Some(&"//dx:env".to_owned()));
         assert_eq!(plan.summary, "Running env for //...");
-        let plan = plan_managed(
-            Command::Setup,
-            &SetupScope::Repository,
-            &[],
-            "/tmp/bep.json",
-            &[],
-        )
-        .expect("plan");
-        assert_eq!(
-            plan.argv
-                .iter()
-                .filter(|arg| arg.starts_with("--aspects="))
-                .count(),
-            2,
-            "setup requests both collecting aspects: {plan:?}"
-        );
-        assert_eq!(
-            plan.argv
-                .iter()
-                .filter(|arg| arg.starts_with("--output_groups="))
-                .count(),
-            2,
-            "setup requests both output groups: {plan:?}"
-        );
-        assert!(plan.argv.contains(&"//dx:codegen".to_owned()));
-        assert!(plan.argv.contains(&"//dx:env".to_owned()));
-        assert_eq!(plan.summary, "Running setup for //...");
     }
 
     #[test]
     fn managed_plan_exact_scope_selects_label() {
         use dx_setup::SetupScope;
 
-        for command in [Command::Codegen, Command::Env, Command::Setup] {
+        for command in [Command::Codegen, Command::Env] {
             let scope = SetupScope::Exact("//a:one".to_owned());
             let plan = plan_managed(command, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
             assert_eq!(plan.argv.last(), Some(&"//a:one".to_owned()), "{command:?}");
@@ -251,20 +213,6 @@ mod tests {
             plan.summary,
             "Running codegen for //generation:codegen_prost_fixture //generation:result_proto"
         );
-        let plan = plan_managed_with_roots(Command::Setup, &roots, &[], "/tmp/bep.json", &[])
-            .expect("plan");
-        assert_eq!(
-            plan.argv
-                .iter()
-                .filter(|arg| arg.starts_with("--aspects="))
-                .count(),
-            2,
-            "expanded setup still requests both aspects: {plan:?}"
-        );
-        assert_eq!(
-            plan.summary,
-            "Running setup for //generation:codegen_prost_fixture //generation:result_proto"
-        );
         for command in [Command::Build, Command::Lint] {
             let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json", &[])
                 .expect_err("unmanaged must fail");
@@ -285,7 +233,7 @@ mod tests {
             "--build_event_json_file=/tmp/other.json",
         ] {
             let err = plan_managed(
-                Command::Setup,
+                Command::Codegen,
                 &SetupScope::Repository,
                 &strings(&[conflicting]),
                 "/tmp/bep.json",

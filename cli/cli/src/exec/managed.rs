@@ -50,7 +50,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
     };
     let expanded: Option<Vec<String>> = match (invocation.command, &scope) {
-        (Command::Codegen | Command::Setup, dx_setup::SetupScope::Exact(label)) => {
+        (Command::Codegen, dx_setup::SetupScope::Exact(label)) => {
             match expand_codegen_roots(
                 label,
                 workspace,
@@ -145,7 +145,6 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         return bazel_code;
     }
-    let repository = matches!(scope, dx_setup::SetupScope::Repository);
     if !apply {
         return check_managed(
             CheckInputs {
@@ -153,7 +152,6 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 workspace,
                 temp_dir,
                 scope: &scope,
-                repository,
                 bep: &bep,
                 json,
                 verbose,
@@ -163,7 +161,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
     }
     let (sides, staged_leases) =
-        match prepare_managed_sides(invocation.command, repository, workspace, workspace, &bep) {
+        match prepare_managed_sides(invocation.command, workspace, workspace, &bep) {
             Ok(prepared) => prepared,
             Err((code, message)) => {
                 let _ = std::fs::remove_file(&bep);
@@ -227,7 +225,6 @@ struct CheckInputs<'a> {
     workspace: &'a Path,
     temp_dir: &'a Path,
     scope: &'a dx_setup::SetupScope,
-    repository: bool,
     bep: &'a Path,
     json: bool,
     verbose: bool,
@@ -243,7 +240,6 @@ fn check_managed(
         workspace,
         temp_dir,
         scope,
-        repository,
         bep,
         json,
         verbose,
@@ -260,7 +256,7 @@ fn check_managed(
         );
     }
     let (sides, staged_leases) =
-        match prepare_managed_sides(invocation.command, repository, workspace, &scratch, bep) {
+        match prepare_managed_sides(invocation.command, workspace, &scratch, bep) {
             Ok(prepared) => prepared,
             Err((code, message)) => {
                 let _ = std::fs::remove_file(bep);
@@ -356,7 +352,7 @@ mod tests {
 
     #[test]
     fn managed_dry_run_prints_summary_without_launching() {
-        for command in ["codegen", "env", "setup"] {
+        for command in ["codegen", "env"] {
             let name = format!("managed-dryrun-{command}");
             let harness = Harness::new(&name);
             let (code, out, err) = harness.run(&[command, "--dry-run"]);
@@ -389,7 +385,7 @@ mod tests {
     #[test]
     fn managed_dry_run_quiet_prints_nothing() {
         let harness = Harness::new("managed-dryrun-quiet");
-        let (code, out, err) = harness.run(&["setup", "--dry-run", "--quiet"]);
+        let (code, out, err) = harness.run(&["env", "--dry-run", "--quiet"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(out, "", "{out}");
         assert_eq!(err, "", "{err}");
@@ -397,7 +393,7 @@ mod tests {
 
     #[test]
     fn managed_live_empty_selection_commits_with_empty_counterparts() {
-        for command in ["codegen", "env", "setup"] {
+        for command in ["codegen", "env"] {
             let name = format!("managed-commit-{command}");
             let harness = Harness::new(&name);
             let (code, out, err) = harness.run(&[command, "--apply"]);
@@ -459,21 +455,6 @@ mod tests {
     }
 
     #[test]
-    fn managed_live_exact_setup_without_capability_fails_closed() {
-        let harness = Harness::new("managed-setup-nocap");
-        harness.query.script_owners("\n");
-        let (code, out, err) = harness.run(&["setup", "//a:one"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("dx: no_capability:"), "{err}");
-        assert!(out.contains("Running setup for //a:one"), "{out}");
-        assert_eq!(
-            read_current_pair(&harness.workspace).expect("read current"),
-            None,
-            "capability failure commits nothing"
-        );
-    }
-
-    #[test]
     fn managed_exact_codegen_expands_bare_schema_to_projections() {
         let harness = Harness::new("managed-expand-dryrun");
         harness
@@ -517,19 +498,6 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("selected setup "), "{out}");
-
-        let harness = Harness::new("managed-expand-setup");
-        harness
-            .query
-            .script_owners("//generation:codegen_prost_fixture\n");
-        let (code, out, err) = harness.run(&["setup", "//generation:result_proto", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(
-            out.contains(
-                "Running setup for //generation:codegen_prost_fixture //generation:result_proto"
-            ),
-            "{out}"
-        );
     }
 
     #[test]
@@ -640,9 +608,9 @@ mod tests {
             bazel_code: 3,
             ..Harness::new("managed-bazel-failed")
         };
-        let (code, out, err) = harness.run(&["setup"]);
+        let (code, out, err) = harness.run(&["env"]);
         assert_eq!(code, 3, "{out}{err}");
-        assert!(out.contains("Running setup for //..."), "{out}");
+        assert!(out.contains("Running env for //..."), "{out}");
     }
 
     #[test]
@@ -670,7 +638,7 @@ mod tests {
     #[test]
     fn managed_policy_conflict_fails_before_execution() {
         let harness = Harness::new("managed-conflict");
-        let (code, _, _) = harness.run(&["setup", "--", "--aspects=//other.bzl%aspect"]);
+        let (code, _, _) = harness.run(&["env", "--", "--aspects=//other.bzl%aspect"]);
         assert_eq!(code, 2);
         assert!(
             harness.seen_env.borrow().is_empty(),
@@ -680,7 +648,7 @@ mod tests {
 
     #[test]
     fn managed_dry_run_json_streams_planning_events() {
-        for command in ["codegen", "env", "setup"] {
+        for command in ["codegen", "env"] {
             let name = format!("managed-dry-json-{command}");
             let harness = Harness::new(&name);
             let (code, out, err) = harness.run(&[command, "--dry-run", "--output=json"]);
@@ -716,7 +684,7 @@ mod tests {
 
     #[test]
     fn managed_live_json_streams_selection() {
-        for command in ["codegen", "env", "setup"] {
+        for command in ["codegen", "env"] {
             let name = format!("managed-live-json-{command}");
             let harness = Harness::new(&name);
             let (code, out, err) = harness.run(&[command, "--apply", "--output=json"]);
@@ -754,7 +722,7 @@ mod tests {
             bazel_code: 3,
             ..Harness::new("managed-json-bazel-fail")
         };
-        let (code, out, _) = harness.run(&["setup", "--output=json"]);
+        let (code, out, _) = harness.run(&["env", "--output=json"]);
         assert_eq!(code, 3, "{out}");
         assert!(out.contains("bazel_failed"), "{out}");
         assert!(out.contains("command_finished"), "{out}");
@@ -763,7 +731,7 @@ mod tests {
 
     #[test]
     fn managed_default_reports_missing_selection_without_writing() {
-        for command in ["codegen", "env", "setup"] {
+        for command in ["codegen", "env"] {
             let name = format!("managed-check-missing-{command}");
             let harness = Harness::new(&name);
             let (code, out, err) = harness.run(&[command]);
@@ -794,7 +762,7 @@ mod tests {
 
     #[test]
     fn managed_explicit_check_matches_default() {
-        for command in ["codegen", "env", "setup"] {
+        for command in ["codegen", "env"] {
             let default = Harness::new(&format!("managed-check-default-{command}"));
             let (default_code, default_out, _) = default.run(&[command]);
             let explicit = Harness::new(&format!("managed-check-explicit-{command}"));
@@ -807,7 +775,7 @@ mod tests {
 
     #[test]
     fn managed_check_current_selection_succeeds_without_touching_state() {
-        for command in ["codegen", "env", "setup"] {
+        for command in ["codegen", "env"] {
             let name = format!("managed-check-current-{command}");
             let harness = Harness::new(&name);
             let (code, _, err) = harness.run(&[command, "--apply"]);

@@ -13,7 +13,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx lint`, `dx typecheck`, `dx format`](quality.md)
 - [`dx check`, `dx fix`, `dx clean`](check-fix-clean.md)
 - [`dx generate`](generate.md)
-- [`dx env`, `dx codegen`, `dx setup`](environment-codegen-setup.md)
+- [`dx env`, `dx codegen`](environment-codegen.md)
 - [`dx security`, `dx license`, `dx update`, `dx bump`, `dx bazel`](audit-update-bazel.md)
 - [`dx docs`](docs.md)
 - [`dx init`, `dx hooks`](hooks.md)
@@ -70,12 +70,12 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--run-output <dir>`: retain test logs under a unique child directory with
   `manifest.json`. Taken by `test`, `coverage`. Every other command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
-  `generate`, `codegen`, `env`, `setup`, `clean`, `check`, `fix`, `update`,
+  `generate`, `codegen`, `env`, `clean`, `check`, `fix`, `update`,
   `version`, `completion`, and `docs`.
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `setup`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, and `docs`.
+  `codegen`, `env`, `init`, `new`, `upgrade`, `hooks`, `watch`, `version`, and `docs`.
   Every other command rejects it. It never combines with `--check` or `--dry-run`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means

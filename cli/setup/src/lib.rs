@@ -15,22 +15,7 @@ use std::time::Duration;
 
 use dx_atomic_fs::commit::{acquire_commit_lock, CommitLock, LockError, ManagedRoot, DX_DIR_NAME};
 use dx_digest::blake3 as digest;
-use dx_roots::{
-    build_argv_union, invocation_targets_union, repository_plan, resolve_exact_target,
-    ExactScopeError, RepositoryRootPlan,
-};
-
-pub const CODEGEN_ASPECT: &str = "//generation:codegen.bzl%dx_codegen_plan_aspect";
-
-pub const ENV_ASPECT: &str = "//env:plan.bzl%dx_env_plan_aspect";
-
-pub const CODEGEN_OUTPUT_GROUP: &str = "dx_codegen_plans";
-
-pub const ENV_OUTPUT_GROUP: &str = "dx_env_plans";
-
-pub const CODEGEN_REPOSITORY_TARGET: &str = "//dx:codegen";
-
-pub const ENV_REPOSITORY_TARGET: &str = "//dx:env";
+use dx_roots::{resolve_exact_target, ExactScopeError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupScope {
@@ -57,63 +42,6 @@ pub fn resolve_scope(targets: &[String]) -> Result<SetupScope, ScopeError> {
         }
         Err(ExactScopeError::TargetPattern { value }) => Err(ScopeError::TargetPattern { value }),
         Err(ExactScopeError::NotTargetLabel { value }) => Err(ScopeError::NotTargetLabel { value }),
-    }
-}
-
-pub fn scope_targets(scope: &SetupScope) -> Vec<String> {
-    match scope {
-        SetupScope::Repository => vec![
-            CODEGEN_REPOSITORY_TARGET.to_owned(),
-            ENV_REPOSITORY_TARGET.to_owned(),
-        ],
-        SetupScope::Exact(label) => vec![label.clone()],
-    }
-}
-
-pub fn request_aspects() -> Vec<String> {
-    vec![CODEGEN_ASPECT.to_owned(), ENV_ASPECT.to_owned()]
-}
-
-pub fn targets_for_root_plan(plan: &RepositoryRootPlan) -> Vec<String> {
-    invocation_targets_union(plan, &[CODEGEN_REPOSITORY_TARGET, ENV_REPOSITORY_TARGET])
-}
-
-pub fn plan_request_for_root_plan(plan: &RepositoryRootPlan) -> SetupRequest {
-    SetupRequest {
-        roots: targets_for_root_plan(plan),
-        aspects: request_aspects(),
-        output_groups: request_output_groups(),
-    }
-}
-
-pub fn build_argv_for_plan(plan: &RepositoryRootPlan) -> Vec<String> {
-    build_argv_union(
-        plan,
-        &[CODEGEN_REPOSITORY_TARGET, ENV_REPOSITORY_TARGET],
-        &request_aspects(),
-        &request_output_groups(),
-    )
-}
-
-pub fn request_output_groups() -> Vec<String> {
-    vec![CODEGEN_OUTPUT_GROUP.to_owned(), ENV_OUTPUT_GROUP.to_owned()]
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SetupRequest {
-    pub roots: Vec<String>,
-    pub aspects: Vec<String>,
-    pub output_groups: Vec<String>,
-}
-
-pub fn plan_request(scope: &SetupScope) -> SetupRequest {
-    match scope {
-        SetupScope::Repository => plan_request_for_root_plan(&repository_plan()),
-        SetupScope::Exact(label) => SetupRequest {
-            roots: vec![label.clone()],
-            aspects: request_aspects(),
-            output_groups: request_output_groups(),
-        },
     }
 }
 

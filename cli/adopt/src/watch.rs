@@ -173,7 +173,6 @@ mod tests {
             "init",
             "migrate",
             "owners",
-            "setup",
             "status",
             "update",
             "version",

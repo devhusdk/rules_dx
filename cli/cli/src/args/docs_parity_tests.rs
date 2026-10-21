@@ -12,7 +12,6 @@ use super::render_command_help;
 use crate::test_support::strings;
 
 const DX_PREFIX: &str = "bazel run @rules_dx//:dx --";
-const ENV_LAUNCHER: &str = "bazel run //dx:env";
 
 fn workspace_root() -> PathBuf {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
@@ -641,12 +640,9 @@ fn docs_shell_examples_parse() {
             for line in &block {
                 let trimmed = line.trim();
                 assert!(
-                    trimmed.starts_with(DX_PREFIX) || trimmed == ENV_LAUNCHER,
+                    trimmed.starts_with(DX_PREFIX),
                     "{name}: shell example must run the dx launcher: {line}"
                 );
-                if trimmed == ENV_LAUNCHER {
-                    continue;
-                }
                 let words: Vec<String> = trimmed
                     .strip_prefix(DX_PREFIX)
                     .expect("checked above")

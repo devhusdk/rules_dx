@@ -184,38 +184,36 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
 ];
 
 #[test]
-fn help_rejected_line_names_exactly_the_flags_the_parser_refuses() {
+fn help_lists_exactly_the_flags_the_parser_accepts() {
     for command in Command::value_variants() {
         let command = *command;
-        let listed = super::rejected_flags(command);
+        let listed = super::super::grammar::advertised_flags(command);
         for (flag, payload) in SHARED_FLAGS {
             let refused = probe_rejects(command, flag, *payload);
+            let advertised = if *flag == "-- <bazel-options>" {
+                super::advertises_passthrough(command)
+            } else {
+                listed
+                    .iter()
+                    .any(|name| name == flag.trim_start_matches('-'))
+            };
             assert_eq!(
                 refused,
-                listed.contains(flag),
-                "dx {} help {flag}: parser refuses={refused} listed={}",
+                !advertised,
+                "dx {} help {flag}: parser refuses={refused} advertised={advertised}",
                 command.name(),
-                listed.contains(flag)
             );
         }
         assert_eq!(
-            listed.contains(&"--report"),
+            !listed.iter().any(|name| name == "report"),
             super::output_line(command).contains("no standard format"),
-            "dx {} help lists --report against what the Output line promises:\n{}\n{}",
+            "dx {} help lists --report against what the Output line promises:\n{}",
             command.name(),
             super::output_line(command),
-            super::rejected_line(command)
-        );
-        let line = super::rejected_line(command);
-        assert_eq!(
-            line,
-            format!("Rejected: {}.", listed.join(", ")),
-            "dx {} rejected line",
-            command.name()
         );
         assert!(
-            render_command_help(command).contains(&line),
-            "dx {} help omits its rejected line:\n{line}",
+            !render_command_help(command).contains("Rejected:"),
+            "dx {} help carries a rejection list",
             command.name()
         );
     }
@@ -1018,10 +1016,6 @@ fn global_flags_page_names_every_min_coverage_command() {
         named,
         commands_where(Command::supports_min_coverage),
         "docs/cli/commands/README.md --min-coverage bullet must name every command that takes a threshold"
-    );
-    assert!(
-        bullet.contains("Every other command rejects it."),
-        "docs/cli/commands/README.md --min-coverage bullet must say every other command rejects it:\n{bullet}"
     );
 }
 

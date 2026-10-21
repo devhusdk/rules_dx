@@ -223,61 +223,9 @@ pub(crate) fn output_line(command: Command) -> String {
     )
 }
 
-/// The flags that belong to some commands only, in the order help lists them.
-const COMMAND_FLAGS: &[&str] = &[
-    "--report",
-    "--fail-on",
-    "--min-coverage",
-    "--check",
-    "--apply",
-    "--debug",
-    "--release",
-    "--bazel",
-    "--prune-unobserved",
-    "--configured",
-    "--cases",
-    "--from",
-    "--to",
-    "--here",
-    "--serve",
-    "--port",
-    "--host",
-    "--open",
-    "--offline",
-    "--frozen",
-];
-
-const PASSTHROUGH: &str = "-- <bazel-options>";
-
-/// The flags the grammar gives this command's help, read off its clap subcommand.
-pub(crate) fn advertised_flags(command: Command) -> Vec<&'static str> {
-    let names = super::grammar::advertised_flags(command);
-    COMMAND_FLAGS
-        .iter()
-        .copied()
-        .filter(|flag| {
-            let long = flag.trim_start_matches('-');
-            names.iter().any(|name| name == long)
-        })
-        .collect()
-}
-
 /// Whether `dx <command> -- <bazel-options>` passes them through.
 pub(crate) fn advertises_passthrough(command: Command) -> bool {
     accepts_bazel_options(command) && super::grammar::advertises_passthrough(command)
-}
-
-/// The flags the grammar names for some command but not this one.
-pub(crate) fn rejected_flags(command: Command) -> Vec<&'static str> {
-    let mut flags: Vec<&'static str> = COMMAND_FLAGS
-        .iter()
-        .copied()
-        .filter(|flag| !advertised_flags(command).contains(flag))
-        .collect();
-    if !advertises_passthrough(command) {
-        flags.push(PASSTHROUGH);
-    }
-    flags
 }
 
 /// Whether `dx <command> -- <bazel-options>` passes them through.
@@ -294,10 +242,6 @@ pub(crate) fn accepts_bazel_options(command: Command) -> bool {
     )
 }
 
-pub(crate) fn rejected_line(command: Command) -> String {
-    format!("Rejected: {}.", rejected_flags(command).join(", "))
-}
-
 /// The prose clap appends to each command's long help.
 pub(crate) fn after_long_help(command: Command) -> String {
     let mut out = String::new();
@@ -307,8 +251,6 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out.push_str(&format!("\n{EXIT_CODES}"));
     out.push('\n');
     out.push_str(&output_line(command));
-    out.push('\n');
-    out.push_str(&rejected_line(command));
     out.push('\n');
     out.push_str(ENV_LINE);
     out

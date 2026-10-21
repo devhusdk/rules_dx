@@ -1,4 +1,4 @@
-"""Experimental minimal WASI wrappers."""
+"""Minimal WASI wrappers."""
 
 load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 

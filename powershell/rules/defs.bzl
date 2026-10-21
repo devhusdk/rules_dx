@@ -1,4 +1,4 @@
-"""Experimental minimal PowerShell wrappers."""
+"""Minimal PowerShell wrappers."""
 
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo", _pwsh_binary = "pwsh_binary", _pwsh_library = "pwsh_library", _pwsh_test = "pwsh_test")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
@@ -66,14 +66,14 @@ def _pwsh_wrap_binary(name, srcs, visibility = None, **kwargs):
     dx_wrap_binary(name, _pwsh_binary, _pwsh_binary_forward, srcs, visibility = visibility, **kwargs)
 
 def pwsh_library(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over pwsh_library."""
+    """Minimal wrapper over pwsh_library."""
     _pwsh_wrap_library(name, srcs, visibility = visibility, **kwargs)
 
 def pwsh_binary(name, srcs = None, visibility = None, **kwargs):
-    """Experimental minimal wrapper over pwsh_binary."""
+    """Minimal wrapper over pwsh_binary."""
     effective_srcs = powershell_effective_srcs(srcs)
     _pwsh_wrap_binary(name, effective_srcs, visibility = visibility, **kwargs)
 
 def pwsh_test(name, srcs, visibility = None, **kwargs):
-    """Experimental minimal wrapper over pwsh_test."""
+    """Minimal wrapper over pwsh_test."""
     dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, **kwargs)

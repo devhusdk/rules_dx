@@ -49,12 +49,18 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
             if let Some(text) = removed_version_flag(args, error) {
                 return ArgsError::Usage { text };
             }
+            if let Some(text) = removed_receipt_flag(error) {
+                return ArgsError::Usage { text };
+            }
             unsupported_option(args, error).unwrap_or_else(|| ArgsError::Usage {
                 text: without_usage(&error.render().to_string()),
             })
         }
-        clap::error::ErrorKind::InvalidSubcommand if removed_setup(error) => ArgsError::Usage {
-            text: SETUP_REMOVED.to_owned(),
+        clap::error::ErrorKind::InvalidSubcommand => match removed_command(error) {
+            Some(text) => ArgsError::Usage { text },
+            None => ArgsError::Usage {
+                text: without_usage(&error.render().to_string()),
+            },
         },
         _ => ArgsError::Usage {
             text: without_usage(&error.render().to_string()),
@@ -62,14 +68,39 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
     }
 }
 
-const SETUP_REMOVED: &str =
-    "error: unsupported command 'setup'\n\n  tip: run `dx env` and `dx codegen` instead (each takes --check or --apply)";
+fn removed_command(error: &clap::Error) -> Option<String> {
+    let word = match error.get(clap::error::ContextKind::InvalidSubcommand) {
+        Some(clap::error::ContextValue::String(word)) => word.as_str(),
+        _ => return None,
+    };
+    let tip = match word {
+        "setup" => "run `dx env` and `dx codegen` instead (each takes --check or --apply)",
+        "verify" => "run `dx check`, `dx build`, `dx test` and `dx coverage` directly, in the order you need",
+        "rerun" => "run `dx test <target>` for the targets you want to run again",
+        _ => return None,
+    };
+    Some(format!(
+        "error: unsupported command '{word}'\n\n  tip: {tip}"
+    ))
+}
 
-fn removed_setup(error: &clap::Error) -> bool {
-    matches!(
-        error.get(clap::error::ContextKind::InvalidSubcommand),
-        Some(clap::error::ContextValue::String(word)) if word == "setup"
-    )
+fn removed_receipt_flag(error: &clap::Error) -> Option<String> {
+    let flag = match error.get(clap::error::ContextKind::InvalidArg) {
+        Some(clap::error::ContextValue::String(token)) => reported_flag(token)?,
+        _ => return None,
+    };
+    let tip = match flag.as_str() {
+        "--run-output" => {
+            "use `--report junit=<path>` or `--report lcov=<path>` for test and coverage reports"
+        }
+        "--strict-evidence" => {
+            "incomplete test and coverage evidence now always fails; drop the flag"
+        }
+        _ => return None,
+    };
+    Some(format!(
+        "error: unsupported option '{flag}'\n\n  tip: {tip}"
+    ))
 }
 
 fn removed_version_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<String> {

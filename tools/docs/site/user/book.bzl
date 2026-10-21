@@ -78,16 +78,6 @@ USER_BOOK = [
         "//docs:cli/commands/capabilities.md",
     ),
     mdbook_page(
-        "Verify",
-        "docs/cli/commands/verify.md",
-        "//docs:cli/commands/verify.md",
-    ),
-    mdbook_page(
-        "Rerun",
-        "docs/cli/commands/rerun.md",
-        "//docs:cli/commands/rerun.md",
-    ),
-    mdbook_page(
         "Tests",
         "docs/cli/commands/tests.md",
         "//docs:cli/commands/tests.md",

@@ -184,7 +184,7 @@ flags go after the command: `dx lint --check //...`. \
 per-command flags: capabilities --workspace-capabilities (adds workspace facts from local records); \
 clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
 --prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
-coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy|watch --debug|--release; \
+coverage --min-coverage; build|run|test|deploy|watch --debug|--release; \
 version --check; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
 --check is per-command only (quality/codegen/env/clean/version/update/docs/completion/check|fix; status rejects --check; \
@@ -232,8 +232,6 @@ const COMMAND_FLAGS: &[&str] = &[
     "--report",
     "--fail-on",
     "--min-coverage",
-    "--strict-evidence",
-    "--run-output",
     "--check",
     "--apply",
     "--debug",
@@ -613,8 +611,6 @@ mod tests {
             Command::Watch => owned(&["build"]),
             Command::Owners | Command::Deps => owned(&["//:all"]),
             Command::New => owned(&["rust"]),
-            Command::Verify => owned(&["pre-pr"]),
-            Command::Rerun => owned(&["receipt.json"]),
             _ => Vec::new(),
         }
     }

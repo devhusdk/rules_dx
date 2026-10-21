@@ -83,7 +83,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
     (
         "--configured",
         &["--configured"],
@@ -91,7 +91,6 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
     ),
     ("--cases", &["--cases"], &["tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
-    ("--run-output", &["--run-output=out"], &["test", "coverage"]),
     ("--serve", &["--serve"], &["docs"]),
     ("--port", &["--serve", "--port=8080"], &["docs"]),
     ("--host", &["--serve", "--host=127.0.0.1"], &["docs"]),
@@ -116,8 +115,6 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "new" => &["rust"],
         "watch" => &["build"],
         "completion" => &["bash"],
-        "verify" => &["pre-pr"],
-        "rerun" => &["receipt.json"],
         _ => &[],
     }
 }

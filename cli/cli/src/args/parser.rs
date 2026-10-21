@@ -319,8 +319,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         report,
         fail_on,
         min_coverage,
-        strict_evidence,
-        run_output,
         check,
         apply,
         debug,
@@ -490,14 +488,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(missing_positional(command));
         }
     }
-    if command == Command::Verify || command == Command::Rerun {
-        if targets.len() > 1 {
-            return Err(extra_positional(command, &targets[1]));
-        }
-        if targets.is_empty() {
-            return Err(missing_positional(command));
-        }
-    }
     if matches!(command, Command::Migrate | Command::Upgrade) && (from.is_none() || to.is_none()) {
         return Err(ArgsError::MissingValue {
             option: "--from <version> --to <version>".to_owned(),
@@ -601,24 +591,12 @@ fn parse_inner<S: AsRef<OsStr>>(
     if output_name == "diff" && !command.supports_diff() {
         return Err(unsupported(command, "--output=diff"));
     }
-    if run_output.is_some() && !command.supports_run_output() {
-        return Err(unsupported(command, "--run-output"));
-    }
     if cases && !command.supports_cases() {
         return Err(unsupported(command, "--cases"));
-    }
-    if let Some(dir) = run_output.as_deref() {
-        if dir.is_empty() {
-            return Err(ArgsError::MissingValue {
-                option: "--run-output".to_owned(),
-            });
-        }
     }
     Ok(Invocation {
         command,
         check,
-        strict_evidence,
-        run_output,
         apply,
         debug,
         release,

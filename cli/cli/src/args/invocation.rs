@@ -45,7 +45,6 @@ pub struct QualityRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
-    pub strict_evidence: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,7 +68,6 @@ pub struct UmbrellaRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
-    pub strict_evidence: bool,
 }
 
 impl CommonOptions {
@@ -142,7 +140,6 @@ impl UmbrellaRequest {
                 color: self.common.color,
             },
             fail_on: self.fail_on,
-            strict_evidence: self.strict_evidence,
         })
     }
 
@@ -187,7 +184,6 @@ impl UmbrellaRequest {
                 color: self.common.color,
             },
             fail_on: self.fail_on,
-            strict_evidence: self.strict_evidence,
         })
     }
 
@@ -214,8 +210,6 @@ impl UmbrellaRequest {
 pub struct Invocation {
     pub command: Command,
     pub check: bool,
-    pub strict_evidence: bool,
-    pub run_output: Option<String>,
     pub apply: bool,
     pub debug: bool,
     pub release: bool,
@@ -325,7 +319,6 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
-            strict_evidence: self.strict_evidence,
         })
     }
 
@@ -363,7 +356,6 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
-            strict_evidence: self.strict_evidence,
         })
     }
 }
@@ -445,8 +437,6 @@ mod tests {
         Invocation {
             command,
             check: false,
-            strict_evidence: false,
-            run_output: None,
             apply: false,
             debug: false,
             release: false,
@@ -664,14 +654,7 @@ mod tests {
             .quality_request()
             .expect("request");
         let debug = format!("{request:?}");
-        for unrelated in [
-            "serve",
-            "offline",
-            "frozen",
-            "min_coverage",
-            "run_output",
-            "configured",
-        ] {
+        for unrelated in ["serve", "offline", "frozen", "min_coverage", "configured"] {
             assert!(
                 !debug.contains(unrelated),
                 "typed quality request cannot represent {unrelated}: {debug}"

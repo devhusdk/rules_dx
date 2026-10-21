@@ -14,14 +14,13 @@ targets. Args after `--` go to Bazel unchanged.
 
 ```text
 dx build [--here] [--debug|--release] [scope...] [-- bazel-options...]
-dx test [--here] [--debug|--release] [--strict-evidence] [--run-output <dir>] [--report junit=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--debug|--release] [--report junit=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 `--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
 Extra `--config` values pass through after the dx profile in their original
-order. Only a conflicting dx profile is rejected. `--strict-evidence` fails
-the run when collected test evidence is incomplete instead of tolerating gaps.
+order. Only a conflicting dx profile is rejected.
 
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
@@ -31,17 +30,11 @@ and a failed write keeps the previous file bytes. `dx build` has no report
 format. `dx test --output=json` adds one
 `test_outcome` event per test result, with its Bazel status, run, shard,
 attempt, cached state, duration, case counts, artifact counts, and whether its
-evidence is complete. `--run-output <dir>` copies every reported test output
-into a unique child directory and writes `manifest.json` there. The manifest
-lists target, run, shard, attempt, name, and retained path for each artifact.
-Missing artifacts stay explicit. `--output=json` stays NDJSON on stdout and
-adds one `report` event with format `run-output` for the manifest.
+evidence is complete.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
-failures. Bazel failures keep Bazel's code. Missing or invalid `test.xml`
-artifacts warn and pass when Bazel passes, other results exist, and at most
-a quarter of the reported results are unusable. More than that fails as
-incomplete. `--strict-evidence` fails any incomplete evidence instead.
+failures. Bazel failures keep Bazel's code. A missing, truncated or invalid
+`test.xml` artifact fails the run as incomplete, even when Bazel passes.
 
 ```sh
 bazel run @rules_dx//:dx -- build //cli/...
@@ -106,13 +99,11 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--min-coverage <percent>] [--strict-evidence] [--run-output <dir>] [--report lcov=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--min-coverage <percent>] [--report lcov=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` fails below that
-percent. Without it, coverage collects without enforcing. `--strict-evidence`
-is accepted and keeps scripts uniform; coverage already fails on incomplete
-evidence with or without it.
+percent. Without it, coverage collects without enforcing.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout. A relative
@@ -121,12 +112,7 @@ destinations fail before anything runs, parents must exist, and a failed write
 keeps the previous file bytes.
 `dx coverage --output=json` adds one `test_outcome` event per test result,
 with its Bazel status, run, shard, attempt, cached state, duration, artifact
-counts, and whether its evidence is complete. `--run-output <dir>` copies
-every reported coverage output into a unique child directory and writes
-`manifest.json` there. The manifest lists target, run, shard, attempt, name,
-and retained path for each artifact. Missing artifacts stay explicit.
-`--output=json` stays NDJSON on stdout and adds one `report` event with
-format `run-output` for the manifest.
+counts, and whether its evidence is complete.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures

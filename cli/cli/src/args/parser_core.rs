@@ -70,55 +70,37 @@ fn min_coverage_rejects_bad_values_and_other_commands() {
 }
 
 #[test]
-fn strict_evidence_parses_for_test_and_coverage_only() {
-    let test = parse(&strings(&["test", "--strict-evidence"])).expect("parse");
-    assert_eq!(test.command, Command::Test);
-    assert!(test.strict_evidence);
-    let coverage = parse(&strings(&["coverage", "--strict-evidence"])).expect("parse");
-    assert_eq!(coverage.command, Command::Coverage);
-    assert!(coverage.strict_evidence);
-    let bare = parse(&strings(&["test"])).expect("parse");
-    assert!(!bare.strict_evidence);
-    assert_eq!(
-        parse(&strings(&["build", "--strict-evidence"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "build",
-            option: "--strict-evidence".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["lint", "--strict-evidence"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "lint",
-            option: "--strict-evidence".to_owned(),
-        })
-    );
+fn receipt_flags_are_rejected_with_report_tips() {
+    for (words, tip) in [
+        (vec!["test", "--strict-evidence"], "always fails"),
+        (vec!["coverage", "--strict-evidence"], "always fails"),
+        (vec!["build", "--strict-evidence"], "always fails"),
+        (vec!["test", "--run-output=out"], "--report junit="),
+        (vec!["test", "--run-output", "out"], "--report junit="),
+        (vec!["coverage", "--run-output=out"], "--report lcov="),
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["unsupported option", tip],
+        );
+    }
 }
 
 #[test]
-fn run_output_parses_for_test_and_coverage_only() {
-    let test = parse(&strings(&["test", "--run-output=out"])).expect("parse");
-    assert_eq!(test.command, Command::Test);
-    assert_eq!(test.run_output, Some("out".to_owned()));
-    let spaced = parse(&strings(&["coverage", "--run-output", "out"])).expect("parse");
-    assert_eq!(spaced.command, Command::Coverage);
-    assert_eq!(spaced.run_output, Some("out".to_owned()));
-    let bare = parse(&strings(&["test"])).expect("parse");
-    assert_eq!(bare.run_output, None);
-    assert_eq!(
-        parse(&strings(&["build", "--run-output=out"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "build",
-            option: "--run-output".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["lint", "--run-output=out"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "lint",
-            option: "--run-output".to_owned(),
-        })
-    );
+fn verify_and_rerun_are_rejected_with_direct_command_tips() {
+    for (words, tip) in [
+        (vec!["verify"], "dx check"),
+        (vec!["verify", "pre-pr"], "dx test"),
+        (vec!["rerun"], "dx test <target>"),
+        (vec!["rerun", "receipt.json"], "dx test <target>"),
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["unsupported command", tip],
+        );
+    }
 }
 
 #[test]
@@ -146,8 +128,6 @@ fn plain_words(command: Command) -> Vec<String> {
         Command::New => words.push("rust".to_owned()),
         Command::Watch => words.push("build".to_owned()),
         Command::Completion => words.push("bash".to_owned()),
-        Command::Verify => words.push("pre-pr".to_owned()),
-        Command::Rerun => words.push("receipt.json".to_owned()),
         _ => {}
     }
     words

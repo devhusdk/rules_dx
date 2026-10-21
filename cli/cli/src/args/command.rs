@@ -32,8 +32,6 @@ pub enum Command {
     Completion,
     Docs,
     Capabilities,
-    Verify,
-    Rerun,
     Tests,
     Rollback,
 }
@@ -118,7 +116,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 36] = [
+pub static COMMANDS: [CommandMeta; 34] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -320,8 +318,8 @@ pub static COMMANDS: [CommandMeta; 36] = [
         name: "test",
         scope_policy: "default-//...",
         describe: "run Bazel test over resolved targets",
-        usage: "Usage: dx test [--here] [--debug|--release] [--strict-evidence] [--run-output <dir>] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release). --strict-evidence fails on incomplete test evidence instead of tolerating gaps (test/coverage only). --run-output <dir> retains test logs under a unique child directory with a manifest (test/coverage only).",
+        usage: "Usage: dx test [--here] [--debug|--release] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --debug | --release (build/run/test/deploy only; mutually exclusive; bare invocation means dev, except deploy means release).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -348,8 +346,8 @@ pub static COMMANDS: [CommandMeta; 36] = [
         name: "coverage",
         scope_policy: "default-//...",
         describe: "collect LCOV coverage with optional threshold",
-        usage: "Usage: dx coverage [--here] [--min-coverage 0-100] [--strict-evidence] [--run-output <dir>] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --min-coverage <0-100> (coverage only; collects without enforcing when absent). --strict-evidence fails on incomplete coverage evidence instead of tolerating gaps (test/coverage only). --run-output <dir> retains test logs under a unique child directory with a manifest (test/coverage only).",
+        usage: "Usage: dx coverage [--here] [--min-coverage 0-100] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --min-coverage <0-100> (coverage only; collects without enforcing when absent).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here (--cwd alias) for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -1016,62 +1014,6 @@ pub static COMMANDS: [CommandMeta; 36] = [
         hook_triggers_on_run: false,
     },
     CommandMeta {
-        command: Command::Verify,
-        name: "verify",
-        scope_policy: "require",
-        describe: "run one committed verification set from dx.verify.toml in order (non-mutating; stops after the first required failure)",
-        usage: "Usage: dx verify <set> [-- bazel-options ...]",
-        flags: "Per-command flags: none (verify only; the set file names every step; step bazel options come from the set, then trail the invocation `--`; --output text|json only, diff has no patch).",
-        scopes: "Scopes: exactly one verification set name from the workspace dx.verify.toml (schema 1, [sets.<name>]); steps carry their own scopes and fall back to //... .",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Warn,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
-    },
-    CommandMeta {
-        command: Command::Rerun,
-        name: "rerun",
-        scope_policy: "require",
-        describe: "rerun the failed test targets recorded in a run-output receipt on the current workspace (never a historical reproduction)",
-        usage: "Usage: dx rerun <receipt> [-- bazel-options ...]",
-        flags: "Per-command flags: none (rerun only; selection and options come from the receipt, then trail the invocation `--`; --output text|json only, diff has no patch).",
-        scopes: "Scopes: exactly one run-output receipt path (receipt.json); the rerun executes on the current workspace only and never restores sources.",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Warn,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
-    },
-    CommandMeta {
         command: Command::Tests,
         name: "tests",
         scope_policy: "default-//...",
@@ -1234,14 +1176,6 @@ impl Command {
         self.meta().supports_min_coverage
     }
 
-    pub fn supports_strict_evidence(self) -> bool {
-        matches!(self, Command::Test | Command::Coverage)
-    }
-
-    pub fn supports_run_output(self) -> bool {
-        matches!(self, Command::Test | Command::Coverage)
-    }
-
     pub fn supports_cases(self) -> bool {
         matches!(self, Command::Tests)
     }
@@ -1397,8 +1331,6 @@ mod tests {
             Command::Completion,
             Command::Docs,
             Command::Capabilities,
-            Command::Verify,
-            Command::Rerun,
             Command::Tests,
             Command::Rollback,
         ];
@@ -1446,7 +1378,6 @@ mod tests {
             "migrate",
             "new",
             "owners",
-            "rerun",
             "rollback",
             "run",
             "security",
@@ -1457,13 +1388,12 @@ mod tests {
             "update",
             "upgrade",
             "version",
-            "verify",
             "watch",
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 36");
-        assert_eq!(Command::value_variants().len(), 36);
+        assert_eq!(got, want, "Command registry drifted from the final 34");
+        assert_eq!(Command::value_variants().len(), 34);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1508,8 +1438,6 @@ mod tests {
             Command::Completion,
             Command::Docs,
             Command::Capabilities,
-            Command::Verify,
-            Command::Rerun,
             Command::Tests,
             Command::Rollback,
         ] {
@@ -1612,7 +1540,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            36,
+            34,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1630,7 +1558,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|capabilities|verify|rerun|tests|rollback",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|capabilities|tests|rollback",
             "pipe_list order must match declaration order"
         );
     }
@@ -1638,7 +1566,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 36);
+        assert_eq!(Command::value_variants().len(), 34);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1859,7 +1787,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 36);
+        assert_eq!(COMMANDS.len(), 34);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

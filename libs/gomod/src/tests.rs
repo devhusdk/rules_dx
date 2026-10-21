@@ -154,3 +154,76 @@ fn sum_keeps_the_first_version_of_each_module() {
     assert_eq!(packages["example.com/greet"], "v1.0.0");
     assert!(parse_sum("").is_empty());
 }
+
+fn set(text: &str, module: &str) -> Result<String, GoEditError> {
+    set_require_version(text, module, "v1.2.0")
+}
+
+#[test]
+fn set_changes_the_requirement_and_not_the_comment() {
+    let text = "module example.com/app\nrequire example.com/pkg v1.0.0 // pinned after v0.9.0\n";
+    assert_eq!(
+        set(text, "example.com/pkg").expect("edit"),
+        "module example.com/app\nrequire example.com/pkg v1.2.0 // pinned after v0.9.0\n"
+    );
+}
+
+#[test]
+fn set_edits_block_entries_and_keeps_markers_order_and_other_directives() {
+    let text = "module example.com/app\n\ngo 1.24\n\nrequire (\n\texample.com/a v1.0.0 // indirect\n\texample.com/pkg   v1.0.0   // v0.1.0 v0.2.0\n\texample.com/z v3.0.0\n)\n\nreplace example.com/pkg v1.0.0 => example.com/fork v1.0.0\nexclude example.com/pkg v1.1.0\nretract v1.0.0 // v1.0.0\n";
+    let out = set(text, "example.com/pkg").expect("edit");
+    assert_eq!(
+        out,
+        text.replace(
+            "example.com/pkg   v1.0.0   // v0.1.0 v0.2.0",
+            "example.com/pkg   v1.2.0   // v0.1.0 v0.2.0"
+        )
+    );
+    let file = parse_mod(&out).expect("reparse");
+    assert_eq!(file.replace.len(), 1);
+    assert!(file.require[0].indirect);
+}
+
+#[test]
+fn set_handles_quoted_paths_and_versions_and_crlf() {
+    let text = "module example.com/app\r\nrequire \"example.com/pkg\" \"v1.0.0\" // x\r\nrequire (\r\n\t`example.com/b` v1.0.0\r\n)\r\n";
+    let out = set(text, "example.com/pkg").expect("edit");
+    assert!(
+        out.contains("\"example.com/pkg\" \"v1.2.0\" // x\r\n"),
+        "{out}"
+    );
+    let out = set(text, "example.com/b").expect("edit");
+    assert!(out.contains("`example.com/b` v1.2.0\r\n"), "{out}");
+}
+
+#[test]
+fn set_ignores_other_directives_that_name_the_module() {
+    let text = "module example.com/app\nrequire example.com/other v1.0.0\nreplace example.com/pkg => example.com/fork v1.0.0\nexclude example.com/pkg v1.0.0\n";
+    assert_eq!(set(text, "example.com/pkg"), Err(GoEditError::NotFound));
+}
+
+#[test]
+fn set_rejects_duplicate_requirements() {
+    let text = "module example.com/app\nrequire example.com/pkg v1.0.0\nrequire (\n\texample.com/pkg v1.1.0\n)\n";
+    assert_eq!(set(text, "example.com/pkg"), Err(GoEditError::Ambiguous(2)));
+}
+
+#[test]
+fn set_rejects_malformed_files_and_versions() {
+    assert!(matches!(
+        set(
+            "module example.com/app\nrequire example.com/pkg\n",
+            "example.com/pkg"
+        ),
+        Err(GoEditError::Invalid(_))
+    ));
+    let text = "module example.com/app\nrequire example.com/pkg v1.0.0\n";
+    assert!(matches!(
+        set_require_version(text, "example.com/pkg", "v1 2"),
+        Err(GoEditError::Invalid(_))
+    ));
+    assert!(matches!(
+        set_require_version(text, "example.com/pkg", ""),
+        Err(GoEditError::Invalid(_))
+    ));
+}

@@ -280,143 +280,21 @@ pub(super) fn plan_go_mod(
             });
         }
     };
-    let mut matches = 0usize;
-    let mut out = String::with_capacity(content.len());
-    for line in content.split_inclusive('\n') {
-        let trimmed = line.trim();
-        if trimmed.starts_with("//") || trimmed.starts_with('#') {
-            out.push_str(line);
-            continue;
-        }
-        if line_contains_module_token(line, package) && line.contains('v') {
-            match replace_go_version_token(line, &new) {
-                Some(replaced) => {
-                    matches += 1;
-                    out.push_str(&replaced);
-                    continue;
-                }
-                None => {
-                    return Err(BumpError::UnsupportedManifest {
-                        manifest: "third_party/go/go.mod".to_owned(),
-                        reason: format!("{package:?} has no replaceable v-prefixed version token"),
-                    });
-                }
-            }
-        }
-        out.push_str(line);
-    }
-    match matches {
-        1 => Ok(out),
-        0 => Err(BumpError::NotFound {
-            manifest: "third_party/go/go.mod".to_owned(),
+    let manifest = "third_party/go/go.mod".to_owned();
+    dx_gomod::set_require_version(content, package, &new).map_err(|error| match error {
+        dx_gomod::GoEditError::NotFound => BumpError::NotFound {
+            manifest,
             package: package.to_owned(),
-        }),
-        count => Err(BumpError::Ambiguous {
-            manifest: "third_party/go/go.mod".to_owned(),
+        },
+        dx_gomod::GoEditError::Ambiguous(count) => BumpError::Ambiguous {
+            manifest,
             package: package.to_owned(),
             count,
-        }),
-    }
-}
-
-pub(super) fn go_version_token_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"v[0-9.]+(?:[-+][^\s]*)?").ok());
-    RE.as_ref()
-}
-
-pub(super) fn has_version_shape(token: &str) -> bool {
-    let mut digits = false;
-    let mut dots = false;
-    for byte in token.bytes().skip(1) {
-        if byte.is_ascii_digit() {
-            digits = true;
-        } else if byte == b'.' {
-            dots = true;
-        } else {
-            break;
+        },
+        dx_gomod::GoEditError::Invalid(reason) => {
+            BumpError::UnsupportedManifest { manifest, reason }
         }
-    }
-    digits && dots
-}
-
-pub(super) fn line_contains_module_token(line: &str, package: &str) -> bool {
-    let pattern = format!(r"(?:^|\s){}(?:\s|$)", regex::escape(package));
-    match Regex::new(&pattern) {
-        Ok(re) => re.is_match(line),
-        Err(_) => line.split_whitespace().any(|token| token == package),
-    }
-}
-
-pub(super) fn replace_go_version_token(line: &str, new: &str) -> Option<String> {
-    if let Some(re) = go_version_token_re() {
-        let mut last: Option<(usize, usize)> = None;
-        for matched in re.find_iter(line) {
-            if has_version_shape(matched.as_str()) {
-                last = Some((matched.start(), matched.end()));
-            }
-        }
-        if let Some((start, end)) = last {
-            let mut replaced = String::with_capacity(line.len());
-            replaced.push_str(&line[..start]);
-            replaced.push_str(new);
-            replaced.push_str(&line[end..]);
-            return Some(replaced);
-        }
-        if re.find_iter(line).next().is_some() {
-            return None;
-        }
-    }
-    replace_go_version_token_fallback(line, new)
-}
-
-pub(super) fn replace_go_version_token_fallback(line: &str, new: &str) -> Option<String> {
-    let mut last_start: Option<usize> = None;
-    let mut last_end: Option<usize> = None;
-    let bytes = line.as_bytes();
-    let mut index = 0usize;
-    while index < bytes.len() {
-        if bytes[index] == b'v' {
-            let mut end = index + 1;
-            let mut digits = 0usize;
-            let mut dots = 0usize;
-            while end < bytes.len() {
-                let byte = bytes[end];
-                if byte.is_ascii_digit() {
-                    digits += 1;
-                    end += 1;
-                } else if byte == b'.' {
-                    dots += 1;
-                    end += 1;
-                } else if byte == b'-' || byte == b'+' {
-                    end += 1;
-                    while end < bytes.len() && !bytes[end].is_ascii_whitespace() {
-                        end += 1;
-                    }
-                    break;
-                } else {
-                    break;
-                }
-            }
-            if digits > 0 && dots > 0 {
-                last_start = Some(index);
-                last_end = Some(end);
-            }
-            index = end.max(index + 1);
-        } else {
-            index += 1;
-        }
-    }
-    match (last_start, last_end) {
-        (Some(start), Some(end)) => {
-            let mut replaced = String::with_capacity(line.len());
-            replaced.push_str(&line[..start]);
-            replaced.push_str(new);
-            replaced.push_str(&line[end..]);
-            Some(replaced)
-        }
-        _ => None,
-    }
+    })
 }
 
 pub(super) fn plan_maven_module_bazel(

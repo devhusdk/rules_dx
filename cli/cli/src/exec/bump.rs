@@ -842,8 +842,8 @@ dependencies = ["anyio>=4"]
                 "go:example.com/demo",
                 "1.3.0",
                 "third_party/go/go.mod",
-                "require example.com/demo v1.2.0\n",
-                "require example.com/demo v1.3.0\n",
+                "module example.com/root\nrequire example.com/demo v1.2.0 // was v1.0.0\n",
+                "module example.com/root\nrequire example.com/demo v1.3.0 // was v1.0.0\n",
             ),
         ] {
             let harness = Harness::new("bump-file-offline");
@@ -1108,6 +1108,25 @@ dependencies = ["anyio>=4"]
         let widened =
             std::fs::read_to_string(harness.workspace.join("third_party/go/go.mod")).expect("read");
         assert!(widened.contains("v1.3.0"), "{widened}");
+    }
+
+    #[test]
+    fn go_bump_leaves_a_malformed_go_mod_unchanged() {
+        let harness = Harness::new("bump-go-malformed");
+        let before = "module example.com/root\nrequire (\n\texample.com/demo v1.2.0 // v1.0.0\n";
+        harness.write_source("third_party/go/go.mod", before);
+        let (code, out, err) = harness.run(&[
+            "bump",
+            "go:example.com/demo",
+            "1.3.0",
+            "--offline",
+            "--apply",
+        ]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert_eq!(
+            std::fs::read_to_string(harness.workspace.join("third_party/go/go.mod")).expect("read"),
+            before
+        );
     }
 
     #[test]

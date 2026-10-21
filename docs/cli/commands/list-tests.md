@@ -30,9 +30,9 @@ Listing never runs test bodies, but `--cases` builds the selected tests
 and executes their binaries and initialization code; pass it only for
 targets you trust. Every other
 framework reports `unsupported_framework` with its rule kind, never an
-empty suite. Case output is sorted and deterministic, capped at 2000 cases
-per target and 5000 total; a cap reports `cases_truncated` instead of
-silent success. Inventory stays useful without case enumeration.
+empty suite. Case output is sorted and deterministic, with no cap. It ends with
+a completeness line (`complete` or `incomplete`) on stderr, or a
+`list-tests-summary` status event (`ok` or `warn`) with `--output json`. Inventory stays useful without case enumeration.
 
 Output: `--output text|json`. Text prints one label per line, or one
 `label: case` line per case with `--cases`; problems go to stderr. JSON
@@ -45,7 +45,7 @@ the label), one `error` event per problem, and ends with
 Exit codes: `0` success, `2` usage errors including an external scope, a
 relative label, or an unreadable path, `1` operational failures including
 `no_tests`, `bazel_failed`, `unsupported_framework`, `no_cases`,
-`case_failed`, or `cases_truncated`. A partial match still exits `1` when
+or `case_failed`. A partial match still exits `1` when
 any scope contributed no tests.
 
 ```sh

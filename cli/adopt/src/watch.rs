@@ -50,9 +50,60 @@ pub fn watch_for_change(watch_root: &Path, timeout: Duration) -> Result<Vec<Path
     session.wait(timeout)
 }
 
+/// Whether an event changes the tree rather than only reading it.
+pub fn is_change(kind: &notify::EventKind) -> bool {
+    use notify::event::{AccessKind, AccessMode, EventKind};
+    match kind {
+        EventKind::Access(AccessKind::Close(AccessMode::Write)) => true,
+        EventKind::Access(_) => false,
+        _ => true,
+    }
+}
+
+/// The platform watcher with read-only access events dropped.
+pub struct ChangeWatcher(notify::RecommendedWatcher);
+
+impl notify::Watcher for ChangeWatcher {
+    fn new<F: notify::EventHandler>(
+        mut handler: F,
+        config: notify::Config,
+    ) -> notify::Result<Self> {
+        notify::RecommendedWatcher::new(
+            move |event: notify::Result<notify::Event>| {
+                let relevant = match &event {
+                    Ok(event) => is_change(&event.kind),
+                    Err(_) => true,
+                };
+                if relevant {
+                    handler.handle_event(event);
+                }
+            },
+            config,
+        )
+        .map(ChangeWatcher)
+    }
+
+    fn watch(&mut self, path: &Path, mode: notify::RecursiveMode) -> notify::Result<()> {
+        self.0.watch(path, mode)
+    }
+
+    fn unwatch(&mut self, path: &Path) -> notify::Result<()> {
+        self.0.unwatch(path)
+    }
+
+    fn configure(&mut self, option: notify::Config) -> notify::Result<bool> {
+        self.0.configure(option)
+    }
+
+    fn kind() -> notify::WatcherKind {
+        notify::RecommendedWatcher::kind()
+    }
+}
+
 /// One filesystem observer that stays alive across wrapped executions.
 pub struct WatchSession {
-    _debouncer: notify_debouncer_mini::Debouncer<notify::RecommendedWatcher>,
+    root: PathBuf,
+    _debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
     events: std::sync::mpsc::Receiver<
         Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
     >,
@@ -62,11 +113,14 @@ impl WatchSession {
     pub fn start(watch_root: &Path) -> Result<Self, AdoptError> {
         use notify::RecursiveMode;
         let (tx, events) = std::sync::mpsc::channel();
-        let mut debouncer =
-            notify_debouncer_mini::new_debouncer(Duration::from_millis(WATCH_DEBOUNCE_MS), tx)
-                .map_err(|e| AdoptError::WatchSpawn {
-                    detail: e.to_string(),
-                })?;
+        let config = notify_debouncer_mini::Config::default()
+            .with_timeout(Duration::from_millis(WATCH_DEBOUNCE_MS));
+        let mut debouncer = notify_debouncer_mini::new_debouncer_opt::<_, ChangeWatcher>(
+            config, tx,
+        )
+        .map_err(|e| AdoptError::WatchSpawn {
+            detail: e.to_string(),
+        })?;
         debouncer
             .watcher()
             .watch(watch_root, RecursiveMode::Recursive)
@@ -74,6 +128,7 @@ impl WatchSession {
                 detail: e.to_string(),
             })?;
         Ok(Self {
+            root: watch_root.to_path_buf(),
             _debouncer: debouncer,
             events,
         })
@@ -81,7 +136,13 @@ impl WatchSession {
 
     pub fn wait(&self, timeout: Duration) -> Result<Vec<PathBuf>, AdoptError> {
         let mut paths: Vec<PathBuf> = Vec::new();
-        match self.events.recv_timeout(timeout) {
+        let received = self.events.recv_timeout(timeout);
+        if !self.root.is_dir() {
+            return Err(AdoptError::WatchFailed {
+                detail: format!("watch root removed: {}", self.root.display()),
+            });
+        }
+        match received {
             Ok(Ok(events)) => {
                 paths.extend(events.into_iter().map(|event| event.path));
             }
@@ -288,6 +349,43 @@ mod tests {
     }
 
     #[test]
+    fn reads_never_count_as_changes() {
+        use notify::event::{
+            AccessKind, AccessMode, CreateKind, EventKind, MetadataKind, ModifyKind, RemoveKind,
+            RenameMode,
+        };
+        for kind in [
+            EventKind::Access(AccessKind::Open(AccessMode::Any)),
+            EventKind::Access(AccessKind::Close(AccessMode::Read)),
+            EventKind::Access(AccessKind::Read),
+        ] {
+            assert!(!is_change(&kind), "{kind:?}");
+        }
+        for kind in [
+            EventKind::Access(AccessKind::Close(AccessMode::Write)),
+            EventKind::Create(CreateKind::File),
+            EventKind::Modify(ModifyKind::Name(RenameMode::Both)),
+            EventKind::Modify(ModifyKind::Metadata(MetadataKind::Any)),
+            EventKind::Remove(RemoveKind::File),
+        ] {
+            assert!(is_change(&kind), "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn session_ignores_reads_of_watched_files() {
+        let scratch = dx_test_scratch::scratch("dx-watch-reads-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join("src")).expect("source dir");
+        std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
+        let session = WatchSession::start(&root).expect("session starts");
+        let _ = std::fs::read(root.join("src/main.rs")).expect("read");
+        let _ = std::fs::read_dir(root.join("src")).expect("list").count();
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(session.drain().is_empty(), "reading is not a change");
+    }
+
+    #[test]
     fn session_ignores_generated_outputs() {
         let scratch = dx_test_scratch::scratch("dx-watch-ignored-");
         let root = scratch.path().to_path_buf();
@@ -300,6 +398,22 @@ mod tests {
         assert!(
             session.drain().is_empty(),
             "generated outputs must never trigger a rerun"
+        );
+    }
+
+    #[test]
+    fn session_fails_once_its_root_is_removed() {
+        let scratch = dx_test_scratch::scratch("dx-watch-root-gone-");
+        let root = scratch.path().join("ws");
+        std::fs::create_dir_all(&root).expect("watch root");
+        let session = WatchSession::start(&root).expect("session starts");
+        std::fs::remove_dir_all(&root).expect("remove root");
+        let error = session
+            .wait(Duration::from_secs(5))
+            .expect_err("a removed root is an observer failure");
+        assert!(
+            matches!(&error, AdoptError::WatchFailed { detail } if detail.contains("watch root removed")),
+            "{error:?}"
         );
     }
 

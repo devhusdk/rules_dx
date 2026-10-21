@@ -24,7 +24,7 @@ mod run;
 mod test_inventory;
 mod test_reports;
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 mod umbrella;
 mod update;
 mod workflow;
@@ -37,6 +37,7 @@ pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Family {
     Adoption,
+    Watch,
     Umbrella,
     Workflow,
     Generate,
@@ -55,6 +56,7 @@ impl Family {
     fn name(self) -> &'static str {
         match self {
             Family::Adoption => "adoption",
+            Family::Watch => "watch",
             Family::Umbrella => "umbrella",
             Family::Workflow => "workflow",
             Family::Generate => "generate",
@@ -70,7 +72,10 @@ impl Family {
     }
 
     fn supports_diff(self) -> bool {
-        matches!(self, Family::Umbrella | Family::Generate | Family::Quality)
+        matches!(
+            self,
+            Family::Umbrella | Family::Generate | Family::Quality | Family::Watch
+        )
     }
 }
 
@@ -94,8 +99,8 @@ fn family(command: Command) -> Family {
         | Command::Rollback
         | Command::Status
         | Command::Version
-        | Command::Watch
         | Command::Completion => Family::Adoption,
+        Command::Watch => Family::Watch,
         Command::Docs => Family::Docs,
     }
 }
@@ -110,9 +115,6 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.here {
         let Env { err, .. } = env;
         return common::pre_exec(err, "option \"--here\" needs cwd resolution");
-    }
-    if invocation.command == Command::Watch {
-        return crate::adopt::watch::execute_watch(invocation, env);
     }
     match family(invocation.command) {
         Family::Adoption => {
@@ -131,6 +133,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                 },
             )
         }
+        Family::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Family::Umbrella => {
             if invocation.command == Command::ListTests {
                 test_inventory::execute_tests(invocation, env)
@@ -167,7 +170,7 @@ mod tests {
                 .entry(family(meta.command).name())
                 .or_insert(false) |= meta.supports_diff;
         }
-        assert_eq!(any_supports_diff.len(), 12, "every family classified");
+        assert_eq!(any_supports_diff.len(), 13, "every family classified");
         for meta in COMMANDS {
             let name = family(meta.command).name();
             assert_eq!(
@@ -190,7 +193,8 @@ mod tests {
             29,
             "every variant classified"
         );
-        assert_eq!(counts.get("adoption"), Some(&8));
+        assert_eq!(counts.get("adoption"), Some(&7));
+        assert_eq!(counts.get("watch"), Some(&1));
         assert_eq!(counts.get("workflow"), Some(&5));
         assert_eq!(counts.get("quality"), Some(&3));
         assert_eq!(counts.get("managed"), Some(&2));

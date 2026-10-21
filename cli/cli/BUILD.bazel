@@ -21,6 +21,7 @@ rust_library(
         "src/adopt/upgrade.rs",
         "src/adopt/version.rs",
         "src/adopt/watch.rs",
+        "src/adopt/watch_probe_tests.rs",
         "src/args.rs",
         "src/args/command.rs",
         "src/args/completion.rs",

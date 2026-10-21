@@ -12,6 +12,7 @@ use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 
 pub mod lifecycle;
@@ -422,6 +423,26 @@ pub fn operational_code() -> i32 {
 
 pub fn broken_pipe_code() -> i32 {
     EXIT_BROKEN_PIPE
+}
+
+static INTERRUPT: AtomicI32 = AtomicI32::new(0);
+
+/// Records a stop signal; safe inside a signal handler.
+pub fn record_interrupt(signo: i32) {
+    INTERRUPT.store(signo, Ordering::SeqCst);
+}
+
+/// The stop signal recorded so far, if any.
+pub fn interrupted() -> Option<i32> {
+    match INTERRUPT.load(Ordering::SeqCst) {
+        0 => None,
+        signo => Some(signo),
+    }
+}
+
+/// The exit code for a run stopped by `signo`.
+pub fn interrupted_code(signo: i32) -> i32 {
+    128 + signo
 }
 
 pub fn is_broken_pipe_io(error: &io::Error) -> bool {

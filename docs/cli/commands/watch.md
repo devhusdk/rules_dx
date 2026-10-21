@@ -14,28 +14,41 @@ the wrapped command unchanged.
 
 - Wraps only `build`, `test`, `run`, `lint`, `typecheck`, `format`,
   `check`, and `fix`. Other commands fail with `not watchable`.
-- Takes `--check`, `--apply`, `--fail-on`, `--report`, `--debug`, and
-  `--release`, plus the global flags, when the wrapped command takes them.
+- Takes `--output`, `--check`, `--apply`, `--fail-on`, `--report`,
+  `--debug`, and `--release`, plus the global flags, when the wrapped command
+  takes them.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
 - Ignores changes under `.dx/` and `bazel-*`. Edits to `dx.toml`, `dx.local.toml`, `BUILD` and `MODULE.bazel` files rerun the command.
 
-Each change runs the wrapped command again. A failing command does not stop
-the watch. Ctrl-C stops it.
+Changes made while the command runs queue one more iteration. Iterations
+never overlap. A failing command does not stop the watch.
 
-Output: text only. One line per iteration, then one absolute path per
-trigger.
+Output: `--output text|diff|json`, when the wrapped command takes that mode.
+Each iteration writes the wrapped command's own output. Watch adds one line
+per iteration and one line per trigger, naming the first changed absolute path.
+`--quiet` drops these lines. With `--output json`, `--output diff`, or
+`--report <format>=-`, they go to stderr so stdout holds only the wrapped
+command's output: under JSON, one event stream per iteration, each ending in
+`command_finished`.
 
 ```text
 watch:test:debounce=200ms scope=//... iteration=1
 watching (Ctrl-C to stop)
 changed /work/repo/src/main.rs (+1 more)
 watch:test:debounce=200ms scope=//... iteration=2
+stopped
 ```
 
-Exit codes: `0` success, `2` usage error, `1` operational failures.
+Ctrl-C or `SIGTERM` stops the watch. No new iteration starts after the
+signal. A running command gets the signal and is awaited first. Removing the
+workspace directory stops the watch with `watch_failed`.
+
+Exit codes: `0` success, `2` usage error, `1` operational failures,
+`130` after Ctrl-C, `143` after `SIGTERM`.
 
 ```sh
 bazel run @rules_dx//:dx -- watch build //...
 bazel run @rules_dx//:dx -- watch test //cli/...
+bazel run @rules_dx//:dx -- watch lint --output json
 bazel run @rules_dx//:dx -- watch run //app:bin
 ```

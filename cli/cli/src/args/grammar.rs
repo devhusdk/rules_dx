@@ -651,6 +651,7 @@ command_args! {
     };
     /// The flags `dx watch` accepts.
     Watch => 24, BazelTail, {
+        output: DiffOutputFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,

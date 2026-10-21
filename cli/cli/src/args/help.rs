@@ -530,7 +530,7 @@ mod tests {
             Command::Bump => owned(&["rust:serde", "1.0.0"]),
             Command::Migrate | Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
             Command::Completion => owned(&["bash"]),
-            Command::Watch => owned(&["build"]),
+            Command::Watch => owned(&["lint"]),
             Command::New => owned(&["rust"]),
             _ => Vec::new(),
         }

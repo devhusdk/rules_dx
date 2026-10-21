@@ -54,7 +54,7 @@ Args after `--` reach the test binary through Bazel. `dx test` and
 `dx coverage` accept repeatable `--test_arg` tokens, in equals and
 two-token form, with spaces and Unicode kept verbatim. `--test_filter`
 stays a Bazel option with framework-dependent semantics. Other commands
-reject `--test_arg`; run those cases with `dx bazel` instead.
+reject `--test_arg`; run those cases with `bazel` directly.
 
 Tests run once by default. Only tests marked flaky in their build
 definition retry, up to three attempts. Diagnose one test with retries

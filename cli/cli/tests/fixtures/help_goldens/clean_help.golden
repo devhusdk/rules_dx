@@ -49,7 +49,7 @@ Options:
   -h, --help
           Print help
 
-Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; distinct from `dx bazel`, which forwards raw args; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).
+Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).
 
 Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.

@@ -158,9 +158,6 @@ fn bare_commands_check_by_default_and_check_spelling_agrees() {
     use clap::ValueEnum;
     for command in Command::value_variants() {
         let command = *command;
-        if command == Command::Bazel {
-            continue;
-        }
         let bare = parse(&plain_words(command)).unwrap_or_else(|error| panic!("parse: {error}"));
         assert!(!bare.apply, "dx {} must not apply unasked", command.name());
         assert_eq!(
@@ -222,12 +219,6 @@ fn apply_matrix_matches_supports_apply() {
         let command = *command;
         let mut words = plain_words(command);
         words.push("--apply".to_owned());
-        if command == Command::Bazel {
-            let got = parse(&words).expect("dx bazel forwards every later word");
-            assert_eq!(got.bazel_options, strings(&["--apply"]), "words: {words:?}");
-            assert_eq!(got.operation(), OperationMode::Check);
-            continue;
-        }
         if command.supports_apply() {
             let got = parse(&words).unwrap_or_else(|error| {
                 panic!("dx {} --apply must parse: {error}", command.name())

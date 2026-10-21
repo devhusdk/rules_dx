@@ -142,16 +142,12 @@ fn required_words(command: Command) -> Vec<String> {
 }
 
 fn probe_rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
-    let inline = payload.map_or_else(|| flag.to_owned(), |payload| format!("{flag}={payload}"));
     if flag == "-- <bazel-options>" {
         let mut words = vec![command.name().to_owned()];
         words.extend(required_words(command));
         words.push("--".to_owned());
         words.push("--jobs=1".to_owned());
         return matches!(parse(&words), Err(ArgsError::UnsupportedOption { .. }));
-    }
-    if command == Command::Bazel {
-        return parse(&[inline, command.name().to_owned()]).is_err();
     }
     let mut words = vec![command.name().to_owned()];
     words.extend(required_words(command));
@@ -501,15 +497,6 @@ fn command_usage_advertises_check_exactly_where_the_parser_accepts_it() {
         let command = *command;
         let usage = command.usage();
         let words = vec![command.name(), "--check"];
-        if command == Command::Bazel {
-            let got = parse(&strings(&words)).expect("dx bazel forwards every later word");
-            assert_eq!(got.bazel_options, strings(&["--check"]), "words: {words:?}");
-            assert!(
-                !usage.contains("[--check]"),
-                "dx bazel forwards --check to Bazel: {usage}"
-            );
-            continue;
-        }
         let accepted = parse(&strings(&words)).is_ok();
         let advertised = usage.contains("[--check]");
         assert_eq!(
@@ -526,16 +513,6 @@ fn command_usage_advertises_apply_exactly_where_the_parser_accepts_it() {
     for command in Command::value_variants() {
         let command = *command;
         let usage = command.usage();
-        if command == Command::Bazel {
-            let words = vec![command.name(), "--apply"];
-            let got = parse(&strings(&words)).expect("dx bazel forwards every later word");
-            assert_eq!(got.bazel_options, strings(&["--apply"]), "words: {words:?}");
-            assert!(
-                !usage.contains("[--apply]"),
-                "dx bazel forwards --apply to Bazel: {usage}"
-            );
-            continue;
-        }
         let mut words = vec![command.name().to_owned()];
         words.extend(required_words(command));
         if command == Command::Docs {
@@ -1183,24 +1160,6 @@ fn usage_lines(body: &str) -> Vec<Vec<String>> {
         .collect()
 }
 
-fn assert_bazel_delegated_exit_codes(where_: &str, text: &str) {
-    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let documented = documented_exit_codes(text);
-    assert_eq!(
-        documented.len(),
-        1,
-        "{where_}: forwarding to Bazel leaves only the launch-failure code dx owns, got {documented:?}"
-    );
-    assert_eq!(
-        documented[0].0, EXIT_OPERATIONAL,
-        "{where_}: a launch failure or signal exits {EXIT_OPERATIONAL}"
-    );
-    assert!(
-        flat.contains("Bazel's own"),
-        "{where_}: the section must say the exit code is Bazel's own"
-    );
-}
-
 #[test]
 fn docs_sections_with_usage_blocks_document_exit_codes() {
     for (name, page) in pages() {
@@ -1209,11 +1168,7 @@ fn docs_sections_with_usage_blocks_document_exit_codes() {
                 continue;
             }
             let where_ = format!("{name} section {heading:?}");
-            if heading.contains("dx bazel") {
-                assert_bazel_delegated_exit_codes(&where_, &body);
-            } else {
-                assert_exit_codes(&where_, &body);
-            }
+            assert_exit_codes(&where_, &body);
         }
     }
 }
@@ -2153,7 +2108,7 @@ fn tool_path_env_vars_are_documented_where_the_command_needs_them() {
         (
             dx_audit::secrets::TOOL_ENV_VAR,
             Some(dx_audit::secrets::TOOL_LABEL),
-            "audit-update-bazel.md",
+            "audit-update.md",
             "dx security",
         ),
         (dx_adopt::HOOK_GIT_ENV_VAR, None, "hooks.md", "dx hooks run"),
@@ -2182,7 +2137,7 @@ fn tool_path_env_vars_are_documented_where_the_command_needs_them() {
 
 #[test]
 fn secrets_config_docs_say_which_file_the_scan_reads() {
-    let page_name = "audit-update-bazel.md";
+    let page_name = "audit-update.md";
     let page = std::fs::read_to_string(docs_dir().join(page_name))
         .unwrap_or_else(|error| panic!("{page_name} ships as test data: {error}"));
     let paragraph = page
@@ -2421,7 +2376,7 @@ fn one_preparation_job_covers_every_curated_advisory_set() {
 
 #[test]
 fn security_docs_page_names_exactly_the_audited_sets() {
-    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+    let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
     let body = sections(&page)
         .into_iter()
@@ -2438,12 +2393,12 @@ fn security_docs_page_names_exactly_the_audited_sets() {
                 .map(ToOwned::to_owned)
                 .collect()
         ),
-        "docs/cli/commands/audit-update-bazel.md must name every set dx security audits, and nothing else"
+        "docs/cli/commands/audit-update.md must name every set dx security audits, and nothing else"
     );
 }
 
 fn security_scope_table() -> Vec<(String, String)> {
-    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+    let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
     let body = sections(&page)
         .into_iter()
@@ -2608,7 +2563,7 @@ fn security_scope_never_owns_a_set_the_scope_table_does_not_name() {
 
 #[test]
 fn update_docs_page_names_exactly_the_update_sets() {
-    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+    let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
     let body = sections(&page)
         .into_iter()
@@ -2623,13 +2578,13 @@ fn update_docs_page_names_exactly_the_update_sets() {
                 .map(ToOwned::to_owned)
                 .collect()
         ),
-        "docs/cli/commands/audit-update-bazel.md must name every dx update set, and nothing else"
+        "docs/cli/commands/audit-update.md must name every dx update set, and nothing else"
     );
 }
 
 #[test]
 fn bump_docs_page_names_exactly_the_bump_sets() {
-    let page = std::fs::read_to_string(docs_dir().join("audit-update-bazel.md"))
+    let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
     let body = sections(&page)
         .into_iter()
@@ -2644,7 +2599,7 @@ fn bump_docs_page_names_exactly_the_bump_sets() {
                 .map(|set| (*set).name().to_owned())
                 .collect()
         ),
-        "docs/cli/commands/audit-update-bazel.md must name every dx bump set, and nothing else"
+        "docs/cli/commands/audit-update.md must name every dx bump set, and nothing else"
     );
 }
 
@@ -2812,7 +2767,7 @@ fn the_usage_banner_names_every_command() {
     );
 }
 
-const SCOPE_PAGE_POLICIES: [(&str, &[&str]); 7] = [
+const SCOPE_PAGE_POLICIES: [(&str, &[&str]); 6] = [
     ("No Scope Means `//...`", &["default-//..."]),
     ("No Scope Means The Repository", &["default-repo"]),
     (
@@ -2833,7 +2788,6 @@ const SCOPE_PAGE_POLICIES: [(&str, &[&str]); 7] = [
         ],
     ),
     ("No Scopes", &["reject"]),
-    ("Raw Bazel Args", &["passthrough"]),
 ];
 
 fn scope_page() -> String {

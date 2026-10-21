@@ -44,10 +44,6 @@ Patterns, paths, and multiple labels are usage errors.
 
 - `dx clean`, `dx status`, `dx version`, `dx upgrade`, `dx rollback`, `dx capabilities`
 
-## Raw Bazel Args
-
-- `dx bazel`: forwards args to Bazel. No scope resolution.
-
 ## Scope Shapes
 
 - Labels and patterns: `//...`, `//pkg:target`, `@repo//...`.

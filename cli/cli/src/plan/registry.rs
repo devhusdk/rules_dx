@@ -202,12 +202,6 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
             settings: &[],
         },
-        Command::Bazel => CommandSpec {
-            command,
-            aspects: &[],
-            reports: &[],
-            settings: &[],
-        },
     }
 }
 
@@ -272,9 +266,6 @@ mod tests {
         let clean = spec(Command::Clean);
         assert!(clean.aspects.is_empty());
         assert!(clean.reports.is_empty());
-        let bazel = spec(Command::Bazel);
-        assert!(bazel.aspects.is_empty());
-        assert!(bazel.reports.is_empty());
         for command in [Command::Codegen, Command::Env] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());

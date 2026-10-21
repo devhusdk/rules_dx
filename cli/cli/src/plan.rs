@@ -11,7 +11,7 @@ pub use generate::{
     GenerateScopeElement, GENERATE_CHECK_TARGET, GENERATE_ENV_INTENDED, GENERATE_ENV_MODE,
     GENERATE_ENV_SCOPE, GENERATE_TARGET,
 };
-pub use managed::{plan_bazel, plan_managed, plan_managed_with_roots};
+pub use managed::{plan_managed, plan_managed_with_roots};
 pub(crate) use quality::workflow_scope_labels;
 pub use quality::{plan_build, protected_flags, required_options};
 pub use registry::{spec, CommandSpec};

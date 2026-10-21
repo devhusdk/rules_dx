@@ -5,7 +5,6 @@ HELP_REPRESENTATIVE_GOLDENS = [
     "lint_help.golden",
     "build_help.golden",
     "clean_help.golden",
-    "bazel_help.golden",
     "docs_help.golden",
 ]
 
@@ -30,5 +29,5 @@ HELP_FLAG_ONLY = ["--help", "-h"]
 HELP_VERB_REDIRECT = True
 HELP_BAZEL_VERBATIM = True
 
-HELP_COMMAND_COUNT = 37
+HELP_COMMAND_COUNT = 36
 HELP_GENERATED_FROM_GRAMMAR = True

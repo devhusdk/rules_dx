@@ -370,7 +370,7 @@ fn workflow_argv_rejects_startup_options() {
             flag: "output_base".to_owned(),
         }
     );
-    assert!(err.to_string().contains("dx bazel"));
+    assert!(err.to_string().contains("native bazel"));
     assert!(!err.to_string().contains("/tmp/x"));
 }
 
@@ -393,7 +393,7 @@ fn workflow_argv_rejects_test_binary_args_outside_test_commands() {
             },
             "{command}"
         );
-        assert!(err.to_string().contains("dx bazel"), "{command}: {err}");
+        assert!(err.to_string().contains("native bazel"), "{command}: {err}");
     }
 }
 
@@ -628,7 +628,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
             matches!(err, ForwardError::StartupOption { .. }),
             "{startup} produced {err:?}"
         );
-        assert!(err.to_string().contains("dx bazel"), "{startup}: {err}");
+        assert!(err.to_string().contains("native bazel"), "{startup}: {err}");
     }
     for binary in ["--test_arg=fast", "--test_arg"] {
         assert!(

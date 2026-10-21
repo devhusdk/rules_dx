@@ -44,9 +44,9 @@ USER_BOOK = [
     ),
     mdbook_page("Docs", "docs/cli/commands/docs.md", "//docs:cli/commands/docs.md"),
     mdbook_page(
-        "Audit, Update, Bazel",
-        "docs/cli/commands/audit-update-bazel.md",
-        "//docs:cli/commands/audit-update-bazel.md",
+        "Audit, Update",
+        "docs/cli/commands/audit-update.md",
+        "//docs:cli/commands/audit-update.md",
     ),
     mdbook_page(
         "Environment And Codegen",

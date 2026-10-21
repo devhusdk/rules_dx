@@ -1,21 +1,4 @@
-# Audit, Update, And Bazel Commands
-
-## `dx bazel`
-
-```text
-dx bazel <bazel arguments...>
-```
-
-Runs Bazel directly through the repo launcher. Every arg after `bazel` goes to
-Bazel unchanged, so `dx` flags do not apply. The exit code is Bazel's own,
-except a launch failure or a signal is `1`.
-
-Output: `--output text`.
-
-```sh
-bazel run @rules_dx//:dx -- bazel build //...
-bazel run @rules_dx//:dx -- bazel query //...
-```
+# Audit And Update Commands
 
 ## `dx security` And `dx license`
 

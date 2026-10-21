@@ -189,12 +189,6 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
     if super::help::help_verb_error_in(args).is_some() {
         return true;
     }
-    if args
-        .first()
-        .is_some_and(|first| first.as_ref() == OsStr::new("bazel"))
-    {
-        return false;
-    }
     let words: Vec<&str> = args
         .iter()
         .map(|word| word.as_ref().to_str())
@@ -439,16 +433,14 @@ fn parse_inner<S: AsRef<OsStr>>(
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
     }
-    if command != Command::Bazel {
-        for scope in &targets {
-            if scope == "-" {
-                return Err(ArgsError::UnknownOption {
-                    option: scope.clone(),
-                });
-            }
-            if scope.is_empty() || scope.starts_with(':') {
-                return Err(scope_error(scope));
-            }
+    for scope in &targets {
+        if scope == "-" {
+            return Err(ArgsError::UnknownOption {
+                option: scope.clone(),
+            });
+        }
+        if scope.is_empty() || scope.starts_with(':') {
+            return Err(scope_error(scope));
         }
     }
     if (fail_on_given || fail_on_name != "warning") && !command.supports_fail_on() {
@@ -591,15 +583,6 @@ fn parse_inner<S: AsRef<OsStr>>(
                 return Err(extra_positional(command, &targets[0]));
             }
             _ => {}
-        }
-    }
-    if command == Command::Bazel {
-        if output_name != "text" {
-            return Err(unsupported(command, format!("--output={output_name}")));
-        }
-        reject_report(command, &reports)?;
-        if bazel_clean {
-            return Err(unsupported(command, "--bazel"));
         }
     }
     if command == Command::Run || command == Command::Deploy {
@@ -872,7 +855,6 @@ mod startup_tests {
             vec!["lint", "--check"],
             vec!["new", "rust", "demo"],
             vec!["version"],
-            vec!["bazel", "--help"],
             vec!["lint", "--", "--help"],
             vec!["lint", "--output", "--help"],
         ] {
@@ -899,7 +881,6 @@ mod startup_tests {
             Command::Status,
             Command::Version,
             Command::Docs,
-            Command::Bazel,
             Command::Check,
             Command::Update,
         ] {

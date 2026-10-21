@@ -13,7 +13,6 @@ WATCHABLE_COMMANDS = [
 WATCHABLE_COUNT = 8
 
 NOT_WATCHABLE_COMMANDS = [
-    "bazel",
     "bump",
     "capabilities",
     "clean",
@@ -43,7 +42,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 29
+NOT_WATCHABLE_COUNT = 28
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -101,7 +100,6 @@ REPORT_NONE = [
     "upgrade",
     "rollback",
     "completion",
-    "bazel",
     "capabilities",
     "verify",
     "rerun",

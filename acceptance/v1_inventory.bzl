@@ -638,16 +638,6 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "command.bazel",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "audit-update-bazel.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
         "id": "command.build",
         "native": True,
         "owner": "//cli/cli:dx",
@@ -661,7 +651,7 @@ PROMISES = [
         "id": "command.bump",
         "native": True,
         "owner": "//cli/cli:dx",
-        "page": "audit-update-bazel.md",
+        "page": "audit-update.md",
         "state": "evidenced",
     },
     {
@@ -821,7 +811,7 @@ PROMISES = [
         "id": "command.license",
         "native": True,
         "owner": "//cli/cli:dx",
-        "page": "audit-update-bazel.md",
+        "page": "audit-update.md",
         "state": "evidenced",
     },
     {
@@ -901,7 +891,7 @@ PROMISES = [
         "id": "command.security",
         "native": True,
         "owner": "//cli/cli:dx",
-        "page": "audit-update-bazel.md",
+        "page": "audit-update.md",
         "state": "evidenced",
     },
     {
@@ -951,7 +941,7 @@ PROMISES = [
         "id": "command.update",
         "native": True,
         "owner": "//cli/cli:dx",
-        "page": "audit-update-bazel.md",
+        "page": "audit-update.md",
         "state": "evidenced",
     },
     {
@@ -1569,10 +1559,10 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "doc.audit-update-bazel.md",
+        "id": "doc.audit-update.md",
         "native": False,
         "owner": "//docs:command_docs",
-        "page": "audit-update-bazel.md",
+        "page": "audit-update.md",
         "state": "evidenced",
     },
     {
@@ -3287,7 +3277,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 354
+PROMISE_COUNT = 353
 
 PROMISE_FAMILIES = [
     "artifact",

@@ -4,8 +4,6 @@ LOSS_DAEMON_EXIT3 = "wont-fix"
 LOSS_BUILDIFIER_REWRITE = "wont-fix"
 LOSS_FULL_WIRING = "wont-fix"
 
-DAEMON_HERMETIC_EXEC = "cli/cli/src/exec/bazel.rs code 3"
-DAEMON_HERMETIC_TEST = "bazel_forwards_argv_verbatim_and_exit_code"
 DAEMON_HERMETIC_PROBE = "ArgvProbe code Some(3)"
 
 BUILDIFIER_HERMETIC_MATRIX = "//quality/testdata:runner_matrix"

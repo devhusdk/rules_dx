@@ -31,7 +31,6 @@ pub enum Command {
     Why,
     Completion,
     Docs,
-    Bazel,
     Capabilities,
     Verify,
     Rerun,
@@ -119,7 +118,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 37] = [
+pub static COMMANDS: [CommandMeta; 36] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -490,7 +489,7 @@ pub static COMMANDS: [CommandMeta; 37] = [
         scope_policy: "reject",
         describe: "prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)",
         usage: "Usage: dx clean [--check] [--apply] [--bazel] [--prune-unobserved]",
-        flags: "Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; distinct from `dx bazel`, which forwards raw args; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).",
+        flags: "Per-command flags: --check (report prune candidates without deleting; default). --apply (authorizes pruning managed state). --bazel (also run `bazel clean` after pruning, apply only; default never touches Bazel outputs; --output text|json only, diff has no patch). --prune-unobserved (prune generations no process observation protects; without it, unavailable observation preserves unobserved state instead of assuming it idle; never overrides a held lease).",
         scopes: "Scopes: none (clean takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -989,34 +988,6 @@ pub static COMMANDS: [CommandMeta; 37] = [
         hook_triggers_on_run: false,
     },
     CommandMeta {
-        command: Command::Bazel,
-        name: "bazel",
-        scope_policy: "passthrough",
-        describe: "forward raw arguments to the Bazel launcher",
-        usage: "Usage: dx bazel [-- bazel-args ...]",
-        flags: "Per-command flags: none (raw Bazel forwarding; dx-owned options must precede the command word and most are rejected).",
-        scopes: "Scopes: none (raw Bazel forwarding; no dx scope resolution).",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: false,
-        supports_json: false,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Refuse,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-        hook_triggers_on_run: false,
-    },
-    CommandMeta {
         command: Command::Capabilities,
         name: "capabilities",
         scope_policy: "reject",
@@ -1380,8 +1351,6 @@ mod tests {
         assert!(Command::Env.is_managed());
         assert!(!Command::Codegen.is_adoption());
         assert!(!Command::Clean.is_managed());
-        assert_eq!(Command::Bazel.name(), "bazel");
-        assert!(!Command::Bazel.is_adoption());
         assert_eq!(Command::Docs.name(), "docs");
         assert!(!Command::Docs.is_adoption());
         assert!(!Command::Docs.is_managed());
@@ -1427,7 +1396,6 @@ mod tests {
             Command::Why,
             Command::Completion,
             Command::Docs,
-            Command::Bazel,
             Command::Capabilities,
             Command::Verify,
             Command::Rerun,
@@ -1456,7 +1424,6 @@ mod tests {
             .collect();
         got.sort_unstable();
         let mut want = vec![
-            "bazel",
             "build",
             "bump",
             "capabilities",
@@ -1495,8 +1462,8 @@ mod tests {
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 37");
-        assert_eq!(Command::value_variants().len(), 37);
+        assert_eq!(got, want, "Command registry drifted from the final 36");
+        assert_eq!(Command::value_variants().len(), 36);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1540,7 +1507,6 @@ mod tests {
             Command::Why,
             Command::Completion,
             Command::Docs,
-            Command::Bazel,
             Command::Capabilities,
             Command::Verify,
             Command::Rerun,
@@ -1627,7 +1593,6 @@ mod tests {
             Command::Codegen,
             Command::Status,
             Command::Docs,
-            Command::Bazel,
             Command::Migrate,
         ] {
             assert!(
@@ -1647,7 +1612,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            37,
+            36,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1665,7 +1630,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun|tests|rollback",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|capabilities|verify|rerun|tests|rollback",
             "pipe_list order must match declaration order"
         );
     }
@@ -1673,7 +1638,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 37);
+        assert_eq!(Command::value_variants().len(), 36);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1688,7 +1653,6 @@ mod tests {
                     "selector-default-all",
                     "reject",
                     "optional-name",
-                    "passthrough",
                 ]
                 .contains(&policy),
                 "{command:?} has unknown scope policy {policy}"
@@ -1727,7 +1691,6 @@ mod tests {
         assert_eq!(Command::Bump.scope_policy(), "require-selector+version");
         assert_eq!(Command::Update.scope_policy(), "selector-default-all");
         assert_eq!(Command::Migrate.scope_policy(), "default-//...");
-        assert_eq!(Command::Bazel.scope_policy(), "passthrough");
     }
 
     #[test]
@@ -1896,7 +1859,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 37);
+        assert_eq!(COMMANDS.len(), 36);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

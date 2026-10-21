@@ -183,7 +183,7 @@ pub fn usage_banner() -> String {
 flags go after the command: `dx lint --check //...`. \
 per-command flags: capabilities --workspace-capabilities (adds workspace facts from local records); \
 clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
-distinct from `dx bazel` passthrough; --prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
+--prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
 coverage --min-coverage; test|coverage --run-output <dir> (retain test logs); build|run|test|deploy|watch --debug|--release; \
 version --check; docs --check|--serve|--port|--host|--open; \
 completion <{shells}> [--check] (no shell with --check verifies all). \
@@ -426,7 +426,6 @@ mod tests {
             .join(workspace)
             .join("cli/cli/tests/fixtures/help_goldens");
         let rendered = [
-            ("bazel_help.golden", render_command_help(Command::Bazel)),
             ("build_help.golden", render_command_help(Command::Build)),
             ("clean_help.golden", render_command_help(Command::Clean)),
             ("docs_help.golden", render_command_help(Command::Docs)),
@@ -510,10 +509,6 @@ mod tests {
             "clean flags:\n{clean}"
         );
         assert!(
-            clean.contains("distinct from `dx bazel`"),
-            "clean disambiguation:\n{clean}"
-        );
-        assert!(
             clean.contains("never touches Bazel outputs") || clean.contains("never Bazel outputs"),
             "clean surprise:\n{clean}"
         );
@@ -570,11 +565,6 @@ mod tests {
             };
             assert!(text.contains("Per-command flags:"), "{argv:?}:\n{text}");
         }
-        let bazel_help = render_command_help(Command::Bazel);
-        assert!(
-            bazel_help.contains("Per-command flags:"),
-            "bazel help:\n{bazel_help}"
-        );
     }
 
     #[test]
@@ -630,9 +620,6 @@ mod tests {
     }
 
     fn accepts_output(command: Command, mode: &str) -> bool {
-        if command == Command::Bazel {
-            return false;
-        }
         let mut words = vec![command.name().to_owned()];
         words.push(format!("--output={mode}"));
         words.extend(completing_words(command));

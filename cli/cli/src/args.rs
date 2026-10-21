@@ -39,9 +39,6 @@ pub enum ArgsError {
     /// The resolved --fail-on value is not a severity.
     #[error("unknown --fail-on {value:?}: want info|warning|error")]
     BadFailOn { value: String },
-    /// The resolved --log-level value is not a level.
-    #[error("unknown --log-level {value:?}: want error|warn|info|debug|trace")]
-    BadLogLevel { value: String },
     /// The resolved --color value is not a mode.
     #[error("unknown --color {value:?}: want auto|always|never")]
     BadColor { value: String },
@@ -56,9 +53,6 @@ pub enum ArgsError {
     /// The completion shell is not one of the four.
     #[error("unknown-shell: {shell}")]
     UnknownShell { shell: String },
-    /// Verbosity was requested twice over.
-    #[error("options --verbose and --log-level are mutually exclusive")]
-    ConflictingVerboseLogLevel,
     /// Two operation modes were requested at once.
     #[error("options {first} and {second} are mutually exclusive")]
     ConflictingModes {

@@ -25,9 +25,6 @@ Options:
       --color <COLOR>
           Set color output
 
-      --log-level <LEVEL>
-          Set log level
-
       --output <OUTPUT>
           Set output format
 
@@ -55,5 +52,5 @@ Scopes: none (clean takes no scopes).
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code.
 Output: --output text|json; --report has no standard format for this command.
 Rejected: --report, --fail-on, --min-coverage, --debug, --release, --configured, --cases, --from, --to, --here, --serve, --port, --host, --open, --offline, --frozen, -- <bazel-options>.
-Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
+Environment: NO_COLOR=<any> disables color; BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.
 

@@ -250,11 +250,7 @@ fn run() -> i32 {
         }
     };
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    dx_output::init_diagnostics_with_color(
-        invocation.verbose,
-        invocation.log_level,
-        invocation.color,
-    );
+    dx_output::init_diagnostics_with_color(invocation.verbose, invocation.color);
     tracing::info!(
         command = invocation.command.name(),
         verbose = invocation.verbose,

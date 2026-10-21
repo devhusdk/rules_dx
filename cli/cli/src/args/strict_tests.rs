@@ -188,18 +188,6 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
     ] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--debug"]);
     }
-    for words in [
-        vec!["lint", "--verbose", "--log-level=debug"],
-        vec!["lint", "--log-level=debug", "--verbose"],
-        vec!["lint", "-v", "--log-level=info"],
-        vec!["lint", "--log-level=info", "-v"],
-    ] {
-        assert_usage(
-            &words,
-            parse(&strings(&words)).unwrap_err(),
-            &["--log-level"],
-        );
-    }
     for (words, needle) in [
         (vec!["coverage", "--min-coverage=eighty"], "min-coverage"),
         (vec!["coverage", "--min-coverage=101"], "min-coverage"),
@@ -312,14 +300,7 @@ fn strict_help_is_generated_from_the_same_grammar() {
         );
     }
     let grammar = super::super::grammar::cli_command();
-    const GLOBAL_LONGS: [&str; 6] = [
-        "workspace",
-        "output",
-        "quiet",
-        "verbose",
-        "color",
-        "log-level",
-    ];
+    const GLOBAL_LONGS: [&str; 5] = ["workspace", "output", "quiet", "verbose", "color"];
     for command in Command::value_variants() {
         let sub = grammar
             .find_subcommand(command.name())
@@ -332,12 +313,7 @@ fn strict_help_is_generated_from_the_same_grammar() {
             );
         }
     }
-    for needle in [
-        "RUST_LOG",
-        "NO_COLOR",
-        "BUILD_WORKSPACE_DIRECTORY",
-        "Environment:",
-    ] {
+    for needle in ["NO_COLOR", "BUILD_WORKSPACE_DIRECTORY", "Environment:"] {
         assert!(text.contains(needle), "top help missing env {needle:?}");
     }
     for argv in [vec!["lint", "--help"], vec!["status", "--help"]] {

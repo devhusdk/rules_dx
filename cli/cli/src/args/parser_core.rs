@@ -13,7 +13,6 @@ fn bare_command_parses_with_defaults() {
     assert_eq!(got.workspace, None);
     assert!(!got.quiet);
     assert!(!got.verbose);
-    assert_eq!(got.log_level, None);
     assert_eq!(got.output, OutputMode::Text { quiet: false });
     assert!(got.reports.is_empty());
     assert_eq!(got.fail_on, Threshold::Warning);
@@ -294,44 +293,19 @@ fn verbose_parses_after_the_command_and_stays_orthogonal_to_quiet() {
 }
 
 #[test]
-fn log_level_parses_and_conflicts_with_verbose() {
-    use dx_output::LogLevel;
-    let got = parse(&strings(&["lint", "--log-level=debug"])).expect("parse");
-    assert_eq!(got.log_level, Some(LogLevel::Debug));
-    assert!(!got.verbose);
-    let spaced = parse(&strings(&["lint", "--log-level", "trace"])).expect("parse spaced");
-    assert_eq!(spaced.log_level, Some(LogLevel::Trace));
-    for level in ["error", "warn", "info", "debug", "trace"] {
-        let got = parse(&strings(&["lint", &format!("--log-level={level}")])).expect("parse level");
-        assert_eq!(got.log_level.map(|level| level.name()), Some(level));
+fn log_level_is_rejected() {
+    for words in [
+        vec!["lint", "--log-level=debug"],
+        vec!["lint", "--log-level", "trace"],
+        vec!["lint", "-v", "--log-level=info"],
+        vec!["lint", "--log-level"],
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["--log-level"],
+        );
     }
-    assert_eq!(
-        parse(&strings(&["lint", "--log-level=verbose"])),
-        Err(ArgsError::BadLogLevel {
-            value: "verbose".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["lint", "--log-level=DEBUG"])),
-        Err(ArgsError::BadLogLevel {
-            value: "DEBUG".to_owned(),
-        })
-    );
-    assert_usage(
-        &["lint", "--verbose", "--log-level=debug"],
-        parse(&strings(&["lint", "--verbose", "--log-level=debug"])).unwrap_err(),
-        &["--log-level"],
-    );
-    assert_usage(
-        &["lint", "-v", "--log-level=info"],
-        parse(&strings(&["lint", "-v", "--log-level=info"])).unwrap_err(),
-        &["--log-level"],
-    );
-    assert_usage(
-        &["lint", "--log-level"],
-        parse(&strings(&["lint", "--log-level"])).unwrap_err(),
-        &["--log-level"],
-    );
 }
 
 #[test]

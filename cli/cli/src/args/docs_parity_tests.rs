@@ -1935,7 +1935,6 @@ fn environment_section_documents_every_parsed_env_default() {
         .iter()
         .map(|(env, _, _)| (*env).to_owned())
         .chain([
-            "RUST_LOG".to_owned(),
             "NO_COLOR".to_owned(),
             "BUILD_WORKSPACE_DIRECTORY".to_owned(),
         ])

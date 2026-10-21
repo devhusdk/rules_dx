@@ -150,8 +150,6 @@ fn render_env_help() -> String {
         TRUTHY.join("|"),
         FALSEY.join("|")
     ));
-    out.push_str("  RUST_LOG=<filter>\n");
-    out.push_str("      Override --verbose and --log-level.\n");
     out.push_str("  NO_COLOR=<any>\n");
     out.push_str("      Disable color output.\n");
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
@@ -175,7 +173,7 @@ pub fn usage_banner() -> String {
     let shells = COMPLETION_SHELLS.join("|");
     format!(
         "usage: dx <{commands}> [--workspace DIR] [--quiet] [--verbose|-v] \
- [--log-level error|warn|info|debug|trace] [--color auto|always|never] \
+[--color auto|always|never] \
 [--output text|diff|json] [--bazel-startup-option <token>]... [--report <format>=<destination>]... \
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
@@ -316,7 +314,7 @@ pub(crate) fn after_long_help(command: Command) -> String {
     out
 }
 
-const ENV_LINE: &str = "Environment: RUST_LOG=<filter> overrides --verbose and --log-level; NO_COLOR=<any> disables color; \
+const ENV_LINE: &str = "Environment: NO_COLOR=<any> disables color; \
 BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists every DX_ default.";
 
 pub(crate) fn render_command_help(command: Command) -> String {
@@ -369,9 +367,7 @@ mod tests {
                 "--workspace",
                 "--output",
                 "--fail-on",
-                "--log-level",
                 "Exit codes",
-                "RUST_LOG",
                 "NO_COLOR",
                 "BUILD_WORKSPACE_DIRECTORY",
             ] {
@@ -477,7 +473,6 @@ mod tests {
                 "Exit codes:",
                 "Output:",
                 "Environment:",
-                "RUST_LOG",
                 "NO_COLOR",
                 "BUILD_WORKSPACE_DIRECTORY",
                 "--workspace",
@@ -668,10 +663,8 @@ mod tests {
             other => panic!("want Help, got {other:?}"),
         };
         for needle in [
-            "--log-level",
             "--verbose",
             "-v",
-            "RUST_LOG",
             "NO_COLOR",
             "BUILD_WORKSPACE_DIRECTORY",
             "Environment:",

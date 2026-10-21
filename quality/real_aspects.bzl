@@ -169,25 +169,30 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if len(resolved) == 0:
             return []
 
-    spotbugs_jars = []
+    spotbugs_owned = []
+    spotbugs_aux = []
     if "spotbugs" in [stage["tool"] for stage in resolved]:
         if JavaInfo not in target:
             resolved = drop_pipeline_tool(resolved, "spotbugs")
             if len(resolved) == 0:
                 return []
         else:
-            jars = []
+            owned = {}
+            for output in target[JavaInfo].java_outputs:
+                if output.class_jar != None and ".." not in output.class_jar.short_path.split("/"):
+                    owned[output.class_jar.path] = output.class_jar
+            auxiliary = {}
             for jar in target[JavaInfo].transitive_runtime_jars.to_list():
-                if ".." in jar.short_path.split("/"):
+                if ".." in jar.short_path.split("/") or jar.path in owned:
                     continue
-                jars.append(jar)
-            jars = sorted(jars, key = lambda f: f.short_path)
-            if len(jars) == 0:
+                auxiliary[jar.path] = jar
+            if len(owned) == 0:
                 resolved = drop_pipeline_tool(resolved, "spotbugs")
                 if len(resolved) == 0:
                     return []
             else:
-                spotbugs_jars = jars
+                spotbugs_owned = sorted(owned.values(), key = lambda f: f.short_path)
+                spotbugs_aux = sorted(auxiliary.values(), key = lambda f: f.short_path)
 
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
@@ -387,8 +392,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             inputs.extend(tool_extra.get(tool, []))
         tool_files = []
         if tool == "spotbugs":
-            for jar in spotbugs_jars:
-                tool_files.append(real_request_tool_file(jar.short_path, jar.path))
+            for jar in spotbugs_owned:
+                tool_files.append(real_request_tool_file("dx-spotbugs/owned/" + jar.short_path, jar.path))
+                inputs.append(jar)
+            for jar in spotbugs_aux:
+                tool_files.append(real_request_tool_file("dx-spotbugs/aux/" + jar.short_path, jar.path))
                 inputs.append(jar)
         edition = None
         if tool == "rustfmt":

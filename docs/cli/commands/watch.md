@@ -22,7 +22,7 @@ the wrapped command unchanged.
 Each change runs the wrapped command again. A failing command does not stop
 the watch. Ctrl-C stops it.
 
-Output: `--output text`. One line per iteration, then one absolute path per
+Output: text only. One line per iteration, then one absolute path per
 trigger.
 
 ```text

@@ -59,6 +59,11 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
                 text: without_usage(&error.render().to_string()),
             })
         }
+        clap::error::ErrorKind::InvalidValue => {
+            output_value_error(args, error).unwrap_or_else(|| ArgsError::Usage {
+                text: without_usage(&error.render().to_string()),
+            })
+        }
         clap::error::ErrorKind::InvalidSubcommand => match removed_command(error) {
             Some(text) => ArgsError::Usage { text },
             None => ArgsError::Usage {
@@ -69,6 +74,36 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
             text: without_usage(&error.render().to_string()),
         },
     }
+}
+
+/// Maps a refused `--output` value to the mode error the command's grammar implies.
+fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<ArgsError> {
+    use clap::error::{ContextKind, ContextValue};
+    let flag = match error.get(ContextKind::InvalidArg) {
+        Some(ContextValue::String(token)) => token.clone(),
+        _ => return None,
+    };
+    if !flag.starts_with("--output") && !flag.starts_with("-o") {
+        return None;
+    }
+    let value = match error.get(ContextKind::InvalidValue) {
+        Some(ContextValue::String(value)) => value.clone(),
+        _ => return None,
+    };
+    if value.is_empty() {
+        return None;
+    }
+    if matches!(value.as_str(), "text" | "diff" | "json") {
+        let command = args
+            .iter()
+            .filter_map(|word| word.as_ref().to_str())
+            .find_map(Command::parse)?;
+        return Some(ArgsError::UnsupportedOption {
+            command: command.name(),
+            option: format!("--output={value}"),
+        });
+    }
+    Some(ArgsError::BadOutput { value })
 }
 
 fn removed_command(error: &clap::Error) -> Option<String> {
@@ -212,28 +247,15 @@ fn name_of(word: &str) -> &str {
     word.split('=').next().unwrap_or(word)
 }
 
-/// The flag's value, inline or the next word.
-fn inline_value(words: &[String], index: usize) -> Option<&str> {
-    let word = words.get(index)?;
-    match word.split_once('=') {
-        Some((_, value)) => Some(value),
-        None => words.get(index + 1).map(String::as_str),
-    }
-}
-
-/// The first `--report` request, named with its payload.
-fn report_request(words: &[String]) -> String {
-    let index = words
-        .iter()
-        .position(|word| name_of(word) == "--report")
-        .unwrap_or(0);
-    let word = words.get(index).map_or("--report", String::as_str);
-    if word.contains('=') {
-        return word.to_owned();
+/// The flag as typed, with its value attached when the value is a separate word.
+fn spelled(words: &[String], index: usize) -> String {
+    let word = &words[index];
+    if word.contains('=') || !super::grammar::VALUE_OPTIONS.contains(&word.as_str()) {
+        return word.clone();
     }
     match words.get(index + 1) {
-        Some(value) => format!("--report={value}"),
-        None => "--report".to_owned(),
+        Some(value) => format!("{word}={value}"),
+        None => word.clone(),
     }
 }
 
@@ -265,26 +287,12 @@ fn unsupported_option<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
         return None;
     }
     let words = words_after_command(args, command_at);
-    let present = |flag: &str| words.iter().any(|word| name_of(word) == flag);
-    let named = if present("--here") && !command.supports_here() {
-        "--here".to_owned()
-    } else if present("--offline") && !command.supports_offline() {
-        "--offline".to_owned()
-    } else if present("--frozen") && !command.supports_frozen() {
-        "--frozen".to_owned()
-    } else if present("--check") && !command.supports_check() {
-        "--check".to_owned()
-    } else if present("--fail-on") && !command.supports_fail_on() {
-        "--fail-on".to_owned()
-    } else if !command.supports_diff()
-        && words
-            .iter()
-            .position(|word| name_of(word) == "--output")
-            .is_some_and(|index| inline_value(&words, index) == Some("diff"))
-    {
-        "--output=diff".to_owned()
-    } else if crate::plan::spec(command).reports.is_empty() && present("--report") {
-        report_request(&words)
+    let named = words
+        .iter()
+        .position(|word| name_of(word) == token)
+        .map_or_else(|| token.clone(), |index| spelled(&words, index));
+    let named = if matches!(token.as_str(), "--output" | "--report") {
+        named
     } else {
         token.clone()
     };

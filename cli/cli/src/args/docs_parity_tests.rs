@@ -833,31 +833,6 @@ fn docs_report_formats_match_the_command_registry() {
     }
 }
 
-fn flag_bullet(page: &str, flag: &str) -> String {
-    let head = format!("- `--{flag}");
-    let mut bullet: Option<String> = None;
-    let mut continued = String::new();
-    for line in page.lines() {
-        if line
-            .strip_prefix(&head)
-            .is_some_and(|rest| rest.starts_with([' ', '`']))
-        {
-            bullet = Some(line.to_owned());
-            continued.clear();
-            continue;
-        }
-        if bullet.is_none() {
-            continue;
-        }
-        if line.starts_with("  ") {
-            continued.push_str(line);
-            continue;
-        }
-        break;
-    }
-    format!("{}{continued}", bullet.expect("global flag bullet"))
-}
-
 fn backticked(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut rest = text;
@@ -872,43 +847,6 @@ fn backticked(text: &str) -> Vec<String> {
     out
 }
 
-fn registry_reports() -> Vec<String> {
-    let mut formats: Vec<String> = Command::value_variants()
-        .iter()
-        .flat_map(|command| {
-            crate::plan::spec(*command)
-                .reports
-                .iter()
-                .map(|format| format.name().to_owned())
-        })
-        .collect();
-    formats.sort();
-    formats.dedup();
-    formats
-}
-
-fn global_flag_bullet(flag: &str) -> String {
-    let page =
-        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    flag_bullet(&page, flag)
-}
-
-fn global_flag_bullet_names(flag: &str) -> Vec<String> {
-    let mut tokens = backticked(&global_flag_bullet(flag));
-    let head = tokens.remove(0);
-    assert!(
-        head.trim_start_matches('-').starts_with(flag),
-        "the {flag} bullet opens with {head:?} instead of the flag itself"
-    );
-    let mut names: Vec<String> = tokens
-        .into_iter()
-        .filter(|token| Command::parse(token).is_some())
-        .collect();
-    names.sort();
-    names.dedup();
-    names
-}
-
 fn commands_where(predicate: impl Fn(Command) -> bool) -> Vec<String> {
     let mut names: Vec<String> = Command::value_variants()
         .iter()
@@ -921,108 +859,27 @@ fn commands_where(predicate: impl Fn(Command) -> bool) -> Vec<String> {
 }
 
 #[test]
-fn global_flags_page_names_every_reporting_command_and_format() {
-    let bullet = global_flag_bullet("report");
-    let mut reporting: Vec<String> = Command::value_variants()
-        .iter()
-        .copied()
-        .filter(|command| !crate::plan::spec(*command).reports.is_empty())
-        .map(|command| command.name().to_owned())
-        .collect();
-    reporting.sort();
-    assert_eq!(
-        global_flag_bullet_names("report"),
-        reporting,
-        "docs/cli/commands/README.md --report bullet must name every command with a report format"
-    );
-    for format in registry_reports() {
+fn global_flags_page_names_flag_shapes_not_commands() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "Global Flags")
+        .map(|(_, body)| body)
+        .expect("README has a `## Global Flags` section");
+    for token in backticked(&body) {
+        let name = token.strip_prefix("dx ").unwrap_or(&token);
         assert!(
-            bullet.contains(&format!("`{format}`")),
-            "docs/cli/commands/README.md --report bullet never names the {format} format"
+            Command::parse(name).is_none(),
+            "docs/cli/commands/README.md Global Flags names dx {name}; command pages own flag acceptance"
         );
     }
-}
-
-#[test]
-fn global_flags_page_names_exactly_the_narrow_output_commands() {
-    assert_eq!(
-        global_flag_bullet_names("output"),
-        commands_where(|command| command.supports_diff() || !command.supports_json()),
-        "docs/cli/commands/README.md --output bullet must name every command that accepts `diff` or rejects `json`"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_fail_on_command() {
-    assert_eq!(
-        global_flag_bullet_names("fail-on"),
-        commands_where(Command::supports_fail_on),
-        "docs/cli/commands/README.md --fail-on bullet must name every command that takes a threshold"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_check_command() {
-    assert_eq!(
-        global_flag_bullet_names("check"),
-        commands_where(Command::supports_check),
-        "docs/cli/commands/README.md --check bullet must name every command that takes a check mode"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_apply_command() {
-    assert_eq!(
-        global_flag_bullet_names("apply"),
-        commands_where(Command::supports_apply),
-        "docs/cli/commands/README.md --apply bullet must name every command that takes an apply mode"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_offline_command() {
-    assert_eq!(
-        global_flag_bullet_names("offline"),
-        commands_where(Command::supports_offline),
-        "docs/cli/commands/README.md --offline bullet must name every command that runs cache-only"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_frozen_command() {
-    assert_eq!(
-        global_flag_bullet_names("frozen"),
-        commands_where(Command::supports_frozen),
-        "docs/cli/commands/README.md --frozen bullet must name every command that keeps resolution unchanged"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_profile_command() {
-    assert_eq!(
-        global_flag_bullet_names("debug"),
-        commands_where(Command::supports_profile),
-        "docs/cli/commands/README.md --debug bullet must name every command that takes a build profile"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_min_coverage_command() {
-    let bullet = global_flag_bullet("min-coverage");
-    let (_, owners) = bullet
-        .split_once("Taken by")
-        .unwrap_or_else(|| panic!("the --min-coverage bullet has no owner list:\n{bullet}"));
-    let mut named: Vec<String> = backticked(owners)
-        .into_iter()
-        .filter(|token| Command::parse(token).is_some())
-        .collect();
-    named.sort();
-    named.dedup();
-    assert_eq!(
-        named,
-        commands_where(Command::supports_min_coverage),
-        "docs/cli/commands/README.md --min-coverage bullet must name every command that takes a threshold"
-    );
+    for flag in ["--output", "--fail-on", "--report", "--offline", "--frozen"] {
+        assert!(
+            body.contains(&format!("`{flag}")),
+            "docs/cli/commands/README.md Global Flags never names {flag}"
+        );
+    }
 }
 
 #[test]
@@ -1074,7 +931,6 @@ fn global_flags_page_documents_every_banner_option() {
         .find(|(heading, _)| heading == "Global Flags")
         .map(|(_, body)| body)
         .expect("README has a `## Global Flags` section");
-    let bullets: Vec<&str> = body.lines().filter(|line| line.starts_with("- ")).collect();
     let advertised = banner()
         .lines()
         .next()
@@ -1082,9 +938,7 @@ fn global_flags_page_documents_every_banner_option() {
         .to_owned();
     for flag in flag_tokens(&advertised) {
         assert!(
-            bullets
-                .iter()
-                .any(|bullet| bullet.contains(&format!("`{flag}"))),
+            body.contains(&format!("`{flag}")),
             "docs/cli/commands/README.md Global Flags never documents {flag}, which the usage banner advertises: {advertised}"
         );
     }
@@ -1104,9 +958,14 @@ fn docs_sections_with_usage_blocks_document_output_modes() {
                 } else {
                     format!("section {heading:?}")
                 };
+                let stated = if command.supports_json() {
+                    format!("`--output {modes}`")
+                } else {
+                    "text only".to_owned()
+                };
                 assert!(
-                    body.contains(&format!("`--output {modes}`")),
-                    "{name}: {where_} documents dx {} usage but never states `--output {modes}`",
+                    body.contains(&stated),
+                    "{name}: {where_} documents dx {} usage but never states {stated}",
                     command.name()
                 );
             }

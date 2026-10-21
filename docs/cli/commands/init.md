@@ -22,7 +22,7 @@ interpreter and tools with host-native names.
 Flags: `--apply`.
 Scopes: optional single module name.
 
-Output: `--output text`.
+Output: text only.
 
 Exit codes: `0` success, `2` usage errors including extra positionals or an
 invalid module name, `1` scaffolding failed.

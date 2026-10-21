@@ -87,7 +87,7 @@ Builds one deployable target without publishing it. Pass `--apply` to run
 the deployment. Takes exactly one label. No flag uses `dx_release` here.
 Args after `--` go to the app, and only reach it on an `--apply` launch.
 
-Output: `--output text`.
+Output: text only.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a build or launch
 failure. The target's own code is the exit code. A passing check names

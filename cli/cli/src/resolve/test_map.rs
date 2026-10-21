@@ -1,9 +1,50 @@
 use std::path::Path;
 
+use super::query::quote_label;
+
 use super::{first_line, parse_owners, quote_set, QueryRunner, ResolveError, SelectionContext};
 
-fn tests_expression(owners: &[String]) -> String {
-    format!("tests(rdeps(//..., set({})))", quote_set(owners))
+pub(crate) fn strip_configuration(line: &str) -> &str {
+    let line = line.trim();
+    match line.rfind(" (") {
+        Some(index) if line.ends_with(')') => &line[..index],
+        _ => line,
+    }
+}
+
+pub(crate) fn set_expression(labels: &[String]) -> String {
+    let quoted: Vec<String> = labels.iter().map(|label| quote_label(label)).collect();
+    format!("set({})", quoted.join(" "))
+}
+
+fn run_labels(
+    runner: &dyn QueryRunner,
+    selection: &SelectionContext,
+    verb: &str,
+    expression: &str,
+    workspace: &Path,
+) -> Result<Vec<String>, ResolveError> {
+    let failed = |detail: String| ResolveError::QueryFailed {
+        label: expression.to_owned(),
+        detail,
+    };
+    let argv = selection
+        .selection_argv(verb, &[], expression)
+        .map_err(|error| failed(error.to_string()))?;
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| failed(error.to_string()))?;
+    if result.code != Some(0) {
+        return Err(failed(first_line(&result.stderr)));
+    }
+    let lines = parse_owners(&result.stdout, expression)?;
+    let mut labels: Vec<String> = lines
+        .iter()
+        .map(|line| strip_configuration(line).to_owned())
+        .collect();
+    labels.sort();
+    labels.dedup();
+    Ok(labels)
 }
 
 pub fn map_owners_to_tests(
@@ -29,31 +70,41 @@ pub fn map_owners_to_tests_with_selection(
     if owners.is_empty() {
         return Ok(Vec::new());
     }
-    let expression = tests_expression(owners);
-    let verb = selection.query_verb();
-    let argv = selection
-        .selection_argv(verb, &[], &expression)
-        .map_err(|error| ResolveError::QueryFailed {
-            label: expression.clone(),
-            detail: error.to_string(),
-        })?;
-    let result = runner
-        .run_query(&argv, workspace)
-        .map_err(|error| ResolveError::QueryFailed {
-            label: expression.clone(),
-            detail: error.to_string(),
-        })?;
-    if result.code != Some(0) {
-        return Err(ResolveError::QueryFailed {
-            label: expression,
-            detail: first_line(&result.stderr),
-        });
-    }
-    let tests = parse_owners(&result.stdout, &expression)?;
-    if tests.is_empty() {
+    let no_tests = || {
         let mut sorted = owners.to_vec();
         sorted.sort();
-        return Err(ResolveError::NoTests { owners: sorted });
+        ResolveError::NoTests { owners: sorted }
+    };
+    let tests = if selection.configured() {
+        let rdeps = format!("rdeps(//..., set({}))", quote_set(owners));
+        let dependents = run_labels(runner, selection, "cquery", &rdeps, workspace)?;
+        if dependents.is_empty() {
+            return Err(no_tests());
+        }
+        let expansion = format!("tests({})", set_expression(&dependents));
+        let expanded = run_labels(
+            runner,
+            &selection.unconfigured_view(),
+            "query",
+            &expansion,
+            workspace,
+        )?;
+        if expanded.is_empty() {
+            return Err(no_tests());
+        }
+        run_labels(
+            runner,
+            selection,
+            "cquery",
+            &set_expression(&expanded),
+            workspace,
+        )?
+    } else {
+        let expression = format!("tests(rdeps(//..., set({})))", quote_set(owners));
+        run_labels(runner, selection, "query", &expression, workspace)?
+    };
+    if tests.is_empty() {
+        return Err(no_tests());
     }
     Ok(tests)
 }
@@ -256,5 +307,75 @@ mod tests {
         let got =
             map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
         assert_eq!(got, strings(&["//pkg:custom_check"]));
+    }
+
+    #[test]
+    fn configured_mapping_never_sends_tests_to_cquery() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-configured-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:lib (abc123)\n//pkg:lib (def456)\n"),
+            FakeQuery::ok("//pkg:suite_member\n//pkg:unit\n"),
+            FakeQuery::ok("//pkg:unit (abc123)\n"),
+        ]);
+        let selection =
+            SelectionContext::for_tests_configured(&strings(&["--platforms=//:x"]), &[]);
+        let got = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &selection,
+        )
+        .expect("map");
+        assert_eq!(got, strings(&["//pkg:unit"]));
+        let calls = query.calls();
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[0].0[3], "cquery");
+        assert_eq!(
+            calls[0].0.last().expect("expr"),
+            "rdeps(//..., set(\"//pkg:lib\"))"
+        );
+        assert_eq!(calls[1].0[3], "query");
+        assert_eq!(
+            calls[1].0.last().expect("expr"),
+            "tests(set(\"//pkg:lib\"))"
+        );
+        assert_eq!(calls[2].0[3], "cquery");
+        assert_eq!(
+            calls[2].0.last().expect("expr"),
+            "set(\"//pkg:suite_member\" \"//pkg:unit\")"
+        );
+        for call in &calls {
+            if call.0[3] == "cquery" {
+                assert!(!call.0.last().expect("expr").contains("tests("), "{call:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn configured_mapping_without_dependents_reports_no_tests() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-configured-none-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![FakeQuery::ok("\n")]);
+        let selection = SelectionContext::for_tests_configured(&[], &[]);
+        let err = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &selection,
+        )
+        .expect_err("none");
+        assert_eq!(
+            err,
+            ResolveError::NoTests {
+                owners: strings(&["//pkg:lib"]),
+            }
+        );
+    }
+
+    #[test]
+    fn strip_configuration_drops_hash_suffix_only() {
+        assert_eq!(strip_configuration("//a:b (abc)"), "//a:b");
+        assert_eq!(strip_configuration("//a:b"), "//a:b");
     }
 }

@@ -392,11 +392,13 @@ mod tests {
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
         harness.query.script_owners("//pkg:lib\n");
+        harness.query.script_owners("//pkg:lib (abc)\n");
         harness.query.script_owners("//pkg:unit\n");
+        harness.query.script_owners("//pkg:unit (abc)\n");
         let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let queries = harness.query.calls.borrow();
-        assert_eq!(queries.len(), 2, "ownership plus mapping: {queries:?}");
+        assert_eq!(queries.len(), 4, "ownership plus mapping: {queries:?}");
         assert_eq!(
             queries[0][3], "query",
             "ownership stays unconfigured: {queries:?}"

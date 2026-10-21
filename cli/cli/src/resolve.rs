@@ -22,6 +22,7 @@ pub(crate) use query::{
 };
 pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use selection::SelectionContext;
+pub(crate) use test_map::set_expression;
 pub use test_map::{map_owners_to_tests, map_owners_to_tests_with_selection};
 #[cfg(test)]
 pub(crate) use types::NeverQuery;

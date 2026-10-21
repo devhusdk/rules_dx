@@ -116,6 +116,13 @@ impl SelectionContext {
         self.configured
     }
 
+    pub fn unconfigured_view(&self) -> SelectionContext {
+        SelectionContext {
+            configured: false,
+            ..self.clone()
+        }
+    }
+
     pub fn query_verb(&self) -> &'static str {
         if self.configured {
             "cquery"

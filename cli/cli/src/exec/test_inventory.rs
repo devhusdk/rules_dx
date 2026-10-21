@@ -118,7 +118,25 @@ fn parse_cases(stdout: &[u8]) -> Vec<String> {
 }
 
 fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, (String, String)> {
-    let argv = query_argv(&ctx.selection, ctx.verb, expr)
+    if !ctx.selection.configured() {
+        return run_label_kind_query(ctx, &ctx.selection, ctx.verb, expr);
+    }
+    let expanded = run_label_kind_query(ctx, &ctx.selection.unconfigured_view(), "query", expr)?;
+    if expanded.is_empty() {
+        return Ok(expanded);
+    }
+    let labels: Vec<String> = expanded.into_iter().map(|(_, label)| label).collect();
+    let filter = crate::resolve::set_expression(&labels);
+    run_label_kind_query(ctx, &ctx.selection, ctx.verb, &filter)
+}
+
+fn run_label_kind_query(
+    ctx: &Ctx,
+    selection: &SelectionContext,
+    verb: &str,
+    expr: &str,
+) -> Result<Vec<(String, String)>, (String, String)> {
+    let argv = query_argv(selection, verb, expr)
         .map_err(|detail| (CODE_QUERY_FAILED.to_owned(), detail))?;
     let result = ctx
         .query_runner
@@ -128,8 +146,7 @@ fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, (
         return Err((
             CODE_QUERY_FAILED.to_owned(),
             format!(
-                "query failed: bazel {} {expr} exited with code {} ({})",
-                ctx.verb,
+                "query failed: bazel {verb} {expr} exited with code {} ({})",
                 result.code.unwrap_or(-1),
                 first_line(&result.stderr)
             ),
@@ -496,13 +513,17 @@ mod tests {
     #[test]
     fn inventory_configured_uses_cquery() {
         let harness = Harness::new("tests-configured");
+        script_output(&harness.query, "rust_test rule //a:one\n");
         script_output(&harness.query, "rust_test rule //a:one (3b48b08)\n");
         let (code, out, _) = harness.run(&["list-tests", "--configured", "//a:one"]);
         assert_eq!(code, 0);
         assert_eq!(out, "//a:one\n");
         let calls = harness.query.calls.borrow();
-        assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0][3], "cquery");
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0][3], "query");
+        assert_eq!(calls[0].last().expect("expr"), "tests(//a:one)");
+        assert_eq!(calls[1][3], "cquery");
+        assert_eq!(calls[1].last().expect("expr"), "set(\"//a:one\")");
     }
 
     #[test]
@@ -690,8 +711,11 @@ mod tests {
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
         script_output(&harness.query, "//pkg:lib\n");
+        script_output(&harness.query, "//pkg:lib (abc)\n");
         script_output(&harness.query, "//pkg:unit\n");
+        script_output(&harness.query, "//pkg:unit (abc)\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
+        script_output(&harness.query, "rust_test rule //pkg:unit (abc)\n");
         let (code, out, err) = harness.run(&[
             "list-tests",
             "--configured",
@@ -703,20 +727,18 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//pkg:unit\n");
         let calls = harness.query.calls.borrow();
-        assert_eq!(calls.len(), 3, "{calls:?}");
+        assert_eq!(calls.len(), 6, "{calls:?}");
+        let verbs: Vec<&str> = calls.iter().map(|call| call[3].as_str()).collect();
         assert_eq!(
-            calls[0][3], "query",
-            "ownership stays unconfigured: {calls:?}"
+            verbs,
+            ["query", "cquery", "query", "cquery", "query", "cquery"],
+            "{calls:?}"
         );
-        assert_eq!(
-            calls[1][3], "cquery",
-            "mapping uses execution options: {calls:?}"
-        );
-        assert_eq!(
-            calls[2][3], "cquery",
-            "inventory uses execution options: {calls:?}"
-        );
-        for call in calls.iter().skip(1) {
+        for call in calls.iter().filter(|call| call[3] == "cquery") {
+            assert!(
+                !call.last().expect("expr").contains("tests("),
+                "cquery never receives tests(): {call:?}"
+            );
             assert!(
                 call.contains(&"--platforms=//:x".to_owned()),
                 "mapping and inventory share platforms: {call:?}"
@@ -736,6 +758,7 @@ mod tests {
     #[test]
     fn configured_inventory_hint_names_provenance_and_options() {
         let harness = Harness::new("tests-configured-hint");
+        script_output(&harness.query, "rust_test rule //a:one\n");
         script_output(&harness.query, "rust_test rule //a:one\n");
         let (code, out, _) = harness.run(&[
             "list-tests",
@@ -783,8 +806,11 @@ mod tests {
         harness.write_source("pkg/BUILD.bazel", "");
         harness.write_source("pkg/a.py", "x = 1\n");
         script_output(&harness.query, "//pkg:lib\n");
+        script_output(&harness.query, "//pkg:lib (abc)\n");
         script_output(&harness.query, "//pkg:unit\n");
+        script_output(&harness.query, "//pkg:unit (abc)\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
+        script_output(&harness.query, "rust_test rule //pkg:unit (abc)\n");
         let (code, out, err) = harness.run(&[
             "list-tests",
             "--configured",
@@ -796,7 +822,7 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//pkg:unit\n");
         let calls = harness.query.calls.borrow();
-        assert_eq!(calls.len(), 3, "{calls:?}");
+        assert_eq!(calls.len(), 6, "{calls:?}");
         for call in calls.iter() {
             assert!(
                 !call.iter().any(|arg| arg.contains("test_arg")),
@@ -809,6 +835,7 @@ mod tests {
     #[test]
     fn selection_hint_withholds_secrets() {
         let harness = Harness::new("tests-selection-secret");
+        script_output(&harness.query, "rust_test rule //a:one\n");
         script_output(&harness.query, "rust_test rule //a:one\n");
         let (code, out, _) = harness.run(&[
             "list-tests",

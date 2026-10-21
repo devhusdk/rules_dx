@@ -858,16 +858,6 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "command.rerun",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "rerun.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
         "id": "command.rollback",
         "native": True,
         "owner": "//cli/cli:dx",
@@ -952,16 +942,6 @@ PROMISES = [
         "native": True,
         "owner": "//cli/cli:dx",
         "page": "new-upgrade.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "command.verify",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "verify.md",
         "state": "evidenced",
     },
     {
@@ -1699,16 +1679,6 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
-        "id": "doc.rerun.md",
-        "native": False,
-        "owner": "//docs:command_docs",
-        "page": "rerun.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
         "id": "doc.scope-defaults.md",
         "native": False,
         "owner": "//docs:command_docs",
@@ -1733,16 +1703,6 @@ PROMISES = [
         "native": False,
         "owner": "//docs:command_docs",
         "page": "tests.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "doc.verify.md",
-        "native": False,
-        "owner": "//docs:command_docs",
-        "page": "verify.md",
         "state": "evidenced",
     },
     {
@@ -3277,7 +3237,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 353
+PROMISE_COUNT = 349
 
 PROMISE_FAMILIES = [
     "artifact",

@@ -20,7 +20,6 @@ pub mod preset_fragment;
 pub mod scaffold;
 pub mod status;
 pub mod upgrade;
-pub mod verify_sets;
 pub mod version;
 pub mod watch;
 
@@ -75,10 +74,6 @@ pub use upgrade::{
     plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,
     upgrade_refresh_commands, upgrade_restore_command_for, upgrade_retry_command, UpgradeIntent,
     UpgradePlan,
-};
-pub use verify_sets::{
-    load_verify_set, ResolvedSet, ResolvedStep, VerifySetError, VERIFY_SCHEMA_VERSION,
-    VERIFY_STEP_COMMANDS, VERIFY_TOML_REL,
 };
 pub use version::{
     parse_consumer_setup, parse_module_dependency, parse_pin_record, pin_fix_hint,

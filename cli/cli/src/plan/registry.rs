@@ -118,18 +118,6 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[StandardFormat::Sarif],
             settings: &[],
         },
-        Command::Verify => CommandSpec {
-            command,
-            aspects: &[],
-            reports: &[],
-            settings: &[],
-        },
-        Command::Rerun => CommandSpec {
-            command,
-            aspects: &[],
-            reports: &[],
-            settings: &[],
-        },
         Command::Tests => CommandSpec {
             command,
             aspects: &[],

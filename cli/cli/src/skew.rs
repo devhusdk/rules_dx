@@ -71,8 +71,6 @@ mod tests {
         Command::Owners,
         Command::Deps,
         Command::Why,
-        Command::Verify,
-        Command::Rerun,
         Command::Tests,
     ];
 

@@ -134,8 +134,6 @@ fn required_words(command: Command) -> Vec<String> {
         "watch" => &["build"],
         "completion" => &["bash"],
         "bazel" => &["info"],
-        "verify" => &["pre-pr"],
-        "rerun" => &["receipt.json"],
         _ => &[],
     };
     strings(required)
@@ -168,8 +166,6 @@ fn probe_rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
 const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--fail-on", Some("error")),
     ("--min-coverage", Some("80")),
-    ("--strict-evidence", None),
-    ("--run-output", Some("out")),
     ("--check", None),
     ("--apply", None),
     ("--debug", None),
@@ -1028,29 +1024,6 @@ fn global_flags_page_names_every_min_coverage_command() {
     assert!(
         bullet.contains("Every other command rejects it."),
         "docs/cli/commands/README.md --min-coverage bullet must say every other command rejects it:\n{bullet}"
-    );
-}
-
-#[test]
-fn global_flags_page_names_every_strict_evidence_command() {
-    let bullet = global_flag_bullet("strict-evidence");
-    let (_, owners) = bullet
-        .split_once("Taken by")
-        .unwrap_or_else(|| panic!("the --strict-evidence bullet has no owner list:\n{bullet}"));
-    let mut named: Vec<String> = backticked(owners)
-        .into_iter()
-        .filter(|token| Command::parse(token).is_some())
-        .collect();
-    named.sort();
-    named.dedup();
-    assert_eq!(
-        named,
-        commands_where(Command::supports_strict_evidence),
-        "docs/cli/commands/README.md --strict-evidence bullet must name every command that takes strict evidence"
-    );
-    assert!(
-        bullet.contains("Every other command rejects it."),
-        "docs/cli/commands/README.md --strict-evidence bullet must say every other command rejects it:\n{bullet}"
     );
 }
 

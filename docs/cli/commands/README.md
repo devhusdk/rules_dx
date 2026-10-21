@@ -22,8 +22,6 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx tests`](tests.md)
 - [`dx completion`](completion.md)
 - [`dx capabilities`](capabilities.md)
-- [`dx verify`](verify.md)
-- [`dx rerun`](rerun.md)
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`, `dx rollback`](new-upgrade.md)
 - [`dx watch`](watch.md)
@@ -63,10 +61,6 @@ commands. See [Version Skew](status-version.md#version-skew).
   Every other command rejects it.
 - `--min-coverage <percent>`: fail `coverage` below this percent. Taken by
   `coverage`. Every other command rejects it.
-- `--strict-evidence`: fail when collected test or coverage evidence is
-  incomplete. Taken by `test`, `coverage`. Every other command rejects it.
-- `--run-output <dir>`: retain test logs under a unique child directory with
-  `manifest.json`. Taken by `test`, `coverage`. Every other command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `codegen`, `env`, `clean`, `check`, `fix`, `update`,
   `version`, `completion`, and `docs`.

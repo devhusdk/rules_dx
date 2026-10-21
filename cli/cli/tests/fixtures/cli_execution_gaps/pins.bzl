@@ -30,19 +30,17 @@ NOT_WATCHABLE_COMMANDS = [
     "migrate",
     "new",
     "owners",
-    "rerun",
     "rollback",
     "security",
     "status",
     "tests",
     "update",
     "upgrade",
-    "verify",
     "version",
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 28
+NOT_WATCHABLE_COUNT = 26
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -101,8 +99,6 @@ REPORT_NONE = [
     "rollback",
     "completion",
     "capabilities",
-    "verify",
-    "rerun",
     "tests",
 ]
 REPORT_DISPOSITION = "wont-fix"

@@ -72,7 +72,7 @@ Every command reads the pin in `.dx/version` and compares it with the
 `MODULE.bazel` pin before it runs. A mismatch is version skew.
 
 - Runs anyway: `version`, `status`, `rollback`, `completion`, `capabilities`.
-- Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`, `verify`, `rerun`, `tests`.
+- Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`, `tests`.
 - Stops with exit code `1`: every other command.
 
 `watch` answers for the command it

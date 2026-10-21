@@ -19,7 +19,6 @@ mod quality_baseline;
 mod quality_emit;
 mod quality_patch;
 mod quality_reports;
-mod rerun;
 mod results;
 mod run;
 mod test_inventory;
@@ -28,7 +27,6 @@ mod test_reports;
 mod test_support;
 mod umbrella;
 mod update;
-mod verify;
 mod workflow;
 
 use crate::args::{Command, Invocation};
@@ -83,9 +81,7 @@ fn family(command: Command) -> Family {
         Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
             Family::Workflow
         }
-        Command::Check | Command::Fix | Command::Verify | Command::Rerun | Command::Tests => {
-            Family::Umbrella
-        }
+        Command::Check | Command::Fix | Command::Tests => Family::Umbrella,
         Command::Clean => Family::Clean,
         Command::Update => Family::Update,
         Command::Bump => Family::Bump,
@@ -144,11 +140,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             )
         }
         Family::Umbrella => {
-            if invocation.command == Command::Verify {
-                verify::execute_verify(invocation, env)
-            } else if invocation.command == Command::Rerun {
-                rerun::execute_rerun(invocation, env)
-            } else if invocation.command == Command::Tests {
+            if invocation.command == Command::Tests {
                 test_inventory::execute_tests(invocation, env)
             } else {
                 umbrella::execute_umbrella(invocation, env)
@@ -203,7 +195,7 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            36,
+            34,
             "every variant classified"
         );
         assert_eq!(counts.get("adoption"), Some(&13));
@@ -211,7 +203,7 @@ mod tests {
         assert_eq!(counts.get("quality"), Some(&3));
         assert_eq!(counts.get("managed"), Some(&2));
         assert_eq!(counts.get("audit"), Some(&2));
-        assert_eq!(counts.get("umbrella"), Some(&5));
+        assert_eq!(counts.get("umbrella"), Some(&3));
         assert_eq!(counts.get("generate"), Some(&1));
         assert_eq!(counts.get("clean"), Some(&1));
         assert_eq!(counts.get("update"), Some(&1));

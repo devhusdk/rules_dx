@@ -58,8 +58,6 @@ pub(crate) struct Flags {
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
     pub(crate) min_coverage: Option<u32>,
-    pub(crate) strict_evidence: bool,
-    pub(crate) run_output: Option<String>,
     pub(crate) check: bool,
     pub(crate) apply: bool,
     pub(crate) debug: bool,
@@ -239,22 +237,6 @@ flag_group! {
             value_parser = percent
         )]
         min_coverage: Option<u32>,
-    }
-}
-
-flag_group! {
-    /// Fail when collected test evidence is incomplete.
-    StrictEvidenceFlag, {
-        #[arg(long = "strict-evidence", overrides_with = "strict_evidence")]
-        strict_evidence: bool,
-    }
-}
-
-flag_group! {
-    /// Retain test logs under this directory.
-    RunOutputFlag, {
-        #[arg(long = "run-output", value_name = "DIR", allow_negative_numbers = true, overrides_with = "run_output", value_parser = non_empty)]
-        run_output: Option<String>,
     }
 }
 
@@ -613,16 +595,12 @@ command_args! {
     Test => 7, BazelTail, {
         own: ProfileArgs,
         report: ReportFlag,
-        strict_evidence: StrictEvidenceFlag,
-        run_output: RunOutputFlag,
         here: HereFlag,
     };
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
         min_coverage: MinCoverageFlag,
-        strict_evidence: StrictEvidenceFlag,
         report: ReportFlag,
-        run_output: RunOutputFlag,
         here: HereFlag,
     };
     /// The flags `dx run` accepts.
@@ -694,18 +672,14 @@ command_args! {
     };
     /// The flags `dx capabilities` accepts.
     Capabilities => 31, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
-    /// The flags `dx verify` accepts.
-    Verify => 32, BazelTail, {};
-    /// The flags `dx rerun` accepts.
-    Rerun => 33, BazelTail, {};
     /// The flags `dx tests` accepts.
-    Tests => 34, BazelTail, {
+    Tests => 32, BazelTail, {
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 35, NoPassthroughTail, { apply: ApplyFlag, };
+    Rollback => 33, NoPassthroughTail, { apply: ApplyFlag, };
 }
 
 #[derive(Parser)]
@@ -740,7 +714,6 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--host",
     "--color",
     "--log-level",
-    "--run-output",
     "--bazel-startup-option",
 ];
 

@@ -704,3 +704,96 @@ fn removed_dry_run_is_rejected_from_every_source() {
     }
     scratch.close().expect("cleanup");
 }
+
+#[test]
+fn log_level_config_keys_are_rejected() {
+    let scratch = workspace_with_output("dx-log-level-config-", "text");
+    let root = scratch.path();
+    for key in ["log_level", "log-level"] {
+        std::fs::write(root.join("dx.toml"), format!("[dx]\n{key} = \"debug\"\n")).expect("config");
+        let (code, out, err) = run_dx(root, &["lint"], &[]);
+        assert_eq!(code, Some(2), "{key}: {err}");
+        assert!(out.is_empty(), "{key}: {out}");
+        assert!(err.contains(key.split('-').next().unwrap()), "{key}: {err}");
+    }
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn log_level_flag_exits_two_before_running() {
+    let scratch = workspace_with_output("dx-log-level-flag-", "text");
+    let root = scratch.path();
+    for words in [
+        vec!["lint", "--log-level=debug"],
+        vec!["lint", "-v", "--log-level", "trace"],
+    ] {
+        let (code, out, err) = run_dx(root, &words, &[]);
+        assert_eq!(code, Some(2), "{words:?}: {err}");
+        assert!(out.is_empty(), "{words:?}: {out}");
+        assert!(err.contains("--log-level"), "{words:?}: {err}");
+    }
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn rust_log_does_not_change_dx_diagnostics() {
+    let scratch = dx_test_scratch::scratch("dx-rust-log-");
+    let root = scratch.path();
+    let marker = "dx invocation parsed";
+    for filter in ["trace", "info", "dx=trace", "off", "not a filter [", ""] {
+        let (code, _, err) = run_dx(root, &["completion", "bash"], &[("RUST_LOG", filter)]);
+        assert_eq!(code, Some(0), "RUST_LOG={filter}: {err}");
+        assert!(
+            !err.contains(marker),
+            "default ignores RUST_LOG={filter}: {err}"
+        );
+        let (code, _, err) = run_dx(
+            root,
+            &["completion", "bash", "--verbose"],
+            &[("RUST_LOG", filter)],
+        );
+        assert_eq!(code, Some(0), "RUST_LOG={filter}: {err}");
+        assert!(
+            err.contains(marker),
+            "verbose ignores RUST_LOG={filter}: {err}"
+        );
+    }
+    let (code, _, err) = run_dx(root, &["completion", "bash", "--verbose"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(err.contains(marker), "{err}");
+    scratch.close().expect("cleanup");
+}
+
+#[test]
+fn no_color_controls_auto_color_and_explicit_modes_win() {
+    let scratch = dx_test_scratch::scratch("dx-no-color-");
+    let root = scratch.path();
+    let verbose = ["completion", "bash", "--verbose"];
+    let escape = '\u{1b}';
+    for (no_color, color, ansi) in [
+        (None, "auto", false),
+        (Some("1"), "auto", false),
+        (Some(""), "auto", false),
+        (Some("1"), "never", false),
+        (Some(""), "always", true),
+        (Some("1"), "always", true),
+        (None, "always", true),
+    ] {
+        let color_arg = format!("--color={color}");
+        let mut words = verbose.to_vec();
+        words.push(&color_arg);
+        let mut envs = Vec::new();
+        if let Some(value) = no_color {
+            envs.push(("NO_COLOR", value));
+        }
+        let (code, out, err) = run_dx(root, &words, &envs);
+        assert_eq!(code, Some(0), "{no_color:?} {color}: {err}");
+        assert_eq!(
+            err.contains(escape),
+            ansi,
+            "NO_COLOR={no_color:?} --color={color}: {err:?}"
+        );
+        assert!(!out.contains(escape), "stdout stays plain: {out:?}");
+    }
+    scratch.close().expect("cleanup");
+}

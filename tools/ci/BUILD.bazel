@@ -129,6 +129,8 @@ rust_test(
     data = [
         "//.github:workflows/ci.yml",
         "//.github:workflows/reusable-consumer.yml",
+        "//examples:consumer-ci/caller.yml",
+        "//examples:docs-ci/caller.yml",
     ],
     deps = [
         "//tools/testing:dx_testing",

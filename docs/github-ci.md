@@ -258,7 +258,10 @@ permissions, so a read-only repository default is fine.
   One green gate covers the whole matrix.
 - Branch protection for the docs workflow: require `docs-check`. Add
   `docs-publish (GitHub Pages)` once `publish` is true.
-- Merge gate: require branches to be up to date, or use a merge queue.
+- Merge gate: require branches to be up to date, or use a merge queue. Both
+  callers run on `merge_group` (`checks_requested`), so the queue gets the
+  required checks for its own SHA. Merge-group runs post no PR comment and
+  never publish Pages.
 - Pages source: GitHub Actions, before the first publishing run.
 - Workflow permissions: read-only by default. Each calling job then grants
   what its reusable jobs request: the consumer caller `checks: write` plus

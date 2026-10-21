@@ -62,6 +62,25 @@ def npm_access_error(package, access):
                 "got unscoped '" + package + "'")
     return ""
 
+def npm_provenance_error(access, registry, provenance):
+    """Validates one npm provenance policy against access and registry."""
+    if provenance not in ["required", "none"]:
+        return ("npm_deploy: invalid provenance '" + str(provenance) +
+                "': want 'required' or 'none'")
+    if provenance == "required" and access != "public":
+        return ("npm_deploy: provenance 'required' is not supported with access '" +
+                access + "'; use access 'public' or provenance 'none'")
+    if provenance == "required" and registry.removeprefix("https://").split("/")[0] != "registry.npmjs.org":
+        return ("npm_deploy: provenance 'required' is not supported by registry '" +
+                registry + "'; use https://registry.npmjs.org or provenance 'none'")
+    return ""
+
+def npm_effective_provenance(access, provenance):
+    """Resolves the default provenance policy for an access mode."""
+    if provenance == "":
+        return "required" if access == "public" else "none"
+    return provenance
+
 def npm_filenames(name):
     """Returns the deterministic (tarball, feed) output names."""
     return (name + ".tgz", name + ".feed.json")
@@ -86,8 +105,8 @@ _npm_launcher = rule(
     },
 )
 
-def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", profile = "release"):
-    """Packs files into a local npm feed with public or restricted access."""
+def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", profile = "release"):
+    """Packs files into a local npm feed with public or restricted access and a provenance policy."""
     pkg_error = npm_package_error(package)
     if pkg_error != "":
         fail(pkg_error + " (in " + native.package_name() + ":" + name + ")")
@@ -100,6 +119,10 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
     access_error = npm_access_error(package, access)
     if access_error != "":
         fail(access_error + " (in " + native.package_name() + ":" + name + ")")
+    provenance = npm_effective_provenance(access, provenance)
+    provenance_error = npm_provenance_error(access, registry, provenance)
+    if provenance_error != "":
+        fail(provenance_error + " (in " + native.package_name() + ":" + name + ")")
     if len(srcs) == 0:
         fail("npm_deploy " + native.package_name() + ":" + name +
              ": need at least one src")
@@ -114,7 +137,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         srcs = srcs,
         outs = [tarball, feed],
         tools = ["//deploy/rules:npm_packer"],
-        cmd = "$(location //deploy/rules:npm_packer) " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " $(OUTS) $(SRCS)",
+        cmd = "$(location //deploy/rules:npm_packer) " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
     )
 
     _npm_launcher(

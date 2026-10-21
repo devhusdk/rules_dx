@@ -1,7 +1,7 @@
 """Unit and analysis tests for the npm pack feed publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":npm.bzl", "npm_access_error", "npm_filenames", "npm_package_error", "npm_registry_error", "npm_tag_error")
+load(":npm.bzl", "npm_access_error", "npm_effective_provenance", "npm_filenames", "npm_package_error", "npm_provenance_error", "npm_registry_error", "npm_tag_error")
 
 def npm_unit_tests(name):
     starlark_test(
@@ -32,6 +32,46 @@ def npm_unit_tests(name):
                 "npm_access_error rejects a malformed scope",
                 npm_access_error("@scope", "public"),
                 "npm_deploy: invalid package '@scope': a scoped name is @scope/name",
+            ),
+            expect_equal(
+                "npm_provenance_error accepts required for public npmjs",
+                npm_provenance_error("public", "https://registry.npmjs.org", "required"),
+                "",
+            ),
+            expect_equal(
+                "npm_provenance_error accepts none for restricted",
+                npm_provenance_error("restricted", "https://npm.example.com", "none"),
+                "",
+            ),
+            expect_equal(
+                "npm_provenance_error rejects required for restricted",
+                npm_provenance_error("restricted", "https://registry.npmjs.org", "required"),
+                "npm_deploy: provenance 'required' is not supported with access 'restricted'; use access 'public' or provenance 'none'",
+            ),
+            expect_equal(
+                "npm_provenance_error rejects required for another registry",
+                npm_provenance_error("public", "https://npm.example.com", "required"),
+                "npm_deploy: provenance 'required' is not supported by registry 'https://npm.example.com'; use https://registry.npmjs.org or provenance 'none'",
+            ),
+            expect_equal(
+                "npm_provenance_error rejects an unknown policy",
+                npm_provenance_error("public", "https://registry.npmjs.org", "auto"),
+                "npm_deploy: invalid provenance 'auto': want 'required' or 'none'",
+            ),
+            expect_equal(
+                "npm_effective_provenance defaults public to required",
+                npm_effective_provenance("public", ""),
+                "required",
+            ),
+            expect_equal(
+                "npm_effective_provenance defaults restricted to none",
+                npm_effective_provenance("restricted", ""),
+                "none",
+            ),
+            expect_equal(
+                "npm_effective_provenance keeps an explicit policy",
+                npm_effective_provenance("public", "none"),
+                "none",
             ),
             expect_equal(
                 "npm_filenames pins the tarball and feed names",

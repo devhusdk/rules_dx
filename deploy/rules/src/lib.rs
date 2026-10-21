@@ -2608,16 +2608,20 @@ pub fn promotion_main(
 }
 
 /// Creates one deterministic npm pack.
+#[allow(clippy::too_many_arguments)]
 pub fn npm_create_pack(
     package: &str,
     tag: &str,
     registry: &str,
     access: &str,
+    provenance: &str,
     tgz_out: &Path,
     feed_out: &Path,
     srcs: &[std::path::PathBuf],
 ) -> io::Result<String> {
-    if let Some(error) = npm_access_error(package, access) {
+    if let Some(error) = npm_access_error(package, access)
+        .or_else(|| npm_provenance_error(access, registry, provenance))
+    {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, error));
     }
     let mut members: std::collections::BTreeMap<String, (Vec<u8>, u32)> =
@@ -2663,6 +2667,7 @@ pub fn npm_create_pack(
             "access": access,
             "files": names,
             "name": package,
+            "provenance": provenance,
             "registry": registry,
             "sha256": digest,
             "tag": tag,
@@ -2708,12 +2713,57 @@ pub fn npm_access_error(package: &str, access: &str) -> Option<String> {
     }
 }
 
+fn npm_registry_host(registry: &str) -> &str {
+    registry
+        .trim_start_matches("https://")
+        .trim_start_matches("http://")
+        .split('/')
+        .next()
+        .unwrap_or("")
+}
+
+/// Rejects a provenance policy the access mode or registry cannot honor.
+pub fn npm_provenance_error(access: &str, registry: &str, provenance: &str) -> Option<String> {
+    match provenance {
+        "none" => None,
+        "required" if access != "public" => Some(format!(
+            "npm_deploy: provenance 'required' is not supported with access '{access}'; \
+             use access 'public' or provenance 'none'"
+        )),
+        "required" if npm_registry_host(registry) != "registry.npmjs.org" => Some(format!(
+            "npm_deploy: provenance 'required' is not supported by registry '{registry}'; \
+             use https://registry.npmjs.org or provenance 'none'"
+        )),
+        "required" => None,
+        _ => Some(format!(
+            "npm_deploy: invalid provenance '{provenance}': want 'required' or 'none'"
+        )),
+    }
+}
+
+/// Rejects a required provenance policy when no signing identity is available.
+pub fn npm_provenance_unavailable(provenance: &str) -> Option<String> {
+    if provenance != "required" {
+        return None;
+    }
+    let present = |key: &str| std::env::var_os(key).is_some_and(|value| !value.is_empty());
+    if present("ACTIONS_ID_TOKEN_REQUEST_URL") || present("SIGSTORE_ID_TOKEN") {
+        return None;
+    }
+    Some(
+        "npm_deploy: provenance 'required' but no CI identity token is available \
+         (ACTIONS_ID_TOKEN_REQUEST_URL or SIGSTORE_ID_TOKEN); publishing nothing"
+            .to_owned(),
+    )
+}
+
 /// Builds the npm publish arguments for one staged tarball.
 pub fn npm_publish_args(
     tarball: &Path,
     tag: &str,
     access: &str,
     registry: &str,
+    provenance: &str,
 ) -> Vec<std::ffi::OsString> {
     let mut args: Vec<std::ffi::OsString> = vec![
         "publish".into(),
@@ -2723,9 +2773,11 @@ pub fn npm_publish_args(
         "--access".into(),
         access.into(),
     ];
-    if access == "public" {
-        args.push("--provenance".into());
-    }
+    args.push(if provenance == "required" {
+        "--provenance".into()
+    } else {
+        "--provenance=false".into()
+    });
     args.push("--registry".into());
     args.push(registry.into());
     args
@@ -2774,6 +2826,7 @@ struct NpmFeed {
     tag: String,
     registry: String,
     access: String,
+    provenance: String,
     #[allow(dead_code)]
     tarball: String,
     sha256: String,
@@ -2793,13 +2846,14 @@ fn parse_npm_feed(body: &str) -> io::Result<NpmFeed> {
 pub fn npm_verify_pack(
     tgz_path: &Path,
     feed_path: &Path,
-) -> io::Result<(String, String, String, String)> {
+) -> io::Result<(String, String, String, String, String)> {
     let body = std::fs::read_to_string(feed_path)?;
     let NpmFeed {
         name,
         tag,
         registry,
         access,
+        provenance,
         sha256: expected,
         files,
         ..
@@ -2824,10 +2878,12 @@ pub fn npm_verify_pack(
             ),
         ));
     }
-    if let Some(error) = npm_access_error(&name, &access) {
+    if let Some(error) = npm_access_error(&name, &access)
+        .or_else(|| npm_provenance_error(&access, &registry, &provenance))
+    {
         return Err(io::Error::new(io::ErrorKind::InvalidData, error));
     }
-    Ok((name, tag, registry, access))
+    Ok((name, tag, registry, access, provenance))
 }
 
 /// Resolves the npm pack pair from explicit runfiles keys.
@@ -2842,9 +2898,9 @@ pub fn npm_find_pack_inputs(
 
 /// Runs the npm pack tool.
 pub fn npm_pack_main(argv: &[String]) -> i32 {
-    if argv.len() < 8 {
+    if argv.len() < 9 {
         eprintln!(
-            "usage: npm_pack <package> <tag> <registry> <access> <tgz_out> <feed_out> <src...>"
+            "usage: npm_pack <package> <tag> <registry> <access> <provenance> <tgz_out> <feed_out> <src...>"
         );
         return 1;
     }
@@ -2852,15 +2908,48 @@ pub fn npm_pack_main(argv: &[String]) -> i32 {
     let tag = argv[2].clone();
     let registry = argv[3].clone();
     let access = argv[4].clone();
-    let tgz_out = std::path::PathBuf::from(&argv[5]);
-    let feed_out = std::path::PathBuf::from(&argv[6]);
-    let srcs: Vec<std::path::PathBuf> = argv[7..].iter().map(std::path::PathBuf::from).collect();
+    let provenance = argv[5].clone();
+    let tgz_out = std::path::PathBuf::from(&argv[6]);
+    let feed_out = std::path::PathBuf::from(&argv[7]);
+    let srcs: Vec<std::path::PathBuf> = argv[8..].iter().map(std::path::PathBuf::from).collect();
     match npm_create_pack(
-        &package, &tag, &registry, &access, &tgz_out, &feed_out, &srcs,
+        &package,
+        &tag,
+        &registry,
+        &access,
+        &provenance,
+        &tgz_out,
+        &feed_out,
+        &srcs,
     ) {
         Ok(_) => 0,
         Err(error) => {
             eprintln!("npm_pack: {error}");
+            1
+        }
+    }
+}
+
+/// Runs npm publish with a temporary owner-only npmrc.
+pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::OsString]) -> i32 {
+    let npmrc = match npm_write_npmrc(host, token) {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("npm_deploy: {error}");
+            return 1;
+        }
+    };
+    let status = std::process::Command::new(npm)
+        .args(args)
+        .arg("--userconfig")
+        .arg(&npmrc)
+        .status();
+    let _ = std::fs::remove_file(&npmrc);
+    match status {
+        Ok(status) if status.success() => 0,
+        Ok(status) => status.code().unwrap_or(1),
+        Err(error) => {
+            eprintln!("npm_deploy: {error}");
             1
         }
     }
@@ -2886,7 +2975,7 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
             return 1;
         }
     };
-    let (name, tag, registry, access) = match npm_verify_pack(&tgz_path, &feed_path) {
+    let (name, tag, registry, access, provenance) = match npm_verify_pack(&tgz_path, &feed_path) {
         Ok(triple) => triple,
         Err(error) => {
             eprintln!("npm_deploy: {error}");
@@ -2929,6 +3018,7 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
     let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
     println!("npm_deploy: released {name} (tag {tag}, access {access}, profile: {profile})");
     println!("  registry: {registry}");
+    println!("  provenance: {provenance}");
     println!("  tarball: {}", outdir.join(&tgz_base).display());
     println!("  feed: {}", feed_dir.display());
     if std::env::var("NPM_PUBLISH_LIVE").unwrap_or_default() == "1" {
@@ -2939,47 +3029,26 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
             );
             return 1;
         }
+        if let Some(error) = npm_provenance_unavailable(&provenance) {
+            eprintln!("{error}");
+            return 1;
+        }
         let staged_tgz = outdir.join(&tgz_base);
         let Some(npm) = which_on_path("npm") else {
             eprintln!("npm_deploy: 'npm' CLI not found on PATH");
             return 1;
         };
-        let host = registry
-            .trim_start_matches("https://")
-            .trim_start_matches("http://")
-            .split('/')
-            .next()
-            .unwrap_or("");
+        let host = npm_registry_host(&registry);
         if host.is_empty() {
             eprintln!("npm_deploy: invalid registry '{registry}'");
             return 1;
         }
-        let npmrc = match npm_write_npmrc(host, &token) {
-            Ok(path) => path,
-            Err(error) => {
-                eprintln!("npm_deploy: {error}");
-                return 1;
-            }
-        };
-        let status = std::process::Command::new(npm)
-            .args(npm_publish_args(&staged_tgz, &tag, &access, &registry))
-            .arg("--userconfig")
-            .arg(&npmrc)
-            .status();
-        let _ = std::fs::remove_file(&npmrc);
-        match status {
-            Ok(status) => {
-                return if status.success() {
-                    0
-                } else {
-                    status.code().unwrap_or(1)
-                }
-            }
-            Err(error) => {
-                eprintln!("npm_deploy: {error}");
-                return 1;
-            }
-        }
+        return npm_run_publish(
+            &npm,
+            host,
+            &token,
+            &npm_publish_args(&staged_tgz, &tag, &access, &registry, &provenance),
+        );
     }
     0
 }
@@ -3947,13 +4016,14 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
+            "required",
             &tgz,
             &feed,
             std::slice::from_ref(&src),
         )
         .expect("pack");
         assert_eq!(digest, dx_digest::sha256_file_hex(&tgz).expect("hex"));
-        let (name, tag, registry, _) = npm_verify_pack(&tgz, &feed).expect("verify");
+        let (name, tag, registry, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         assert_eq!(tag, "latest");
         assert_eq!(registry, "https://registry.npmjs.org");
@@ -3971,6 +4041,7 @@ mod tests {
                 "  \"access\": \"public\",",
                 "  \"files\": [\"package/package.json\"],",
                 "  \"name\": \"npm-demo\",",
+                "  \"provenance\": \"required\",",
                 "  \"registry\": \"https://registry.npmjs.org\",",
                 &format!("  \"sha256\": \"{digest}\","),
                 "  \"tag\": \"latest\",",
@@ -3994,6 +4065,7 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
+            "required",
             &good,
             &scratch.path().join("good.feed.json"),
             std::slice::from_ref(&src),
@@ -4041,6 +4113,7 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
+            "required",
             &tgz,
             &scratch.join("nested.feed.json"),
             &srcs,
@@ -4079,6 +4152,7 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
+            "required",
             &tgz,
             &scratch.path().join("modes.feed.json"),
             &srcs,
@@ -4290,7 +4364,7 @@ mod tests {
 
     #[test]
     fn npm_feed_parser_reads_escapes_brackets_and_unicode() {
-        let body = r#"{ "tarball":"a.tgz", "tag":"t", "sha256":"d", "registry":"r", "access":"public",
+        let body = r#"{ "tarball":"a.tgz", "tag":"t", "sha256":"d", "registry":"r", "access":"public", "provenance":"none",
             "name": "a\"b\\c\nd", "extra": [1, {"x": "]"}],
             "files": ["package/[id].js", "package/]x[.js", "y\\z", "w\"q", "\u00e6\u0041", "æ"] }"#;
         let feed = parse_npm_feed(body).expect("feed");
@@ -4310,7 +4384,7 @@ mod tests {
 
     #[test]
     fn npm_feed_parser_rejects_bad_documents() {
-        let good = r#"{"access": "public", "files": [], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a.tgz"}"#;
+        let good = r#"{"access": "public", "files": [], "name": "n", "provenance": "none", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a.tgz"}"#;
         parse_npm_feed(good).expect("good");
         let bad = [
             "",
@@ -4830,7 +4904,7 @@ mod tests {
     #[test]
     fn npm_publish_args_carry_access_and_no_secret() {
         let tgz = Path::new("/stage/p.tgz");
-        let public = npm_publish_args(tgz, "latest", "public", "https://r.example");
+        let public = npm_publish_args(tgz, "latest", "public", "https://r.example", "required");
         let public: Vec<String> = public
             .iter()
             .map(|a| a.to_string_lossy().into_owned())
@@ -4849,13 +4923,14 @@ mod tests {
                 "https://r.example"
             ]
         );
-        let restricted = npm_publish_args(tgz, "next", "restricted", "https://r.example");
+        let restricted = npm_publish_args(tgz, "next", "restricted", "https://r.example", "none");
         let restricted: Vec<String> = restricted
             .iter()
             .map(|a| a.to_string_lossy().into_owned())
             .collect();
         assert!(restricted.contains(&"restricted".to_owned()));
         assert!(!restricted.contains(&"--provenance".to_owned()));
+        assert!(restricted.contains(&"--provenance=false".to_owned()));
     }
 
     #[test]
@@ -4870,6 +4945,7 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "restricted",
+            "none",
             &tgz,
             &feed,
             &[src],
@@ -4898,12 +4974,13 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "restricted",
+            "none",
             &tgz,
             &feed,
             &[src],
         )
         .expect("pack");
-        let (name, _, registry, access) = npm_verify_pack(&tgz, &feed).expect("verify");
+        let (name, _, registry, access, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "@s/npm-demo");
         assert_eq!(registry, "https://registry.npmjs.org");
         assert_eq!(access, "restricted");
@@ -4953,6 +5030,7 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "restricted",
+            "none",
             &tgz,
             &feed,
             &[pkg.join("package.json")],
@@ -4975,7 +5053,13 @@ mod tests {
             pkg.clone().into(),
         ]);
         assert!(packed.status.success(), "{packed:?}");
-        let mut args = npm_publish_args(&tgz, "latest", "restricted", "https://registry.npmjs.org");
+        let mut args = npm_publish_args(
+            &tgz,
+            "latest",
+            "restricted",
+            "https://registry.npmjs.org",
+            "none",
+        );
         args.push("--dry-run".into());
         let published = run(args);
         let text = String::from_utf8_lossy(&published.stderr).into_owned()
@@ -5600,12 +5684,13 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
+            "required",
             &tgz,
             &feed,
             &[manifest, src],
         )
         .expect("pack");
-        let (name, _, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
+        let (name, _, _, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         let members = npm_tar_members(&tgz).expect("members");
         assert_eq!(members, ["package/[id].js", "package/package.json"]);
@@ -5637,12 +5722,13 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
+            "required",
             &tgz,
             &feed,
             std::slice::from_ref(&src),
         )
         .expect("pack");
-        let (name, tag, registry, _) = npm_verify_pack(&tgz, &feed).expect("verify");
+        let (name, tag, registry, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         assert_eq!(tag, "latest");
         assert_eq!(registry, "https://registry.npmjs.org");
@@ -5684,6 +5770,7 @@ mod tests {
             "latest".to_owned(),
             "https://registry.npmjs.org".to_owned(),
             "public".to_owned(),
+            "required".to_owned(),
             tgz.to_string_lossy().into_owned(),
             feed.to_string_lossy().into_owned(),
             src.to_string_lossy().into_owned(),
@@ -5723,6 +5810,7 @@ mod tests {
             "latest",
             "https://registry.npmjs.org",
             "public",
+            "required",
             &tgz,
             &feed,
             &[src, bracketed],
@@ -5753,6 +5841,179 @@ mod tests {
         assert!(npm_tar_members(&outdir.join("npm_demo.tgz"))
             .expect("members")
             .contains(&"package/[id].js".to_owned()));
+        std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    #[test]
+    fn npm_provenance_policy_rejects_unsupported_combinations() {
+        let npmjs = "https://registry.npmjs.org";
+        assert!(npm_provenance_error("public", npmjs, "required").is_none());
+        assert!(npm_provenance_error("public", npmjs, "none").is_none());
+        assert!(npm_provenance_error("restricted", "https://npm.example.com", "none").is_none());
+        let restricted = npm_provenance_error("restricted", npmjs, "required").expect("restricted");
+        assert!(restricted.contains("not supported with access 'restricted'"));
+        let private = npm_provenance_error("public", "https://npm.example.com/repo", "required")
+            .expect("registry");
+        assert!(private.contains("not supported by registry"));
+        let unknown = npm_provenance_error("public", npmjs, "auto").expect("unknown");
+        assert!(unknown.contains("want 'required' or 'none'"));
+    }
+
+    #[test]
+    fn npm_create_pack_refuses_unsupported_provenance_before_writing() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("package.json");
+        std::fs::write(&src, b"{\"name\": \"x\", \"version\": \"1.0.0\"}\n").expect("write");
+        let tgz = scratch.path().join("x.tgz");
+        let feed = scratch.path().join("x.feed.json");
+        let error = npm_create_pack(
+            "@s/x",
+            "latest",
+            "https://registry.npmjs.org",
+            "restricted",
+            "required",
+            &tgz,
+            &feed,
+            &[src],
+        )
+        .expect_err("restricted provenance");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert!(!tgz.exists() && !feed.exists());
+    }
+
+    #[test]
+    fn npm_publish_args_state_the_provenance_policy() {
+        let tgz = Path::new("x.tgz");
+        let required = npm_publish_args(tgz, "latest", "public", "https://r", "required");
+        assert!(required.iter().any(|arg| arg == "--provenance"));
+        let none = npm_publish_args(tgz, "latest", "restricted", "https://r", "none");
+        assert!(none.iter().any(|arg| arg == "--provenance=false"));
+        assert!(!none.iter().any(|arg| arg == "--provenance"));
+    }
+
+    #[test]
+    fn npm_provenance_unavailable_without_identity() {
+        let none = [
+            ("ACTIONS_ID_TOKEN_REQUEST_URL", None),
+            ("SIGSTORE_ID_TOKEN", None),
+        ];
+        with_env(&none, || {
+            let error = npm_provenance_unavailable("required").expect("unavailable");
+            assert!(error.contains("publishing nothing"));
+            assert!(npm_provenance_unavailable("none").is_none());
+        });
+        with_env(
+            &[
+                (
+                    "ACTIONS_ID_TOKEN_REQUEST_URL",
+                    Some("https://ci.example/token"),
+                ),
+                ("SIGSTORE_ID_TOKEN", None),
+            ],
+            || assert!(npm_provenance_unavailable("required").is_none()),
+        );
+    }
+
+    #[cfg(unix)]
+    fn fake_npm(dir: &Path, exit: i32) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let path = dir.join("npm");
+        let script = format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}/args.txt'\nexit {exit}\n",
+            dir.display()
+        );
+        std::fs::write(&path, script).expect("write npm");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn npm_run_publish_passes_policy_and_keeps_the_token_out_of_args() {
+        let scratch = scratch_dir();
+        let npm = fake_npm(scratch.path(), 0);
+        let args = npm_publish_args(
+            Path::new("x.tgz"),
+            "latest",
+            "public",
+            "https://registry.npmjs.org",
+            "required",
+        );
+        assert_eq!(
+            npm_run_publish(&npm, "registry.npmjs.org", "sekret", &args),
+            0
+        );
+        let seen = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+        assert!(seen.contains("--provenance\n"));
+        assert!(seen.contains("--userconfig"));
+        assert!(!seen.contains("sekret"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn npm_run_publish_surfaces_tool_failure_and_refusal() {
+        let scratch = scratch_dir();
+        let args = npm_publish_args(
+            Path::new("x.tgz"),
+            "latest",
+            "public",
+            "https://r",
+            "required",
+        );
+        let refused = fake_npm(scratch.path(), 1);
+        assert_eq!(npm_run_publish(&refused, "r", "tok", &args), 1);
+        let failed = fake_npm(scratch.path(), 7);
+        assert_eq!(npm_run_publish(&failed, "r", "tok", &args), 7);
+        assert_eq!(
+            npm_run_publish(&scratch.path().join("absent"), "r", "tok", &args),
+            1
+        );
+    }
+
+    #[test]
+    fn npm_deploy_main_refuses_required_provenance_without_identity() {
+        if env_test_in_child("tests::npm_deploy_main_refuses_required_provenance_without_identity")
+        {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let tgz = runfiles.join("npm_demo.tgz");
+        let feed = runfiles.join("npm_demo.feed.json");
+        let src = runfiles.join("package.json");
+        std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
+            .expect("write src");
+        npm_create_pack(
+            "npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            "public",
+            "required",
+            &tgz,
+            &feed,
+            &[src],
+        )
+        .expect("pack");
+        let outdir = tempfile_stage_dir("dx-deploy-npm-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+                ("NPM_PUBLISH_LIVE", Some("1")),
+                ("NPM_TOKEN", Some("tok")),
+                ("ACTIONS_ID_TOKEN_REQUEST_URL", None),
+                ("SIGSTORE_ID_TOKEN", None),
+            ],
+            || {
+                assert_eq!(
+                    npm_deploy_main(&argv, "npm_demo.feed.json", "npm_demo.tgz"),
+                    1
+                );
+            },
+        );
         std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 

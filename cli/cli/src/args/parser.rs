@@ -225,6 +225,54 @@ pub fn freeze_workspace(defaults: &super::FileDefaults, workspace: &str) -> supe
     frozen
 }
 
+/// Why the startup defaults did not load, with the defaults read before the failure.
+#[derive(Debug)]
+pub struct DefaultsFailure {
+    pub partial: Box<super::FileDefaults>,
+    pub detail: String,
+}
+
+/// Loads the defaults a run uses, following one config-directed workspace hop.
+pub fn load_startup_defaults(
+    start: &std::path::Path,
+    flag_workspace: Option<String>,
+    env_workspace: Option<String>,
+    is_ci: bool,
+) -> Result<super::FileDefaults, DefaultsFailure> {
+    let selected = select_startup_defaults_with_ci(start, flag_workspace, env_workspace, is_ci)
+        .map_err(|detail| DefaultsFailure {
+            partial: Box::default(),
+            detail,
+        })?;
+    let Some(target) = selected.file_workspace else {
+        return Ok(selected.defaults);
+    };
+    match select_startup_defaults_with_ci(start, Some(target.clone()), None, is_ci) {
+        Ok(redirected) => Ok(freeze_workspace(&redirected.defaults, &target)),
+        Err(detail) => Err(DefaultsFailure {
+            partial: Box::new(selected.defaults),
+            detail,
+        }),
+    }
+}
+
+/// The workspace a run selects: the flag, the environment, then the defaults.
+pub fn startup_workspace(
+    start: &std::path::Path,
+    flag_workspace: Option<String>,
+    env_workspace: Option<String>,
+    is_ci: bool,
+) -> Option<String> {
+    let env_workspace = env_workspace
+        .filter(|value| !value.is_empty())
+        .filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
+    let file_workspace =
+        load_startup_defaults(start, flag_workspace.clone(), env_workspace.clone(), is_ci)
+            .ok()
+            .and_then(|defaults| defaults.workspace);
+    dx_adopt::defaults::resolve_workspace(flag_workspace, env_workspace, file_workspace)
+}
+
 /// Parses a watch line as the command it wraps, then marks it as a watch.
 fn wrapped_invocation<S: AsRef<OsStr>>(
     args: &[S],
@@ -910,6 +958,76 @@ mod startup_tests {
         let frozen = freeze_workspace(&reloaded.defaults, &target);
         assert_eq!(frozen.workspace, Some(target));
         assert_eq!(frozen.output, Some("text".to_owned()));
+    }
+
+    #[test]
+    fn startup_loading_follows_one_redirect_and_keeps_partial_defaults() {
+        let b = scratch_with_config(
+            "startup-load-b-",
+            Some("[dx]\noutput = \"text\"\nworkspace = \"/elsewhere\"\n"),
+        );
+        let config = format!(
+            "[dx]\noutput = \"json\"\nworkspace = \"{}\"\n",
+            b.path().display()
+        );
+        let a = scratch_with_config("startup-load-a-", Some(&config));
+        let target = b.path().to_string_lossy().into_owned();
+        let loaded = load_startup_defaults(a.path(), None, None, false).expect("follows once");
+        assert_eq!(loaded.workspace, Some(target.clone()));
+        assert_eq!(loaded.output, Some("text".to_owned()));
+        let broken = scratch_with_config("startup-load-broken-", Some("not toml = ["));
+        let config = format!(
+            "[dx]\noutput = \"json\"\nworkspace = \"{}\"\n",
+            broken.path().display()
+        );
+        let c = scratch_with_config("startup-load-c-", Some(&config));
+        let failure =
+            load_startup_defaults(c.path(), None, None, false).expect_err("broken target fails");
+        assert_eq!(failure.partial.output, Some("json".to_owned()));
+        assert!(failure.detail.contains("dx.toml"), "{}", failure.detail);
+        let failure = load_startup_defaults(broken.path(), None, None, false)
+            .expect_err("broken start fails");
+        assert_eq!(*failure.partial, crate::args::FileDefaults::default());
+    }
+
+    #[test]
+    fn startup_workspace_layers_flag_env_and_defaults() {
+        let b = scratch_with_config("startup-ws-b-", None);
+        let config = format!("[dx]\nworkspace = \"{}\"\n", b.path().display());
+        let a = scratch_with_config("startup-ws-a-", Some(&config));
+        let target = b.path().to_string_lossy().into_owned();
+        assert_eq!(
+            startup_workspace(a.path(), None, None, false),
+            Some(target.clone())
+        );
+        assert_eq!(
+            startup_workspace(a.path(), None, Some("/env".to_owned()), false),
+            Some("/env".to_owned())
+        );
+        assert_eq!(
+            startup_workspace(a.path(), None, Some("/env".to_owned()), true),
+            Some(target.clone()),
+            "CI ignores the environment workspace"
+        );
+        assert_eq!(
+            startup_workspace(
+                a.path(),
+                Some("/flag".to_owned()),
+                Some("/env".to_owned()),
+                false
+            ),
+            Some("/flag".to_owned())
+        );
+        assert_eq!(
+            startup_workspace(a.path(), None, Some(String::new()), false),
+            Some(target)
+        );
+        let broken = scratch_with_config("startup-ws-broken-", Some("not toml = ["));
+        assert_eq!(startup_workspace(broken.path(), None, None, false), None);
+        assert_eq!(
+            startup_workspace(broken.path(), None, Some("/env".to_owned()), false),
+            Some("/env".to_owned())
+        );
     }
 
     #[test]

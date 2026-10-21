@@ -376,3 +376,90 @@ def _consumer_scaffold_repo_impl(ctx):
 consumer_scaffold_repo = repository_rule(
     implementation = _consumer_scaffold_repo_impl,
 )
+
+_COMPLETION_BUILD_BAZEL = '''genrule(
+    name = "consumer_completion_probe",
+    testonly = True,
+    outs = [
+        "completion_argv.txt",
+        "completion_broken.txt",
+        "completion_config.txt",
+        "completion_env.txt",
+        "completion_failed_query.txt",
+        "completion_flag.txt",
+    ],
+    cmd = """
+set -eu
+unset CI
+public="$$PWD/$(location @rules_dx//:dx)"
+probe="$$PWD/$(location @rules_dx//tools/testing/process_probe)"
+out="$$PWD/$$(dirname "$(location completion_flag.txt)")"
+root="$$(cd "$$(mktemp -d)" && pwd -P)"
+trap 'rm -rf "$$root"' EXIT
+ws="$$root/consumer ws ü"
+other="$$root/other"
+start="$$root/start"
+mkdir -p "$$ws/pkg" "$$other/lib" "$$start" "$$root/bin"
+for dir in "$$ws" "$$other"; do
+  echo 'module(name = "consumer_completion", version = "0.0.0")' > "$$dir/MODULE.bazel"
+  touch "$$dir/BUILD.bazel"
+done
+touch "$$ws/pkg/BUILD.bazel" "$$other/lib/BUILD.bazel"
+ln -s "$$public" "$$root/bin/dx"
+cat > "$$root/bin/bazel" <<'EOF'
+#!/bin/sh
+pwd -P > "$$DX_SHIM_LOG"
+for arg in "$$@"; do echo "$$arg" >> "$$DX_SHIM_LOG"; done
+exec "$$DX_SHIM_PROBE" "--stdout-text=$$DX_SHIM_LABELS" "--exit-code=$$DX_SHIM_EXIT"
+EOF
+chmod +x "$$root/bin/bazel"
+"$$public" completion bash > "$$root/dx.bash"
+. "$$root/dx.bash"
+export DX_SHIM_PROBE="$$probe" DX_SHIM_LOG="$$root/argv.txt" DX_SHIM_EXIT=0
+export DX_SHIM_LABELS='//pkg:alpha
+//pkg:beta
+WARNING: not a label
+//pkg:another
+'
+export PATH="$$root/bin:$$PATH"
+complete_words() {
+  dest="$$1"
+  shift
+  COMP_WORDS=("$$@")
+  COMP_CWORD=$$(($$# - 1))
+  COMP_TYPE=9
+  COMPREPLY=()
+  set +eu
+  _clap_complete_dx dx "$${COMP_WORDS[$$COMP_CWORD]}" "$${COMP_WORDS[$$COMP_CWORD - 1]}" 2> "$$root/stderr.txt"
+  for reply in "$${COMPREPLY[@]}"; do
+    echo "candidate=$$reply"
+  done > "$$dest"
+  set -eu
+  echo "stderr_bytes=$$(wc -c < "$$root/stderr.txt" | tr -d ' ')" >> "$$dest"
+}
+(cd "$$start" && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
+sed "s|$$root|ROOT|g" "$$root/argv.txt" > "$$out/completion_argv.txt"
+(cd "$$start" && export DX_WORKSPACE="$$other" && complete_words "$$out/completion_env.txt" dx build "")
+echo '[dx]' > "$$start/dx.toml"
+echo 'workspace = "'"$$ws"'"' >> "$$start/dx.toml"
+(cd "$$start" && complete_words "$$out/completion_config.txt" dx build "//")
+echo 'not toml = [' > "$$start/dx.toml"
+(cd "$$start" && complete_words "$$out/completion_broken.txt" dx build "")
+rm "$$start/dx.toml"
+(cd "$$start" && export DX_SHIM_EXIT=1 && complete_words "$$out/completion_failed_query.txt" dx build --workspace "$$ws" "//pkg:")
+""",
+    tools = [
+        "@rules_dx//:dx",
+        "@rules_dx//tools/testing/process_probe",
+    ],
+    visibility = ["//visibility:public"],
+)
+'''
+
+def _consumer_completion_repo_impl(ctx):
+    """Writes the consumer repository that drives the public dx shell callback."""
+    ctx.file("BUILD.bazel", _COMPLETION_BUILD_BAZEL)
+
+consumer_completion_repo = repository_rule(
+    implementation = _consumer_completion_repo_impl,
+)

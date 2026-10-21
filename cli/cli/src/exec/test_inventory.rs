@@ -374,7 +374,11 @@ fn emit_cases(ctx: &mut Ctx, pairs: &[(String, String, String)], empty_scopes: &
         "{} cases from {} targets, {}",
         listed.len(),
         pairs.len(),
-        if problems.is_empty() { "complete" } else { "incomplete" }
+        if problems.is_empty() {
+            "complete"
+        } else {
+            "incomplete"
+        }
     );
     if ctx.is_json {
         return emit_cases_json(ctx, &listed, &problems, &summary, code);
@@ -636,7 +640,10 @@ mod tests {
             .find(|event| event["name"] == "list-tests-summary")
             .expect("summary");
         assert_eq!(summary["status"], "warn");
-        assert!(summary["detail"].as_str().expect("detail").ends_with("incomplete"));
+        assert!(summary["detail"]
+            .as_str()
+            .expect("detail")
+            .ends_with("incomplete"));
         let codes: Vec<&str> = events_of_kind(&events, "error")
             .into_iter()
             .map(|event| event["code"].as_str().expect("code"))

@@ -313,13 +313,20 @@ fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Option<Verb>, ArgsError> 
 
 /// The workspace value the grammar selects, or none when the words do not parse.
 pub(crate) fn selected_workspace<S: AsRef<OsStr>>(args: &[S]) -> Option<OsString> {
+    selected_identity(args)?.0
+}
+
+/// The workspace and Bazel startup tokens the grammar selects, if the words parse.
+pub(crate) fn selected_identity<S: AsRef<OsStr>>(
+    args: &[S],
+) -> Option<(Option<OsString>, Vec<String>)> {
     let cli = Cli::try_parse_from(
         std::iter::once(OsString::from("dx"))
             .chain(args.iter().map(|arg| arg.as_ref().to_os_string())),
     )
     .ok()?;
     let (_, flags, _, _) = cli.verb?.into_parts();
-    flags.workspace
+    Some((flags.workspace, flags.bazel_startup_options))
 }
 
 /// The parsed invocation: the command, its flags, its scopes, and its `--` payload.

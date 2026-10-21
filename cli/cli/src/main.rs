@@ -213,8 +213,7 @@ fn run() -> i32 {
             }
         };
     if let Some(target) = file_redirect {
-        let dir = dx_process::resolve_override_display(Path::new(&target), &initial_start);
-        match select_startup_defaults(&dir, Some(target.clone()), None) {
+        match select_startup_defaults(&initial_start, Some(target.clone()), None) {
             Ok(selected) => {
                 file_defaults = freeze_workspace(&selected.defaults, &target);
             }

@@ -47,6 +47,10 @@ def maven_schema_error():
             return "maven version: unsafe charset char '" + c + "' (must stay launcher-safe)"
     return ""
 
+def _all_dots(value):
+    """Reports whether a value is only dots."""
+    return value.replace(".", "") == ""
+
 def maven_group_error(group):
     """Validates one Maven groupId value."""
     if type(group) != "string" or group == "":
@@ -57,6 +61,11 @@ def maven_group_error(group):
             return ("maven_deploy: invalid group '" + group +
                     "': want only [A-Za-z0-9._-] so the group embeds " +
                     "safely in the deploy launcher")
+    for segment in group.split("."):
+        if segment == "":
+            return ("maven_deploy: invalid group '" + group +
+                    "': want non-empty dot-separated segments (no leading, " +
+                    "trailing, or repeated dots)")
     return ""
 
 def maven_artifact_error(artifact):
@@ -69,6 +78,9 @@ def maven_artifact_error(artifact):
             return ("maven_deploy: invalid artifact '" + artifact +
                     "': want only [A-Za-z0-9._-] so the artifact embeds " +
                     "safely in the deploy launcher")
+    if _all_dots(artifact):
+        return ("maven_deploy: invalid artifact '" + artifact +
+                "': want a name that is not made only of dots")
     return ""
 
 def maven_version_error(version):
@@ -81,6 +93,9 @@ def maven_version_error(version):
             return ("maven_deploy: invalid version '" + version +
                     "': want only [A-Za-z0-9._-+] so the version embeds " +
                     "safely in the deploy launcher")
+    if _all_dots(version):
+        return ("maven_deploy: invalid version '" + version +
+                "': want a version that is not made only of dots")
     return ""
 
 def maven_repository_error(repository_url):

@@ -1494,6 +1494,73 @@ pub fn maven_group_path(group: &str) -> String {
     group.replace('.', "/")
 }
 
+/// Rejects Maven coordinates that are not safe single path components.
+pub fn maven_coordinates_check(group: &str, artifact: &str, version: &str) -> io::Result<()> {
+    let bad = |message: String| Err(io::Error::new(io::ErrorKind::InvalidInput, message));
+    if group.is_empty() {
+        return bad("maven file repo: need a non-empty groupId".to_owned());
+    }
+    if artifact.is_empty() {
+        return bad("maven file repo: need a non-empty artifactId".to_owned());
+    }
+    if version.is_empty() {
+        return bad("maven file repo: need a non-empty version".to_owned());
+    }
+    let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-');
+    if !group.chars().all(plain) || group.split('.').any(str::is_empty) {
+        return bad(format!(
+            "maven file repo: invalid groupId '{group}': want non-empty [A-Za-z0-9_-] segments separated by single dots"
+        ));
+    }
+    if !artifact.chars().all(plain) || artifact.chars().all(|c| c == '.') {
+        return bad(format!(
+            "maven file repo: invalid artifactId '{artifact}': want [A-Za-z0-9._-] that is not only dots"
+        ));
+    }
+    if !version.chars().all(|c| plain(c) || c == '+') || version.chars().all(|c| c == '.') {
+        return bad(format!(
+            "maven file repo: invalid version '{version}': want [A-Za-z0-9._+-] that is not only dots"
+        ));
+    }
+    Ok(())
+}
+
+fn maven_reject_symlinks(
+    outdir: &Path,
+    rel: &Path,
+    artifact: &str,
+    version: &str,
+) -> io::Result<()> {
+    let mut current = outdir.to_path_buf();
+    let check = |path: &Path| -> io::Result<()> {
+        match std::fs::symlink_metadata(path) {
+            Ok(meta) if meta.file_type().is_symlink() => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "maven file repo: {artifact}:{version}: refusing symlink at {}",
+                    path.display()
+                ),
+            )),
+            _ => Ok(()),
+        }
+    };
+    for component in rel.components() {
+        current.push(component);
+        check(&current)?;
+    }
+    let jar = format!("{artifact}-{version}.jar");
+    let pom = format!("{artifact}-{version}.pom");
+    for base in [jar.clone(), jar + ".sha256", pom.clone(), pom + ".sha256"] {
+        check(&current.join(base))?;
+    }
+    check(
+        &current
+            .parent()
+            .unwrap_or(&current)
+            .join("maven-metadata.xml"),
+    )
+}
+
 /// Builds one Maven file repo.
 pub fn maven_build_file_repo(
     jar_src: &Path,
@@ -1503,24 +1570,12 @@ pub fn maven_build_file_repo(
     artifact: &str,
     version: &str,
 ) -> io::Result<std::path::PathBuf> {
-    if group.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "maven file repo: need a non-empty groupId",
-        ));
-    }
-    if artifact.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "maven file repo: need a non-empty artifactId",
-        ));
-    }
-    if version.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "maven file repo: need a non-empty version",
-        ));
-    }
+    maven_coordinates_check(group, artifact, version)?;
+    let rel = std::path::PathBuf::from(artifact.to_owned() + "-repo")
+        .join(maven_group_path(group))
+        .join(artifact)
+        .join(version);
+    maven_reject_symlinks(outdir, &rel, artifact, version)?;
     let house = outdir.join(artifact.to_owned() + "-repo");
     let dest_dir = house
         .join(maven_group_path(group))
@@ -1577,6 +1632,10 @@ pub fn maven_main(
         eprintln!(
             "maven_deploy: this deploy target takes at most an output directory; the file repo is exactly the files pinned at analysis time"
         );
+        return 1;
+    }
+    if let Err(error) = maven_coordinates_check(group, artifact, version) {
+        eprintln!("maven_deploy: {error}");
         return 1;
     }
     let outdir = deploy_outdir(argv);
@@ -4323,6 +4382,88 @@ mod tests {
                 .expect_err("empty coordinate");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
         }
+    }
+
+    #[test]
+    fn maven_file_repo_rejects_escaping_coordinates() {
+        let scratch = scratch_dir();
+        let jar = scratch.path().join("demo.jar");
+        std::fs::write(&jar, b"jar").expect("write jar");
+        let pom = scratch.path().join("demo.pom");
+        std::fs::write(&pom, b"pom").expect("write pom");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let before = std::fs::read_dir(scratch.path()).expect("list").count();
+        for (group, artifact, version) in [
+            (".example", "a", "1"),
+            ("com.", "a", "1"),
+            ("com..x", "a", "1"),
+            ("com/x", "a", "1"),
+            ("com\\x", "a", "1"),
+            ("g", ".", "1"),
+            ("g", "..", "1"),
+            ("g", "a/b", "1"),
+            ("g", "a", "."),
+            ("g", "a", ".."),
+            ("g", "a", "../x"),
+        ] {
+            let error = maven_build_file_repo(&jar, &pom, &outdir, group, artifact, version)
+                .expect_err("escaping coordinate");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        }
+        assert_eq!(
+            std::fs::read_dir(scratch.path()).expect("list").count(),
+            before
+        );
+        assert_eq!(std::fs::read_dir(&outdir).expect("list").count(), 0);
+    }
+
+    #[test]
+    fn maven_file_repo_keeps_qualified_versions() {
+        let scratch = scratch_dir();
+        let jar = scratch.path().join("demo.jar");
+        std::fs::write(&jar, b"jar").expect("write jar");
+        let pom = scratch.path().join("demo.pom");
+        std::fs::write(&pom, b"pom").expect("write pom");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let house = maven_build_file_repo(
+            &jar,
+            &pom,
+            &outdir,
+            "com.example",
+            "demo",
+            "1.0-SNAPSHOT+b5",
+        )
+        .expect("repo");
+        let dir = house.join("com/example/demo/1.0-SNAPSHOT+b5");
+        assert!(dir.join("demo-1.0-SNAPSHOT+b5.jar").is_file());
+        assert!(dir.join("demo-1.0-SNAPSHOT+b5.pom.sha256").is_file());
+        assert!(house.join("com/example/demo/maven-metadata.xml").is_file());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn maven_file_repo_rejects_symlinked_parents() {
+        let scratch = scratch_dir();
+        let jar = scratch.path().join("demo.jar");
+        std::fs::write(&jar, b"jar").expect("write jar");
+        let pom = scratch.path().join("demo.pom");
+        std::fs::write(&pom, b"pom").expect("write pom");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let outside = scratch.path().join("outside");
+        std::fs::create_dir_all(&outside).expect("outside");
+        std::fs::write(outside.join("sentinel"), b"keep").expect("sentinel");
+        std::os::unix::fs::symlink(&outside, outdir.join("demo-repo")).expect("link");
+        let error = maven_build_file_repo(&jar, &pom, &outdir, "com.example", "demo", "1")
+            .expect_err("symlinked repo");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert_eq!(std::fs::read_dir(&outside).expect("list").count(), 1);
+        assert_eq!(
+            std::fs::read(outside.join("sentinel")).expect("read"),
+            b"keep"
+        );
     }
 
     #[test]

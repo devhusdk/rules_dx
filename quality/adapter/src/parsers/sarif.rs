@@ -3,7 +3,7 @@ use std::path::{Path, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 use serde_sarif::sarif::{ArtifactLocation, Invocation, Notification, Region, ResultLevel, Sarif};
 
 use super::{check_output_size, code_name, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{Finding, TextPosition, ToolSeverity, LINE_END};
 
 fn sarif_severity(level: Option<ResultLevel>) -> ToolSeverity {
     match level {
@@ -153,26 +153,33 @@ fn start(tool: &'static str, region: &Region) -> Result<TextPosition, ParseError
     })
 }
 
-fn end(tool: &'static str, region: &Region) -> Result<Option<TextPosition>, ParseError> {
-    match (region.end_line, region.end_column) {
-        (Some(line), Some(column)) => {
-            if line < 1 || column < 1 {
-                return Err(ParseError::Shape {
-                    tool,
-                    detail: format!("bad end position {line}:{column}"),
-                });
-            }
-            Ok(Some(TextPosition {
-                line: line as u64,
-                column: column as u64,
-            }))
-        }
-        (None, None) => Ok(None),
-        _ => Err(ParseError::Shape {
-            tool,
-            detail: "partial end position".to_owned(),
-        }),
+fn end(
+    tool: &'static str,
+    region: &Region,
+    start: TextPosition,
+) -> Result<Option<TextPosition>, ParseError> {
+    if region.end_line.is_none() && region.end_column.is_none() {
+        return Ok(None);
     }
+    let line = region.end_line.unwrap_or(start.line as i64);
+    if let Some(column) = region.end_column {
+        if line < 1 || column < 1 {
+            return Err(ParseError::Shape {
+                tool,
+                detail: format!("bad end position {line}:{column}"),
+            });
+        }
+    }
+    if line < 1 || (line as u64) < start.line {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("end line {line} precedes start line {}", start.line),
+        });
+    }
+    Ok(Some(TextPosition {
+        line: line as u64,
+        column: region.end_column.map_or(LINE_END, |column| column as u64),
+    }))
 }
 
 fn error_notifications(invocation: &Invocation) -> Vec<String> {
@@ -270,7 +277,7 @@ pub fn parse_sarif(
                     detail: "location without region".to_owned(),
                 })?;
                 let start = start(tool, region)?;
-                let end = end(tool, region)?;
+                let end = end(tool, region, start)?;
                 let checked = resolve_file(
                     tool,
                     files,
@@ -556,9 +563,51 @@ mod tests {
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":0,"startColumn":1}}}]}"#,
         );
         assert!(parse_sarif(TOOL, &bad_line, Some(1), &["/s/a.java"]).is_err());
-        let partial_end = log(
-            r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"endLine":2}}}]}"#,
-        );
-        assert!(parse_sarif(TOOL, &partial_end, Some(1), &["/s/a.java"]).is_err());
+        for region in [
+            r#"{"startLine":3,"endLine":2}"#,
+            r#"{"startLine":3,"endLine":0}"#,
+            r#"{"startLine":3,"endLine":4,"endColumn":0}"#,
+            r#"{"startLine":3,"endColumn":-1}"#,
+        ] {
+            let bad = log(&format!(
+                r#"{{"ruleId":"R","message":{{"text":"m"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"/s/a.java"}},"region":{region}}}}}]}}"#
+            ));
+            assert!(
+                parse_sarif(TOOL, &bad, Some(1), &["/s/a.java"]).is_err(),
+                "{region}"
+            );
+        }
+    }
+
+    fn one_region(region: &str) -> Finding {
+        let stdout = log(&format!(
+            r#"{{"ruleId":"R","message":{{"text":"m"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"/s/a.java"}},"region":{region}}}}}]}}"#
+        ));
+        let mut found = parse_sarif(TOOL, &stdout, Some(1), &["/s/a.java"]).expect("parsed");
+        found.remove(0).finding
+    }
+
+    #[test]
+    fn line_only_and_defaulted_ends_are_valid_regions() {
+        const TEXT: &str = "a\nb\nc\nd\ne\nf\ng\nh\n";
+        let multiline = one_region(r#"{"startLine":3,"endLine":8}"#);
+        assert_eq!(multiline.end.map(|end| end.line), Some(8));
+        let placed = crate::place_finding(&multiline, "a.java", TEXT).expect("placed");
+        assert_eq!((placed.start_byte, placed.end_byte), (Some(4), Some(15)));
+        let same_line = one_region(r#"{"startLine":3,"startColumn":1,"endColumn":2}"#);
+        assert_eq!(same_line.end, Some(TextPosition { line: 3, column: 2 }));
+        let placed = crate::place_finding(&same_line, "a.java", "ab\ncd\nef\n").expect("placed");
+        assert_eq!((placed.start_byte, placed.end_byte), (Some(6), Some(7)));
+        let explicit = one_region(r#"{"startLine":3,"startColumn":1,"endLine":4,"endColumn":2}"#);
+        assert_eq!(explicit.end, Some(TextPosition { line: 4, column: 2 }));
+        let crlf =
+            crate::place_finding(&multiline, "a.java", &TEXT.replace('\n', "\r\n")).expect("crlf");
+        assert_eq!((crlf.start_byte, crlf.end_byte), (Some(6), Some(22)));
+        let last = one_region(r#"{"startLine":2,"endLine":3}"#);
+        let placed = crate::place_finding(&last, "a.java", "a\nb\nc").expect("no final newline");
+        assert_eq!((placed.start_byte, placed.end_byte), (Some(2), Some(5)));
+        assert!(crate::place_finding(&multiline, "a.java", "a\nb\nc\n").is_err());
+        let inverted = one_region(r#"{"startLine":3,"startColumn":5,"endColumn":2}"#);
+        assert!(crate::place_finding(&inverted, "a.java", "ab\ncd\nefghij\n").is_err());
     }
 }

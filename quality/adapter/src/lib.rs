@@ -33,6 +33,8 @@ impl ToolSeverity {
     }
 }
 
+pub const LINE_END: u64 = u64::MAX;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextPosition {
     pub line: u64,
@@ -92,6 +94,20 @@ pub fn line_col_to_byte(text: &str, line: u64, column: u64) -> Option<u64> {
     Some(u32::from(offset) as u64)
 }
 
+pub fn line_end_to_byte(text: &str, line: u64) -> Option<u64> {
+    let index = usize::try_from(line.checked_sub(1)?).ok()?;
+    let mut offset = 0usize;
+    for (number, content) in text.split_inclusive('\n').enumerate() {
+        if number == index {
+            let body = content.strip_suffix('\n').unwrap_or(content);
+            let body = body.strip_suffix('\r').unwrap_or(body);
+            return Some((offset + body.len()) as u64);
+        }
+        offset += content.len();
+    }
+    (index == 0 && text.is_empty()).then_some(0)
+}
+
 fn legacy_line_col_to_byte(text: &str, line: u64, column: u64) -> Option<u64> {
     if line == 0 || column == 0 {
         return None;
@@ -127,12 +143,17 @@ pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagno
         },
     )?;
     let end = match finding.end {
-        Some(position) => line_col_to_byte(text, position.line, position.column).ok_or(
-            PlaceError::UnmappablePosition {
+        Some(position) => {
+            let byte = if position.column == LINE_END {
+                line_end_to_byte(text, position.line)
+            } else {
+                line_col_to_byte(text, position.line, position.column)
+            };
+            byte.ok_or(PlaceError::UnmappablePosition {
                 line: position.line,
                 column: position.column,
-            },
-        )?,
+            })?
+        }
         None => start,
     };
     if end < start {
@@ -231,6 +252,33 @@ mod tests {
         };
         let placed = place_finding(&covering, "src/main.rs", CAFE).expect("mappable");
         assert_eq!((placed.start_byte, placed.end_byte), (Some(12), Some(23)));
+    }
+
+    #[test]
+    fn line_end_resolves_from_the_text() {
+        assert_eq!(line_end_to_byte("ab\ncd\n", 1), Some(2));
+        assert_eq!(line_end_to_byte("ab\ncd\n", 2), Some(5));
+        assert_eq!(line_end_to_byte("ab\ncd", 2), Some(5));
+        assert_eq!(line_end_to_byte("a\r\nb\r\n", 1), Some(1));
+        assert_eq!(line_end_to_byte("a\r\nb\r\n", 2), Some(4));
+        assert_eq!(line_end_to_byte("", 1), Some(0));
+        assert_eq!(line_end_to_byte("ab\n", 2), None);
+        assert_eq!(line_end_to_byte("ab\n", 0), None);
+        let finding = Finding {
+            tool_id: "t".to_owned(),
+            rule_id: String::new(),
+            message: "m".to_owned(),
+            severity: ToolSeverity::Warning,
+            start: TextPosition { line: 1, column: 1 },
+            end: Some(TextPosition {
+                line: 2,
+                column: LINE_END,
+            }),
+            suggestions: Vec::new(),
+        };
+        let placed = place_finding(&finding, "a", "ab\r\ncd\n").expect("placed");
+        assert_eq!((placed.start_byte, placed.end_byte), (Some(0), Some(6)));
+        assert!(place_finding(&finding, "a", "ab\n").is_err());
     }
 
     #[test]

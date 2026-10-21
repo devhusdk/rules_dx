@@ -1,13 +1,38 @@
 """Unit and analysis tests for the npm pack feed publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":npm.bzl", "npm_filenames", "npm_package_error", "npm_registry_error", "npm_tag_error")
+load(":npm.bzl", "npm_access_error", "npm_filenames", "npm_package_error", "npm_registry_error", "npm_tag_error")
 
 def npm_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "npm_access_error accepts public unscoped",
+                npm_access_error("npm-demo", "public"),
+                "",
+            ),
+            expect_equal(
+                "npm_access_error accepts restricted scoped",
+                npm_access_error("@scope/npm-demo", "restricted"),
+                "",
+            ),
+            expect_equal(
+                "npm_access_error rejects restricted unscoped",
+                npm_access_error("npm-demo", "restricted"),
+                "npm_deploy: access 'restricted' needs a scoped package, got unscoped 'npm-demo'",
+            ),
+            expect_equal(
+                "npm_access_error rejects an unknown access",
+                npm_access_error("npm-demo", "private"),
+                "npm_deploy: invalid access 'private': want 'public' or 'restricted'",
+            ),
+            expect_equal(
+                "npm_access_error rejects a malformed scope",
+                npm_access_error("@scope", "public"),
+                "npm_deploy: invalid package '@scope': a scoped name is @scope/name",
+            ),
             expect_equal(
                 "npm_filenames pins the tarball and feed names",
                 npm_filenames("npm_demo"),

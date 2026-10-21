@@ -45,6 +45,23 @@ def npm_registry_error(registry):
                     "(for example 'https://registry.npmjs.org')")
     return ""
 
+def npm_access_error(package, access):
+    """Validates one npm access value against the package scope."""
+    if access not in ["public", "restricted"]:
+        return ("npm_deploy: invalid access '" + str(access) +
+                "': want 'public' or 'restricted'")
+    scoped = package.startswith("@")
+    if scoped and (package.count("/") != 1 or package.startswith("@/") or package.endswith("/")):
+        return ("npm_deploy: invalid package '" + package +
+                "': a scoped name is @scope/name")
+    if not scoped and "/" in package:
+        return ("npm_deploy: invalid package '" + package +
+                "': only scoped names contain '/'")
+    if access == "restricted" and not scoped:
+        return ("npm_deploy: access 'restricted' needs a scoped package, " +
+                "got unscoped '" + package + "'")
+    return ""
+
 def npm_filenames(name):
     """Returns the deterministic (tarball, feed) output names."""
     return (name + ".tgz", name + ".feed.json")
@@ -69,8 +86,8 @@ _npm_launcher = rule(
     },
 )
 
-def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", profile = "release"):
-    """Publishes packed files to a local npm folder feed."""
+def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", profile = "release"):
+    """Packs files into a local npm feed with public or restricted access."""
     pkg_error = npm_package_error(package)
     if pkg_error != "":
         fail(pkg_error + " (in " + native.package_name() + ":" + name + ")")
@@ -80,6 +97,9 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
     registry_error = npm_registry_error(registry)
     if registry_error != "":
         fail(registry_error + " (in " + native.package_name() + ":" + name + ")")
+    access_error = npm_access_error(package, access)
+    if access_error != "":
+        fail(access_error + " (in " + native.package_name() + ":" + name + ")")
     if len(srcs) == 0:
         fail("npm_deploy " + native.package_name() + ":" + name +
              ": need at least one src")
@@ -94,7 +114,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         srcs = srcs,
         outs = [tarball, feed],
         tools = ["//deploy/rules:npm_packer"],
-        cmd = "$(location //deploy/rules:npm_packer) " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " $(OUTS) $(SRCS)",
+        cmd = "$(location //deploy/rules:npm_packer) " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " $(OUTS) $(SRCS)",
     )
 
     _npm_launcher(

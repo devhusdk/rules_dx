@@ -123,6 +123,8 @@ pub enum ParseError {
     Json { tool: &'static str, detail: String },
     #[error("{tool} output is outside the pinned grammar: {detail}")]
     Shape { tool: &'static str, detail: String },
+    #[error("{tool} analysis was incomplete: {detail}")]
+    Incomplete { tool: &'static str, detail: String },
     #[error("{tool} reported an unchecked file: {path}")]
     UnknownFile { tool: &'static str, path: String },
     #[error("vale needs a usable config: {detail}")]
@@ -907,6 +909,24 @@ mod tests {
         }
         .to_string()
         .contains("max size"));
+    }
+
+    #[test]
+    fn every_sarif_consumer_rejects_a_failed_invocation() {
+        let failed = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"t"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"missing class"}}]}]}]}"#;
+        let files = ["/s/a.java"];
+        let results = [
+            super::checkstyle::parse_checkstyle(failed, Some(0), &files),
+            super::pmd::parse_pmd(failed, Some(0), &files),
+            super::spotbugs::parse_spotbugs(failed, Some(0), &files),
+            super::ktlint::parse_ktlint(failed, Some(0), &files),
+            super::roslyn::parse_roslyn(failed, &files),
+        ];
+        for result in results {
+            let err = result.expect_err("incomplete");
+            assert!(matches!(err, ParseError::Incomplete { .. }), "{err}");
+            assert!(err.to_string().contains("missing class"), "{err}");
+        }
     }
 
     #[test]

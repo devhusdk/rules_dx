@@ -25,6 +25,10 @@ mod tests {
             r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SpotBugs"}},"results":[]}]}"#;
         let clean = parse_spotbugs(clean.as_bytes(), Some(0), &["/s/Dirty.java"]).expect("clean");
         assert!(clean.is_empty());
+        let missing = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SpotBugs"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"Classes needed for analysis were missing: [example.Dependency]"}}]}]}]}"#;
+        let err = parse_spotbugs(missing.as_bytes(), Some(0), &["/s/Dirty.java"])
+            .expect_err("incomplete");
+        assert!(err.to_string().contains("example.Dependency"), "{err}");
         assert!(parse_spotbugs(b"not json", Some(1), &["/s/Dirty.java"]).is_err());
     }
 }

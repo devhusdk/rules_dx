@@ -1,6 +1,6 @@
 use std::path::{Path, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
-use serde_sarif::sarif::{ArtifactLocation, Region, ResultLevel, Sarif};
+use serde_sarif::sarif::{ArtifactLocation, Invocation, Notification, Region, ResultLevel, Sarif};
 
 use super::{check_output_size, code_name, FileFinding, ParseError};
 use crate::{Finding, TextPosition, ToolSeverity};
@@ -175,6 +175,44 @@ fn end(tool: &'static str, region: &Region) -> Result<Option<TextPosition>, Pars
     }
 }
 
+fn error_notifications(invocation: &Invocation) -> Vec<String> {
+    let groups = [
+        &invocation.tool_configuration_notifications,
+        &invocation.tool_execution_notifications,
+    ];
+    groups
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|note: &&Notification| {
+            note.level.as_ref().and_then(|v| v.as_str()) == Some("error")
+        })
+        .map(|note| note.message.text.clone().unwrap_or_default())
+        .collect()
+}
+
+fn check_invocations(tool: &'static str, invocations: &[Invocation]) -> Result<(), ParseError> {
+    for invocation in invocations {
+        let errors = error_notifications(invocation);
+        if invocation.execution_successful && errors.is_empty() {
+            continue;
+        }
+        let mut detail = if invocation.execution_successful {
+            "error notifications".to_owned()
+        } else {
+            "invocation was not successful".to_owned()
+        };
+        if let Some(message) = &invocation.process_start_failure_message {
+            detail.push_str(&format!(": {message}"));
+        }
+        if !errors.is_empty() {
+            detail.push_str(&format!(": {}", errors.join("; ")));
+        }
+        return Err(ParseError::Incomplete { tool, detail });
+    }
+    Ok(())
+}
+
 pub fn parse_sarif(
     tool: &'static str,
     stdout: &[u8],
@@ -188,6 +226,7 @@ pub fn parse_sarif(
     })?;
     let mut findings = Vec::new();
     for run in &log.runs {
+        check_invocations(tool, run.invocations.as_deref().unwrap_or_default())?;
         let bases = run.original_uri_base_ids.as_ref();
         let empty = std::collections::BTreeMap::new();
         let bases = bases.unwrap_or(&empty);
@@ -290,6 +329,59 @@ mod tests {
         assert!(clean.is_empty());
         assert!(parse_sarif(TOOL, &clean_json, Some(1), &["/s/a.java"]).is_err());
         assert!(parse_sarif(TOOL, b"not json", Some(1), &["/s/a.java"]).is_err());
+    }
+
+    fn with_invocation(invocation: &str, results: &str) -> Vec<u8> {
+        format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},\"results\":[{results}],\"invocations\":[{invocation}]}}]}}").into_bytes()
+    }
+
+    const FINDING: &str = r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1}}}]}"#;
+
+    #[test]
+    fn a_failed_invocation_is_incomplete_analysis() {
+        let files = ["/s/a.java"];
+        let missing = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SpotBugs"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"Classes needed for analysis were missing: [example.Dependency]"}}]}]}]}"#;
+        let err = parse_sarif(TOOL, missing, Some(0), &files).expect_err("incomplete");
+        assert!(matches!(err, ParseError::Incomplete { .. }));
+        assert!(err.to_string().contains("example.Dependency"), "{err}");
+
+        let bare = with_invocation(r#"{"executionSuccessful":false}"#, "");
+        assert!(parse_sarif(TOOL, &bare, Some(0), &files).is_err());
+
+        let mixed = with_invocation(r#"{"executionSuccessful":false}"#, FINDING);
+        assert!(matches!(
+            parse_sarif(TOOL, &mixed, Some(1), &files),
+            Err(ParseError::Incomplete { .. })
+        ));
+
+        let execution = with_invocation(
+            r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"error","message":{"text":"boom"}}]}"#,
+            "",
+        );
+        let err = parse_sarif(TOOL, &execution, Some(0), &files).expect_err("error note");
+        assert!(err.to_string().contains("boom"), "{err}");
+
+        let second = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"t"}},"results":[]},{"tool":{"driver":{"name":"t"}},"results":[],"invocations":[{"executionSuccessful":true},{"executionSuccessful":false}]}]}"#;
+        assert!(parse_sarif(TOOL, second, Some(0), &files).is_err());
+    }
+
+    #[test]
+    fn a_successful_invocation_keeps_its_findings() {
+        let files = ["/s/a.java"];
+        let ok = with_invocation(
+            r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"warning","message":{"text":"w"}},{"level":"note","message":{"text":"n"}}]}"#,
+            "",
+        );
+        assert!(parse_sarif(TOOL, &ok, Some(0), &files)
+            .expect("clean")
+            .is_empty());
+        let found = with_invocation(r#"{"executionSuccessful":true}"#, FINDING);
+        assert_eq!(
+            parse_sarif(TOOL, &found, Some(1), &files)
+                .expect("found")
+                .len(),
+            1
+        );
     }
 
     #[test]

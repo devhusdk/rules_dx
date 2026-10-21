@@ -232,7 +232,7 @@ bazel run @rules_dx//:dx -- update --apply powershell
 bazel run @rules_dx//:dx -- update --apply uv uv-tools
 bazel run @rules_dx//:dx -- update --apply npm-tools
 bazel run @rules_dx//:dx -- update --apply npm-adopt npm-adopt-polyglot uv-adopt uv-adopt-polyglot
-bazel run @rules_dx//:dx -- update --dry-run
+bazel run @rules_dx//:dx -- update --check
 ```
 
 ## `dx bump`

@@ -21,8 +21,7 @@ Bazel invocation behind the command, including the inventory query.
 
 The default inventory is unconfigured (`bazel query`). `--configured`
 reads configured targets through `bazel cquery` instead. File ownership
-resolution stays unconfigured in both modes. `--dry-run` prints the
-planned queries without running them.
+resolution stays unconfigured in both modes.
 
 `--cases` enumerates test cases for Rust targets (`rust_test` and the
 `dx_wrap` forwarder) by building each test and running it with `--list`.

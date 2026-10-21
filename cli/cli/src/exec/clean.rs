@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use dx_clean::{
     apply_plan, bazel_forward_argv, collect_inventory_with_scan, measure_prune_bytes,
-    render_dry_run, UnobservedPolicy, RECOVERY_GUIDANCE,
+    render_prune_listing, UnobservedPolicy, RECOVERY_GUIDANCE,
 };
 use dx_output::{
     command_finished, command_started, error_event, notice_event, operation_event, write_event,
@@ -21,7 +21,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let apply = invocation.applies();
     let mode = if apply { "default" } else { "check" };
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), invocation.dry_run, mode) {
+        if let Ok(event) = command_started(invocation.command.name(), mode) {
             let _ = write_event(out, &event);
         }
         if let Ok(event) = operation_event(invocation.command.name(), "collect", None) {
@@ -47,20 +47,6 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     };
     let verbose = invocation.chatty();
-    if invocation.dry_run {
-        if json {
-            emit_clean_notices(out, &plan, &bytes, true);
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-            return 0;
-        }
-        if verbose {
-            let _ = writeln!(out, "{}", render_dry_run(&plan, &bytes));
-            if invocation.bazel_clean {
-                let _ = writeln!(out, "would forward: bazel clean");
-            }
-        }
-        return 0;
-    }
     if !apply {
         return check_clean(invocation, out, &plan, &bytes, json, verbose);
     }
@@ -157,7 +143,7 @@ fn check_clean(
         return 1;
     }
     if verbose {
-        let _ = writeln!(out, "{}", render_dry_run(plan, bytes));
+        let _ = writeln!(out, "{}", render_prune_listing(plan, bytes));
         if invocation.bazel_clean {
             let _ = writeln!(out, "run `dx clean --apply --bazel` to prune it");
             let _ = writeln!(out, "would forward: bazel clean");
@@ -334,51 +320,6 @@ mod tests {
     use dx_setup::{read_current_pair, setup_hex};
 
     #[test]
-    fn clean_dry_run_empty_workspace_reports_nothing() {
-        let harness = Harness::new("clean-dryrun-empty");
-        let (code, out, err) = harness.run(&["clean", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("nothing to prune"), "{out}");
-        assert_eq!(err, "", "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "dry-run launches nothing"
-        );
-        assert!(
-            !harness.workspace.join(".dx").exists(),
-            "dry-run creates no managed state"
-        );
-    }
-
-    #[test]
-    fn clean_dry_run_lists_stale_record_and_deletes_nothing() {
-        let harness = Harness::new("clean-dryrun-list");
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(
-            out.contains(&format!("prune setup record: .dx/setups/{stale}")),
-            "{out}"
-        );
-        assert!(out.contains("bytes)"), "{out}");
-        assert!(out.contains("reclaimable total:"), "{out}");
-        assert!(
-            out.contains(&format!("preserve current: .dx/setups/{current}")),
-            "{out}"
-        );
-        assert!(
-            !out.contains(&format!("prune setup record: .dx/setups/{current}")),
-            "{out}"
-        );
-        assert!(
-            harness.workspace.join(".dx/setups").join(&stale).exists(),
-            "dry-run deletes nothing"
-        );
-        assert!(harness.seen_env.borrow().is_empty());
-    }
-
-    #[test]
     fn clean_apply_prunes_stale_record_and_orphaned_generations() {
         let harness = Harness::new("clean-apply");
         let stale = commit_clean_pair(&harness, '3', '4');
@@ -497,13 +438,12 @@ mod tests {
         let (code, _, err) = failing.run(&["clean", "--apply", "--bazel"]);
         assert_eq!(code, 3, "{err}");
 
-        let dry = Harness::new("clean-bazel-dryrun");
-        let (code, out, err) = dry.run(&["clean", "--dry-run", "--bazel"]);
+        let check = Harness::new("clean-bazel-check");
+        let (code, out, err) = check.run(&["clean", "--bazel"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("would forward: bazel clean"), "{out}");
         assert!(
-            dry.seen_env.borrow().is_empty(),
-            "dry-run lists the forward without launching"
+            check.seen_env.borrow().is_empty(),
+            "check mode never launches the forward"
         );
     }
 
@@ -551,7 +491,7 @@ mod tests {
         let pointer = harness.workspace.join(".dx/setups/current");
         dx_test_scratch::remove_directory_link(&pointer).expect("remove pointer");
         std::fs::write(&pointer, "not a symlink").expect("file pointer");
-        for args in [&["clean", "--dry-run"][..], &["clean"][..]] {
+        for args in [&["clean"][..], &["clean", "--apply"][..]] {
             let (code, out, err) = harness.run(args);
             assert_eq!(code, 1, "{out}{err}");
             let combined = format!("{out}{err}");
@@ -571,43 +511,12 @@ mod tests {
         let environments = harness.workspace.join(".dx/environments");
         std::fs::create_dir_all(&environments).expect("environments dir");
         std::fs::write(environments.join("README"), "operator notes").expect("unmanaged file");
-        let (code, out, err) = harness.run(&["clean", "--dry-run"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("refuse unmanaged path: README"), "{out}");
-        assert!(out.contains("refuse unmanaged path: notes"), "{out}");
         let (code, out, err) = harness.run(&["clean"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("nothing to prune"), "{out}");
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
         assert!(setups.join("notes").exists(), "unmanaged paths survive");
         assert!(environments.join("README").exists());
-    }
-
-    #[test]
-    fn clean_dry_run_json_streams_planning_events() {
-        let harness = Harness::new("clean-dry-json");
-        let stale = commit_clean_pair(&harness, '3', '4');
-        let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--dry-run", "--output=json"]);
-        assert_eq!(code, 0, "{out}{err}");
-        let events = json_events(&out);
-        let kinds = event_kinds(&events);
-        assert_eq!(kinds[0], "command_started");
-        assert!(kinds.contains(&"operation"), "{kinds:?}");
-        assert!(kinds.contains(&"notice"), "{kinds:?}");
-        assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let op = event(&events, "operation");
-        assert_eq!(op["phase"], serde_json::json!("collect"));
-        let notice = event(&events, "notice");
-        assert_eq!(notice["code"], serde_json::json!("clean_planned"));
-        assert!(notice["message"]
-            .as_str()
-            .expect("message")
-            .contains(&stale));
-        assert_eq!(
-            events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
-        );
-        assert_eq!(err, "", "{err}");
     }
 
     #[test]

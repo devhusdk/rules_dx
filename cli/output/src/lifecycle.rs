@@ -59,7 +59,7 @@ pub fn with_correlation(event: Value, correlation: &str) -> Result<Value, Output
     }
 }
 
-pub fn command_started(command: &str, dry_run: bool, mode: &str) -> Result<Value, OutputError> {
+pub fn command_started(command: &str, mode: &str) -> Result<Value, OutputError> {
     nonempty("command", command)?;
     if mode != "default" && mode != "check" {
         return Err(OutputError::BadCommandMode {
@@ -68,7 +68,6 @@ pub fn command_started(command: &str, dry_run: bool, mode: &str) -> Result<Value
     }
     let mut map = base("command_started");
     map.insert("command".to_owned(), Value::String(command.to_owned()));
-    map.insert("dry_run".to_owned(), Value::Bool(dry_run));
     map.insert("mode".to_owned(), Value::String(mode.to_owned()));
     Ok(Value::Object(map))
 }
@@ -423,11 +422,12 @@ mod tests {
 
     #[test]
     fn command_started_shape() {
-        let event = command_started("lint", false, "default").expect("started");
+        let event = command_started("lint", "default").expect("started");
         assert_eq!(event["event"], Value::String("command_started".to_owned()));
         assert_eq!(event["schema"], schema());
         assert_eq!(event["mode"], Value::String("default".to_owned()));
-        assert!(command_started("lint", false, "fancy").is_err());
+        assert!(event.get("dry_run").is_none());
+        assert!(command_started("lint", "fancy").is_err());
     }
 
     #[test]
@@ -532,7 +532,7 @@ mod tests {
     #[test]
     fn writer_rejects_prose() {
         let mut buf = Vec::new();
-        let event = command_started("lint", false, "default").expect("started");
+        let event = command_started("lint", "default").expect("started");
         write_event(&mut buf, &event).expect("write");
         assert!(buf.ends_with(b"\n"));
         assert_eq!(buf.iter().filter(|b| **b == b'\n').count(), 1);
@@ -762,7 +762,7 @@ mod tests {
                 ))
             }
         }
-        let event = command_started("status", false, "default").expect("started");
+        let event = command_started("status", "default").expect("started");
         let error = write_event(&mut BrokenPipe, &event).expect_err("broken pipe");
         assert!(error.is_broken_pipe());
     }

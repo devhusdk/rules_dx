@@ -3,7 +3,6 @@ use crate::args::{resolve_profile, Command, Invocation, Profile, DX_PROFILE_ENV}
 use crate::plan::{plan_deploy_build, plan_deploy_run, shell_join};
 use crate::reports::plan_reports;
 use crate::resolve::{check_deployable, resolve_deploy};
-use dx_output::{command_finished, command_started, write_event, FinishedCounts, OutputMode};
 
 pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
@@ -22,7 +21,6 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command,
         &invocation.reports,
         &invocation.output,
-        invocation.dry_run,
     ) {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -58,28 +56,6 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         profile,
         &invocation.bazel_startup_options,
     );
-    let app_display = if info.app_raw == "NONE" || info.app_raw == "None" {
-        label.clone()
-    } else {
-        info.app_raw.clone()
-    };
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                let _ = write_event(out, &event);
-            }
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if !invocation.quiet {
-            let _ = writeln!(
-                err,
-                "Deploy {label} (app: {app_display}, profile: {})",
-                profile.name()
-            );
-            let _ = writeln!(err, "build: {}", build_plan.argv.join(" "));
-            let _ = writeln!(err, "run: {}", run_plan.argv.join(" "));
-        }
-        return 0;
-    }
     if !invocation.applies() {
         if !invocation.quiet {
             let _ = writeln!(err, "{}", build_plan.summary);
@@ -260,19 +236,6 @@ mod tests {
         let run = harness.probe_with(&inv, &[Some(4)]);
         assert_eq!(run.code, 4, "{run:?}");
         assert_eq!(run.argv.len(), 1, "{run:?}");
-    }
-
-    #[test]
-    fn deploy_dry_run_prints_plan_without_exec() {
-        let harness = harness_with_deploy("deploy-dry", "True|release|None|True");
-        let (code, _, err) = harness.run(&["deploy", "//deploy:prod", "--dry-run"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(err.contains("Deploy //deploy:prod"), "{err}");
-        assert!(err.contains("profile: release"), "{err}");
-        assert!(err.contains("build:"), "{err}");
-        assert!(err.contains("run:"), "{err}");
-        assert!(err.contains("--config=dx_release"), "{err}");
-        assert_eq!(harness.query.calls.borrow().len(), 1, "one cquery");
     }
 
     #[test]

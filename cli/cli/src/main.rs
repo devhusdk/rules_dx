@@ -335,7 +335,7 @@ fn run() -> i32 {
         dx_cli::skew::SkewDisposition::Warn => {
             let _ = writeln!(
                 io::stderr(),
-                "dx: warning: {} (proceeding: read-only or --dry-run invocation)",
+                "dx: warning: {} (proceeding: read-only invocation)",
                 dx_cli::skew::diagnostic(&pin)
             );
         }

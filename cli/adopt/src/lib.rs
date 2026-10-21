@@ -29,8 +29,8 @@ pub use defaults::{
     find_new_configs, is_truthy, join_quality_baseline, load_defaults, load_defaults_with_mode,
     merge_defaults, parse_bool, parse_file_text, resolve_bool, resolve_string, resolve_workspace,
     shares_file_with_other_tables, ConfigSources, FileDefaults, BOOL_SPELLINGS, CONFIG_REL,
-    CONFIG_TOML_REL, CONSUMER_SCHEMA_VERSION, DX_DRY_RUN_ENV, DX_FAIL_ON_ENV, DX_LOCAL_TOML_REL,
-    DX_OUTPUT_ENV, DX_QUIET_ENV, DX_TOML_REL, DX_VERBOSE_ENV, DX_WORKSPACE_ENV, FALSEY,
+    CONFIG_TOML_REL, CONSUMER_SCHEMA_VERSION, DX_FAIL_ON_ENV, DX_LOCAL_TOML_REL, DX_OUTPUT_ENV,
+    DX_QUIET_ENV, DX_TOML_REL, DX_VERBOSE_ENV, DX_WORKSPACE_ENV, FALSEY,
 };
 pub use error::AdoptError;
 pub use hooks::{

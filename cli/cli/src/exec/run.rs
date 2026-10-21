@@ -40,7 +40,6 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command,
         &invocation.reports,
         &invocation.output,
-        invocation.dry_run,
     ) {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -113,7 +112,7 @@ fn execute_run_check(
         &invocation.bazel_startup_options,
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+        if let Ok(event) = command_started(invocation.command.name(), "check") {
             let _ = write_event(out, &event);
         }
         emit_build_operations(out, invocation.command.name(), targets);
@@ -185,18 +184,6 @@ fn execute_run_single(
         invocation.profile(),
         &invocation.bazel_startup_options,
     );
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                let _ = write_event(out, &event);
-            }
-            emit_run_operations(out, invocation.command.name(), &[target.to_owned()]);
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if !invocation.quiet {
-            let _ = writeln!(err, "{}", plan.summary);
-        }
-        return 0;
-    }
     if !invocation.applies() {
         return execute_run_check(
             invocation,
@@ -208,7 +195,7 @@ fn execute_run_single(
         );
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), "default") {
             let _ = write_event(out, &event);
         }
         emit_run_operations(out, invocation.command.name(), &[target.to_owned()]);
@@ -247,31 +234,11 @@ fn execute_run_multi(
     err: &mut dyn Write,
     targets: &[String],
 ) -> i32 {
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                let _ = write_event(out, &event);
-            }
-            emit_run_operations(out, invocation.command.name(), targets);
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if !invocation.quiet {
-            for target in targets {
-                let plan = plan_run(
-                    target,
-                    &invocation.bazel_options,
-                    invocation.profile(),
-                    &invocation.bazel_startup_options,
-                );
-                let _ = writeln!(err, "{}", plan.summary);
-            }
-        }
-        return 0;
-    }
     if !invocation.applies() {
         return execute_run_check(invocation, workspace, runner, out, err, targets);
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), "default") {
             let _ = write_event(out, &event);
         }
         emit_run_operations(out, invocation.command.name(), targets);
@@ -488,22 +455,6 @@ mod tests {
     }
 
     #[test]
-    fn run_dry_run_json_and_text() {
-        let harness = Harness::new("run-dry-json");
-        let (code, out, err) = harness.run(&["run", "//app:bin", "--dry-run", "--output=json"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("command_started"), "{out}");
-        assert!(out.contains("\"phase\":\"execute\""), "{out}");
-        assert!(out.contains("//app:bin"), "{out}");
-        assert!(out.contains("command_finished"), "{out}");
-        assert_eq!(err, "", "{err}");
-        let harness = Harness::new("run-dry-text");
-        let (code, _, err) = harness.run(&["run", "//app:bin", "--dry-run"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(err.contains("Running run"), "{err}");
-    }
-
-    #[test]
     fn run_live_json_streams_operations_and_finished() {
         let harness = Harness::new("run-live-json");
         let (code, out, err) = harness.run(&["run", "--apply", "//app:bin", "--output=json"]);
@@ -643,20 +594,10 @@ mod tests {
         assert!(err.contains("no_runnable"), "{err}");
     }
 
-    #[test]
-    fn run_multi_dry_run_lists_each_target() {
-        let harness = Harness::new("run-multi-dry");
-        let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin", "--dry-run"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(err.contains("Running run for //a:bin"), "{err}");
-        assert!(err.contains("Running run for //b:bin"), "{err}");
-    }
-
     fn run_invocation(
         command: Command,
         output: OutputMode,
         reports: Vec<crate::args::ReportRequest>,
-        dry_run: bool,
     ) -> Invocation {
         Invocation {
             command,
@@ -667,7 +608,6 @@ mod tests {
             debug: false,
             release: false,
             workspace: None,
-            dry_run,
             quiet: false,
             verbose: false,
             log_level: None,
@@ -708,13 +648,12 @@ mod tests {
                 format: "junit".to_owned(),
                 destination: "out.xml".to_owned(),
             }],
-            false,
         );
         let (code, _, err) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 2, "{err}");
 
         let harness = Harness::new("run-manual-json");
-        let inv = run_invocation(Command::Run, OutputMode::Json, Vec::new(), true);
+        let inv = run_invocation(Command::Run, OutputMode::Json, Vec::new());
         let (code, out, _) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("command_started"), "{out}");
@@ -767,23 +706,6 @@ mod tests {
     }
 
     #[test]
-    fn run_ci_dry_run_lists_without_launching() {
-        let harness = Harness::new("run-ci-dry");
-        let (code, _, err) = harness.run_with_ci(&["run", "//a:bin", "//b:bin", "--dry-run"], true);
-        assert_eq!(code, 0, "{err}");
-        assert!(err.contains("Running run for //a:bin"), "{err}");
-        assert!(err.contains("Running run for //b:bin"), "{err}");
-        let harness = Harness::new("run-ci-dry-json");
-        let (code, out, err) =
-            harness.run_with_ci(&["run", "//app:bin", "--dry-run", "--output=json"], true);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("command_started"), "{out}");
-        assert!(out.contains("\"phase\":\"execute\""), "{out}");
-        assert!(out.contains("command_finished"), "{out}");
-        assert_eq!(err, "", "{err}");
-    }
-
-    #[test]
     fn run_ci_apply_executes_with_status() {
         let harness = Harness::new("run-ci-apply");
         let (code, _, err) =
@@ -827,9 +749,9 @@ mod tests {
         assert!(err.contains("no_runnable"), "{err}");
     }
     #[test]
-    fn json_multirun_covers_success_dry_run_and_process_failures() {
+    fn json_multirun_covers_success_and_process_failures() {
         for multiple in [false, true] {
-            for scenario in ["success", "dry", "exit", "signal", "spawn"] {
+            for scenario in ["success", "exit", "signal", "spawn"] {
                 let mut harness = Harness::new("run-json-matrix");
                 harness.bazel_code = if scenario == "exit" { 7 } else { 0 };
                 harness.signalled = scenario == "signal";
@@ -838,11 +760,7 @@ mod tests {
                 if multiple {
                     words.push("//b:two");
                 }
-                if scenario == "dry" {
-                    words.push("--dry-run");
-                } else {
-                    words.push("--apply");
-                }
+                words.push("--apply");
                 let (code, out, err) = harness.run(&words);
                 let expected = match scenario {
                     "exit" => 7,
@@ -856,9 +774,7 @@ mod tests {
                     .collect();
                 assert_eq!(events[0]["event"], "command_started");
                 assert_eq!(events.last().expect("finished")["exit_code"], expected);
-                if scenario == "dry" {
-                    assert!(harness.seen_env.borrow().is_empty());
-                } else if expected != 0 {
+                if expected != 0 {
                     assert!(events.iter().any(|event| event["event"] == "error"));
                 }
             }

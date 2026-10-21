@@ -3,15 +3,11 @@ use std::io::Write;
 use crate::args::Invocation;
 use crate::exec::common::{check_stdout_write, emit_event};
 
-use dx_output::{
-    command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
-};
+use dx_output::{command_started, OutputMode};
 
-use super::{operational, pre_exec, summaries_suppressed};
+use super::{operational, pre_exec};
 
 pub(crate) const CODE_UPGRADE_FAILED: &str = "upgrade_failed";
-
-pub(crate) const NOTICE_UPGRADE_PLANNED: &str = "upgrade_planned";
 
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
@@ -37,16 +33,12 @@ pub(crate) fn execute_upgrade(
         Err(error) => {
             let message = format!("{error}; {}", syntax.message);
             if invocation.output == OutputMode::Json {
-                if let Ok(event) = command_started(
-                    invocation.command.name(),
-                    invocation.dry_run,
-                    if invocation.dry_run { "default" } else { mode },
-                ) {
+                if let Ok(event) = command_started(invocation.command.name(), mode) {
                     if let Err(exit) = emit_event(out, &event) {
                         return exit;
                     }
                 }
-            } else if verbose && !invocation.dry_run {
+            } else if verbose {
                 let live_summary = format!(
                     "Upgrade {} -> {} via {} (pin {}, migrate, setup)",
                     syntax.from, syntax.to, syntax.manifest, syntax.to
@@ -58,42 +50,6 @@ pub(crate) fn execute_upgrade(
             return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
         }
     };
-    let summary = format!(
-        "Would upgrade {} -> {} via {} (pin {}, migrate, setup)",
-        plan.from, plan.to, plan.manifest, plan.to
-    );
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            if let Ok(event) = notice_event(&NoticeEvent {
-                level: "info".to_owned(),
-                code: NOTICE_UPGRADE_PLANNED.to_owned(),
-                message: summary,
-                related_command: Some("upgrade".to_owned()),
-                scope: Some(vec![plan.manifest.clone()]),
-                path: Some(plan.manifest.clone()),
-                language: None,
-                import: None,
-            }) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            let finished = command_finished(0, &FinishedCounts::default());
-            if let Err(exit) = emit_event(out, &finished) {
-                return exit;
-            }
-        } else if !summaries_suppressed(invocation) {
-            if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-                return exit;
-            }
-        }
-        return 0;
-    }
     let live_summary = format!(
         "Upgrade {} -> {} via {} (pin {}, migrate, setup)",
         plan.from, plan.to, plan.manifest, plan.to
@@ -103,7 +59,7 @@ pub(crate) fn execute_upgrade(
         plan.from, plan.to, plan.manifest, plan.message
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, mode) {
+        if let Ok(event) = command_started(invocation.command.name(), mode) {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
             }
@@ -125,8 +81,8 @@ mod tests {
     use dx_process::pre_exec_code;
 
     #[test]
-    fn upgrade_dry_run_fails_closed_without_a_shipped_manifest() {
-        let inv = invocation(&["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"]);
+    fn upgrade_fails_closed_without_a_shipped_manifest() {
+        let inv = invocation(&["upgrade", "--from=1.2.3", "--to=2.0.0"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-dry-");
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&inv, &root);
@@ -139,14 +95,8 @@ mod tests {
     }
 
     #[test]
-    fn upgrade_dry_run_json_fails_closed_with_error_and_finished() {
-        let inv = invocation(&[
-            "upgrade",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--dry-run",
-            "--output=json",
-        ]);
+    fn upgrade_json_fails_closed_with_error_and_finished() {
+        let inv = invocation(&["upgrade", "--from=1.2.3", "--to=2.0.0", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-dry-json-");
         let root = scratch.path().to_path_buf();
         let (code, out, err) = run(&inv, &root);
@@ -215,12 +165,11 @@ mod tests {
     #[test]
     fn upgrade_codes_are_stable_single_source() {
         assert_eq!(CODE_UPGRADE_FAILED, "upgrade_failed");
-        assert_eq!(NOTICE_UPGRADE_PLANNED, "upgrade_planned");
     }
 
     #[test]
     fn upgrade_rejects_downgrade_pre_exec() {
-        let inv = invocation(&["upgrade", "--from=2.0.0", "--to=1.0.0", "--dry-run"]);
+        let inv = invocation(&["upgrade", "--from=2.0.0", "--to=1.0.0"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-downgrade-");
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(&inv, &root);

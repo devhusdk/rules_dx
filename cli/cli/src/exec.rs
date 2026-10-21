@@ -226,39 +226,21 @@ mod tests {
     }
 
     #[test]
-    fn dry_run_families_launch_nothing() {
+    fn removed_dry_run_flag_launches_nothing() {
         for argv in [
             vec!["build", "--dry-run", "//a:one"],
             vec!["security", "--dry-run"],
-            vec!["license", "--dry-run"],
+            vec!["license", "--dry-run=false"],
             vec!["update", "--dry-run"],
             vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
+            vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
+            vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
         ] {
             let name = format!("exec-dispatch-{}", argv[0].trim_start_matches('-'));
             let harness = Harness::new(&name);
             let (code, _out, err) = harness.run(&argv);
-            assert_eq!(code, 0, "{argv:?}");
-            assert_eq!(err, "", "{argv:?}");
-            assert!(
-                harness.seen_env.borrow().is_empty(),
-                "{argv:?} launches nothing"
-            );
-        }
-        for (argv, code_word) in [
-            (
-                vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
-                "migrate_failed",
-            ),
-            (
-                vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
-                "upgrade_failed",
-            ),
-        ] {
-            let name = format!("exec-dispatch-{}", argv[0].trim_start_matches('-'));
-            let harness = Harness::new(&name);
-            let (code, _out, err) = harness.run(&argv);
-            assert_eq!(code, 1, "{argv:?}");
-            assert!(err.contains(code_word), "{argv:?} fails closed: {err}");
+            assert_ne!(code, 0, "{argv:?}");
+            assert!(err.contains("--dry-run"), "{argv:?}: {err}");
             assert!(
                 harness.seen_env.borrow().is_empty(),
                 "{argv:?} launches nothing"

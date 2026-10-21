@@ -81,8 +81,8 @@ fn strict_hyphen_values_are_never_consumed_as_option_values() {
         &["--workspace"],
     );
     assert_usage(
-        &["build", "--output", "--dry-run"],
-        parse(&strings(&["build", "--output", "--dry-run"])).unwrap_err(),
+        &["build", "--output", "--quiet"],
+        parse(&strings(&["build", "--output", "--quiet"])).unwrap_err(),
         &["--output"],
     );
 }
@@ -338,10 +338,9 @@ fn strict_help_is_generated_from_the_same_grammar() {
         );
     }
     let grammar = super::super::grammar::cli_command();
-    const GLOBAL_LONGS: [&str; 7] = [
+    const GLOBAL_LONGS: [&str; 6] = [
         "workspace",
         "output",
-        "dry-run",
         "quiet",
         "verbose",
         "color",

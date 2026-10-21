@@ -2,7 +2,7 @@
 
 ```sh
 bazel run @rules_dx//:dx -- new --apply rust my_project
-bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0 --dry-run
+bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
 ```
 
 ## `dx new`
@@ -88,14 +88,14 @@ only and leaves custom files untouched.
 ## `dx upgrade`
 
 ```text
-dx upgrade [--apply] --from <version> --to <version> [--dry-run]
+dx upgrade [--apply] --from <version> --to <version>
 ```
 
 Runs pin, migrate, and the env and codegen refresh in one go with a recovery pointer. Checks by
 default; `--apply` upgrades. Both
-versions are required. `--dry-run` prints the plan without writing files.
-No manifests exist yet, so dry-run, check, and apply fail closed.
-Flags: `--from <version> --to <version>`, `--apply`, `--dry-run`.
+versions are required.
+No manifests exist yet, so check and apply fail closed.
+Flags: `--from <version> --to <version>`, `--apply`.
 Scopes: none.
 
 Output: `--output text|json`.

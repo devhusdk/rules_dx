@@ -96,8 +96,8 @@ pub fn measure_prune_bytes(
     Ok(measured)
 }
 
-pub fn render_dry_run(plan: &CleanPlan, bytes: &PruneBytes) -> String {
-    let mut lines = vec!["dx clean --dry-run: reclaimable managed state".to_owned()];
+pub fn render_prune_listing(plan: &CleanPlan, bytes: &PruneBytes) -> String {
+    let mut lines = vec!["dx clean: reclaimable managed state".to_owned()];
     if plan.prune_setup_records.is_empty()
         && plan.prune_generations.is_empty()
         && plan.preserved_unobserved_setup_records.is_empty()
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn dry_run_lists_prune_preserve_and_refuse() {
+    fn listing_lists_prune_preserve_and_refuse() {
         let current = record('1', '2');
         let stale = record('3', '4');
         let records = vec![current.clone(), stale.clone()];
@@ -200,7 +200,7 @@ mod tests {
             observation_unknown: false,
             unobserved: UnobservedPolicy::Preserve,
         });
-        let listing = render_dry_run(&plan, &PruneBytes::default());
+        let listing = render_prune_listing(&plan, &PruneBytes::default());
         assert!(listing.contains(&format!(".dx/setups/{}", stale.hex)));
         assert!(listing.contains(&format!(".dx/environments/{}", digest('3'))));
         assert!(listing.contains(&format!(".dx/setups/{}", current.hex)));
@@ -210,11 +210,11 @@ mod tests {
     }
 
     #[test]
-    fn dry_run_reports_empty_prune_set() {
+    fn listing_reports_empty_prune_set() {
         let current = record('1', '2');
         let records = vec![current.clone()];
         let plan = plan_prune(inputs(&records, &[], Some(&current.hex)));
-        let listing = render_dry_run(&plan, &PruneBytes::default());
+        let listing = render_prune_listing(&plan, &PruneBytes::default());
         assert!(listing.contains("nothing to prune"));
         assert!(listing.contains("reclaimable total: 0 bytes"));
     }
@@ -372,7 +372,7 @@ mod tests {
             setup_record_bytes: vec![(stale.hex.clone(), 120)],
             generation_bytes: vec![(generation(GenerationKind::Environment, '3'), 34)],
         };
-        let listing = render_dry_run(&plan, &bytes);
+        let listing = render_prune_listing(&plan, &bytes);
         assert!(
             listing.contains(&format!(
                 "prune setup record: .dx/setups/{} (120 bytes)",

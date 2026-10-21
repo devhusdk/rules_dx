@@ -14,7 +14,6 @@ pub struct ReportRequest {
 pub enum OperationMode {
     Check,
     Apply,
-    Plan,
 }
 
 impl OperationMode {
@@ -22,7 +21,6 @@ impl OperationMode {
         match self {
             OperationMode::Check => "check",
             OperationMode::Apply => "apply",
-            OperationMode::Plan => "plan",
         }
     }
 }
@@ -41,7 +39,6 @@ pub struct CommonOptions {
 pub struct QualityRequest {
     pub command: Command,
     pub mode: OperationMode,
-    pub dry_run: bool,
     pub targets: Vec<String>,
     pub bazel_options: Vec<String>,
     pub bazel_startup_options: Vec<String>,
@@ -54,7 +51,6 @@ pub struct QualityRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenerateRequest {
     pub mode: OperationMode,
-    pub dry_run: bool,
     pub targets: Vec<String>,
     pub bazel_options: Vec<String>,
     pub bazel_startup_options: Vec<String>,
@@ -66,7 +62,6 @@ pub struct GenerateRequest {
 pub struct UmbrellaRequest {
     pub command: Command,
     pub mode: OperationMode,
-    pub dry_run: bool,
     pub apply: bool,
     pub targets: Vec<String>,
     pub bazel_options: Vec<String>,
@@ -134,7 +129,6 @@ impl UmbrellaRequest {
         Ok(QualityRequest {
             command: phase,
             mode: self.mode,
-            dry_run: self.dry_run,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
@@ -155,7 +149,6 @@ impl UmbrellaRequest {
     pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
         GenerateRequest {
             mode: self.mode,
-            dry_run: self.dry_run,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
@@ -181,7 +174,6 @@ impl UmbrellaRequest {
         Ok(QualityRequest {
             command: phase,
             mode: OperationMode::Check,
-            dry_run: false,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
@@ -202,7 +194,6 @@ impl UmbrellaRequest {
     pub fn verify_generate_request(&self) -> GenerateRequest {
         GenerateRequest {
             mode: OperationMode::Check,
-            dry_run: false,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
@@ -229,7 +220,6 @@ pub struct Invocation {
     pub debug: bool,
     pub release: bool,
     pub workspace: Option<String>,
-    pub dry_run: bool,
     pub quiet: bool,
     pub verbose: bool,
     pub log_level: Option<LogLevel>,
@@ -270,13 +260,10 @@ impl Invocation {
         }
     }
 
-    /// The operation the flags authorize: explicit `--apply` opts into
-    /// mutation, `--dry-run` plans without running, everything else checks.
+    /// The operation the flags authorize: explicit `--apply` opts into mutation, else check.
     pub fn operation(&self) -> OperationMode {
         if self.apply {
             OperationMode::Apply
-        } else if self.dry_run {
-            OperationMode::Plan
         } else {
             OperationMode::Check
         }
@@ -334,7 +321,6 @@ impl Invocation {
         Ok(QualityRequest {
             command: self.command,
             mode: self.operation(),
-            dry_run: self.dry_run,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
@@ -354,7 +340,6 @@ impl Invocation {
         }
         Ok(GenerateRequest {
             mode: self.operation(),
-            dry_run: self.dry_run,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
@@ -373,7 +358,6 @@ impl Invocation {
         Ok(UmbrellaRequest {
             command: self.command,
             mode: self.operation(),
-            dry_run: self.dry_run,
             apply: self.apply,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
@@ -469,7 +453,6 @@ mod tests {
             debug: false,
             release: false,
             workspace: None,
-            dry_run: false,
             quiet: false,
             verbose: false,
             log_level: None,
@@ -505,24 +488,18 @@ mod tests {
         let bare = invocation_for(Command::Fix, &[]);
         assert!(!bare.apply);
         assert!(!bare.check);
-        assert!(!bare.dry_run);
         assert_eq!(bare.operation(), OperationMode::Check);
         assert!(!bare.applies());
         let mut check = invocation_for(Command::Fix, &[]);
         check.check = true;
         assert_eq!(check.operation(), OperationMode::Check);
         assert!(!check.applies());
-        let mut plan = invocation_for(Command::Fix, &[]);
-        plan.dry_run = true;
-        assert_eq!(plan.operation(), OperationMode::Plan);
-        assert!(!plan.applies());
         let mut apply = invocation_for(Command::Fix, &[]);
         apply.apply = true;
         assert_eq!(apply.operation(), OperationMode::Apply);
         assert!(apply.applies());
         assert_eq!(OperationMode::Check.name(), "check");
         assert_eq!(OperationMode::Apply.name(), "apply");
-        assert_eq!(OperationMode::Plan.name(), "plan");
     }
 
     #[test]
@@ -676,7 +653,6 @@ mod tests {
         .expect("apply request");
         assert_eq!(request.mode, OperationMode::Apply);
         assert!(request.applies());
-        assert!(!request.dry_run);
         assert_eq!(request.targets, vec!["//a:one".to_owned()]);
         assert_eq!(request.bazel_options, vec!["--jobs=4".to_owned()]);
         assert_eq!(
@@ -684,11 +660,6 @@ mod tests {
             dx_output::Threshold::Error,
             "severity rides the typed request"
         );
-        let planned = parsed(&["format", "--dry-run"])
-            .quality_request()
-            .expect("plan");
-        assert_eq!(planned.mode, OperationMode::Plan);
-        assert!(!planned.applies());
     }
 
     #[test]
@@ -761,7 +732,6 @@ mod tests {
             .expect("recheck");
         assert_eq!(recheck.mode, OperationMode::Check);
         assert!(!recheck.applies());
-        assert!(!recheck.dry_run);
         assert!(recheck.common.reports.is_empty());
         let generate = umbrella.verify_generate_request();
         assert_eq!(generate.mode, OperationMode::Check);

@@ -33,25 +33,6 @@ pub(crate) fn execute_init(
         .targets
         .first()
         .map_or("my_project", String::as_str);
-    if invocation.dry_run {
-        if !summaries_suppressed(invocation) {
-            match dx_adopt::plan_init_files(module) {
-                Ok(files) => {
-                    for file in files {
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "would write {}", file.path))
-                        {
-                            return exit;
-                        }
-                    }
-                }
-                Err(error) => {
-                    return invalid_module_code(invocation, out, err, &error);
-                }
-            }
-        }
-        return 0;
-    }
     if !invocation.applies() {
         return check_init(invocation, workspace, module, out, err);
     }
@@ -118,17 +99,6 @@ mod tests {
     use dx_process::pre_exec_code;
 
     #[test]
-    fn init_dry_run_lists_without_writing() {
-        let inv = invocation(&["init", "--dry-run", "demo"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-dry-");
-        let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        assert!(out.contains(".dx/version"));
-        assert!(!root.join(".dx/version").exists());
-    }
-
-    #[test]
     fn init_applies_absent_only() {
         let inv = invocation(&["init", "--apply"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
@@ -163,11 +133,18 @@ mod tests {
 
     #[test]
     fn init_rejects_invalid_modules_pre_exec_without_writing() {
-        for module in ["Bad Name", "../evil", "with\nnewline", "semi;colon"] {
+        for (module, quiet) in ["Bad Name", "../evil", "with\nnewline", "semi;colon"]
+            .into_iter()
+            .flat_map(|module| [(module, false), (module, true)])
+        {
             let scratch = dx_test_scratch::scratch("dx-adopt-init-reject-");
             let root = scratch.path().to_path_buf();
             std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
-            let inv = invocation(&["init", module]);
+            let mut words = vec!["init", module];
+            if quiet {
+                words.push("--quiet");
+            }
+            let inv = invocation(&words);
             let (code, _out, err) = run(&inv, &root);
             assert_eq!(code, pre_exec_code(), "{module:?}");
             assert!(err.contains("invalid module name"), "{err}");

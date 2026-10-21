@@ -15,11 +15,6 @@ Options:
       --workspace <WORKSPACE>
           Use this workspace dir
 
-      --dry-run[=<DRY_RUN>]
-          Show the plan without running it. =false turns off an inherited default
-          
-          [possible values: true, false]
-
       --quiet[=<QUIET>]
           Hide summaries. =false turns off an inherited default
           

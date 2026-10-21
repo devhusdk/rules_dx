@@ -138,11 +138,7 @@ pub fn plan_reports(
     command: Command,
     requests: &[ReportRequest],
     mode: &OutputMode,
-    dry_run: bool,
 ) -> Result<Vec<PlannedReport>, ReportError> {
-    if dry_run && !requests.is_empty() {
-        return Err(ReportError::DryRunConflict);
-    }
     let entry = spec(command);
     let mut planned = Vec::with_capacity(requests.len());
     let mut seen = BTreeSet::new();
@@ -236,7 +232,6 @@ mod tests {
             Command::Lint,
             &requests(&[("sarif", "b.sarif"), ("sarif", "a.sarif")]),
             &text_mode(),
-            false,
         )
         .expect("plan");
         assert_eq!(
@@ -264,7 +259,6 @@ mod tests {
             Command::Typecheck,
             &requests(&[("sarif", "-")]),
             &text_mode(),
-            false,
         )
         .expect("plan");
         assert_eq!(
@@ -286,8 +280,7 @@ mod tests {
                     workspace.path(),
                     Command::Lint,
                     &requests(&[("sarif", "-")]),
-                    &mode,
-                    false
+                    &mode
                 ),
                 Err(ReportError::StdoutReportConflictsMode { mode: mode.name() })
             );
@@ -298,7 +291,6 @@ mod tests {
                 Command::Lint,
                 &requests(&[("sarif", "-"), ("sarif", "second.sarif".into())]),
                 &text_mode(),
-                false,
             ),
             Ok(vec![
                 PlannedReport {
@@ -324,7 +316,6 @@ mod tests {
                 Command::Lint,
                 &requests(&[("sarif", "a.sarif"), ("sarif", "a.sarif")]),
                 &text_mode(),
-                false,
             ),
             Err(ReportError::DuplicateReport {
                 format: "sarif".to_owned(),
@@ -337,7 +328,6 @@ mod tests {
                 Command::Lint,
                 &requests(&[("sarif", "-"), ("sarif", "-")]),
                 &text_mode(),
-                false,
             ),
             Err(ReportError::DuplicateReport {
                 format: "sarif".to_owned(),
@@ -347,25 +337,14 @@ mod tests {
     }
 
     #[test]
-    fn planning_rejects_dry_run_and_unsupported_formats() {
+    fn planning_rejects_unsupported_formats() {
         let workspace = workspace();
-        assert_eq!(
-            plan_reports(
-                workspace.path(),
-                Command::Lint,
-                &requests(&[("sarif", "a.sarif")]),
-                &text_mode(),
-                true,
-            ),
-            Err(ReportError::DryRunConflict)
-        );
         assert_eq!(
             plan_reports(
                 workspace.path(),
                 Command::Lint,
                 &requests(&[("junit", "a.xml")]),
                 &text_mode(),
-                false,
             ),
             Err(ReportError::UnsupportedFormat {
                 command: "lint",
@@ -379,7 +358,6 @@ mod tests {
                 Command::Format,
                 &requests(&[("sarif", "a.sarif")]),
                 &text_mode(),
-                false,
             ),
             Err(ReportError::UnsupportedFormat {
                 command: "format",
@@ -388,7 +366,7 @@ mod tests {
             })
         );
         assert!(
-            plan_reports(workspace.path(), Command::Format, &[], &text_mode(), false)
+            plan_reports(workspace.path(), Command::Format, &[], &text_mode())
                 .expect("plan")
                 .is_empty()
         );
@@ -400,7 +378,6 @@ mod tests {
             stdout_conflict(OutputError::SecondStdoutReport),
             ReportError::MultipleStdoutReports
         );
-        assert!(format!("{}", ReportError::DryRunConflict).contains("dry-run"));
         assert!(format!(
             "{}",
             ReportError::UnsupportedFormat {
@@ -539,7 +516,6 @@ mod tests {
             Command::Lint,
             &requests(&[("bogus", "a.xml")]),
             &text_mode(),
-            false,
         )
         .expect_err("bogus");
         assert_eq!(
@@ -571,7 +547,6 @@ mod tests {
                 command,
                 &requests(&[(format, "out.dat")]),
                 &text_mode(),
-                false,
             )
             .expect("supported combo must plan");
         }
@@ -591,7 +566,6 @@ mod tests {
                 command,
                 &requests(&[(format, "out.dat")]),
                 &text_mode(),
-                false,
             )
             .expect_err("unsupported combo must fail");
             let want = spec(command);
@@ -616,7 +590,6 @@ mod tests {
             Command::License,
             &requests(&[("sarif", "out.json"), ("spdx", "out.json")]),
             &text_mode(),
-            false,
         )
         .expect_err("cross-format collision");
         assert_eq!(
@@ -639,7 +612,6 @@ mod tests {
                 Command::Lint,
                 &requests(&[("sarif", "a.sarif"), ("sarif", alias)]),
                 &text_mode(),
-                false,
             )
             .expect_err("alias collision");
             assert_eq!(
@@ -663,7 +635,6 @@ mod tests {
             Command::Lint,
             &requests(&[("sarif", "out.sarif"), ("sarif", &absolute)]),
             &text_mode(),
-            false,
         )
         .expect_err("absolute alias collision");
         assert_eq!(
@@ -684,7 +655,6 @@ mod tests {
             Command::License,
             &requests(&[("sarif", "a.sarif"), ("spdx", "b.json")]),
             &text_mode(),
-            false,
         )
         .expect("distinct files plan");
         assert_eq!(
@@ -745,7 +715,6 @@ mod tests {
             Command::Lint,
             &requests(&[("sarif", "real.sarif"), ("sarif", "link.sarif")]),
             &text_mode(),
-            false,
         )
         .expect_err("symlink collision");
         assert!(
@@ -762,7 +731,6 @@ mod tests {
             Command::Lint,
             &requests(&[("sarif", "out.sarif"), ("sarif", "OUT.sarif")]),
             &text_mode(),
-            false,
         );
         if cfg!(windows) {
             assert!(

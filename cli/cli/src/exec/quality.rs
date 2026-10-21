@@ -6,12 +6,12 @@ use super::quality_patch::render_diff_patch;
 use super::quality_reports::{write_standard_reports, StandardReports};
 use super::results::collect_results;
 use crate::args::{Invocation, QualityRequest};
-use crate::plan::{bep_path, plan_build, quality_provenance};
+use crate::plan::{bep_path, plan_build};
 use crate::reports::{plan_reports, BaselineReport, Destination};
 use crate::resolve::resolve;
 use dx_output::{
-    command_finished, command_started, meets_threshold, operation_event, write_event,
-    FinishedCounts, OutputMode, Severity,
+    command_finished, command_started, meets_threshold, write_event, FinishedCounts, OutputMode,
+    Severity,
 };
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -42,7 +42,6 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         request.command,
         &request.common.reports,
         &request.common.output,
-        request.dry_run,
     ) {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -85,51 +84,8 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
     };
     let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
-    if request.dry_run {
-        let provenance = quality_provenance(
-            request.command,
-            &resolved,
-            &request.bazel_options,
-            request.workspace.as_deref(),
-            apply,
-            &build.argv,
-        );
-        if request.common.output == OutputMode::Json {
-            if let Ok(event) = command_started(request.command.name(), true, mode) {
-                let _ = write_event(out, &event);
-            }
-            let scope_labels: Vec<String> = provenance["scope"]["targets"]
-                .as_array()
-                .map(|targets| {
-                    targets
-                        .iter()
-                        .filter_map(|target| target.as_str().map(ToString::to_string))
-                        .collect()
-                })
-                .unwrap_or_default();
-            if let Ok(serde_json::Value::Object(mut map)) =
-                operation_event(request.command.name(), "plan", Some(&scope_labels))
-            {
-                map.insert("provenance".to_owned(), provenance);
-                let _ = write_event(out, &serde_json::Value::Object(map));
-            }
-            let finished = command_finished(0, &FinishedCounts::default());
-            let _ = write_event(out, &finished);
-        } else if request.chatty() && !stdout_report {
-            let _ = writeln!(out, "{}", build.summary);
-            let policy = provenance["policy"]["origin"].as_str().unwrap_or("default");
-            let aspects = provenance["aspects"].as_array().map(Vec::len).unwrap_or(0);
-            let _ = writeln!(out, "Policy: {policy}");
-            let _ = writeln!(out, "Aspects: {aspects} selected");
-            let _ = writeln!(
-                out,
-                "Execution: platform unknown, toolchain unknown (requires Bazel analysis)"
-            );
-        }
-        return 0;
-    }
     if request.common.output == OutputMode::Json {
-        if let Ok(event) = command_started(request.command.name(), false, mode) {
+        if let Ok(event) = command_started(request.command.name(), mode) {
             let _ = write_event(out, &event);
         }
     } else if request.chatty() && !stdout_report {

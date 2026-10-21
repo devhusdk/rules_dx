@@ -459,7 +459,6 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         request.command,
         &request.common.reports,
         &request.common.output,
-        request.dry_run,
     ) {
         return pre_exec(err, &error.to_string());
     }
@@ -475,7 +474,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         }
     }
     if request.common.output == OutputMode::Json {
-        if let Ok(event) = command_started(command, request.dry_run, mode) {
+        if let Ok(event) = command_started(command, mode) {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
             }
@@ -598,7 +597,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
     collector.cleanup();
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    if fix_apply && !request.dry_run && stdout_exit.is_none() && stop_code.is_none() {
+    if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
         let context = VerifyContext {
             workspace,
             runner,

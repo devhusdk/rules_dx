@@ -720,7 +720,6 @@ mod tests {
         let flags = complete(&["dx", "build", "-"], root);
         for flag in [
             "--workspace",
-            "--dry-run",
             "--quiet",
             "-v",
             "--color",

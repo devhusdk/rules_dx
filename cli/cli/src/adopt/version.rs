@@ -9,18 +9,6 @@ use dx_output::{
 use super::status::CODE_STATUS_PIN_MISMATCH;
 use super::{operational, pre_exec, summaries_suppressed};
 
-fn json_dry_run(invocation: &Invocation, out: &mut dyn Write) -> i32 {
-    if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-        if let Err(exit) = emit_event(out, &event) {
-            return exit;
-        }
-    }
-    if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-        return exit;
-    }
-    0
-}
-
 fn json_status(
     out: &mut dyn Write,
     name: &str,
@@ -105,30 +93,6 @@ pub(crate) fn execute_version(
             .previous
             .clone()
             .filter(|previous| !previous.is_empty());
-        if invocation.dry_run {
-            if is_json {
-                return json_dry_run(invocation, out);
-            }
-            if !summaries_suppressed(invocation) {
-                match &target {
-                    Some(previous) => {
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "would pin {previous} (rollback)"))
-                        {
-                            return exit;
-                        }
-                    }
-                    None => {
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "would remove the pin (rollback)"))
-                        {
-                            return exit;
-                        }
-                    }
-                }
-            }
-            return 0;
-        }
         if !invocation.applies() {
             if target == current {
                 if target.is_none() {
@@ -142,7 +106,7 @@ pub(crate) fn execute_version(
                 }
                 let at = target.as_deref().unwrap_or_default();
                 if is_json {
-                    if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+                    if let Ok(event) = command_started(invocation.command.name(), "check") {
                         if let Err(exit) = emit_event(out, &event) {
                             return exit;
                         }
@@ -222,7 +186,7 @@ pub(crate) fn execute_version(
             return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
         if is_json {
-            if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+            if let Ok(event) = command_started(invocation.command.name(), "default") {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }
@@ -269,22 +233,11 @@ pub(crate) fn execute_version(
             }
             return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
-        if invocation.dry_run {
-            if is_json {
-                return json_dry_run(invocation, out);
-            }
-            if !summaries_suppressed(invocation) {
-                if let Err(exit) = check_stdout_write(writeln!(out, "would pin {pin}")) {
-                    return exit;
-                }
-            }
-            return 0;
-        }
         if !invocation.applies() {
             let current = dx_adopt::read_version_pin(workspace).unwrap_or_default();
             if current == *pin {
                 if is_json {
-                    if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+                    if let Ok(event) = command_started(invocation.command.name(), "check") {
                         if let Err(exit) = emit_event(out, &event) {
                             return exit;
                         }
@@ -344,8 +297,7 @@ pub(crate) fn execute_version(
                     return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
                 }
                 if is_json {
-                    if let Ok(event) = command_started(invocation.command.name(), false, "default")
-                    {
+                    if let Ok(event) = command_started(invocation.command.name(), "default") {
                         if let Err(exit) = emit_event(out, &event) {
                             return exit;
                         }
@@ -382,23 +334,6 @@ pub(crate) fn execute_version(
             }
         };
     }
-    if invocation.dry_run {
-        if is_json {
-            return json_dry_run(invocation, out);
-        }
-        if !summaries_suppressed(invocation) {
-            if invocation.check {
-                if let Err(exit) = check_stdout_write(writeln!(out, "would check version pin")) {
-                    return exit;
-                }
-            } else {
-                if let Err(exit) = check_stdout_write(writeln!(out, "would report version")) {
-                    return exit;
-                }
-            }
-        }
-        return 0;
-    }
     let current = match dx_adopt::read_version_pin(workspace) {
         Ok(pin) => pin,
         Err(error) => {
@@ -416,7 +351,7 @@ pub(crate) fn execute_version(
         let hint = format!("dx version --pin {}", dx_adopt::MODULE_VERSION);
         if dx_adopt::version_pin_matches_module(&current, dx_adopt::MODULE_VERSION) {
             if is_json {
-                if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+                if let Ok(event) = command_started(invocation.command.name(), "default") {
                     if let Err(exit) = emit_event(out, &event) {
                         return exit;
                     }
@@ -450,7 +385,7 @@ pub(crate) fn execute_version(
         let dependency =
             dx_adopt::render_module_dependency(&dx_adopt::read_module_dependency(workspace));
         if is_json {
-            if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+            if let Ok(event) = command_started(invocation.command.name(), "default") {
                 if let Err(exit) = emit_event(out, &event) {
                     return exit;
                 }
@@ -502,100 +437,7 @@ pub(crate) fn execute_version(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{
-        event_kinds, events_of_kind, invocation, json_events, run, Truncated,
-    };
-
-    #[test]
-    fn version_output_boundaries_propagate_broken_pipes() {
-        for (words, pin, json_lines, text_lines) in [
-            (vec!["version"], Some("0.0.0"), 6, 4),
-            (vec!["version", "--check"], Some("0.0.0"), 3, 1),
-            (vec!["version", "--check"], Some("9.9.9"), 4, 0),
-            (vec!["version", "--apply", "--pin=0.0.0"], None, 3, 1),
-            (vec!["version", "--apply", "--pin=9.9.9"], None, 3, 0),
-            (
-                vec!["version", "--apply", "--rollback"],
-                Some("9.9.9"),
-                3,
-                1,
-            ),
-            (vec!["version", "--apply", "--rollback"], Some(""), 3, 0),
-            (vec!["version", "--apply", "--rollback"], None, 3, 0),
-            (vec!["version"], None, 3, 0),
-        ] {
-            for json in [false, true] {
-                for lines in 0..if json { json_lines } else { text_lines } {
-                    let scratch = dx_test_scratch::scratch("version-pipe-");
-                    if let Some(pin) = pin {
-                        std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
-                        std::fs::write(scratch.path().join(".dx/version"), pin).expect("seed pin");
-                        if words.iter().any(|word| *word == "--rollback") {
-                            dx_adopt::record_pin_operation(
-                                scratch.path(),
-                                Some("0.0.0"),
-                                Some(pin),
-                            )
-                            .expect("seed record");
-                        }
-                    }
-                    let mut inv = invocation(&words);
-                    if json {
-                        inv.output = OutputMode::Json;
-                    }
-                    assert_eq!(
-                        execute_version(
-                            &inv,
-                            scratch.path(),
-                            &mut Truncated::after_lines(lines),
-                            &mut Vec::new()
-                        ),
-                        141,
-                        "{words:?} json={json} lines={lines}"
-                    );
-                }
-            }
-        }
-        for words in [
-            vec!["version"],
-            vec!["version", "--check"],
-            vec!["version", "--pin=0.0.0"],
-            vec!["version", "--rollback"],
-        ] {
-            for json in [false, true] {
-                for lines in 0..if json { 2 } else { 1 } {
-                    let scratch = dx_test_scratch::scratch("version-dry-pipe-");
-                    dx_adopt::write_version_pin(scratch.path(), "9.9.9").expect("seed pin");
-                    if words.iter().any(|word| *word == "--rollback") {
-                        dx_adopt::record_pin_operation(
-                            scratch.path(),
-                            Some("0.0.0"),
-                            Some("9.9.9"),
-                        )
-                        .expect("seed record");
-                    }
-                    let mut inv = invocation(&words);
-                    inv.dry_run = true;
-                    if json {
-                        inv.output = OutputMode::Json;
-                    }
-                    assert_eq!(
-                        execute_version(
-                            &inv,
-                            scratch.path(),
-                            &mut Truncated::after_lines(lines),
-                            &mut Vec::new()
-                        ),
-                        141
-                    );
-                    assert_eq!(
-                        dx_adopt::read_version_pin(scratch.path()).expect("pin"),
-                        "9.9.9"
-                    );
-                }
-            }
-        }
-    }
+    use crate::adopt::test_support::{event_kinds, events_of_kind, invocation, json_events, run};
 
     #[test]
     fn version_pin_io_failure_is_operational_in_text_and_json() {
@@ -823,24 +665,6 @@ mod tests {
     }
 
     #[test]
-    fn version_bare_and_check_dry_run_plan_without_reading() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-version-dry-bare-");
-        let root = scratch.path().to_path_buf();
-        for (words, want) in [
-            (vec!["version", "--dry-run"], "would report version"),
-            (
-                vec!["version", "--check", "--dry-run"],
-                "would check version pin",
-            ),
-        ] {
-            let inv = invocation(&words);
-            let (code, out, _err) = run(&inv, &root);
-            assert_eq!(code, 0, "words: {words:?}");
-            assert!(out.contains(want), "words: {words:?}");
-        }
-    }
-
-    #[test]
     fn version_json_streams_status_envelope() {
         let scratch = dx_test_scratch::scratch("dx-adopt-version-json-");
         let root = scratch.path().to_path_buf();
@@ -941,29 +765,6 @@ mod tests {
             serde_json::json!(CODE_STATUS_PIN_MISMATCH)
         );
         assert!(err.contains("drift"));
-    }
-
-    #[test]
-    fn version_dry_run_json_emits_lifecycle_only() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-version-dry-json-");
-        let root = scratch.path().to_path_buf();
-        for words in [
-            vec!["version", "--dry-run", "--output=json"],
-            vec!["version", "--check", "--dry-run", "--output=json"],
-        ] {
-            let inv = invocation(&words);
-            let (code, out, _err) = run(&inv, &root);
-            assert_eq!(code, 0, "words: {words:?}");
-            let text = out;
-            let events = json_events(&text);
-            let kinds = event_kinds(&events);
-            assert_eq!(
-                kinds,
-                vec!["command_started", "command_finished"],
-                "{words:?}"
-            );
-            assert_eq!(events[0]["dry_run"], serde_json::json!(true), "{words:?}");
-        }
     }
 
     #[test]

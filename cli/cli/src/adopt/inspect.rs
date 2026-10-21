@@ -9,7 +9,7 @@ use dx_output::{
 };
 use dx_process::operational_code;
 
-use super::{operational, pre_exec, summaries_suppressed};
+use super::{operational, pre_exec};
 
 pub(crate) const CODE_QUERY_FAILED: &str = "bazel_failed";
 pub(crate) const CODE_NO_OWNER: &str = "no_owner";
@@ -34,45 +34,13 @@ pub(crate) fn execute_inspect(
     }
     let kind = invocation.command.name();
     let is_json = invocation.output == OutputMode::Json;
-    if invocation.dry_run {
-        for scope in &invocation.targets {
-            if let Err(error) = dx_adopt::plan_inspect(kind, scope, invocation.configured) {
-                return pre_exec(err, &error.to_string());
-            }
-        }
-        if is_json {
-            if let Ok(event) = command_started(kind, true, "default") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-                return exit;
-            }
-            return 0;
-        }
-        if !summaries_suppressed(invocation) {
-            for scope in &invocation.targets {
-                if let Ok(plan) = dx_adopt::plan_inspect(kind, scope, invocation.configured) {
-                    if let Err(exit) = check_stdout_write(writeln!(
-                        out,
-                        "would run bazel {} {}",
-                        plan.verb, plan.expr
-                    )) {
-                        return exit;
-                    }
-                }
-            }
-        }
-        return 0;
-    }
     if is_json {
         for scope in &invocation.targets {
             if let Err(error) = dx_adopt::plan_inspect(kind, scope, invocation.configured) {
                 return pre_exec(err, &error.to_string());
             }
         }
-        if let Ok(event) = command_started(kind, false, "default") {
+        if let Ok(event) = command_started(kind, "default") {
             if let Err(exit) = emit_event(out, &event) {
                 return exit;
             }
@@ -232,33 +200,6 @@ fn execute_why(
         return pre_exec(err, "why needs exactly <file> <label>");
     }
     let is_json = invocation.output == OutputMode::Json;
-    if invocation.dry_run {
-        let owner_plan = match dx_adopt::plan_inspect("owners", file, invocation.configured) {
-            Ok(plan) => plan,
-            Err(error) => return pre_exec(err, &error.to_string()),
-        };
-        if is_json {
-            if let Ok(event) = command_started("why", true, "default") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-                return exit;
-            }
-            return 0;
-        }
-        if !summaries_suppressed(invocation) {
-            if let Err(exit) = check_stdout_write(writeln!(
-                out,
-                "would run bazel {} {} then somepath to {label}",
-                owner_plan.verb, owner_plan.expr
-            )) {
-                return exit;
-            }
-        }
-        return 0;
-    }
     if is_json {
         return execute_why_json(invocation, file, label, workspace, query_runner, out, err);
     }
@@ -337,7 +278,7 @@ fn execute_why_json(
     if file.is_empty() || label.is_empty() || label.starts_with('@') || file.starts_with('@') {
         return pre_exec(err, "why needs exactly <file> <label>");
     }
-    if let Ok(event) = command_started("why", false, "default") {
+    if let Ok(event) = command_started("why", "default") {
         if let Err(exit) = emit_event(out, &event) {
             return exit;
         }
@@ -594,21 +535,12 @@ mod tests {
             vec!["why", "src/lib.rs", "//app:server"],
         ] {
             for json in [false, true] {
-                for dry_run in [false, true] {
+                {
                     let mut inv = invocation(&words);
-                    inv.dry_run = dry_run;
                     if json {
                         inv.output = OutputMode::Json;
                     }
-                    let lines = if json {
-                        if dry_run {
-                            2
-                        } else {
-                            3
-                        }
-                    } else {
-                        1
-                    };
+                    let lines = if json { 3 } else { 1 };
                     for remaining_lines in 0..lines {
                         let query = ScriptedQuery::with(&["//owner:lib\n", "//app:server\n"]);
                         let mut out = Truncated::after_lines(remaining_lines);
@@ -621,7 +553,7 @@ mod tests {
                                 &mut Vec::new()
                             ),
                             141,
-                            "{words:?} json={json} dry={dry_run}"
+                            "{words:?} json={json}"
                         );
                     }
                 }
@@ -674,14 +606,13 @@ mod tests {
     fn inspect_rejects_hand_built_external_scopes_before_query() {
         for command in ["owners", "deps", "why"] {
             for json in [false, true] {
-                for dry_run in [false, true] {
+                {
                     let mut inv = if command == "why" {
                         invocation(&[command, "src/lib.rs", "//app:server"])
                     } else {
                         invocation(&[command, "src/lib.rs"])
                     };
                     inv.targets[0] = "@external//:lib".to_owned();
-                    inv.dry_run = dry_run;
                     if json {
                         inv.output = OutputMode::Json;
                     }
@@ -838,24 +769,6 @@ mod tests {
     }
 
     #[test]
-    fn inspect_dry_run_plans_without_query() {
-        let runner = ScriptedQuery::with(&["//a:one\n"]);
-        let inv = invocation(&["owners", "//a:one", "--dry-run"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-inspect-dry-");
-        let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run_with_query(&inv, &root, &runner);
-        assert_eq!(code, 0);
-        assert!(out.contains("would run bazel"));
-        assert_eq!(runner.calls.borrow().len(), 0);
-        let runner = ScriptedQuery::with(&["//owner:lib\n"]);
-        let inv = invocation(&["why", "src/lib.rs", "//app:server", "--dry-run"]);
-        let (code, out, _err) = run_with_query(&inv, &root, &runner);
-        assert_eq!(code, 0);
-        assert!(out.contains("would run bazel"));
-        assert_eq!(runner.calls.borrow().len(), 0);
-    }
-
-    #[test]
     fn why_malformed_invocation_fails_closed_without_panic() {
         let base = invocation(&["why", "src/lib.rs", "//app:server"]);
         for targets in [
@@ -944,37 +857,6 @@ mod tests {
         );
         assert_eq!(events[1]["code"], serde_json::json!("bazel_failed"));
         assert_eq!(events[1]["phase"], serde_json::json!("query"));
-    }
-
-    #[test]
-    fn inspect_dry_run_json_emits_lifecycle_only() {
-        for words in [
-            vec!["owners", "//a:one", "--dry-run", "--output=json"],
-            vec![
-                "why",
-                "src/lib.rs",
-                "//app:server",
-                "--dry-run",
-                "--output=json",
-            ],
-        ] {
-            let runner = ScriptedQuery::with(&["//a:one\n"]);
-            let inv = invocation(&words);
-            let scratch = dx_test_scratch::scratch("dx-adopt-inspect-dry-json-");
-            let root = scratch.path().to_path_buf();
-            let (code, out, _err) = run_with_query(&inv, &root, &runner);
-            assert_eq!(code, 0, "words: {words:?}");
-            let text = out;
-            let events = json_events(&text);
-            let kinds = event_kinds(&events);
-            assert_eq!(
-                kinds,
-                vec!["command_started", "command_finished"],
-                "words: {words:?}"
-            );
-            assert_eq!(events[0]["dry_run"], serde_json::json!(true));
-            assert_eq!(runner.calls.borrow().len(), 0, "words: {words:?}");
-        }
     }
 
     #[test]

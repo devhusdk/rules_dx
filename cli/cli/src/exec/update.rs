@@ -18,19 +18,12 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command,
         &invocation.reports,
         &invocation.output,
-        invocation.dry_run,
     ) {
         Ok(_) => {}
         Err(error) => return pre_exec(env.err, &error.to_string()),
     }
     let verbose = invocation.chatty();
-    if invocation.dry_run {
-        if invocation.check {
-            execute_update_check(invocation, env, verbose)
-        } else {
-            execute_update_default(invocation, env, verbose)
-        }
-    } else if invocation.applies() {
+    if invocation.applies() {
         execute_update_default(invocation, env, verbose)
     } else {
         execute_update_check(invocation, env, verbose)
@@ -84,11 +77,8 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
         ),
         invocation.frozen,
     );
-    if invocation.dry_run {
-        return emit_check_dry_run(invocation, out, workspace, &resolved, &summary, verbose);
-    }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "check") {
+        if let Ok(event) = command_started(invocation.command.name(), "check") {
             let _ = write_event(out, &event);
         }
     } else if verbose {
@@ -139,11 +129,8 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
         ),
         invocation.frozen,
     );
-    if invocation.dry_run {
-        return emit_update_dry_run(invocation, out, workspace, &resolved, &summary, verbose);
-    }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), "default") {
             let _ = write_event(out, &event);
         }
     } else if verbose {
@@ -203,130 +190,6 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
         emit_update_json(out, err, &report, &details, verbose, exit, mode)
     } else {
         emit_update_text(out, err, &report, &details, verbose, exit, mode)
-    }
-}
-
-fn emit_update_dry_run(
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    workspace: &std::path::Path,
-    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
-    summary: &str,
-    verbose: bool,
-) -> i32 {
-    emit_dry_run(
-        invocation,
-        out,
-        summary,
-        verbose,
-        "default",
-        resolved
-            .iter()
-            .map(|(set, request)| {
-                describe_update_plan(
-                    workspace,
-                    *set,
-                    request,
-                    invocation.offline,
-                    invocation.frozen,
-                )
-            })
-            .collect(),
-    )
-}
-
-fn emit_check_dry_run(
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    workspace: &std::path::Path,
-    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
-    summary: &str,
-    verbose: bool,
-) -> i32 {
-    emit_dry_run(
-        invocation,
-        out,
-        summary,
-        verbose,
-        "check",
-        resolved
-            .iter()
-            .map(|(set, request)| {
-                describe_check_plan(
-                    workspace,
-                    *set,
-                    request,
-                    invocation.offline,
-                    invocation.frozen,
-                )
-            })
-            .collect(),
-    )
-}
-
-fn emit_dry_run(
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    summary: &str,
-    verbose: bool,
-    mode: &str,
-    plans: Vec<String>,
-) -> i32 {
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), true, mode) {
-            let _ = write_event(out, &event);
-        }
-        let finished = command_finished(0, &FinishedCounts::default());
-        let _ = write_event(out, &finished);
-    } else if verbose {
-        let _ = writeln!(out, "{summary}");
-        for plan in &plans {
-            let _ = writeln!(out, "{plan}");
-        }
-    }
-    0
-}
-
-fn describe_update_plan(
-    workspace: &std::path::Path,
-    set: dx_update::sets::SetId,
-    request: &dx_update::selector::SetRequest,
-    offline: bool,
-    frozen: bool,
-) -> String {
-    match dx_update::backend::plan(workspace, set, request, offline, frozen) {
-        Ok(dx_update::backend::BackendPlan::Run { argv, .. }) => {
-            format!("Would update {}: {}", set.name(), argv.join(" "))
-        }
-        Ok(dx_update::backend::BackendPlan::Noop) => {
-            format!(
-                "Would leave {} pinned (manual pins; nothing to resolve)",
-                set.name()
-            )
-        }
-        Err(error) => format!("Cannot update {}: {error}", set.name()),
-    }
-}
-
-fn describe_check_plan(
-    workspace: &std::path::Path,
-    set: dx_update::sets::SetId,
-    request: &dx_update::selector::SetRequest,
-    offline: bool,
-    frozen: bool,
-) -> String {
-    match dx_update::backend::check(workspace, set, request, offline, frozen) {
-        Ok(dx_update::backend::CheckPlan::Run { argv, .. }) => {
-            format!("Would check {}: {}", set.name(), argv.join(" "))
-        }
-        Ok(dx_update::backend::CheckPlan::Pinned) => {
-            format!(
-                "Would leave {} pinned (manual pins; nothing to resolve)",
-                set.name()
-            )
-        }
-        Ok(dx_update::backend::CheckPlan::Unavailable) => unavailable_message(set),
-        Err(error) => format!("Cannot check {}: {error}", set.name()),
     }
 }
 

@@ -1406,9 +1406,6 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
     assert!(bump_frozen.frozen);
     assert!(!bump_frozen.offline);
     assert!(bump_frozen.command.supports_frozen());
-    let dry = parse(&strings(&["update", "--offline", "--dry-run"])).expect("offline dry-run");
-    assert!(dry.offline);
-    assert!(dry.dry_run);
     for words in [
         vec!["lint", "--offline"],
         vec!["build", "//a:one", "--offline"],

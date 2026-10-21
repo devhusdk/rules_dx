@@ -26,8 +26,6 @@ fn unsupported_format_message(command: &str, format: &str, supported: &[&str]) -
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ReportError {
-    #[error("--dry-run conflicts with every --report request")]
-    DryRunConflict,
     #[error(
         "{msg}",
         msg = unsupported_format_message(command, format, supported)

@@ -47,7 +47,6 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
         crate::args::Command::Generate,
         &request.common.reports,
         &request.common.output,
-        request.dry_run,
     ) {
         Ok(_) => {}
         Err(error) => return pre_exec(env.err, &error.to_string()),
@@ -72,19 +71,8 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
         Err(error) => return pre_exec(env.err, &format!("{error}")),
     };
     let mode = if apply { "default" } else { "check" };
-    if request.dry_run {
-        if request.common.output == OutputMode::Json {
-            if let Ok(event) = command_started("generate", true, mode) {
-                let _ = write_event(env.out, &event);
-            }
-            let _ = write_event(env.out, &command_finished(0, &FinishedCounts::default()));
-        } else if request.chatty() {
-            let _ = writeln!(env.out, "{}", plan.summary);
-        }
-        return 0;
-    }
     if request.common.output == OutputMode::Json {
-        if let Ok(event) = command_started("generate", false, mode) {
+        if let Ok(event) = command_started("generate", mode) {
             let _ = write_event(env.out, &event);
         }
     } else if request.chatty() {
@@ -506,19 +494,7 @@ mod tests {
     }
 
     #[test]
-    fn generate_dry_run_plans_without_launching() {
-        let mut harness = Harness::new("generate-dryrun");
-        harness.bazel_code = 3;
-        let (code, out, _) = harness.run(&["generate", "--dry-run", "--output=text"]);
-        assert_eq!(code, 0, "{out}");
-        assert!(out.contains("Running generate for //..."), "{out}");
-
-        let harness = Harness::new("generate-dryrun-json");
-        let (code, out, _) = harness.run(&["generate", "--dry-run", "--output=json"]);
-        assert_eq!(code, 0, "{out}");
-        assert!(out.contains("\"command_started\""), "{out}");
-        assert!(out.contains("\"command_finished\""), "{out}");
-
+    fn generate_quiet_apply_prints_nothing() {
         let mut quiet = Harness::new("generate-quiet");
         quiet.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, _) = quiet.run(&["generate", "--apply", "--quiet"]);

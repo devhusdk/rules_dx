@@ -34,25 +34,6 @@ pub(crate) fn execute_hooks(
                     return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
                 }
             };
-            if invocation.dry_run {
-                if !summaries_suppressed(invocation) {
-                    for trigger in ["pre-commit", "pre-push"] {
-                        let shown =
-                            dx_adopt::display_hooks_path(workspace, &hooks_dir.join(trigger));
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "would install {shown}"))
-                        {
-                            return exit;
-                        }
-                    }
-                    if let Err(exit) =
-                        check_stdout_write(writeln!(out, "would install dx.local.toml"))
-                    {
-                        return exit;
-                    }
-                }
-                return 0;
-            }
             if !invocation.applies() {
                 return check_install(invocation, workspace, &hooks_dir, out, err);
             }
@@ -88,19 +69,6 @@ pub(crate) fn execute_hooks(
                     return operational(invocation, out, err, CODE_HOOKS_FAILED, &detail);
                 }
             };
-            if invocation.dry_run {
-                if !summaries_suppressed(invocation) {
-                    for trigger in ["pre-commit", "pre-push"] {
-                        let shown =
-                            dx_adopt::display_hooks_path(workspace, &hooks_dir.join(trigger));
-                        if let Err(exit) = check_stdout_write(writeln!(out, "would remove {shown}"))
-                        {
-                            return exit;
-                        }
-                    }
-                }
-                return 0;
-            }
             if !invocation.applies() {
                 return check_uninstall(invocation, workspace, &hooks_dir, out, err);
             }
@@ -267,14 +235,6 @@ fn execute_status(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    if invocation.dry_run {
-        if !summaries_suppressed(invocation) {
-            if let Err(exit) = check_stdout_write(writeln!(out, "would show hooks status")) {
-                return exit;
-            }
-        }
-        return 0;
-    }
     let baseline_opt = read_file_opt(workspace, dx_adopt::HOOK_BASELINE_REL);
     let overlay_opt = read_file_opt(workspace, dx_adopt::HOOK_OVERLAY_REL);
     let timings_opt = read_file_opt(workspace, dx_adopt::HOOK_TIMINGS_REL);
@@ -351,14 +311,6 @@ fn execute_run(
             err,
             &format!("usage: dx hooks run <{}>", dx_adopt::hook_trigger_pipe()),
         );
-    }
-    if invocation.dry_run {
-        if !summaries_suppressed(invocation) {
-            if let Err(exit) = check_stdout_write(writeln!(out, "would run {trigger}")) {
-                return exit;
-            }
-        }
-        return 0;
     }
     let git_path = runner.git_tool();
     let uses_hermetic = git_path
@@ -670,7 +622,7 @@ fn check_argv(dx_exe: &str, words: &[String], targets: &[String]) -> Vec<String>
     let mut argv_words: Vec<String> = words.to_vec();
     let explicit_mode = argv_words
         .iter()
-        .any(|word| matches!(word.as_str(), "--check" | "--apply" | "--dry-run"));
+        .any(|word| matches!(word.as_str(), "--check" | "--apply"));
     if !explicit_mode {
         let forces_check = argv_words
             .first()
@@ -935,40 +887,6 @@ mod tests {
         assert_eq!(code, 1);
         assert!(!err.is_empty(), "foreign hooks refuse uninstall");
         assert!(hooks_dir.join("pre-commit").exists());
-    }
-
-    #[test]
-    fn hooks_dry_run_reports_effective_paths_without_writing() {
-        let scratch = dx_test_scratch::scratch("hooks-dry-run-dir-");
-        let root = scratch.path().to_path_buf();
-        let hooks_dir = root.join("planned hooks");
-        let query = RepeatQuery::hooks_dir(&hooks_dir.to_string_lossy());
-        let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
-        for (words, want) in [
-            (
-                vec!["hooks", "install", "--dry-run"],
-                "would install planned hooks/pre-commit",
-            ),
-            (
-                vec!["hooks", "uninstall", "--dry-run"],
-                "would remove planned hooks/pre-push",
-            ),
-        ] {
-            let (code, out, err) = run_with(&invocation(&words), &root, &query, &runner);
-            assert_eq!(code, 0, "{words:?}");
-            assert!(out.contains(want), "{words:?}: {out}");
-            assert!(err.is_empty(), "{words:?}: {err}");
-        }
-        let (code, out, _err) = run_with(
-            &invocation(&["hooks", "install", "--dry-run", "--quiet"]),
-            &root,
-            &query,
-            &runner,
-        );
-        assert_eq!(code, 0);
-        assert!(out.is_empty());
-        assert!(!hooks_dir.join("pre-commit").exists());
-        assert!(!root.join("dx.local.toml").exists());
     }
 
     #[cfg(unix)]
@@ -1345,35 +1263,6 @@ mod tests {
         let text = out;
         assert!(text.contains("1.23s (measured)"));
         assert!(!text.contains("p95 12s"));
-    }
-
-    #[test]
-    fn hooks_dry_run_plans_without_mutating() {
-        for (words, want) in [
-            (vec!["hooks", "install", "--dry-run"], "would install"),
-            (vec!["hooks", "uninstall", "--dry-run"], "would remove"),
-            (vec!["hooks", "status", "--dry-run"], "would show"),
-            (
-                vec!["hooks", "run", "pre-commit", "--dry-run"],
-                "would run pre-commit",
-            ),
-        ] {
-            let inv = invocation(&words);
-            let scratch = dx_test_scratch::scratch("dx-adopt-hooks-dry-");
-            let root = scratch.path().to_path_buf();
-            let query = RepeatQuery::hooks_dir(".git/hooks");
-            let runner = ScriptRunner::git_with_codes("/hermetic/git", vec![]);
-            let (code, out, _err) = run_with(&inv, &root, &query, &runner);
-            assert_eq!(code, 0, "words: {words:?}");
-            assert!(out.contains(want), "words: {words:?}");
-            assert!(!root.join(".git/hooks/pre-commit").exists());
-        }
-        let inv = invocation(&["hooks", "status", "--dry-run", "--quiet"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-hooks-dry-quiet-");
-        let root = scratch.path().to_path_buf();
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        assert!(out.is_empty());
     }
 
     struct ScriptQuery {

@@ -2050,11 +2050,10 @@ fn every_env_default_names_a_real_global_flag() {
 
 #[test]
 fn config_file_keys_are_the_underscore_spellings_the_parser_reads() {
-    let text = "[dx]\nworkspace = \"/w\"\ncolor = \"never\"\ndry_run = true\nfail_on = \"error\"\n";
+    let text = "[dx]\nworkspace = \"/w\"\ncolor = \"never\"\nfail_on = \"error\"\n";
     let parsed = dx_adopt::defaults::parse_file_text(text).expect("keys parse");
     assert_eq!(parsed.workspace, Some("/w".to_owned()));
     assert_eq!(parsed.color, Some("never".to_owned()));
-    assert_eq!(parsed.dry_run, Some(true));
     assert_eq!(parsed.fail_on, Some("error".to_owned()));
     for (env, _, _) in dx_adopt::defaults::ENV_DEFAULTS {
         let key = dx_adopt::defaults::config_key(env).expect("every default has a key");
@@ -2142,7 +2141,7 @@ fn config_file_section_names_the_keys_and_files_the_parser_reads() {
 
 fn literal_for(key: &str) -> &'static str {
     match key {
-        "dry-run" | "quiet" | "verbose" => "true",
+        "quiet" | "verbose" => "true",
         "fail-on" => "\"error\"",
         "color" => "\"never\"",
         "output" => "\"json\"",
@@ -2739,7 +2738,7 @@ fn every_usage_error_prints_the_same_banner() {
         String::from_utf8(output).expect("stderr is utf-8")
     };
     let parse_error = rendered(&["--nope", "build"]);
-    let pre_exec_error = rendered(&["lint", "--dry-run", "--report=sarif=out.sarif"]);
+    let pre_exec_error = rendered(&["version", "--check", "--pin=1.0.0"]);
     let expected = banner();
     for (label, text) in [("parse", &parse_error), ("pre-exec", &pre_exec_error)] {
         assert!(

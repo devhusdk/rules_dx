@@ -21,7 +21,7 @@ Never overwrites existing files. It writes `.dx/version`, `dx.hooks.toml`,
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. Editor settings point at the managed
 interpreter and tools with host-native names.
-Flags: `--apply`, `--dry-run`.
+Flags: `--apply`.
 Scopes: optional single module name.
 
 Output: `--output text`.
@@ -48,7 +48,7 @@ overwritten or removed; a foreign hook fails the command with exit `1`.
 - `uninstall`: remove them.
 - `status`: show what would run.
 - `run <trigger>`: run one trigger.
-Flags: `--apply`, `--dry-run`.
+Flags: `--apply`.
 Scopes: verb `install|uninstall|status|run`.
 
 Install, uninstall, and run need a hermetic Git. Set `DX_GIT_BIN`

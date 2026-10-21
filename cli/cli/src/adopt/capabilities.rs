@@ -5,12 +5,9 @@ use clap::ValueEnum;
 use crate::args::help::advertises_passthrough;
 use crate::args::{Command, Invocation};
 use crate::exec::common::{check_stdout_write, emit_event, emit_started};
-use dx_output::{
-    capability_event, command_finished, command_started, CapabilityEvent, FinishedCounts,
-    OutputMode,
-};
+use dx_output::{capability_event, command_finished, CapabilityEvent, FinishedCounts, OutputMode};
 
-use super::{operational, pre_exec, summaries_suppressed};
+use super::{operational, pre_exec};
 
 pub(crate) const CODE_BROKEN_WORKSPACE: &str = "broken_workspace";
 
@@ -181,30 +178,6 @@ pub(crate) fn execute_capabilities(
         return pre_exec(err, "capabilities takes no scopes");
     }
     let is_json = invocation.output == OutputMode::Json;
-    if invocation.dry_run {
-        if is_json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-                return exit;
-            }
-            return 0;
-        }
-        if !summaries_suppressed(invocation) {
-            let line = if invocation.workspace_capabilities {
-                "would report capabilities with workspace facts"
-            } else {
-                "would report capabilities"
-            };
-            if let Err(exit) = check_stdout_write(writeln!(out, "{line}")) {
-                return exit;
-            }
-        }
-        return 0;
-    }
     if invocation.workspace_capabilities && !workspace.join("MODULE.bazel").is_file() {
         if is_json {
             if let Err(exit) = emit_started(invocation, out) {
@@ -460,39 +433,6 @@ mod tests {
         assert!(got.workspace_capabilities);
         let bare = crate::args::parse(&strings(&["capabilities"])).expect("bare parses");
         assert!(!bare.workspace_capabilities);
-    }
-
-    #[test]
-    fn dry_run_plans_without_reading_the_workspace() {
-        let scratch = dx_test_scratch::scratch("dx-cap-dry-");
-        for words in [
-            vec!["capabilities", "--dry-run"],
-            vec!["capabilities", "--dry-run", "--output=json"],
-            vec![
-                "capabilities",
-                "--workspace-capabilities",
-                "--dry-run",
-                "--output=json",
-            ],
-        ] {
-            let inv = invocation(&words);
-            let (code, out, err) = run(&inv, scratch.path());
-            assert_eq!(code, 0, "words: {words:?}");
-            assert!(err.is_empty(), "words: {words:?} {err}");
-            if words.contains(&"--output=json") {
-                let events = json_events(&out);
-                assert_eq!(
-                    event_kinds(&events),
-                    vec!["command_started", "command_finished"],
-                    "words: {words:?}"
-                );
-            } else {
-                assert!(
-                    out.contains("would report capabilities"),
-                    "words: {words:?} {out}"
-                );
-            }
-        }
     }
 
     #[test]

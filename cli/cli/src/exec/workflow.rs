@@ -34,7 +34,6 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command,
         &invocation.reports,
         &invocation.output,
-        invocation.dry_run,
     ) {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
@@ -125,19 +124,8 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(plan) => plan,
         Err(error) => return pre_exec(err, &format!("{error}")),
     };
-    if invocation.dry_run {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = command_started(invocation.command.name(), true, "default") {
-                let _ = write_event(out, &event);
-            }
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        } else if invocation.chatty() && !stdout_report {
-            let _ = writeln!(out, "{}", plan.summary);
-        }
-        return 0;
-    }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), false, "default") {
+        if let Ok(event) = command_started(invocation.command.name(), "default") {
             let _ = write_event(out, &event);
         }
     } else if invocation.chatty() && !stdout_report {
@@ -314,18 +302,6 @@ mod tests {
         let (code, _, err) = harness.run(&["build", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("unreadable_bep"), "{err}");
-    }
-
-    #[test]
-    fn workflow_dry_run_text_and_json() {
-        let harness = Harness::new("wf-dry-text");
-        let (code, out, _) = harness.run(&["build", "--dry-run", "--output=text"]);
-        assert_eq!(code, 0, "{out}");
-        assert!(out.contains("Running build"), "{out}");
-        let harness = Harness::new("wf-dry-json");
-        let (code, out, _) = harness.run(&["build", "--dry-run", "--output=json"]);
-        assert_eq!(code, 0, "{out}");
-        assert!(out.contains("command_started"), "{out}");
     }
 
     #[test]

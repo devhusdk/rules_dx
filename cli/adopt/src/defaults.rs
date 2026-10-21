@@ -5,13 +5,11 @@ pub const DX_OUTPUT_ENV: &str = "DX_OUTPUT";
 pub const DX_VERBOSE_ENV: &str = "DX_VERBOSE";
 pub const DX_COLOR_ENV: &str = "DX_COLOR";
 pub const DX_QUIET_ENV: &str = "DX_QUIET";
-pub const DX_DRY_RUN_ENV: &str = "DX_DRY_RUN";
 pub const DX_FAIL_ON_ENV: &str = "DX_FAIL_ON";
 
 /// Environment defaults, the flag each one defaults, and the value shape.
-pub const ENV_DEFAULTS: [(&str, &str, &str); 7] = [
+pub const ENV_DEFAULTS: [(&str, &str, &str); 6] = [
     (DX_WORKSPACE_ENV, "--workspace", "dir"),
-    (DX_DRY_RUN_ENV, "--dry-run", "bool"),
     (DX_QUIET_ENV, "--quiet", "bool"),
     (DX_VERBOSE_ENV, "--verbose", "bool"),
     (DX_COLOR_ENV, "--color", "mode"),
@@ -51,7 +49,6 @@ pub struct FileDefaults {
     pub verbose: Option<bool>,
     pub color: Option<String>,
     pub quiet: Option<bool>,
-    pub dry_run: Option<bool>,
     pub fail_on: Option<String>,
     pub baseline: Option<String>,
 }
@@ -70,6 +67,18 @@ pub fn parse_bool(value: &str) -> Option<bool> {
     } else {
         None
     }
+}
+
+const REMOVED_DRY_RUN_DEFAULT: &str = "dry_run was removed; delete it from the config file";
+
+/// Refuse the removed `DX_DRY_RUN` environment default whatever its value.
+pub fn reject_removed_env(get: &dyn Fn(&str) -> Option<String>) -> Result<(), super::AdoptError> {
+    if env_string(get, "DX_DRY_RUN").is_some() {
+        return Err(super::AdoptError::InvalidDefaults {
+            detail: "DX_DRY_RUN was removed; unset it".to_owned(),
+        });
+    }
+    Ok(())
 }
 
 pub fn env_string(get: &dyn Fn(&str) -> Option<String>, name: &str) -> Option<String> {
@@ -129,7 +138,7 @@ struct DxTable {
     #[serde(default)]
     quiet: Option<bool>,
     #[serde(default, alias = "dry-run")]
-    dry_run: Option<bool>,
+    dry_run: Option<toml::Value>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
 }
@@ -157,7 +166,7 @@ struct ConfigFile {
     #[serde(default)]
     quiet: Option<bool>,
     #[serde(default, alias = "dry-run")]
-    dry_run: Option<bool>,
+    dry_run: Option<toml::Value>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<String>,
     #[serde(default)]
@@ -188,6 +197,11 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         })?;
     check_consumer_schema(parsed.schema_version)?;
     let table = parsed.dx.unwrap_or_default();
+    if table.dry_run.is_some() || parsed.dry_run.is_some() {
+        return Err(super::AdoptError::InvalidDefaults {
+            detail: REMOVED_DRY_RUN_DEFAULT.to_owned(),
+        });
+    }
     let baseline = check_quality_baseline(parsed.quality.map(|quality| quality.baseline))?;
     Ok(FileDefaults {
         workspace: non_empty(table.workspace.or(parsed.workspace)),
@@ -195,7 +209,6 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         verbose: table.verbose.or(parsed.verbose),
         color: non_empty(table.color.or(parsed.color)),
         quiet: table.quiet.or(parsed.quiet),
-        dry_run: table.dry_run.or(parsed.dry_run),
         fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
         baseline,
     })
@@ -252,7 +265,6 @@ pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefau
         verbose: local.verbose.or(committed.verbose),
         color: local.color.or(committed.color),
         quiet: local.quiet.or(committed.quiet),
-        dry_run: local.dry_run.or(committed.dry_run),
         fail_on: local.fail_on.or(committed.fail_on),
         baseline: local.baseline.or(committed.baseline),
     }
@@ -414,24 +426,24 @@ mod tests {
 
     #[test]
     fn env_bool_refuses_a_value_outside_the_documented_spellings() {
-        let get = env_of(&[(DX_DRY_RUN_ENV, "tru")]);
-        let error = env_bool(&get, DX_DRY_RUN_ENV).expect_err("typo is not a boolean");
+        let get = env_of(&[(DX_QUIET_ENV, "tru")]);
+        let error = env_bool(&get, DX_QUIET_ENV).expect_err("typo is not a boolean");
         assert_eq!(
             error,
             super::super::AdoptError::InvalidEnvBool {
-                name: DX_DRY_RUN_ENV,
+                name: DX_QUIET_ENV,
                 value: "tru".to_owned(),
                 spellings: BOOL_SPELLINGS,
             }
         );
         assert_eq!(
             error.to_string(),
-            "invalid invocation default DX_DRY_RUN=\"tru\": want one of true|false"
+            "invalid invocation default DX_QUIET=\"tru\": want one of true|false"
         );
         for (name, value, wanted) in [
             (DX_QUIET_ENV, "false", false),
             (DX_VERBOSE_ENV, "FALSE", false),
-            (DX_DRY_RUN_ENV, "true", true),
+            (DX_VERBOSE_ENV, "true", true),
             (DX_QUIET_ENV, " True ", true),
         ] {
             let pairs = [(name, value)];
@@ -441,10 +453,10 @@ mod tests {
                 Some(wanted)
             );
         }
-        let get = env_of(&[(DX_DRY_RUN_ENV, ""), (DX_QUIET_ENV, "true")]);
-        assert_eq!(env_bool(&get, DX_DRY_RUN_ENV), Ok(None));
+        let get = env_of(&[(DX_VERBOSE_ENV, ""), (DX_QUIET_ENV, "true")]);
+        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(None));
         assert_eq!(env_bool(&get, DX_QUIET_ENV), Ok(Some(true)));
-        assert_eq!(env_bool(&env_of(&[]), DX_DRY_RUN_ENV), Ok(None));
+        assert_eq!(env_bool(&env_of(&[]), DX_VERBOSE_ENV), Ok(None));
     }
 
     #[test]
@@ -453,7 +465,6 @@ mod tests {
             ENV_DEFAULTS.map(|(env, _, _)| env),
             [
                 DX_WORKSPACE_ENV,
-                DX_DRY_RUN_ENV,
                 DX_QUIET_ENV,
                 DX_VERBOSE_ENV,
                 DX_COLOR_ENV,
@@ -534,7 +545,7 @@ mod tests {
     #[test]
     fn file_parses_dx_table_with_top_level_alias() {
         let parsed = parse_file_text(
-            "[dx]\nworkspace = \"/repo\"\noutput = \"json\"\nverbose = true\ncolor = \"never\"\nquiet = false\ndry_run = true\nfail_on = \"error\"\n",
+            "[dx]\nworkspace = \"/repo\"\noutput = \"json\"\nverbose = true\ncolor = \"never\"\nquiet = false\nfail_on = \"error\"\n",
         )
         .expect("dx table parses");
         assert_eq!(parsed.workspace, Some("/repo".to_owned()));
@@ -542,7 +553,6 @@ mod tests {
         assert_eq!(parsed.verbose, Some(true));
         assert_eq!(parsed.color, Some("never".to_owned()));
         assert_eq!(parsed.quiet, Some(false));
-        assert_eq!(parsed.dry_run, Some(true));
         assert_eq!(parsed.fail_on, Some("error".to_owned()));
         let top = parse_file_text("workspace = \"/top\"\nverbose = true\n").expect("top parses");
         assert_eq!(top.workspace, Some("/top".to_owned()));
@@ -561,15 +571,34 @@ mod tests {
 
     #[test]
     fn file_hyphen_aliases_and_empty_strings_are_absent() {
-        let parsed = parse_file_text("[dx]\n\"dry-run\" = true\n\"fail-on\" = \"info\"\n")
-            .expect("hyphen aliases parse");
-        assert_eq!(parsed.dry_run, Some(true));
+        let parsed =
+            parse_file_text("[dx]\n\"fail-on\" = \"info\"\n").expect("hyphen aliases parse");
         assert_eq!(parsed.fail_on, Some("info".to_owned()));
         let parsed = parse_file_text("workspace = \"\"\noutput = \"\"\ncolor = \"\"\n")
             .expect("empty parses");
         assert_eq!(parsed.workspace, None);
         assert_eq!(parsed.output, None);
         assert_eq!(parsed.color, None);
+    }
+
+    #[test]
+    fn removed_dry_run_defaults_are_refused_even_when_false() {
+        for text in [
+            "dry_run = false\n",
+            "dry-run = true\n",
+            "[dx]\ndry_run = false\n",
+            "[dx]\n\"dry-run\" = true\n",
+        ] {
+            let error = parse_file_text(text).expect_err(text);
+            assert!(error.to_string().contains("removed"), "{text:?}: {error}");
+        }
+        for value in ["true", "false", "1", "x"] {
+            let pairs = [("DX_DRY_RUN", value)];
+            let error = reject_removed_env(&env_of(&pairs)).expect_err(value);
+            assert!(error.to_string().contains("DX_DRY_RUN"), "{error}");
+        }
+        assert_eq!(reject_removed_env(&env_of(&[("DX_DRY_RUN", "")])), Ok(()));
+        assert_eq!(reject_removed_env(&env_of(&[])), Ok(()));
     }
 
     #[test]
@@ -598,7 +627,7 @@ mod tests {
         for (env, flag, _) in ENV_DEFAULTS {
             let key = config_key(env).expect("every default has a key");
             let literal = match flag {
-                "--dry-run" | "--quiet" | "--verbose" => "true",
+                "--quiet" | "--verbose" => "true",
                 "--fail-on" => "\"error\"",
                 "--color" => "\"never\"",
                 "--output" => "\"json\"",
@@ -669,8 +698,6 @@ mod tests {
             Some(false),
             "an explicit false is not an absent value"
         );
-        let top_only = parse_file_text("dry_run = false\n").expect("top false");
-        assert_eq!(top_only.dry_run, Some(false));
         let top_true = parse_file_text("verbose = true\n").expect("top true");
         assert_eq!(top_true.verbose, Some(true));
         assert!(

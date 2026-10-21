@@ -11,7 +11,6 @@ fn bare_command_parses_with_defaults() {
     assert!(!got.debug);
     assert!(!got.release);
     assert_eq!(got.workspace, None);
-    assert!(!got.dry_run);
     assert!(!got.quiet);
     assert!(!got.verbose);
     assert_eq!(got.log_level, None);
@@ -177,17 +176,6 @@ fn bare_commands_check_by_default_and_check_spelling_agrees() {
 }
 
 #[test]
-fn dry_run_selects_plan_and_stays_orthogonal_to_check() {
-    let plan = parse(&strings(&["lint", "--dry-run"])).expect("plan");
-    assert!(plan.dry_run);
-    assert_eq!(plan.operation(), OperationMode::Plan);
-    let both = parse(&strings(&["lint", "--check", "--dry-run"])).expect("orthogonal");
-    assert!(both.check);
-    assert!(both.dry_run);
-    assert_eq!(both.operation(), OperationMode::Plan);
-}
-
-#[test]
 fn check_and_apply_conflict() {
     for words in [
         vec!["lint", "--check", "--apply"],
@@ -209,26 +197,20 @@ fn check_and_apply_conflict() {
 }
 
 #[test]
-fn dry_run_and_apply_conflict() {
+fn removed_dry_run_flag_is_unknown() {
     for words in [
-        vec!["lint", "--dry-run", "--apply"],
-        vec!["lint", "--apply", "--dry-run"],
+        vec!["lint", "--dry-run"],
+        vec!["lint", "--dry-run=true"],
+        vec!["lint", "--dry-run=false"],
         vec!["clean", "--dry-run", "--apply"],
         vec!["fix", "--apply", "--dry-run"],
     ] {
-        assert_eq!(
-            parse(&strings(&words)),
-            Err(ArgsError::ConflictingModes {
-                first: "--dry-run",
-                second: "--apply",
-            }),
-            "words: {words:?}"
-        );
+        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--dry-run"]);
     }
-    let off = parse(&strings(&["fix", "--dry-run=false", "--apply"])).expect("explicit off");
-    assert!(off.apply);
-    assert!(!off.dry_run);
-    assert_eq!(off.operation(), OperationMode::Apply);
+}
+
+#[test]
+fn repeated_apply_is_idempotent() {
     let repeated = parse(&strings(&["fix", "--apply", "--apply"])).expect("last wins");
     assert!(repeated.apply);
     assert_eq!(repeated.operation(), OperationMode::Apply);
@@ -305,7 +287,6 @@ fn globals_parse_after_the_command() {
         "typecheck",
         "--workspace",
         "/repo",
-        "--dry-run",
         "--quiet",
         "--output=json",
         "--fail-on=error",
@@ -313,7 +294,6 @@ fn globals_parse_after_the_command() {
     .expect("parse");
     assert_eq!(got.command, Command::Typecheck);
     assert_eq!(got.workspace, Some("/repo".to_owned()));
-    assert!(got.dry_run);
     assert!(got.quiet);
     assert_eq!(got.output, OutputMode::Json);
     assert_eq!(got.fail_on, Threshold::Error);
@@ -536,7 +516,7 @@ fn unknown_options_fail() {
     for (words, needle) in [
         (vec!["lint", "--jobs=4"], "--jobs"),
         (vec!["lint", "-q"], "-q"),
-        (vec!["lint", "--dry-run=yes"], "--dry-run"),
+        (vec!["lint", "--dry-run"], "--dry-run"),
         (vec!["-"], "-"),
     ] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[needle]);
@@ -598,15 +578,13 @@ fn inline_flag_values_and_empty_workspace_fail() {
 }
 
 #[test]
-fn clean_parses_dry_run_and_bazel() {
+fn clean_parses_bazel() {
     let got = parse(&strings(&["clean"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
     assert!(!got.bazel_clean);
     assert!(!got.prune_unobserved);
-    assert!(!got.dry_run);
-    let got = parse(&strings(&["clean", "--dry-run", "--bazel"])).expect("parse");
+    let got = parse(&strings(&["clean", "--bazel"])).expect("parse");
     assert_eq!(got.command, Command::Clean);
-    assert!(got.dry_run);
     assert!(got.bazel_clean);
     assert!(!got.prune_unobserved);
     let got = parse(&strings(&["clean", "--prune-unobserved"])).expect("parse");

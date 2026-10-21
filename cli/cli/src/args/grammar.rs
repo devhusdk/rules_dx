@@ -50,7 +50,6 @@ fn after_help_of(index: usize) -> String {
 #[derive(Debug, Default)]
 pub(crate) struct Flags {
     pub(crate) workspace: Option<OsString>,
-    pub(crate) dry_run: Option<bool>,
     pub(crate) quiet: Option<bool>,
     pub(crate) verbose: Option<bool>,
     pub(crate) color: Option<String>,
@@ -131,22 +130,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Show the plan without running it. =false turns off an inherited default.
-    DryRunFlag, {
-        #[arg(
-            long,
-            action = clap::ArgAction::Set,
-            num_args = 0..=1,
-            require_equals = true,
-            default_missing_value = "true",
-            value_parser = clap::value_parser!(bool),
-            overrides_with = "dry_run"
-        )]
-        dry_run: Option<bool>,
-    }
-}
-
-flag_group! {
     /// Hide summaries. =false turns off an inherited default.
     QuietFlag, {
         #[arg(
@@ -222,7 +205,6 @@ composite_group! {
     /// The flags every command accepts.
     CommonArgs, {
         workspace: WorkspaceFlag,
-        dry_run: DryRunFlag,
         quiet: QuietFlag,
         verbose: VerboseFlag,
         color: ColorFlag,
@@ -894,7 +876,6 @@ mod tests {
         for words in [
             vec!["--output=json", "lint"],
             vec!["--workspace", "/repo", "lint"],
-            vec!["--dry-run", "build"],
             vec!["--quiet", "typecheck"],
             vec!["--verbose", "lint"],
             vec!["-v", "lint"],

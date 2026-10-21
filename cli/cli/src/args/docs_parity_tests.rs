@@ -2736,7 +2736,7 @@ fn every_usage_error_prints_the_same_banner() {
         String::from_utf8(output).expect("stderr is utf-8")
     };
     let parse_error = rendered(&["--nope", "build"]);
-    let pre_exec_error = rendered(&["version", "--check", "--pin=1.0.0"]);
+    let pre_exec_error = rendered(&["version", "--check", "--apply"]);
     let expected = banner();
     for (label, text) in [("parse", &parse_error), ("pre-exec", &pre_exec_error)] {
         assert!(

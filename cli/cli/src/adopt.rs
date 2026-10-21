@@ -220,12 +220,6 @@ mod tests {
         assert_eq!(code, 0);
         assert!(!out.is_empty());
 
-        let inv = invocation(&["version", "--check", "--quiet"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-version-check-");
-        let root = scratch.path().to_path_buf();
-        let (code, _out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-
         let inv = invocation(&["version", "--quiet"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-version-");
         let root = scratch.path().to_path_buf();

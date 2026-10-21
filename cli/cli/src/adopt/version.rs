@@ -6,8 +6,8 @@ use dx_output::{
     command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
 };
 
+use super::operational;
 use super::status::CODE_STATUS_PIN_MISMATCH;
-use super::{operational, pre_exec, summaries_suppressed};
 
 fn json_status(
     out: &mut dyn Write,
@@ -99,13 +99,7 @@ pub(crate) fn execute_version(
             {
                 return exit;
             }
-            if let Err(exit) = json_status(
-                out,
-                "pin",
-                "ok",
-                &current,
-                "dx version --check",
-            ) {
+            if let Err(exit) = json_status(out, "pin", "ok", &current, "dx version --check") {
                 return exit;
             }
             if let Err(exit) = json_status(out, "dependency", "ok", &dependency, "dx version") {

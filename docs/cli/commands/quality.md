@@ -18,7 +18,8 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 
 - `--check`: report findings without writing files. Same as the default.
 - `--apply`: write validated fixes and refresh the configured baseline.
-  Without it files stay untouched.
+  Without it files stay untouched. Identical fixes for one shared file count
+  once; disagreeing fixes leave it untouched, name each producer, and exit `1`.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
   Repeatable. `dx format` has no report format. A relative destination anchors

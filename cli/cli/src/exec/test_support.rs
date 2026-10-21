@@ -145,10 +145,21 @@ impl Harness {
         replacements: Vec<proto::FileEdits>,
         snapshots: Vec<FileSnapshot>,
     ) -> Vec<u8> {
+        self.result_with_producer("//test:corpus", initial, terminal, replacements, snapshots)
+    }
+
+    pub(crate) fn result_with_producer(
+        &self,
+        producer: &str,
+        initial: Vec<proto::Diagnostic>,
+        terminal: Vec<proto::Diagnostic>,
+        replacements: Vec<proto::FileEdits>,
+        snapshots: Vec<FileSnapshot>,
+    ) -> Vec<u8> {
         let result = QualityResult {
             schema_major: SCHEMA_MAJOR,
             schema_minor: SCHEMA_MINOR,
-            producer: "//test:corpus".to_owned(),
+            producer: producer.to_owned(),
             capability: Capability::Lint as i32,
             stages: vec![Stage {
                 tool_id: "lint-tool".to_owned(),
@@ -246,31 +257,51 @@ impl Harness {
         for (artifact, bytes) in &staged {
             std::fs::write(artifact, bytes).expect("artifact");
         }
-        let files: Vec<serde_json::Value> = staged
-            .iter()
-            .map(|(artifact, _)| {
-                serde_json::json!({"uri": format!("file://{}", artifact.to_string_lossy())})
-            })
-            .collect();
-        let mut lines = Vec::new();
-        lines.push(
-            serde_json::json!({
-                "id": {"namedSet": {"id": "0"}},
-                "namedSetOfFiles": {"files": files},
-            })
-            .to_string(),
-        );
         let success = !self.fail_target;
-        lines.push(
-            serde_json::json!({
-                "id": {"targetCompleted": {"label": "//test:corpus"}},
-                "completed": {
-                    "success": success,
-                    "outputGroup": [{"name": "dx_results", "fileSets": [{"id": "0"}]}],
-                },
-            })
-            .to_string(),
-        );
+        let mut lines = Vec::new();
+        for (index, (label, _)) in self.results.iter().enumerate() {
+            let safe = label.replace(['/', ':'], "_");
+            let artifact = self.temp.join(format!("{safe}.pb"));
+            let set = index.to_string();
+            lines.push(
+                serde_json::json!({
+                    "id": {"namedSet": {"id": set}},
+                    "namedSetOfFiles": {"files": [
+                        {"uri": format!("file://{}", artifact.to_string_lossy())}
+                    ]},
+                })
+                .to_string(),
+            );
+            lines.push(
+                serde_json::json!({
+                    "id": {"targetCompleted": {"label": label}},
+                    "completed": {
+                        "success": success,
+                        "outputGroup": [{"name": "dx_results", "fileSets": [{"id": set}]}],
+                    },
+                })
+                .to_string(),
+            );
+        }
+        if self.results.is_empty() {
+            lines.push(
+                serde_json::json!({
+                    "id": {"namedSet": {"id": "0"}},
+                    "namedSetOfFiles": {"files": []},
+                })
+                .to_string(),
+            );
+            lines.push(
+                serde_json::json!({
+                    "id": {"targetCompleted": {"label": "//test:corpus"}},
+                    "completed": {
+                        "success": success,
+                        "outputGroup": [{"name": "dx_results", "fileSets": [{"id": "0"}]}],
+                    },
+                })
+                .to_string(),
+            );
+        }
         FakeRunner {
             code: if self.signalled {
                 None

@@ -2,18 +2,20 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use dx_output::{
-    change_value, diagnostic_value, mutation_value, write_event, ChangeKind, DiagnosticEvent,
-    MutationOutcome, OutputMode, Resolution, Snapshot,
+    change_value, diagnostic_value, mutation_value, notice_event, write_event, ChangeKind,
+    DiagnosticEvent, MutationOutcome, NoticeEvent, OutputMode, Resolution, Snapshot,
 };
 
 use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
 use super::quality_baseline::BaselineView;
+use super::results::Conflict;
 use crate::args::QualityRequest;
 
 pub(crate) struct EmitInputs<'a> {
     pub(crate) request: &'a QualityRequest,
     pub(crate) status: &'a [DiagnosticEvent],
     pub(crate) changes: &'a [FileChange],
+    pub(crate) conflicts: &'a [Conflict],
     pub(crate) applied: &'a BTreeMap<String, bool>,
     pub(crate) not_applied: &'a [(String, &'static str)],
     pub(crate) patch: &'a str,
@@ -36,6 +38,7 @@ pub(crate) fn emit_findings(
         request,
         status,
         changes,
+        conflicts,
         applied,
         not_applied,
         patch,
@@ -71,6 +74,25 @@ pub(crate) fn emit_findings(
                 }
             }
             let _ = write_event(out, &event);
+        }
+        for conflict in conflicts {
+            let notice = NoticeEvent {
+                level: "warning".to_owned(),
+                code: "quality_conflict".to_owned(),
+                message: format!(
+                    "{}; producers: {}",
+                    conflict.reason,
+                    conflict.producers.join(", ")
+                ),
+                related_command: None,
+                scope: None,
+                path: Some(conflict.path.clone()),
+                language: None,
+                import: None,
+            };
+            if let Ok(event) = notice_event(&notice) {
+                let _ = write_event(out, &event);
+            }
         }
         for change in changes {
             let _ = write_event(out, &change_value(&change_event_for(change)));
@@ -125,10 +147,16 @@ pub(crate) fn emit_findings(
                 let _ = writeln!(human, "Applied {applied_count} file(s).");
             }
         }
+        for conflict in conflicts {
+            let _ = writeln!(err, "{}", conflict.describe());
+        }
         for (path, reason) in not_applied {
             let _ = writeln!(err, "Not applied: {path} ({reason})");
         }
     } else {
+        for conflict in conflicts {
+            let _ = writeln!(err, "{}", conflict.describe());
+        }
         for (path, reason) in not_applied {
             let _ = writeln!(err, "Not applied: {path} ({reason})");
         }

@@ -5,15 +5,24 @@ use crate::plan::OUTPUT_GROUP;
 use dx_output::{DiagnosticEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
-use super::common::{collect_targets, FileChange};
+use super::common::{
+    apply_to_bytes, collect_targets, FileChange, REASON_CONFLICTING_EDITS,
+    REASON_CONFLICTING_ORIGINAL_DIGEST, REASON_CONFLICTING_TERMINAL_DIGEST,
+};
+
+#[derive(Clone)]
+struct Candidate {
+    change: FileChange,
+    producers: BTreeSet<String>,
+}
 
 #[derive(Default)]
 struct Staged {
     tools: Vec<String>,
     initial: Vec<DiagnosticEvent>,
     terminal: Vec<DiagnosticEvent>,
-    changes: Vec<FileChange>,
-    digests: Vec<(String, [u8; 32])>,
+    changes: Vec<Candidate>,
+    digests: Vec<(String, [u8; 32], String)>,
 }
 
 impl Staged {
@@ -26,20 +35,175 @@ impl Staged {
     }
 }
 
+/// One workspace path whose producers disagree, kept out of every projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Conflict {
+    pub(crate) path: String,
+    pub(crate) reason: &'static str,
+    pub(crate) producers: Vec<String>,
+}
+
+impl Conflict {
+    pub(crate) fn describe(&self) -> String {
+        format!(
+            "Conflict: {} ({}; producers: {})",
+            self.path,
+            self.reason,
+            self.producers.join(", ")
+        )
+    }
+}
+
+/// Merges same-path candidates and terminal digests into one change or one explicit conflict.
+fn reconcile_changes(
+    workspace: &Path,
+    candidates: Vec<Candidate>,
+    digests: Vec<(String, [u8; 32], String)>,
+) -> (Vec<FileChange>, BTreeMap<String, [u8; 32]>, Vec<Conflict>) {
+    let mut candidates_by_path: BTreeMap<String, Vec<Candidate>> = BTreeMap::new();
+    for candidate in candidates {
+        candidates_by_path
+            .entry(candidate.change.path.clone())
+            .or_default()
+            .push(candidate);
+    }
+    let mut digests_by_path: BTreeMap<String, Vec<([u8; 32], String)>> = BTreeMap::new();
+    for (path, digest, producer) in digests {
+        digests_by_path
+            .entry(path)
+            .or_default()
+            .push((digest, producer));
+    }
+    let mut paths: BTreeSet<String> = candidates_by_path.keys().cloned().collect();
+    paths.extend(digests_by_path.keys().cloned());
+    let mut changes = Vec::with_capacity(candidates_by_path.len());
+    let mut terminal_digests = BTreeMap::new();
+    let mut conflicts = Vec::new();
+    for path in paths {
+        let group = candidates_by_path.remove(&path).unwrap_or_default();
+        let observed = digests_by_path.remove(&path).unwrap_or_default();
+        let mut producers: BTreeSet<String> = group
+            .iter()
+            .flat_map(|candidate| candidate.producers.iter().cloned())
+            .collect();
+        producers.extend(observed.iter().map(|(_, producer)| producer.clone()));
+        let unique: BTreeSet<[u8; 32]> = observed.iter().map(|(digest, _)| *digest).collect();
+        if unique.len() > 1 {
+            conflicts.push(Conflict {
+                path,
+                reason: REASON_CONFLICTING_TERMINAL_DIGEST,
+                producers: producers.into_iter().collect(),
+            });
+            continue;
+        }
+        let agreed = unique.into_iter().next();
+        if group.is_empty() {
+            if let Some(digest) = agreed {
+                terminal_digests.insert(path, digest);
+            }
+            continue;
+        }
+        let originals: BTreeSet<[u8; 32]> = group
+            .iter()
+            .map(|candidate| candidate.change.original_digest)
+            .collect();
+        if originals.len() > 1 {
+            conflicts.push(Conflict {
+                path,
+                reason: REASON_CONFLICTING_ORIGINAL_DIGEST,
+                producers: producers.into_iter().collect(),
+            });
+            continue;
+        }
+        let original_digest = group[0].change.original_digest;
+        match terminal_candidates(workspace, &path, original_digest, &group) {
+            Some(terminals) if terminals.len() > 1 => {
+                conflicts.push(Conflict {
+                    path,
+                    reason: REASON_CONFLICTING_EDITS,
+                    producers: producers.into_iter().collect(),
+                });
+            }
+            Some(_) => {
+                if let Some(candidate) = choose_candidate(group) {
+                    changes.push(candidate.change);
+                    if let Some(digest) = agreed {
+                        terminal_digests.insert(path, digest);
+                    }
+                }
+            }
+            None => {
+                let distinct: BTreeSet<&Vec<(u64, u64, String)>> = group
+                    .iter()
+                    .map(|candidate| &candidate.change.edits)
+                    .collect();
+                if distinct.len() > 1 {
+                    conflicts.push(Conflict {
+                        path,
+                        reason: REASON_CONFLICTING_EDITS,
+                        producers: producers.into_iter().collect(),
+                    });
+                } else if let Some(candidate) = choose_candidate(group) {
+                    changes.push(candidate.change);
+                    if let Some(digest) = agreed {
+                        terminal_digests.insert(path, digest);
+                    }
+                }
+            }
+        }
+    }
+    conflicts.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
+    (changes, terminal_digests, conflicts)
+}
+
+fn choose_candidate(group: Vec<Candidate>) -> Option<Candidate> {
+    group.into_iter().min_by(|a, b| {
+        a.change
+            .edits
+            .cmp(&b.change.edits)
+            .then_with(|| a.producers.cmp(&b.producers))
+    })
+}
+
+fn terminal_candidates(
+    workspace: &Path,
+    path: &str,
+    original_digest: [u8; 32],
+    group: &[Candidate],
+) -> Option<BTreeSet<Vec<u8>>> {
+    let original = std::fs::read(workspace.join(path)).ok()?;
+    if dx_digest::blake3(&original) != original_digest {
+        return None;
+    }
+    group
+        .iter()
+        .map(|candidate| apply_to_bytes(&original, &candidate.change.edits))
+        .collect()
+}
+
 /// Decodes one result artifact into the collected shape, or None when it is not one.
-fn stage_artifact(bytes: &[u8]) -> Option<Staged> {
-    stage_result(&decode_validated(bytes).ok()?)
+fn stage_artifact(bytes: &[u8], target: &str) -> Option<Staged> {
+    stage_result(&decode_validated(bytes).ok()?, target)
 }
 
 /// Maps one decoded result, or None when a field is outside what the report can carry.
-fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
+fn stage_result(result: &proto::QualityResult, target: &str) -> Option<Staged> {
     let mut staged = Staged::default();
+    let mut producers: BTreeSet<String> = BTreeSet::new();
+    producers.insert(result.producer.clone());
+    if !target.is_empty() && target != result.producer {
+        producers.insert(target.to_owned());
+    }
     for stage in &result.stages {
         staged.tools.push(stage.tool_id.clone());
     }
     for snapshot in &result.terminal_snapshot {
         let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
-        staged.digests.push((snapshot.path.clone(), digest));
+        for producer in &producers {
+            staged
+                .digests
+                .push((snapshot.path.clone(), digest, producer.clone()));
+        }
     }
     for diagnostic in &result.initial_diagnostics {
         staged
@@ -52,7 +216,10 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
             .push(map_diagnostic(diagnostic, Snapshot::Terminal)?);
     }
     for file in &result.replacements {
-        staged.changes.push(map_change(file)?);
+        staged.changes.push(Candidate {
+            change: map_change(file)?,
+            producers: producers.clone(),
+        });
     }
     Some(staged)
 }
@@ -62,6 +229,7 @@ pub(crate) struct Collected {
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
+    pub(crate) conflicts: Vec<Conflict>,
     pub(crate) terminal_digests: BTreeMap<String, [u8; 32]>,
     pub(crate) complete: bool,
 }
@@ -128,8 +296,8 @@ pub(crate) fn collect_results_in(
     let mut tools = BTreeSet::new();
     let mut initial = Vec::new();
     let mut terminal = Vec::new();
-    let mut changes = Vec::new();
-    let mut terminal_digests = BTreeMap::new();
+    let mut candidates = Vec::new();
+    let mut digests = Vec::new();
     let mut complete = true;
     for target in &targets {
         if !target.success {
@@ -139,7 +307,7 @@ pub(crate) fn collect_results_in(
         let mut staged = Staged::default();
         let mut staged_ok = true;
         for artifact in &target.artifacts {
-            let Some(part) = stage_artifact(&artifact.bytes) else {
+            let Some(part) = stage_artifact(&artifact.bytes, &target.label) else {
                 staged_ok = false;
                 break;
             };
@@ -152,14 +320,16 @@ pub(crate) fn collect_results_in(
         tools.extend(staged.tools);
         initial.extend(staged.initial);
         terminal.extend(staged.terminal);
-        changes.extend(staged.changes);
-        terminal_digests.extend(staged.digests);
+        candidates.extend(staged.changes);
+        digests.extend(staged.digests);
     }
+    let (changes, terminal_digests, conflicts) = reconcile_changes(workspace, candidates, digests);
     Ok(Collected {
         tools: tools.into_iter().collect(),
         initial,
         terminal,
         changes,
+        conflicts,
         terminal_digests,
         complete,
     })
@@ -216,9 +386,15 @@ mod tests {
         );
         let mut result = decode_validated(&bytes).expect("valid result");
         result.terminal_diagnostics = result.initial_diagnostics.clone();
-        assert!(stage_artifact(&bytes).is_some(), "a valid artifact stages");
-        assert!(stage_result(&result).is_some(), "a valid result stages");
-        assert!(stage_artifact(b"not-a-validated-result").is_none());
+        assert!(
+            stage_artifact(&bytes, "//test:corpus").is_some(),
+            "a valid artifact stages"
+        );
+        assert!(
+            stage_result(&result, "//test:corpus").is_some(),
+            "a valid result stages"
+        );
+        assert!(stage_artifact(b"not-a-validated-result", "//test:corpus").is_none());
 
         let mut short_snapshot = result.clone();
         short_snapshot.terminal_snapshot[0].digest.pop();
@@ -229,7 +405,7 @@ mod tests {
         let mut short_original = result.clone();
         short_original.replacements[0].original_digest.pop();
         for broken in [short_snapshot, no_severity, no_end, short_original] {
-            assert!(stage_result(&broken).is_none());
+            assert!(stage_result(&broken, "//test:corpus").is_none());
             assert!(
                 encode_validated(&broken).is_err(),
                 "a producer cannot send what staging rejects"
@@ -245,13 +421,224 @@ mod tests {
         let mut result = decode_validated(&bytes).expect("valid result");
         result.replacements[0].edits[0].replacement = vec![0xFF];
         assert!(
-            stage_result(&result).is_none(),
+            stage_result(&result, "//test:corpus").is_none(),
             "a change whose replacement is not text never reaches the report"
         );
         assert!(
             encode_validated(&result).is_err(),
             "a producer cannot send what staging rejects"
         );
+    }
+
+    fn candidate(original: &[u8], edits: Vec<(u64, u64, &str)>, producers: &[&str]) -> Candidate {
+        Candidate {
+            change: FileChange {
+                path: "src/a.py".to_owned(),
+                original_digest: dx_digest::blake3(original),
+                edits: edits
+                    .into_iter()
+                    .map(|(start, end, text)| (start, end, text.to_owned()))
+                    .collect(),
+            },
+            producers: producers.iter().map(|name| (*name).to_owned()).collect(),
+        }
+    }
+
+    fn full(original: &[u8], terminal: &str, producers: &[&str]) -> Candidate {
+        candidate(
+            original,
+            vec![(0, original.len() as u64, terminal)],
+            producers,
+        )
+    }
+
+    fn reconcile_fixture(
+        name: &str,
+        body: &str,
+        candidates: Vec<Candidate>,
+        digests: Vec<(&str, &[u8], &str)>,
+    ) -> (Vec<FileChange>, BTreeMap<String, [u8; 32]>, Vec<Conflict>) {
+        let dir = temp_dir(name);
+        std::fs::create_dir_all(dir.path().join("src")).expect("dirs");
+        std::fs::write(dir.path().join("src/a.py"), body).expect("source");
+        let observed = digests
+            .into_iter()
+            .map(|(path, bytes, producer)| {
+                (
+                    path.to_owned(),
+                    dx_digest::blake3(bytes),
+                    producer.to_owned(),
+                )
+            })
+            .collect();
+        reconcile_changes(dir.path(), candidates, observed)
+    }
+
+    #[test]
+    fn identical_candidates_merge_into_one_change() {
+        let original = b"x = 1\n";
+        let terminal = b"y = 1\n";
+        let first = full(original, "y = 1\n", &["//a:lint"]);
+        let second = full(original, "y = 1\n", &["//b:format"]);
+        let (changes, digests, conflicts) = reconcile_fixture(
+            "reconcile-identical",
+            "x = 1\n",
+            vec![first, second],
+            vec![
+                ("src/a.py", terminal, "//a:lint"),
+                ("src/a.py", terminal, "//b:format"),
+            ],
+        );
+        assert!(conflicts.is_empty());
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].path, "src/a.py");
+        assert_eq!(digests.get("src/a.py"), Some(&dx_digest::blake3(terminal)));
+    }
+
+    #[test]
+    fn equivalent_terminal_bytes_merge_despite_different_edits() {
+        let original = b"ab\n";
+        let terminal = b"cd\n";
+        let whole = full(original, "cd\n", &["//a:lint"]);
+        let split = candidate(original, vec![(0, 1, "c"), (1, 2, "d")], &["//b:format"]);
+        let (changes, digests, conflicts) = reconcile_fixture(
+            "reconcile-equivalent",
+            "ab\n",
+            vec![whole, split],
+            vec![
+                ("src/a.py", terminal, "//a:lint"),
+                ("src/a.py", terminal, "//b:format"),
+            ],
+        );
+        assert!(conflicts.is_empty());
+        assert_eq!(changes.len(), 1);
+        assert_eq!(
+            apply_to_bytes(original, &changes[0].edits),
+            Some(terminal.to_vec())
+        );
+        assert_eq!(digests.get("src/a.py"), Some(&dx_digest::blake3(terminal)));
+    }
+
+    #[test]
+    fn disagreeing_terminal_candidates_conflict_with_producers() {
+        let original = b"ab\n";
+        let first = full(original, "cd\n", &["//a:lint"]);
+        let second = full(original, "ce\n", &["//b:format"]);
+        let (changes, digests, conflicts) =
+            reconcile_fixture("reconcile-edits", "ab\n", vec![first, second], vec![]);
+        assert!(changes.is_empty());
+        assert!(digests.is_empty());
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].path, "src/a.py");
+        assert_eq!(conflicts[0].reason, REASON_CONFLICTING_EDITS);
+        assert_eq!(
+            conflicts[0].producers,
+            vec!["//a:lint".to_owned(), "//b:format".to_owned()]
+        );
+    }
+
+    #[test]
+    fn disagreeing_original_digests_conflict() {
+        let first = full(b"ab\n", "cd\n", &["//a:lint"]);
+        let second = full(b"xy\n", "cd\n", &["//b:format"]);
+        let (changes, _, conflicts) =
+            reconcile_fixture("reconcile-original", "ab\n", vec![first, second], vec![]);
+        assert!(changes.is_empty());
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].reason, REASON_CONFLICTING_ORIGINAL_DIGEST);
+    }
+
+    #[test]
+    fn disagreeing_terminal_digests_conflict_and_drop_the_change() {
+        let original = b"x = 1\n";
+        let change = full(original, "y = 1\n", &["//a:lint"]);
+        let other = full(original, "y = 1\n", &["//b:format"]);
+        let (changes, digests, conflicts) = reconcile_fixture(
+            "reconcile-terminal-digest",
+            "x = 1\n",
+            vec![change, other],
+            vec![
+                ("src/a.py", b"y = 1\n".as_slice(), "//a:lint"),
+                ("src/a.py", b"z = 2\n".as_slice(), "//b:format"),
+            ],
+        );
+        assert!(changes.is_empty());
+        assert!(digests.is_empty());
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].reason, REASON_CONFLICTING_TERMINAL_DIGEST);
+    }
+
+    #[test]
+    fn missing_source_still_merges_identical_edits_and_rejects_others() {
+        let first = full(b"ab\n", "cd\n", &["//a:lint"]);
+        let same = full(b"ab\n", "cd\n", &["//b:format"]);
+        let (changes, _, conflicts) = reconcile_fixture(
+            "reconcile-missing-same",
+            "",
+            vec![first.clone(), same],
+            vec![],
+        );
+        assert!(conflicts.is_empty());
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].edits, first.change.edits);
+        let other = full(b"ab\n", "ce\n", &["//b:format"]);
+        let (changes, _, conflicts) = reconcile_fixture(
+            "reconcile-missing-different",
+            "",
+            vec![first, other],
+            vec![],
+        );
+        assert!(changes.is_empty());
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].reason, REASON_CONFLICTING_EDITS);
+    }
+
+    #[test]
+    fn digest_only_paths_agree_or_conflict_without_changes() {
+        let dir = temp_dir("reconcile-digest-only");
+        let agreed = reconcile_changes(
+            dir.path(),
+            vec![],
+            vec![
+                ("src/a.py".to_owned(), [1u8; 32], "//a:lint".to_owned()),
+                ("src/a.py".to_owned(), [1u8; 32], "//b:format".to_owned()),
+            ],
+        );
+        assert_eq!(agreed.0.len(), 0);
+        assert_eq!(agreed.2.len(), 0);
+        assert_eq!(agreed.1.get("src/a.py"), Some(&[1u8; 32]));
+        let disagreed = reconcile_changes(
+            dir.path(),
+            vec![],
+            vec![
+                ("src/a.py".to_owned(), [1u8; 32], "//a:lint".to_owned()),
+                ("src/a.py".to_owned(), [2u8; 32], "//b:format".to_owned()),
+            ],
+        );
+        assert_eq!(disagreed.2.len(), 1);
+        assert_eq!(disagreed.2[0].reason, REASON_CONFLICTING_TERMINAL_DIGEST);
+        assert!(disagreed.1.is_empty());
+    }
+
+    #[test]
+    fn candidate_order_never_changes_the_decision() {
+        let original = b"ab\n";
+        let first = full(original, "cd\n", &["//a:lint"]);
+        let second = full(original, "ce\n", &["//b:format"]);
+        let forward = reconcile_fixture(
+            "reconcile-order-forward",
+            "ab\n",
+            vec![first.clone(), second.clone()],
+            vec![],
+        );
+        let backward = reconcile_fixture(
+            "reconcile-order-backward",
+            "ab\n",
+            vec![second, first],
+            vec![],
+        );
+        assert_eq!(forward.0.len(), backward.0.len());
+        assert_eq!(forward.2, backward.2);
     }
 
     #[test]

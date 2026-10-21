@@ -194,7 +194,8 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
     let mut failed =
         status.iter().zip(&suppressed).any(|(diagnostic, held)| {
             !held && meets_threshold(diagnostic.severity, request.fail_on)
-        }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty());
+        }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty())
+            || !collected.conflicts.is_empty();
     if !apply && !collected.changes.is_empty() {
         failed = true;
     }
@@ -220,6 +221,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
             request,
             status: &status,
             changes: &collected.changes,
+            conflicts: &collected.conflicts,
             applied: &applied,
             not_applied: &not_applied,
             patch: &patch,

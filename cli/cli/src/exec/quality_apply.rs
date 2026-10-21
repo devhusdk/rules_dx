@@ -19,6 +19,16 @@ pub(crate) fn apply_collected_changes(
     complete: bool,
     changes: &[FileChange],
 ) -> ApplyOutcome {
+    apply_collected_changes_with(workspace, apply, complete, changes, &RealFileSystem)
+}
+
+fn apply_collected_changes_with(
+    workspace: &Path,
+    apply: bool,
+    complete: bool,
+    changes: &[FileChange],
+    fs: &dyn FileSystem,
+) -> ApplyOutcome {
     let mut sources: BTreeMap<String, SourceRead> = BTreeMap::new();
     for change in changes {
         sources
@@ -26,7 +36,6 @@ pub(crate) fn apply_collected_changes(
             .or_insert_with(|| read_verified(workspace, &change.path, &change.original_digest));
     }
 
-    let fs = RealFileSystem;
     let mut applied: BTreeMap<String, bool> = BTreeMap::new();
     let mut not_applied: Vec<(String, &'static str)> = Vec::new();
     if !apply {
@@ -40,15 +49,18 @@ pub(crate) fn apply_collected_changes(
             let reason = match sources.get(&change.path) {
                 Some(SourceRead::Bytes(original)) => {
                     match apply_to_bytes(original, &change.edits) {
-                        Some(candidate) => {
-                            match fs.write_atomic(&workspace.join(&change.path), &candidate) {
-                                Ok(()) => {
-                                    applied.insert(change.path.clone(), true);
-                                    None
+                        Some(candidate) => match verify_current(fs, workspace, change) {
+                            Ok(()) => {
+                                match fs.write_atomic(&workspace.join(&change.path), &candidate) {
+                                    Ok(()) => {
+                                        applied.insert(change.path.clone(), true);
+                                        None
+                                    }
+                                    Err(_) => Some(REASON_UNREADABLE_SOURCE),
                                 }
-                                Err(_) => Some(REASON_UNREADABLE_SOURCE),
                             }
-                        }
+                            Err(reason) => Some(reason),
+                        },
                         None => Some(REASON_INVALID_EDITS),
                     }
                 }
@@ -65,6 +77,19 @@ pub(crate) fn apply_collected_changes(
         sources,
         applied,
         not_applied,
+    }
+}
+
+/// Rechecks the source at the commit boundary so an intervening edit wins.
+fn verify_current(
+    fs: &dyn FileSystem,
+    workspace: &Path,
+    change: &FileChange,
+) -> Result<(), &'static str> {
+    match fs.read(&workspace.join(&change.path)) {
+        Ok(Some(bytes)) if dx_digest::blake3(&bytes) == change.original_digest => Ok(()),
+        Ok(Some(_)) => Err(REASON_STALE_SOURCE),
+        Ok(None) | Err(_) => Err(REASON_UNREADABLE_SOURCE),
     }
 }
 
@@ -110,8 +135,12 @@ mod tests {
         REASON_UNREADABLE_SOURCE,
     };
     use super::super::test_support::temp_dir;
-    use super::apply_collected_changes;
+    use super::{apply_collected_changes, apply_collected_changes_with};
+    use dx_apply::FileSystem;
     use dx_digest::blake3 as digest;
+    use std::cell::RefCell;
+    use std::io;
+    use std::path::Path;
 
     fn write_workspace(name: &str, files: &[(&str, &[u8])]) -> tempfile::TempDir {
         let workspace = temp_dir(name);
@@ -206,6 +235,58 @@ mod tests {
             b"BAD\n"
         );
         assert_eq!(outcome.applied.get("src/a.rs"), Some(&false));
+        assert_eq!(
+            outcome.not_applied,
+            vec![("src/a.rs".to_owned(), REASON_UNREADABLE_SOURCE)]
+        );
+    }
+
+    struct BoundaryFs {
+        current: RefCell<Option<Vec<u8>>>,
+        writes: RefCell<Vec<Vec<u8>>>,
+    }
+
+    impl FileSystem for BoundaryFs {
+        fn read(&self, _path: &Path) -> io::Result<Option<Vec<u8>>> {
+            Ok(self.current.borrow().clone())
+        }
+
+        fn write_atomic(&self, _path: &Path, content: &[u8]) -> io::Result<()> {
+            self.writes.borrow_mut().push(content.to_vec());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn intervening_edit_at_commit_boundary_is_stale() {
+        let workspace = write_workspace("apply-boundary", &[("src/a.rs", b"BAD\n")]);
+        let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
+        let fs = BoundaryFs {
+            current: RefCell::new(Some(b"EDITED\n".to_vec())),
+            writes: RefCell::new(Vec::new()),
+        };
+        let outcome = apply_collected_changes_with(workspace.path(), true, true, &[change], &fs);
+        assert!(fs.writes.borrow().is_empty());
+        assert_eq!(
+            outcome.not_applied,
+            vec![("src/a.rs".to_owned(), REASON_STALE_SOURCE)]
+        );
+        assert_eq!(
+            std::fs::read(workspace.path().join("src/a.rs")).expect("read back"),
+            b"BAD\n"
+        );
+    }
+
+    #[test]
+    fn missing_source_at_commit_boundary_is_unreadable() {
+        let workspace = write_workspace("apply-boundary-missing", &[("src/a.rs", b"BAD\n")]);
+        let change = full_replace("src/a.rs", b"BAD\n", "GOOD\n");
+        let fs = BoundaryFs {
+            current: RefCell::new(None),
+            writes: RefCell::new(Vec::new()),
+        };
+        let outcome = apply_collected_changes_with(workspace.path(), true, true, &[change], &fs);
+        assert!(fs.writes.borrow().is_empty());
         assert_eq!(
             outcome.not_applied,
             vec![("src/a.rs".to_owned(), REASON_UNREADABLE_SOURCE)]

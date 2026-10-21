@@ -627,3 +627,174 @@ fn json_counts_cover_all_severities() {
         serde_json::json!({"info": 1, "warning": 0, "error": 1})
     );
 }
+
+fn shared_result(
+    harness: &Harness,
+    producer: &str,
+    replacement: &[u8],
+    snapshot: &[u8],
+) -> Vec<u8> {
+    harness.result_with_producer(
+        producer,
+        vec![],
+        vec![],
+        vec![harness.replacement(replacement)],
+        vec![FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: digest(snapshot).to_vec(),
+        }],
+    )
+}
+
+#[test]
+fn shared_file_identical_candidates_apply_once() {
+    let mut harness = Harness::new("shared-identical");
+    harness.write_source("src/a.py", "x = 1\n");
+    let original = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    for (target, producer) in [
+        ("//test:first", "//quality:first"),
+        ("//test:second", "//quality:second"),
+    ] {
+        harness.results.insert(
+            target.to_owned(),
+            shared_result(&harness, producer, b"y", &original),
+        );
+    }
+    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(code, 1);
+    let events = json_events(&out);
+    let changes = events_of_kind(&events, "change");
+    assert_eq!(changes.len(), 1, "{out}");
+    assert!(events_of_kind(&events, "mutation").is_empty());
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n"
+    );
+    assert_eq!(out.matches("Applied 1 file(s).").count(), 1, "{out}");
+    assert!(!err.contains("Conflict"), "{err}");
+}
+
+#[test]
+fn shared_file_conflicting_edits_stay_untouched_and_report_producers() {
+    let mut harness = Harness::new("shared-conflict");
+    harness.write_source("src/a.py", "x = 1\n");
+    let original = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    harness.results.insert(
+        "//test:first".to_owned(),
+        shared_result(&harness, "//quality:first", b"y", &original),
+    );
+    harness.results.insert(
+        "//test:second".to_owned(),
+        shared_result(&harness, "//quality:second", b"z", &original),
+    );
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+    assert_eq!(code, 1);
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        original
+    );
+    assert!(!out.contains("Applied"), "{out}");
+    assert!(
+        err.contains("Conflict: src/a.py (conflicting_edits; producers:"),
+        "{err}"
+    );
+    for producer in ["//quality:first", "//quality:second", "//test:first"] {
+        assert!(err.contains(producer), "{err}");
+    }
+    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(code, 1);
+    let events = json_events(&out);
+    assert!(events_of_kind(&events, "change").is_empty());
+    assert!(events_of_kind(&events, "mutation").is_empty());
+    let notice = event(&events, "notice");
+    assert_eq!(notice["code"], serde_json::json!("quality_conflict"));
+    assert_eq!(notice["path"], serde_json::json!("src/a.py"));
+    let message = notice["message"].as_str().expect("message");
+    assert!(message.contains("conflicting_edits"), "{message}");
+    assert!(message.contains("//quality:first"), "{message}");
+    assert_eq!(
+        event(&events, "command_finished")["exit_code"],
+        serde_json::json!(1)
+    );
+    let (code, out, err) = harness.run(&["lint", "--check", "--output=diff"]);
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert!(err.contains("Conflict: src/a.py"), "{err}");
+}
+
+#[test]
+fn shared_file_original_digest_conflict_keeps_bytes() {
+    let mut harness = Harness::new("shared-original");
+    harness.write_source("src/a.py", "x = 1\n");
+    let original = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    harness.results.insert(
+        "//test:first".to_owned(),
+        shared_result(&harness, "//quality:first", b"y", &original),
+    );
+    let foreign = harness.result_with_producer(
+        "//quality:second",
+        vec![],
+        vec![],
+        vec![harness.replacement_at(
+            "src/a.py",
+            digest(b"other\n").to_vec(),
+            vec![proto::Edit {
+                start_byte: 0,
+                end_byte: 1,
+                replacement: b"z".to_vec(),
+            }],
+        )],
+        vec![FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: digest(&original).to_vec(),
+        }],
+    );
+    harness.results.insert("//test:second".to_owned(), foreign);
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
+    assert_eq!(code, 1);
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        original
+    );
+    assert!(
+        err.contains("Conflict: src/a.py (conflicting_original_digest; producers:"),
+        "{err}"
+    );
+}
+
+#[test]
+fn shared_file_terminal_digest_conflict_fails_check_without_changes() {
+    let mut harness = Harness::new("shared-terminal");
+    harness.write_source("src/a.py", "x = 1\n");
+    let original = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    for (target, producer, snapshot) in [
+        ("//test:first", "//quality:first", original.as_slice()),
+        ("//test:second", "//quality:second", b"z = 2\n".as_slice()),
+    ] {
+        harness.results.insert(
+            target.to_owned(),
+            harness.result_with_producer(
+                producer,
+                vec![],
+                vec![],
+                vec![],
+                vec![FileSnapshot {
+                    path: "src/a.py".to_owned(),
+                    digest: digest(snapshot).to_vec(),
+                }],
+            ),
+        );
+    }
+    let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(
+        err.contains("Conflict: src/a.py (conflicting_terminal_digest; producers:"),
+        "{err}"
+    );
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        original
+    );
+}

@@ -375,3 +375,43 @@ fn a_download_that_cannot_run_fails_with_the_program_it_needed() {
         other => panic!("{other:?}"),
     }
 }
+
+#[test]
+fn a_workspace_without_audited_locks_prepares_an_explicit_empty_status() {
+    let dir = tempfile::tempdir().expect("temp workspace");
+    let mut options = options(&workspace());
+    options.workspace = dir.path().to_path_buf();
+    options.out = dir.path().join(DEFAULT_OUT);
+    let prepared = prepare(&options).expect("empty preparation succeeds");
+    assert!(prepared.is_empty());
+    assert!(!options.out.exists(), "no snapshot is written");
+    let summary = Summary::of(&prepared);
+    assert_eq!(summary.status, "empty");
+    assert_eq!(summary.render(), "status=empty\necosystems=0\nfamilies=\n");
+}
+
+#[test]
+fn one_required_ecosystem_is_never_classified_as_empty() {
+    let workspace = workspace();
+    let options = with_archive(
+        &workspace,
+        options(&workspace),
+        &archive(&[Fixture::stored(
+            "all/1/GHSA-a.json",
+            &advisory("GHSA-a", "aaa"),
+        )]),
+    );
+    let summary = Summary::of(&prepare(&options).expect("prepares"));
+    assert_eq!(summary.status, "prepared");
+    assert_eq!(
+        summary.render(),
+        "status=prepared\necosystems=1\nfamilies=cargo\n"
+    );
+}
+
+#[test]
+fn a_required_ecosystem_with_a_corrupt_archive_is_an_error_not_empty() {
+    let workspace = workspace();
+    let options = with_archive(&workspace, options(&workspace), b"not a zip");
+    assert!(prepare(&options).is_err());
+}

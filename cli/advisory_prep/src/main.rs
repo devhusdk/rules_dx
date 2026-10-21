@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
-use dx_advisory_prep::{prepare, PrepareOptions, DEFAULT_OUT};
+use dx_advisory_prep::{prepare, PrepareOptions, Summary, DEFAULT_OUT};
 use dx_audit::advisory::is_audit_date;
 use dx_audit::advisory_prep::{FetchLimits, PrepError, DEFAULT_LIMITS};
 
@@ -30,7 +30,8 @@ downloading a database of its own.\n\n--workspace DIR reads the dependency set l
 (default .); --out DIR writes the snapshots (default .dx/advisory); --date YYYY-MM-DD stamps \
 every sidecar (default today, UTC); --max-time, --connect-timeout, --retries and --retry-delay \
 bound one download (defaults 600, 30, 3 and 5 seconds); --archive FAMILY=PATH converts a local \
-archive instead of fetching it.\n\nExit codes: 0 success, 2 usage error, 1 preparation \
+archive instead of fetching it; --status-file FILE appends status, ecosystems and families \
+as key=value lines (status is empty when no dependency set needs an ecosystem).\n\nExit codes: 0 success, 2 usage error, 1 preparation \
 failure."
 )]
 struct Cli {
@@ -58,6 +59,9 @@ struct Cli {
     /// Convert a local archive instead of fetching it.
     #[arg(long = "archive", value_name = "FAMILY=PATH")]
     archives: Vec<String>,
+    /// File the status, ecosystem count and families are appended to.
+    #[arg(long)]
+    status_file: Option<PathBuf>,
 }
 
 fn main() -> ExitCode {
@@ -87,8 +91,18 @@ fn main() -> ExitCode {
 }
 
 fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
+    let status_file = cli.status_file.clone();
     let options = options_from(cli)?;
     let prepared = prepare(&options)?;
+    let summary = Summary::of(&prepared);
+    if let Some(path) = status_file {
+        append_status(&path, &summary)?;
+    }
+    if prepared.is_empty() {
+        return Ok(vec![
+            "no advisory ecosystems needed: no audited dependency lock found".to_owned(),
+        ]);
+    }
     Ok(prepared
         .into_iter()
         .map(|entry| {
@@ -98,6 +112,19 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
             )
         })
         .collect())
+}
+
+fn append_status(path: &std::path::Path, summary: &Summary) -> Result<(), PrepError> {
+    use std::io::Write;
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .and_then(|mut file| file.write_all(summary.render().as_bytes()))
+        .map_err(|error| PrepError::Write {
+            path: path.display().to_string(),
+            detail: error.to_string(),
+        })
 }
 
 fn options_from(cli: Cli) -> Result<PrepareOptions, PrepError> {

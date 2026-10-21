@@ -30,7 +30,7 @@ real_source_target(
         "AGENTS.md",
         "README.md",
         "cli/commands/README.md",
-        "cli/commands/audit-update-bazel.md",
+        "cli/commands/audit-update.md",
         "cli/commands/build-test-coverage.md",
         "cli/commands/capabilities.md",
         "cli/commands/check-fix-clean.md",

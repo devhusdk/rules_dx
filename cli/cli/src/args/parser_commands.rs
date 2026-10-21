@@ -132,23 +132,12 @@ fn owned_option_words(command: Command, argv: &[&str]) -> Vec<String> {
         .collect()
 }
 
-fn assert_bazel_forwards_verbatim(words: &[String]) {
-    let got = parse(words).expect("dx bazel forwards every later word");
-    assert_eq!(got.command, Command::Bazel, "words: {words:?}");
-    assert!(got.targets.is_empty(), "words: {words:?}");
-    assert_eq!(got.bazel_options, words[1..], "words: {words:?}");
-}
-
 #[test]
 fn an_owned_option_is_accepted_only_by_its_owner() {
     for command in Command::value_variants() {
         let command = *command;
         for (option, argv, owners) in OWNED_OPTIONS {
             let words = owned_option_words(command, argv);
-            if command == Command::Bazel {
-                assert_bazel_forwards_verbatim(&words);
-                continue;
-            }
             match parse(&words) {
                 Ok(_) => assert!(
                     owners.contains(&command.name()),
@@ -201,10 +190,6 @@ fn a_global_gate_is_accepted_exactly_where_the_registry_declares() {
         let command = *command;
         for (flag, supported, argv) in REGISTRY_GATES {
             let words = owned_option_words(command, argv);
-            if command == Command::Bazel {
-                assert_bazel_forwards_verbatim(&words);
-                continue;
-            }
             match parse(&words) {
                 Ok(_) => assert!(
                     supported(command),
@@ -241,10 +226,6 @@ fn an_output_mode_is_gated_exactly_where_the_registry_declares_it() {
         let command = *command;
         for (flag, name, supported) in OUTPUT_MODES {
             let words = owned_option_words(command, &[flag]);
-            if command == Command::Bazel {
-                assert_bazel_forwards_verbatim(&words);
-                continue;
-            }
             match parse(&words) {
                 Ok(got) => {
                     assert!(
@@ -426,12 +407,9 @@ fn the_usage_banner_check_claim_matches_the_registry() {
 }
 
 #[test]
-fn every_command_but_bazel_rejects_empty_and_relative_scopes() {
+fn every_command_rejects_empty_and_relative_scopes() {
     for command in Command::value_variants() {
         let command = *command;
-        if command == Command::Bazel {
-            continue;
-        }
         for scope in ["", ":target"] {
             let words = vec![command.name(), scope];
             assert_eq!(
@@ -901,12 +879,6 @@ fn output_contract_has_no_silent_ignore() {
             "words: {words:?}"
         );
     }
-    assert_usage(
-        &["--output=json", "bazel", "version"],
-        parse(&strings(&["--output=json", "bazel", "version"])).unwrap_err(),
-        &["--output"],
-    );
-    assert_bazel_forwards_verbatim(&strings(&["bazel", "version", "--output=json"]));
     for words in [
         vec!["build", "//a:one", "--output=diff"],
         vec!["test", "//a:one", "--output=diff"],
@@ -941,46 +913,13 @@ fn output_contract_has_no_silent_ignore() {
 }
 
 #[test]
-fn bazel_forwards_verbatim_and_rejects_the_prefix_order() {
-    let got = parse(&strings(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
-    assert_eq!(got.command, Command::Bazel);
-    assert_eq!(got.command.name(), "bazel");
-    assert!(!got.command.is_adoption());
-    assert!(got.targets.is_empty());
-    assert_eq!(
-        got.bazel_options,
-        vec![
-            "build".to_owned(),
-            "//...".to_owned(),
-            "--jobs=4".to_owned()
-        ]
-    );
+fn bazel_is_an_unknown_command() {
     for words in [
+        vec!["bazel", "build", "//...", "--", "--jobs=4"],
         vec!["bazel", "--jobs=4"],
-        vec!["bazel", "--check"],
-        vec!["bazel", "--from=0.1.0"],
-        vec!["bazel", "version", "--configured"],
-        vec!["bazel", "--", "--fail-on=error"],
-    ] {
-        let got = parse(&strings(&words)).expect("verbatim");
-        assert_eq!(got.command, Command::Bazel, "words: {words:?}");
-        assert!(got.targets.is_empty(), "words: {words:?}");
-    }
-    let got = parse(&strings(&["bazel", "build", "--jobs", "4"])).expect("verbatim");
-    assert_eq!(
-        got.bazel_options,
-        vec!["build".to_owned(), "--jobs".to_owned(), "4".to_owned()]
-    );
-    for words in [
         vec!["--output=json", "bazel", "version"],
-        vec!["--check", "bazel", "version"],
-        vec!["--from=0.1.0", "bazel", "version"],
-        vec!["--configured", "bazel", "version"],
-        vec!["--fail-on=error", "bazel", "build", "//..."],
-        vec!["--report=sarif=x.sarif", "bazel", "build"],
     ] {
-        let flag = words[0].split('=').next().expect("a flag");
-        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[flag]);
+        assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }
 }
 
@@ -1330,14 +1269,6 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
             "words: {words:?}"
         );
     }
-    let verbatim = parse(&strings(&["bazel", "build", "--here"])).expect("verbatim");
-    assert_eq!(verbatim.command, Command::Bazel);
-    assert!(!verbatim.here);
-    assert_usage(
-        &["--here", "bazel", "version"],
-        parse(&strings(&["--here", "bazel", "version"])).unwrap_err(),
-        &["--here"],
-    );
 }
 
 #[test]
@@ -1432,14 +1363,6 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
             "words: {words:?}"
         );
     }
-    let verbatim = parse(&strings(&["bazel", "build", "--offline"])).expect("verbatim");
-    assert_eq!(verbatim.command, Command::Bazel);
-    assert!(!verbatim.offline);
-    assert_usage(
-        &["--offline", "bazel", "version"],
-        parse(&strings(&["--offline", "bazel", "version"])).unwrap_err(),
-        &["--offline"],
-    );
     assert_usage(
         &["security", "--offline=yes"],
         parse(&strings(&["security", "--offline=yes"])).unwrap_err(),

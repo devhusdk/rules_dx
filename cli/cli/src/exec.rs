@@ -1,5 +1,4 @@
 mod audit;
-mod bazel;
 mod bump;
 mod clean;
 pub mod common;
@@ -41,7 +40,6 @@ enum Family {
     Adoption,
     Umbrella,
     Workflow,
-    Bazel,
     Generate,
     Clean,
     Managed,
@@ -60,7 +58,6 @@ impl Family {
             Family::Adoption => "adoption",
             Family::Umbrella => "umbrella",
             Family::Workflow => "workflow",
-            Family::Bazel => "bazel",
             Family::Generate => "generate",
             Family::Clean => "clean",
             Family::Managed => "managed",
@@ -108,7 +105,6 @@ fn family(command: Command) -> Family {
         | Command::Why
         | Command::Completion => Family::Adoption,
         Command::Docs => Family::Docs,
-        Command::Bazel => Family::Bazel,
     }
 }
 
@@ -159,7 +155,6 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
         }
         Family::Workflow => workflow::execute_workflow(invocation, env),
-        Family::Bazel => bazel::execute_bazel(invocation, env),
         Family::Generate => generate::execute_generate(invocation, env),
         Family::Clean => clean::execute_clean(invocation, env),
         Family::Managed => managed::execute_managed(invocation, env),
@@ -188,7 +183,7 @@ mod tests {
                 .entry(family(meta.command).name())
                 .or_insert(false) |= meta.supports_diff;
         }
-        assert_eq!(any_supports_diff.len(), 13, "every family classified");
+        assert_eq!(any_supports_diff.len(), 12, "every family classified");
         for meta in COMMANDS {
             let name = family(meta.command).name();
             assert_eq!(
@@ -208,7 +203,7 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            37,
+            36,
             "every variant classified"
         );
         assert_eq!(counts.get("adoption"), Some(&13));
@@ -223,7 +218,6 @@ mod tests {
         assert_eq!(counts.get("bump"), Some(&1));
         assert_eq!(counts.get("migrate"), Some(&1));
         assert_eq!(counts.get("docs"), Some(&1));
-        assert_eq!(counts.get("bazel"), Some(&1));
     }
 
     #[test]

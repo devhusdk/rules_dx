@@ -99,7 +99,6 @@ mod tests {
         Command::Hooks,
         Command::Watch,
         Command::Docs,
-        Command::Bazel,
     ];
 
     fn stub(command: Command, wrapped: Option<&str>) -> Invocation {

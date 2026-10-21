@@ -294,9 +294,9 @@ pub struct ProtectedFlag {
 pub enum ForwardError {
     #[error("conflicting_option: --{flag} conflicts with required workflow policy")]
     ConflictingOption { flag: String },
-    #[error("invalid_usage: --{flag} is a startup option; use dx bazel")]
+    #[error("invalid_usage: --{flag} is a startup option; use native bazel")]
     StartupOption { flag: String },
-    #[error("invalid_usage: --{flag} targets the test binary; use dx bazel")]
+    #[error("invalid_usage: --{flag} targets the test binary; use native bazel")]
     TestBinaryArgs { flag: String },
     #[error("internal_error: required workflow option --{flag} is missing")]
     InvalidRequiredOption { flag: String },

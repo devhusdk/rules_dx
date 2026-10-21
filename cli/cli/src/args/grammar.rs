@@ -485,21 +485,6 @@ impl NoPassthroughTail {
     }
 }
 
-/// The raw Bazel payload this command forwards.
-#[derive(Args)]
-pub(crate) struct NoScopeTail {
-    /// Args after --.
-    #[arg(last = true, value_name = "BAZEL_OPTIONS")]
-    pub(crate) passthrough: Vec<String>,
-}
-
-impl NoScopeTail {
-    /// No scopes, and the raw Bazel payload.
-    pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
-        (Vec::new(), self.passthrough)
-    }
-}
-
 macro_rules! command_args {
     ($(
         $(#[$group_attr:meta])*
@@ -707,22 +692,20 @@ command_args! {
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx bazel` accepts.
-    Bazel => 31, NoScopeTail, {};
     /// The flags `dx capabilities` accepts.
-    Capabilities => 32, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
+    Capabilities => 31, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
     /// The flags `dx verify` accepts.
-    Verify => 33, BazelTail, {};
+    Verify => 32, BazelTail, {};
     /// The flags `dx rerun` accepts.
-    Rerun => 34, BazelTail, {};
+    Rerun => 33, BazelTail, {};
     /// The flags `dx tests` accepts.
-    Tests => 35, BazelTail, {
+    Tests => 34, BazelTail, {
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 36, NoPassthroughTail, { apply: ApplyFlag, };
+    Rollback => 35, NoPassthroughTail, { apply: ApplyFlag, };
 }
 
 #[derive(Parser)]

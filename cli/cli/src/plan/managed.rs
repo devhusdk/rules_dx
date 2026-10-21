@@ -3,18 +3,6 @@ use dx_process::{build_workflow_argv, ForwardError, ProtectedFlag};
 use super::{BuildPlan, BEP_FLAG_NAME};
 use crate::args::Command;
 
-pub fn plan_bazel(forwarded: &[String]) -> BuildPlan {
-    let mut argv = Vec::with_capacity(1 + forwarded.len());
-    argv.push(dx_process::launcher_argv0().to_owned());
-    argv.extend(forwarded.iter().cloned());
-    let summary = if forwarded.is_empty() {
-        "Running bazel".to_owned()
-    } else {
-        format!("Running bazel {}", forwarded.join(" "))
-    };
-    BuildPlan { argv, summary }
-}
-
 pub fn plan_managed(
     command: Command,
     scope: &dx_setup::SetupScope,
@@ -268,17 +256,5 @@ mod tests {
                 "{command:?} produced {err:?}"
             );
         }
-    }
-
-    #[test]
-    fn bazel_plan_forwards_arguments_verbatim() {
-        let plan = plan_bazel(&strings(&["build", "//...", "--jobs=4"]));
-        assert_eq!(
-            plan.argv,
-            strings(&["bazel", "build", "//...", "--jobs=4",])
-        );
-        assert!(plan.summary.contains("build //..."));
-        let bare = plan_bazel(&[]);
-        assert_eq!(bare.argv, strings(&["bazel"]));
     }
 }

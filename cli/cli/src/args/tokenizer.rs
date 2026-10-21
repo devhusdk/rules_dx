@@ -243,28 +243,6 @@ fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Option<Verb>, ArgsError> 
     .map_err(|error| map_clap_error(args, &error))
 }
 
-/// Every word after the first `--` is forwarded to the Bazel launcher.
-fn collect_bazel_options<S: AsRef<OsStr>>(args: &[S]) -> Result<Vec<String>, ArgsError> {
-    let mut forwarded = Vec::with_capacity(args.len());
-    let mut past_separator = false;
-    for arg in args {
-        let raw = arg.as_ref();
-        if !past_separator && raw == OsStr::new("--") {
-            past_separator = true;
-            continue;
-        }
-        forwarded.push(match raw.to_str() {
-            Some(text) => text.to_owned(),
-            None => {
-                return Err(ArgsError::InvalidScope {
-                    scope: raw.to_string_lossy().into_owned(),
-                });
-            }
-        });
-    }
-    Ok(forwarded)
-}
-
 /// The parsed invocation: the command, its flags, its scopes, and its `--` payload.
 pub(crate) struct Tokenized {
     pub(crate) command: Command,
@@ -273,19 +251,7 @@ pub(crate) struct Tokenized {
     pub(crate) bazel_options: Vec<String>,
 }
 
-/// `dx bazel` forwards every later word to the Bazel launcher.
 pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<Tokenized, ArgsError> {
-    if args
-        .first()
-        .is_some_and(|first| first.as_ref() == OsStr::new("bazel"))
-    {
-        return Ok(Tokenized {
-            command: Command::Bazel,
-            flags: Flags::default(),
-            targets: Vec::new(),
-            bazel_options: collect_bazel_options(&args[1..])?,
-        });
-    }
     let command = parse_tokens(args)?.ok_or(ArgsError::MissingCommand)?;
     let (command, flags, targets, bazel_options) = command.into_parts();
     Ok(Tokenized {

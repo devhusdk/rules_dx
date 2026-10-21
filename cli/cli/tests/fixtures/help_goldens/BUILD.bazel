@@ -12,7 +12,6 @@ exports_files(
         "lint_help.golden",
         "build_help.golden",
         "clean_help.golden",
-        "bazel_help.golden",
         "docs_help.golden",
     ],
 )

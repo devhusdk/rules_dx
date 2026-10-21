@@ -172,36 +172,13 @@ fn strict_repeated_flags_are_last_wins() {
 }
 
 #[test]
-fn strict_bazel_tail_forwards_verbatim() {
-    let got = parse(&strings(&["bazel", "build", "//...", "--", "--jobs=4"])).expect("parse");
-    assert_eq!(got.command, Command::Bazel);
-    assert_eq!(
-        got.bazel_options,
-        vec![
-            "build".to_owned(),
-            "//...".to_owned(),
-            "--jobs=4".to_owned()
-        ]
-    );
+fn bazel_is_not_a_command() {
     for words in [
-        vec!["bazel", "--jobs=4"],
-        vec!["bazel", "--check"],
-        vec!["bazel", "--pin=0.1.0"],
-        vec!["bazel", "build", "--here"],
+        vec!["bazel", "version"],
+        vec!["bazel", "build", "//...", "--", "--jobs=4"],
+        vec!["bazel", "--help"],
     ] {
-        let got = parse(&strings(&words)).expect("verbatim");
-        assert_eq!(got.command, Command::Bazel, "words: {words:?}");
-    }
-    for words in [
-        vec!["--output=json", "bazel", "version"],
-        vec!["--check", "bazel", "version"],
-        vec!["--here", "bazel", "version"],
-    ] {
-        assert_usage(
-            &words,
-            parse(&strings(&words)).unwrap_err(),
-            &[words[0].split('=').next().expect("a flag")],
-        );
+        assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }
 }
 
@@ -415,14 +392,10 @@ fn strict_known_flags_on_wrong_commands_fail_as_unsupported() {
 fn strict_every_command_help_pins_usage_scopes_exits_output() {
     use clap::ValueEnum;
     for command in Command::value_variants() {
-        let text = if *command == Command::Bazel {
-            super::super::help::render_command_help(Command::Bazel)
-        } else {
-            let argv: Vec<String> = strings(&[command.name(), "--help"]);
-            match parse(&argv) {
-                Err(ArgsError::Help { text }) => text,
-                other => panic!("{:?}: want Help, got {other:?}", command.name()),
-            }
+        let argv: Vec<String> = strings(&[command.name(), "--help"]);
+        let text = match parse(&argv) {
+            Err(ArgsError::Help { text }) => text,
+            other => panic!("{:?}: want Help, got {other:?}", command.name()),
         };
         for needle in [
             "Usage:",
@@ -443,7 +416,7 @@ fn strict_every_command_help_pins_usage_scopes_exits_output() {
             command.name()
         );
     }
-    assert_eq!(Command::value_variants().len(), 37);
+    assert_eq!(Command::value_variants().len(), 36);
 }
 
 #[cfg(unix)]

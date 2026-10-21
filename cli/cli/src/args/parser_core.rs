@@ -78,6 +78,7 @@ fn receipt_flags_are_rejected_with_report_tips() {
         (vec!["test", "--run-output=out"], "--report junit="),
         (vec!["test", "--run-output", "out"], "--report junit="),
         (vec!["coverage", "--run-output=out"], "--report lcov="),
+        (vec!["lint", "--cwd"], "use `--here`"),
     ] {
         assert_usage(
             &words,

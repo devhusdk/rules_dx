@@ -94,6 +94,7 @@ fn removed_receipt_flag(error: &clap::Error) -> Option<String> {
         "--run-output" => {
             "use `--report junit=<path>` or `--report lcov=<path>` for test and coverage reports"
         }
+        "--cwd" => "use `--here` to select the current directory tree",
         "--strict-evidence" => {
             "incomplete test and coverage evidence now always fails; drop the flag"
         }
@@ -137,10 +138,7 @@ fn reported_flag(token: &str) -> Option<String> {
         return None;
     }
     let name = token.split('=').next().unwrap_or(token);
-    Some(match name {
-        "--cwd" => "--here".to_owned(),
-        _ => name.to_owned(),
-    })
+    Some(name.to_owned())
 }
 
 /// Every long flag name any command's grammar accepts.

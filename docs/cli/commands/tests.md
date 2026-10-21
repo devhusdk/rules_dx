@@ -15,7 +15,7 @@ pattern that matches no tests, fail instead of reporting an empty suite.
 
 A bare run lists `tests(//...)`. Label and pattern scopes pass through;
 workspace-relative files and directories resolve to their owning tests
-first. `--here` (`--cwd` alias) lists the current directory tree instead
+first. `--here` lists the current directory tree instead
 and never combines with explicit scopes. Trailing `--` options reach every
 Bazel invocation behind the command, including the inventory query.
 

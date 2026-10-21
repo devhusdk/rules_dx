@@ -252,15 +252,10 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
             .filter(|(index, _)| *index != watch_at && *index != wrapped_at)
             .map(|(_, word)| word.as_ref()),
     );
-    Some(parse_inner(&rest, env_get, file).and_then(|mut inner| {
-        match inner.output {
-            OutputMode::Text { .. } => {}
-            OutputMode::Json => return Err(unsupported(Command::Watch, "--output=json")),
-            _ => return Err(unsupported(Command::Watch, "--output=diff")),
-        }
+    Some(parse_inner(&rest, env_get, file).map(|mut inner| {
         inner.command = Command::Watch;
         inner.targets.insert(0, wrapped);
-        Ok(inner)
+        inner
     }))
 }
 

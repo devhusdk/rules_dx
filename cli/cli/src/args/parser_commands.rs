@@ -191,7 +191,10 @@ fn an_output_mode_is_gated_exactly_where_the_registry_declares_it() {
     for command in Command::value_variants() {
         let command = *command;
         for (flag, name, supported) in OUTPUT_MODES {
-            let words = owned_option_words(command, &[flag]);
+            let words = match command {
+                Command::Watch => strings(&["watch", "lint", flag]),
+                _ => owned_option_words(command, &[flag]),
+            };
             match parse(&words) {
                 Ok(got) => {
                     assert!(
@@ -789,6 +792,17 @@ fn output_contract_has_no_silent_ignore() {
     let got = parse(&strings(&["version", "--output=json"])).expect("version json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Version.supports_json());
+    for (words, want) in [
+        (vec!["watch", "test", "--output=json"], OutputMode::Json),
+        (vec!["watch", "build", "-o", "json"], OutputMode::Json),
+        (vec!["watch", "lint", "--output=diff"], OutputMode::Diff),
+        (vec!["watch", "fix", "-o", "diff"], OutputMode::Diff),
+        (vec!["watch", "-o", "diff", "format"], OutputMode::Diff),
+    ] {
+        let got = parse(&strings(&words)).expect("the wrapped command takes the mode");
+        assert_eq!(got.command, Command::Watch, "{words:?}");
+        assert_eq!(got.output, want, "{words:?}");
+    }
     for command in ["lint", "typecheck", "format", "generate", "check", "fix"] {
         let got = parse(&strings(&[command, "--output=diff"])).expect("diff capable");
         assert_eq!(got.output, OutputMode::Diff, "command: {command}");
@@ -803,7 +817,8 @@ fn output_contract_has_no_silent_ignore() {
         vec!["init", "proj", "--output=diff"],
         vec!["new", "rust", "--output=json"],
         vec!["new", "rust", "demo", "--output=diff"],
-        vec!["watch", "test", "--output=json"],
+        vec!["watch", "build", "--output=diff"],
+        vec!["watch", "run", "//app:bin", "-o", "diff"],
         vec!["version", "--output=diff"],
         vec!["completion", "bash", "--output=json"],
     ] {

@@ -1,27 +1,84 @@
+use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use dx_adopt::AdoptError;
+use dx_output::OutputMode;
 
 use crate::args::{Command, Invocation};
-use crate::exec::common::check_stdout_write;
+use crate::exec::common::{check_stdout_write, emit_startup_outcome};
 use crate::exec::Env;
 
 use super::{operational, pre_exec, summaries_suppressed};
 
-const WATCH_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
+const WATCH_POLL: Duration = Duration::from_millis(100);
 
 /// Runs the wrapped command, then reruns it after every change until interrupted.
 pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
-    watch(invocation, env, None, |session| {
-        session.wait(WATCH_IDLE_TIMEOUT)
+    watch(invocation, env, None, &dx_process::interrupted, |session| {
+        session.wait(WATCH_POLL)
     })
+}
+
+/// Where watch writes its own progress lines.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Progress {
+    Silent,
+    Stdout,
+    Stderr,
+}
+
+impl Progress {
+    fn of(invocation: &Invocation) -> Self {
+        if summaries_suppressed(invocation) {
+            return Progress::Silent;
+        }
+        let text = matches!(invocation.output, OutputMode::Text { .. });
+        let report_on_stdout = invocation
+            .reports
+            .iter()
+            .any(|report| report.destination == "-");
+        if text && !report_on_stdout {
+            Progress::Stdout
+        } else {
+            Progress::Stderr
+        }
+    }
+
+    fn say(self, out: &mut dyn Write, err: &mut dyn Write, line: &str) -> Result<(), i32> {
+        match self {
+            Progress::Silent => Ok(()),
+            Progress::Stdout => check_stdout_write(writeln!(out, "{line}")),
+            Progress::Stderr => {
+                let _ = writeln!(err, "{line}");
+                Ok(())
+            }
+        }
+    }
+}
+
+fn refuse(invocation: &Invocation, out: &mut dyn Write, err: &mut dyn Write, message: &str) -> i32 {
+    let code = pre_exec(err, message);
+    if invocation.output == OutputMode::Json {
+        if let Err(exit) = emit_startup_outcome(out, "invalid_arguments", message, code) {
+            return exit;
+        }
+    }
+    code
+}
+
+fn stopped(progress: Progress, out: &mut dyn Write, err: &mut dyn Write, signo: i32) -> i32 {
+    if let Err(exit) = progress.say(out, err, "stopped") {
+        return exit;
+    }
+    dx_process::interrupted_code(signo)
 }
 
 fn watch(
     invocation: &Invocation,
     env: Env<'_>,
     max_iterations: Option<u32>,
+    stop: &dyn Fn() -> Option<i32>,
     mut wait_for_change: impl FnMut(&dx_adopt::watch::WatchSession) -> Result<Vec<PathBuf>, AdoptError>,
 ) -> i32 {
     let Env {
@@ -43,35 +100,32 @@ fn watch(
     let scopes = invocation.targets.get(1..).unwrap_or_default();
     let plan = match dx_adopt::plan_watch(wrapped, ci) {
         Ok(plan) => plan,
-        Err(error) => return pre_exec(&mut err, &error.to_string()),
+        Err(error) => return refuse(invocation, out, err, &error.to_string()),
     };
     let scope = scopes.join(" ");
-    let suppressed = summaries_suppressed(invocation);
+    let progress = Progress::of(invocation);
     let iteration = match build_iteration(invocation) {
         Ok(iteration) => iteration,
-        Err(message) => return pre_exec(&mut err, &message),
+        Err(message) => return refuse(invocation, out, err, &message),
     };
     let session = match dx_adopt::watch::WatchSession::start(workspace) {
         Ok(session) => session,
         Err(error) => {
-            return operational(
-                invocation,
-                &mut out,
-                &mut err,
-                "watch_failed",
-                &error.to_string(),
-            );
+            return operational(invocation, out, err, "watch_failed", &error.to_string());
         }
     };
     let mut round = 0u32;
     loop {
+        if let Some(signo) = stop() {
+            return stopped(progress, out, err, signo);
+        }
         round += 1;
-        if !suppressed {
-            if let Err(exit) =
-                check_stdout_write(writeln!(out, "{plan} scope={scope} iteration={round}"))
-            {
-                return exit;
-            }
+        if let Err(exit) = progress.say(
+            &mut *out,
+            &mut *err,
+            &format!("{plan} scope={scope} iteration={round}"),
+        ) {
+            return exit;
         }
         let code = crate::exec::execute(
             &iteration,
@@ -90,32 +144,28 @@ fn watch(
         if max_iterations == Some(round) {
             return code;
         }
-        if round == 1 && !suppressed {
-            if let Err(exit) = check_stdout_write(writeln!(out, "watching (Ctrl-C to stop)")) {
+        if let Some(signo) = stop() {
+            return stopped(progress, out, err, signo);
+        }
+        if round == 1 {
+            if let Err(exit) = progress.say(&mut *out, &mut *err, "watching (Ctrl-C to stop)") {
                 return exit;
             }
         }
         loop {
+            if let Some(signo) = stop() {
+                return stopped(progress, out, err, signo);
+            }
             match wait_for_change(&session) {
                 Ok(paths) if paths.is_empty() => {}
                 Ok(paths) => {
-                    if !suppressed {
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "{}", changed_line(&paths)))
-                        {
-                            return exit;
-                        }
+                    if let Err(exit) = progress.say(&mut *out, &mut *err, &changed_line(&paths)) {
+                        return exit;
                     }
                     break;
                 }
                 Err(error) => {
-                    return operational(
-                        invocation,
-                        &mut out,
-                        &mut err,
-                        "watch_failed",
-                        &error.to_string(),
-                    )
+                    return operational(invocation, out, err, "watch_failed", &error.to_string())
                 }
             }
         }
@@ -149,7 +199,9 @@ fn changed_line(paths: &[PathBuf]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{invocation, NullQuery, Truncated};
+    use crate::adopt::test_support::{
+        event_kinds, events_of_kind, invocation, json_events, NullQuery, Truncated,
+    };
     use crate::args::OperationMode;
     use std::cell::RefCell;
     use std::io;
@@ -252,6 +304,18 @@ mod tests {
                 &dx_adopt::watch::WatchSession,
             ) -> Result<Vec<PathBuf>, AdoptError>,
         ) -> i32 {
+            self.run_until(words, max_iterations, &|| None, wait)
+        }
+
+        fn run_until(
+            &mut self,
+            words: &[&str],
+            max_iterations: Option<u32>,
+            stop: &dyn Fn() -> Option<i32>,
+            wait: &mut dyn FnMut(
+                &dx_adopt::watch::WatchSession,
+            ) -> Result<Vec<PathBuf>, AdoptError>,
+        ) -> i32 {
             let query = NullQuery;
             let runner = CountingRunner {
                 seen: RefCell::new(Vec::new()),
@@ -270,6 +334,7 @@ mod tests {
                     ci: self.ci,
                 },
                 max_iterations,
+                stop,
                 |session| wait(session),
             );
             *self.seen.borrow_mut() = runner.seen.borrow().clone();
@@ -297,6 +362,7 @@ mod tests {
                     ci: self.ci,
                 },
                 max_iterations,
+                &|| None,
                 |_| Ok(Vec::new()),
             )
         }
@@ -549,6 +615,7 @@ mod tests {
                 ci: false,
             },
             Some(2),
+            &|| None,
             |session| session.wait(Duration::from_secs(10)),
         );
         assert_eq!(code, 0, "rerun succeeds: {}", String::from_utf8_lossy(&err));
@@ -675,6 +742,7 @@ mod tests {
                 ci: false,
             },
             Some(1),
+            &|| None,
             |_| Ok(Vec::new()),
         );
         assert_eq!(code, 1);
@@ -687,4 +755,210 @@ mod tests {
             String::from_utf8(out).expect("stdout")
         );
     }
+
+    fn stop_after(calls: u32, signo: i32) -> impl Fn() -> Option<i32> {
+        let seen = std::cell::Cell::new(0u32);
+        move || {
+            seen.set(seen.get() + 1);
+            (seen.get() > calls).then_some(signo)
+        }
+    }
+
+    #[test]
+    fn watch_stops_after_the_running_iteration_when_interrupted() {
+        let mut harness = Harness::new("dx-watch-stop-running-");
+        let code = harness.run_until(
+            &["watch", "build", "//..."],
+            None,
+            &stop_after(1, 2),
+            &mut |_| panic!("no wait after the signal"),
+        );
+        assert_eq!(code, 130, "{}", harness.stderr());
+        assert_eq!(harness.seen.borrow().len(), 1, "no new iteration starts");
+        let stdout = harness.stdout();
+        assert!(stdout.ends_with("stopped\n"), "{stdout}");
+        assert!(!stdout.contains("watching"), "{stdout}");
+    }
+
+    #[test]
+    fn watch_stops_while_idle_when_terminated() {
+        let mut harness = Harness::new("dx-watch-stop-idle-");
+        let mut waits = 0;
+        let code = harness.run_until(
+            &["watch", "build", "//..."],
+            None,
+            &stop_after(4, 15),
+            &mut |_| {
+                waits += 1;
+                Ok(Vec::new())
+            },
+        );
+        assert_eq!(code, 143);
+        assert_eq!(waits, 2, "polls until the signal lands");
+        assert_eq!(harness.seen.borrow().len(), 1);
+        assert!(harness
+            .stdout()
+            .contains("watching (Ctrl-C to stop)\nstopped\n"));
+    }
+
+    #[test]
+    fn watch_stops_before_the_first_iteration_when_already_interrupted() {
+        let mut harness = Harness::new("dx-watch-stop-early-");
+        let code = harness.run_until(
+            &["watch", "--quiet", "build", "//..."],
+            None,
+            &|| Some(2),
+            &mut |_| panic!("no wait"),
+        );
+        assert_eq!(code, 130);
+        assert!(harness.seen.borrow().is_empty(), "nothing launches");
+        assert!(harness.stdout().is_empty(), "{}", harness.stdout());
+    }
+
+    #[test]
+    fn watch_json_leaves_stdout_to_each_iteration_event_stream() {
+        for words in [
+            vec!["watch", "build", "//a:one", "--output=json"],
+            vec!["watch", "build", "//a:one", "-o", "json"],
+        ] {
+            let mut harness = Harness::new("dx-watch-json-");
+            let mut waits = 0;
+            let code = harness.run(&words, None, &mut |_| {
+                waits += 1;
+                match waits {
+                    1 => Ok(vec![PathBuf::from("/ws/src/lib.rs")]),
+                    _ => Err(AdoptError::WatchFailed {
+                        detail: "stop".to_owned(),
+                    }),
+                }
+            });
+            assert_eq!(code, 1, "{words:?}");
+            let stdout = harness.stdout();
+            let events = json_events(&stdout);
+            let kinds = event_kinds(&events);
+            assert_eq!(
+                kinds
+                    .iter()
+                    .filter(|kind| **kind == "command_started")
+                    .count(),
+                2,
+                "{words:?}: {stdout}"
+            );
+            let finished = events_of_kind(&events, "command_finished");
+            assert_eq!(
+                finished.len(),
+                3,
+                "two iterations plus the failure: {stdout}"
+            );
+            assert_eq!(finished[0]["exit_code"], 0, "{stdout}");
+            assert_eq!(finished[2]["exit_code"], 1, "{stdout}");
+            assert_eq!(
+                events_of_kind(&events, "error")
+                    .last()
+                    .map(|event| event["code"].clone()),
+                Some(serde_json::json!("watch_failed")),
+                "{stdout}"
+            );
+            let stderr = harness.stderr();
+            assert!(
+                stderr.contains("watch:build:debounce=200ms scope=//a:one iteration=1"),
+                "{stderr}"
+            );
+            assert!(stderr.contains("changed /ws/src/lib.rs"), "{stderr}");
+            assert!(stderr.contains("iteration=2"), "{stderr}");
+        }
+    }
+
+    #[test]
+    fn watch_json_refusals_end_in_a_terminal_event() {
+        let mut harness = Harness::new("dx-watch-json-refuse-");
+        let code = harness.run(&["watch", "docs", "--output=json"], Some(1), &mut |_| {
+            Ok(Vec::new())
+        });
+        assert_eq!(code, 2);
+        let events = json_events(&harness.stdout());
+        assert_eq!(event_kinds(&events), ["error", "command_finished"]);
+        assert_eq!(events[0]["code"], "invalid_arguments");
+        assert_eq!(events[1]["exit_code"], 2);
+        let mut harness = Harness::new("dx-watch-json-ci-").in_ci();
+        let code = harness.run(&["watch", "build", "--output=json"], Some(1), &mut |_| {
+            Ok(Vec::new())
+        });
+        assert_eq!(code, 2);
+        let events = json_events(&harness.stdout());
+        assert_eq!(event_kinds(&events), ["error", "command_finished"]);
+        assert!(harness.seen.borrow().is_empty());
+    }
+
+    #[test]
+    fn watch_progress_leaves_stdout_to_machine_output() {
+        for (words, want) in [
+            (vec!["watch", "build"], Progress::Stdout),
+            (vec!["watch", "--quiet", "build"], Progress::Silent),
+            (vec!["watch", "build", "--output=json"], Progress::Stderr),
+            (vec!["watch", "lint", "--output=diff"], Progress::Stderr),
+            (vec!["watch", "lint", "-o", "diff"], Progress::Stderr),
+            (vec!["watch", "test", "--report=junit=-"], Progress::Stderr),
+            (
+                vec!["watch", "test", "--report=junit=out.xml"],
+                Progress::Stdout,
+            ),
+        ] {
+            assert!(Progress::of(&invocation(&words)) == want, "{words:?}");
+        }
+    }
+
+    #[test]
+    fn watch_diff_writes_each_iteration_patch_and_nothing_else_on_stdout() {
+        use crate::exec::test_support::Harness as ExecHarness;
+        let mut harness = ExecHarness::new("watch-diff");
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(
+                vec![ExecHarness::diagnostic("unused", true)],
+                vec![harness.replacement(b"y")],
+            ),
+        );
+        let runner = harness.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let mut waits = 0;
+        let code = watch(
+            &invocation(&["watch", "lint", "--output=diff"]),
+            harness.env(&runner, &mut out, &mut err),
+            None,
+            &|| None,
+            |_| {
+                waits += 1;
+                match waits {
+                    1 => Ok(vec![PathBuf::from("/ws/src/a.py")]),
+                    _ => Err(AdoptError::WatchFailed {
+                        detail: "stop".to_owned(),
+                    }),
+                }
+            },
+        );
+        assert_eq!(code, 1);
+        let stdout = String::from_utf8(out).expect("stdout");
+        let stderr = String::from_utf8(err).expect("stderr");
+        assert_eq!(
+            stdout.matches("--- a/src/a.py").count(),
+            2,
+            "one patch per iteration: {stdout}\n{stderr}"
+        );
+        assert!(!stdout.contains("watch:"), "{stdout}");
+        assert!(!stdout.contains("changed "), "{stdout}");
+        assert!(stderr.contains("watch:lint:debounce=200ms"), "{stderr}");
+        assert!(stderr.contains("iteration=2"), "{stderr}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"x = 1\n",
+            "a diff watch never writes"
+        );
+    }
 }
+
+#[cfg(all(test, unix))]
+#[path = "watch_probe_tests.rs"]
+mod probe_tests;

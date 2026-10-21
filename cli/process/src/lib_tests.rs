@@ -1002,6 +1002,15 @@ fn exe_available_covers_help_file_and_path() {
 }
 
 #[test]
+fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
+    assert_eq!(interrupted(), None);
+    record_interrupt(2);
+    assert_eq!(interrupted(), Some(2));
+    assert_eq!(interrupted_code(2), 130);
+    assert_eq!(interrupted_code(15), 143);
+}
+
+#[test]
 fn stdout_broken_pipe_maps_to_141() {
     assert_eq!(broken_pipe_code(), 128 + 13);
     assert_eq!(EXIT_BROKEN_PIPE, 128 + 13);

@@ -29,6 +29,7 @@ static CHILD_PID: AtomicU32 = AtomicU32::new(0);
 
 #[cfg(unix)]
 extern "C" fn forward_to_child(signo: libc::c_int) {
+    dx_process::record_interrupt(signo);
     let pid = CHILD_PID.load(Ordering::SeqCst);
     if pid != 0 {
         unsafe {

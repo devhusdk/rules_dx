@@ -82,48 +82,187 @@ pub(super) fn plan_package_json(
             });
         }
     };
-    let _: serde_json::Value =
-        serde_json::from_str(content).map_err(|_| BumpError::UnsupportedManifest {
-            manifest: "package.json".to_owned(),
-            reason: "manifest is not valid JSON".to_owned(),
-        })?;
-    let key = format!("\"{package}\"");
-    let mut matches = 0usize;
-    let mut out = String::with_capacity(content.len());
-    for line in content.split_inclusive('\n') {
-        if line.contains(&key) && line.contains(':') && line.contains('"') {
-            if let Some(key_at) = line.find(&key) {
-                let after = &line[key_at + key.len()..];
-                if after.trim_start().starts_with(':') {
-                    match replace_first_quoted_version_after_colon(line, &new) {
-                        Some(replaced) => {
-                            matches += 1;
-                            out.push_str(&replaced);
-                            continue;
-                        }
-                        None => {
-                            return Err(BumpError::UnsupportedManifest {
-                                manifest: "package.json".to_owned(),
-                                reason: format!("{package:?} has no quoted version after ':'"),
-                            });
-                        }
-                    }
-                }
+    let unsupported = |reason: String| BumpError::UnsupportedManifest {
+        manifest: "package.json".to_owned(),
+        reason,
+    };
+    let root: serde_json::Value = serde_json::from_str(content)
+        .map_err(|_| unsupported("manifest is not valid JSON".to_owned()))?;
+    if !root.is_object() {
+        return Err(unsupported("manifest root is not an object".to_owned()));
+    }
+    let mut scan = JsonScan {
+        text: content,
+        at: 0,
+    };
+    scan.skip_ws();
+    let mut sections = Vec::new();
+    let mut section_names = Vec::new();
+    for (key, value_at) in scan.members()? {
+        if NPM_SECTIONS.contains(&key.as_str()) {
+            if section_names.contains(&key) {
+                return Err(unsupported(format!("duplicate {key:?} section")));
+            }
+            section_names.push(key);
+            sections.push(value_at);
+        }
+    }
+    let mut spans = Vec::new();
+    for value_at in sections {
+        scan.at = value_at;
+        if !scan.text[value_at..].starts_with('{') {
+            return Err(unsupported(
+                "dependency section is not an object".to_owned(),
+            ));
+        }
+        for (key, at) in scan.members()? {
+            if key == package {
+                spans.push(at);
             }
         }
-        out.push_str(line);
     }
-    match matches {
-        1 => Ok(out),
+    match spans.len() {
         0 => Err(BumpError::NotFound {
             manifest: "package.json".to_owned(),
             package: package.to_owned(),
         }),
+        1 => {
+            scan.at = spans[0];
+            if !content[spans[0]..].starts_with('"') {
+                return Err(unsupported(format!(
+                    "{package:?} requirement is not a string"
+                )));
+            }
+            let end = scan.string_end()?;
+            Ok(format!(
+                "{}\"{new}\"{}",
+                &content[..spans[0]],
+                &content[end..]
+            ))
+        }
         count => Err(BumpError::Ambiguous {
             manifest: "package.json".to_owned(),
             package: package.to_owned(),
             count,
         }),
+    }
+}
+
+const NPM_SECTIONS: [&str; 4] = [
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
+];
+
+struct JsonScan<'a> {
+    text: &'a str,
+    at: usize,
+}
+
+impl JsonScan<'_> {
+    fn bad() -> BumpError {
+        BumpError::UnsupportedManifest {
+            manifest: "package.json".to_owned(),
+            reason: "manifest is not valid JSON".to_owned(),
+        }
+    }
+
+    fn skip_ws(&mut self) {
+        while self.text[self.at..].starts_with([' ', '\t', '\n', '\r']) {
+            self.at += 1;
+        }
+    }
+
+    fn string_end(&mut self) -> Result<usize, BumpError> {
+        let bytes = self.text.as_bytes();
+        let mut i = self.at + 1;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'\\' => i += 2,
+                b'"' => {
+                    self.at = i + 1;
+                    return Ok(self.at);
+                }
+                _ => i += 1,
+            }
+        }
+        Err(Self::bad())
+    }
+
+    fn skip_value(&mut self) -> Result<(), BumpError> {
+        self.skip_ws();
+        match self.text[self.at..].chars().next() {
+            Some('"') => self.string_end().map(|_| ()),
+            Some(open @ ('{' | '[')) => {
+                let close = if open == '{' { '}' } else { ']' };
+                self.at += 1;
+                loop {
+                    self.skip_ws();
+                    if self.text[self.at..].starts_with(close) {
+                        self.at += 1;
+                        return Ok(());
+                    }
+                    if self.text[self.at..].starts_with(',') {
+                        self.at += 1;
+                        continue;
+                    }
+                    if open == '{' {
+                        self.skip_value()?;
+                        self.skip_ws();
+                        if !self.text[self.at..].starts_with(':') {
+                            return Err(Self::bad());
+                        }
+                        self.at += 1;
+                    }
+                    self.skip_value()?;
+                }
+            }
+            Some(_) => {
+                let rest = &self.text[self.at..];
+                let len = rest
+                    .find([',', '}', ']', ' ', '\t', '\n', '\r'])
+                    .unwrap_or(rest.len());
+                if len == 0 {
+                    return Err(Self::bad());
+                }
+                self.at += len;
+                Ok(())
+            }
+            None => Err(Self::bad()),
+        }
+    }
+
+    fn members(&mut self) -> Result<Vec<(String, usize)>, BumpError> {
+        self.skip_ws();
+        if !self.text[self.at..].starts_with('{') {
+            return Err(Self::bad());
+        }
+        self.at += 1;
+        let mut out = Vec::new();
+        loop {
+            self.skip_ws();
+            if self.text[self.at..].starts_with('}') {
+                return Ok(out);
+            }
+            if self.text[self.at..].starts_with(',') {
+                self.at += 1;
+                continue;
+            }
+            let start = self.at;
+            let end = self.string_end()?;
+            let key: String =
+                serde_json::from_str(&self.text[start..end]).map_err(|_| Self::bad())?;
+            self.skip_ws();
+            if !self.text[self.at..].starts_with(':') {
+                return Err(Self::bad());
+            }
+            self.at += 1;
+            self.skip_ws();
+            let value_at = self.at;
+            self.skip_value()?;
+            out.push((key, value_at));
+        }
     }
 }
 
@@ -483,47 +622,6 @@ pub(super) fn replace_gha_sha(line: &str, needle: &str, sha: &str) -> Option<Str
     replaced.push_str(&line[..at]);
     replaced.push_str(sha);
     replaced.push_str(&rest[end..]);
-    Some(replaced)
-}
-
-pub(super) fn json_version_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r#":(?P<gap>\s*)"(?P<old>[^"]*)""#).ok());
-    RE.as_ref()
-}
-
-pub(super) fn replace_first_quoted_version_after_colon(line: &str, new: &str) -> Option<String> {
-    if let Some(re) = json_version_re() {
-        let colon = line.find(':')?;
-        let (head, tail) = line.split_at(colon);
-        if re.is_match(tail) {
-            let replaced_tail = re.replacen(tail, 1, |caps: &regex::Captures<'_>| {
-                format!(":{}\"{new}\"", &caps["gap"])
-            });
-            let mut out = String::with_capacity(line.len());
-            out.push_str(head);
-            out.push_str(&replaced_tail);
-            return Some(out);
-        }
-        return None;
-    }
-    replace_first_quoted_version_after_colon_fallback(line, new)
-}
-
-pub(super) fn replace_first_quoted_version_after_colon_fallback(
-    line: &str,
-    new: &str,
-) -> Option<String> {
-    let colon = line.find(':')?;
-    let after = &line[colon + 1..];
-    let start_rel = after.find('"')?;
-    let start = colon + 1 + start_rel;
-    let after_start = &line[start + 1..];
-    let end_rel = after_start.find('"')?;
-    let mut replaced = String::with_capacity(line.len());
-    replaced.push_str(&line[..=start]);
-    replaced.push_str(new);
-    replaced.push_str(&after_start[end_rel..]);
     Some(replaced)
 }
 

@@ -76,19 +76,6 @@ fn fallback_edits_preserve_the_same_bytes_as_regex_edits() {
             "{input}"
         );
     }
-    for input in [
-        "\"demo\": \"1.0.0\",",
-        "\"demo\":\"1.0.0\"",
-        "missing colon",
-        "\"demo\": 1",
-        "\"demo\": \"unterminated",
-    ] {
-        assert_eq!(
-            replace_first_quoted_version_after_colon_fallback(input, "2.0.0"),
-            replace_first_quoted_version_after_colon(input, "2.0.0"),
-            "{input}"
-        );
-    }
 }
 
 #[test]
@@ -189,7 +176,7 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
             "npm:demo",
             "{\"other\": \"1.0.0\"}\n",
             "{\n\"dependencies\": {\n\"demo\": \"1.0.0\"\n},\n\"devDependencies\": {\n\"demo\": \"1.1.0\"\n}\n}\n",
-            "{\n\"demo\": 1\n}\n",
+            "{\n\"dependencies\": {\n\"demo\": 1\n}\n}\n",
         ),
         (
             "go:example.com/demo",
@@ -802,10 +789,62 @@ fn module_bazel_edits_one_literal_version_token() {
 }
 
 #[test]
-fn json_keeps_spacing() {
-    let line = "    \"jest\": \"30.2.0\",";
-    let replaced = replace_first_quoted_version_after_colon(line, "30.3.0").expect("json");
-    assert!(replaced.contains("\"jest\": \"30.3.0\""), "{replaced}");
+fn npm_layouts_change_only_the_selected_requirement() {
+    let bump = BumpRequest::parse("npm:lodash", "4.17.21").expect("npm");
+    for (before, after) in [
+        (
+            r#"{"name":"demo","dependencies":{"lodash":"4.17.20"}}"#,
+            r#"{"name":"demo","dependencies":{"lodash":"4.17.21"}}"#,
+        ),
+        (
+            "{\n  \"name\": \"demo\",\n  \"dependencies\": {\n    \"lodash\": \"4.17.20\"\n  }\n}\n",
+            "{\n  \"name\": \"demo\",\n  \"dependencies\": {\n    \"lodash\": \"4.17.21\"\n  }\n}\n",
+        ),
+        (
+            "{\"name\":\"lodash\",\"scripts\":{\"lodash\":\"x\"},\"devDependencies\":{\n\"lodash\"\n:\n\"^4\"}}",
+            "{\"name\":\"lodash\",\"scripts\":{\"lodash\":\"x\"},\"devDependencies\":{\n\"lodash\"\n:\n\"4.17.21\"}}",
+        ),
+    ] {
+        assert_eq!(bump.plan_edit(before).expect("edit"), after, "{before}");
+    }
+}
+
+#[test]
+fn npm_rejects_ambiguous_malformed_and_unselected_shapes() {
+    let bump = BumpRequest::parse("npm:lodash", "4.17.21").expect("npm");
+    for source in [
+        r#"{"dependencies":{"lodash":"1","lodash":"2"}}"#,
+        r#"{"dependencies":{"lodash":"1"},"devDependencies":{"lodash":"2"}}"#,
+    ] {
+        assert!(
+            matches!(bump.plan_edit(source), Err(BumpError::Ambiguous { .. })),
+            "{source}"
+        );
+    }
+    for source in [
+        r#"{"dependencies":{"lodash":"1"},"dependencies":{"x":"1"}}"#,
+        r#"{"dependencies":{"lodash":1}}"#,
+        r#"{"dependencies":{"lodash":"1"}"#,
+        "[]",
+        r#"{"dependencies":[]}"#,
+    ] {
+        assert!(
+            matches!(
+                bump.plan_edit(source),
+                Err(BumpError::UnsupportedManifest { .. })
+            ),
+            "{source}"
+        );
+    }
+    for source in [
+        r#"{"name":"lodash","scripts":{"lodash":"1"}}"#,
+        r#"{"dependencies":{"other":"1"}}"#,
+    ] {
+        assert!(
+            matches!(bump.plan_edit(source), Err(BumpError::NotFound { .. })),
+            "{source}"
+        );
+    }
 }
 
 #[test]

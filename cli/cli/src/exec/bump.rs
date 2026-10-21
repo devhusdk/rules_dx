@@ -1071,6 +1071,21 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
+    fn minified_npm_manifest_apply_changes_only_the_dependency() {
+        let harness = Harness::new("bump-npm-minified");
+        harness.write_source(
+            "package.json",
+            "{\"name\":\"demo\",\"dependencies\":{\"lodash\":\"4.17.20\"}}",
+        );
+        let (code, out, err) = harness.run(&["bump", "npm:lodash", "4.17.21", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            std::fs::read_to_string(harness.workspace.join("package.json")).expect("read"),
+            "{\"name\":\"demo\",\"dependencies\":{\"lodash\":\"4.17.21\"}}"
+        );
+    }
+
+    #[test]
     fn live_go_chains_noop_without_launch() {
         let harness = Harness::new("bump-live-go-chain");
         harness.write_source(

@@ -78,6 +78,12 @@ Inputs:
 - `min_coverage`: fails below that percent, a whole number from 0 to 100 such as
   `80`. Empty collects without enforcing a threshold. `80%`, `80.5`, `-1`, `101`,
   `eighty` and a leading space fail. Coverage comes from `dx coverage`.
+- `invocation_id`: 1 to 40 letters, digits, underscores or hyphens. Empty
+  uploads `advisory-snapshots`, which suits one call per workflow run. Two calls
+  in one workflow run, including matrix cells, each need their own ID, such as
+  `api-linux`; a repeated ID makes the second upload fail. Anything else fails.
+  The ID also keeps the calls' concurrency groups apart, so one call never
+  cancels another. A rerun reuses the same ID.
 
 A rejected input fails in the `validate` job before any check starts. The nine
 checks need it, so none of them run. `dx-ci (aggregate)` names the validation
@@ -117,7 +123,7 @@ writes the tail to the job summary.
 
 `security-audit` reads `.dx/advisory/`. One `advisory snapshots (one run,
 every platform)` job fills that directory once per run, uploads it as the
-`advisory-snapshots` artifact, and every platform cell downloads the same
+`advisory-snapshots` artifact (`advisory-snapshots-<invocation_id>` when set), and every platform cell downloads the same
 bytes. No cell downloads a database of its own.
 
 ```sh

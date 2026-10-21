@@ -32,6 +32,11 @@ on:
         required: false
         default: ""
         type: string
+      invocation_id:
+        description: "Names this call's advisory artifact. Empty keeps advisory-snapshots for a single call. Two calls in one parent run need distinct IDs of 1 to 40 letters, digits, underscores or hyphens."
+        required: false
+        default: ""
+        type: string
     secrets:
       BUILDBUDDY_API_KEY:
         description: "BuildBuddy API key enabling the shared remote cache. Optional; jobs skip remote-cache configuration when absent."
@@ -49,7 +54,7 @@ env:
   BAZELISK_VERSION: "1.29.0"
 
 concurrency:
-  group: dx-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: dx-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.invocation_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -64,6 +69,7 @@ jobs:
       min_coverage: ${{ steps.validate.outputs.min_coverage }}
       platforms: ${{ steps.validate.outputs.platforms }}
       runners: ${{ steps.validate.outputs.runners }}
+      snapshot_artifact: ${{ steps.validate.outputs.snapshot_artifact }}
     steps:
       - name: Validate workflow inputs
         id: validate
@@ -73,6 +79,7 @@ jobs:
           DX_SCHEDULING_MODE: ${{ inputs.scheduling_mode }}
           DX_CODE_SCANNING_OPT_IN: ${{ inputs.code_scanning_opt_in }}
           DX_MIN_COVERAGE: ${{ inputs.min_coverage }}
+          DX_INVOCATION_ID: ${{ inputs.invocation_id }}
         run: |
           python3 - <<'DX_INPUT_VALIDATION'
           """Validates the consumer workflow inputs before any matrix job starts.
@@ -94,6 +101,7 @@ jobs:
           SCHEDULING_ENV = "DX_SCHEDULING_MODE"
           SCANNING_ENV = "DX_CODE_SCANNING_OPT_IN"
           MIN_COVERAGE_ENV = "DX_MIN_COVERAGE"
+          INVOCATION_ENV = "DX_INVOCATION_ID"
           OUTPUT_ENV = "GITHUB_OUTPUT"
 
           PLATFORMS = {
@@ -117,6 +125,8 @@ jobs:
           )
           SCHEDULING = "parallel"
           WHOLE_PERCENT = re.compile(r"[0-9]+")
+          INVOCATION_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
+          SNAPSHOT_ARTIFACT = "advisory-snapshots"
 
 
           def fail(message):
@@ -254,6 +264,20 @@ jobs:
               return text
 
 
+          def validate_invocation(text):
+              """Returns the invocation ID, or None after a diagnostic."""
+              if text == "":
+                  return ""
+              if INVOCATION_ID.fullmatch(text) is None:
+                  fail(
+                      f"{INVOCATION_ENV}={text!r} is not 1 to 40 letters, digits, underscores "
+                      "or hyphens. Give every call in one parent run its own ID, or omit it "
+                      "for a single call."
+                  )
+                  return None
+              return text
+
+
           def compact(value):
               """Returns value as JSON without spaces."""
               return json.dumps(value, separators=(",", ":"))
@@ -279,6 +303,7 @@ jobs:
                   SCHEDULING_ENV: validate_scheduling(os.environ.get(SCHEDULING_ENV, SCHEDULING)),
                   SCANNING_ENV: validate_scanning(os.environ.get(SCANNING_ENV, "false")),
                   MIN_COVERAGE_ENV: validate_min_coverage(os.environ.get(MIN_COVERAGE_ENV, "")),
+                  INVOCATION_ENV: validate_invocation(os.environ.get(INVOCATION_ENV, "")),
               }
               if any(value is None for value in accepted_values.values()):
                   return 1
@@ -287,6 +312,9 @@ jobs:
                   "runners": compact(PLATFORMS),
                   "disabled": ",".join(accepted_values[DISABLED_ENV]),
                   "min_coverage": accepted_values[MIN_COVERAGE_ENV],
+                  "snapshot_artifact": "-".join(
+                      part for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV]) if part
+                  ),
               }
               if not write_outputs(outputs):
                   return 1
@@ -295,6 +323,7 @@ jobs:
               print(f"{SCHEDULING_ENV} {accepted_values[SCHEDULING_ENV]}")
               print(f"{SCANNING_ENV} {accepted_values[SCANNING_ENV]}")
               print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
+              print(f"{INVOCATION_ENV} {accepted_values[INVOCATION_ENV] or '(none)'}")
               return 0
 
 
@@ -1225,7 +1254,7 @@ jobs:
         if: ${{ steps.prepare.outputs.status != 'empty' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: advisory-snapshots
+          name: ${{ needs.validate.outputs.snapshot_artifact }}
           path: .dx/advisory
           if-no-files-found: error
           retention-days: 1
@@ -1417,7 +1446,7 @@ jobs:
         if: ${{ needs.advisory-snapshots.outputs.status != 'empty' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: advisory-snapshots
+          name: ${{ needs.validate.outputs.snapshot_artifact }}
           path: .dx/advisory
       # Audit backends run no Bazel and take no passthrough flags.
       - name: Audit against the shared snapshots

@@ -567,6 +567,48 @@ fn explicit_workspace_uses_the_target_workspace_defaults() {
 }
 
 #[test]
+fn ci_ignores_the_environment_workspace_for_defaults() {
+    let a = workspace_with_output("dx-startup-ci-a-", "json");
+    let b = workspace_with_output("dx-startup-ci-b-", "text");
+    let a_dir = a.path().to_string_lossy().into_owned();
+    let ci = (("CI"), "true");
+    let (code, out, err) = run_dx(b.path(), &["status"], &[ci, (DX_WORKSPACE_ENV, &a_dir)]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("lint") && !out.contains("command_started"),
+        "the ignored environment workspace leaves b's text defaults: {out}"
+    );
+    std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
+    let (code, out, err) = run_dx(b.path(), &["status"], &[ci, (DX_WORKSPACE_ENV, &a_dir)]);
+    assert_eq!(
+        code,
+        Some(0),
+        "a malformed ignored workspace is not read: {err}"
+    );
+    assert!(out.contains("lint"), "{out}");
+    let redirect = format!("[dx]\noutput = \"json\"\nworkspace = \"{a_dir}\"\n");
+    let c = workspace_with_output("dx-startup-ci-c-", "json");
+    std::fs::write(c.path().join("dx.toml"), redirect).expect("redirect");
+    std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
+    let (code, _, err) = run_dx(b.path(), &["status"], &[ci, (DX_WORKSPACE_ENV, &a_dir)]);
+    assert_eq!(code, Some(0), "{err}");
+    let (code, _, err) = run_dx(
+        b.path(),
+        &["status", "--workspace", &a_dir],
+        &[ci, (DX_WORKSPACE_ENV, &a_dir)],
+    );
+    assert_ne!(code, Some(0), "an explicit flag still selects a: {err}");
+    std::fs::write(a.path().join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("json");
+    let (code, out, err) = run_dx(
+        b.path(),
+        &["status", "--workspace", &a_dir],
+        &[ci, (DX_WORKSPACE_ENV, &a_dir)],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("command_started"), "the flag selects a: {out}");
+}
+
+#[test]
 fn repeated_workspace_flags_load_the_last_workspace_defaults() {
     let a = workspace_with_output("dx-startup-last-a-", "json");
     let b = workspace_with_output("dx-startup-last-b-", "text");

@@ -69,7 +69,10 @@ pub use scaffold::{
     CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
     CONSUMER_WORKFLOW_PIN, DEVCONTAINER_JSON, ENVRC_CONTENT,
 };
-pub use status::{default_status_checks, render_status_json, render_status_text, StatusCheck};
+pub use status::{
+    default_status_checks, observed_status_checks, render_status_json, render_status_text,
+    StatusCheck,
+};
 pub use upgrade::{
     plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,
     upgrade_refresh_commands, upgrade_restore_command_for, upgrade_retry_command, UpgradeIntent,

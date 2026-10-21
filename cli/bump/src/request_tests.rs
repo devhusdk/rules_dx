@@ -60,25 +60,6 @@ fn cargo_table_variants_preserve_comments_and_reject_nonregistry_shapes() {
     }
 }
 #[test]
-fn fallback_edits_preserve_the_same_bytes_as_regex_edits() {
-    for input in [
-        "require example.com/demo v1.2.3\n",
-        " example.com/v2/demo v2.3.4-beta+build // indirect\r\n",
-        "example.com/demo v1.2.3+build",
-        "example.com/demo vbroken",
-        "example.com/demo v123",
-        "example.com/demo v...",
-        "example.com/demo v1.2.3 suffix",
-    ] {
-        assert_eq!(
-            replace_go_version_token_fallback(input, "v3.0.0"),
-            replace_go_version_token(input, "v3.0.0"),
-            "{input}"
-        );
-    }
-}
-
-#[test]
 fn hand_built_requests_reject_wrong_version_kinds() {
     let tag = WidenVersion::GitTag("v2".to_owned());
     for set in [
@@ -181,8 +162,8 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
         (
             "go:example.com/demo",
             "module example.com/root\n",
-            "require example.com/demo v1.0.0\nrequire example.com/demo v1.1.0\n",
-            "require example.com/demo vbad\n",
+            "module example.com/root\nrequire example.com/demo v1.0.0\nrequire example.com/demo v1.1.0\n",
+            "module example.com/root\nrequire example.com/demo\n",
         ),
         (
             "maven:org.example:demo",
@@ -230,7 +211,7 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
 #[test]
 fn widen_preserves_comments_crlf_and_package_boundaries() {
     for (selector, input, expected) in [
-        ("go:example.com/demo", "// example.com/demo v9.0.0\n# keep\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v1.2.3-beta+build // indirect\n)\n", "// example.com/demo v9.0.0\n# keep\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v2.0.0 // indirect\n)\n"),
+        ("go:example.com/demo", "module example.com/root\n// example.com/demo v9.0.0\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v1.2.3-beta+build // indirect\n)\n", "module example.com/root\n// example.com/demo v9.0.0\nrequire (\n example.com/demo-extra v1.0.0\n example.com/demo v2.0.0 // indirect\n)\n"),
         ("nuget:Demo", "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 1.2.3  # pinned\r\n", "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 2.0.0  # pinned\r\n"),
         ("nuget:Demo", "nuget Demo 1.2.3", "nuget Demo 2.0.0"),
     ] {
@@ -681,37 +662,6 @@ fn github_actions_needs_sha_for_tags() {
 }
 
 #[test]
-fn regex_go_module_token_respects_boundaries() {
-    assert!(line_contains_module_token(
-        "require example.com/mod v1.2.3",
-        "example.com/mod"
-    ));
-    assert!(!line_contains_module_token(
-        "require example.com/mod-extra v1.2.3",
-        "example.com/mod"
-    ));
-    assert!(!line_contains_module_token(
-        "require example.com/modx v1.2.3",
-        "example.com/mod"
-    ));
-}
-
-#[test]
-fn regex_go_version_token_replaces_last_and_keeps_suffix() {
-    let line = "require example.com/mod v1.2.3 // keep\n";
-    let replaced = replace_go_version_token(line, "v1.3.0").expect("replace");
-    assert!(replaced.contains("v1.3.0"), "{replaced}");
-    assert!(replaced.contains("// keep"), "{replaced}");
-
-    let pre = "require example.com/mod v1.2.3-alpha+001\n";
-    let replaced = replace_go_version_token(pre, "v1.3.0").expect("pre");
-    assert!(replaced.contains("v1.3.0"), "{replaced}");
-    assert!(!replaced.contains("alpha"), "{replaced}");
-
-    assert!(replace_go_version_token("require example.com/mod v1\n", "v2.0.0").is_none());
-}
-
-#[test]
 fn regex_cargo_boundary_prefers_exact_table_key() {
     let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     let cargo = "[dependencies]\nmy-anyhow = \"1\"\n";
@@ -1056,5 +1006,34 @@ fn maven_bump_rejects_malformed_dynamic_and_ambiguous_without_output() {
     assert!(matches!(
         bump.plan_edit(&commented),
         Err(BumpError::NotFound { .. })
+    ));
+}
+
+#[test]
+fn go_bump_edits_the_requirement_not_the_comment() {
+    let bump = BumpRequest::parse("go:example.com/pkg", "1.2.0").expect("go");
+    let input = "module example.com/app\nrequire example.com/pkg v1.0.0 // pinned after v0.9.0\n";
+    assert_eq!(
+        bump.plan_edit(input).expect("edit"),
+        "module example.com/app\nrequire example.com/pkg v1.2.0 // pinned after v0.9.0\n"
+    );
+}
+
+#[test]
+fn go_bump_ignores_replace_and_exclude_and_rejects_malformed_files() {
+    let bump = BumpRequest::parse("go:example.com/pkg", "1.2.0").expect("go");
+    let input = "module example.com/app\nreplace example.com/pkg => example.com/fork v1.0.0\nexclude example.com/pkg v1.1.0\n";
+    assert!(matches!(
+        bump.plan_edit(input),
+        Err(BumpError::NotFound { .. })
+    ));
+    assert!(matches!(
+        bump.plan_edit("module example.com/app\nrequire (\n\texample.com/pkg v1.0.0\n"),
+        Err(BumpError::UnsupportedManifest { .. })
+    ));
+    let both = "module example.com/app\nrequire example.com/pkg v1.0.0\nrequire (\n\texample.com/pkg v1.1.0\n)\n";
+    assert!(matches!(
+        bump.plan_edit(both),
+        Err(BumpError::Ambiguous { count: 2, .. })
     ));
 }

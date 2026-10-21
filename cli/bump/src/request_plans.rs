@@ -354,87 +354,181 @@ pub(super) fn plan_paket_dependencies(
     package: &str,
     version: &WidenVersion,
 ) -> Result<String, BumpError> {
+    const MANIFEST: &str = "third_party/dotnet/paket.dependencies";
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
             return Err(BumpError::UnsupportedManifest {
-                manifest: "third_party/dotnet/paket.dependencies".to_owned(),
+                manifest: MANIFEST.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
         }
     };
-    let mut matches = 0usize;
-    let mut out = String::with_capacity(content.len());
+    let mut targets = Vec::new();
+    let mut offset = 0usize;
     for line in content.split_inclusive('\n') {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with('#') || trimmed.starts_with("//") {
-            out.push_str(line);
-            continue;
-        }
         if paket_line_targets_package(line, package) {
-            match replace_paket_version_token(line, &new) {
-                Some(replaced) => {
-                    matches += 1;
-                    out.push_str(&replaced);
-                    continue;
-                }
-                None => {
-                    return Err(BumpError::UnsupportedManifest {
-                        manifest: "third_party/dotnet/paket.dependencies".to_owned(),
-                        reason: format!("{package:?} has no replaceable version token"),
-                    });
-                }
-            }
+            targets.push((offset, line));
         }
-        out.push_str(line);
+        offset += line.len();
     }
-    match matches {
-        1 => Ok(out),
-        0 => Err(BumpError::NotFound {
-            manifest: "third_party/dotnet/paket.dependencies".to_owned(),
-            package: package.to_owned(),
-        }),
-        count => Err(BumpError::Ambiguous {
-            manifest: "third_party/dotnet/paket.dependencies".to_owned(),
-            package: package.to_owned(),
-            count,
-        }),
+    let (at, line) = match targets.as_slice() {
+        [] => {
+            return Err(BumpError::NotFound {
+                manifest: MANIFEST.to_owned(),
+                package: package.to_owned(),
+            });
+        }
+        [one] => *one,
+        many => {
+            return Err(BumpError::Ambiguous {
+                manifest: MANIFEST.to_owned(),
+                package: package.to_owned(),
+                count: many.len(),
+            });
+        }
+    };
+    let unsupported = |reason: String| BumpError::UnsupportedManifest {
+        manifest: MANIFEST.to_owned(),
+        reason: format!("{package:?}: {reason}"),
+    };
+    let decl = parse_paket_declaration(line).map_err(unsupported)?;
+    let mut out = String::with_capacity(content.len() + new.len());
+    out.push_str(&content[..at + decl.requirement.start]);
+    out.push_str(&new);
+    out.push_str(&content[at + decl.requirement.end..]);
+
+    let reparsed_at = at;
+    let reparsed_line = out[reparsed_at..]
+        .split_inclusive('\n')
+        .next()
+        .unwrap_or_default();
+    let reparsed = parse_paket_declaration(reparsed_line).map_err(unsupported)?;
+    let kept = reparsed_line[reparsed.requirement.clone()] == *new
+        && reparsed.id.eq_ignore_ascii_case(package)
+        && reparsed_line[..reparsed.requirement.start] == line[..decl.requirement.start]
+        && reparsed_line[reparsed.requirement.end..] == line[decl.requirement.end..];
+    if !kept {
+        return Err(unsupported("edit did not round-trip".to_owned()));
     }
+    Ok(out)
 }
 
-pub(super) fn paket_line_targets_package(line: &str, package: &str) -> bool {
-    let mut tokens = line.split_whitespace();
-    match (tokens.next(), tokens.next()) {
-        (Some(kind), Some(id)) => kind == "nuget" && id == package,
+struct PaketDeclaration<'a> {
+    id: &'a str,
+    requirement: std::ops::Range<usize>,
+}
+
+fn paket_tokens(line: &str) -> Vec<(usize, usize, &str)> {
+    let body = line.trim_end_matches(['\n', '\r']);
+    let mut tokens: Vec<(usize, usize, &str)> = Vec::new();
+    let mut start = None;
+    for (index, ch) in body
+        .char_indices()
+        .chain(std::iter::once((body.len(), ' ')))
+    {
+        match (start, ch.is_whitespace()) {
+            (None, false) => start = Some(index),
+            (Some(from), true) => {
+                let token = &body[from..index];
+                if token.starts_with('#') || token.starts_with("//") {
+                    return tokens;
+                }
+                if let Some(at) = token.find('#') {
+                    tokens.push((from, from + at, &token[..at]));
+                    return tokens;
+                }
+                tokens.push((from, index, token));
+                start = None;
+            }
+            _ => {}
+        }
+    }
+    tokens
+}
+
+fn paket_line_targets_package(line: &str, package: &str) -> bool {
+    let tokens = paket_tokens(line);
+    match tokens.as_slice() {
+        [(_, _, kind), (_, _, id), ..] => {
+            kind.eq_ignore_ascii_case("nuget") && id.eq_ignore_ascii_case(package)
+        }
         _ => false,
     }
 }
 
-pub(super) fn replace_paket_version_token(line: &str, new: &str) -> Option<String> {
-    let newline = line
-        .strip_suffix("\r\n")
-        .or_else(|| line.strip_suffix('\n'));
-    let (body, ending) = match newline {
-        Some(stripped) => (stripped, &line[stripped.len()..]),
-        None => (line, ""),
+const PAKET_OPERATORS: [&str; 7] = [">=", "<=", "==", "~>", "@>", ">", "<"];
+
+fn paket_operator_prefix(token: &str) -> Option<&str> {
+    PAKET_OPERATORS
+        .iter()
+        .find(|op| token.starts_with(**op))
+        .copied()
+        .or_else(|| token.starts_with('=').then_some("="))
+}
+
+fn is_paket_version(token: &str) -> bool {
+    token.starts_with(|c: char| c.is_ascii_digit())
+        && token
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+' | '_' | '*'))
+}
+
+fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, String> {
+    let tokens = paket_tokens(line);
+    let (id, rest) = match tokens.as_slice() {
+        [(_, _, kind), (_, _, id), rest @ ..] if kind.eq_ignore_ascii_case("nuget") => (*id, rest),
+        _ => return Err("not a nuget declaration".to_owned()),
     };
-    let (head, comment) = match body.find('#') {
-        Some(at) => (&body[..at], &body[at..]),
-        None => (body, ""),
-    };
-    let parts: Vec<&str> = head.split_whitespace().collect();
-    if parts.len() < 3 || parts[0] != "nuget" {
-        return None;
+    let mut index = 0usize;
+    let mut first = None;
+    let mut last_end = 0usize;
+    let mut expect_version = false;
+    while let Some(&(from, to, token)) = rest.get(index) {
+        let operand = match paket_operator_prefix(token) {
+            Some(op) => {
+                let operand = &token[op.len()..];
+                if operand.is_empty() {
+                    if expect_version {
+                        return Err("comparison operator without a version".to_owned());
+                    }
+                    expect_version = true;
+                    None
+                } else {
+                    Some(operand)
+                }
+            }
+            None if expect_version || is_paket_version(token) => Some(token),
+            None => break,
+        };
+        if let Some(operand) = operand {
+            if !is_paket_version(operand) {
+                return Err(format!("malformed version requirement {token:?}"));
+            }
+            expect_version = false;
+        }
+        first.get_or_insert(from);
+        last_end = to;
+        index += 1;
     }
-    let old = parts[2];
-    let old_at = head.rfind(old)?;
-    let mut replaced = String::with_capacity(line.len());
-    replaced.push_str(&head[..old_at]);
-    replaced.push_str(new);
-    replaced.push_str(&head[old_at + old.len()..]);
-    replaced.push_str(comment);
-    replaced.push_str(ending);
-    Some(replaced)
+    if expect_version {
+        return Err("comparison operator without a version".to_owned());
+    }
+    let Some(first) = first else {
+        return Err("no version requirement to replace".to_owned());
+    };
+    for &(_, _, token) in &rest[index..] {
+        if token.contains(':') {
+            break;
+        }
+        if !token.chars().all(|c| c.is_ascii_alphabetic()) {
+            return Err(format!("unsupported token {token:?} after requirement"));
+        }
+    }
+    Ok(PaketDeclaration {
+        id,
+        requirement: first..last_end,
+    })
 }
 
 pub(super) fn plan_github_workflow(

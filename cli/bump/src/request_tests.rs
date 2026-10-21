@@ -554,6 +554,92 @@ fn edits_rewrite_exactly_one_requirement() {
     ));
 }
 
+fn paket_edit(line: &str) -> Result<String, BumpError> {
+    let bump = BumpRequest::parse("nuget:Newtonsoft.Json", "13.0.3").expect("nuget");
+    bump.plan_edit(&format!(
+        "source https://api.nuget.org/v3/index.json\n{line}\nnuget Other.Pkg >= 1.0.0\n"
+    ))
+}
+
+#[test]
+fn paket_requirements_are_replaced_as_structured_syntax() {
+    let cases = [
+        (
+            "nuget Newtonsoft.Json 12.0.0",
+            "nuget Newtonsoft.Json 13.0.3",
+        ),
+        (
+            "nuget Newtonsoft.Json >= 12.0.0",
+            "nuget Newtonsoft.Json 13.0.3",
+        ),
+        (
+            "nuget Newtonsoft.Json >=12.0.0",
+            "nuget Newtonsoft.Json 13.0.3",
+        ),
+        (
+            "nuget Newtonsoft.Json ~> 12.0",
+            "nuget Newtonsoft.Json 13.0.3",
+        ),
+        (
+            "nuget Newtonsoft.Json >= 12.0.0 < 14.0.0",
+            "nuget Newtonsoft.Json 13.0.3",
+        ),
+        (
+            "nuget Newtonsoft.Json >= 12.0.0 prerelease",
+            "nuget Newtonsoft.Json 13.0.3 prerelease",
+        ),
+        (
+            "nuget Newtonsoft.Json ~> 12.0 storage: none, copy_local: false # keep 12.0",
+            "nuget Newtonsoft.Json 13.0.3 storage: none, copy_local: false # keep 12.0",
+        ),
+        (
+            "  NuGet newtonsoft.json >= 12.0.0 # keep",
+            "  NuGet newtonsoft.json 13.0.3 # keep",
+        ),
+    ];
+    for (before, after) in cases {
+        let edited = paket_edit(before).unwrap_or_else(|err| panic!("{before}: {err:?}"));
+        let expected = format!(
+            "source https://api.nuget.org/v3/index.json\n{after}\nnuget Other.Pkg >= 1.0.0\n"
+        );
+        assert_eq!(edited, expected, "{before}");
+    }
+}
+
+#[test]
+fn paket_edits_touch_only_the_selected_group_declaration() {
+    let bump = BumpRequest::parse("nuget:Newtonsoft.Json", "13.0.3").expect("nuget");
+    let paket =
+        "group Build\n  nuget Newtonsoft.Json >= 12.0.0\n\ngroup Main\n  nuget Other.Pkg ~> 1.0\n";
+    assert_eq!(
+        bump.plan_edit(paket).expect("edit"),
+        "group Build\n  nuget Newtonsoft.Json 13.0.3\n\ngroup Main\n  nuget Other.Pkg ~> 1.0\n"
+    );
+    let paket = "nuget Newtonsoft.Json >= 12.0.0\ngroup Build\n  nuget Newtonsoft.Json ~> 12.0\n";
+    assert!(matches!(
+        bump.plan_edit(paket),
+        Err(BumpError::Ambiguous { count: 2, .. })
+    ));
+}
+
+#[test]
+fn paket_malformed_requirements_fail_without_edits() {
+    for line in [
+        "nuget Newtonsoft.Json",
+        "nuget Newtonsoft.Json >=",
+        "nuget Newtonsoft.Json >= >= 1.0",
+        "nuget Newtonsoft.Json >= 12.0.0 < ",
+        "nuget Newtonsoft.Json storage: none",
+        "nuget Newtonsoft.Json >= 12.0.0 || 13.0",
+        "nuget Newtonsoft.Json >=1.0$",
+    ] {
+        assert!(
+            matches!(paket_edit(line), Err(BumpError::UnsupportedManifest { .. })),
+            "{line}"
+        );
+    }
+}
+
 #[test]
 fn maven_and_nuget_edits_fail_closed_on_ambiguous_and_prefixes() {
     let module = maven_module("        \"junit:junit:4.13.2\",\n        \"junit:junit:4.13.2\",\n");

@@ -33,14 +33,12 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
             _ => vec![command],
         };
         for option in [
-            "--pin=1.0.0",
             "--fail-on=error",
             "--report=junit=report.xml",
             "--bazel",
             "--check",
         ] {
             let supported = match option {
-                "--pin=1.0.0" => command == "version",
                 "--fail-on=error" => command == "security" || command == "license",
                 "--report=junit=report.xml" => command == "security" || command == "license",
                 "--check" => matches!(command, "generate" | "update" | "docs" | "version"),
@@ -60,7 +58,6 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         }
     }
     for words in [
-        vec!["version", "--pin="],
         vec!["migrate", "--from="],
         vec!["migrate", "--to="],
         vec!["lint", "--pin=1.0.0"],
@@ -86,9 +83,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 13] = [
-    ("--pin", &["--pin=1.0.0"], &["version"]),
-    ("--rollback", &["--rollback"], &["version"]),
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
     (
         "--configured",
         &["--configured"],
@@ -963,7 +958,7 @@ fn bazel_forwards_verbatim_and_rejects_the_prefix_order() {
     for words in [
         vec!["bazel", "--jobs=4"],
         vec!["bazel", "--check"],
-        vec!["bazel", "--pin=0.1.0"],
+        vec!["bazel", "--from=0.1.0"],
         vec!["bazel", "version", "--configured"],
         vec!["bazel", "--", "--fail-on=error"],
     ] {
@@ -979,7 +974,7 @@ fn bazel_forwards_verbatim_and_rejects_the_prefix_order() {
     for words in [
         vec!["--output=json", "bazel", "version"],
         vec!["--check", "bazel", "version"],
-        vec!["--pin=0.1.0", "bazel", "version"],
+        vec!["--from=0.1.0", "bazel", "version"],
         vec!["--configured", "bazel", "version"],
         vec!["--fail-on=error", "bazel", "build", "//..."],
         vec!["--report=sarif=x.sarif", "bazel", "build"],
@@ -1017,22 +1012,19 @@ fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
 
 #[test]
 fn version_rollback_check_and_configured_parse() {
-    let got = parse(&strings(&["version", "--rollback"])).expect("parse");
-    assert_eq!(got.command, Command::Version);
-    assert!(got.rollback);
     let got = parse(&strings(&["version", "--check"])).expect("parse");
     assert!(got.check);
     let got = parse(&strings(&["deps", "--configured", "//a:one"])).expect("parse");
     assert_eq!(got.command, Command::Deps);
     assert!(got.configured);
     for words in [
-        vec!["status", "--rollback"],
+        vec!["status", "--serve"],
         vec!["status", "--check"],
-        vec!["owners", "//a:one", "--pin=0.1.0"],
+        vec!["owners", "//a:one", "--from=0.1.0"],
         vec!["build", "//a:one", "--configured"],
-        vec!["lint", "--rollback"],
+        vec!["lint", "--serve"],
         vec!["check", "//...", "--configured"],
-        vec!["status", "--pin=0.1.0"],
+        vec!["status", "--from=0.1.0"],
     ] {
         assert!(
             matches!(
@@ -1121,7 +1113,7 @@ fn docs_check_serve_port_parse() {
         vec!["build", "--open"],
         vec!["docs", "--fail-on=error"],
         vec!["docs", "--report=sarif=out.sarif"],
-        vec!["docs", "--pin=0.1.0"],
+        vec!["docs", "--from=0.1.0"],
         vec!["docs", "--output=diff"],
     ] {
         assert!(
@@ -1205,7 +1197,7 @@ fn managed_commands_parse_repo_and_exact_scopes() {
     for words in [
         vec!["env", "--fail-on=error"],
         vec!["codegen", "--report=sarif=out.sarif"],
-        vec!["env", "--pin=0.1.0"],
+        vec!["env", "--from=0.1.0"],
         vec!["codegen", "--configured"],
         vec!["env", "--configured"],
         vec!["codegen", "--bazel"],

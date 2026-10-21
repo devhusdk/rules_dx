@@ -228,8 +228,6 @@ fn step_invocation(invocation: &Invocation, command: Command, step: &ResolvedSte
         bazel_options,
         bazel_clean: false,
         prune_unobserved: false,
-        pin: None,
-        rollback: false,
         configured: false,
         from: None,
         to: None,

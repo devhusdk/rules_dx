@@ -878,6 +878,16 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
+        "id": "command.rollback",
+        "native": True,
+        "owner": "//cli/cli:dx",
+        "page": "new-upgrade.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
         "id": "command.run",
         "native": True,
         "owner": "//cli/cli:dx",
@@ -3277,7 +3287,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 353
+PROMISE_COUNT = 354
 
 PROMISE_FAMILIES = [
     "artifact",

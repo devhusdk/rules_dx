@@ -36,6 +36,7 @@ pub enum Command {
     Verify,
     Rerun,
     Tests,
+    Rollback,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,7 +119,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 36] = [
+pub static COMMANDS: [CommandMeta; 37] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -711,10 +712,10 @@ pub static COMMANDS: [CommandMeta; 36] = [
         command: Command::Upgrade,
         name: "upgrade",
         scope_policy: "reject",
-        describe: "one-shot pin+migrate+setup composition with recovery pointer (check by default; --apply upgrades)",
+        describe: "one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)",
         usage: "Usage: dx upgrade [--apply] --from <version> --to <version>",
-        flags: "Per-command flags: --from <version> --to <version> (upgrade only; pin+migrate+setup composition with recovery pointer). --apply authorizes the upgrade.",
-        scopes: "Scopes: none (repository-wide pin+migrate+setup composition; --from/--to required, positional scopes rejected).",
+        flags: "Per-command flags: --from <version> --to <version> (upgrade only; pin+migrate+env+codegen composition with recovery pointer). --apply authorizes the upgrade.",
+        scopes: "Scopes: none (repository-wide pin+migrate+env+codegen composition; --from/--to required, positional scopes rejected).",
         is_audit_update: false,
         is_managed: false,
         is_adoption: true,
@@ -769,7 +770,7 @@ pub static COMMANDS: [CommandMeta; 36] = [
         scope_policy: "reject",
         describe: "report workspace and target status",
         usage: "Usage: dx status",
-        flags: "Per-command flags: none (no scopes; --output text|json only, diff has no patch; --check/--fail-on/--report/--pin/--rollback/--configured and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`; JSON streams command_started, one status event per check (name, status, detail, hint), optional status_pin_mismatch error, command_finished; no dx doctor, use dx status, see docs/cli/commands/status-version.md#failure-explainer).",
+        flags: "Per-command flags: none (no scopes; --output text|json only, diff has no patch; --check/--fail-on/--report/--configured and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`; JSON streams command_started, one status event per check (name, status, detail, hint), optional status_pin_mismatch error, command_finished; no dx doctor, use dx status, see docs/cli/commands/status-version.md#failure-explainer).",
         scopes: "Scopes: none (status takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -796,8 +797,8 @@ pub static COMMANDS: [CommandMeta; 36] = [
         name: "version",
         scope_policy: "reject",
         describe: "report version and pin drift",
-        usage: "Usage: dx version [--check] [--apply] [--pin <version>|--rollback]",
-        flags: "Per-command flags: --check (drift check), --apply (authorizes --pin and --rollback), --pin <version>, --rollback (version only; --pin and --rollback conflict; --output text|json only, diff has no patch; JSON reuses the status envelope).",
+        usage: "Usage: dx version [--check]",
+        flags: "Per-command flags: --check (drift check; version never writes, use dx upgrade or dx rollback to change the pin; --output text|json only, diff has no patch; JSON reuses the status envelope).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied; other commands follow per-command defaults (see docs/cli/commands/scope-defaults.md).",
         is_audit_update: false,
         is_managed: false,
@@ -1127,6 +1128,34 @@ pub static COMMANDS: [CommandMeta; 36] = [
         labels: LabelsPolicy::Always,
         hook_triggers_on_run: false,
     },
+    CommandMeta {
+        command: Command::Rollback,
+        name: "rollback",
+        scope_policy: "reject",
+        describe: "restore the previous recorded pin (check by default; --apply restores)",
+        usage: "Usage: dx rollback [--apply]",
+        flags: "Per-command flags: --apply (restores the last recorded pin or removes the pin when none was recorded; refuses without a record or after manual pin edits; --output text|json only, diff has no patch; JSON reuses the status envelope).",
+        scopes: "Scopes: none (rollback takes no scopes).",
+        is_audit_update: false,
+        is_managed: false,
+        is_adoption: true,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_check: false,
+        supports_fail_on: false,
+        supports_min_coverage: false,
+        supports_profile: false,
+        supports_offline: false,
+        supports_frozen: false,
+        is_mutating_by_default: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+        hook_triggers_on_run: false,
+    },
 ];
 
 impl Command {
@@ -1221,7 +1250,7 @@ impl Command {
                 | Command::Upgrade
                 | Command::Hooks
                 | Command::Watch
-                | Command::Version
+                | Command::Rollback
                 | Command::Docs
         )
     }
@@ -1403,6 +1432,7 @@ mod tests {
             Command::Verify,
             Command::Rerun,
             Command::Tests,
+            Command::Rollback,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1450,6 +1480,7 @@ mod tests {
             "new",
             "owners",
             "rerun",
+            "rollback",
             "run",
             "security",
             "status",
@@ -1464,8 +1495,8 @@ mod tests {
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 36");
-        assert_eq!(Command::value_variants().len(), 36);
+        assert_eq!(got, want, "Command registry drifted from the final 37");
+        assert_eq!(Command::value_variants().len(), 37);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1514,6 +1545,7 @@ mod tests {
             Command::Verify,
             Command::Rerun,
             Command::Tests,
+            Command::Rollback,
         ] {
             assert!(
                 !command.is_mutating_by_default(),
@@ -1539,6 +1571,7 @@ mod tests {
             Command::Init,
             Command::New,
             Command::Upgrade,
+            Command::Rollback,
             Command::Hooks,
         ] {
             assert!(
@@ -1614,7 +1647,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            36,
+            37,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1632,7 +1665,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun|tests",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|bazel|capabilities|verify|rerun|tests|rollback",
             "pipe_list order must match declaration order"
         );
     }
@@ -1640,7 +1673,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 36);
+        assert_eq!(Command::value_variants().len(), 37);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1675,7 +1708,11 @@ mod tests {
             if command.is_adoption()
                 && matches!(
                     command,
-                    Command::Status | Command::Version | Command::Upgrade | Command::Completion
+                    Command::Status
+                        | Command::Version
+                        | Command::Upgrade
+                        | Command::Completion
+                        | Command::Rollback
                 )
             {
                 assert!(
@@ -1859,7 +1896,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 36);
+        assert_eq!(COMMANDS.len(), 37);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

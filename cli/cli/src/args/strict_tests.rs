@@ -235,7 +235,6 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         (vec!["docs", "--serve", "--port=notanumber"], "port"),
         (vec!["docs", "--serve", "--port="], "port"),
         (vec!["docs", "--serve", "--host="], "host"),
-        (vec!["version", "--pin="], "pin"),
         (vec!["migrate", "--from="], "from"),
         (vec!["migrate", "--to="], "to"),
     ] {
@@ -444,7 +443,7 @@ fn strict_every_command_help_pins_usage_scopes_exits_output() {
             command.name()
         );
     }
-    assert_eq!(Command::value_variants().len(), 36);
+    assert_eq!(Command::value_variants().len(), 37);
 }
 
 #[cfg(unix)]

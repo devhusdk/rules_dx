@@ -607,7 +607,7 @@ mod tests {
             name: "pin".to_owned(),
             status: "ok".to_owned(),
             detail: "dx 0.0.0 vs module 0.0.0".to_owned(),
-            hint: "dx version --pin 0.0.0".to_owned(),
+            hint: "dx version --check".to_owned(),
         })
         .expect("status");
         assert_eq!(event["event"], Value::String("status".to_owned()));

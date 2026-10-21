@@ -1,8 +1,9 @@
-# `dx new` And `dx upgrade`
+# `dx new`, `dx upgrade` And `dx rollback`
 
 ```sh
 bazel run @rules_dx//:dx -- new --apply rust my_project
 bazel run @rules_dx//:dx -- upgrade --from 1.0.0 --to 2.0.0
+bazel run @rules_dx//:dx -- rollback
 ```
 
 ## `dx new`
@@ -91,7 +92,7 @@ only and leaves custom files untouched.
 dx upgrade [--apply] --from <version> --to <version>
 ```
 
-Runs pin, migrate, and the env and codegen refresh in one go with a recovery pointer. Checks by
+Runs the pin, migrate, env, and codegen steps in one go with a recovery pointer. A failed step prints the commands to rerun or undo it, with your `--workspace` and `--apply` choices kept. Checks by
 default; `--apply` upgrades. Both
 versions are required.
 No manifests exist yet, so check and apply fail closed.
@@ -102,3 +103,27 @@ Output: `--output text|json`.
 
 Exit codes: `0` success, `2` usage errors including missing versions or a
 target that is not newer, `1` a step failed.
+
+## `dx rollback`
+
+```text
+dx rollback [--apply]
+```
+
+Restores the previous recorded pin in `.dx/version`. Checks by default;
+`--apply` restores. The check reports the pin it would restore and exits `1`
+until you apply. It runs even when the pin and `MODULE.bazel` disagree.
+Refuses without a record, after manual pin edits, or after the record is
+deleted.
+Flags: `--apply`.
+Scopes: none.
+
+Output: `--output text|json`.
+
+Exit codes: `0` success, `2` usage errors, `1` the pin can roll back or the
+rollback was refused.
+
+```sh
+bazel run @rules_dx//:dx -- rollback
+bazel run @rules_dx//:dx -- rollback --apply
+```

@@ -232,8 +232,6 @@ pub struct Invocation {
     pub bazel_options: Vec<String>,
     pub bazel_clean: bool,
     pub prune_unobserved: bool,
-    pub pin: Option<String>,
-    pub rollback: bool,
     pub configured: bool,
     pub from: Option<String>,
     pub to: Option<String>,
@@ -465,8 +463,6 @@ mod tests {
             bazel_options: Vec::new(),
             bazel_clean: false,
             prune_unobserved: false,
-            pin: None,
-            rollback: false,
             configured: false,
             from: None,
             to: None,
@@ -669,8 +665,6 @@ mod tests {
             .expect("request");
         let debug = format!("{request:?}");
         for unrelated in [
-            "pin",
-            "rollback",
             "serve",
             "offline",
             "frozen",

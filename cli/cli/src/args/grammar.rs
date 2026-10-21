@@ -66,8 +66,6 @@ pub(crate) struct Flags {
     pub(crate) release: bool,
     pub(crate) bazel_clean: bool,
     pub(crate) prune_unobserved: bool,
-    pub(crate) pin: Option<String>,
-    pub(crate) rollback: bool,
     pub(crate) configured: bool,
     pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
@@ -305,22 +303,6 @@ flag_group! {
     PruneUnobservedFlag, {
         #[arg(long = "prune-unobserved", overrides_with = "prune_unobserved")]
         prune_unobserved: bool,
-    }
-}
-
-flag_group! {
-    /// Re-pin to this version.
-    PinFlag, {
-        #[arg(long, allow_negative_numbers = true, overrides_with = "pin", value_parser = non_empty)]
-        pin: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Re-pin the last release.
-    RollbackFlag, {
-        #[arg(long, overrides_with = "rollback")]
-        rollback: bool,
     }
 }
 
@@ -707,9 +689,6 @@ command_args! {
     /// The flags `dx version` accepts.
     Version => 24, NoPassthroughTail, {
         check: CheckFlag,
-        apply: ApplyFlag,
-        pin: PinFlag,
-        rollback: RollbackFlag,
     };
     /// The flags `dx watch` accepts.
     Watch => 25, BazelTail, { apply: ApplyFlag, own: ProfileArgs, };
@@ -742,6 +721,8 @@ command_args! {
         configured: ConfiguredFlag,
         here: HereFlag,
     };
+    /// The flags `dx rollback` accepts.
+    Rollback => 36, NoPassthroughTail, { apply: ApplyFlag, };
 }
 
 #[derive(Parser)]
@@ -770,7 +751,6 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--report",
     "--fail-on",
     "--min-coverage",
-    "--pin",
     "--from",
     "--to",
     "--port",

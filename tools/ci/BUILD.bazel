@@ -166,6 +166,23 @@ rust_test(
 
 # keep
 rust_test(
+    name = "advisory_launch_test",
+    size = "small",
+    srcs = ["advisory_launch_test.rs"],
+    data = [
+        "//.github:workflows/reusable-consumer.yml",
+        "//cli/advisory_prep",
+    ],
+    env = {"DX_ADVISORY_PREP": "$(rootpath //cli/advisory_prep)"},
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "tool_resolve_test",
     size = "small",
     srcs = ["tool_resolve_test.rs"],

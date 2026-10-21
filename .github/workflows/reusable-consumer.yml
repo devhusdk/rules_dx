@@ -1214,8 +1214,10 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           retrieved_at="$(date -u +%F)"
           echo "retrieved_at=$retrieved_at" >> "$GITHUB_OUTPUT"
-          bazel run "$@" @rules_dx//cli/advisory_prep \
-            --workspace . --out .dx/advisory --date "$retrieved_at"
+          bazel run "$@" @rules_dx//cli/advisory_prep -- \
+            --workspace "$GITHUB_WORKSPACE" \
+            --out "$GITHUB_WORKSPACE/.dx/advisory" \
+            --date "$retrieved_at"
       - name: Publish the advisory snapshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

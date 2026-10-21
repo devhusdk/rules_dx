@@ -125,7 +125,12 @@ fn script_running(name: &str, needle: &str) -> String {
 #[test]
 fn the_preparation_runs_the_pinned_native_command_once() {
     let script = script_running(PREP, PREP_TARGET);
-    for needle in ["--out .dx/advisory", "--date \"$retrieved_at\""] {
+    for needle in [
+        "@rules_dx//cli/advisory_prep -- \\",
+        "--workspace \"$GITHUB_WORKSPACE\"",
+        "--out \"$GITHUB_WORKSPACE/.dx/advisory\"",
+        "--date \"$retrieved_at\"",
+    ] {
         assert!(
             script.contains(needle),
             "{WORKFLOW} job {PREP} must pass {needle}: {script}"

@@ -770,30 +770,29 @@ pub fn nuget_main(
     }
 }
 
-/// Maps crate input files to package-relative paths under the Cargo.toml directory.
-pub fn crates_package_paths(
+fn package_relative_paths(
     crate_files: &[std::path::PathBuf],
+    manifest_name: &str,
+    label: &str,
 ) -> io::Result<Vec<(std::path::PathBuf, String)>> {
     let bad = |message: String| io::Error::new(io::ErrorKind::InvalidInput, message);
     if crate_files.is_empty() {
-        return Err(bad(
-            "crates vendor: need at least one crate source file".to_owned()
-        ));
+        return Err(bad(format!("{label}: need at least one source file")));
     }
     let mut manifests: Vec<&std::path::PathBuf> = crate_files
         .iter()
-        .filter(|src| src.file_name().and_then(|name| name.to_str()) == Some("Cargo.toml"))
+        .filter(|src| src.file_name().and_then(|name| name.to_str()) == Some(manifest_name))
         .collect();
     manifests.sort_by_key(|src| src.components().count());
     let Some(first) = manifests.first() else {
-        return Err(bad(
-            "crates vendor: no Cargo.toml among the crate source files".to_owned(),
-        ));
+        return Err(bad(format!(
+            "{label}: no {manifest_name} among the source files"
+        )));
     };
     if let Some(second) = manifests.get(1) {
         if second.components().count() == first.components().count() {
             return Err(bad(format!(
-                "crates vendor: ambiguous package root, found '{}' and '{}'",
+                "{label}: ambiguous package root, found '{}' and '{}'",
                 first.display(),
                 second.display()
             )));
@@ -804,7 +803,7 @@ pub fn crates_package_paths(
     for src in crate_files {
         let rel = src.strip_prefix(root).map_err(|_| {
             bad(format!(
-                "crates vendor: '{}' is outside the package root '{}'",
+                "{label}: '{}' is outside the package root '{}'",
                 src.display(),
                 root.display()
             ))
@@ -814,16 +813,11 @@ pub fn crates_package_paths(
             match component {
                 std::path::Component::Normal(part) => match part.to_str() {
                     Some(part) if !part.is_empty() => parts.push(part),
-                    _ => {
-                        return Err(bad(format!(
-                            "crates vendor: non-UTF-8 path '{}'",
-                            src.display()
-                        )))
-                    }
+                    _ => return Err(bad(format!("{label}: non-UTF-8 path '{}'", src.display()))),
                 },
                 _ => {
                     return Err(bad(format!(
-                        "crates vendor: unsafe package path '{}'",
+                        "{label}: unsafe package path '{}'",
                         rel.display()
                     )))
                 }
@@ -831,7 +825,7 @@ pub fn crates_package_paths(
         }
         if parts.is_empty() {
             return Err(bad(format!(
-                "crates vendor: empty package path for '{}'",
+                "{label}: empty package path for '{}'",
                 src.display()
             )));
         }
@@ -841,15 +835,35 @@ pub fn crates_package_paths(
     for pair in mapped.windows(2) {
         let (left, right) = (&pair[0].1, &pair[1].1);
         if left == right {
-            return Err(bad(format!("crates vendor: path collision on '{left}'")));
+            return Err(bad(format!("{label}: path collision on '{left}'")));
         }
         if right.starts_with(&format!("{left}/")) {
             return Err(bad(format!(
-                "crates vendor: '{left}' is both a file and a directory"
+                "{label}: '{left}' is both a file and a directory"
             )));
         }
     }
     Ok(mapped)
+}
+
+/// Maps crate input files to package-relative paths under the Cargo.toml directory.
+pub fn crates_package_paths(
+    crate_files: &[std::path::PathBuf],
+) -> io::Result<Vec<(std::path::PathBuf, String)>> {
+    if crate_files.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "crates vendor: need at least one crate source file",
+        ));
+    }
+    package_relative_paths(crate_files, "Cargo.toml", "crates vendor")
+}
+
+/// Maps npm input files to package-relative paths under the package.json directory.
+pub fn npm_package_paths(
+    srcs: &[std::path::PathBuf],
+) -> io::Result<Vec<(std::path::PathBuf, String)>> {
+    package_relative_paths(srcs, "package.json", "npm pack")
 }
 
 /// Builds one crates vendor tree.
@@ -2321,21 +2335,14 @@ pub fn npm_create_pack(
 ) -> io::Result<String> {
     let mut members: std::collections::BTreeMap<String, (Vec<u8>, u32)> =
         std::collections::BTreeMap::new();
-    for src in srcs {
-        let data = std::fs::read(src)?;
-        let base = basename(src)?;
-        let member = format!("package/{base}");
-        if members.contains_key(&member) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("duplicate pack member '{member}'"),
-            ));
-        }
+    for (src, rel) in npm_package_paths(srcs)? {
+        let data = std::fs::read(&src)?;
+        let member = format!("package/{rel}");
         let mode = {
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt as _;
-                let bits = std::fs::metadata(src)?.permissions().mode();
+                let bits = std::fs::metadata(&src)?.permissions().mode();
                 if bits & 0o111 != 0 {
                     0o755
                 } else {
@@ -3547,6 +3554,193 @@ mod tests {
         let bad = scratch.path().join("bad.tgz");
         std::fs::write(&bad, gzip_compress(&tar).expect("gz")).expect("write bad");
         assert!(npm_tar_members(&bad).is_err());
+    }
+
+    fn nested_npm_package(root: &Path) -> Vec<std::path::PathBuf> {
+        vec![
+            write_crate_file(
+                root,
+                "package.json",
+                "{\"name\": \"npm-nested\", \"version\": \"1.0.0\", \"main\": \"dist/index.js\", \"types\": \"dist/index.d.ts\", \"exports\": {\".\": \"./dist/index.js\", \"./util\": \"./dist/util/index.js\"}, \"bin\": {\"npm-nested\": \"bin/cli.js\"}}\n",
+            ),
+            write_crate_file(
+                root,
+                "dist/index.js",
+                "const util = require('./util');\nmodule.exports = { value: 41 + util.one };\n",
+            ),
+            write_crate_file(root, "dist/index.d.ts", "export const value: number;\n"),
+            write_crate_file(root, "dist/util/index.js", "module.exports = { one: 1 };\n"),
+            write_crate_file(
+                root,
+                "bin/cli.js",
+                "#!/usr/bin/env node\nconsole.log(require('../dist').value);\n",
+            ),
+        ]
+    }
+
+    fn pack_nested_npm(scratch: &Path) -> std::path::PathBuf {
+        let srcs = nested_npm_package(&scratch.join("in/pkg"));
+        let tgz = scratch.join("nested.tgz");
+        npm_create_pack(
+            "npm-nested",
+            "latest",
+            "https://registry.npmjs.org",
+            &tgz,
+            &scratch.join("nested.feed.json"),
+            &srcs,
+        )
+        .expect("pack");
+        tgz
+    }
+
+    #[test]
+    fn npm_pack_preserves_package_paths() {
+        let scratch = scratch_dir();
+        let tgz = pack_nested_npm(scratch.path());
+        assert_eq!(
+            npm_tar_members(&tgz).expect("members"),
+            vec![
+                "package/bin/cli.js".to_owned(),
+                "package/dist/index.d.ts".to_owned(),
+                "package/dist/index.js".to_owned(),
+                "package/dist/util/index.js".to_owned(),
+                "package/package.json".to_owned(),
+            ]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn npm_pack_keeps_executable_modes() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = scratch_dir();
+        let srcs = nested_npm_package(&scratch.path().join("in/pkg"));
+        let cli = &srcs[4];
+        std::fs::set_permissions(cli, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let tgz = scratch.path().join("modes.tgz");
+        npm_create_pack(
+            "npm-nested",
+            "latest",
+            "https://registry.npmjs.org",
+            &tgz,
+            &scratch.path().join("modes.feed.json"),
+            &srcs,
+        )
+        .expect("pack");
+        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(
+            std::fs::File::open(&tgz).expect("open"),
+        ));
+        let mut modes = std::collections::BTreeMap::new();
+        for entry in archive.entries().expect("entries") {
+            let entry = entry.expect("entry");
+            let name = String::from_utf8_lossy(&entry.path_bytes()).into_owned();
+            modes.insert(name, entry.header().mode().expect("mode"));
+        }
+        assert_eq!(modes["package/bin/cli.js"], 0o755);
+        assert_eq!(modes["package/dist/index.js"], 0o644);
+    }
+
+    #[test]
+    fn npm_pack_allows_equal_basenames_in_different_directories() {
+        let scratch = scratch_dir();
+        let tgz = pack_nested_npm(scratch.path());
+        let members = npm_tar_members(&tgz).expect("members");
+        let indexes = members.iter().filter(|m| m.ends_with("/index.js")).count();
+        assert_eq!(indexes, 2);
+    }
+
+    #[test]
+    fn npm_package_paths_reject_collisions_and_escapes() {
+        let scratch = scratch_dir();
+        let root = scratch.path().join("in");
+        let manifest = write_crate_file(&root, "package.json", "{}");
+        let outside = write_crate_file(scratch.path(), "other/index.js", "");
+        let error = npm_package_paths(&[manifest.clone(), outside]).expect_err("outside");
+        assert!(
+            error.to_string().contains("outside the package root"),
+            "{error}"
+        );
+        write_crate_file(&root, "index.js", "");
+        let error = npm_package_paths(&[manifest.clone(), root.join("src/../index.js")])
+            .expect_err("dotdot");
+        assert!(error.to_string().contains("unsafe package path"), "{error}");
+        let error = npm_package_paths(&[
+            manifest.clone(),
+            root.join("index.js"),
+            root.join("index.js"),
+        ])
+        .expect_err("dup");
+        assert!(error.to_string().contains("path collision"), "{error}");
+        let error = npm_package_paths(&[manifest.clone(), root.join("src"), root.join("src/a.js")])
+            .expect_err("file+dir");
+        assert!(
+            error.to_string().contains("both a file and a directory"),
+            "{error}"
+        );
+        let error = npm_package_paths(&[root.join("index.js")]).expect_err("no manifest");
+        assert!(error.to_string().contains("no package.json"), "{error}");
+        let error = npm_package_paths(&[
+            write_crate_file(&root, "a/package.json", "{}"),
+            write_crate_file(&root, "b/package.json", "{}"),
+        ])
+        .expect_err("ambiguous");
+        assert!(
+            error.to_string().contains("ambiguous package root"),
+            "{error}"
+        );
+        assert!(npm_package_paths(&[]).is_err());
+    }
+
+    #[test]
+    fn npm_pack_installs_into_a_local_consumer() {
+        let ok = |program: &str| {
+            std::process::Command::new(program)
+                .arg("--version")
+                .output()
+                .map(|out| out.status.success())
+                .unwrap_or(false)
+        };
+        if !ok("node") || !ok("npm") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let tgz = pack_nested_npm(scratch.path());
+        let consumer = scratch.path().join("consumer");
+        write_crate_file(
+            &consumer,
+            "package.json",
+            "{\"name\": \"consumer\", \"version\": \"0.0.0\", \"private\": true}\n",
+        );
+        let install = std::process::Command::new("npm")
+            .args(["install", "--offline", "--no-audit", "--no-fund"])
+            .arg(&tgz)
+            .env("npm_config_cache", scratch.path().join("npm-cache"))
+            .current_dir(&consumer)
+            .output()
+            .expect("npm install");
+        assert!(
+            install.status.success(),
+            "{}",
+            String::from_utf8_lossy(&install.stderr)
+        );
+        let run = std::process::Command::new("node")
+            .args([
+                "-e",
+                "console.log(require('npm-nested').value + require('npm-nested/util').one)",
+            ])
+            .current_dir(&consumer)
+            .output()
+            .expect("node");
+        assert!(
+            run.status.success(),
+            "{}",
+            String::from_utf8_lossy(&run.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&run.stdout).trim(), "43");
+        assert!(consumer
+            .join("node_modules/npm-nested/dist/index.d.ts")
+            .is_file());
+        assert!(consumer.join("node_modules/.bin/npm-nested").exists());
     }
 
     #[test]

@@ -1,4 +1,4 @@
-"""Repository-root candidates for dx codegen, dx env, and dx setup."""
+"""Repository-root candidates for dx codegen and dx env."""
 
 def _repository_roots_file_impl(ctx):
     content = "\n".join(ctx.attr.roots)

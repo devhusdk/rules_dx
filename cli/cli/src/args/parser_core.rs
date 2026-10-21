@@ -438,6 +438,21 @@ fn unknown_command_fails() {
 }
 
 #[test]
+fn setup_is_rejected_with_env_and_codegen_tip() {
+    for words in [
+        vec!["setup"],
+        vec!["setup", "--apply"],
+        vec!["setup", "//a:one"],
+    ] {
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &["unsupported command 'setup'", "dx env", "dx codegen"],
+        );
+    }
+}
+
+#[test]
 fn explicit_label_scope_parses_in_order() {
     let got = parse(&strings(&["lint", "//a:one", "@repo//b/...", "//c/..."])).expect("parse");
     assert_eq!(

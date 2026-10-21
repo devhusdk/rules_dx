@@ -50,10 +50,23 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
                 text: without_usage(&error.render().to_string()),
             })
         }
+        clap::error::ErrorKind::InvalidSubcommand if removed_setup(error) => ArgsError::Usage {
+            text: SETUP_REMOVED.to_owned(),
+        },
         _ => ArgsError::Usage {
             text: without_usage(&error.render().to_string()),
         },
     }
+}
+
+const SETUP_REMOVED: &str =
+    "error: unsupported command 'setup'\n\n  tip: run `dx env` and `dx codegen` instead (each takes --check or --apply)";
+
+fn removed_setup(error: &clap::Error) -> bool {
+    matches!(
+        error.get(clap::error::ContextKind::InvalidSubcommand),
+        Some(clap::error::ContextValue::String(word)) if word == "setup"
+    )
 }
 
 /// The flag name the parser reports, with visible aliases spelled canonically.

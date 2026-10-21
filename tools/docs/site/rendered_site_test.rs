@@ -132,7 +132,7 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/tests.html",
         "docs/cli/commands/scope-defaults.html",
         "docs/cli/commands/audit-update-bazel.html",
-        "docs/cli/commands/environment-codegen-setup.html",
+        "docs/cli/commands/environment-codegen.html",
     ] {
         assert!(
             routes.contains(&page.to_string()),

@@ -21,7 +21,7 @@ pub fn upgrade_restore_command_for(from: &str) -> Option<String> {
 pub fn upgrade_recovery_message(plan: &UpgradePlan) -> String {
     match &plan.restore_command {
         Some(restore) => format!(
-            "recovery: rerun `{}` (idempotent); to discard a landed pin run `{restore}` then rerun setup with `dx setup`",
+            "recovery: rerun `{}` (idempotent); to discard a landed pin run `{restore}` then run `dx env` and `dx codegen`",
             plan.retry_command,
         ),
         None => format!(
@@ -88,7 +88,7 @@ mod tests {
         );
         assert!(plan.message.contains("dx upgrade --from 1.2.3 --to 2.0.0"));
         assert!(plan.message.contains("idempotent"));
-        assert!(plan.message.contains("dx setup"));
+        assert!(plan.message.contains("dx env"));
         assert!(!plan.message.contains("git checkout"));
         let minor = plan_upgrade("1.2.3", "1.3.0").expect("minor plans");
         assert_eq!(minor.manifest, "migrate-v1.2.3-to-v1.3.0.json");

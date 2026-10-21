@@ -36,7 +36,7 @@ real_source_target(
         "cli/commands/check-fix-clean.md",
         "cli/commands/completion.md",
         "cli/commands/docs.md",
-        "cli/commands/environment-codegen-setup.md",
+        "cli/commands/environment-codegen.md",
         "cli/commands/generate.md",
         "cli/commands/hooks.md",
         "cli/commands/inspect.md",

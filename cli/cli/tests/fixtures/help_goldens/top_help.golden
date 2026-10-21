@@ -28,7 +28,6 @@ Commands:
   migrate       rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates; --dry-run plans without writes)
   codegen       collect codegen outputs with atomic commit (check by default; --apply writes managed state)
   env           collect the managed development environment (check by default; --apply writes managed state)
-  setup         collect setup outputs with atomic commit (check by default; --apply writes managed state)
   init          scaffold dx into a foreign tree (absent-only; check by default; --apply scaffolds)
   new           scaffold a minimal qualified project for one language (absent-only; check by default; --apply scaffolds)
   upgrade       one-shot pin+migrate+setup composition with recovery pointer (check by default; --apply upgrades; --dry-run plans without writes)

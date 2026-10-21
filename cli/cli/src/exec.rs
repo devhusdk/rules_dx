@@ -93,7 +93,7 @@ fn family(command: Command) -> Family {
         Command::Update => Family::Update,
         Command::Bump => Family::Bump,
         Command::Migrate => Family::Migrate,
-        Command::Codegen | Command::Env | Command::Setup => Family::Managed,
+        Command::Codegen | Command::Env => Family::Managed,
         Command::Init
         | Command::New
         | Command::Upgrade
@@ -207,13 +207,13 @@ mod tests {
         }
         assert_eq!(
             counts.values().sum::<usize>(),
-            37,
+            36,
             "every variant classified"
         );
         assert_eq!(counts.get("adoption"), Some(&12));
         assert_eq!(counts.get("workflow"), Some(&5));
         assert_eq!(counts.get("quality"), Some(&3));
-        assert_eq!(counts.get("managed"), Some(&3));
+        assert_eq!(counts.get("managed"), Some(&2));
         assert_eq!(counts.get("audit"), Some(&2));
         assert_eq!(counts.get("umbrella"), Some(&5));
         assert_eq!(counts.get("generate"), Some(&1));

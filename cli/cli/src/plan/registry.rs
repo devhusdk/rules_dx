@@ -142,7 +142,7 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
             settings: &[],
         },
-        Command::Codegen | Command::Env | Command::Setup => CommandSpec {
+        Command::Codegen | Command::Env => CommandSpec {
             command,
             aspects: &[],
             reports: &[],
@@ -274,7 +274,7 @@ mod tests {
         let bazel = spec(Command::Bazel);
         assert!(bazel.aspects.is_empty());
         assert!(bazel.reports.is_empty());
-        for command in [Command::Codegen, Command::Env, Command::Setup] {
+        for command in [Command::Codegen, Command::Env] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());
             assert!(entry.reports.is_empty());

@@ -100,7 +100,6 @@ mod tests {
         Command::Upgrade,
         Command::Codegen,
         Command::Env,
-        Command::Setup,
         Command::Init,
         Command::Hooks,
         Command::Watch,

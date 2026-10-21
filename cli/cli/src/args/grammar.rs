@@ -712,52 +712,50 @@ command_args! {
     Codegen => 17, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx env` accepts.
     Env => 18, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
-    /// The flags `dx setup` accepts.
-    Setup => 19, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 20, NoPassthroughTail, { apply: ApplyFlag, };
+    Init => 19, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx new` accepts.
-    New => 21, NoPassthroughTail, { apply: ApplyFlag, };
+    New => 20, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 22, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
+    Upgrade => 21, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx hooks` accepts.
-    Hooks => 23, NoPassthroughTail, { apply: ApplyFlag, };
+    Hooks => 22, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx status` accepts.
-    Status => 24, NoPassthroughTail, {};
+    Status => 23, NoPassthroughTail, {};
     /// The flags `dx version` accepts.
-    Version => 25, NoPassthroughTail, {
+    Version => 24, NoPassthroughTail, {
         check: CheckFlag,
         apply: ApplyFlag,
         pin: PinFlag,
         rollback: RollbackFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 26, BazelTail, { apply: ApplyFlag, own: ProfileArgs, };
+    Watch => 25, BazelTail, { apply: ApplyFlag, own: ProfileArgs, };
     /// The flags `dx owners` accepts.
-    Owners => 27, NoPassthroughTail, { own: ConfiguredFlag, };
+    Owners => 26, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx deps` accepts.
-    Deps => 28, NoPassthroughTail, { own: ConfiguredFlag, };
+    Deps => 27, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx why` accepts.
-    Why => 29, NoPassthroughTail, { own: ConfiguredFlag, };
+    Why => 28, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx completion` accepts.
-    Completion => 30, NoPassthroughTail, { own: CheckFlag, };
+    Completion => 29, NoPassthroughTail, { own: CheckFlag, };
     /// The flags `dx docs` accepts.
-    Docs => 31, BazelTail, {
+    Docs => 30, BazelTail, {
         check: CheckFlag,
         apply: ApplyFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx bazel` accepts.
-    Bazel => 32, NoScopeTail, {};
+    Bazel => 31, NoScopeTail, {};
     /// The flags `dx capabilities` accepts.
-    Capabilities => 33, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
+    Capabilities => 32, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
     /// The flags `dx verify` accepts.
-    Verify => 34, BazelTail, {};
+    Verify => 33, BazelTail, {};
     /// The flags `dx rerun` accepts.
-    Rerun => 35, BazelTail, {};
+    Rerun => 34, BazelTail, {};
     /// The flags `dx tests` accepts.
-    Tests => 36, BazelTail, {
+    Tests => 35, BazelTail, {
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,

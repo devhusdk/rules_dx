@@ -819,7 +819,6 @@ fn output_contract_has_no_silent_ignore() {
         "clean",
         "codegen",
         "env",
-        "setup",
         "docs",
     ] {
         let got = parse(&strings(&[command, "--output=json"])).expect("json capable");
@@ -886,7 +885,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["clean", "--output=diff"],
         vec!["codegen", "--output=diff"],
         vec!["env", "--output=diff"],
-        vec!["setup", "--output=diff"],
         vec!["run", "//app:bin", "--output=diff"],
         vec!["init", "--output=json"],
         vec!["init", "proj", "--output=diff"],
@@ -931,7 +929,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["clean", "--output=diff"],
         vec!["codegen", "--output=diff"],
         vec!["env", "--output=diff"],
-        vec!["setup", "--output=diff"],
         vec!["docs", "--output=diff"],
         vec!["bump", "cargo:anyhow", "1.2.3", "--output=diff"],
         vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--output=diff"],
@@ -1170,7 +1167,7 @@ fn color_parses_globally_with_bad_values_rejected() {
 
 #[test]
 fn managed_commands_parse_repo_and_exact_scopes() {
-    for command in ["codegen", "env", "setup"] {
+    for command in ["codegen", "env"] {
         let got = parse(&strings(&[command])).expect("parse");
         assert!(got.command.is_managed());
         assert!(got.targets.is_empty());
@@ -1188,19 +1185,10 @@ fn managed_commands_parse_repo_and_exact_scopes() {
             option: "//b:two".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&strings(&["setup", "//a:one", "//b:two"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "setup",
-            option: "//b:two".to_owned(),
-        })
-    );
     for words in [
         vec!["env", "//a/..."],
-        vec!["setup", "src/main.rs"],
         vec!["codegen", ":target"],
         vec!["env", ""],
-        vec!["setup", "--config=release"],
     ] {
         assert!(
             matches!(
@@ -1216,13 +1204,10 @@ fn managed_commands_parse_repo_and_exact_scopes() {
     }
     for words in [
         vec!["env", "--fail-on=error"],
-        vec!["setup", "--output=diff"],
         vec!["codegen", "--report=sarif=out.sarif"],
         vec!["env", "--pin=0.1.0"],
-        vec!["setup", "--rollback"],
         vec!["codegen", "--configured"],
         vec!["env", "--configured"],
-        vec!["setup", "--pin=0.2.0"],
         vec!["codegen", "--bazel"],
     ] {
         assert!(
@@ -1233,7 +1218,7 @@ fn managed_commands_parse_repo_and_exact_scopes() {
             "words: {words:?}"
         );
     }
-    for command in ["codegen", "env", "setup"] {
+    for command in ["codegen", "env"] {
         let got = parse(&strings(&[command, "--check"])).expect("check parses");
         assert!(got.check, "{command} --check sets the flag");
         assert_eq!(got.operation(), OperationMode::Check);
@@ -1337,7 +1322,6 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--here"],
         vec!["codegen", "--here"],
         vec!["env", "--here"],
-        vec!["setup", "--here"],
         vec!["run", "//app:bin", "--here"],
         vec!["deploy", "//app:bin", "--here"],
         vec!["status", "--here"],
@@ -1484,7 +1468,6 @@ fn a_refused_output_diff_is_named_before_any_other_flag_the_command_refuses() {
         ("upgrade", "--report=junit=one.xml"),
         ("codegen", "--report=junit=one.xml"),
         ("env", "--report=junit=one.xml"),
-        ("setup", "--report=junit=one.xml"),
         ("docs", "--port=1"),
     ] {
         let words = owned_option_words(

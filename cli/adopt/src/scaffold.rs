@@ -19,7 +19,7 @@ pub const DEVCONTAINER_JSON: &str = concat!(    "{\n",
     "      \"extensions\": [\"rust-lang.rust-analyzer\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]\n",
     "    }\n",
     "  },\n",
-    "  \"postCreateCommand\": \"bazel run @rules_dx//dx:env && bazel run @rules_dx//:dx -- setup\"\n",
+    "  \"postCreateCommand\": \"bazel run @rules_dx//:dx -- env --apply && bazel run @rules_dx//:dx -- codegen --apply\"\n",
     "}\n",
 );
 
@@ -27,7 +27,7 @@ pub const ENVRC_CONTENT: &str = concat!(
     "# Committed direnv entry scaffolded absent-only by `dx init`.\n",
     "# PATH-tools-only: adds managed `.dx/bin` to PATH, nothing else; never invokes Bazel.\n",
     "if [ ! -d \".dx/bin\" ]; then\n",
-    "  echo \"dx: missing .dx/bin; run `dx env` or `bazel run @rules_dx//dx:env` to regenerate\" >&2\n",
+    "  echo \"dx: missing .dx/bin; run `dx env --apply` to regenerate\" >&2\n",
     "  return 1\n",
     "fi\n",
     "PATH_add .dx/bin\n",
@@ -85,19 +85,19 @@ pub fn editor_disposition(language: &str) -> &'static str {
         "rust" => "automatic: rust-analyzer discovery plus flycheck (Bazel-backed, separate IDE output base)",
         "go" => "automatic: upstream GOPACKAGESDRIVER (Bazel-backed, pure-Go boundary, cgo out of scope)",
         "cpp" | "c" | "cc" => {
-            "snapshot: action-derived compile commands via aquery plus managed clangd, manual dx setup refresh"
+            "snapshot: action-derived compile commands via aquery plus managed clangd, manual dx env and dx codegen refresh"
         }
-        "python" => "projection: .venv interpreter plus imports via dx setup",
-        "javascript" => "projection: node_modules via dx setup",
-        "typescript" => "projection: node_modules plus tsdk via dx setup",
+        "python" => "projection: .venv interpreter plus imports via dx env and dx codegen",
+        "javascript" => "projection: node_modules via dx env and dx codegen",
+        "typescript" => "projection: node_modules plus tsdk via dx env and dx codegen",
         "java" | "kotlin" => {
-            "manual: setup projection plus checked-in native config, no automatic Bazel-backed driver yet"
+            "manual: env projection plus checked-in native config, no automatic Bazel-backed driver yet"
         }
         "scala" => {
-            "manual: setup projection plus semanticdb/classpath wiring via dx setup, no automatic Bazel-backed driver yet"
+            "manual: env projection plus semanticdb/classpath wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
         }
         "csharp" | "c#" | "fsharp" | "f#" => {
-            "manual: setup projection plus Paket lock wiring via dx setup, no automatic Bazel-backed driver yet"
+            "manual: env projection plus Paket lock wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
         }
         _ => "unknown language",
     }
@@ -332,9 +332,8 @@ mod tests {
         assert_eq!(envrc.content, super::ENVRC_CONTENT);
         assert!(envrc.content.contains("PATH_add .dx/bin"));
         assert!(envrc.content.contains("watch_file .dx/bin"));
-        assert!(envrc.content.contains("dx env"));
-        assert!(envrc.content.contains("bazel run @rules_dx//dx:env"));
-        assert!(!envrc.content.contains("bazel run //dx:env"));
+        assert!(envrc.content.contains("dx env --apply"));
+        assert!(!envrc.content.contains("dx:env"));
         assert!(envrc.content.contains("never invokes Bazel"));
     }
 
@@ -368,13 +367,15 @@ mod tests {
             .as_str()
             .expect("postCreateCommand string");
         assert!(
-            post_create.contains("bazel run @rules_dx//dx:env"),
+            post_create.contains("bazel run @rules_dx//:dx -- env --apply && "),
             "bootstrap first: {post_create}"
         );
         assert!(
-            !post_create.contains("bazel run //dx:env"),
-            "no repo-internal env label in consumer scaffold: {post_create}"
+            post_create.contains("bazel run @rules_dx//:dx -- codegen --apply"),
+            "{post_create}"
         );
+        assert!(!post_create.contains("dx:env"), "{post_create}");
+        assert!(!post_create.contains("setup"), "{post_create}");
         assert!(
             !post_create.contains("bazel build //..."),
             "no full build on create: {post_create}"
@@ -385,15 +386,12 @@ mod tests {
     #[test]
     fn devcontainer_scaffold_runs_dx_through_the_public_label() {
         assert!(
-            DEVCONTAINER_JSON.contains("bazel run @rules_dx//dx:env"),
+            DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- env --apply"),
             "{DEVCONTAINER_JSON}"
         );
+        assert!(!DEVCONTAINER_JSON.contains("dx:env"), "{DEVCONTAINER_JSON}");
         assert!(
-            !DEVCONTAINER_JSON.contains("bazel run //dx:env"),
-            "{DEVCONTAINER_JSON}"
-        );
-        assert!(
-            DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- setup"),
+            DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- codegen --apply"),
             "{DEVCONTAINER_JSON}"
         );
         assert!(

@@ -266,6 +266,45 @@ pub fn freeze_workspace(defaults: &super::FileDefaults, workspace: &str) -> supe
     frozen
 }
 
+/// Parses a watch line as the command it wraps, then marks it as a watch.
+fn wrapped_invocation<S: AsRef<OsStr>>(
+    args: &[S],
+    tokenized: &super::tokenizer::Tokenized,
+    env_get: &dyn Fn(&str) -> Option<String>,
+    file: &super::FileDefaults,
+) -> Option<Result<Invocation, ArgsError>> {
+    let wrapped = tokenized.targets.first()?.to_str()?.to_owned();
+    if !dx_adopt::WATCHABLE_COMMANDS.contains(&wrapped.as_str()) {
+        return None;
+    }
+    let watch_at = args
+        .iter()
+        .position(|word| word.as_ref().to_str().and_then(Command::parse) == Some(Command::Watch))?;
+    let wrapped_at = args
+        .iter()
+        .enumerate()
+        .skip(watch_at + 1)
+        .find(|(_, word)| word.as_ref().to_str() == Some(wrapped.as_str()))?
+        .0;
+    let mut rest: Vec<&OsStr> = vec![OsStr::new(&wrapped)];
+    rest.extend(
+        args.iter()
+            .enumerate()
+            .filter(|(index, _)| *index != watch_at && *index != wrapped_at)
+            .map(|(_, word)| word.as_ref()),
+    );
+    Some(parse_inner(&rest, env_get, file).and_then(|mut inner| {
+        match inner.output {
+            OutputMode::Text { .. } => {}
+            OutputMode::Json => return Err(unsupported(Command::Watch, "--output=json")),
+            _ => return Err(unsupported(Command::Watch, "--output=diff")),
+        }
+        inner.command = Command::Watch;
+        inner.targets.insert(0, wrapped);
+        Ok(inner)
+    }))
+}
+
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -305,6 +344,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     }
     dx_adopt::defaults::reject_removed_env(env_get).map_err(bad_default)?;
     let tokenized = tokenize(args)?;
+    if tokenized.command == Command::Watch {
+        if let Some(wrapped) = wrapped_invocation(args, &tokenized, env_get, file) {
+            return wrapped;
+        }
+    }
     let command = tokenized.command;
     let Flags {
         workspace: workspace_os,

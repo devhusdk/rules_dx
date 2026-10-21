@@ -92,7 +92,7 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "owners" | "deps" => &["//:demo"],
         "why" => &["a.rs", "//:demo"],
         "new" => &["rust"],
-        "watch" => &["build"],
+        "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
         _ => &[],
     }

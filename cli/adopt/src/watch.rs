@@ -29,9 +29,6 @@ pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
 }
 
 pub fn should_watch_path(path: &Path) -> bool {
-    if path.file_name().is_some_and(|name| name == "dx.local.toml") {
-        return false;
-    }
     for component in path.components() {
         let text = component.as_os_str().to_string_lossy();
         if text == ".dx" || text.starts_with("bazel-") {
@@ -212,8 +209,8 @@ mod tests {
         )));
         assert!(!should_watch_path(Path::new("/tmp/ws/.dx/current")));
         assert!(!should_watch_path(Path::new("/tmp/ws/.dx/bin/dx")));
-        assert!(!should_watch_path(Path::new("/tmp/ws/dx.local.toml")));
-        assert!(!should_watch_path(Path::new("/tmp/ws/sub/dx.local.toml")));
+        assert!(should_watch_path(Path::new("/tmp/ws/dx.local.toml")));
+        assert!(should_watch_path(Path::new("/tmp/ws/dx.toml")));
         assert!(should_watch_path(Path::new("/tmp/ws/src/main.rs")));
         assert!(should_watch_path(Path::new("/tmp/ws/BUILD.bazel")));
     }
@@ -223,7 +220,6 @@ mod tests {
         let trigger = coalesce_watch_paths(vec![
             PathBuf::from("/tmp/ws/bazel-bin/a.rs"),
             PathBuf::from("/tmp/ws/.dx/current"),
-            PathBuf::from("/tmp/ws/dx.local.toml"),
             PathBuf::from("/tmp/ws/src/main.rs"),
         ]);
         assert_eq!(trigger, vec![PathBuf::from("/tmp/ws/src/main.rs")]);
@@ -303,7 +299,6 @@ mod tests {
         let session = WatchSession::start(&root).expect("session starts");
         std::fs::write(root.join("bazel-bin/output.rs"), "generated").expect("generated write");
         std::fs::write(root.join(".dx/current"), "state").expect("state write");
-        std::fs::write(root.join("dx.local.toml"), "local").expect("local write");
         std::thread::sleep(Duration::from_millis(600));
         assert!(
             session.drain().is_empty(),

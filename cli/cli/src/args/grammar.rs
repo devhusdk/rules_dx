@@ -627,7 +627,13 @@ command_args! {
         check: CheckFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 24, BazelTail, { apply: ApplyFlag, own: ProfileArgs, };
+    Watch => 24, BazelTail, {
+        check: CheckFlag,
+        apply: ApplyFlag,
+        fail_on: FailOnFlag,
+        report: ReportFlag,
+        own: ProfileArgs,
+    };
     /// The flags `dx owners` accepts.
     Owners => 25, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx deps` accepts.

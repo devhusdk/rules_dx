@@ -122,41 +122,21 @@ fn watch(
     }
 }
 
-/// Builds the invocation one watch iteration executes: the wrapped command
-/// with the watch scopes, profiles, check/apply mode and `--` payload.
+/// Builds the invocation one watch iteration executes: the wrapped command with its scopes and flags.
 fn build_iteration(invocation: &Invocation) -> Result<Invocation, String> {
     let wrapped = invocation
         .targets
         .first()
         .map(String::as_str)
         .unwrap_or_default();
-    let scopes = invocation.targets.get(1..).unwrap_or_default();
     let command = match Command::parse(wrapped) {
         Some(command) => command,
         None => return Err(format!("not watchable: {wrapped}")),
     };
-    if (invocation.debug || invocation.release) && !command.supports_profile() {
-        return Err(format!(
-            "option \"--debug|--release\" is not supported by dx {}",
-            command.name()
-        ));
-    }
     let mut iteration = invocation.clone();
     iteration.command = command;
-    iteration.targets = scopes.to_vec();
-    validate_wrapped_request(&iteration)?;
+    iteration.targets = invocation.targets.get(1..).unwrap_or_default().to_vec();
     Ok(iteration)
-}
-
-fn validate_wrapped_request(iteration: &Invocation) -> Result<(), String> {
-    match iteration.command {
-        Command::Lint | Command::Typecheck | Command::Format => {
-            iteration.quality_request().map(|_| ())
-        }
-        Command::Generate => iteration.generate_request().map(|_| ()),
-        Command::Check | Command::Fix => iteration.umbrella_request().map(|_| ()),
-        _ => Ok(()),
-    }
 }
 
 fn changed_line(paths: &[PathBuf]) -> String {
@@ -521,7 +501,6 @@ mod tests {
         let request = iteration.quality_request().expect("validated request");
         assert_eq!(request.command, Command::Lint);
         assert_eq!(request.targets, vec!["//...".to_owned()]);
-        assert!(validate_wrapped_request(&iteration).is_ok());
     }
 
     #[test]
@@ -628,28 +607,47 @@ mod tests {
             vec!["--hi".to_owned()],
             "app args ride the cloned invocation"
         );
-        let err = build_iteration(&invocation(&["watch", "--debug", "lint", "//..."]))
-            .expect_err("lint takes no profile");
-        assert!(err.contains("--debug|--release"), "{err}");
-        assert!(err.contains("lint"), "{err}");
+        assert!(crate::args::parse(&["watch", "--debug", "lint", "//..."]).is_err());
     }
 
     #[test]
-    fn watch_parses_wrapped_options_and_still_rejects_check_and_here() {
+    fn watch_parses_wrapped_options_like_the_wrapped_command() {
         let got = invocation(&["watch", "build", "//...", "--", "--jobs=4"]);
         assert_eq!(got.bazel_options, vec!["--jobs=4".to_owned()]);
         let got = invocation(&["watch", "--apply", "run", "//app:bin"]);
         assert!(got.apply);
-        assert!(crate::args::parse(&[
-            "watch".to_owned(),
-            "--check".to_owned(),
-            "build".to_owned()
-        ])
-        .is_err());
-        assert!(
-            crate::args::parse(&["watch".to_owned(), "--here".to_owned(), "build".to_owned()])
-                .is_err()
+        let got = invocation(&["watch", "lint", "--fail-on=error", "--report=sarif=a.sarif"]);
+        assert_eq!(got.fail_on, dx_output::Threshold::Error);
+        assert_eq!(got.reports.len(), 1);
+        let got = invocation(&["watch", "-v", "test", "//..."]);
+        assert!(got.verbose);
+        assert!(crate::args::parse(&["watch", "--check", "build"]).is_err());
+        assert!(crate::args::parse(&["watch", "--fail-on=error", "build"]).is_err());
+        assert!(crate::args::parse(&["watch", "--report=sarif=a", "build"]).is_err());
+    }
+
+    #[test]
+    fn watch_iteration_carries_wrapped_flags_and_the_dash_payload() {
+        let iteration = build_iteration(&invocation(&[
+            "watch",
+            "lint",
+            "--fail-on=error",
+            "--report=sarif=out.sarif",
+            "//a:one",
+            "--",
+            "--jobs=4",
+            "--apply",
+        ]))
+        .expect("lint iteration");
+        assert_eq!(iteration.command, Command::Lint);
+        assert_eq!(iteration.fail_on, dx_output::Threshold::Error);
+        assert_eq!(iteration.reports.len(), 1);
+        assert_eq!(iteration.targets, vec!["//a:one".to_owned()]);
+        assert_eq!(
+            iteration.bazel_options,
+            vec!["--jobs=4".to_owned(), "--apply".to_owned()]
         );
+        assert!(!iteration.apply);
     }
 
     #[test]

@@ -1,21 +1,23 @@
 # `dx watch`
 
 ```text
-dx watch [--apply] [--debug|--release] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|--app-args ...]
+dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|--app-args ...]
 ```
 
 Reruns one command when files change. Scope is re-resolved each iteration.
-The wrapped command runs with the watch invocation mode: pass `--apply`
-when the wrapped effect needs it, such as `dx watch --apply run //app:bin`.
-`--debug` and `--release` reach a wrapped command that takes a build profile.
-Args after `--` reach the wrapped command as its own command-options.
+Flags go to the wrapped command and are checked as `dx <command>` checks
+them: `dx watch test --release`, `dx watch lint --report sarif=out.sarif`.
+A flag the wrapped command rejects fails before watching starts. Short
+options work wherever the long option does. Bare format and fix stay in
+check mode; pass `--apply` to write on every iteration. Args after `--` reach
+the wrapped command unchanged.
 
 - Wraps only `build`, `test`, `run`, `lint`, `typecheck`, `format`,
   `check`, and `fix`. Other commands fail with `not watchable`.
-- Takes `--apply`, `--debug`, and `--release`. `--check` and `--here`
-  do not apply.
+- Takes `--check`, `--apply`, `--fail-on`, `--report`, `--debug`, and
+  `--release`, plus the global flags, when the wrapped command takes them.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
-- Ignores changes under `.dx/` and `bazel-*`, and to `dx.local.toml`.
+- Ignores changes under `.dx/` and `bazel-*`. Edits to `dx.toml`, `dx.local.toml`, `BUILD` and `MODULE.bazel` files rerun the command.
 
 Each change runs the wrapped command again. A failing command does not stop
 the watch. Ctrl-C stops it.

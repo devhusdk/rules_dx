@@ -833,6 +833,40 @@ mod tests {
     }
 
     #[test]
+    fn selection_drops_separated_test_arg_values() {
+        let harness = Harness::new("tests-selection-sep-args");
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        script_output(&harness.query, "//pkg:lib\n");
+        script_output(&harness.query, "//pkg:lib (abc)\n");
+        script_output(&harness.query, "//pkg:unit\n");
+        script_output(&harness.query, "//pkg:unit (abc)\n");
+        script_output(&harness.query, "rust_test rule //pkg:unit\n");
+        script_output(&harness.query, "rust_test rule //pkg:unit (abc)\n");
+        let (code, out, err) = harness.run(&[
+            "list-tests",
+            "--configured",
+            "pkg/a.py",
+            "--",
+            "--test_arg",
+            "--exact",
+            "--config=ci",
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "//pkg:unit\n");
+        let calls = harness.query.calls.borrow();
+        for call in calls.iter() {
+            assert!(
+                !call
+                    .iter()
+                    .any(|arg| arg.contains("test_arg") || arg == "--exact"),
+                "selection never forwards test binary args: {call:?}"
+            );
+        }
+        assert!(calls[1].contains(&"--config=ci".to_owned()), "{calls:?}");
+    }
+
+    #[test]
     fn selection_hint_withholds_secrets() {
         let harness = Harness::new("tests-selection-secret");
         script_output(&harness.query, "rust_test rule //a:one\n");

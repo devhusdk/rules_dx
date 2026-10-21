@@ -1,6 +1,5 @@
 use super::common::*;
 use crate::args::Invocation;
-use crate::plan::shell_join;
 use crate::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionContext};
 use dx_output::{
     command_finished, command_started, error_event, operation_event, write_event, FinishedCounts,
@@ -29,36 +28,6 @@ fn opener_argv(url: &str) -> Vec<String> {
         "import sys, webbrowser; webbrowser.open(sys.argv[1])".to_owned(),
         url.to_owned(),
     ]
-}
-
-fn serve_hint(invocation: &Invocation) -> String {
-    let port = invocation.port.unwrap_or(DOCS_DEFAULT_PORT);
-    let host = invocation.host.as_deref().unwrap_or(DOCS_DEFAULT_HOST);
-    let url = preview_url(host, port);
-    let mut words = vec![
-        "dx".to_owned(),
-        "docs".to_owned(),
-        "--serve".to_owned(),
-        "--apply".to_owned(),
-    ];
-    if let Some(port) = invocation.port {
-        words.push(format!("--port={port}"));
-    }
-    if let Some(host) = invocation.host.as_deref() {
-        words.push(format!("--host={host}"));
-    }
-    if invocation.open {
-        words.push("--open".to_owned());
-    }
-    words.extend(invocation.targets.iter().cloned());
-    if !invocation.bazel_options.is_empty() {
-        words.push("--".to_owned());
-        words.extend(invocation.bazel_options.iter().cloned());
-    }
-    format!(
-        "Built the site without launching the preview at {url} (serve with: {})",
-        shell_join(&words)
-    )
 }
 
 fn site_tree_expression(labels: &[String]) -> String {
@@ -214,16 +183,6 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     if !invocation.serve {
         if json {
             let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-        }
-        return 0;
-    }
-    if !invocation.applies() {
-        let hint = serve_hint(invocation);
-        if json {
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
-            let _ = writeln!(err, "{hint}");
-        } else if invocation.chatty() {
-            let _ = writeln!(out, "{hint}");
         }
         return 0;
     }
@@ -452,7 +411,7 @@ mod tests {
     fn docs_serve_previews_after_build() {
         let harness = Harness::new("docs-serve");
         script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let (code, out, _) = harness.run(&["docs", "--serve", "--apply", "--port=8080"]);
+        let (code, out, _) = harness.run(&["docs", "--serve", "--port=8080"]);
         assert_eq!(code, 0, "{out}");
         assert!(
             out.contains("Serving docs at http://127.0.0.1:8080/"),
@@ -461,47 +420,10 @@ mod tests {
     }
 
     #[test]
-    fn docs_serve_without_apply_validates_without_launching() {
-        let harness = Harness::new("docs-serve-gated");
-        let (code, out, err) = harness.run(&["docs", "--serve", "--port=8080"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("dx docs --serve --apply --port=8080"), "{out}");
-        assert!(!out.contains("Serving docs at"), "{out}");
-        let harness = Harness::new("docs-serve-gated-probe");
-        let inv = invocation(&[
-            "docs",
-            "--serve",
-            "--port=8080",
-            "--host=example.test",
-            "--open",
-        ]);
-        let run = harness.probe_with(&inv, &[Some(0)]);
-        assert_eq!(run.code, 0, "{run:?}");
-        assert_eq!(
-            run.argv.len(),
-            1,
-            "build only, no server or browser launch: {run:?}"
-        );
-        assert!(
-            !run.argv[0].iter().any(|arg| arg == "http.server"),
-            "{run:?}"
-        );
-        assert!(
-            !run.argv[0].iter().any(|arg| arg.contains("webbrowser")),
-            "{run:?}"
-        );
-    }
-
-    #[test]
-    fn docs_serve_gate_reports_json_without_launching() {
-        let harness = Harness::new("docs-serve-gated-json");
-        let (code, out, err) = harness.run(&["docs", "--serve", "--port=8080", "--output=json"]);
-        assert_eq!(code, 0, "{out}{err}");
-        let events = json_events(&out);
-        let kinds = event_kinds(&events);
-        assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        assert!(!out.contains("http.server"), "{out}");
-        assert!(err.contains("dx docs --serve --apply --port=8080"), "{err}");
+    fn docs_rejects_apply() {
+        let err = crate::args::parse(&strings(&["docs", "--serve", "--apply"]))
+            .expect_err("docs takes no --apply");
+        assert!(err.to_string().contains("--apply"), "{err}");
     }
 
     #[test]
@@ -511,7 +433,6 @@ mod tests {
         let (code, out, _) = harness.run(&[
             "docs",
             "--serve",
-            "--apply",
             "--port=8080",
             "--host=example.test",
             "--open",
@@ -548,7 +469,6 @@ mod tests {
         let inv = invocation(&[
             "docs",
             "--serve",
-            "--apply",
             "--port=8080",
             "--host=example.test",
             "--open",
@@ -613,7 +533,7 @@ mod tests {
         }
         let harness = Harness::new("docs-serve-bind-fail");
         script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&["docs", "--serve", "--apply", "--port=8080", "--output=json"]);
+        let inv = invocation(&["docs", "--serve", "--port=8080", "--output=json"]);
         let runner = LaunchFailRunner;
         let mut out = Vec::new();
         let mut err = Vec::new();
@@ -681,7 +601,7 @@ mod tests {
         }
         let harness = Harness::new("docs-serve-tree");
         script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&["docs", "--serve", "--apply", "--output=text"]);
+        let inv = invocation(&["docs", "--serve", "--output=text"]);
         let seen = Rc::new(RefCell::new(Vec::new()));
         let runner = Probe {
             seen: Rc::clone(&seen),
@@ -697,13 +617,7 @@ mod tests {
         );
         let harness = Harness::new("docs-serve-foreign-tree");
         script_site_tree(&harness, "bazel-bin/other/site");
-        let inv = invocation(&[
-            "docs",
-            "//other:site",
-            "--serve",
-            "--apply",
-            "--output=text",
-        ]);
+        let inv = invocation(&["docs", "//other:site", "--serve", "--output=text"]);
         let seen = Rc::new(RefCell::new(Vec::new()));
         let runner = Probe {
             seen: Rc::clone(&seen),
@@ -739,7 +653,7 @@ mod tests {
                 "",
                 "ERROR: no such target '//tools/docs/site:missing': target not declared\n",
             );
-            let (code, out, err) = harness.run(&["docs", "--serve", "--apply", output]);
+            let (code, out, err) = harness.run(&["docs", "--serve", output]);
             assert_eq!(code, 1, "{out}{err}");
             assert!(err.contains("serve_failed"), "{err}");
             assert!(err.contains("//tools/docs/site:user_site"), "{err}");
@@ -753,7 +667,7 @@ mod tests {
     fn docs_serve_needs_exactly_one_site_tree() {
         let harness = Harness::new("docs-serve-no-tree");
         script_site_query(&harness, Some(0), "\n", "");
-        let (code, _, err) = harness.run(&["docs", "--serve", "--apply", "--output=text"]);
+        let (code, _, err) = harness.run(&["docs", "--serve", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("serve_failed"), "{err}");
         assert!(err.contains("exactly one"), "{err}");
@@ -764,7 +678,7 @@ mod tests {
             "bazel-bin/a/site\nbazel-bin/b/site\n",
             "",
         );
-        let (code, _, err) = harness.run(&["docs", "--serve", "--apply", "--output=text"]);
+        let (code, _, err) = harness.run(&["docs", "--serve", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("serve_failed"), "{err}");
         assert!(err.contains("exactly one"), "{err}");
@@ -780,7 +694,7 @@ mod tests {
             "bazel-bin/tools/docs/site/user_site\n",
             "",
         );
-        let (code, _, err) = harness.run(&["docs", "--serve", "--apply", "--output=text"]);
+        let (code, _, err) = harness.run(&["docs", "--serve", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("serve_failed"), "{err}");
         assert!(err.contains("index.html"), "{err}");
@@ -811,7 +725,7 @@ mod tests {
         }
         let harness = Harness::new("docs-serve-fail");
         script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
-        let inv = invocation(&["docs", "--serve", "--apply", "--port=8080", "--output=json"]);
+        let inv = invocation(&["docs", "--serve", "--port=8080", "--output=json"]);
         let runner = ServeFailRunner;
         let mut out = Vec::new();
         let mut err = Vec::new();

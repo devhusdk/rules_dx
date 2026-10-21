@@ -158,7 +158,6 @@ fn check_and_apply_conflict() {
         vec!["lint", "--apply", "--check"],
         vec!["fix", "--check", "--apply"],
         vec!["update", "--check", "--apply"],
-        vec!["docs", "--check", "--apply"],
     ] {
         assert_eq!(
             parse(&strings(&words)),
@@ -197,6 +196,9 @@ fn apply_matrix_matches_supports_apply() {
     for command in Command::value_variants() {
         let command = *command;
         let mut words = plain_words(command);
+        if command == Command::Watch {
+            words[1] = "fix".to_owned();
+        }
         words.push("--apply".to_owned());
         if command.supports_apply() {
             let got = parse(&words).unwrap_or_else(|error| {

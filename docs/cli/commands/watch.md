@@ -37,5 +37,5 @@ Exit codes: `0` success, `2` usage error, `1` operational failures.
 ```sh
 bazel run @rules_dx//:dx -- watch build //...
 bazel run @rules_dx//:dx -- watch test //cli/...
-bazel run @rules_dx//:dx -- watch --apply run //app:bin
+bazel run @rules_dx//:dx -- watch run //app:bin
 ```

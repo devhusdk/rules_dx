@@ -189,7 +189,9 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
         let command = *command;
         let listed = super::super::grammar::advertised_flags(command);
         for (flag, payload) in SHARED_FLAGS {
-            if command == Command::Watch && matches!(*flag, "--check" | "--fail-on" | "--report") {
+            if command == Command::Watch
+                && matches!(*flag, "--check" | "--apply" | "--fail-on" | "--report")
+            {
                 continue;
             }
             let refused = probe_rejects(command, flag, *payload);
@@ -511,6 +513,9 @@ fn command_usage_advertises_apply_exactly_where_the_parser_accepts_it() {
         let usage = command.usage();
         let mut words = vec![command.name().to_owned()];
         words.extend(required_words(command));
+        if command == Command::Watch {
+            words[1] = "fix".to_owned();
+        }
         if command == Command::Docs {
             words.push("--serve".to_owned());
         }

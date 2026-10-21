@@ -1,7 +1,7 @@
 # `dx docs`
 
 ```text
-dx docs [--check] [--apply] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
+dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
 ```
 
 Builds the documentation site with Bazel and the pinned upstream mdBook:
@@ -13,10 +13,8 @@ current directory tree. Args after `--` go to Bazel unchanged.
 - `--check`: validate the book without rendering it. Builds the generated
   summary and landing page only.
 - `--serve`: preview the last build locally after building. Serves the
-  rendered site tree, so every page has its own URL. Needs `--apply`:
-  without it `dx` builds and names the serve command instead of launching
-  the preview or the browser. The preview serves the site tree Bazel
-  reports for the built scope, so an explicit scope previews its own tree.
+  rendered site tree, so every page has its own URL. The preview serves the site tree Bazel reports for the built
+  scope, so an explicit scope previews its own tree.
   Serve needs exactly one built site tree with an `index.html` entry page.
 - `--port <n>`, `--host <addr>`, `--open`: need `--serve`. `--open` opens
   the preview in a browser.
@@ -29,7 +27,7 @@ preview server's code is the exit code.
 ```sh
 bazel run @rules_dx//:dx -- docs --check
 bazel run @rules_dx//:dx -- docs
-bazel run @rules_dx//:dx -- docs --serve --apply --port 8080
+bazel run @rules_dx//:dx -- docs --serve --port 8080
 ```
 
 The build never changes sources. Serve runs a local preview only. The site

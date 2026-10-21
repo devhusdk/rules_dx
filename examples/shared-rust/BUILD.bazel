@@ -99,17 +99,17 @@ rust_test(
     data = [
         ":app",
         ":serve",
-        "//docs/site/browser:firefox",
-        "//docs/site/browser:firefox_tree",
+        "//tools/docs/site/browser:firefox",
+        "//tools/docs/site/browser:firefox_tree",
     ],
     env = {
-        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
         "DX_SHARED_SERVE": "$(rootpath :serve)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
-        "//docs/site/browser:dx_site_browser",
+        "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
     ],
 )
@@ -120,19 +120,19 @@ rust_test(
     srcs = ["src/consumer_browser_test.rs"],
     aspect_hints = ["//:rustfmt_config"],
     data = [
-        "//docs/site/browser:firefox",
-        "//docs/site/browser:firefox_tree",
+        "//tools/docs/site/browser:firefox",
+        "//tools/docs/site/browser:firefox_tree",
         "@shared_consumer//:consumer_app",
         "@shared_consumer//:consumer_serve",
     ],
     env = {
-        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
         "DX_SHARED_CONSUMER_SERVE": "$(rootpath @shared_consumer//:consumer_serve)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
-        "//docs/site/browser:dx_site_browser",
+        "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
     ],
 )

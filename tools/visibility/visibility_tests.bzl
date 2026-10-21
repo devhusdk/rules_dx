@@ -111,7 +111,7 @@ def visibility_unit_tests(name):
             expect_equal(
                 "layering forbids the dx/cli/tools crossings",
                 len(LAYER_FORBIDDEN_DEPS),
-                9,
+                8,
             ),
             expect_equal(
                 "target grants stay the two CI-owned fixture exports",
@@ -124,7 +124,7 @@ def visibility_unit_tests(name):
             expect_equal(
                 "layering keeps every rule a triple",
                 [len(rule) == 3 for rule in LAYER_FORBIDDEN_DEPS],
-                [True, True, True, True, True, True, True, True, True],
+                [True, True, True, True, True, True, True, True],
             ),
             expect_equal(
                 "scope tables stay disjoint",

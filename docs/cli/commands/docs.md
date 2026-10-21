@@ -6,8 +6,8 @@ dx docs [--check] [--apply] [--serve [--port <n>] [--host <addr>] [--open]] [--h
 
 Builds the documentation site with Bazel and the pinned upstream mdBook:
 every `dx` command page, the GitHub CI guide, and the examples.
-With no scope it builds the repository site (`//docs/site:user_site`,
-`//docs/site:user_site_check` in `--check`). `--here` limits to the
+With no scope it builds the repository site (`//tools/docs/site:user_site`,
+`//tools/docs/site:user_site_check` in `--check`). `--here` limits to the
 current directory tree. Args after `--` go to Bazel unchanged.
 
 - `--check`: validate the book without rendering it. Builds the generated
@@ -36,5 +36,5 @@ The build never changes sources. Serve runs a local preview only. The site
 renders Markdown to HTML with syntax-highlighted code, a sidebar, a search
 index, and one route per page. Internal links are relative, so the same
 build serves at a domain root and from a project subdirectory. The demo
-targets (`//docs/site:demo_*`) stay fixture-only for tests and are never
+targets (`//tools/docs/site:demo_*`) stay fixture-only for tests and are never
 published.

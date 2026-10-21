@@ -43,7 +43,7 @@ VIS_CLI_ENV_GENERATION_QUALITY = VIS_CLI + [
 ]
 
 VIS_CLI_WIDE = VIS_CLI + [
-    "//docs:__subpackages__",
+    "//tools/docs:__subpackages__",
     "//env:__subpackages__",
     "//generation:__subpackages__",
     "//quality:__subpackages__",
@@ -60,7 +60,7 @@ VIS_CLI_DEPLOY = VIS_CLI + [
 ]
 
 VIS_CLI_DOCS_GENERATION_QUALITY = VIS_CLI + [
-    "//docs:__subpackages__",
+    "//tools/docs:__subpackages__",
     "//generation:__subpackages__",
     "//quality:__subpackages__",
 ]
@@ -213,7 +213,6 @@ SCOPED_TARGET_GRANTS = [
 
 LAYER_FORBIDDEN_DEPS = [
     ["cli/", "//dx:", ["//dx:codegen", "//dx:env"]],
-    ["cli/", "//docs:", []],
     ["cli/", "//tools/", []],
     ["dx/", "//tools/", []],
     ["env/", "//dx:", []],

@@ -76,17 +76,17 @@ rust_test(
     srcs = ["browser_test.rs"],
     data = [
         ":user_site",
-        "//docs/site/browser:firefox",
-        "//docs/site/browser:firefox_tree",
+        "//tools/docs/site/browser:firefox",
+        "//tools/docs/site/browser:firefox_tree",
     ],
     env = {
-        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
         "DX_USER_SITE": "$(rootpath :user_site)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
-        "//docs/site/browser:dx_site_browser",
+        "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
     ],
 )
@@ -98,17 +98,17 @@ rust_test(
     srcs = ["deploy_smoke_test.rs"],
     data = [
         ":user_site",
-        "//docs/site/browser:firefox",
-        "//docs/site/browser:firefox_tree",
+        "//tools/docs/site/browser:firefox",
+        "//tools/docs/site/browser:firefox_tree",
     ],
     env = {
-        "DX_FIREFOX": "$(rootpath //docs/site/browser:firefox)",
+        "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
         "DX_USER_SITE": "$(rootpath :user_site)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
-        "//docs/site/browser:dx_site_browser",
+        "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
     ],
 )
@@ -133,11 +133,11 @@ rust_test(
     data = [
         ":demo_site",
         ":user_site",
-        "//docs/site/check:site_check",
+        "//tools/docs/site/check:site_check",
     ],
     env = {
         "DX_DEMO_SITE": "$(rootpath :demo_site)",
-        "DX_SITE_CHECK": "$(rootpath //docs/site/check:site_check)",
+        "DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)",
         "DX_USER_SITE": "$(rootpath :user_site)",
     },
     tags = ["no-coverage"],
@@ -150,8 +150,8 @@ rust_test(
     name = "site_check_test",
     size = "small",
     srcs = ["site_check_test.rs"],
-    data = ["//docs/site/check:site_check"],
-    env = {"DX_SITE_CHECK": "$(rootpath //docs/site/check:site_check)"},
+    data = ["//tools/docs/site/check:site_check"],
+    env = {"DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)"},
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],

@@ -9,8 +9,8 @@ use dx_output::{
 use dx_process::build_workflow_argv;
 use std::path::{Path, PathBuf};
 
-const DOCS_CHECK_TARGET: &str = "//docs/site:user_site_check";
-const DOCS_BUILD_TARGET: &str = "//docs/site:user_site";
+const DOCS_CHECK_TARGET: &str = "//tools/docs/site:user_site_check";
+const DOCS_BUILD_TARGET: &str = "//tools/docs/site:user_site";
 
 const DOCS_DEFAULT_PORT: u16 = 8000;
 
@@ -212,7 +212,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             if let Ok(event) = error_event(
                 "bazel_failed",
                 &format!(
-                    "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit docs/site:user_site, fixture docs/site:demo_site, pinned mdBook 0.4.52)",
+                    "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit tools/docs/site:user_site, fixture tools/docs/site:demo_site, pinned mdBook 0.4.52)",
                     if invocation.check { "check" } else { "build" },
                 ),
                 None,
@@ -479,7 +479,7 @@ mod tests {
     #[test]
     fn docs_serve_previews_after_build() {
         let harness = Harness::new("docs-serve");
-        script_site_tree(&harness, "bazel-bin/docs/site/user_site");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
         let (code, out, _) = harness.run(&["docs", "--serve", "--apply", "--port=8080"]);
         assert_eq!(code, 0, "{out}");
         assert!(
@@ -535,7 +535,7 @@ mod tests {
     #[test]
     fn docs_serve_host_and_open() {
         let harness = Harness::new("docs-serve-host");
-        script_site_tree(&harness, "bazel-bin/docs/site/user_site");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
         let (code, out, _) = harness.run(&[
             "docs",
             "--serve",
@@ -572,7 +572,7 @@ mod tests {
             }
         }
         let harness = Harness::new("docs-serve-bind");
-        script_site_tree(&harness, "bazel-bin/docs/site/user_site");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
         let inv = invocation(&[
             "docs",
             "--serve",
@@ -612,7 +612,7 @@ mod tests {
         assert!(
             serve
                 .iter()
-                .any(|arg| arg.ends_with("bazel-bin/docs/site/user_site")),
+                .any(|arg| arg.ends_with("bazel-bin/tools/docs/site/user_site")),
             "the preview must serve the tree cquery reported: {serve:?}"
         );
         let open = calls
@@ -640,7 +640,7 @@ mod tests {
             }
         }
         let harness = Harness::new("docs-serve-bind-fail");
-        script_site_tree(&harness, "bazel-bin/docs/site/user_site");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
         let inv = invocation(&["docs", "--serve", "--apply", "--port=8080", "--output=json"]);
         let runner = LaunchFailRunner;
         let mut out = Vec::new();
@@ -685,7 +685,7 @@ mod tests {
         let (code, out, _) = harness.run(&["docs", "--output=json"]);
         assert_eq!(code, 3, "{out}");
         assert!(out.contains("bazel_failed"), "{out}");
-        assert!(out.contains("docs/site:user_site"), "{out}");
+        assert!(out.contains("tools/docs/site:user_site"), "{out}");
         assert!(out.contains("0.4.52"), "{out}");
     }
 
@@ -720,7 +720,7 @@ mod tests {
             serve[position + 1].clone()
         }
         let harness = Harness::new("docs-serve-tree");
-        script_site_tree(&harness, "bazel-bin/docs/site/user_site");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
         let inv = invocation(&["docs", "--serve", "--apply", "--output=text"]);
         let seen = Rc::new(RefCell::new(Vec::new()));
         let runner = Probe {
@@ -732,7 +732,7 @@ mod tests {
         assert_eq!(code, 0);
         let directory = serve_directory(&seen.borrow());
         assert!(
-            directory.ends_with("bazel-bin/docs/site/user_site"),
+            directory.ends_with("bazel-bin/tools/docs/site/user_site"),
             "the preview must serve the tree cquery reported: {directory}"
         );
         let harness = Harness::new("docs-serve-foreign-tree");
@@ -764,7 +764,7 @@ mod tests {
             "an explicit scope must preview its own tree: {directory}"
         );
         assert!(
-            !directory.ends_with("bazel-bin/docs/site/user_site"),
+            !directory.ends_with("bazel-bin/tools/docs/site/user_site"),
             "an explicit scope must not preview the repository default: {directory}"
         );
     }
@@ -777,12 +777,12 @@ mod tests {
                 &harness,
                 Some(7),
                 "",
-                "ERROR: no such target '//docs/site:missing': target not declared\n",
+                "ERROR: no such target '//tools/docs/site:missing': target not declared\n",
             );
             let (code, out, err) = harness.run(&["docs", "--serve", "--apply", output]);
             assert_eq!(code, 1, "{out}{err}");
             assert!(err.contains("serve_failed"), "{err}");
-            assert!(err.contains("//docs/site:user_site"), "{err}");
+            assert!(err.contains("//tools/docs/site:user_site"), "{err}");
             if output == "--output=json" {
                 assert!(out.contains("serve_failed"), "{out}");
             }
@@ -814,7 +814,12 @@ mod tests {
     #[test]
     fn docs_serve_needs_a_rendered_entry_page() {
         let harness = Harness::new("docs-serve-no-entry");
-        script_site_query(&harness, Some(0), "bazel-bin/docs/site/user_site\n", "");
+        script_site_query(
+            &harness,
+            Some(0),
+            "bazel-bin/tools/docs/site/user_site\n",
+            "",
+        );
         let (code, _, err) = harness.run(&["docs", "--serve", "--apply", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("serve_failed"), "{err}");
@@ -845,7 +850,7 @@ mod tests {
             }
         }
         let harness = Harness::new("docs-serve-fail");
-        script_site_tree(&harness, "bazel-bin/docs/site/user_site");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
         let inv = invocation(&["docs", "--serve", "--apply", "--port=8080", "--output=json"]);
         let runner = ServeFailRunner;
         let mut out = Vec::new();

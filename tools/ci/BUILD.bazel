@@ -330,7 +330,7 @@ rust_test(
         "//docs:README.md",
         "//docs:command_docs",
         "//docs:github-ci.md",
-        "//docs/site:user/book.bzl",
+        "//tools/docs/site:user/book.bzl",
         "//examples:README.md",
         "//examples:example_readmes",
     ],

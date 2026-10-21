@@ -37,7 +37,7 @@ fn unique(mut names: Vec<String>) -> Vec<String> {
 
 /// Returns the curated book's source labels as workspace-relative paths.
 fn published() -> Vec<String> {
-    let book = read_runfiles("docs/site/user/book.bzl");
+    let book = read_runfiles("tools/docs/site/user/book.bzl");
     let mut names = Vec::new();
     let mut pages = 0;
     let mut call = String::new();
@@ -75,11 +75,11 @@ fn published() -> Vec<String> {
         path.push(file);
         names.push(path.to_string_lossy().replace('\\', "/"));
     }
-    assert!(pages > 0, "docs/site/user/book.bzl curates no pages");
+    assert!(pages > 0, "tools/docs/site/user/book.bzl curates no pages");
     assert_eq!(
         pages,
         names.len(),
-        "every mdbook_page in docs/site/user/book.bzl must name one source label"
+        "every mdbook_page in tools/docs/site/user/book.bzl must name one source label"
     );
     unique(names)
 }
@@ -201,7 +201,7 @@ fn every_command_page_is_published() {
     }) {
         assert!(
             published.contains(&page),
-            "{page} is not in the curated book in docs/site/user/book.bzl"
+            "{page} is not in the curated book in tools/docs/site/user/book.bzl"
         );
     }
 }

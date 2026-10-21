@@ -21,7 +21,7 @@ rust_library(
         "src/rendered_tests.rs",
     ],
     aliases = aliases(
-        package_name = "docs/site/site_check",
+        package_name = "tools/docs/site/site_check",
         normal = True,
     ),
     crate_name = "dx_site_check",
@@ -29,7 +29,7 @@ rust_library(
     edition = "2021",
     deps = crate_deps(
         [],
-        package_name = "docs/site/site_check",
+        package_name = "tools/docs/site/site_check",
     ),
 )
 
@@ -37,7 +37,7 @@ rust_binary(
     name = "site_check",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "docs/site/site_check",
+        package_name = "tools/docs/site/site_check",
         normal = True,
     ),
     crate_name = "site_check",
@@ -45,7 +45,7 @@ rust_binary(
     edition = "2021",
     deps = crate_deps(
         [],
-        package_name = "docs/site/site_check",
+        package_name = "tools/docs/site/site_check",
     ) + [":dx_site_check"],
 )
 
@@ -53,14 +53,14 @@ rust_test(
     name = "dx_site_check_test",
     size = "small",
     aliases = aliases(
-        package_name = "docs/site/site_check",
+        package_name = "tools/docs/site/site_check",
         normal = True,
         normal_dev = True,
     ),
     crate = ":dx_site_check",
     deps = crate_deps(
         [],
-        package_name = "docs/site/site_check",
+        package_name = "tools/docs/site/site_check",
     ) + ["//tools/testing:dx_testing"],
 )
 

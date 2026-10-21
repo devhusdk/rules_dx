@@ -9,17 +9,17 @@ the pipeline instead of silently going stale.
 1. Extract the demo IR shard:
 
    ```sh
-   bazel build //docs/site:demo_extract
+   bazel build //tools/docs/site:demo_extract
    ```
 
 2. Aggregate shards plus prose into render inputs:
 
    ```sh
-   bazel build //docs/site:demo_aggregate
+   bazel build //tools/docs/site:demo_aggregate
    ```
 
 3. Run the site unit checks:
 
    ```sh
-   bazel test //docs/site:site_unit
+   bazel test //tools/docs/site:site_unit
    ```

@@ -64,11 +64,18 @@ fn filter_configs(
 }
 
 fn selection_options(options: &[String]) -> Vec<String> {
-    options
-        .iter()
-        .filter(|arg| !dx_process::is_test_binary_arg(arg))
-        .cloned()
-        .collect()
+    let mut kept = Vec::with_capacity(options.len());
+    let mut index = 0;
+    while index < options.len() {
+        let arg = &options[index];
+        if dx_process::is_test_binary_arg(arg) {
+            index += if arg.contains('=') { 1 } else { 2 };
+        } else {
+            kept.push(arg.clone());
+            index += 1;
+        }
+    }
+    kept
 }
 
 impl SelectionContext {
@@ -236,6 +243,32 @@ mod tests {
         let detail = selection.redacted_detail();
         assert!(detail.contains("configured"));
         assert!(detail.contains("--platforms=//:x"));
+    }
+
+    #[test]
+    fn selection_drops_separated_and_equals_test_args() {
+        let options = strings(&[
+            "--test_arg",
+            "--exact",
+            "--config=ci",
+            "--test_arg=--nocapture",
+            "--test_arg",
+            "",
+            "--test_arg",
+            "--test_arg",
+            "--platforms=//:x",
+            "--test_arg",
+        ]);
+        let selection = SelectionContext::for_tests_configured(&options, &[]);
+        assert_eq!(
+            selection.filtered_options().expect("options"),
+            strings(&["--config=ci", "--platforms=//:x"])
+        );
+        let unconfigured = SelectionContext::unconfigured_with_options(&options, &[]);
+        assert_eq!(
+            unconfigured.filtered_options().expect("options"),
+            strings(&["--config=ci", "--platforms=//:x"])
+        );
     }
 
     #[test]

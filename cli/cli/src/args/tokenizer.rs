@@ -74,6 +74,7 @@ fn removed_command(error: &clap::Error) -> Option<String> {
         _ => return None,
     };
     let tip = match word {
+        "capabilities" => "run `dx status` for capability and readiness facts",
         "setup" => "run `dx env` and `dx codegen` instead (each takes --check or --apply)",
         "verify" => "run `dx check`, `dx build`, `dx test` and `dx coverage` directly, in the order you need",
         "rerun" => "run `dx test <target>` for the targets you want to run again",

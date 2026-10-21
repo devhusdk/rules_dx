@@ -74,7 +74,6 @@ pub(crate) struct Flags {
     pub(crate) open: bool,
     pub(crate) offline: bool,
     pub(crate) frozen: bool,
-    pub(crate) workspace_capabilities: bool,
     pub(crate) cases: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
@@ -374,14 +373,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Include workspace facts from local records.
-    WorkspaceCapabilitiesFlag, {
-        #[arg(long = "workspace-capabilities", overrides_with = "workspace_capabilities")]
-        workspace_capabilities: bool,
-    }
-}
-
-flag_group! {
     /// Enumerate supported test cases via the test runtime.
     CasesFlag, {
         #[arg(long = "cases", overrides_with = "cases")]
@@ -670,16 +661,14 @@ command_args! {
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx capabilities` accepts.
-    Capabilities => 31, NoPassthroughTail, { own: WorkspaceCapabilitiesFlag, };
     /// The flags `dx tests` accepts.
-    Tests => 32, BazelTail, {
+    Tests => 31, BazelTail, {
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 33, NoPassthroughTail, { apply: ApplyFlag, };
+    Rollback => 32, NoPassthroughTail, { apply: ApplyFlag, };
 }
 
 #[derive(Parser)]

@@ -181,7 +181,6 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--open", None),
     ("--offline", None),
     ("--frozen", None),
-    ("--workspace-capabilities", None),
     ("-- <bazel-options>", None),
 ];
 

@@ -31,7 +31,6 @@ pub enum Command {
     Why,
     Completion,
     Docs,
-    Capabilities,
     Tests,
     Rollback,
 }
@@ -116,7 +115,7 @@ pub struct CommandMeta {
     pub hook_triggers_on_run: bool,
 }
 
-pub static COMMANDS: [CommandMeta; 34] = [
+pub static COMMANDS: [CommandMeta; 33] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -765,9 +764,9 @@ pub static COMMANDS: [CommandMeta; 34] = [
         command: Command::Status,
         name: "status",
         scope_policy: "reject",
-        describe: "report workspace and target status",
+        describe: "report workspace status and machine-readable capabilities",
         usage: "Usage: dx status",
-        flags: "Per-command flags: none (no scopes; --output text|json only, diff has no patch; --check/--fail-on/--report/--configured and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`; JSON streams command_started, one status event per check (name, status, detail, hint), optional status_pin_mismatch error, command_finished; no dx doctor, use dx status, see docs/cli/commands/status-version.md#failure-explainer).",
+        flags: "Per-command flags: none (no scopes; --output text|json only, diff has no patch; --check/--fail-on/--report/--configured and `-- --bazel-options` do not apply; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`; JSON streams command_started, one status event per check (name, status, detail, hint), one capability event per command, optional status_pin_mismatch error, command_finished; no dx doctor, use dx status, see docs/cli/commands/status-version.md#failure-explainer).",
         scopes: "Scopes: none (status takes no scopes).",
         is_audit_update: false,
         is_managed: false,
@@ -983,34 +982,6 @@ pub static COMMANDS: [CommandMeta; 34] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-        hook_triggers_on_run: false,
-    },
-    CommandMeta {
-        command: Command::Capabilities,
-        name: "capabilities",
-        scope_policy: "reject",
-        describe: "print machine-readable CLI and workspace capabilities (no downloads; --workspace-capabilities adds workspace facts)",
-        usage: "Usage: dx capabilities [--workspace-capabilities]",
-        flags: "Per-command flags: --workspace-capabilities (capabilities only; adds workspace facts from local records without downloads or probing; --output text|json only, diff has no patch; unsupported uses fail with `option \"--flag\" is not supported by dx <command>`).",
-        scopes: "Scopes: none (capabilities takes no scopes).",
-        is_audit_update: false,
-        is_managed: false,
-        is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_check: false,
-        supports_fail_on: false,
-        supports_min_coverage: false,
-        supports_profile: false,
-        supports_offline: false,
-        supports_frozen: false,
-        is_mutating_by_default: false,
-        default_release: false,
-        skew: SkewKind::Proceed,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
         hook_triggers_on_run: false,
     },
     CommandMeta {
@@ -1330,7 +1301,6 @@ mod tests {
             Command::Why,
             Command::Completion,
             Command::Docs,
-            Command::Capabilities,
             Command::Tests,
             Command::Rollback,
         ];
@@ -1358,7 +1328,6 @@ mod tests {
         let mut want = vec![
             "build",
             "bump",
-            "capabilities",
             "check",
             "clean",
             "codegen",
@@ -1392,8 +1361,8 @@ mod tests {
             "why",
         ];
         want.sort_unstable();
-        assert_eq!(got, want, "Command registry drifted from the final 34");
-        assert_eq!(Command::value_variants().len(), 34);
+        assert_eq!(got, want, "Command registry drifted from the final 33");
+        assert_eq!(Command::value_variants().len(), 33);
         for excluded in ["doctor", "configure", "bogus"] {
             assert_eq!(
                 Command::parse(excluded),
@@ -1437,7 +1406,6 @@ mod tests {
             Command::Why,
             Command::Completion,
             Command::Docs,
-            Command::Capabilities,
             Command::Tests,
             Command::Rollback,
         ] {
@@ -1540,7 +1508,7 @@ mod tests {
         let list = Command::pipe_list();
         assert_eq!(
             Command::value_variants().len(),
-            34,
+            33,
             "registry width changed; update scope matrix plus fallbacks"
         );
         let missing_text = super::super::ArgsError::MissingCommand.to_string();
@@ -1558,7 +1526,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|capabilities|tests|rollback",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|hooks|status|version|watch|owners|deps|why|completion|docs|tests|rollback",
             "pipe_list order must match declaration order"
         );
     }
@@ -1566,7 +1534,7 @@ mod tests {
     #[test]
     fn scope_defaults_partition_covers_all_commands() {
         use clap::ValueEnum;
-        assert_eq!(Command::value_variants().len(), 34);
+        assert_eq!(Command::value_variants().len(), 33);
         for command in Command::value_variants() {
             let policy = command.scope_policy();
             assert!(
@@ -1787,7 +1755,7 @@ mod tests {
     #[test]
     fn table_covers_every_command_exactly_once() {
         use clap::ValueEnum;
-        assert_eq!(COMMANDS.len(), 34);
+        assert_eq!(COMMANDS.len(), 33);
         assert_eq!(COMMANDS.len(), Command::value_variants().len());
         for (index, entry) in COMMANDS.iter().enumerate() {
             assert_eq!(

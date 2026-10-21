@@ -354,7 +354,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
             String::from_utf8_lossy(&output.stderr).into_owned(),
         )
     };
-    let (code, _, err) = run(&["capabilities", "--output=json"], &[]);
+    let (code, _, err) = run(&["status", "--output=json"], &[]);
     assert_eq!(code, Some(0), "the config file defaults apply: {err}");
     assert!(
         err.contains("dx invocation parsed"),
@@ -364,14 +364,14 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     assert_eq!(code, Some(0), "{err}");
     assert!(out.contains("COMPLETE"), "{out}");
     for flag in ["--verbose=false", "-v=false"] {
-        let (code, _, err) = run(&["capabilities", flag], &[]);
+        let (code, _, err) = run(&["status", flag], &[]);
         assert_eq!(code, Some(0), "{flag}: {err}");
         assert!(
             !err.contains("dx invocation parsed"),
             "{flag} turns the inherited verbose off: {err}"
         );
     }
-    let (code, _, err) = run(&["capabilities", "--output=json"], &[(DX_QUIET_ENV, "tru")]);
+    let (code, _, err) = run(&["status", "--output=json"], &[(DX_QUIET_ENV, "tru")]);
     assert_eq!(code, Some(2), "a typo is a usage error: {err}");
     assert!(
         err.contains("DX_QUIET=\"tru\"") && err.contains(BOOL_SPELLINGS),
@@ -379,7 +379,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     );
     assert!(err.contains("usage: dx"), "the usage line follows: {err}");
     std::fs::write(&config, "[dx]\nqiet = true\n").expect("typo");
-    let (code, out, err) = run(&["capabilities", "--output=json"], &[]);
+    let (code, out, err) = run(&["status", "--output=json"], &[]);
     assert_eq!(code, Some(2), "a misspelled key is a usage error: {err}");
     assert_startup_outcome(&out, "invalid_defaults", 2);
     assert!(
@@ -387,13 +387,10 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
         "the diagnostic names the file: {err}"
     );
     std::fs::write(&config, "[dx]\nquiet = true\n").expect("valid");
-    let (code, out, err) = run(
-        &["capabilities", "--output=json"],
-        &[(DX_QUIET_ENV, "true")],
-    );
+    let (code, out, err) = run(&["status", "--output=json"], &[(DX_QUIET_ENV, "true")]);
     assert_eq!(code, Some(0), "a documented spelling still parses: {err}");
     assert!(out.contains("\"command_finished\""), "{out}");
-    let (code, _, err) = run(&["capabilities", "--quiet=maybe"], &[]);
+    let (code, _, err) = run(&["status", "--quiet=maybe"], &[]);
     assert_eq!(code, Some(2), "a bad flag value stays a usage error");
     assert!(
         err.contains("invalid value 'maybe'"),
@@ -460,6 +457,7 @@ fn workspace_with_output(name: &str, output: &str) -> dx_test_scratch::TempDir {
     let scratch = dx_test_scratch::scratch(name);
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
+    std::fs::write(scratch.path().join(".dx/version"), "0.0.0\n").expect("pin");
     std::fs::write(
         scratch.path().join("dx.toml"),
         format!("[dx]\noutput = \"{output}\"\n"),
@@ -484,7 +482,7 @@ fn help_works_with_a_malformed_config_but_operations_fail_closed() {
     let (code, out, _) = run_dx(root, &["help", "lint"], &[]);
     assert_eq!(code, Some(0), "the help verb works with a malformed config");
     assert!(out.contains("dx lint"), "{out}");
-    let (code, out, err) = run_dx(root, &["capabilities"], &[]);
+    let (code, out, err) = run_dx(root, &["status"], &[]);
     assert_eq!(code, Some(2), "an operation still fails closed: {err}");
     assert!(out.is_empty(), "no events for a usage error: {out}");
     assert!(
@@ -540,19 +538,19 @@ fn explicit_workspace_uses_the_target_workspace_defaults() {
     let a = workspace_with_output("dx-startup-ws-a-", "json");
     let b = workspace_with_output("dx-startup-ws-b-", "text");
     let b_dir = b.path().to_string_lossy().into_owned();
-    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[]);
+    let (code, out, err) = run_dx(a.path(), &["status"], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("command_started"),
         "the start directory is json: {out}"
     );
-    let (code, out, err) = run_dx(a.path(), &["capabilities", "--workspace", &b_dir], &[]);
+    let (code, out, err) = run_dx(a.path(), &["status", "--workspace", &b_dir], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("lint"),
         "the flag workspace supplies text defaults: {out}"
     );
-    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[(DX_WORKSPACE_ENV, &b_dir)]);
+    let (code, out, err) = run_dx(a.path(), &["status"], &[(DX_WORKSPACE_ENV, &b_dir)]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("lint"),
@@ -560,7 +558,7 @@ fn explicit_workspace_uses_the_target_workspace_defaults() {
     );
     let nested = a.path().join("sub/dir");
     std::fs::create_dir_all(&nested).expect("nested");
-    let (code, out, err) = run_dx(&nested, &["capabilities", "--workspace", &b_dir], &[]);
+    let (code, out, err) = run_dx(&nested, &["status", "--workspace", &b_dir], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("lint"),
@@ -575,7 +573,7 @@ fn bazel_run_start_selects_the_workspace_root() {
     let b_dir = b.path().to_string_lossy().into_owned();
     let (code, out, err) = run_dx(
         a.path(),
-        &["capabilities"],
+        &["status"],
         &[("BUILD_WORKSPACE_DIRECTORY", &b_dir)],
     );
     assert_eq!(code, Some(0), "{err}");
@@ -610,12 +608,13 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
     let a = dx_test_scratch::scratch("dx-startup-redir-a-");
     std::fs::write(a.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(a.path().join(".dx")).expect("dx");
+    std::fs::write(a.path().join(".dx/version"), "0.0.0\n").expect("pin");
     std::fs::write(
         a.path().join("dx.toml"),
         format!("[dx]\nworkspace = \"{b_dir}\"\n"),
     )
     .expect("redirect");
-    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[]);
+    let (code, out, err) = run_dx(a.path(), &["status"], &[]);
     assert_eq!(code, Some(0), "{err}");
     assert!(
         out.contains("command_started"),
@@ -627,7 +626,7 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
         format!("[dx]\noutput = \"text\"\nworkspace = \"{a_dir}\"\n"),
     )
     .expect("cycle");
-    let (code, out, err) = run_dx(a.path(), &["capabilities"], &[]);
+    let (code, out, err) = run_dx(a.path(), &["status"], &[]);
     assert_eq!(code, Some(0), "a redirect cycle still terminates: {err}");
     assert!(
         out.contains("lint"),

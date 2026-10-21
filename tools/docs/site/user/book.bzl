@@ -73,11 +73,6 @@ USER_BOOK = [
         "//docs:cli/commands/completion.md",
     ),
     mdbook_page(
-        "Capabilities",
-        "docs/cli/commands/capabilities.md",
-        "//docs:cli/commands/capabilities.md",
-    ),
-    mdbook_page(
         "Tests",
         "docs/cli/commands/tests.md",
         "//docs:cli/commands/tests.md",

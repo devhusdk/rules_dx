@@ -9,40 +9,39 @@ Exit codes: 0 success, 2 usage error, 1 failed check.
 Usage: dx [COMMAND]
 
 Commands:
-  security      run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
-  license       run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
-  lint          run lint analysis over resolved scopes (check by default; --apply writes fixes)
-  typecheck     run typecheck analysis over resolved scopes (check by default; --apply writes fixes)
-  format        check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)
-  generate      emit/sync BUILD files (Gazelle pipeline; check by default; --apply writes generated sources)
-  build         run Bazel build over resolved targets
-  test          run Bazel test over resolved targets
-  coverage      collect LCOV coverage with optional threshold
-  run           build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
-  deploy        build and run a single deployable target
-  check         run format+lint+typecheck+generate checks in order (non-mutating)
-  fix           apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
-  clean         prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
-  update        update dependencies per set through qualified resolvers (check by default; --apply writes updates)
-  bump          widen one declared requirement to a new version (check by default; --apply widens)
-  migrate       rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)
-  codegen       collect codegen outputs with atomic commit (check by default; --apply writes managed state)
-  env           collect the managed development environment (check by default; --apply writes managed state)
-  init          scaffold dx into a foreign tree (absent-only; check by default; --apply scaffolds)
-  new           scaffold a minimal qualified project for one language (absent-only; check by default; --apply scaffolds)
-  upgrade       one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)
-  hooks         manage Git hooks via hermetic Git (check by default; --apply installs)
-  status        report workspace and target status
-  version       report version and pin drift
-  watch         watch for changes and rebuild (local only)
-  owners        query owners of files via Bazel query
-  deps          query dependencies of targets
-  why           explain why a target depends on another
-  completion    emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)
-  docs          build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
-  capabilities  print machine-readable CLI and workspace capabilities (no downloads; --workspace-capabilities adds workspace facts)
-  tests         list configured test targets with optional Rust case enumeration (non-mutating; --cases builds and lists without running bodies)
-  rollback      restore the previous recorded pin (check by default; --apply restores)
+  security    run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
+  license     run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
+  lint        run lint analysis over resolved scopes (check by default; --apply writes fixes)
+  typecheck   run typecheck analysis over resolved scopes (check by default; --apply writes fixes)
+  format      check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)
+  generate    emit/sync BUILD files (Gazelle pipeline; check by default; --apply writes generated sources)
+  build       run Bazel build over resolved targets
+  test        run Bazel test over resolved targets
+  coverage    collect LCOV coverage with optional threshold
+  run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
+  deploy      build and run a single deployable target
+  check       run format+lint+typecheck+generate checks in order (non-mutating)
+  fix         apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
+  clean       prune unselected managed state, never Bazel outputs unless --bazel (check by default; --apply prunes; no scopes)
+  update      update dependencies per set through qualified resolvers (check by default; --apply writes updates)
+  bump        widen one declared requirement to a new version (check by default; --apply widens)
+  migrate     rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)
+  codegen     collect codegen outputs with atomic commit (check by default; --apply writes managed state)
+  env         collect the managed development environment (check by default; --apply writes managed state)
+  init        scaffold dx into a foreign tree (absent-only; check by default; --apply scaffolds)
+  new         scaffold a minimal qualified project for one language (absent-only; check by default; --apply scaffolds)
+  upgrade     one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)
+  hooks       manage Git hooks via hermetic Git (check by default; --apply installs)
+  status      report workspace status and machine-readable capabilities
+  version     report version and pin drift
+  watch       watch for changes and rebuild (local only)
+  owners      query owners of files via Bazel query
+  deps        query dependencies of targets
+  why         explain why a target depends on another
+  completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell; --check verifies without writing)
+  docs        build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
+  tests       list configured test targets with optional Rust case enumeration (non-mutating; --cases builds and lists without running bodies)
+  rollback    restore the previous recorded pin (check by default; --apply restores)
 
 Options:
   -h, --help

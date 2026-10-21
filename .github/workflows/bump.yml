@@ -175,7 +175,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           set_name="${SELECTOR%%:*}"
-          if [[ "$set_name" == "github-actions" || "$set_name" == "gha" ]]; then
+          if [[ "$set_name" == "github-actions" ]]; then
             package="${SELECTOR#*:}"
             echo "Resolving GHA ref $VERSION for $package via the upstream GitHub releases client (gh api); dx bump parses the snapshot, never shell regex."
             commit_json="$(mktemp)"

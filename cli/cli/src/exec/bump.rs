@@ -832,7 +832,7 @@ dependencies = ["anyio>=4"]
                 "9.3.0\n",
             ),
             (
-                "gha:actions/checkout",
+                "github-actions:actions/checkout",
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 ".github/workflows/ci.yml",
                 "- uses: actions/checkout@v1\n",

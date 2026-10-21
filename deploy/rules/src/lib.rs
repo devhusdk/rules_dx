@@ -207,7 +207,7 @@ pub fn copy_verified(src: &Path, dest: &Path) -> io::Result<String> {
     Ok(want)
 }
 
-/// Resolves one runfiles rlocation without external deps.
+/// Resolves one runfiles rlocation through the Bazel runfiles library.
 pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
     if rloc.is_empty() {
         return Err(io::Error::new(
@@ -215,41 +215,19 @@ pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
             "empty runfiles rlocation",
         ));
     }
-    if let Ok(dir) = std::env::var("RUNFILES_DIR") {
-        let candidate = std::path::Path::new(&dir).join(rloc);
-        if candidate.exists() {
-            return Ok(candidate);
-        }
+    let runfiles = runfiles::Runfiles::create().map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("cannot open runfiles for '{rloc}': {error}"),
+        )
+    })?;
+    match runfiles.rlocation(rloc) {
+        Some(path) if path.exists() => Ok(path),
+        _ => Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("runfile not found for '{rloc}'"),
+        )),
     }
-    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
-        if let Ok(text) = std::fs::read_to_string(&manifest) {
-            for line in text.lines() {
-                let mut parts = line.splitn(2, ' ');
-                if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-                    if key == rloc {
-                        let candidate = std::path::PathBuf::from(value);
-                        if candidate.exists() {
-                            return Ok(candidate);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        for candidate in [
-            exe.with_extension("runfiles").join(rloc),
-            exe.with_extension("exe.runfiles").join(rloc),
-        ] {
-            if candidate.exists() {
-                return Ok(candidate);
-            }
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::NotFound,
-        format!("runfile not found for '{rloc}'"),
-    ))
 }
 
 /// Returns the deploy output directory.
@@ -2506,109 +2484,14 @@ pub fn npm_verify_pack(tgz_path: &Path, feed_path: &Path) -> io::Result<(String,
     Ok((name, tag, registry))
 }
 
-fn runfiles_manifest_entries() -> Vec<(String, String)> {
-    let mut out = Vec::new();
-    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
-        if let Ok(text) = std::fs::read_to_string(&manifest) {
-            for line in text.lines() {
-                let mut parts = line.splitn(2, ' ');
-                if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-                    out.push((key.to_owned(), value.to_owned()));
-                }
-            }
-        }
-    }
-    out
-}
-
-fn runfiles_dir_walk(root: &Path, out: &mut Vec<std::path::PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(root) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            runfiles_dir_walk(&path, out);
-        } else {
-            out.push(path);
-        }
-    }
-}
-
-/// Finds one npm pack pair in runfiles.
-pub fn npm_find_pack_inputs() -> io::Result<(std::path::PathBuf, std::path::PathBuf)> {
-    let manifest = runfiles_manifest_entries();
-    let mut feeds: Vec<std::path::PathBuf> = Vec::new();
-    if !manifest.is_empty() {
-        for (rloc, real) in &manifest {
-            if rloc.ends_with(".feed.json") {
-                feeds.push(std::path::PathBuf::from(real));
-            }
-        }
-    }
-    if feeds.is_empty() {
-        if let Ok(dir) = std::env::var("RUNFILES_DIR") {
-            let root = std::path::PathBuf::from(dir);
-            let mut all = Vec::new();
-            runfiles_dir_walk(&root, &mut all);
-            for path in all {
-                if path.extension().and_then(|e| e.to_str()) == Some("json")
-                    && path.to_string_lossy().ends_with(".feed.json")
-                {
-                    feeds.push(path);
-                }
-            }
-        }
-    }
-    if feeds.len() != 1 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!(
-                "want exactly one .feed.json in runfiles, found {}",
-                feeds.len()
-            ),
-        ));
-    }
-    let feed_path = feeds.remove(0);
-    let body = std::fs::read_to_string(&feed_path)?;
-    let tarball = json_string_field(&body, "tarball").ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidData, "feed JSON is missing 'tarball'")
-    })?;
-    let mut tgzs = Vec::new();
-    if !manifest.is_empty() {
-        for (rloc, real) in &manifest {
-            if rloc == &tarball || rloc.ends_with(&format!("/{tarball}")) {
-                tgzs.push(std::path::PathBuf::from(real));
-            }
-        }
-    }
-    if tgzs.is_empty() {
-        if let Ok(dir) = std::env::var("RUNFILES_DIR") {
-            let root = std::path::PathBuf::from(dir);
-            let mut all = Vec::new();
-            runfiles_dir_walk(&root, &mut all);
-            for path in all {
-                let rel = path.to_string_lossy().into_owned();
-                if rel == tarball || rel.ends_with(&format!("/{tarball}")) {
-                    tgzs.push(path);
-                } else if let Ok(base) = basename(&path) {
-                    if base == tarball {
-                        tgzs.push(path);
-                    }
-                }
-            }
-        }
-    }
-    if tgzs.len() != 1 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!(
-                "want exactly one '{tarball}' in runfiles, found {}",
-                tgzs.len()
-            ),
-        ));
-    }
-    Ok((feed_path, tgzs.remove(0)))
+/// Resolves the npm pack pair from explicit runfiles keys.
+pub fn npm_find_pack_inputs(
+    feed_rloc: &str,
+    tarball_rloc: &str,
+) -> io::Result<(std::path::PathBuf, std::path::PathBuf)> {
+    let feed_path = resolve_runfile(feed_rloc)?;
+    let tgz_path = resolve_runfile(tarball_rloc)?;
+    Ok((feed_path, tgz_path))
 }
 
 /// Runs the npm pack tool.
@@ -2633,13 +2516,13 @@ pub fn npm_pack_main(argv: &[String]) -> i32 {
 }
 
 /// Runs the npm deploy launcher.
-pub fn npm_deploy_main(argv: &[String]) -> i32 {
+pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> i32 {
     let outdir = deploy_outdir(argv);
     if std::fs::create_dir_all(&outdir).is_err() {
         eprintln!("npm_deploy: cannot create {}", outdir.display());
         return 1;
     }
-    let (feed_path, tgz_path) = match npm_find_pack_inputs() {
+    let (feed_path, tgz_path) = match npm_find_pack_inputs(feed_rloc, tarball_rloc) {
         Ok(pair) => pair,
         Err(error) => {
             eprintln!("npm_deploy: {error}");
@@ -3768,7 +3651,7 @@ mod tests {
         std::fs::write(
             &manifest,
             format!(
-                "npm/nested/npm_demo.feed.json {}\nnpm/nested/npm_demo.tgz {}\n",
+                "_main/npm/nested/npm_demo.feed.json {}\n_main/npm/nested/npm_demo.tgz {}\n",
                 feed.display(),
                 tgz.display()
             ),
@@ -3783,9 +3666,17 @@ mod tests {
                 ),
             ],
             || {
-                let (found_feed, found_tgz) = npm_find_pack_inputs().expect("pack pair");
+                let (found_feed, found_tgz) = npm_find_pack_inputs(
+                    "_main/npm/nested/npm_demo.feed.json",
+                    "_main/npm/nested/npm_demo.tgz",
+                )
+                .expect("pack pair");
                 assert_eq!(found_feed, feed);
                 assert_eq!(found_tgz, tgz);
+                let error = npm_find_pack_inputs("npm_demo.feed.json", "npm_demo.tgz")
+                    .expect_err("basename is not a key");
+                assert_eq!(error.kind(), io::ErrorKind::NotFound);
+                assert!(error.to_string().contains("npm_demo.feed.json"));
             },
         );
         let empty_dir = scratch.path().join("empty-runfiles");
@@ -3796,8 +3687,42 @@ mod tests {
                 ("RUNFILES_MANIFEST_FILE", None),
             ],
             || {
-                let error = npm_find_pack_inputs().expect_err("no feed under runfiles");
-                assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+                let error = npm_find_pack_inputs("_main/a.feed.json", "_main/a.tgz")
+                    .expect_err("no feed under runfiles");
+                assert_eq!(error.kind(), io::ErrorKind::NotFound);
+            },
+        );
+    }
+
+    #[test]
+    fn resolve_runfile_reads_manifest_values_with_spaces() {
+        if env_test_in_child("tests::resolve_runfile_reads_manifest_values_with_spaces") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let payload = scratch.path().join("real dir").join("app.bin");
+        std::fs::create_dir_all(payload.parent().expect("parent")).expect("nested");
+        std::fs::write(&payload, b"spaced").expect("write payload");
+        let manifest = scratch.path().join("spaced.manifest");
+        std::fs::write(
+            &manifest,
+            format!("_main/pkg/app.bin {}\n", payload.display()),
+        )
+        .expect("write manifest");
+        with_env(
+            &[
+                ("RUNFILES_DIR", None),
+                (
+                    "RUNFILES_MANIFEST_FILE",
+                    Some(manifest.to_string_lossy().as_ref()),
+                ),
+            ],
+            || {
+                let found = resolve_runfile("_main/pkg/app.bin").expect("spaced value");
+                assert_eq!(std::fs::read(found).expect("bytes"), b"spaced");
+                let error = resolve_runfile("_main/pkg/absent.bin").expect_err("missing key");
+                assert_eq!(error.kind(), io::ErrorKind::NotFound);
+                assert!(error.to_string().contains("_main/pkg/absent.bin"));
             },
         );
     }
@@ -4627,7 +4552,10 @@ mod tests {
                 ("NPM_PUBLISH_LIVE", None),
             ],
             || {
-                assert_eq!(npm_deploy_main(&argv), 0);
+                assert_eq!(
+                    npm_deploy_main(&argv, "npm_demo.feed.json", "npm_demo.tgz"),
+                    0
+                );
             },
         );
         assert!(outdir.join("npm_demo.tgz").is_file());

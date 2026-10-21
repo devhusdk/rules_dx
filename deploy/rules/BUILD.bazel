@@ -84,6 +84,7 @@ rust_library(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
+        "@rules_rust//rust/runfiles",
     ],
 )
 

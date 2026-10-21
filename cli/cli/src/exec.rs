@@ -171,7 +171,7 @@ mod tests {
                 .entry(family(meta.command).name())
                 .or_insert(false) |= meta.supports_diff;
         }
-        assert_eq!(any_supports_diff.len(), 11, "every family classified");
+        assert_eq!(any_supports_diff.len(), 12, "every family classified");
         for meta in COMMANDS {
             let name = family(meta.command).name();
             assert_eq!(

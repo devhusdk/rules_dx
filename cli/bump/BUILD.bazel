@@ -30,6 +30,7 @@ dx_rust_crate(
     ],
     deps = [
         "regex",
+        "saphyr-parser",
         "semver",
         "serde_json",
         "thiserror",

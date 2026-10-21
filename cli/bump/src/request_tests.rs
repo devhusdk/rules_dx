@@ -220,6 +220,16 @@ fn widen_preserves_comments_crlf_and_package_boundaries() {
     }
 }
 
+fn steps(lines: &str) -> String {
+    format!("jobs:\n  b:\n    steps:\n{lines}")
+}
+
+fn widen(source: &str) -> Result<String, BumpError> {
+    BumpRequest::parse("github-actions:actions/checkout", &"a".repeat(40))
+        .expect("request")
+        .plan_edit(source)
+}
+
 #[test]
 fn workflow_widen_requires_one_nonempty_pin() {
     let sha = "a".repeat(40);
@@ -230,17 +240,143 @@ fn workflow_widen_requires_one_nonempty_pin() {
         Err(BumpError::NotFound { manifest, .. }) if manifest == ".github/workflows"
     ));
     assert!(matches!(
-        bump.plan_edit("- uses: actions/checkout@\n"),
+        bump.plan_edit(&steps("      - uses: actions/checkout@\n")),
         Err(BumpError::UnsupportedManifest { manifest, .. }) if manifest == ".github/workflows"
     ));
     assert!(matches!(
-        bump.plan_edit("- uses: actions/checkout@v1\n- uses: actions/checkout@v2\n"),
+        bump.plan_edit(&steps(
+            "      - uses: actions/checkout@v1\n      - uses: actions/checkout@v2\n"
+        )),
         Err(BumpError::Ambiguous { count: 2, manifest, .. }) if manifest == ".github/workflows"
     ));
     assert_eq!(
-        bump.plan_edit("- uses: actions/checkout@v1").expect("edit"),
-        format!("- uses: actions/checkout@{sha}")
+        bump.plan_edit(&steps("      - uses: actions/checkout@v1"))
+            .expect("edit"),
+        steps(&format!("      - uses: actions/checkout@{sha}"))
     );
+}
+
+#[test]
+fn workflow_widen_keeps_quotes_comments_and_formatting() {
+    let sha = "a".repeat(40);
+    for (before, after) in [
+        (
+            "      - uses: \"actions/checkout@OLD\" # pinned\n",
+            format!("      - uses: \"actions/checkout@{sha}\" # pinned\n"),
+        ),
+        (
+            "      - uses: 'actions/checkout@OLD'   # v4\n",
+            format!("      - uses: 'actions/checkout@{sha}'   # v4\n"),
+        ),
+        (
+            "      - uses: actions/checkout@v4 # v4\n",
+            format!("      - uses: actions/checkout@{sha} # v4\n"),
+        ),
+        (
+            "      - {name: x, uses: actions/checkout@v4, with: {a: 1}}\n",
+            format!("      - {{name: x, uses: actions/checkout@{sha}, with: {{a: 1}}}}\n"),
+        ),
+        (
+            "      - name: x\n        uses: \"actions/checkout@v4\"\n        with:\n          a: 1\n",
+            format!("      - name: x\n        uses: \"actions/checkout@{sha}\"\n        with:\n          a: 1\n"),
+        ),
+        (
+            "      - uses: \"actions\\x2fcheckout@v4\"\n",
+            format!("      - uses: \"actions\\x2fcheckout@{sha}\"\n"),
+        ),
+        (
+            "      - uses: actions/checkout/sub@v4\n",
+            format!("      - uses: actions/checkout/sub@{sha}\n"),
+        ),
+        (
+            "      - uses: Actions/Checkout@v4\n",
+            format!("      - uses: Actions/Checkout@{sha}\n"),
+        ),
+    ] {
+        let source = steps(before);
+        let widened = widen(&source).expect(before);
+        assert_eq!(widened, steps(&after));
+        assert_eq!(widen(&widened).expect("second run"), widened);
+    }
+    let crlf =
+        steps("      - uses: actions/checkout@v4\r\n      - run: x\r\n").replace("\n  ", "\r\n  ");
+    let widened = widen(&crlf).expect("crlf");
+    assert_eq!(widened, crlf.replace("@v4", &format!("@{sha}")));
+}
+
+#[test]
+fn workflow_widen_selects_job_level_reusable_workflows() {
+    let sha = "a".repeat(40);
+    let bump = BumpRequest::parse("github-actions:org/repo", &sha).expect("request");
+    let source = "jobs:\n  call:\n    uses: org/repo/.github/workflows/ci.yml@v1 # v1\n    with:\n      a: 1\n";
+    assert_eq!(
+        bump.plan_edit(source).expect("edit"),
+        format!("jobs:\n  call:\n    uses: org/repo/.github/workflows/ci.yml@{sha} # v1\n    with:\n      a: 1\n")
+    );
+    let not_workflow = "jobs:\n  call:\n    uses: org/repo/other/ci.yml@v1\n";
+    assert!(matches!(
+        bump.plan_edit(not_workflow),
+        Err(BumpError::NotFound { .. })
+    ));
+    let bare = "jobs:\n  call:\n    uses: org/repo@v1\n";
+    assert!(matches!(
+        bump.plan_edit(bare),
+        Err(BumpError::NotFound { .. })
+    ));
+}
+
+#[test]
+fn workflow_widen_ignores_text_that_is_not_a_real_pin() {
+    for source in [
+        "# - uses: actions/checkout@v1\njobs:\n  b:\n    steps:\n      - run: echo hi\n",
+        "jobs:\n  b:\n    steps:\n      - run: |\n          uses: actions/checkout@v1\n          - uses: actions/checkout@v1\n",
+        "jobs:\n  b:\n    steps:\n      - run: >\n          uses: actions/checkout@v1\n",
+        "jobs:\n  b:\n    steps:\n      - name: uses actions/checkout@v1\n        env:\n          uses: actions/checkout@v1\n",
+        "jobs:\n  b:\n    steps:\n      - uses: actions/cache@v1\n      - uses: actions/checkout-extra@v1\n      - uses: my-actions/checkout@v1\n      - uses: actions/checkoutx/sub@v1\n",
+        "jobs:\n  b:\n    steps:\n      - uses: ./actions/checkout@v1\n      - uses: docker://actions/checkout@v1\n      - uses: ${{ matrix.action }}@v1\n",
+        "steps:\n  - uses: actions/checkout@v1\n",
+        "jobs:\n  b:\n    steps:\n      - uses: actions/checkout\n",
+    ] {
+        assert!(
+            matches!(widen(source), Err(BumpError::NotFound { .. })),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn workflow_widen_only_edits_the_real_pin_beside_fake_text() {
+    let sha = "a".repeat(40);
+    let source = steps("      - run: |\n          uses: actions/checkout@v1\n      # uses: actions/checkout@v1\n      - uses: actions/checkout@v1 # uses: actions/checkout@v1\n");
+    let widened = widen(&source).expect("edit");
+    assert_eq!(
+        widened,
+        steps(&format!("      - run: |\n          uses: actions/checkout@v1\n      # uses: actions/checkout@v1\n      - uses: actions/checkout@{sha} # uses: actions/checkout@v1\n"))
+    );
+}
+
+#[test]
+fn workflow_widen_reports_unsupported_yaml_without_edits() {
+    for source in [
+        "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@v1\n  bad: [\n",
+        "jobs:\n  b: {\n",
+        "jobs:\n  b:\n    steps:\n      - uses: \"actions/checkout@v1\n",
+        "x: &s\n  - uses: actions/checkout@v1\njobs:\n  b:\n    steps: *s\n",
+        "base: &base\n  uses: actions/checkout@v1\njobs:\n  b:\n    steps:\n      - <<: *base\n",
+        "jobs:\n  b:\n    steps:\n      - uses: |\n          actions/checkout@v1\n",
+        "jobs:\n  b:\n    steps:\n      - uses: \"actions/checkout@v\\x31\"\n",
+    ] {
+        assert!(
+            matches!(widen(source), Err(BumpError::UnsupportedManifest { .. })),
+            "{source}"
+        );
+    }
+    let aliased_elsewhere =
+        "env: &e\n  A: 1\njobs:\n  b:\n    env: *e\n    steps:\n      - uses: actions/cache@v1\n";
+    assert!(matches!(
+        widen(aliased_elsewhere),
+        Err(BumpError::NotFound { .. })
+    ));
 }
 
 #[test]
@@ -731,7 +867,7 @@ fn cargo_toml_preserves_format_and_fails_closed() {
 #[test]
 fn github_actions_needs_sha_for_tags() {
     let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    let workflow = format!("      - uses: actions/checkout@{old} # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n", old = "3d3c42e5aac5ba805825da76410c181273ba90b1");
+    let workflow = steps(&format!("      - uses: actions/checkout@{old} # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n", old = "3d3c42e5aac5ba805825da76410c181273ba90b1"));
     let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("sha");
     let widened = bump.plan_edit(&workflow).expect("edit");
     assert!(
@@ -884,68 +1020,27 @@ fn npm_rejects_ambiguous_malformed_and_unselected_shapes() {
 }
 
 #[test]
-fn uses_pin_parser_reads_structured_pins() {
-    let pin = crate::gha::parse_uses_pin(
-        "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7",
-    )
-    .expect("pin");
-    assert_eq!(pin.action, "actions/checkout");
-    assert_eq!(pin.reference, "3d3c42e5aac5ba805825da76410c181273ba90b1");
-    assert_eq!(pin.tag, "v7");
-    let pin = crate::gha::parse_uses_pin("actions/checkout@v5").expect("tag");
-    assert_eq!(pin.action, "actions/checkout");
-    assert_eq!(pin.reference, "v5");
-    assert_eq!(pin.tag, "");
-    let pin = crate::gha::parse_uses_pin("\"actions/checkout@v5\" # v5").expect("quoted");
-    assert_eq!(pin.action, "actions/checkout");
-    assert_eq!(pin.reference, "v5");
-    assert_eq!(pin.tag, "v5");
-    let pin = crate::gha::parse_uses_pin("'actions/checkout@v5'").expect("single");
-    assert_eq!(pin.action, "actions/checkout");
-    assert_eq!(pin.reference, "v5");
-    let pin = crate::gha::parse_uses_pin("actions/checkout@").expect("empty ref");
-    assert_eq!(pin.action, "actions/checkout");
-    assert_eq!(pin.reference, "");
-    assert!(crate::gha::parse_uses_pin("actions/checkout").is_none());
-    assert!(crate::gha::parse_uses_pin("").is_none());
-    assert!(crate::gha::parse_uses_pin("bad action@v1").is_none());
-    assert!(crate::gha::parse_uses_pin("\"unterminated@v1").is_none());
-}
-
-#[test]
-fn uses_line_matching_ignores_non_pin_lines() {
-    assert!(crate::gha::uses_pin_targets_package(
-        "      - uses: actions/checkout@v1 # v1",
-        "actions/checkout"
-    ));
-    assert!(crate::gha::uses_pin_targets_package(
-        "uses: actions/checkout@v1",
-        "actions/checkout"
-    ));
-    assert!(crate::gha::uses_pin_targets_package(
-        "- uses: \"actions/checkout@v1\" # v1",
-        "actions/checkout"
-    ));
-    assert!(!crate::gha::uses_pin_targets_package(
-        "# - uses: actions/checkout@v1",
-        "actions/checkout"
-    ));
-    assert!(!crate::gha::uses_pin_targets_package(
-        "run: echo uses: actions/checkout@v1",
-        "actions/checkout"
-    ));
-    assert!(!crate::gha::uses_pin_targets_package(
-        "- uses: actions/cache@v1",
-        "actions/checkout"
-    ));
-    assert!(!crate::gha::uses_pin_targets_package(
-        "steps: []",
-        "actions/checkout"
-    ));
-    assert!(!crate::gha::uses_pin_targets_package(
-        "- uses: actions/checkout",
-        "actions/checkout"
-    ));
+fn pin_parser_reads_structural_uses_only() {
+    let source = "jobs:\n  call:\n    uses: o/r/.github/workflows/x.yml@v1\n  b:\n    steps:\n      - uses: a/b@v1\n      - run: |\n          uses: z/y@v1\n";
+    let parsed = crate::gha::parse_workflow_pins(source).expect("parse");
+    let pins: Vec<_> = parsed
+        .pins
+        .iter()
+        .map(|pin| (pin.kind, pin.value.as_str()))
+        .collect();
+    assert_eq!(
+        pins,
+        vec![
+            (crate::gha::UsesKind::Job, "o/r/.github/workflows/x.yml@v1"),
+            (crate::gha::UsesKind::Step, "a/b@v1"),
+        ]
+    );
+    assert!(!parsed.indirect);
+    assert!(crate::gha::parse_workflow_pins("a: [").is_err());
+    assert_eq!(crate::gha::split_pin("a/b@v1"), Some(("a/b", "v1")));
+    assert_eq!(crate::gha::split_pin("a/b@"), Some(("a/b", "")));
+    assert_eq!(crate::gha::split_pin("a/b"), None);
+    assert_eq!(crate::gha::split_pin("bad action@v1"), None);
 }
 
 #[test]
@@ -1001,11 +1096,11 @@ fn plan_outcome_distinguishes_changed_from_unchanged() {
     let sha = "a".repeat(40);
     let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("request");
     assert!(matches!(
-        bump.plan_edit_outcome("- uses: actions/checkout@v1\n").expect("changed"),
+        bump.plan_edit_outcome(&steps("      - uses: actions/checkout@v1\n")).expect("changed"),
         BumpPlanOutcome::Changed(widened) if widened.contains(&sha)
     ));
     assert!(matches!(
-        bump.plan_edit_outcome(&format!("- uses: actions/checkout@{sha}\n"))
+        bump.plan_edit_outcome(&steps(&format!("      - uses: actions/checkout@{sha}\n")))
             .expect("unchanged"),
         BumpPlanOutcome::Unchanged
     ));

@@ -835,8 +835,8 @@ dependencies = ["anyio>=4"]
                 "github-actions:actions/checkout",
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 ".github/workflows/ci.yml",
-                "- uses: actions/checkout@v1\n",
-                "- uses: actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@v1\n",
+                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
             ),
             (
                 "go:example.com/demo",
@@ -1365,7 +1365,7 @@ dependencies = ["anyio>=4"]
         let harness = Harness::new("bump-live-gha-tag");
         harness.write_source(
             ".github/workflows/ci.yml",
-            "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
+            "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
         );
         let (code, _, err) =
             harness.run(&["bump", "github-actions:actions/checkout", "v5", "--apply"]);
@@ -1378,15 +1378,15 @@ dependencies = ["anyio>=4"]
         let harness = Harness::new("bump-live-gha-resolved");
         harness.write_source(
             ".github/workflows/ci.yml",
-            "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
+            "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
         );
         harness.write_source(
             ".github/workflows/reusable.yaml",
-            "      - uses: actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
+            "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
         );
         harness.write_source(
             ".github/workflows/ghcr.yml",
-            "      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
+            "jobs:\n  b:\n    steps:\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
         );
         harness.write_source("commit.json", &commit_json);
         std::env::set_var(
@@ -1430,7 +1430,7 @@ dependencies = ["anyio>=4"]
         let harness = Harness::new("bump-live-gha-nochange");
         harness.write_source(
             ".github/workflows/ci.yml",
-            &format!("      - uses: actions/checkout@{sha} # v5\n"),
+            &format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{sha} # v5\n"),
         );
         harness.write_source("commit.json", &commit_json);
         std::env::set_var(
@@ -1449,7 +1449,7 @@ dependencies = ["anyio>=4"]
         assert_eq!(
             std::fs::read_to_string(harness.workspace.join(".github/workflows/ci.yml"))
                 .expect("workflow"),
-            format!("      - uses: actions/checkout@{sha} # v5\n")
+            format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{sha} # v5\n")
         );
         let events = json_events(&out);
         assert!(
@@ -1474,7 +1474,7 @@ dependencies = ["anyio>=4"]
             let harness = Harness::new(&format!("bump-live-gha-fail-{name}"));
             harness.write_source(
                 ".github/workflows/ci.yml",
-                "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
+                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
             );
             match body {
                 Some(body) => {
@@ -1498,7 +1498,7 @@ dependencies = ["anyio>=4"]
             assert_eq!(
                 std::fs::read_to_string(harness.workspace.join(".github/workflows/ci.yml"))
                     .expect("workflow"),
-                "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
+                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
                 "{name}: failed lookup must not widen"
             );
         }
@@ -1512,12 +1512,12 @@ dependencies = ["anyio>=4"]
         for name in ["ci.yml", "ghcr.yml", "reusable.yaml"] {
             harness.write_source(
                 &format!(".github/workflows/{name}"),
-                "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
+                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
             );
         }
         harness.write_source(
             ".github/workflows/bump.yml",
-            "      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0\n",
+            "jobs:\n  b:\n    steps:\n      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0\n",
         );
         harness.write_source(".github/workflows/README.md", "not a workflow\n");
         let (code, out, err) =
@@ -1552,8 +1552,10 @@ dependencies = ["anyio>=4"]
     fn live_github_actions_fails_closed_and_writes_no_workflow() {
         let sha = "cccccccccccccccccccccccccccccccccccccccc";
         let cases = [
-            ("ambiguous", vec![("ci.yml", vec!["- uses: actions/checkout@1111111111111111111111111111111111111111\n", "- uses: actions/checkout@2222222222222222222222222222222222222222\n"])], "ambiguous requirement"),
-            ("unpinned", vec![("ci.yml", vec!["- uses: bazel-contrib/setup-bazel@cccccccccccccccccccccccccccccccccccccccc # v0.19.0\n"])], "no declared requirement"),
+            ("ambiguous", vec![("ci.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n", "      - uses: actions/checkout@2222222222222222222222222222222222222222\n"])], "ambiguous requirement"),
+            ("unpinned", vec![("ci.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: bazel-contrib/setup-bazel@cccccccccccccccccccccccccccccccccccccccc # v0.19.0\n"])], "no declared requirement"),
+            ("malformed", vec![("a.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n"]), ("b.yml", vec!["jobs: [\n"])], "not valid YAML"),
+            ("aliased", vec![("a.yml", vec!["jobs:\n  b:\n    steps:\n      - uses: actions/checkout@1111111111111111111111111111111111111111\n"]), ("b.yml", vec!["x: &s\n  - uses: actions/checkout@v1\njobs:\n  b:\n    steps: *s\n"])], "aliases or merge keys"),
             ("no-workflows", vec![("README.md", vec!["not a workflow\n"])], "no declared requirement"),
         ];
         for (name, workflows, expected) in cases {

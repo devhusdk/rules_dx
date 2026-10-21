@@ -1,5 +1,5 @@
 {
-  "checksum": "04e8bb35bd4d9de3d9744a5a6278945803f305d6d637177312bb6683f937094c",
+  "checksum": "b6c5db398d0fc41ac4f5f667b1a94871355fc0c9cf3f178d2a9e8cccc93397b1",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -789,6 +789,35 @@
         }
       ],
       "version": "1.5.0"
+    },
+    "arraydeque 0.5.1": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "arraydeque",
+      "license": "MIT/Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "arraydeque",
+      "package_url": "https://github.com/andylokandy/arraydeque",
+      "repository": {
+        "Http": {
+          "sha256": "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236",
+          "url": "https://static.crates.io/crates/arraydeque/0.5.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "arraydeque",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.5.1"
     },
     "arrayvec 0.7.8": {
       "common_attrs": {
@@ -3938,6 +3967,10 @@
           {
             "id": "regex 1.13.1",
             "target": "regex"
+          },
+          {
+            "id": "saphyr-parser 0.2.2",
+            "target": "saphyr_parser"
           },
           {
             "id": "semver 1.0.27",
@@ -11895,6 +11928,45 @@
       ],
       "version": "1.0.6"
     },
+    "saphyr-parser 0.2.2": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "arraydeque 0.5.1",
+            "target": "arraydeque"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "saphyr_parser",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "saphyr-parser",
+      "package_url": "https://github.com/saphyr-rs/saphyr",
+      "repository": {
+        "Http": {
+          "sha256": "6c6220586c3dacac54bfddec87af86ddb31862d29666e7e35cf4baf70a25d387",
+          "url": "https://static.crates.io/crates/saphyr-parser/0.2.2/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "saphyr_parser",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.2.2"
+    },
     "schemafy_core 0.6.0": {
       "common_attrs": {
         "deps": [
@@ -17840,6 +17912,7 @@
     "quick-junit 0.8.0",
     "quick-xml 0.41.0",
     "regex 1.13.1",
+    "saphyr-parser 0.2.2",
     "semver 1.0.27",
     "serde 1.0.229",
     "serde-sarif 0.8.0",

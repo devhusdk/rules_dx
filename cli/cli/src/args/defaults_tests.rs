@@ -567,6 +567,74 @@ fn explicit_workspace_uses_the_target_workspace_defaults() {
 }
 
 #[test]
+fn repeated_workspace_flags_load_the_last_workspace_defaults() {
+    let a = workspace_with_output("dx-startup-last-a-", "json");
+    let b = workspace_with_output("dx-startup-last-b-", "text");
+    let a_dir = a.path().to_string_lossy().into_owned();
+    let b_dir = b.path().to_string_lossy().into_owned();
+    let inline_a = format!("--workspace={a_dir}");
+    let inline_b = format!("--workspace={b_dir}");
+    let cases: Vec<Vec<&str>> = vec![
+        vec!["status", "--workspace", &a_dir, "--workspace", &b_dir],
+        vec!["status", &inline_a, &inline_b],
+        vec!["status", "--workspace", &a_dir, &inline_b],
+        vec![
+            "status",
+            "--output",
+            "text",
+            "--workspace",
+            &a_dir,
+            "--workspace",
+            &b_dir,
+        ],
+    ];
+    for words in cases {
+        let (code, out, err) = run_dx(a.path(), &words, &[]);
+        assert_eq!(code, Some(0), "{words:?}: {err}");
+        assert!(
+            out.contains("lint") && !out.contains("command_started"),
+            "{words:?}: the last workspace supplies text defaults: {out}"
+        );
+    }
+    let (code, out, err) = run_dx(
+        b.path(),
+        &["status", "--workspace", &b_dir, "--workspace", &a_dir],
+        &[],
+    );
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("command_started"),
+        "the last workspace supplies json defaults: {out}"
+    );
+}
+
+#[test]
+fn overridden_workspace_with_malformed_defaults_does_not_block_the_last() {
+    let a = workspace_with_output("dx-startup-bad-a-", "json");
+    std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
+    let b = workspace_with_output("dx-startup-bad-b-", "text");
+    let a_dir = a.path().to_string_lossy().into_owned();
+    let b_dir = b.path().to_string_lossy().into_owned();
+    let inline_a = format!("--workspace={a_dir}");
+    let inline_b = format!("--workspace={b_dir}");
+    let cases: Vec<Vec<&str>> = vec![
+        vec!["status", "--workspace", &a_dir, "--workspace", &b_dir],
+        vec!["status", &inline_a, &inline_b],
+    ];
+    for words in cases {
+        let (code, out, err) = run_dx(a.path(), &words, &[]);
+        assert_eq!(code, Some(0), "{words:?}: {err}");
+        assert!(out.contains("lint"), "{words:?}: {out}");
+    }
+    let (code, _, err) = run_dx(
+        b.path(),
+        &["status", "--workspace", &b_dir, "--workspace", &a_dir],
+        &[],
+    );
+    assert_ne!(code, Some(0), "the malformed last workspace fails: {err}");
+}
+
+#[test]
 fn bazel_run_start_selects_the_workspace_root() {
     let a = workspace_with_output("dx-startup-bwd-a-", "json");
     let b = workspace_with_output("dx-startup-bwd-b-", "text");

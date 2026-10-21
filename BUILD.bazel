@@ -2,7 +2,6 @@ load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "clang_format_config", "ruff_config", "rustfmt_config", "vale_config")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
 
 # gazelle:resolve rust dx_adopt //cli/adopt:dx_adopt
 # gazelle:resolve rust dx_apply //cli/apply:dx_apply
@@ -124,6 +123,7 @@ js_library(
 npm_link_all_packages(name = "node_modules")
 
 exports_files([
+    "clippy.toml",
     ".bazelignore",
     ".bazelrc",
     ".bazelversion",
@@ -145,119 +145,6 @@ exports_files([
 filegroup(
     name = "audit_curator",
     srcs = ["licenses.toml"],
-)
-
-# keep
-rust_test(
-    name = "clippy_policy_test",
-    size = "small",
-    srcs = ["clippy_policy_test.rs"],
-    data = [
-        "clippy.toml",
-        "//cc/context:src/lib.rs",
-        "//cc/context:src/main.rs",
-        "//cli/adopt:src/lib.rs",
-        "//cli/apply:src/lib.rs",
-        "//cli/atomic_fs:src/lib.rs",
-        "//cli/audit:src/lib.rs",
-        "//cli/bep:src/lib.rs",
-        "//cli/bump:src/lib.rs",
-        "//cli/clean:src/lib.rs",
-        "//cli/cli:src/bin_man.rs",
-        "//cli/cli:src/lib.rs",
-        "//cli/cli:src/main.rs",
-        "//cli/codegen:src/lib.rs",
-        "//cli/diff:src/lib.rs",
-        "//cli/digest:src/lib.rs",
-        "//cli/env:src/lib.rs",
-        "//cli/env:src/main.rs",
-        "//cli/env_plan:src/lib.rs",
-        "//cli/fingerprint:src/lib.rs",
-        "//cli/identity:src/lib.rs",
-        "//cli/lcov:src/lib.rs",
-        "//cli/output:src/clap_errors.rs",
-        "//cli/output:src/lib.rs",
-        "//cli/path:src/lib.rs",
-        "//cli/process:src/lib.rs",
-        "//cli/proto_validate:src/lib.rs",
-        "//cli/roots:src/lib.rs",
-        "//cli/schema:src/lib.rs",
-        "//cli/setup:src/lib.rs",
-        "//cli/test_scratch:src/lib.rs",
-        "//cli/update:src/lib.rs",
-        "//deploy/install:src/lib.rs",
-        "//deploy/install:src/main.rs",
-        "//deploy/offline/bootstrap:src/lib.rs",
-        "//deploy/offline/bootstrap:src/main.rs",
-        "//deploy/release:src/bin_bcr_source_gen.rs",
-        "//deploy/release:src/bin_notice_gen.rs",
-        "//deploy/release:src/bin_release_driver.rs",
-        "//deploy/release:src/bin_sbom_prov_gen.rs",
-        "//deploy/release:src/bin_sbom_spdx_gen.rs",
-        "//deploy/release:src/lib.rs",
-        "//deploy/rules:src/bin_archiver.rs",
-        "//deploy/rules:src/bin_deploy_app.rs",
-        "//deploy/rules:src/bin_deploy_program.rs",
-        "//deploy/rules:src/bin_hasher.rs",
-        "//deploy/rules:src/bin_npm_pack.rs",
-        "//deploy/rules:src/lib.rs",
-        "//docs/ir/ir:src/lib.rs",
-        "//docs/site/build:src/lib.rs",
-        "//docs/site/build:src/main.rs",
-        "//docs/site/check:src/lib.rs",
-        "//docs/site/check:src/main.rs",
-        "//env/env_shard:src/lib.rs",
-        "//env/env_shard:src/main.rs",
-        "//env/stubs:src/bin_doctor.rs",
-        "//env/stubs:src/bin_tool.rs",
-        "//generation/codegen_shard:src/lib.rs",
-        "//generation/codegen_shard:src/main.rs",
-        "//generation/result:src/lib.rs",
-        "//libs/gomod:src/lib.rs",
-        "//quality/adapter:src/lib.rs",
-        "//quality/evaluator:src/lib.rs",
-        "//quality/evaluator:src/main.rs",
-        "//quality/markdown:src/lib.rs",
-        "//quality/markdown:src/main.rs",
-        "//quality/result:src/lib.rs",
-        "//quality/result:src/print.rs",
-        "//quality/runner:src/lib.rs",
-        "//quality/runner:src/main.rs",
-        "//quality/tools/javascript/launcher:src/lib.rs",
-        "//quality/tools/javascript/launcher:src/main.rs",
-        "//tools/bazelrc:src/bin_preset_update.rs",
-        "//tools/bazelrc:src/lib.rs",
-        "//tools/coverage:src/main.rs",
-        "//tools/depcheck:src/lib.rs",
-        "//tools/depcheck:src/main.rs",
-        "//tools/repin_all:src/main.rs",
-        "//tools/testing:src/lib.rs",
-        "//tools/testing/process_probe:src/main.rs",
-    ],
-    tags = ["no-coverage"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-# keep
-rust_test(
-    name = "preset_parity_test",
-    srcs = ["preset_parity_test.rs"],
-    data = [
-        "//cli/cli:dx",
-        "//tools/bazelrc:preset.bazelrc",
-        "//tools/bazelrc:src/lib.rs",
-    ],
-    env = {
-        "DX_DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_PRESET_EXPECTED": "$(rootpath //tools/bazelrc:preset.bazelrc)",
-        "DX_PRESET_RS": "$(rootpath //tools/bazelrc:src/lib.rs)",
-    },
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//tools/bazelrc:dx_preset",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 rustfmt_config(

@@ -543,8 +543,22 @@ mod tests {
     fn testlogs_paths_cover_labels_and_roots() {
         let locations = OutputLocations::new(Path::new("/ws"));
         assert_eq!(
-            testlog_path(&locations, "//:preset_parity_test", "test.xml", IDENTITY).expect("root"),
-            want_path("/ws", &["bazel-testlogs", "preset_parity_test", "test.xml"])
+            testlog_path(
+                &locations,
+                "//quality:preset_parity_test",
+                "test.xml",
+                IDENTITY
+            )
+            .expect("root"),
+            want_path(
+                "/ws",
+                &[
+                    "bazel-testlogs",
+                    "quality",
+                    "preset_parity_test",
+                    "test.xml"
+                ]
+            )
         );
         assert_eq!(
             testlog_path(&locations, "//cli/bep", "test.xml", IDENTITY).expect("implicit"),

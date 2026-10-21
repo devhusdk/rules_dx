@@ -294,57 +294,42 @@ pub(super) fn plan_maven_module_bazel(
             });
         }
     };
-    let needle = format!("\"{package}:");
-    let mut matches = 0usize;
-    let mut out = String::with_capacity(content.len());
-    for line in content.split_inclusive('\n') {
-        if line.contains(&needle) {
-            match replace_maven_artifact_version(line, &needle, &new) {
-                Some(replaced) => {
-                    matches += 1;
-                    out.push_str(&replaced);
-                    continue;
-                }
-                None => {
-                    return Err(BumpError::UnsupportedManifest {
-                        manifest: "MODULE.bazel".to_owned(),
-                        reason: format!("{package:?} has no replaceable quoted version"),
-                    });
-                }
-            }
+    let module = dx_module_bazel::ModuleFile::parse(content).map_err(module_error(package))?;
+    let artifacts = module.maven_artifacts().map_err(module_error(package))?;
+    let mut selected = Vec::new();
+    for literal in artifacts {
+        let parts: Vec<&str> = literal.value.split(':').collect();
+        let identity = parts.len() >= 2 && format!("{}:{}", parts[0], parts[1]) == package;
+        if !identity {
+            continue;
         }
-        out.push_str(line);
+        if !(3..=5).contains(&parts.len()) || parts.iter().any(|part| part.trim().is_empty()) {
+            return Err(BumpError::UnsupportedManifest {
+                manifest: "MODULE.bazel".to_owned(),
+                reason: format!("malformed Maven coordinate {:?}", literal.value),
+            });
+        }
+        selected.push((literal, parts));
     }
-    match matches {
-        1 => Ok(out),
-        0 => Err(BumpError::NotFound {
+    match selected.as_slice() {
+        [] => Err(BumpError::NotFound {
             manifest: "MODULE.bazel".to_owned(),
             package: package.to_owned(),
         }),
-        count => Err(BumpError::Ambiguous {
+        [(literal, parts)] => {
+            let mut next = parts[..parts.len() - 1].join(":");
+            next.push(':');
+            next.push_str(&new);
+            module
+                .replace(literal, &next)
+                .map_err(module_error(package))
+        }
+        many => Err(BumpError::Ambiguous {
             manifest: "MODULE.bazel".to_owned(),
             package: package.to_owned(),
-            count,
+            count: many.len(),
         }),
     }
-}
-
-pub(super) fn replace_maven_artifact_version(
-    line: &str,
-    needle: &str,
-    new: &str,
-) -> Option<String> {
-    let start = line.find(needle)? + needle.len();
-    let rest = &line[start..];
-    let end_rel = rest.find('"')?;
-    if end_rel == 0 {
-        return None;
-    }
-    let mut replaced = String::with_capacity(line.len());
-    replaced.push_str(&line[..start]);
-    replaced.push_str(new);
-    replaced.push_str(&rest[end_rel..]);
-    Some(replaced)
 }
 
 pub(super) fn plan_paket_dependencies(

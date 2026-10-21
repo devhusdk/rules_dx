@@ -1,5 +1,12 @@
 use super::*;
 
+const MAVEN_HEAD: &str =
+    "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n";
+
+fn maven_module(artifacts: &str) -> String {
+    format!("{MAVEN_HEAD}maven.install(\n    artifacts = [\n{artifacts}    ],\n)\n")
+}
+
 #[test]
 fn cargo_table_variants_preserve_comments_and_reject_nonregistry_shapes() {
     let bump = BumpRequest::parse("cargo:demo", "2.0.0").expect("request");
@@ -193,8 +200,8 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
         (
             "maven:org.example:demo",
             "maven.install(artifacts = [])\n",
-            "\"org.example:demo:1.0.0\",\n\"org.example:demo:1.1.0\",\n",
-            "\"org.example:demo:\",\n",
+            "SKIP",
+            "SKIP",
         ),
         (
             "nuget:Demo",
@@ -204,6 +211,15 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
         ),
     ] {
         let bump = BumpRequest::parse(selector, "2.0.0").expect("request");
+        let (duplicate, malformed) = if duplicate == "SKIP" {
+            (
+                maven_module("\"org.example:demo:1.0.0\",\n\"org.example:demo:1.1.0\",\n"),
+                maven_module("\"org.example:demo:\",\n"),
+            )
+        } else {
+            (duplicate.to_owned(), malformed.to_owned())
+        };
+        let (duplicate, malformed) = (duplicate.as_str(), malformed.as_str());
         assert!(matches!(bump.plan_edit(missing), Err(BumpError::NotFound { .. })), "{selector}");
         assert!(matches!(bump.plan_edit(duplicate), Err(BumpError::Ambiguous { count: 2, .. })), "{selector}");
         assert!(matches!(bump.plan_edit(malformed), Err(BumpError::UnsupportedManifest { .. })), "{selector}");
@@ -544,16 +560,18 @@ fn edits_rewrite_exactly_one_requirement() {
     let widened = bump.plan_edit(gomod).expect("edit");
     assert!(widened.contains("example.com/mod v1.3.0"), "{widened}");
 
-    let module = "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n        \"org.junit.jupiter:junit-jupiter-api:6.1.3\",\n    ],\n)\n";
+    let module = maven_module(
+        "        \"junit:junit:4.13.2\",\n        \"org.junit.jupiter:junit-jupiter-api:6.1.3\",\n",
+    );
     let bump = BumpRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
-    let widened = bump.plan_edit(module).expect("edit");
+    let widened = bump.plan_edit(&module).expect("edit");
     assert!(widened.contains("\"junit:junit:4.13.3\""), "{widened}");
     assert!(
         widened.contains("\"org.junit.jupiter:junit-jupiter-api:6.1.3\""),
         "{widened}"
     );
     assert!(matches!(
-        bump.plan_edit("maven.install(\n    artifacts = [\n    ],\n)\n"),
+        bump.plan_edit(&maven_module("")),
         Err(BumpError::NotFound { .. })
     ));
 
@@ -570,15 +588,15 @@ fn edits_rewrite_exactly_one_requirement() {
 
 #[test]
 fn maven_and_nuget_edits_fail_closed_on_ambiguous_and_prefixes() {
-    let module = "        \"junit:junit:4.13.2\",\n        \"junit:junit:4.13.2\",\n";
+    let module = maven_module("        \"junit:junit:4.13.2\",\n        \"junit:junit:4.13.2\",\n");
     let bump = BumpRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
     assert!(matches!(
-        bump.plan_edit(module),
+        bump.plan_edit(&module),
         Err(BumpError::Ambiguous { count: 2, .. })
     ));
-    let module = "        \"junit:junit-jupiter:1.0.0\",\n";
+    let module = maven_module("        \"junit:junit-jupiter:1.0.0\",\n");
     assert!(matches!(
-        bump.plan_edit(module),
+        bump.plan_edit(&module),
         Err(BumpError::NotFound { .. })
     ));
     let paket = "nuget FSharp.Core 10.1.201\nnuget FSharp.Core 10.1.201\n";
@@ -928,5 +946,76 @@ fn plan_outcome_distinguishes_changed_from_unchanged() {
             .plan_edit_outcome("[dependencies]\nanyhow = \"1.2.3\"\n")
             .expect("unchanged"),
         BumpPlanOutcome::Unchanged
+    ));
+}
+
+#[test]
+fn maven_bump_keeps_packaging_and_classifier() {
+    let bump = BumpRequest::parse("maven:g:a", "2.0.0").expect("maven");
+    for (old, new) in [
+        ("g:a:1.0.0", "g:a:2.0.0"),
+        ("g:a:jar:1.0.0", "g:a:jar:2.0.0"),
+        ("g:a:jar:tests:1.0.0", "g:a:jar:tests:2.0.0"),
+    ] {
+        for quote in ['"', '\''] {
+            let module = maven_module(&format!(
+                "        # \"g:a:0.0.1\"\n        \"x:y:1\",\n        {quote}{old}{quote},  # \"g:a:0.0.2\"\n"
+            ));
+            let expected = maven_module(&format!(
+                "        # \"g:a:0.0.1\"\n        \"x:y:1\",\n        {quote}{new}{quote},  # \"g:a:0.0.2\"\n"
+            ));
+            assert_eq!(bump.plan_edit(&module).expect("edit"), expected);
+        }
+    }
+    let compact =
+        format!("{MAVEN_HEAD}maven.install(artifacts = [\"g:a:jar:tests:1.0.0\", \"x:y:1\"])\n");
+    assert_eq!(
+        bump.plan_edit(&compact).expect("edit"),
+        format!("{MAVEN_HEAD}maven.install(artifacts = [\"g:a:jar:tests:2.0.0\", \"x:y:1\"])\n")
+    );
+}
+
+#[test]
+fn maven_bump_rejects_malformed_dynamic_and_ambiguous_without_output() {
+    let bump = BumpRequest::parse("maven:g:a", "2.0.0").expect("maven");
+    for artifacts in [
+        "\"g:a\"",
+        "\"g:a:\"",
+        "\"g:a:jar:c:1:extra\"",
+        "\"g:a::1.0\"",
+    ] {
+        let module = format!("{MAVEN_HEAD}maven.install(artifacts = [{artifacts}])\n");
+        assert!(
+            matches!(
+                bump.plan_edit(&module),
+                Err(BumpError::UnsupportedManifest { .. })
+            ),
+            "{artifacts}"
+        );
+    }
+    for module in [
+        format!("{MAVEN_HEAD}maven.install(artifacts = ARTIFACTS)\n"),
+        format!("{MAVEN_HEAD}maven.install(artifacts = [\"g:a:\" + V])\n"),
+        format!("{MAVEN_HEAD}maven.install(artifacts = [\"g:a:1.0\"] + EXTRA)\n"),
+    ] {
+        assert!(
+            matches!(
+                bump.plan_edit(&module),
+                Err(BumpError::UnsupportedManifest { .. })
+            ),
+            "{module}"
+        );
+    }
+    let multiple = format!(
+        "{MAVEN_HEAD}maven.install(artifacts = [\"g:a:1.0\"])\nmaven.install(artifacts = [\"g:a:jar:tests:1.0\"])\n"
+    );
+    assert!(matches!(
+        bump.plan_edit(&multiple),
+        Err(BumpError::Ambiguous { count: 2, .. })
+    ));
+    let commented = format!("{MAVEN_HEAD}maven.install(artifacts = [])  # \"g:a:1.0\"\n");
+    assert!(matches!(
+        bump.plan_edit(&commented),
+        Err(BumpError::NotFound { .. })
     ));
 }

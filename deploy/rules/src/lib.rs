@@ -16,12 +16,23 @@ const MTIME: u64 = 0;
 const UID: u64 = 0;
 const GID: u64 = 0;
 
+const USTAR_LIMIT: &str =
+    "must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes, with no NUL";
+
+/// Returns whether a path fits the ustar name and prefix fields.
+fn fits_ustar(name: &str) -> bool {
+    name.len() <= 100
+        || name
+            .match_indices('/')
+            .any(|(at, _)| at <= 155 && name.len() - at - 1 <= 100)
+}
+
 /// Returns one ustar header whose numeric fields use the python tarfile encoding.
 fn ustar_header(name: &str, size: u64, mode: u32) -> io::Result<tar::Header> {
-    if name.is_empty() || name.len() > 100 || name.contains('\0') {
+    if name.is_empty() || name.contains('\0') || !fits_ustar(name) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("tar member name {name:?} must be 1-100 bytes with no NUL"),
+            format!("tar member name {name:?} {USTAR_LIMIT}"),
         ));
     }
     let mut header = tar::Header::new_ustar();
@@ -90,15 +101,8 @@ pub fn member_name_error(name: &str) -> Option<String> {
     if name.is_empty() {
         return Some("archive member name must not be empty".to_owned());
     }
-    if name.len() > 100 {
-        return Some(format!(
-            "archive member name {name:?} must be 1-100 bytes with no NUL"
-        ));
-    }
-    if name.contains('\0') {
-        return Some(format!(
-            "archive member name {name:?} must be 1-100 bytes with no NUL"
-        ));
+    if name.contains('\0') || !fits_ustar(name) {
+        return Some(format!("archive member name {name:?} {USTAR_LIMIT}"));
     }
     if name.starts_with('/') {
         return Some(format!("archive member name {name:?} must be relative"));
@@ -2859,6 +2863,7 @@ mod tests {
     fn header_rejects_bad_names() {
         assert!(ustar_header("", 0, 0o644).is_err());
         assert!(ustar_header(&"n".repeat(101), 0, 0o644).is_err());
+        assert!(ustar_header(&"n".repeat(300), 0, 0o644).is_err());
         assert!(ustar_header("a\0b", 0, 0o644).is_err());
         assert!(ustar_header("../escape", 0, 0o644).is_err());
         assert!(ustar_header("/absolute", 0, 0o644).is_err());
@@ -5018,6 +5023,54 @@ mod tests {
             );
         }
         assert!(member_name_error(&"n".repeat(101)).is_some());
+    }
+
+    #[test]
+    fn ustar_boundaries() {
+        let tail = "n".repeat(100);
+        let prefix = "p".repeat(155);
+        assert!(fits_ustar(&"n".repeat(100)));
+        assert!(!fits_ustar(&"n".repeat(101)));
+        assert!(fits_ustar(&format!("{prefix}/{tail}")));
+        assert!(!fits_ustar(&format!("{prefix}p/{tail}")));
+        assert!(!fits_ustar(&format!("{prefix}/{tail}n")));
+        assert!(!fits_ustar(&"n".repeat(300)));
+        let wide = "\u{e9}".repeat(60);
+        assert!(!fits_ustar(&wide));
+        assert!(fits_ustar(&format!("{wide}/x")));
+        assert!(member_name_error(&format!("{prefix}/{tail}")).is_none());
+        assert!(member_name_error(&format!("{prefix}/{tail}n")).is_some());
+    }
+
+    #[test]
+    fn long_nested_resource_path_round_trips() {
+        let name = "resources/textures/textures/textures/textures/textures/textures/textures/textures/textures/textures/icon.png";
+        assert_eq!(name.len(), 108);
+        let scratch = scratch_dir();
+        let src = scratch.path().join("icon.png");
+        std::fs::write(&src, b"\x89PNG\x00bytes").expect("write");
+        let out = scratch.path().join("out.tar.gz");
+        let again = scratch.path().join("again.tar.gz");
+        archive_members(&[("a", src.as_path()), (name, src.as_path())], &out).expect("archive");
+        archive_members(&[(name, src.as_path()), ("a", src.as_path())], &again).expect("again");
+        assert_eq!(
+            std::fs::read(&out).expect("out"),
+            std::fs::read(&again).expect("again")
+        );
+        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(
+            std::fs::File::open(&out).expect("open"),
+        ));
+        let mut found = false;
+        for entry in archive.entries().expect("entries") {
+            let mut entry = entry.expect("entry");
+            if entry.path().expect("path").to_str() == Some(name) {
+                let mut body = Vec::new();
+                std::io::Read::read_to_end(&mut entry, &mut body).expect("read");
+                assert_eq!(body, b"\x89PNG\x00bytes");
+                found = true;
+            }
+        }
+        assert!(found);
     }
 
     #[test]

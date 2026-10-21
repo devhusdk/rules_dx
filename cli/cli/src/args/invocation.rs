@@ -238,7 +238,6 @@ pub struct Invocation {
     pub offline: bool,
     /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
-    pub workspace_capabilities: bool,
     pub cases: bool,
     pub bazel_startup_options: Vec<String>,
 }
@@ -463,7 +462,6 @@ mod tests {
             open: false,
             offline: false,
             frozen: false,
-            workspace_capabilities: false,
             cases: false,
             bazel_startup_options: Vec::new(),
         }

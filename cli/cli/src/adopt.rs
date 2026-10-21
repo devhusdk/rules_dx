@@ -1,4 +1,3 @@
-mod capabilities;
 mod completion;
 mod hooks;
 mod init;
@@ -48,9 +47,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
             hooks::execute_hooks(invocation, workspace, query_runner, runner, None, out, err)
         }
         Command::Status => status::execute_status(invocation, workspace, out, err),
-        Command::Capabilities => {
-            capabilities::execute_capabilities(invocation, workspace, out, err)
-        }
         Command::Version => version::execute_version(invocation, workspace, out, err),
         Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),
         Command::Owners | Command::Deps | Command::Why => {

@@ -142,7 +142,6 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Rollback
         | Command::Hooks
         | Command::Status
-        | Command::Capabilities
         | Command::Version
         | Command::Watch
         | Command::Owners

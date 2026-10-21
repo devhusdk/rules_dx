@@ -61,7 +61,6 @@ mod tests {
         Command::Rollback,
         Command::Status,
         Command::Completion,
-        Command::Capabilities,
     ];
 
     const WARN: &[Command] = &[

@@ -217,10 +217,7 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
 
 /// Whether the command runs without MODULE.bazel discovery.
 pub fn is_discovery_exempt(command: Command) -> bool {
-    matches!(
-        command,
-        Command::Init | Command::New | Command::Completion | Command::Capabilities
-    )
+    matches!(command, Command::Init | Command::New | Command::Completion)
 }
 
 /// Loads defaults from the selected workspace: the flag, the environment, else
@@ -335,7 +332,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         open,
         offline,
         frozen,
-        workspace_capabilities,
         cases,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
@@ -523,7 +519,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             reject_passthrough(command, &bazel_options)?;
         }
         match command {
-            Command::Status | Command::Capabilities => {
+            Command::Status => {
                 if !targets.is_empty() {
                     return Err(extra_positional(command, &targets[0]));
                 }
@@ -623,7 +619,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         open,
         offline,
         frozen,
-        workspace_capabilities,
         cases,
         bazel_startup_options,
     })
@@ -844,13 +839,8 @@ mod startup_tests {
     }
 
     #[test]
-    fn discovery_runs_without_a_module_only_for_init_new_completion_and_capabilities() {
-        for command in [
-            Command::Init,
-            Command::New,
-            Command::Completion,
-            Command::Capabilities,
-        ] {
+    fn discovery_runs_without_a_module_only_for_init_new_and_completion() {
+        for command in [Command::Init, Command::New, Command::Completion] {
             assert!(is_discovery_exempt(command), "{command:?} is exempt");
         }
         for command in [

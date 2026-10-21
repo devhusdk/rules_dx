@@ -180,8 +180,7 @@ pub fn usage_banner() -> String {
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
-per-command flags: capabilities --workspace-capabilities (adds workspace facts from local records); \
-clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
+per-command flags: clean --bazel|--prune-unobserved (also run `bazel clean`; default never touches Bazel outputs; \
 --prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
 coverage --min-coverage; build|run|test|deploy|watch --debug|--release; \
 version --check; docs --check|--serve|--port|--host|--open; \
@@ -248,7 +247,6 @@ const COMMAND_FLAGS: &[&str] = &[
     "--open",
     "--offline",
     "--frozen",
-    "--workspace-capabilities",
 ];
 
 const PASSTHROUGH: &str = "-- <bazel-options>";

@@ -8,21 +8,8 @@ use dx_output::OutputMode;
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
-        "security",
-        "license",
-        "update",
-        "bump",
-        "migrate",
-        "upgrade",
-        "docs",
-        "status",
-        "version",
-        "owners",
-        "deps",
-        "hooks",
-        "init",
-        "new",
-        "capabilities",
+        "security", "license", "update", "bump", "migrate", "upgrade", "docs", "status", "version",
+        "owners", "deps", "hooks", "init", "new",
     ] {
         let base = match command {
             "bump" => vec![command, "cargo:demo", "1.0.0"],
@@ -83,7 +70,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
     (
         "--configured",
         &["--configured"],
@@ -97,11 +84,6 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
     ("--open", &["--serve", "--open"], &["docs"]),
     ("--bazel", &["--bazel"], &["clean"]),
     ("--prune-unobserved", &["--prune-unobserved"], &["clean"]),
-    (
-        "--workspace-capabilities",
-        &["--workspace-capabilities"],
-        &["capabilities"],
-    ),
 ];
 
 fn required_words(name: &str) -> &'static [&'static str] {
@@ -820,9 +802,6 @@ fn output_contract_has_no_silent_ignore() {
     let got = parse(&strings(&["version", "--output=json"])).expect("version json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Version.supports_json());
-    let got = parse(&strings(&["capabilities", "--output=json"])).expect("capabilities json");
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(Command::Capabilities.supports_json());
     let got = parse(&strings(&["owners", "//a:one", "--output=json"])).expect("owners json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Owners.supports_json());
@@ -878,7 +857,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["update", "--output=diff"],
         vec!["status", "--output=diff"],
         vec!["version", "--output=diff"],
-        vec!["capabilities", "--output=diff"],
         vec!["owners", "//a:one", "--output=diff"],
         vec!["deps", "//a:one", "--output=diff"],
         vec!["why", "src/main.rs", "//a:one", "--output=diff"],

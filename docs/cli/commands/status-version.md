@@ -2,6 +2,7 @@
 
 ```sh
 bazel run @rules_dx//:dx -- status
+bazel run @rules_dx//:dx -- status --output=json
 bazel run @rules_dx//:dx -- version
 ```
 
@@ -11,8 +12,9 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, platform, tools, and pin drift. Takes no scopes and no
-per-command flags. There is no `dx doctor`. Use `dx status` instead.
+Reports toolchain, platform, tools, and pin drift, then one capability
+record per `dx` command. Takes no scopes and no per-command flags. Runs
+anywhere with a workspace, downloads nothing, and probes no tools. There is no `dx doctor`. Use `dx status` instead.
 
 Output: `--output text|json`.
 
@@ -32,8 +34,17 @@ fails, and the hint is the fix, for example `dx upgrade --from <version> --to <v
 The `platform` check names the execution platforms tools resolve for. The
 target platform never selects tools.
 
+After the checks, text output prints one `capability <name>` line per
+command, then `capability workspace:tools`.
+
 `--output=json` streams `command_started`, one `status` event per check with
-`name`, `status`, `detail`, and `hint`, then `command_finished`. A failed
+`name`, `status`, `detail`, and `hint`, one `capability` event per command
+and one for `workspace:tools`, then `command_finished`. A `capability` event
+has `name`, `source`, `availability`, `detail`, `flags`, `outputs`,
+`reports`, `scope_policy`, `effect`, and `passthrough`. `source` is
+`cli-grammar` or `unobserved`. `availability` is `available`,
+`unavailable`, or `unknown`. A grammar record says the command is accepted,
+not that its tools are installed. `unknown` means status did not observe it. A failed
 check adds a `status_pin_mismatch` error event and exit code `1`. A missing
 or empty `.dx/version` fails the same way.
 
@@ -71,7 +82,7 @@ bazel run @rules_dx//:dx -- version --check
 Every command reads the pin in `.dx/version` and compares it with the
 `MODULE.bazel` pin before it runs. A mismatch is version skew.
 
-- Runs anyway: `version`, `status`, `rollback`, `completion`, `capabilities`.
+- Runs anyway: `version`, `status`, `rollback`, `completion`.
 - Warns and runs: `check`, `security`, `license`, `owners`, `deps`, `why`, `tests`.
 - Stops with exit code `1`: every other command.
 

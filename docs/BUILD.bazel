@@ -32,7 +32,6 @@ real_source_target(
         "cli/commands/README.md",
         "cli/commands/audit-update.md",
         "cli/commands/build-test-coverage.md",
-        "cli/commands/capabilities.md",
         "cli/commands/check-fix-clean.md",
         "cli/commands/completion.md",
         "cli/commands/docs.md",

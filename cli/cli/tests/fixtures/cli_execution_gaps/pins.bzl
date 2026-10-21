@@ -14,7 +14,6 @@ WATCHABLE_COUNT = 8
 
 NOT_WATCHABLE_COMMANDS = [
     "bump",
-    "capabilities",
     "clean",
     "codegen",
     "completion",
@@ -40,7 +39,7 @@ NOT_WATCHABLE_COMMANDS = [
     "watch",
     "why",
 ]
-NOT_WATCHABLE_COUNT = 26
+NOT_WATCHABLE_COUNT = 25
 
 WATCH_REFUSES_CI = True
 WATCH_DEBOUNCE_MS = 200
@@ -98,7 +97,6 @@ REPORT_NONE = [
     "upgrade",
     "rollback",
     "completion",
-    "capabilities",
     "tests",
 ]
 REPORT_DISPOSITION = "wont-fix"

@@ -2612,10 +2612,14 @@ pub fn npm_create_pack(
     package: &str,
     tag: &str,
     registry: &str,
+    access: &str,
     tgz_out: &Path,
     feed_out: &Path,
     srcs: &[std::path::PathBuf],
 ) -> io::Result<String> {
+    if let Some(error) = npm_access_error(package, access) {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, error));
+    }
     let mut members: std::collections::BTreeMap<String, (Vec<u8>, u32)> =
         std::collections::BTreeMap::new();
     for (src, rel) in npm_package_paths(srcs)? {
@@ -2656,6 +2660,7 @@ pub fn npm_create_pack(
     let tgz_base = basename(tgz_out)?;
     let feed = render_json(
         &serde_json::json!({
+            "access": access,
             "files": names,
             "name": package,
             "registry": registry,
@@ -2672,6 +2677,58 @@ pub fn npm_create_pack(
     }
     std::fs::write(feed_out, feed.as_bytes())?;
     Ok(digest)
+}
+
+/// Rejects an npm access mode the package name cannot publish with.
+pub fn npm_access_error(package: &str, access: &str) -> Option<String> {
+    let scoped = package.starts_with('@');
+    if scoped
+        && !package[1..].split_once('/').is_some_and(|(scope, name)| {
+            !scope.is_empty() && !name.is_empty() && !name.contains('/')
+        })
+    {
+        return Some(format!(
+            "npm_deploy: invalid package '{package}': a scoped name is @scope/name"
+        ));
+    }
+    if !scoped && package.contains('/') {
+        return Some(format!(
+            "npm_deploy: invalid package '{package}': only scoped names contain '/'"
+        ));
+    }
+    match access {
+        "public" => None,
+        "restricted" if scoped => None,
+        "restricted" => Some(format!(
+            "npm_deploy: access 'restricted' needs a scoped package, got unscoped '{package}'"
+        )),
+        _ => Some(format!(
+            "npm_deploy: invalid access '{access}': want 'public' or 'restricted'"
+        )),
+    }
+}
+
+/// Builds the npm publish arguments for one staged tarball.
+pub fn npm_publish_args(
+    tarball: &Path,
+    tag: &str,
+    access: &str,
+    registry: &str,
+) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = vec![
+        "publish".into(),
+        tarball.into(),
+        "--tag".into(),
+        tag.into(),
+        "--access".into(),
+        access.into(),
+    ];
+    if access == "public" {
+        args.push("--provenance".into());
+    }
+    args.push("--registry".into());
+    args.push(registry.into());
+    args
 }
 
 /// Lists one gzip tar member table.
@@ -2716,6 +2773,7 @@ struct NpmFeed {
     name: String,
     tag: String,
     registry: String,
+    access: String,
     #[allow(dead_code)]
     tarball: String,
     sha256: String,
@@ -2732,12 +2790,16 @@ fn parse_npm_feed(body: &str) -> io::Result<NpmFeed> {
 }
 
 /// Verifies one npm pack pair.
-pub fn npm_verify_pack(tgz_path: &Path, feed_path: &Path) -> io::Result<(String, String, String)> {
+pub fn npm_verify_pack(
+    tgz_path: &Path,
+    feed_path: &Path,
+) -> io::Result<(String, String, String, String)> {
     let body = std::fs::read_to_string(feed_path)?;
     let NpmFeed {
         name,
         tag,
         registry,
+        access,
         sha256: expected,
         files,
         ..
@@ -2762,7 +2824,10 @@ pub fn npm_verify_pack(tgz_path: &Path, feed_path: &Path) -> io::Result<(String,
             ),
         ));
     }
-    Ok((name, tag, registry))
+    if let Some(error) = npm_access_error(&name, &access) {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, error));
+    }
+    Ok((name, tag, registry, access))
 }
 
 /// Resolves the npm pack pair from explicit runfiles keys.
@@ -2777,17 +2842,22 @@ pub fn npm_find_pack_inputs(
 
 /// Runs the npm pack tool.
 pub fn npm_pack_main(argv: &[String]) -> i32 {
-    if argv.len() < 7 {
-        eprintln!("usage: npm_pack <package> <tag> <registry> <tgz_out> <feed_out> <src...>");
+    if argv.len() < 8 {
+        eprintln!(
+            "usage: npm_pack <package> <tag> <registry> <access> <tgz_out> <feed_out> <src...>"
+        );
         return 1;
     }
     let package = argv[1].clone();
     let tag = argv[2].clone();
     let registry = argv[3].clone();
-    let tgz_out = std::path::PathBuf::from(&argv[4]);
-    let feed_out = std::path::PathBuf::from(&argv[5]);
-    let srcs: Vec<std::path::PathBuf> = argv[6..].iter().map(std::path::PathBuf::from).collect();
-    match npm_create_pack(&package, &tag, &registry, &tgz_out, &feed_out, &srcs) {
+    let access = argv[4].clone();
+    let tgz_out = std::path::PathBuf::from(&argv[5]);
+    let feed_out = std::path::PathBuf::from(&argv[6]);
+    let srcs: Vec<std::path::PathBuf> = argv[7..].iter().map(std::path::PathBuf::from).collect();
+    match npm_create_pack(
+        &package, &tag, &registry, &access, &tgz_out, &feed_out, &srcs,
+    ) {
         Ok(_) => 0,
         Err(error) => {
             eprintln!("npm_pack: {error}");
@@ -2798,6 +2868,12 @@ pub fn npm_pack_main(argv: &[String]) -> i32 {
 
 /// Runs the npm deploy launcher.
 pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> i32 {
+    if std::env::var_os("NPM_PUBLISH_DRY_RUN").is_some() {
+        eprintln!(
+            "npm_deploy: NPM_PUBLISH_DRY_RUN is not supported; publishing needs NPM_PUBLISH_LIVE=1"
+        );
+        return 1;
+    }
     let outdir = deploy_outdir(argv);
     if std::fs::create_dir_all(&outdir).is_err() {
         eprintln!("npm_deploy: cannot create {}", outdir.display());
@@ -2810,7 +2886,7 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
             return 1;
         }
     };
-    let (name, tag, registry) = match npm_verify_pack(&tgz_path, &feed_path) {
+    let (name, tag, registry, access) = match npm_verify_pack(&tgz_path, &feed_path) {
         Ok(triple) => triple,
         Err(error) => {
             eprintln!("npm_deploy: {error}");
@@ -2851,7 +2927,8 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
         }
     }
     let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
-    println!("npm_deploy: released {name} (tag {tag}, profile: {profile})");
+    println!("npm_deploy: released {name} (tag {tag}, access {access}, profile: {profile})");
+    println!("  registry: {registry}");
     println!("  tarball: {}", outdir.join(&tgz_base).display());
     println!("  feed: {}", feed_dir.display());
     if std::env::var("NPM_PUBLISH_LIVE").unwrap_or_default() == "1" {
@@ -2867,27 +2944,6 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
             eprintln!("npm_deploy: 'npm' CLI not found on PATH");
             return 1;
         };
-        let mut cmd = std::process::Command::new(npm);
-        cmd.arg("publish")
-            .arg(&staged_tgz)
-            .arg("--tag")
-            .arg(&tag)
-            .arg("--access")
-            .arg("public")
-            .arg("--provenance")
-            .arg("--registry")
-            .arg(&registry);
-        if std::env::var("NPM_PUBLISH_DRY_RUN").unwrap_or_default() == "1" {
-            println!("npm_deploy: dry run (NPM_PUBLISH_DRY_RUN=1); would publish:");
-            println!("  package: {name}");
-            println!("  tag: {tag}");
-            println!("  command: npm publish {} --tag {tag} --access public --provenance --registry {registry}", staged_tgz.display());
-            return 0;
-        }
-        if which_on_path("npm").is_none() {
-            eprintln!("npm_deploy: 'npm' CLI not found on PATH");
-            return 1;
-        }
         let host = registry
             .trim_start_matches("https://")
             .trim_start_matches("http://")
@@ -2905,20 +2961,8 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
                 return 1;
             }
         };
-        let Some(npm) = which_on_path("npm") else {
-            eprintln!("npm_deploy: 'npm' CLI not found on PATH");
-            return 1;
-        };
         let status = std::process::Command::new(npm)
-            .arg("publish")
-            .arg(&staged_tgz)
-            .arg("--tag")
-            .arg(&tag)
-            .arg("--access")
-            .arg("public")
-            .arg("--provenance")
-            .arg("--registry")
-            .arg(&registry)
+            .args(npm_publish_args(&staged_tgz, &tag, &access, &registry))
             .arg("--userconfig")
             .arg(&npmrc)
             .status();
@@ -3902,13 +3946,14 @@ mod tests {
             "npm-demo",
             "latest",
             "https://registry.npmjs.org",
+            "public",
             &tgz,
             &feed,
             std::slice::from_ref(&src),
         )
         .expect("pack");
         assert_eq!(digest, dx_digest::sha256_file_hex(&tgz).expect("hex"));
-        let (name, tag, registry) = npm_verify_pack(&tgz, &feed).expect("verify");
+        let (name, tag, registry, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         assert_eq!(tag, "latest");
         assert_eq!(registry, "https://registry.npmjs.org");
@@ -3923,6 +3968,7 @@ mod tests {
             body,
             [
                 "{",
+                "  \"access\": \"public\",",
                 "  \"files\": [\"package/package.json\"],",
                 "  \"name\": \"npm-demo\",",
                 "  \"registry\": \"https://registry.npmjs.org\",",
@@ -3947,6 +3993,7 @@ mod tests {
             "npm-demo",
             "latest",
             "https://registry.npmjs.org",
+            "public",
             &good,
             &scratch.path().join("good.feed.json"),
             std::slice::from_ref(&src),
@@ -3993,6 +4040,7 @@ mod tests {
             "npm-nested",
             "latest",
             "https://registry.npmjs.org",
+            "public",
             &tgz,
             &scratch.join("nested.feed.json"),
             &srcs,
@@ -4030,6 +4078,7 @@ mod tests {
             "npm-nested",
             "latest",
             "https://registry.npmjs.org",
+            "public",
             &tgz,
             &scratch.path().join("modes.feed.json"),
             &srcs,
@@ -4241,7 +4290,7 @@ mod tests {
 
     #[test]
     fn npm_feed_parser_reads_escapes_brackets_and_unicode() {
-        let body = r#"{ "tarball":"a.tgz", "tag":"t", "sha256":"d", "registry":"r",
+        let body = r#"{ "tarball":"a.tgz", "tag":"t", "sha256":"d", "registry":"r", "access":"public",
             "name": "a\"b\\c\nd", "extra": [1, {"x": "]"}],
             "files": ["package/[id].js", "package/]x[.js", "y\\z", "w\"q", "\u00e6\u0041", "æ"] }"#;
         let feed = parse_npm_feed(body).expect("feed");
@@ -4261,7 +4310,7 @@ mod tests {
 
     #[test]
     fn npm_feed_parser_rejects_bad_documents() {
-        let good = r#"{"files": [], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a.tgz"}"#;
+        let good = r#"{"access": "public", "files": [], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a.tgz"}"#;
         parse_npm_feed(good).expect("good");
         let bad = [
             "",
@@ -4269,6 +4318,7 @@ mod tests {
             r#"{"name": "#,
             r#"{"files": ["a"#,
             r#"{"files": [], "name": "n", "registry": "r", "sha256": "d", "tag": "t"}"#,
+            r#"{"files": [], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
             r#"{"files": 7, "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
             r#"{"files": [1], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
             r#"{"files": [], "name": 7, "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
@@ -4761,6 +4811,177 @@ mod tests {
         let body = std::fs::read_to_string(&pinned).expect("read rollback");
         assert!(body.contains("rollback demo to 1.0.1"));
         assert!(body.contains("expected-sha256: abc123"));
+    }
+
+    #[test]
+    fn npm_access_error_covers_scope_and_mode() {
+        assert!(npm_access_error("npm-demo", "public").is_none());
+        assert!(npm_access_error("@s/npm-demo", "public").is_none());
+        assert!(npm_access_error("@s/npm-demo", "restricted").is_none());
+        let unscoped = npm_access_error("npm-demo", "restricted").expect("unscoped");
+        assert!(unscoped.contains("needs a scoped package"), "{unscoped}");
+        let unknown = npm_access_error("npm-demo", "private").expect("unknown");
+        assert!(unknown.contains("invalid access"), "{unknown}");
+        for bad in ["@scope", "@/name", "@a/b/c", "a/b"] {
+            assert!(npm_access_error(bad, "public").is_some(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn npm_publish_args_carry_access_and_no_secret() {
+        let tgz = Path::new("/stage/p.tgz");
+        let public = npm_publish_args(tgz, "latest", "public", "https://r.example");
+        let public: Vec<String> = public
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            public,
+            [
+                "publish",
+                "/stage/p.tgz",
+                "--tag",
+                "latest",
+                "--access",
+                "public",
+                "--provenance",
+                "--registry",
+                "https://r.example"
+            ]
+        );
+        let restricted = npm_publish_args(tgz, "next", "restricted", "https://r.example");
+        let restricted: Vec<String> = restricted
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(restricted.contains(&"restricted".to_owned()));
+        assert!(!restricted.contains(&"--provenance".to_owned()));
+    }
+
+    #[test]
+    fn npm_pack_rejects_restricted_unscoped_before_writing() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("package.json");
+        std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"0.0.0\"}\n").expect("write");
+        let tgz = scratch.path().join("out.tgz");
+        let feed = scratch.path().join("out.feed.json");
+        let error = npm_create_pack(
+            "npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            "restricted",
+            &tgz,
+            &feed,
+            &[src],
+        )
+        .expect_err("mismatch");
+        assert!(
+            error.to_string().contains("needs a scoped package"),
+            "{error}"
+        );
+        assert!(!tgz.exists() && !feed.exists());
+    }
+
+    #[test]
+    fn npm_verify_pack_reports_restricted_access() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("package.json");
+        std::fs::write(
+            &src,
+            b"{\"name\": \"@s/npm-demo\", \"version\": \"0.0.0\"}\n",
+        )
+        .expect("write");
+        let tgz = scratch.path().join("out.tgz");
+        let feed = scratch.path().join("out.feed.json");
+        npm_create_pack(
+            "@s/npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            "restricted",
+            &tgz,
+            &feed,
+            &[src],
+        )
+        .expect("pack");
+        let (name, _, registry, access) = npm_verify_pack(&tgz, &feed).expect("verify");
+        assert_eq!(name, "@s/npm-demo");
+        assert_eq!(registry, "https://registry.npmjs.org");
+        assert_eq!(access, "restricted");
+        let body = std::fs::read_to_string(&feed).expect("feed");
+        std::fs::write(&feed, body.replace("\"@s/npm-demo\"", "\"npm-demo\"")).expect("tamper");
+        let error = npm_verify_pack(&tgz, &feed).expect_err("tampered");
+        assert!(
+            error.to_string().contains("needs a scoped package"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn npm_deploy_rejects_former_dry_run_request() {
+        with_env(&[("NPM_PUBLISH_DRY_RUN", Some("1"))], || {
+            assert_eq!(
+                npm_deploy_main(&["prog".to_owned()], "a.feed.json", "a.tgz"),
+                1
+            );
+        });
+    }
+
+    #[test]
+    fn npm_cli_pack_and_publish_dry_run_accept_the_staged_package() {
+        let ok = |tool: &str| {
+            std::process::Command::new(tool)
+                .arg("--version")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        };
+        if !ok("npm") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let pkg = scratch.path().join("pkg");
+        std::fs::create_dir_all(&pkg).expect("pkg");
+        std::fs::write(
+            pkg.join("package.json"),
+            b"{\"name\": \"@s/npm-demo\", \"version\": \"0.0.0\"}\n",
+        )
+        .expect("write");
+        let tgz = scratch.path().join("out.tgz");
+        let feed = scratch.path().join("out.feed.json");
+        npm_create_pack(
+            "@s/npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            "restricted",
+            &tgz,
+            &feed,
+            &[pkg.join("package.json")],
+        )
+        .expect("pack");
+        let run = |args: Vec<std::ffi::OsString>| {
+            std::process::Command::new("npm")
+                .args(args)
+                .env("npm_config_cache", scratch.path().join("npm-cache"))
+                .env("npm_config_userconfig", scratch.path().join("npmrc"))
+                .env("npm_config_update_notifier", "false")
+                .current_dir(scratch.path())
+                .output()
+                .expect("npm")
+        };
+        let packed = run(vec![
+            "pack".into(),
+            "--dry-run".into(),
+            "--json".into(),
+            pkg.clone().into(),
+        ]);
+        assert!(packed.status.success(), "{packed:?}");
+        let mut args = npm_publish_args(&tgz, "latest", "restricted", "https://registry.npmjs.org");
+        args.push("--dry-run".into());
+        let published = run(args);
+        let text = String::from_utf8_lossy(&published.stderr).into_owned()
+            + &String::from_utf8_lossy(&published.stdout);
+        assert!(published.status.success(), "{text}");
+        assert!(text.contains("@s/npm-demo"), "{text}");
     }
 
     #[test]
@@ -5378,12 +5599,13 @@ mod tests {
             "npm-demo",
             "latest",
             "https://registry.npmjs.org",
+            "public",
             &tgz,
             &feed,
             &[manifest, src],
         )
         .expect("pack");
-        let (name, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
+        let (name, _, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         let members = npm_tar_members(&tgz).expect("members");
         assert_eq!(members, ["package/[id].js", "package/package.json"]);
@@ -5414,12 +5636,13 @@ mod tests {
             "npm-demo",
             "latest",
             "https://registry.npmjs.org",
+            "public",
             &tgz,
             &feed,
             std::slice::from_ref(&src),
         )
         .expect("pack");
-        let (name, tag, registry) = npm_verify_pack(&tgz, &feed).expect("verify");
+        let (name, tag, registry, _) = npm_verify_pack(&tgz, &feed).expect("verify");
         assert_eq!(name, "npm-demo");
         assert_eq!(tag, "latest");
         assert_eq!(registry, "https://registry.npmjs.org");
@@ -5460,6 +5683,7 @@ mod tests {
             "npm-demo".to_owned(),
             "latest".to_owned(),
             "https://registry.npmjs.org".to_owned(),
+            "public".to_owned(),
             tgz.to_string_lossy().into_owned(),
             feed.to_string_lossy().into_owned(),
             src.to_string_lossy().into_owned(),
@@ -5498,6 +5722,7 @@ mod tests {
             "npm-demo",
             "latest",
             "https://registry.npmjs.org",
+            "public",
             &tgz,
             &feed,
             &[src, bracketed],

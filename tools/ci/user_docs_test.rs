@@ -249,3 +249,17 @@ fn the_examples_index_names_every_example_workspace_once() {
          nothing else"
     );
 }
+
+#[test]
+fn readme_docs_site_link_targets_the_devhusdk_host() {
+    let readme = read_runfiles("README.md");
+    let sites: Vec<String> = markdown_links(&readme)
+        .into_iter()
+        .filter(|link| link.contains(".github.io"))
+        .collect();
+    assert_eq!(
+        sites,
+        ["https://devhusdk.github.io/rules_dx/"],
+        "README.md must link the docs site on the devhusdk Pages host exactly once"
+    );
+}

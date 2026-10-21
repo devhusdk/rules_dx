@@ -11,7 +11,7 @@ go_library(
         "lang.go",
         "naming.go",
     ],
-    importpath = "github.com/ralvik/rules_dx/gazelle/javascript",
+    importpath = "github.com/devhusdk/rules_dx/gazelle/javascript",
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",

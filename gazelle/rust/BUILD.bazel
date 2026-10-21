@@ -19,7 +19,7 @@ go_library(
         "native_config.go",
         "parser.go",
     ],
-    importpath = "github.com/ralvik/rules_dx/gazelle/rust",
+    importpath = "github.com/devhusdk/rules_dx/gazelle/rust",
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",

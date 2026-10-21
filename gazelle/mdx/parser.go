@@ -1,7 +1,7 @@
 package mdx
 
 import (
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 	"strings"
 )
 

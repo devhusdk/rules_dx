@@ -12,7 +12,7 @@ go_library(
         "naming.go",
         "parser.go",
     ],
-    importpath = "github.com/ralvik/rules_dx/gazelle/vue",
+    importpath = "github.com/devhusdk/rules_dx/gazelle/vue",
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",

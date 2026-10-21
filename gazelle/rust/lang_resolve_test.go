@@ -12,7 +12,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	bzl "github.com/bazelbuild/buildtools/build"
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
 func TestResolveMirrorPaths(t *testing.T) {

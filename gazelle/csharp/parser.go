@@ -1,7 +1,7 @@
 package csharp
 
 import (
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 	"regexp"
 	"sort"
 )

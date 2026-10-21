@@ -9,7 +9,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	bzl "github.com/bazelbuild/buildtools/build"
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
 func TestResolveOverrideAndConflict(t *testing.T) {

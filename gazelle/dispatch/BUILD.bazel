@@ -10,7 +10,7 @@ go_library(
         "doc.go",
         "lang.go",
     ],
-    importpath = "github.com/ralvik/rules_dx/gazelle/dispatch",
+    importpath = "github.com/devhusdk/rules_dx/gazelle/dispatch",
     visibility = ["//visibility:private"],
     deps = [
         "//gazelle/astro",

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
 type CrateRoots struct {

@@ -270,7 +270,7 @@ mod tests {
             data_license: DATA_LICENSE.to_owned(),
             id: DOCUMENT_ID.to_owned(),
             name: format!("dx-{base}"),
-            namespace: format!("https://github.com/ralvik/rules_dx/releases/{base}-{digest}"),
+            namespace: format!("https://github.com/devhusdk/rules_dx/releases/{base}-{digest}"),
             creation_info: Some(SpdxCreationInfo {
                 created: "1970-01-01T00:00:00Z".to_owned(),
                 creators: vec!["Tool: rules_dx-sbom-1.0".to_owned()],

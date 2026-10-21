@@ -27,7 +27,7 @@ bazel run @rules_dx//:dx -- test //...
 Next: [docs index](docs/README.md),
 [command reference](docs/cli/commands/README.md),
 [examples](examples/README.md), [CI](docs/github-ci.md), and the
-[docs site](https://ralvik.github.io/rules_dx/).
+[docs site](https://devhusdk.github.io/rules_dx/).
 
 ## Contributing
 

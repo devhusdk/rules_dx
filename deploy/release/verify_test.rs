@@ -92,7 +92,7 @@ fn a_forged_provenance_builder_fails_closed() {
     let (artifact, spdx, provenance) = sbom_inputs();
     let text = read(&provenance);
     let forged_text = text.replace(
-        "https://github.com/ralvik/rules_dx/.github/workflows/publish-dry-run.yml",
+        "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml",
         "https://example.test/builder",
     );
     assert_ne!(

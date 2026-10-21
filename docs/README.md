@@ -18,4 +18,4 @@ guides below.
 
 - [GitHub CI](github-ci.md): run `dx` in GitHub Actions.
 - [Examples](../examples/README.md): starter callers and per-language adoption workspaces.
-- [Docs site](https://ralvik.github.io/rules_dx/): rendered reference.
+- [Docs site](https://devhusdk.github.io/rules_dx/): rendered reference.

@@ -1,7 +1,7 @@
 package golang
 
 import (
-	"github.com/ralvik/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 	"path"
 	"strings"
 )

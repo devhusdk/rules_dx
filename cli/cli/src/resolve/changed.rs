@@ -39,7 +39,7 @@ impl AffectedSelection {
 }
 
 fn git_failure(what: &str, detail: String) -> String {
-    format!("hook git {what} failed: {detail}")
+    format!("git {what} failed: {detail}")
 }
 
 fn first_diagnostic(bytes: &[u8]) -> String {
@@ -141,11 +141,10 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, String> {
     }
     let mut changes = Vec::with_capacity(fields.len());
     for field in fields {
-        let path = std::str::from_utf8(field).map_err(|_| {
-            "hook git path is not UTF-8: rename the file to a UTF-8 name".to_owned()
-        })?;
+        let path = std::str::from_utf8(field)
+            .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
         if path.is_empty() {
-            return Err("hook git change list has an empty path".to_owned());
+            return Err("git change list has an empty path".to_owned());
         }
         changes.push(dx_adopt::GitChange {
             path: path.to_owned(),
@@ -1053,7 +1052,7 @@ mod tests {
             &strings(&["diff", "--name-status", "-z", "base", "head"]),
         )
         .expect_err("plain failure");
-        assert!(err.contains("hook git diff failed"), "{err}");
+        assert!(err.contains("git diff failed"), "{err}");
         assert!(err.contains("bad revision"), "{err}");
     }
 }

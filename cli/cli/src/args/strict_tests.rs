@@ -12,7 +12,6 @@ fn strict_unknown_options_fail_with_whole_token() {
         vec!["lint", "--check=x"],
         vec!["clean", "--bazel=yes"],
         vec!["init", "--force"],
-        vec!["hooks", "install", "--force"],
         vec!["-"],
         vec!["lint", "--bogus"],
         vec!["lint", "--bogus=1"],
@@ -416,7 +415,7 @@ fn strict_every_command_help_pins_usage_scopes_exits_output() {
             command.name()
         );
     }
-    assert_eq!(Command::value_variants().len(), 33);
+    assert_eq!(Command::value_variants().len(), 32);
 }
 
 #[cfg(unix)]

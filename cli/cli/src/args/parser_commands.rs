@@ -9,13 +9,12 @@ use dx_output::OutputMode;
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
         "security", "license", "update", "bump", "migrate", "upgrade", "docs", "status", "version",
-        "owners", "deps", "hooks", "init", "new",
+        "owners", "deps", "init", "new",
     ] {
         let base = match command {
             "bump" => vec![command, "cargo:demo", "1.0.0"],
             "migrate" | "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
             "owners" | "deps" => vec![command, "//:demo"],
-            "hooks" => vec![command, "status"],
             "new" => vec![command, "rust"],
             _ => vec![command],
         };
@@ -54,7 +53,6 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         vec!["status", "extra"],
         vec!["version", "extra"],
         vec!["init", "one", "two"],
-        vec!["hooks"],
         vec!["watch"],
         vec!["owners"],
         vec!["deps"],
@@ -93,7 +91,6 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "run" | "deploy" => &["//:demo"],
         "owners" | "deps" => &["//:demo"],
         "why" => &["a.rs", "//:demo"],
-        "hooks" => &["status"],
         "new" => &["rust"],
         "watch" => &["build"],
         "completion" => &["bash"],
@@ -831,7 +828,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["init", "proj", "--output=diff"],
         vec!["new", "rust", "--output=json"],
         vec!["new", "rust", "demo", "--output=diff"],
-        vec!["hooks", "status", "--output=json"],
         vec!["watch", "test", "--output=json"],
         vec!["version", "--output=diff"],
         vec!["owners", "//a:one", "--output=diff"],
@@ -1164,12 +1160,8 @@ fn why_requires_file_and_label() {
 }
 
 #[test]
-fn init_and_hooks_have_no_force_flag() {
-    for words in [
-        vec!["init", "--force"],
-        vec!["init", "--force", "demo"],
-        vec!["hooks", "install", "--force"],
-    ] {
+fn init_has_no_force_flag() {
+    for words in [vec!["init", "--force"], vec!["init", "--force", "demo"]] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--force"]);
     }
 }

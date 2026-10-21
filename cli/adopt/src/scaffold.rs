@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{AdoptError, DX_VERSION, HOOK_BUDGET_SECS};
+use super::{AdoptError, DX_VERSION};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScaffoldFile {
@@ -192,16 +192,6 @@ pub fn plan_init_files_for_host(
             content: format!("{DX_VERSION}\n"),
         },
         ScaffoldFile {
-            path: "dx.local.toml".to_owned(),
-            content: "# Local-only overrides (gitignored). See dx hooks status.\n[hooks]\n".to_owned(),
-        },
-        ScaffoldFile {
-            path: "dx.hooks.toml".to_owned(),
-            content: format!(
-                "[hooks]\npre_commit = [\"format --check\", \"lint --check\"]\npre_push = [\"typecheck --check\", \"generate --check\"]\nbudget_secs = {HOOK_BUDGET_SECS}\n"
-            ),
-        },
-        ScaffoldFile {
             path: ".devcontainer/devcontainer.json".to_owned(),
             content: DEVCONTAINER_JSON.to_owned(),
         },
@@ -311,9 +301,9 @@ mod tests {
     }
 
     #[test]
-    fn init_plans_nine_absent_only_files() {
+    fn init_plans_seven_absent_only_files() {
         let files = plan_init_files("demo").expect("init plans");
-        assert_eq!(files.len(), 9);
+        assert_eq!(files.len(), 7);
         assert!(files.iter().any(|f| f.path == ".dx/version"));
         assert!(files
             .iter()
@@ -494,22 +484,6 @@ mod tests {
             "custom\n"
         );
         scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn hooks_scaffold_budget_tracks_hook_budget_const() {
-        let files = plan_init_files("demo").expect("init plans");
-        let hooks = files
-            .iter()
-            .find(|f| f.path == "dx.hooks.toml")
-            .expect("hooks scaffold");
-        assert!(
-            hooks
-                .content
-                .contains(&format!("budget_secs = {}", super::super::HOOK_BUDGET_SECS)),
-            "{}",
-            hooks.content
-        );
     }
 
     #[test]

@@ -354,12 +354,9 @@ fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<St
             FirstSlot::UpdateSets => update_set_hints(current),
             FirstSlot::BumpSets => bump_set_hints(current),
             FirstSlot::NewLanguages => prefixed(dx_adopt::SUPPORTED_NEW_LANGUAGES, current),
-            FirstSlot::HookVerbs => prefixed(dx_adopt::HOOK_VERBS, current),
             FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
             FirstSlot::CompletionShells => prefixed(COMPLETION_SHELLS, current),
         }
-    } else if prior.len() == 1 && prior[0] == "run" && meta.hook_triggers_on_run {
-        prefixed(dx_adopt::HOOK_TRIGGERS, current)
     } else {
         Vec::new()
     };
@@ -505,18 +502,6 @@ mod tests {
 
     #[test]
     fn fixed_tables_match_their_single_sources() {
-        assert_eq!(
-            dx_adopt::HOOK_VERBS,
-            &["install", "uninstall", "status", "run"]
-        );
-        assert_eq!(dx_adopt::HOOK_TRIGGERS, &["pre-commit", "pre-push"]);
-        for trigger in dx_adopt::HOOK_TRIGGERS {
-            assert!(
-                dx_adopt::is_hook_trigger(trigger),
-                "{trigger} must stay a hook trigger"
-            );
-        }
-        assert!(!dx_adopt::is_hook_trigger("pre-merge"));
         assert_eq!(COMPLETION_SHELLS, &["bash", "zsh", "fish", "powershell"]);
         let mut sets: Vec<&str> = dx_update::sets::SetId::ALL
             .iter()
@@ -566,10 +551,6 @@ mod tests {
                         .collect();
                     want.sort();
                     assert_eq!(fixed, want);
-                    assert!(!labels);
-                }
-                Command::Hooks => {
-                    assert_eq!(fixed, vec!["install", "run", "status", "uninstall"]);
                     assert!(!labels);
                 }
                 Command::New => {
@@ -625,22 +606,11 @@ mod tests {
                 "{command:?} must be deterministic"
             );
         }
-        assert_eq!(Command::value_variants().len(), 33);
+        assert_eq!(Command::value_variants().len(), 32);
     }
 
     #[test]
     fn later_slots_follow_per_command_shapes() {
-        let run = vec![String::from("run")];
-        let (fixed, labels) = slot_candidates(Command::Hooks, &run, "");
-        assert_eq!(fixed, vec!["pre-commit", "pre-push"]);
-        assert!(!labels);
-        let (fixed, _) = slot_candidates(Command::Hooks, &run, "pre-c");
-        assert_eq!(fixed, vec!["pre-commit"]);
-        let install = vec![String::from("install")];
-        assert_eq!(
-            slot_candidates(Command::Hooks, &install, ""),
-            (Vec::new(), false)
-        );
         let task = vec![String::from("test")];
         assert_eq!(
             slot_candidates(Command::Watch, &task, ""),
@@ -789,18 +759,6 @@ mod tests {
             shifted.iter().any(|value| value == "//..."),
             "flags must not shift slots: {shifted:?}"
         );
-        let triggers = complete(&["dx", "hooks", "run", ""], root);
-        assert!(
-            triggers.iter().any(|value| value == "pre-commit"),
-            "hooks run must offer triggers: {triggers:?}"
-        );
-        let closed = complete(&["dx", "hooks", "install", ""], root);
-        for trigger in dx_adopt::HOOK_TRIGGERS {
-            assert!(
-                !closed.iter().any(|value| value == trigger),
-                "hooks install must close the slot: {closed:?}"
-            );
-        }
         let external = complete(&["dx", "build", "@repo//..."], root);
         assert!(
             !external.iter().any(|value| value.starts_with("//")),
@@ -834,21 +792,6 @@ mod tests {
     fn the_words_a_shell_passes_name_the_slot_being_completed() {
         let scratch = workspace_with_package();
         let root = scratch.path();
-        let triggers = complete_from_a_shell(&["dx", "hooks", "run", ""], root);
-        assert!(
-            triggers.iter().any(|value| value == "pre-commit"),
-            "hooks run must offer triggers: {triggers:?}"
-        );
-        assert!(
-            !triggers.iter().any(|value| value == "install"),
-            "hooks run must not offer verbs again: {triggers:?}"
-        );
-        assert!(
-            complete_from_a_shell(&["dx", "hooks", "install", ""], root)
-                .iter()
-                .all(|value| value.starts_with("--")),
-            "hooks install must close the slot"
-        );
         let tasks = complete_from_a_shell(&["dx", "watch", ""], root);
         assert!(
             tasks.iter().any(|value| value == "build"),
@@ -881,8 +824,8 @@ mod tests {
             |words: &[&str]| -> Vec<OsString> { words.iter().map(OsString::from).collect() };
         let empty: Vec<String> = Vec::new();
         assert_eq!(
-            prior_scopes(&words(&["--", "dx", "hooks", "run", ""])),
-            ["run"]
+            prior_scopes(&words(&["--", "dx", "watch", "build", ""])),
+            ["build"]
         );
         assert_eq!(
             prior_scopes(&words(&["--", "dx", "watch", "build", "//a:one", ""])),
@@ -905,7 +848,7 @@ mod tests {
             empty
         );
         assert_eq!(prior_scopes(&words(&["lint", "--check", ""])), empty);
-        assert_eq!(prior_scopes(&words(&["hooks", "run", ""])), ["run"]);
+        assert_eq!(prior_scopes(&words(&["watch", "build", ""])), ["build"]);
         assert_eq!(prior_scopes(&words(&["build", "--", "--jobs=4"])), empty);
         assert_eq!(prior_scopes(&[]), empty);
     }

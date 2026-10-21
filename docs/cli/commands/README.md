@@ -16,7 +16,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx env`, `dx codegen`](environment-codegen.md)
 - [`dx security`, `dx license`, `dx update`, `dx bump`](audit-update.md)
 - [`dx docs`](docs.md)
-- [`dx init`, `dx hooks`](hooks.md)
+- [`dx init`](init.md)
 - [`dx status`, `dx version`](status-version.md)
 - [`dx owners`, `dx deps`, `dx why`](inspect.md)
 - [`dx tests`](tests.md)
@@ -40,7 +40,7 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--color auto|always|never`: color output. Default `auto`.
 - `--output text|diff|json`: result shape. `diff` is limited to `lint`,
   `typecheck`, `format`, `generate`, `check`, and `fix`. `json` is rejected by
-  `deploy`, `init`, `new`, `hooks`, `watch`, `completion`, and `bazel`, which
+  `deploy`, `init`, `new`, `watch`, `completion`, and `bazel`, which
   take `text` only.
 - `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
   `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the
@@ -66,7 +66,7 @@ commands. See [Version Skew](status-version.md#version-skew).
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, `hooks`, `watch`, and `docs`.
+  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, `watch`, and `docs`.
   Every other command rejects it. It never combines with `--check`.
 - `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
   `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means

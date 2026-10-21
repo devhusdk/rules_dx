@@ -1,5 +1,4 @@
 mod completion;
-mod hooks;
 mod init;
 mod inspect;
 mod new;
@@ -22,7 +21,6 @@ pub(crate) use crate::exec::common::{operational, pre_exec};
 pub struct AdoptEnv<'a> {
     pub workspace: &'a std::path::Path,
     pub query_runner: &'a dyn QueryRunner,
-    pub runner: &'a dyn dx_process::Runner,
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
 }
@@ -35,7 +33,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
     let AdoptEnv {
         workspace,
         query_runner,
-        runner,
         out,
         err,
     } = env;
@@ -43,9 +40,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::Init => init::execute_init(invocation, workspace, out, err),
         Command::New => new::execute_new(invocation, workspace, out, err),
         Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, out, err),
-        Command::Hooks => {
-            hooks::execute_hooks(invocation, workspace, query_runner, runner, None, out, err)
-        }
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Version => version::execute_version(invocation, workspace, out, err),
         Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),
@@ -60,9 +54,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{
-        env, env_with, invocation, run, HermeticRunner, RepeatQuery, Truncated,
-    };
+    use crate::adopt::test_support::{env, invocation, run, Truncated};
 
     #[test]
     fn status_missing_pin_json_truncation_never_reports_success() {
@@ -93,7 +85,7 @@ mod tests {
     }
 
     #[test]
-    fn status_drift_and_hook_mutation_reports_propagate_broken_pipe() {
+    fn status_drift_reports_propagate_broken_pipe() {
         let scratch = dx_test_scratch::scratch("adoption-live-pipe-");
         dx_adopt::write_version_pin(scratch.path(), "9.9.9").expect("drifted pin");
         let inv = invocation(&["status", "--output=json"]);
@@ -110,28 +102,6 @@ mod tests {
         {
             assert_eq!(run(&mut Truncated::after_bytes(remaining)), 141);
         }
-        for verb in ["install", "uninstall"] {
-            let scratch = dx_test_scratch::scratch("hooks-live-pipe-");
-            std::fs::create_dir(scratch.path().join(".git")).expect("git");
-            if verb == "uninstall" {
-                dx_adopt::install_hooks(scratch.path()).expect("install");
-            }
-            let query = RepeatQuery::hooks_dir(".git/hooks");
-            let inv = invocation(&["hooks", "--apply", verb]);
-            assert_eq!(
-                execute_adoption(
-                    &inv,
-                    env_with(
-                        scratch.path(),
-                        &query,
-                        &HermeticRunner,
-                        &mut Truncated::after_bytes(0),
-                        &mut Vec::new()
-                    )
-                ),
-                141
-            );
-        }
     }
 
     #[test]
@@ -141,10 +111,6 @@ mod tests {
             vec!["status", "--output=json"],
             vec!["upgrade", "--from=1.0.0", "--to=2.0.0"],
             vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--output=json"],
-            vec!["hooks", "status"],
-            vec!["hooks", "install"],
-            vec!["hooks", "uninstall"],
-            vec!["hooks", "run", "pre-commit"],
             vec!["completion", "bash"],
             vec!["init"],
             vec!["new", "rust", "demo"],
@@ -152,22 +118,8 @@ mod tests {
             let scratch = dx_test_scratch::scratch("adoption-pipe-");
             dx_adopt::write_version_pin(scratch.path(), "0.0.0").expect("pin");
             let inv = invocation(&words);
-            let git_query = RepeatQuery::hooks_dir(".git/hooks");
             let run = |out: &mut dyn Write| {
-                if words[0] == "hooks" {
-                    execute_adoption(
-                        &inv,
-                        env_with(
-                            scratch.path(),
-                            &git_query,
-                            &HermeticRunner,
-                            out,
-                            &mut Vec::new(),
-                        ),
-                    )
-                } else {
-                    execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()))
-                }
+                execute_adoption(&inv, env(scratch.path(), out, &mut Vec::new()))
             };
             let mut baseline = Vec::new();
             let code = run(&mut baseline);

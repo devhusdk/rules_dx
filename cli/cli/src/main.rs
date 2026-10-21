@@ -129,12 +129,6 @@ impl Runner for BinaryRunner {
             .filter(|path| path.is_absolute())
     }
 
-    fn git_tool(&self) -> Option<std::path::PathBuf> {
-        std::env::var_os("DX_GIT_BIN")
-            .map(std::path::PathBuf::from)
-            .filter(|path| path.is_absolute())
-    }
-
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         spawn_streamed(argv, cwd, env, false, self.inherit_stdout)
     }

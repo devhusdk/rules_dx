@@ -93,7 +93,6 @@ mod tests {
         Command::Codegen,
         Command::Env,
         Command::Init,
-        Command::Hooks,
         Command::Watch,
         Command::Docs,
     ];

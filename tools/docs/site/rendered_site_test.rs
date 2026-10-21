@@ -119,7 +119,7 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/check-fix-clean.html",
         "docs/cli/commands/generate.html",
         "docs/cli/commands/docs.html",
-        "docs/cli/commands/hooks.html",
+        "docs/cli/commands/init.html",
         "docs/cli/commands/inspect.html",
         "docs/cli/commands/migrate.html",
         "docs/cli/commands/new-upgrade.html",

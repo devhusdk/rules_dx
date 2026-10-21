@@ -122,7 +122,7 @@ pub(crate) fn execute_status(
             return operational(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
         }
     };
-    let checks = dx_adopt::default_status_checks(&pinned);
+    let checks = dx_adopt::observed_status_checks(workspace, &pinned);
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             if let Err(exit) = emit_event(out, &event) {
@@ -196,6 +196,14 @@ mod tests {
     use crate::adopt::test_support::{event_kinds, invocation, json_events, run};
     use std::io;
 
+    fn write_module(root: &std::path::Path) {
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        )
+        .expect("module");
+    }
+
     #[test]
     fn status_reports_pin_and_checks() {
         let inv = invocation(&["status"]);
@@ -203,6 +211,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        write_module(&root);
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(out.contains("pin: ok"));
@@ -215,6 +224,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0);
         let text = out;
@@ -252,6 +262,7 @@ mod tests {
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
+            write_module(&root);
             let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
             assert!(err.contains("pin mismatch"), "words: {words:?}");
@@ -319,6 +330,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "\n").expect("empty pin");
+        write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1);
         assert!(err.contains("pin mismatch"));
@@ -332,6 +344,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
         for command in Command::value_variants() {
@@ -354,6 +367,7 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        write_module(&root);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{err}");
         let events = json_events(&out);
@@ -373,12 +387,46 @@ mod tests {
     }
 
     #[test]
+    fn status_reports_actionable_health_checks() {
+        let inv = invocation(&["status", "--output=json"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-health-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".dx")).expect("dx");
+        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\n",
+        )
+        .expect("module");
+        let before = std::fs::read_dir(&root).expect("dir").count();
+        let (code, out, _) = run(&inv, &root);
+        assert_eq!(code, 1);
+        let events = json_events(&out);
+        let module = events
+            .iter()
+            .find(|event| event["name"] == serde_json::json!("module"))
+            .expect("module check");
+        assert_eq!(module["status"], serde_json::json!("error"));
+        assert!(module["hint"].as_str().expect("hint").starts_with("dx "));
+        for name in ["bazel", "host", "tools"] {
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["name"] == serde_json::json!(name)),
+                "{name}"
+            );
+        }
+        assert_eq!(std::fs::read_dir(&root).expect("dir").count(), before);
+    }
+
+    #[test]
     fn status_reports_capabilities_alongside_a_pin_failure() {
         let inv = invocation(&["status", "--output=json"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-status-cap-fail-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "9.9.9\n").expect("pin");
+        write_module(&root);
         let (code, out, _) = run(&inv, &root);
         assert_eq!(code, 1);
         let events = json_events(&out);
@@ -423,6 +471,7 @@ mod tests {
             let root = scratch.path().to_path_buf();
             std::fs::create_dir_all(root.join(".dx")).expect("dx");
             std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
+            write_module(&root);
             let mut err = Vec::new();
             let code = execute_status(&inv, &root, &mut BrokenPipeWriter, &mut err);
             assert_eq!(code, 128 + 13, "words: {words:?}");

@@ -12,9 +12,11 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, platform, tools, and pin drift, then one capability
-record per `dx` command. Takes no scopes and no per-command flags. Runs
-anywhere with a workspace, downloads nothing, and probes no tools. There is no `dx doctor`. Use `dx status` instead.
+Reports toolchain, Bazel, module, host, platform, tools, and pin health,
+then one capability record per `dx` command. Takes no scopes and no
+per-command flags. Runs anywhere with a workspace. It is read-only: it
+downloads, installs, repairs, and runs nothing. There is no `dx doctor`.
+Use `dx status` instead.
 
 Output: `--output text|json`.
 
@@ -28,11 +30,22 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed.
 toolchain: ok (rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)) hint: bazel build //...
 ```
 
-The four checks are `toolchain`, `platform`, `tools`, and `pin`. `pin`
-compares `.dx/version` with the `MODULE.bazel` pin. `ok` passes. `error`
-fails, and the hint is the fix, for example `dx upgrade --from <version> --to <version>`.
-The `platform` check names the execution platforms tools resolve for. The
-target platform never selects tools.
+The checks are `toolchain`, `bazel`, `module`, `host`, `platform`, `tools`,
+and `pin`.
+
+- `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
+- `module`: compares the `rules_dx` version in `MODULE.bazel` with the `dx` version.
+- `host`: checks the machine is a v1 execution platform. This is not native qualification.
+- `platform`: names the execution platforms tools resolve for. The target
+  platform never selects tools.
+- `tools`: always `warn`. Pinned tools resolve at build time, so status
+  does not probe them.
+- `pin`: compares `.dx/version` with the `MODULE.bazel` pin.
+
+`ok` passes. `warn` means unknown and does not fail. `error` fails, and
+the hint is the fix, for example `dx upgrade --from <version> --to <version>`.
+Detail text starts with `available:`, `unavailable:`, `unknown:`, or
+`not applicable:`. Unknown is never healthy.
 
 After the checks, text output prints one `capability <name>` line per
 command, then `capability workspace:tools`.

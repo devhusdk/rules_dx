@@ -399,7 +399,7 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     scratch.close().expect("cleanup");
 }
 
-const SAMPLE_MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\n";
+const SAMPLE_MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 fn dx_binary() -> std::path::PathBuf {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");

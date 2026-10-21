@@ -2711,116 +2711,37 @@ pub fn npm_write_npmrc(host: &str, token: &str) -> io::Result<std::path::PathBuf
     Ok(path)
 }
 
-fn json_string_field(body: &str, key: &str) -> Option<String> {
-    let needle = format!("\"{key}\"");
-    let start = body.find(&needle)?;
-    let rest = &body[start + needle.len()..];
-    let colon = rest.find(':')?;
-    let mut value = rest[colon + 1..].trim_start();
-    if !value.starts_with('"') {
-        return None;
-    }
-    value = &value[1..];
-    let mut out = String::new();
-    let mut chars = value.chars();
-    while let Some(c) = chars.next() {
-        if c == '"' {
-            return Some(out);
-        }
-        if c == '\\' {
-            if let Some(next) = chars.next() {
-                match next {
-                    '"' => out.push('"'),
-                    '\\' => out.push('\\'),
-                    'n' => out.push('\n'),
-                    'r' => out.push('\r'),
-                    't' => out.push('\t'),
-                    _ => {
-                        out.push('\\');
-                        out.push(next);
-                    }
-                }
-            }
-        } else {
-            out.push(c);
-        }
-    }
-    None
+#[derive(Debug, serde::Deserialize)]
+struct NpmFeed {
+    name: String,
+    tag: String,
+    registry: String,
+    #[allow(dead_code)]
+    tarball: String,
+    sha256: String,
+    files: Vec<String>,
 }
 
-fn json_files_field(body: &str) -> Option<Vec<String>> {
-    let needle = "\"files\"";
-    let start = body.find(needle)?;
-    let rest = &body[start + needle.len()..];
-    let open = rest.find('[')?;
-    let after = &rest[open + 1..];
-    let close = after.find(']')?;
-    let inner = &after[..close];
-    let mut out = Vec::new();
-    let mut in_string = false;
-    let mut escaped = false;
-    let mut current = String::new();
-    for c in inner.chars() {
-        if in_string {
-            if escaped {
-                match c {
-                    '"' => current.push('"'),
-                    '\\' => current.push('\\'),
-                    'n' => current.push('\n'),
-                    'r' => current.push('\r'),
-                    't' => current.push('\t'),
-                    _ => {
-                        current.push('\\');
-                        current.push(c);
-                    }
-                }
-                escaped = false;
-            } else if c == '\\' {
-                escaped = true;
-            } else if c == '"' {
-                in_string = false;
-                out.push(std::mem::take(&mut current));
-            } else {
-                current.push(c);
-            }
-        } else if c == '"' {
-            in_string = true;
-        }
-    }
-    Some(out)
+fn parse_npm_feed(body: &str) -> io::Result<NpmFeed> {
+    serde_json::from_str(body).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("feed JSON is invalid: {error}"),
+        )
+    })
 }
 
 /// Verifies one npm pack pair.
 pub fn npm_verify_pack(tgz_path: &Path, feed_path: &Path) -> io::Result<(String, String, String)> {
     let body = std::fs::read_to_string(feed_path)?;
-    let name = json_string_field(&body, "name")
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "feed JSON is missing 'name'"))?;
-    let tag = json_string_field(&body, "tag")
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "feed JSON is missing 'tag'"))?;
-    let registry = json_string_field(&body, "registry").ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            "feed JSON is missing 'registry'",
-        )
-    })?;
-    let _tarball = json_string_field(&body, "tarball").ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidData, "feed JSON is missing 'tarball'")
-    })?;
-    let expected = json_string_field(&body, "sha256").ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidData, "feed JSON is missing 'sha256'")
-    })?;
-    let files = json_files_field(&body).ok_or_else(|| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            "feed JSON 'files' must be a list",
-        )
-    })?;
-    if !body.contains("\"files\"") {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "feed JSON is missing 'files'",
-        ));
-    }
+    let NpmFeed {
+        name,
+        tag,
+        registry,
+        sha256: expected,
+        files,
+        ..
+    } = parse_npm_feed(&body)?;
     let actual = dx_digest::sha256_file_hex(tgz_path)?;
     if expected != actual {
         return Err(io::Error::new(
@@ -3055,6 +2976,7 @@ mod tests {
         if std::env::var_os(ENV_CHILD).is_some() {
             return false;
         }
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let mut before: Vec<_> = std::env::vars_os().collect();
         before.sort();
         let run = std::process::Command::new(std::env::current_exe().expect("test binary"))
@@ -3082,6 +3004,7 @@ mod tests {
                 panic!("child panics inside a mutated environment")
             });
         }
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let mut before: Vec<_> = std::env::vars_os().collect();
         before.sort();
         let run = std::process::Command::new(std::env::current_exe().expect("test binary"))
@@ -4317,21 +4240,45 @@ mod tests {
     }
 
     #[test]
-    fn json_field_helpers_read_escaped_values() {
-        let body = r#"{"name": "a\"b\\c\nd", "files": ["x", "y\\z", "w\"q"]}"#;
+    fn npm_feed_parser_reads_escapes_brackets_and_unicode() {
+        let body = r#"{ "tarball":"a.tgz", "tag":"t", "sha256":"d", "registry":"r",
+            "name": "a\"b\\c\nd", "extra": [1, {"x": "]"}],
+            "files": ["package/[id].js", "package/]x[.js", "y\\z", "w\"q", "\u00e6\u0041", "æ"] }"#;
+        let feed = parse_npm_feed(body).expect("feed");
+        assert_eq!(feed.name, "a\"b\\c\nd");
         assert_eq!(
-            json_string_field(body, "name").as_deref(),
-            Some("a\"b\\c\nd")
+            feed.files,
+            [
+                "package/[id].js",
+                "package/]x[.js",
+                "y\\z",
+                "w\"q",
+                "\u{e6}A",
+                "\u{e6}"
+            ]
         );
-        assert_eq!(json_string_field(body, "missing"), None, "absent key");
-        assert_eq!(json_string_field("{\"name\": ", "name"), None);
-        assert_eq!(json_string_field("{\"name\": 7}", "name"), None);
-        assert_eq!(
-            json_files_field(body),
-            Some(vec!["x".to_owned(), "y\\z".to_owned(), "w\"q".to_owned()])
-        );
-        assert_eq!(json_files_field("{}"), None);
-        assert_eq!(json_files_field(r#"{"files": 7}"#), None);
+    }
+
+    #[test]
+    fn npm_feed_parser_rejects_bad_documents() {
+        let good = r#"{"files": [], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a.tgz"}"#;
+        parse_npm_feed(good).expect("good");
+        let bad = [
+            "",
+            "[]",
+            r#"{"name": "#,
+            r#"{"files": ["a"#,
+            r#"{"files": [], "name": "n", "registry": "r", "sha256": "d", "tag": "t"}"#,
+            r#"{"files": 7, "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
+            r#"{"files": [1], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
+            r#"{"files": [], "name": 7, "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
+            r#"{"files": [], "name": "n", "name": "m", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
+            r#"{"files": [], "files": ["x"], "name": "n", "registry": "r", "sha256": "d", "tag": "t", "tarball": "a"}"#,
+        ];
+        for body in bad {
+            let error = parse_npm_feed(body).expect_err(body);
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{body}");
+        }
     }
 
     #[test]
@@ -5415,23 +5362,44 @@ mod tests {
     }
 
     #[test]
-    fn feed_decoders_agree_on_every_json_escape() {
-        let escaped = ["\\\"", "\\\\", "\\n", "\\r", "\\t", "\\u0041"];
-        for escape in escaped {
-            let scalar = format!("{{\"value\": \"a{escape}b\"}}");
-            let array = format!("{{\"files\": [\"a{escape}b\"]}}");
-            let from_scalar = json_string_field(&scalar, "value").expect("scalar");
-            let from_array = json_files_field(&array).expect("array");
-            assert_eq!(
-                from_array,
-                vec![from_scalar.clone()],
-                "decoders disagree on {escape}"
-            );
-        }
-        assert_eq!(
-            json_string_field(r#"{"value": "unterminated}"#, "value"),
-            None
-        );
+    fn npm_bracketed_filename_round_trips_through_verify() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("[id].js");
+        std::fs::write(&src, b"module.exports = 1;\n").expect("write src");
+        let manifest = scratch.path().join("package.json");
+        std::fs::write(
+            &manifest,
+            b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n",
+        )
+        .expect("write manifest");
+        let tgz = scratch.path().join("npm_demo.tgz");
+        let feed = scratch.path().join("npm_demo.feed.json");
+        npm_create_pack(
+            "npm-demo",
+            "latest",
+            "https://registry.npmjs.org",
+            &tgz,
+            &feed,
+            &[manifest, src],
+        )
+        .expect("pack");
+        let (name, _, _) = npm_verify_pack(&tgz, &feed).expect("verify");
+        assert_eq!(name, "npm-demo");
+        let members = npm_tar_members(&tgz).expect("members");
+        assert_eq!(members, ["package/[id].js", "package/package.json"]);
+
+        let body = std::fs::read_to_string(&feed).expect("read feed");
+        let reordered = scratch.path().join("reordered.feed.json");
+        let parsed: serde_json::Value = serde_json::from_str(&body).expect("json");
+        std::fs::write(&reordered, serde_json::to_string(&parsed).expect("compact"))
+            .expect("write");
+        npm_verify_pack(&tgz, &reordered).expect("whitespace does not matter");
+
+        let tampered = scratch.path().join("tampered.feed.json");
+        std::fs::write(&tampered, body.replace("package/[id].js", "package/[x].js"))
+            .expect("write");
+        let error = npm_verify_pack(&tgz, &tampered).expect_err("member mismatch");
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
     }
 
     #[test]
@@ -5524,13 +5492,15 @@ mod tests {
         let src = runfiles.join("package.json");
         std::fs::write(&src, b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\"}\n")
             .expect("write src");
+        let bracketed = runfiles.join("[id].js");
+        std::fs::write(&bracketed, b"module.exports = 1;\n").expect("write bracketed");
         npm_create_pack(
             "npm-demo",
             "latest",
             "https://registry.npmjs.org",
             &tgz,
             &feed,
-            std::slice::from_ref(&src),
+            &[src, bracketed],
         )
         .expect("pack");
         let outdir = tempfile_stage_dir("dx-deploy-npm-").expect("outdir");
@@ -5555,6 +5525,9 @@ mod tests {
             .join("npm_demo-feed")
             .join("npm_demo.feed.json")
             .is_file());
+        assert!(npm_tar_members(&outdir.join("npm_demo.tgz"))
+            .expect("members")
+            .contains(&"package/[id].js".to_owned()));
         std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 

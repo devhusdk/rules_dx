@@ -201,7 +201,7 @@ pub(super) fn live_unsupported_go_selective_fails_without_launch() {
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("unsupported"), "{err}");
-    assert!(err.contains("dx bump gomod"), "{err}");
+    assert!(err.contains("dx bump go:"), "{err}");
     assert!(runner.calls.borrow().is_empty());
 }
 

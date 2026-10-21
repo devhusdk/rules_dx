@@ -253,7 +253,7 @@ fn widen_preserves_comments_crlf_and_package_boundaries() {
 #[test]
 fn workflow_widen_requires_one_nonempty_pin() {
     let sha = "a".repeat(40);
-    let bump = BumpRequest::parse("gha:actions/checkout", &sha).expect("request");
+    let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("request");
     assert_eq!(bump.target_manifest(), ".github/workflows");
     assert!(matches!(
         bump.plan_edit("steps: []\n"),
@@ -333,11 +333,9 @@ fn parses_single_requirement_shapes() {
 }
 
 #[test]
-fn aliases_resolve_to_canonical_sets() {
-    let bump = BumpRequest::parse("gomod:example.com/mod", "1.2.3").expect("gomod");
-    assert_eq!(bump.set, BumpSet::Go);
-    let bump = BumpRequest::parse("gha:actions/checkout", "v4").expect("gha");
-    assert_eq!(bump.set, BumpSet::GithubActions);
+fn removed_aliases_fail_closed() {
+    assert!(BumpRequest::parse("gomod:example.com/mod", "1.2.3").is_err());
+    assert!(BumpRequest::parse("gha:actions/checkout", "v4").is_err());
 }
 
 #[test]
@@ -867,7 +865,7 @@ fn commit_response_resolves_sha_or_fails_closed() {
 #[test]
 fn plan_outcome_distinguishes_changed_from_unchanged() {
     let sha = "a".repeat(40);
-    let bump = BumpRequest::parse("gha:actions/checkout", &sha).expect("request");
+    let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("request");
     assert!(matches!(
         bump.plan_edit_outcome("- uses: actions/checkout@v1\n").expect("changed"),
         BumpPlanOutcome::Changed(widened) if widened.contains(&sha)

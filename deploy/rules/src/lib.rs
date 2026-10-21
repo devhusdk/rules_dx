@@ -770,6 +770,88 @@ pub fn nuget_main(
     }
 }
 
+/// Maps crate input files to package-relative paths under the Cargo.toml directory.
+pub fn crates_package_paths(
+    crate_files: &[std::path::PathBuf],
+) -> io::Result<Vec<(std::path::PathBuf, String)>> {
+    let bad = |message: String| io::Error::new(io::ErrorKind::InvalidInput, message);
+    if crate_files.is_empty() {
+        return Err(bad(
+            "crates vendor: need at least one crate source file".to_owned()
+        ));
+    }
+    let mut manifests: Vec<&std::path::PathBuf> = crate_files
+        .iter()
+        .filter(|src| src.file_name().and_then(|name| name.to_str()) == Some("Cargo.toml"))
+        .collect();
+    manifests.sort_by_key(|src| src.components().count());
+    let Some(first) = manifests.first() else {
+        return Err(bad(
+            "crates vendor: no Cargo.toml among the crate source files".to_owned(),
+        ));
+    };
+    if let Some(second) = manifests.get(1) {
+        if second.components().count() == first.components().count() {
+            return Err(bad(format!(
+                "crates vendor: ambiguous package root, found '{}' and '{}'",
+                first.display(),
+                second.display()
+            )));
+        }
+    }
+    let root = first.parent().unwrap_or_else(|| Path::new(""));
+    let mut mapped: Vec<(std::path::PathBuf, String)> = Vec::new();
+    for src in crate_files {
+        let rel = src.strip_prefix(root).map_err(|_| {
+            bad(format!(
+                "crates vendor: '{}' is outside the package root '{}'",
+                src.display(),
+                root.display()
+            ))
+        })?;
+        let mut parts: Vec<&str> = Vec::new();
+        for component in rel.components() {
+            match component {
+                std::path::Component::Normal(part) => match part.to_str() {
+                    Some(part) if !part.is_empty() => parts.push(part),
+                    _ => {
+                        return Err(bad(format!(
+                            "crates vendor: non-UTF-8 path '{}'",
+                            src.display()
+                        )))
+                    }
+                },
+                _ => {
+                    return Err(bad(format!(
+                        "crates vendor: unsafe package path '{}'",
+                        rel.display()
+                    )))
+                }
+            }
+        }
+        if parts.is_empty() {
+            return Err(bad(format!(
+                "crates vendor: empty package path for '{}'",
+                src.display()
+            )));
+        }
+        mapped.push((src.clone(), parts.join("/")));
+    }
+    mapped.sort_by(|left, right| left.1.cmp(&right.1));
+    for pair in mapped.windows(2) {
+        let (left, right) = (&pair[0].1, &pair[1].1);
+        if left == right {
+            return Err(bad(format!("crates vendor: path collision on '{left}'")));
+        }
+        if right.starts_with(&format!("{left}/")) {
+            return Err(bad(format!(
+                "crates vendor: '{left}' is both a file and a directory"
+            )));
+        }
+    }
+    Ok(mapped)
+}
+
 /// Builds one crates vendor tree.
 pub fn crates_build_vendor(
     crate_files: &[std::path::PathBuf],
@@ -777,41 +859,20 @@ pub fn crates_build_vendor(
     crate_name: &str,
     version: &str,
 ) -> io::Result<std::path::PathBuf> {
-    if crate_files.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "crates vendor: need at least one crate source file",
-        ));
-    }
-    let mut seen = std::collections::HashSet::new();
-    for src in crate_files {
-        let base = basename(src)?;
-        if base.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("crates vendor: empty basename for '{}'", src.display()),
-            ));
-        }
-        if !seen.insert(base.clone()) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("crates vendor: duplicate basename '{base}' (keep basenames unique)"),
-            ));
-        }
-    }
+    let mapped = crates_package_paths(crate_files)?;
     let house = outdir.join(crate_name.to_owned() + "-vendor");
     let vendor_dir = house.join("vendor").join(crate_name);
     let registry_dir = house.join("registry").join(crate_name).join(version);
     std::fs::create_dir_all(&vendor_dir)?;
     std::fs::create_dir_all(&registry_dir)?;
-    let mut sorted: Vec<&std::path::PathBuf> = crate_files.iter().collect();
-    sorted.sort();
     let mut entries: Vec<(String, String)> = Vec::new();
-    for src in sorted {
-        let base = basename(src)?;
+    for (src, base) in &mapped {
         let want = dx_digest::sha256_file_hex(src)?;
         for dest_dir in [&vendor_dir, &registry_dir] {
-            let dest = dest_dir.join(&base);
+            let dest = dest_dir.join(base);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
             std::fs::copy(src, &dest)?;
             let got = dx_digest::sha256_file_hex(&dest)?;
             if want != got {
@@ -823,7 +884,7 @@ pub fn crates_build_vendor(
                 ));
             }
         }
-        entries.push((base, want));
+        entries.push((base.clone(), want));
     }
     entries.sort();
     let package_digest = dx_digest::sha256_hex(
@@ -940,13 +1001,22 @@ pub fn crates_main(
                 return 1;
             }
         };
-        for src in &files {
-            if let Ok(base) = basename(src) {
-                let dest = staging.join(&base);
-                if std::fs::copy(src, &dest).is_err() {
-                    eprintln!("crates_deploy: cannot stage {}", src.display());
-                    return 1;
-                }
+        let mapped = match crates_package_paths(&files) {
+            Ok(mapped) => mapped,
+            Err(error) => {
+                eprintln!("crates_deploy: {error}");
+                return 1;
+            }
+        };
+        for (src, rel) in &mapped {
+            let dest = staging.join(rel);
+            let staged = dest
+                .parent()
+                .map_or(Ok(()), std::fs::create_dir_all)
+                .and_then(|()| std::fs::copy(src, &dest).map(|_| ()));
+            if staged.is_err() {
+                eprintln!("crates_deploy: cannot stage {}", src.display());
+                return 1;
             }
         }
         let manifest = staging.join("Cargo.toml");
@@ -3071,6 +3141,163 @@ mod tests {
             "{index}"
         );
         assert!(crates_build_vendor(&[], &outdir, "crates_demo", "0.0.0").is_err());
+    }
+
+    fn write_crate_file(root: &Path, rel: &str, body: &str) -> std::path::PathBuf {
+        let path = root.join(rel);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dirs");
+        std::fs::write(&path, body).expect("write");
+        path
+    }
+
+    fn nested_crate(root: &Path) -> Vec<std::path::PathBuf> {
+        vec![
+            write_crate_file(
+                root,
+                "Cargo.toml",
+                "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
+            ),
+            write_crate_file(root, "src/lib.rs", "pub mod parser;\npub mod lexer;\n"),
+            write_crate_file(root, "src/parser/mod.rs", "pub fn parse() -> u8 { 1 }\n"),
+            write_crate_file(root, "src/lexer/mod.rs", "pub fn lex() -> u8 { 2 }\n"),
+        ]
+    }
+
+    #[test]
+    fn crates_vendor_preserves_package_paths() {
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let outdir = scratch.path().join("out");
+        let house = crates_build_vendor(&files, &outdir, "crates_demo", "0.0.0").expect("vendor");
+        for base in [
+            house.join("vendor/crates_demo"),
+            house.join("registry/crates_demo/0.0.0"),
+        ] {
+            for rel in [
+                "Cargo.toml",
+                "src/lib.rs",
+                "src/parser/mod.rs",
+                "src/lexer/mod.rs",
+            ] {
+                assert!(base.join(rel).is_file(), "{}", base.join(rel).display());
+            }
+        }
+        let checksum =
+            std::fs::read_to_string(house.join("vendor/crates_demo/.cargo-checksum.json"))
+                .expect("checksum");
+        assert!(checksum.contains("\"src/parser/mod.rs\""), "{checksum}");
+        assert!(checksum.contains("\"src/lexer/mod.rs\""), "{checksum}");
+    }
+
+    #[test]
+    fn crates_vendor_keeps_explicit_manifest_paths() {
+        let scratch = scratch_dir();
+        let root = scratch.path().join("in");
+        let files = vec![
+            write_crate_file(
+                &root,
+                "Cargo.toml",
+                "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\n[lib]\npath = \"custom/entry.rs\"\n",
+            ),
+            write_crate_file(&root, "custom/entry.rs", "pub fn hello() {}\n"),
+        ];
+        let house =
+            crates_build_vendor(&files, &scratch.path().join("out"), "crates_demo", "0.0.0")
+                .expect("vendor");
+        assert!(house.join("vendor/crates_demo/custom/entry.rs").is_file());
+    }
+
+    #[test]
+    fn crates_package_paths_reject_collisions_and_escapes() {
+        let scratch = scratch_dir();
+        let root = scratch.path().join("in");
+        let manifest = write_crate_file(&root, "Cargo.toml", "[package]\n");
+        let outside = write_crate_file(scratch.path(), "other/lib.rs", "");
+        let error = crates_package_paths(&[manifest.clone(), outside]).expect_err("outside");
+        assert!(
+            error.to_string().contains("outside the package root"),
+            "{error}"
+        );
+        let dotdot = root.join("src/../lib.rs");
+        write_crate_file(&root, "lib.rs", "");
+        let error = crates_package_paths(&[manifest.clone(), dotdot]).expect_err("dotdot");
+        assert!(error.to_string().contains("unsafe package path"), "{error}");
+        let error =
+            crates_package_paths(&[manifest.clone(), root.join("lib.rs"), root.join("lib.rs")])
+                .expect_err("dup");
+        assert!(error.to_string().contains("path collision"), "{error}");
+        let file = write_crate_file(&root, "src", "");
+        let nested = write_crate_file(&root, "src_dir/x.rs", "");
+        assert!(crates_package_paths(&[manifest.clone(), file, nested]).is_ok());
+        let file = root.join("src");
+        let child = root.join("src/lib.rs");
+        let error = crates_package_paths(&[manifest.clone(), file, child]).expect_err("file+dir");
+        assert!(
+            error.to_string().contains("both a file and a directory"),
+            "{error}"
+        );
+        let error = crates_package_paths(&[write_crate_file(&root, "lib.rs", "")])
+            .expect_err("no manifest");
+        assert!(error.to_string().contains("no Cargo.toml"), "{error}");
+        let error = crates_package_paths(&[
+            write_crate_file(&root, "a/Cargo.toml", ""),
+            write_crate_file(&root, "b/Cargo.toml", ""),
+        ])
+        .expect_err("ambiguous");
+        assert!(
+            error.to_string().contains("ambiguous package root"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn crates_vendor_builds_with_cargo_consumer() {
+        let Ok(probe) = std::process::Command::new("cargo")
+            .arg("--version")
+            .output()
+        else {
+            return;
+        };
+        if !probe.status.success() {
+            return;
+        }
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let house =
+            crates_build_vendor(&files, &scratch.path().join("out"), "crates_demo", "0.0.0")
+                .expect("vendor");
+        let consumer = scratch.path().join("consumer");
+        write_crate_file(
+            &consumer,
+            "Cargo.toml",
+            "[package]\nname = \"consumer\"\nversion = \"0.0.0\"\nedition = \"2021\"\n[dependencies]\ncrates_demo = \"0.0.0\"\n",
+        );
+        write_crate_file(
+            &consumer,
+            "src/main.rs",
+            "fn main() { println!(\"{}\", crates_demo::parser::parse() + crates_demo::lexer::lex()); }\n",
+        );
+        write_crate_file(
+            &consumer,
+            ".cargo/config.toml",
+            &format!(
+                "[source.crates-io]\nreplace-with = \"vendored\"\n[source.vendored]\ndirectory = \"{}\"\n",
+                house.join("vendor").display().to_string().replace('\\', "/")
+            ),
+        );
+        let output = std::process::Command::new("cargo")
+            .args(["run", "--offline", "--quiet"])
+            .current_dir(&consumer)
+            .env("CARGO_TARGET_DIR", scratch.path().join("target"))
+            .env("CARGO_HOME", scratch.path().join("cargo_home"))
+            .output()
+            .expect("cargo run");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "3");
     }
 
     #[test]

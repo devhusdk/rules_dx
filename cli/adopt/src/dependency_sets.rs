@@ -198,6 +198,8 @@ struct DxToml {
     #[serde(default)]
     hooks: Option<toml::Value>,
     #[serde(default)]
+    quality: Option<QualityTable>,
+    #[serde(default)]
     workspace: Option<toml::Value>,
     #[serde(default)]
     output: Option<toml::Value>,
@@ -211,6 +213,14 @@ struct DxToml {
     dry_run: Option<toml::Value>,
     #[serde(default, alias = "fail-on")]
     fail_on: Option<toml::Value>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct QualityTable {
+    #[serde(default)]
+    #[allow(dead_code)]
+    baseline: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -255,7 +265,18 @@ pub fn parse(text: &str, rel: &str) -> Result<Option<Registry>, DependencySetsEr
             rel: rel.to_owned(),
             detail: error.to_string(),
         })?;
+    let has_defaults = document.dx.is_some()
+        || document.hooks.is_some()
+        || document.quality.is_some()
+        || document.workspace.is_some()
+        || document.output.is_some()
+        || document.verbose.is_some()
+        || document.color.is_some()
+        || document.quiet.is_some()
+        || document.dry_run.is_some()
+        || document.fail_on.is_some();
     match document.schema_version {
+        None if document.dependency_set.is_empty() && has_defaults => return Ok(None),
         None => {
             return Err(DependencySetsError::MissingSchema {
                 rel: rel.to_owned(),
@@ -270,16 +291,7 @@ pub fn parse(text: &str, rel: &str) -> Result<Option<Registry>, DependencySetsEr
         Some(_) => {}
     }
     if document.dependency_set.is_empty() {
-        if document.dx.is_some()
-            || document.hooks.is_some()
-            || document.workspace.is_some()
-            || document.output.is_some()
-            || document.verbose.is_some()
-            || document.color.is_some()
-            || document.quiet.is_some()
-            || document.dry_run.is_some()
-            || document.fail_on.is_some()
-        {
+        if has_defaults {
             return Ok(None);
         }
         return Err(DependencySetsError::NoSets {
@@ -796,6 +808,44 @@ scopes = ["services/worker"]
             .expect("top-level order parses")
             .is_none();
         assert!(registry, "key order never matters");
+    }
+
+    #[test]
+    fn shared_sections_coexist_with_sets_in_any_order() {
+        let rel = DX_TOML_REL;
+        let set = "[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
+        let quality = "[quality]\nbaseline = \"q.json\"\n";
+        let defaults = "[dx]\noutput = \"json\"\n";
+        for text in [
+            format!("schema_version = 1\n{set}{quality}{defaults}"),
+            format!("schema_version = 1\n{defaults}{set}{quality}"),
+        ] {
+            assert!(parse(&text, rel).expect("parses").is_some());
+        }
+        assert!(parse(&format!("{quality}{defaults}"), rel)
+            .expect("defaults only")
+            .is_none());
+        assert!(parse(
+            "schema_version = 1\n[quality]\nbaseline = \"q.json\"\n",
+            rel
+        )
+        .expect("quality only")
+        .is_none());
+        assert!(matches!(
+            parse(&format!("{quality}{set}"), rel),
+            Err(DependencySetsError::MissingSchema { .. })
+        ));
+        assert!(matches!(
+            parse(
+                "schema_version = 2\n[quality]\nbaseline = \"q.json\"\n",
+                rel
+            ),
+            Err(DependencySetsError::UnsupportedSchema { version: 2, .. })
+        ));
+        assert!(matches!(
+            parse("[quality]\nbaselnie = \"q.json\"\n", rel),
+            Err(DependencySetsError::InvalidToml { .. })
+        ));
     }
 
     #[test]

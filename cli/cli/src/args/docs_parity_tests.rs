@@ -2002,16 +2002,15 @@ fn every_env_default_names_a_real_global_flag() {
 }
 
 #[test]
-fn config_file_keys_are_the_underscore_spellings_the_parser_reads() {
-    let text = "[dx]\nworkspace = \"/w\"\ncolor = \"never\"\nfail_on = \"error\"\n";
+fn config_file_keys_are_the_hyphen_spellings_the_parser_reads() {
+    let text = "[dx]\nworkspace = \"/w\"\ncolor = \"never\"\nfail-on = \"error\"\n";
     let parsed = dx_adopt::defaults::parse_file_text(text).expect("keys parse");
     assert_eq!(parsed.workspace, Some("/w".to_owned()));
     assert_eq!(parsed.color, Some("never".to_owned()));
     assert_eq!(parsed.fail_on, Some("error".to_owned()));
     for (env, _, _) in dx_adopt::defaults::ENV_DEFAULTS {
         let key = dx_adopt::defaults::config_key(env).expect("every default has a key");
-        let spelled = key.replace('-', "_");
-        let body = format!("[dx]\n{spelled} = {}\n", literal_for(&key));
+        let body = format!("[dx]\n{key} = {}\n", literal_for(&key));
         dx_adopt::defaults::parse_file_text(&body)
             .unwrap_or_else(|error| panic!("docs promise {key} works in a config file: {error}"));
     }
@@ -2066,20 +2065,9 @@ fn config_file_section_names_the_keys_and_files_the_parser_reads() {
         dx_adopt::defaults::parse_file_text(&hyphenated).unwrap_or_else(|error| {
             panic!("the Config File section spells {key} a way the parser rejects: {error}")
         });
-        let underscored = key.replace('-', "_");
-        if underscored != key {
-            assert!(
-                body.contains(&format!("`{underscored}`")),
-                "the Config File section never names the {underscored} spelling of {key}"
-            );
-            dx_adopt::defaults::parse_file_text(&format!("[dx]\n{underscored} = {literal}\n"))
-                .unwrap_or_else(|error| {
-                    panic!("the Config File section promises {underscored}: {error}")
-                });
-        }
     }
     for claim in [
-        "`[dx]` wins",
+        "live only under `[dx]`",
         "boolean key takes",
         "`true` or `false`",
         "the `.toml` one wins",

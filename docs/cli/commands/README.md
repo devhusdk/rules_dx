@@ -168,11 +168,13 @@ output = "json"
 fail-on = "error"
 ```
 
-`fail_on` also works. Values are TOML, so a boolean key takes
-`true` or `false`. An empty value is unset.
+Values are TOML, so a boolean key takes `true` or `false`. An empty value is
+unset. Defaults live only under `[dx]` with the hyphenated flag names. A
+top-level default, `fail_on`, or `dry-run` in either spelling is a usage error.
 An unknown key is a usage error that names the key and the keys it accepts.
+Other supported sections in the same file stay valid.
 
-Keys go under `[dx]` or at the top level, and `[dx]` wins. Commit shared
+Commit shared
 defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local
 beats committed. When a directory holds both `.dx/config.toml` and
 `.dx/config`, the `.toml` one wins. A legacy file with a new file present is

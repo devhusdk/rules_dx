@@ -70,6 +70,14 @@ pub fn parse_bool(value: &str) -> Option<bool> {
 }
 
 const REMOVED_DRY_RUN_DEFAULT: &str = "dry_run was removed; delete it from the config file";
+const DX_KEYS: [&str; 6] = [
+    "workspace",
+    "output",
+    "verbose",
+    "color",
+    "quiet",
+    "fail-on",
+];
 
 /// Refuse the removed `DX_DRY_RUN` environment default whatever its value.
 pub fn reject_removed_env(get: &dyn Fn(&str) -> Option<String>) -> Result<(), super::AdoptError> {
@@ -137,9 +145,7 @@ struct DxTable {
     color: Option<String>,
     #[serde(default)]
     quiet: Option<bool>,
-    #[serde(default, alias = "dry-run")]
-    dry_run: Option<toml::Value>,
-    #[serde(default, alias = "fail-on")]
+    #[serde(default, rename = "fail-on")]
     fail_on: Option<String>,
 }
 
@@ -155,20 +161,6 @@ struct QualityTable {
 struct ConfigFile {
     #[serde(default)]
     dx: Option<DxTable>,
-    #[serde(default)]
-    workspace: Option<String>,
-    #[serde(default)]
-    output: Option<String>,
-    #[serde(default)]
-    verbose: Option<bool>,
-    #[serde(default)]
-    color: Option<String>,
-    #[serde(default)]
-    quiet: Option<bool>,
-    #[serde(default, alias = "dry-run")]
-    dry_run: Option<toml::Value>,
-    #[serde(default, alias = "fail-on")]
-    fail_on: Option<String>,
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
@@ -190,26 +182,58 @@ fn non_empty(value: Option<String>) -> Option<String> {
     value.filter(|text| !text.is_empty())
 }
 
+fn reject_obsolete_keys(text: &str) -> Result<(), super::AdoptError> {
+    let Ok(root) = text.parse::<toml::Table>() else {
+        return Ok(());
+    };
+    let invalid = |detail: String| super::AdoptError::InvalidDefaults { detail };
+    for key in ["dry_run", "dry-run"] {
+        let in_dx = root
+            .get("dx")
+            .and_then(toml::Value::as_table)
+            .is_some_and(|table| table.contains_key(key));
+        if in_dx || root.contains_key(key) {
+            return Err(invalid(REMOVED_DRY_RUN_DEFAULT.to_owned()));
+        }
+    }
+    for key in DX_KEYS {
+        if root.contains_key(key) {
+            return Err(invalid(format!(
+                "top-level {key} is not supported; set it under [dx]"
+            )));
+        }
+    }
+    if root.contains_key("fail_on") {
+        return Err(invalid(
+            "top-level fail_on is not supported; set fail-on under [dx]".to_owned(),
+        ));
+    }
+    if root
+        .get("dx")
+        .and_then(toml::Value::as_table)
+        .is_some_and(|table| table.contains_key("fail_on"))
+    {
+        return Err(invalid("fail_on is not supported; use fail-on".to_owned()));
+    }
+    Ok(())
+}
+
 pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
+    reject_obsolete_keys(text)?;
     let parsed: ConfigFile =
         toml::from_str(text).map_err(|e| super::AdoptError::InvalidDefaults {
             detail: e.to_string(),
         })?;
     check_consumer_schema(parsed.schema_version)?;
     let table = parsed.dx.unwrap_or_default();
-    if table.dry_run.is_some() || parsed.dry_run.is_some() {
-        return Err(super::AdoptError::InvalidDefaults {
-            detail: REMOVED_DRY_RUN_DEFAULT.to_owned(),
-        });
-    }
     let baseline = check_quality_baseline(parsed.quality.map(|quality| quality.baseline))?;
     Ok(FileDefaults {
-        workspace: non_empty(table.workspace.or(parsed.workspace)),
-        output: non_empty(table.output.or(parsed.output)),
-        verbose: table.verbose.or(parsed.verbose),
-        color: non_empty(table.color.or(parsed.color)),
-        quiet: table.quiet.or(parsed.quiet),
-        fail_on: non_empty(table.fail_on.or(parsed.fail_on)),
+        workspace: non_empty(table.workspace),
+        output: non_empty(table.output),
+        verbose: table.verbose,
+        color: non_empty(table.color),
+        quiet: table.quiet,
+        fail_on: non_empty(table.fail_on),
         baseline,
     })
 }
@@ -543,9 +567,9 @@ mod tests {
     }
 
     #[test]
-    fn file_parses_dx_table_with_top_level_alias() {
+    fn file_parses_dx_table() {
         let parsed = parse_file_text(
-            "[dx]\nworkspace = \"/repo\"\noutput = \"json\"\nverbose = true\ncolor = \"never\"\nquiet = false\nfail_on = \"error\"\n",
+            "[dx]\nworkspace = \"/repo\"\noutput = \"json\"\nverbose = true\ncolor = \"never\"\nquiet = false\nfail-on = \"error\"\n",
         )
         .expect("dx table parses");
         assert_eq!(parsed.workspace, Some("/repo".to_owned()));
@@ -554,15 +578,15 @@ mod tests {
         assert_eq!(parsed.color, Some("never".to_owned()));
         assert_eq!(parsed.quiet, Some(false));
         assert_eq!(parsed.fail_on, Some("error".to_owned()));
-        let top = parse_file_text("workspace = \"/top\"\nverbose = true\n").expect("top parses");
-        assert_eq!(top.workspace, Some("/top".to_owned()));
-        assert_eq!(top.verbose, Some(true));
-        let both =
-            parse_file_text("output = \"text\"\n[dx]\noutput = \"json\"\n").expect("table wins");
-        assert_eq!(both.output, Some("json".to_owned()));
-        let both_color =
-            parse_file_text("color = \"never\"\n[dx]\ncolor = \"always\"\n").expect("table wins");
-        assert_eq!(both_color.color, Some("always".to_owned()));
+        for text in [
+            "workspace = \"/top\"\n",
+            "verbose = true\n",
+            "output = \"text\"\n[dx]\noutput = \"json\"\n",
+            "fail-on = \"error\"\n",
+        ] {
+            let error = parse_file_text(text).expect_err(text);
+            assert!(error.to_string().contains("[dx]"), "{text:?}: {error}");
+        }
         let empty = parse_file_text("").expect("empty parses");
         assert_eq!(empty, FileDefaults::default());
         assert!(parse_file_text("not toml = [").is_err());
@@ -574,7 +598,7 @@ mod tests {
         let parsed =
             parse_file_text("[dx]\n\"fail-on\" = \"info\"\n").expect("hyphen aliases parse");
         assert_eq!(parsed.fail_on, Some("info".to_owned()));
-        let parsed = parse_file_text("workspace = \"\"\noutput = \"\"\ncolor = \"\"\n")
+        let parsed = parse_file_text("[dx]\nworkspace = \"\"\noutput = \"\"\ncolor = \"\"\n")
             .expect("empty parses");
         assert_eq!(parsed.workspace, None);
         assert_eq!(parsed.output, None);
@@ -633,19 +657,17 @@ mod tests {
                 "--output" => "\"json\"",
                 _ => "\"/repo\"",
             };
-            let parsed = parse_file_text(&format!("[dx]\n{key} = {literal}\n"))
+            parse_file_text(&format!("[dx]\n{key} = {literal}\n"))
                 .unwrap_or_else(|error| panic!("{key} must stay a real key: {error}"));
             let underscored = key.replace('-', "_");
             if underscored != key {
-                parse_file_text(&format!("[dx]\n{underscored} = {literal}\n"))
-                    .unwrap_or_else(|error| panic!("{underscored} must stay an alias: {error}"));
+                let error = parse_file_text(&format!("[dx]\n{underscored} = {literal}\n"))
+                    .expect_err("underscore spelling is refused");
+                assert!(error.to_string().contains(key), "{error}");
             }
-            let top = parse_file_text(&format!("{key} = {literal}\n"))
-                .unwrap_or_else(|error| panic!("{key} at the top level: {error}"));
-            let both = parse_file_text(&format!("{key} = {literal}\n[dx]\n{key} = {literal}\n"))
-                .expect("both layers parse");
-            assert_eq!(parsed, both, "{key} in both layers");
-            assert_eq!(parsed, top, "{key} at the top level");
+            let error =
+                parse_file_text(&format!("{key} = {literal}\n")).expect_err("top level is refused");
+            assert!(error.to_string().contains("[dx]"), "{error}");
         }
     }
 
@@ -692,21 +714,14 @@ mod tests {
 
     #[test]
     fn file_boolean_keys_keep_the_documented_precedence_order() {
-        let both = parse_file_text("quiet = false\n[dx]\nquiet = false\n").expect("false parses");
+        let both = parse_file_text("[dx]\nquiet = false\n").expect("false parses");
         assert_eq!(
             both.quiet,
             Some(false),
             "an explicit false is not an absent value"
         );
-        let top_true = parse_file_text("verbose = true\n").expect("top true");
+        let top_true = parse_file_text("[dx]\nverbose = true\n").expect("verbose true");
         assert_eq!(top_true.verbose, Some(true));
-        assert!(
-            parse_file_text("quiet = false\n[dx]\nquiet = true\n")
-                .expect("both")
-                .quiet
-                == Some(true),
-            "[dx] wins over the top level"
-        );
     }
 
     #[test]

@@ -745,6 +745,55 @@ fn config_directed_workspace_loads_the_target_defaults_once() {
 }
 
 #[test]
+fn relative_config_redirects_resolve_once_against_the_start_directory() {
+    let outer = dx_test_scratch::scratch("dx-startup-once-");
+    let root = outer.path();
+    std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("outer");
+    let repo = root.join("repo");
+    std::fs::create_dir(&repo).expect("repo");
+    std::fs::write(repo.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(repo.join(".dx")).expect(".dx");
+    std::fs::write(repo.join(".dx/version"), "0.0.0\n").expect("pin");
+    std::fs::write(repo.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("repo");
+    let sub = repo.join("sub");
+    std::fs::create_dir(&sub).expect("sub");
+    std::fs::write(sub.join("dx.toml"), "[dx]\nworkspace = \"..\"\n").expect("sub");
+    let (code, out, err) = run_dx(&sub, &["status"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("command_started"), "repo json defaults: {out}");
+
+    let repo_dir = repo.to_string_lossy().into_owned();
+    std::fs::write(
+        sub.join("dx.toml"),
+        format!("[dx]\nworkspace = \"{repo_dir}\"\n"),
+    )
+    .expect("absolute");
+    let (code, out, err) = run_dx(&sub, &["status"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(out.contains("command_started"), "absolute redirect: {out}");
+
+    std::fs::write(sub.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("text");
+    std::fs::write(repo.join("dx.toml"), "[dx]\nworkspace = \"nested\"\n").expect("hop");
+    let nested = repo.join("nested");
+    std::fs::create_dir(&nested).expect("nested");
+    std::fs::write(nested.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::create_dir(nested.join(".dx")).expect(".dx");
+    std::fs::write(nested.join(".dx/version"), "0.0.0\n").expect("pin");
+    std::fs::write(
+        nested.join("dx.toml"),
+        "[dx]\noutput = \"json\"\nworkspace = \"..\"\n",
+    )
+    .expect("nested");
+    let (code, out, err) = run_dx(&repo, &["status"], &[]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(
+        out.contains("command_started"),
+        "a relative child redirect loads the child defaults, one hop only: {out}"
+    );
+    outer.close().expect("cleanup");
+}
+
+#[test]
 fn no_default_source_selects_apply() {
     for (env, _, _) in ENV_DEFAULTS {
         assert_ne!(env, "DX_APPLY", "no environment default may select apply");

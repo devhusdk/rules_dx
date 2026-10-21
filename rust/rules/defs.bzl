@@ -1,4 +1,4 @@
-"""Experimental minimal Rust wrappers."""
+"""Minimal Rust wrappers."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
@@ -83,7 +83,7 @@ def rust_library(
         edition = RUST_EDITION,
         visibility = None,
         **kwargs):
-    """Experimental minimal wrapper over rust_library."""
+    """Minimal wrapper over rust_library."""
     dx_wrap(
         name,
         _rust_library,
@@ -102,7 +102,7 @@ def rust_binary(
         edition = RUST_EDITION,
         visibility = None,
         **kwargs):
-    """Experimental minimal wrapper over rust_binary."""
+    """Minimal wrapper over rust_binary."""
     dx_wrap(
         name,
         _rust_binary,
@@ -121,7 +121,7 @@ def rust_test(
         edition = RUST_EDITION,
         visibility = None,
         **kwargs):
-    """Experimental minimal wrapper over rust_test."""
+    """Minimal wrapper over rust_test."""
     upstream_kwargs = dict(kwargs)
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
@@ -135,7 +135,7 @@ def rust_proc_macro(
         edition = RUST_EDITION,
         visibility = None,
         **kwargs):
-    """Experimental minimal wrapper over rust_proc_macro."""
+    """Minimal wrapper over rust_proc_macro."""
     dx_wrap(
         name,
         _rust_proc_macro,
@@ -154,7 +154,7 @@ def rust_shared_library(
         edition = RUST_EDITION,
         visibility = None,
         **kwargs):
-    """Experimental minimal wrapper over rust_shared_library."""
+    """Minimal wrapper over rust_shared_library."""
     dx_wrap(
         name,
         _rust_shared_library,
@@ -173,7 +173,7 @@ def rust_static_library(
         edition = RUST_EDITION,
         visibility = None,
         **kwargs):
-    """Experimental minimal wrapper over rust_static_library."""
+    """Minimal wrapper over rust_static_library."""
     dx_wrap(
         name,
         _rust_static_library,

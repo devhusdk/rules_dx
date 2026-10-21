@@ -1,4 +1,4 @@
-use dx_output::{dx_text_visible, ColorMode, LogLevel, OutputMode, Threshold};
+use dx_output::{dx_text_visible, ColorMode, OutputMode, Threshold};
 
 use super::profile::{resolve_profile, Profile};
 use super::Command;
@@ -31,7 +31,6 @@ pub struct CommonOptions {
     pub reports: Vec<ReportRequest>,
     pub quiet: bool,
     pub verbose: bool,
-    pub log_level: Option<LogLevel>,
     pub color: ColorMode,
 }
 
@@ -136,7 +135,6 @@ impl UmbrellaRequest {
                 reports,
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
-                log_level: self.common.log_level,
                 color: self.common.color,
             },
             fail_on: self.fail_on,
@@ -155,7 +153,6 @@ impl UmbrellaRequest {
                 reports,
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
-                log_level: self.common.log_level,
                 color: self.common.color,
             },
         }
@@ -180,7 +177,6 @@ impl UmbrellaRequest {
                 reports: Vec::new(),
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
-                log_level: self.common.log_level,
                 color: self.common.color,
             },
             fail_on: self.fail_on,
@@ -199,7 +195,6 @@ impl UmbrellaRequest {
                 reports: Vec::new(),
                 quiet: self.common.quiet,
                 verbose: self.common.verbose,
-                log_level: self.common.log_level,
                 color: self.common.color,
             },
         }
@@ -216,7 +211,6 @@ pub struct Invocation {
     pub workspace: Option<String>,
     pub quiet: bool,
     pub verbose: bool,
-    pub log_level: Option<LogLevel>,
     pub color: ColorMode,
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
@@ -294,7 +288,6 @@ impl Invocation {
             reports: self.reports.clone(),
             quiet: self.quiet,
             verbose: self.verbose,
-            log_level: self.log_level,
             color: self.color,
         }
     }
@@ -442,7 +435,6 @@ mod tests {
             workspace: None,
             quiet: false,
             verbose: false,
-            log_level: None,
             color: ColorMode::Auto,
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),

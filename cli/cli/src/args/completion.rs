@@ -690,7 +690,6 @@ mod tests {
             "--quiet",
             "-v",
             "--color",
-            "--log-level",
             "--output",
             "--debug",
             "--release",

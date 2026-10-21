@@ -53,7 +53,6 @@ pub(crate) struct Flags {
     pub(crate) quiet: Option<bool>,
     pub(crate) verbose: Option<bool>,
     pub(crate) color: Option<String>,
-    pub(crate) log_level: Option<String>,
     pub(crate) output: Option<String>,
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
@@ -151,8 +150,7 @@ flag_group! {
             require_equals = true,
             default_missing_value = "true",
             value_parser = clap::value_parser!(bool),
-            overrides_with = "verbose",
-            conflicts_with = "log_level"
+            overrides_with = "verbose"
         )]
         verbose: Option<bool>,
     }
@@ -163,20 +161,6 @@ flag_group! {
     ColorFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "color")]
         color: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Set log level.
-    LogLevelFlag, {
-        #[arg(
-            long = "log-level",
-            value_name = "LEVEL",
-            allow_negative_numbers = true,
-            overrides_with = "log_level",
-            conflicts_with = "verbose"
-        )]
-        log_level: Option<String>,
     }
 }
 
@@ -203,7 +187,6 @@ composite_group! {
         quiet: QuietFlag,
         verbose: VerboseFlag,
         color: ColorFlag,
-        log_level: LogLevelFlag,
         output: OutputFlag,
         bazel_startup_option: BazelStartupOptionFlag,
     }
@@ -700,7 +683,6 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--port",
     "--host",
     "--color",
-    "--log-level",
     "--bazel-startup-option",
 ];
 
@@ -747,8 +729,6 @@ mod tests {
         for words in [
             vec!["build", "--debug", "--release"],
             vec!["build", "--release", "--debug"],
-            vec!["lint", "--verbose", "--log-level=debug"],
-            vec!["lint", "-v", "--log-level=info"],
         ] {
             assert_eq!(
                 kind_of(&words),

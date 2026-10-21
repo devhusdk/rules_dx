@@ -608,7 +608,6 @@ mod tests {
             workspace: None,
             quiet: false,
             verbose: false,
-            log_level: None,
             color: dx_output::ColorMode::Auto,
             output,
             reports,

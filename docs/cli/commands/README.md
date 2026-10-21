@@ -36,7 +36,6 @@ commands. See [Version Skew](status-version.md#version-skew).
 - `--quiet[=bool]`, `--verbose[=bool]`: less or more output. Bare means `true`,
   and `=false` turns off a default inherited from the environment or a config
   file.
-- `--log-level error|warn|info|debug|trace`: log verbosity.
 - `--color auto|always|never`: color output. Default `auto`.
 - `--output text|diff|json`: result shape. `diff` is limited to `lint`,
   `typecheck`, `format`, `generate`, `check`, and `fix`. `json` is rejected by
@@ -138,8 +137,7 @@ default off.
 - `DX_COLOR=<mode>`: default for `--color`.
 - `DX_OUTPUT=<mode>`: default for `--output`.
 - `DX_FAIL_ON=<level>`: default for `--fail-on`.
-- `RUST_LOG=<filter>`: overrides `--verbose` and `--log-level`.
-- `NO_COLOR=<any>`: disables color output.
+- `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
 
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.

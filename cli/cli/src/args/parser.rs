@@ -310,7 +310,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         workspace: workspace_os,
         quiet,
         verbose,
-        log_level: log_level_name,
         color: color_name,
         output,
         report,
@@ -381,19 +380,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         file.fail_on.clone(),
         "warning",
     );
-    let log_level = match log_level_name.as_deref() {
-        None => None,
-        Some(value) => {
-            Some(
-                dx_output::LogLevel::parse(value).map_err(|_| ArgsError::BadLogLevel {
-                    value: value.to_owned(),
-                })?,
-            )
-        }
-    };
-    if verbose && log_level.is_some() {
-        return Err(ArgsError::ConflictingVerboseLogLevel);
-    }
     if check && apply {
         return Err(ArgsError::ConflictingModes {
             first: "--check",
@@ -593,7 +579,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         workspace,
         quiet,
         verbose,
-        log_level,
         color,
         output,
         reports,

@@ -49,61 +49,19 @@ pub fn color_override() -> ColorMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub enum LogLevel {
-    Error,
-    Warn,
-    Info,
-    Debug,
-    Trace,
-}
-
-impl LogLevel {
-    pub fn name(self) -> &'static str {
-        match self {
-            LogLevel::Error => "error",
-            LogLevel::Warn => "warn",
-            LogLevel::Info => "info",
-            LogLevel::Debug => "debug",
-            LogLevel::Trace => "trace",
-        }
-    }
-
-    pub fn filter(self) -> &'static str {
-        self.name()
-    }
-
-    pub fn parse(text: &str) -> Result<Self, crate::OutputError> {
-        use clap::ValueEnum;
-        Self::from_str(text, false).map_err(|_| crate::OutputError::BadLogLevel {
-            value: text.to_owned(),
-        })
-    }
-}
-
-pub fn resolve_log_filter(verbose: bool, level: Option<LogLevel>) -> &'static str {
-    match level {
-        Some(level) => level.filter(),
-        None if verbose => VERBOSE_LOG_FILTER,
-        None => DEFAULT_LOG_FILTER,
-    }
-}
-
 pub fn init_diagnostics(verbose: bool) {
-    init_diagnostics_with_level(verbose, None);
-}
-
-pub fn init_diagnostics_with_level(verbose: bool, level: Option<LogLevel>) {
     use tracing_subscriber::{fmt, EnvFilter};
-    let default = resolve_log_filter(verbose, level);
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default));
-    let ansi = color_enabled();
+    let filter = EnvFilter::new(if verbose {
+        VERBOSE_LOG_FILTER
+    } else {
+        DEFAULT_LOG_FILTER
+    });
     let _ = fmt()
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
-        .with_ansi(ansi)
+        .with_ansi(color_enabled())
         .try_init();
-    tracing::debug!(verbose, ?level, "dx diagnostics initialised");
+    tracing::debug!(verbose, "dx diagnostics initialised");
 }
 
 pub fn colors_allowed(no_color_present: bool, tty: bool) -> bool {
@@ -156,9 +114,9 @@ pub fn first_diagnostic_line(bytes: &[u8], limit: usize, fallback: &str) -> Stri
     }
 }
 
-pub fn init_diagnostics_with_color(verbose: bool, level: Option<LogLevel>, color: ColorMode) {
+pub fn init_diagnostics_with_color(verbose: bool, color: ColorMode) {
     set_color_override(color);
-    init_diagnostics_with_level(verbose, level);
+    init_diagnostics(verbose);
 }
 
 #[cfg(test)]
@@ -169,30 +127,6 @@ mod tests {
     fn diagnostics_filters_have_expected_spelling() {
         assert_eq!(DEFAULT_LOG_FILTER, "warn");
         assert_eq!(VERBOSE_LOG_FILTER, "info");
-    }
-
-    #[test]
-    fn diagnostics_log_levels_parse_and_resolve() {
-        assert_eq!(LogLevel::parse("error").expect("error"), LogLevel::Error);
-        assert_eq!(LogLevel::parse("warn").expect("warn"), LogLevel::Warn);
-        assert_eq!(LogLevel::parse("info").expect("info"), LogLevel::Info);
-        assert_eq!(LogLevel::parse("debug").expect("debug"), LogLevel::Debug);
-        assert_eq!(LogLevel::parse("trace").expect("trace"), LogLevel::Trace);
-        assert!(LogLevel::parse("WARN").is_err());
-        assert!(LogLevel::parse("verbose").is_err());
-        assert_eq!(LogLevel::Debug.name(), "debug");
-        assert_eq!(LogLevel::Trace.filter(), "trace");
-        assert_eq!(resolve_log_filter(false, None), "warn");
-        assert_eq!(resolve_log_filter(true, None), "info");
-        assert_eq!(resolve_log_filter(false, Some(LogLevel::Debug)), "debug");
-        assert_eq!(resolve_log_filter(true, Some(LogLevel::Trace)), "trace");
-    }
-
-    #[test]
-    fn diagnostics_leveled_init_is_idempotent() {
-        init_diagnostics_with_level(false, None);
-        init_diagnostics_with_level(true, None);
-        init_diagnostics_with_level(false, Some(LogLevel::Debug));
     }
 
     #[test]

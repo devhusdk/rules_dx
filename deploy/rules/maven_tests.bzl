@@ -32,6 +32,39 @@ def maven_unit_tests(name):
                 "deploy launcher",
             ),
             expect_equal(
+                "maven_group_error rejects a leading dot",
+                maven_group_error(".example"),
+                "maven_deploy: invalid group '.example': want non-empty " +
+                "dot-separated segments (no leading, trailing, or repeated dots)",
+            ),
+            expect_equal(
+                "maven_group_error rejects a trailing dot",
+                maven_group_error("com."),
+                "maven_deploy: invalid group 'com.': want non-empty " +
+                "dot-separated segments (no leading, trailing, or repeated dots)",
+            ),
+            expect_equal(
+                "maven_group_error rejects an empty segment",
+                maven_group_error("com..example"),
+                "maven_deploy: invalid group 'com..example': want non-empty " +
+                "dot-separated segments (no leading, trailing, or repeated dots)",
+            ),
+            expect_equal(
+                "maven_artifact_error rejects parent and current components",
+                [maven_artifact_error(".") != "", maven_artifact_error("..") != ""],
+                [True, True],
+            ),
+            expect_equal(
+                "maven_version_error rejects parent and current components",
+                [maven_version_error(".") != "", maven_version_error("..") != ""],
+                [True, True],
+            ),
+            expect_equal(
+                "maven_version_error accepts qualified versions",
+                maven_version_error("1.0.0-SNAPSHOT+build.5"),
+                "",
+            ),
+            expect_equal(
                 "maven_artifact_error accepts the demo artifact",
                 maven_artifact_error("maven_demo"),
                 "",

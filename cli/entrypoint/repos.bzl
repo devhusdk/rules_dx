@@ -20,6 +20,7 @@ crate="$(location @rules_dx//cli/cli:dx)"
 "$$crate" --help > "$(location crate_help.txt)"
 cmp "$(location public_help.txt)" "$(location crate_help.txt)"
 echo 'module(name = "consumer", version = "0.0.0")' > "$(location workspace/MODULE.bazel)"
+echo 'bazel_dep(name = "rules_dx", version = "0.0.0")' >> "$(location workspace/MODULE.bazel)"
 echo '0.0.0' > "$(location workspace/.dx/version)"
 ws="$$(dirname "$(location workspace/MODULE.bazel)")"
 "$$public" status --workspace "$$ws" > "$(location public_status.txt)"
@@ -36,6 +37,87 @@ grep -q status_pin_mismatch "$(location public_drift.txt)"
         "@rules_dx//:dx",
         "@rules_dx//cli/cli:dx",
     ],
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "consumer_status_probe",
+    outs = [
+        "status_bare.txt",
+        "status_corrupt_tool.txt",
+        "status_healthy.txt",
+        "status_missing_tool.txt",
+        "status_pin.txt",
+        "status_skew.txt",
+        "status_unselected.txt",
+    ],
+    cmd = """
+set -eu
+public="$(location @rules_dx//:dx)"
+out="$$(dirname "$(location status_healthy.txt)")"
+root="$$(mktemp -d)"
+trap 'rm -rf "$$root"' EXIT
+env=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+gen=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+setup=3b047baa3764c0439825877a47aabce13030571807c14b34ba597ca402021770
+workspace() {
+  mkdir -p "$$root/$$1/.dx"
+  echo "$$2" > "$$root/$$1/.dx/version"
+  echo 'module(name = "consumer_status", version = "0.0.0")' > "$$root/$$1/MODULE.bazel"
+  if [ -n "$$3" ]; then
+    echo 'bazel_dep(name = "rules_dx", version = "'"$$3"'")' >> "$$root/$$1/MODULE.bazel"
+  fi
+}
+select_tool() {
+  ws="$$root/$$1"
+  mkdir -p "$$ws/.dx/environments/$$env/artifacts" "$$ws/.dx/generated/$$gen" "$$ws/.dx/setups/$$setup"
+  ln -s "../../environments/$$env/" "$$ws/.dx/setups/$$setup/environment"
+  ln -s "../../generated/$$gen/" "$$ws/.dx/setups/$$setup/generated"
+  ln -s "$$setup" "$$ws/.dx/setups/current"
+  mkdir -p "$$ws/bazel-out"
+  echo '#!/bin/sh' > "$$ws/bazel-out/tool"
+  chmod +x "$$ws/bazel-out/tool"
+  ln -s "$$ws/bazel-out/tool" "$$ws/.dx/environments/$$env/artifacts/tool"
+  echo '{"tool":"v1"}' > "$$ws/.dx/environments/$$env/values.json"
+}
+status() {
+  set +e
+  "$$public" status --output=json --workspace "$$root/$$1" > "$$out/status_$$1.txt" 2> "$$root/$$1.err"
+  code=$$?
+  set -e
+  echo "exit=$$code" >> "$$out/status_$$1.txt"
+  cat "$$root/$$1.err" >> "$$out/status_$$1.txt"
+  if [ "$$code" != "$$2" ]; then
+    echo "dx status $$1 exited $$code, want $$2" >&2
+    cat "$$out/status_$$1.txt" >&2
+    exit 1
+  fi
+}
+workspace healthy 0.0.0 0.0.0
+select_tool healthy
+(cd "$$root/healthy" && find . | LC_ALL=C sort) > "$$root/healthy.before"
+status healthy 0
+(cd "$$root/healthy" && find . | LC_ALL=C sort) > "$$root/healthy.after"
+cmp "$$root/healthy.before" "$$root/healthy.after"
+workspace unselected 0.0.0 0.0.0
+status unselected 0
+workspace bare 0.0.0 ""
+status bare 1
+workspace skew 0.0.0 9.9.9
+status skew 1
+workspace missing_tool 0.0.0 0.0.0
+select_tool missing_tool
+rm "$$root/missing_tool/bazel-out/tool"
+status missing_tool 1
+workspace corrupt_tool 0.0.0 0.0.0
+select_tool corrupt_tool
+rm "$$root/corrupt_tool/.dx/environments/$$env/artifacts/tool"
+echo 'not the pinned tool' > "$$root/corrupt_tool/.dx/environments/$$env/artifacts/tool"
+status corrupt_tool 1
+workspace pin 9.9.9 0.0.0
+status pin 1
+""",
+    tools = ["@rules_dx//:dx"],
     visibility = ["//visibility:public"],
 )
 '''

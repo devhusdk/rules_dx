@@ -1,7 +1,6 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
 
@@ -25,6 +24,8 @@ const MAX_VISITED_DIRS: usize = 2000;
 
 const QUERY_TIMEOUT: Duration = Duration::from_millis(1500);
 
+const QUERY_MAX_BYTES: usize = 256 * 1024;
+
 /// Serve the shell request in COMPLETE, and report whether there was one.
 pub fn try_complete() -> Result<bool, String> {
     clap_complete::CompleteEnv::with_factory(super::grammar::cli_command)
@@ -41,6 +42,7 @@ pub fn with_scope_completers(
     let words: Vec<OsString> = words.into_iter().collect();
     let workspace = select_workspace(start, &words);
     let prior = prior_scopes(&words);
+    let startup = startup_options_from_words(&words);
     for entry in COMMANDS.iter() {
         if entry.command.scope_policy() == "passthrough" {
             continue;
@@ -49,6 +51,7 @@ pub fn with_scope_completers(
             command: entry.command,
             prior: prior.clone(),
             workspace: workspace.clone(),
+            startup: startup.clone(),
         });
         let mut attached = false;
         command = command.mut_subcommand(entry.name, |sub| {
@@ -131,6 +134,7 @@ struct ScopeCompleter {
     command: Command,
     prior: Vec<String>,
     workspace: PathBuf,
+    startup: Vec<String>,
 }
 
 impl ValueCompleter for ScopeCompleter {
@@ -150,6 +154,7 @@ impl ValueCompleter for ScopeCompleter {
             ));
             names.extend(target_candidates(
                 &self.workspace,
+                &self.startup,
                 &current,
                 MAX_LABEL_CANDIDATES,
             ));
@@ -249,58 +254,90 @@ fn query_expression(package: &str) -> String {
     format!("kind(rule, {package}:*)")
 }
 
-/// The labels one bounded query returns, empty when it cannot.
-fn bazel_query_labels(workspace: &Path, package: &str) -> Vec<String> {
-    let expression = query_expression(package);
-    let mut child = match std::process::Command::new("bazel")
-        .args(["query", "--output=label", &expression])
-        .current_dir(workspace)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-    {
-        Ok(child) => child,
-        Err(_) => return Vec::new(),
-    };
-    let start = Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if !status.success() {
-                    return Vec::new();
-                }
-                let output = match child.wait_with_output() {
-                    Ok(output) => output,
-                    Err(_) => return Vec::new(),
-                };
-                let Ok(text) = String::from_utf8(output.stdout) else {
-                    return Vec::new();
-                };
-                let mut out: Vec<String> = text
-                    .lines()
-                    .map(str::trim)
-                    .filter(|line| !line.is_empty())
-                    .map(ToString::to_string)
-                    .collect();
-                out.sort();
-                out.dedup();
-                return out;
-            }
-            Ok(None) => {
-                if start.elapsed() > QUERY_TIMEOUT {
-                    let _ = child.kill();
-                    return Vec::new();
-                }
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            Err(_) => return Vec::new(),
+/// The validated Bazel startup options typed before the word in hand.
+fn startup_options_from_words(words: &[OsString]) -> Vec<String> {
+    let mut words: Vec<&str> = words.iter().filter_map(|word| word.to_str()).collect();
+    words.pop();
+    let mut out = Vec::new();
+    let mut index = 0;
+    while index < words.len() {
+        let word = words[index];
+        index += 1;
+        if word == "--" && index > 1 {
+            break;
         }
+        let value = if let Some(value) = word.strip_prefix("--bazel-startup-option=") {
+            Some(value)
+        } else if word == "--bazel-startup-option" {
+            let next = words.get(index).copied();
+            index += 1;
+            next
+        } else {
+            if !word.contains('=') && VALUE_OPTIONS.contains(&word) {
+                index += 1;
+            }
+            None
+        };
+        if let Some(Ok(kept)) = value.map(dx_process::validate_startup_option) {
+            out.push(kept);
+        }
+    }
+    out
+}
+
+/// The labels one bounded query returns, empty when it cannot.
+fn bazel_query_labels(workspace: &Path, startup: &[String], package: &str) -> Vec<String> {
+    let mut argv: Vec<std::ffi::OsString> = dx_process::startup_argv(startup)
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+    argv.extend(["query", "--output=label"].into_iter().map(OsString::from));
+    argv.push(OsString::from(query_expression(package)));
+    let spec = dx_process::lifecycle::SpawnSpec {
+        argv,
+        cwd: workspace.to_path_buf(),
+        env: dx_process::lifecycle::EnvPolicy::Inherited { extra: Vec::new() },
+        capture: dx_process::lifecycle::CapturePolicy {
+            max_bytes: QUERY_MAX_BYTES,
+        },
+        timeout: QUERY_TIMEOUT,
+    };
+    match dx_process::lifecycle::run(&spec) {
+        Ok(dx_process::lifecycle::ChildOutcome::Finished {
+            exit: dx_process::lifecycle::Exit::Code(0),
+            stdout,
+            ..
+        }) => parse_labels(&stdout),
+        _ => Vec::new(),
     }
 }
 
+/// The sorted, unique label lines in query output, empty when it is not text.
+fn parse_labels(stdout: &[u8]) -> Vec<String> {
+    let Ok(text) = std::str::from_utf8(stdout) else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("//") && !line.contains(char::is_whitespace))
+        .map(ToString::to_string)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
 /// The target labels matching the current word through one bounded query.
-fn target_candidates(workspace: &Path, current: &str, limit: usize) -> Vec<String> {
-    target_candidates_with_query(workspace, current, limit, bazel_query_labels)
+fn target_candidates(
+    workspace: &Path,
+    startup: &[String],
+    current: &str,
+    limit: usize,
+) -> Vec<String> {
+    target_candidates_with_query(workspace, current, limit, |workspace, package| {
+        bazel_query_labels(workspace, startup, package)
+    })
 }
 
 /// The target labels matching the current word through the given lookup.
@@ -1186,5 +1223,44 @@ mod tests {
             wrapped.iter().any(|value| value == "//alpha/..."),
             "wrapped args keep labels: {wrapped:?}"
         );
+    }
+
+    fn words(list: &[&str]) -> Vec<OsString> {
+        list.iter().map(OsString::from).collect()
+    }
+
+    #[test]
+    fn startup_options_are_read_in_order_in_both_spellings() {
+        let got = startup_options_from_words(&words(&[
+            "--",
+            "dx",
+            "build",
+            "--bazel-startup-option=--output_base=/tmp/a b/\u{fc}",
+            "--bazel-startup-option",
+            "--output_user_root=/tmp/u",
+            "//pkg:",
+        ]));
+        assert_eq!(
+            got,
+            vec!["--output_base=/tmp/a b/\u{fc}", "--output_user_root=/tmp/u"]
+        );
+    }
+
+    #[test]
+    fn startup_options_skip_invalid_and_the_word_in_hand() {
+        let got = startup_options_from_words(&words(&[
+            "build",
+            "--bazel-startup-option=--bogus=1",
+            "--bazel-startup-option=--output_base",
+            "--bazel-startup-option=--output_base=/tmp/last",
+        ]));
+        assert!(got.is_empty());
+    }
+
+    #[test]
+    fn query_output_keeps_only_whole_label_lines() {
+        let got = parse_labels(b"//a:two\n//a:one\n//a:one\nWARNING: noise here\n\n");
+        assert_eq!(got, vec!["//a:one", "//a:two"]);
+        assert!(parse_labels(&[0xff, 0xfe]).is_empty());
     }
 }

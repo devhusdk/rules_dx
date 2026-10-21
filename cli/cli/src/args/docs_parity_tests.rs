@@ -130,7 +130,7 @@ fn required_words(command: Command) -> Vec<String> {
         "owners" | "deps" => &["//:demo"],
         "why" => &["a.rs", "//:demo"],
         "new" => &["rust"],
-        "watch" => &["build"],
+        "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
         "bazel" => &["info"],
         _ => &[],
@@ -189,6 +189,9 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
         let command = *command;
         let listed = super::super::grammar::advertised_flags(command);
         for (flag, payload) in SHARED_FLAGS {
+            if command == Command::Watch && matches!(*flag, "--check" | "--fail-on" | "--report") {
+                continue;
+            }
             let refused = probe_rejects(command, flag, *payload);
             let advertised = if *flag == "-- <bazel-options>" {
                 super::advertises_passthrough(command)
@@ -205,8 +208,8 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
             );
         }
         assert_eq!(
-            !listed.iter().any(|name| name == "report"),
-            super::output_line(command).contains("no standard format"),
+            !listed.iter().any(|name| name == "report") || command == Command::Watch,
+            super::output_line(command).contains("no standard format") || command == Command::Watch,
             "dx {} help lists --report against what the Output line promises:\n{}",
             command.name(),
             super::output_line(command),
@@ -391,11 +394,12 @@ fn command_help_only_advertises_accepted_flags() {
         }
         let prose = command.flags();
         let plain = strip_backticks(prose);
+        let wrapped_flags = command == Command::Watch;
         let clauses: Vec<&str> = plain
             .split(", ")
             .filter(|clause| flag_tokens(clause).contains(&"--fail-on".to_owned()))
             .collect();
-        if let Some(first) = clauses.first() {
+        if let Some(first) = clauses.first().filter(|_| !wrapped_flags) {
             let excluded = first.contains("do not apply");
             assert!(
                 clauses

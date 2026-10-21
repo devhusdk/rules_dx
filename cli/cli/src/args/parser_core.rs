@@ -125,7 +125,7 @@ fn plain_words(command: Command) -> Vec<String> {
         }
         Command::Why => words.extend(strings(&["a.rs", "//:demo"])),
         Command::New => words.push("rust".to_owned()),
-        Command::Watch => words.push("build".to_owned()),
+        Command::Watch => words.extend(strings(&["run", "//:demo"])),
         Command::Completion => words.push("bash".to_owned()),
         _ => {}
     }

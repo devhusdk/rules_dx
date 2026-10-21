@@ -1100,7 +1100,7 @@ dependencies = ["anyio>=4"]
         let harness = Harness::new("bump-live-maven-chain");
         harness.write_source(
             "MODULE.bazel",
-            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n)\n",
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n)\n",
         );
         let (code, out, err) = harness.run(&["bump", "maven:junit:junit", "4.13.3", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");

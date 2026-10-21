@@ -48,6 +48,8 @@ code.
 
 ## Global Flags
 
+Every command takes these:
+
 - `--help` (`-h`): print help.
 - `--version` (`-V`): print the dx version.
 - `--workspace <dir>`: run in another workspace.
@@ -55,43 +57,39 @@ code.
   `true`, and `=false` turns off a default inherited from the environment or a
   config file. Short flags cluster (`-qv`); repeating `-v` changes nothing.
 - `--color auto|always|never`: color output. Default `auto`.
-- `--output text|diff|json` (`-o`): result shape. `-o json` and `-ojson` both
-  work. `diff` is limited to `lint`, `typecheck`, `format`, `generate`, `check`, and `fix`. `deploy`, `init`, `new`,
-  `watch`, `completion`, and `bazel` take `text` only.
 - `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
   `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the
   Bazel verb for every managed invocation. Isolated output bases isolate
   concurrent runs.
-- `--report <format>=<dest>`: write a report. Repeatable. Formats per command:
-  `sarif` for `security`; `sarif` and `spdx` for `license`; `sarif` for `lint`,
-  `typecheck`, `check`, and `fix`; `junit` for `test`; `lcov` for `coverage`.
-  Other commands do not take `--report`. A relative `<dest>` anchors at the
-  workspace root wherever dx runs; an absolute `<dest>` writes outside the
-  workspace as given. Two flags resolving to the same file fail before anything
-  runs, including `./` and `parent/../` spellings of one path. Parent directories
-  must already exist. A failed write names the resolved file and the cause, exits
-  nonzero, and keeps the previous file bytes.
-- `--fail-on info|warning|error`: severity that fails. Default `warning`. Taken by
-  `security`, `license`, `lint`, `typecheck`, `format`, `check`, and `fix`.
-- `--min-coverage <percent>`: fail `coverage` below this percent. Taken by
-  `coverage`.
-- `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
-  `generate`, `codegen`, `env`, `clean`, `check`, `fix`, `update`,
-  `version`, and `docs`.
-- `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
-  `format`, `generate`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,
-  `codegen`, `env`, `init`, `new`, `upgrade`, `rollback`, and `watch`. It never combines with `--check`.
-- `--debug`, `--release`: build profile, mutually exclusive. Taken by `build`,
-  `test`, `run`, `deploy`, and `watch`. Bare means dev, except `dx deploy` which means
-  release.
-- `--offline`: no network; use pinned cached snapshots or fail. Taken by
-  `security`, `license`, `update`, and `bump`.
-- `--frozen`: no manifest or lock resolution changes; may fetch already pinned
-  content. Taken by `security`, `license`, `update`, and `bump`. Combine with `--offline` for both policies. Older dx
-  versions spelled offline as `--frozen`: pass `--offline` for that behavior.
-- `--here`: limit to the current directory tree.
-- `-h`, `--help`: print help for a command.
-- `-V`, `--version`: print the version.
+
+Every other flag belongs to one command family. `dx <command> --help` lists
+only the flags that command takes, and a flag from another family is a usage
+error.
+
+Read commands take `--output text|json` (`-o`). `-o json` and `-ojson` both
+work. Commands that can print a patch also take `diff`. Commands that only
+print text take no `--output`.
+
+Check commands take `--fail-on info|warning|error` (default `warning`) and
+`--report <format>=<dest>`. Repeat `--report` for more files. A relative
+`<dest>` anchors at the workspace root wherever dx runs; an absolute `<dest>`
+writes outside the workspace as given. Two flags resolving to the same file fail
+before anything runs, including `./` and `parent/../` spellings of one path.
+Parent directories must already exist. A failed write names the resolved file and
+the cause, exits nonzero, and keeps the previous file bytes. Each command page
+lists its report formats. Coverage also takes `--min-coverage <percent>` and
+fails below it.
+
+Network commands take `--offline` and `--frozen`. `--offline` means no network:
+use pinned cached snapshots or fail. `--frozen` means no manifest or lock
+resolution changes and may fetch already pinned content. Combine them for both
+policies. Older dx versions spelled offline as `--frozen`: pass `--offline` for
+that behavior.
+
+`--check`, `--apply`, `--debug`, `--release`, and `--here` are documented on the
+command pages that take them. `--here` limits a command to the current
+directory tree. `--apply` never combines with `--check`. Bare `--debug` or
+`--release` means dev, except for deploy, where it means release.
 
 Exit codes: `0` success, `2` usage error, `1` failed check.
 

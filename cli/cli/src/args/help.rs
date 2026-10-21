@@ -215,6 +215,9 @@ fn report_clause(command: Command) -> String {
 }
 
 pub(crate) fn output_line(command: Command) -> String {
+    if !command.supports_json() {
+        return format!("Output: text only; {}", report_clause(command));
+    }
     format!(
         "Output: --output {}; {}",
         output_modes(command),
@@ -488,11 +491,11 @@ mod tests {
 
     #[test]
     fn help_value_option_payload_is_not_a_command() {
-        let text = match parse(&strings(&["lint", "--output", "bazel", "--help"])) {
+        let text = match parse(&strings(&["lint", "--workspace", "bazel", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
-        assert!(text.contains("--output"));
+        assert!(text.contains("--workspace"));
     }
 
     #[test]
@@ -562,12 +565,12 @@ mod tests {
             } else {
                 format!("--report {}=<destination> (repeatable).", reports.join("|"))
             };
-            assert_eq!(
-                line,
-                format!("Output: --output {}; {report}", modes.join("|")),
-                "dx {} output line",
-                command.name()
-            );
+            let want = if accepts_output(command, "text") {
+                format!("Output: --output {}; {report}", modes.join("|"))
+            } else {
+                format!("Output: text only; {report}")
+            };
+            assert_eq!(line, want, "dx {} output line", command.name());
         }
     }
 

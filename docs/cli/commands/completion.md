@@ -21,7 +21,7 @@ entries never offer labels. Target completion queries one package only and
 falls back to package patterns when the query cannot run. Completion never
 writes files.
 
-Output: `--output text`.
+Output: text only.
 
 Exit codes: `0` success, `2` usage errors including a missing or unknown
 shell, `1` stdout could not be written.

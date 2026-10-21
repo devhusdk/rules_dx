@@ -22,7 +22,7 @@ Two spellings scaffold the same projects:
 - `c#` scaffolds `csharp`.
 - `f#` scaffolds `fsharp`.
 
-Output: `--output text`.
+Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an unknown language, an
 invalid destination or package identity, or extra positionals, `1`
@@ -77,7 +77,7 @@ geckodriver --port 4444 &
 bazel test :demo_browser_test --test_env=GECKODRIVER_REMOTE=http://127.0.0.1:4444
 ```
 
-Output: `--output text`.
+Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an invalid
 destination or package identity, `1` scaffolding failed.

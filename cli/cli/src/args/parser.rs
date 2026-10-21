@@ -6,7 +6,7 @@ use super::command::Command;
 use super::grammar::Flags;
 use super::scope_error;
 use super::tokenizer::tokenize;
-use super::{ArgsError, Invocation, ReportRequest};
+use super::{ArgsError, Invocation};
 
 pub use super::grammar::cli_command;
 
@@ -37,25 +37,6 @@ fn unsupported(command: Command, option: impl Into<String>) -> ArgsError {
 /// Names the one positional the command does not take.
 fn extra_positional(command: Command, token: &str) -> ArgsError {
     unsupported(command, token)
-}
-
-/// Rejects `--output=diff`, which these commands never take.
-fn reject_diff_output(command: Command, output_name: &str) -> Result<(), ArgsError> {
-    if output_name == "diff" {
-        return Err(unsupported(command, "--output=diff"));
-    }
-    Ok(())
-}
-
-/// Rejects the first `--report` request, naming its format and destination.
-fn reject_report(command: Command, reports: &[ReportRequest]) -> Result<(), ArgsError> {
-    match reports.first() {
-        Some(request) => Err(unsupported(
-            command,
-            format!("--report={}={}", request.format, request.destination),
-        )),
-        None => Ok(()),
-    }
 }
 
 /// Rejects Bazel options passed after `--`.
@@ -416,7 +397,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         file.output.clone(),
         "text",
     );
-    let fail_on_given = fail_on.is_some();
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_FAIL_ON_ENV),
@@ -466,20 +446,16 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(scope_error(scope));
         }
     }
-    if (fail_on_given || fail_on_name != "warning") && !command.supports_fail_on() {
+    if fail_on_name != "warning" && !command.supports_fail_on() {
         return Err(unsupported(command, "--fail-on"));
     }
     if command == Command::Clean {
-        reject_diff_output(command, &output_name)?;
-        reject_report(command, &reports)?;
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));
         }
         reject_passthrough(command, &bazel_options)?;
     }
     if command.is_managed() {
-        reject_diff_output(command, &output_name)?;
-        reject_report(command, &reports)?;
         if let Err(error) = dx_setup::resolve_scope(&targets) {
             return Err(match error {
                 dx_setup::ScopeError::MultipleTargets { count } => ArgsError::UnsupportedOption {
@@ -501,8 +477,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         command,
         Command::Update | Command::Bump | Command::Migrate | Command::Upgrade
     ) {
-        reject_diff_output(command, &output_name)?;
-        reject_report(command, &reports)?;
         reject_passthrough(command, &bazel_options)?;
     }
     if command == Command::Bump {
@@ -524,8 +498,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         }
     }
     if command == Command::Docs {
-        reject_diff_output(command, &output_name)?;
-        reject_report(command, &reports)?;
         if port.is_some() && !serve {
             return Err(unsupported(command, "--port"));
         }
@@ -543,7 +515,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         value: fail_on_name.clone(),
     })?;
     if command.is_adoption() {
-        reject_report(command, &reports)?;
         if command != Command::Watch {
             reject_passthrough(command, &bazel_options)?;
         }
@@ -585,16 +556,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             }
             _ => {}
         }
-    }
-    if command == Command::Run || command == Command::Deploy {
-        if command == Command::Deploy {
-            if !matches!(output, OutputMode::Text { .. }) {
-                return Err(unsupported(command, format!("--output={output_name}")));
-            }
-        } else if output_name == "diff" {
-            return Err(unsupported(command, "--output=diff"));
-        }
-        reject_report(command, &reports)?;
     }
     if output_name == "json" && !command.supports_json() {
         return Err(unsupported(command, "--output=json"));

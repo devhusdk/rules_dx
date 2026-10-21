@@ -166,8 +166,26 @@ flag_group! {
 
 flag_group! {
     /// Set output format.
-    OutputFlag, {
-        #[arg(long, short = 'o', allow_negative_numbers = true, overrides_with = "output")]
+    ReadOutputFlag, {
+        #[arg(
+            long,
+            short = 'o',
+            overrides_with = "output",
+            value_parser = clap::builder::PossibleValuesParser::new(["text", "json"])
+        )]
+        output: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Set output format.
+    DiffOutputFlag, {
+        #[arg(
+            long,
+            short = 'o',
+            overrides_with = "output",
+            value_parser = clap::builder::PossibleValuesParser::new(["text", "diff", "json"])
+        )]
         output: Option<String>,
     }
 }
@@ -187,7 +205,6 @@ composite_group! {
         quiet: QuietFlag,
         verbose: VerboseFlag,
         color: ColorFlag,
-        output: OutputFlag,
         bazel_startup_option: BazelStartupOptionFlag,
     }
 }
@@ -509,6 +526,7 @@ macro_rules! command_args {
 command_args! {
     /// The flags `dx security` accepts.
     Security => 0, NoPassthroughTail, {
+        output: ReadOutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         fail_on: FailOnFlag,
@@ -517,6 +535,7 @@ command_args! {
     };
     /// The flags `dx license` accepts.
     License => 1, NoPassthroughTail, {
+        output: ReadOutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         fail_on: FailOnFlag,
@@ -525,6 +544,7 @@ command_args! {
     };
     /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
+        output: DiffOutputFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -533,6 +553,7 @@ command_args! {
     };
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
+        output: DiffOutputFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -541,6 +562,7 @@ command_args! {
     };
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
+        output: DiffOutputFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -548,33 +570,38 @@ command_args! {
     };
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
+        output: DiffOutputFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         here: HereFlag,
     };
     /// The flags `dx build` accepts.
     Build => 6, BazelTail, {
+        output: ReadOutputFlag,
         own: ProfileArgs,
         here: HereFlag,
     };
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
+        output: ReadOutputFlag,
         own: ProfileArgs,
         report: ReportFlag,
         here: HereFlag,
     };
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
+        output: ReadOutputFlag,
         min_coverage: MinCoverageFlag,
         report: ReportFlag,
         here: HereFlag,
     };
     /// The flags `dx run` accepts.
-    Run => 9, AppTail, { own: ProfileArgs, };
+    Run => 9, AppTail, { output: ReadOutputFlag, own: ProfileArgs, };
     /// The flags `dx deploy` accepts.
     Deploy => 10, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
     /// The flags `dx check` accepts.
     Check => 11, BazelTail, {
+        output: DiffOutputFlag,
         check: CheckFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
@@ -582,6 +609,7 @@ command_args! {
     };
     /// The flags `dx fix` accepts.
     Fix => 12, BazelTail, {
+        output: DiffOutputFlag,
         check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -589,32 +617,36 @@ command_args! {
         here: HereFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { check: CheckFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoPassthroughTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
+        output: ReadOutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         check: CheckFlag,
         apply: ApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 15, NoPassthroughTail, { apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
+    Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
     /// The flags `dx migrate` accepts.
-    Migrate => 16, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
+    Migrate => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 17, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
+    Codegen => 17, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 18, BazelTail, { check: CheckFlag, apply: ApplyFlag, };
+    Env => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx init` accepts.
     Init => 19, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx new` accepts.
     New => 20, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 21, NoPassthroughTail, { apply: ApplyFlag, own: MigrationArgs, };
+    Upgrade => 21, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx status` accepts.
-    Status => 22, NoPassthroughTail, {};
+    Status => 22, NoPassthroughTail, {
+        output: ReadOutputFlag,
+    };
     /// The flags `dx version` accepts.
     Version => 23, NoPassthroughTail, {
+        output: ReadOutputFlag,
         check: CheckFlag,
     };
     /// The flags `dx watch` accepts.
@@ -629,18 +661,20 @@ command_args! {
     Completion => 25, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
     Docs => 26, BazelTail, {
+        output: ReadOutputFlag,
         check: CheckFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx list-tests` accepts.
     ListTests => 27, BazelTail, {
+        output: ReadOutputFlag,
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 28, NoPassthroughTail, { apply: ApplyFlag, };
+    Rollback => 28, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, };
 }
 
 #[derive(Parser)]
@@ -763,6 +797,46 @@ mod tests {
                 std::iter::once(OsString::from("dx")).chain(words.iter().map(OsString::from)),
             )
             .unwrap_or_else(|error| panic!("words: {words:?} must parse: {error}"));
+        }
+    }
+
+    #[test]
+    fn output_modes_follow_the_command_family() {
+        let accepts = |words: &[&str]| kind_of(words) == clap::error::ErrorKind::UnknownArgument;
+        for words in [
+            vec!["build", "-o", "json"],
+            vec!["lint", "--output=diff"],
+            vec!["lint", "-ojson"],
+            vec!["security", "--output", "text"],
+        ] {
+            assert!(accepts(&words), "words: {words:?}");
+        }
+        for (words, kind) in [
+            (
+                vec!["build", "--output=diff"],
+                clap::error::ErrorKind::InvalidValue,
+            ),
+            (
+                vec!["security", "-o", "diff"],
+                clap::error::ErrorKind::InvalidValue,
+            ),
+            (
+                vec!["new", "rust", "--output=json"],
+                clap::error::ErrorKind::UnknownArgument,
+            ),
+            (
+                vec!["completion", "bash", "-o", "json"],
+                clap::error::ErrorKind::UnknownArgument,
+            ),
+        ] {
+            let got = Cli::try_parse_from(
+                std::iter::once(OsString::from("dx")).chain(words.iter().map(OsString::from)),
+            );
+            assert_eq!(
+                got.err().map(|error| error.kind()),
+                Some(kind),
+                "words: {words:?}"
+            );
         }
     }
 

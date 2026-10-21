@@ -303,7 +303,7 @@ fn strict_help_is_generated_from_the_same_grammar() {
         );
     }
     let grammar = super::super::grammar::cli_command();
-    const GLOBAL_LONGS: [&str; 5] = ["workspace", "output", "quiet", "verbose", "color"];
+    const GLOBAL_LONGS: [&str; 4] = ["workspace", "quiet", "verbose", "color"];
     for command in Command::value_variants() {
         let sub = grammar
             .find_subcommand(command.name())
@@ -315,6 +315,13 @@ fn strict_help_is_generated_from_the_same_grammar() {
                 command.name()
             );
         }
+        assert_eq!(
+            sub.get_arguments()
+                .any(|arg| arg.get_long() == Some("output")),
+            command.supports_json(),
+            "dx {} grammar and registry disagree on --output",
+            command.name()
+        );
     }
     for needle in ["NO_COLOR", "BUILD_WORKSPACE_DIRECTORY", "Environment:"] {
         assert!(text.contains(needle), "top help missing env {needle:?}");

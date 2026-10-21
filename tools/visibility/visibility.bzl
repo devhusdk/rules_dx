@@ -184,6 +184,7 @@ SCOPED_PACKAGES = {
     "generation/codegen_shard": "VIS_CLI_GENERATION",
     "generation/result": "VIS_CLI",
     "libs/gomod": "VIS_CLI_TOOLS",
+    "libs/module_bazel": "VIS_CLI_TOOLS",
     "quality/adapter": "VIS_QUALITY",
     "quality/artifacts": "VIS_QUALITY",
     "quality/evaluator": "VIS_QUALITY",

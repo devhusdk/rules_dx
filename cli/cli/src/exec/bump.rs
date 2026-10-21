@@ -1263,6 +1263,47 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
+    fn live_bazel_module_edits_one_literal_version_atomically() {
+        let harness = Harness::new("bump-live-bazel-module");
+        let before = "module(name = 'demo')\n\n# bazel_dep(name = \"rules_cc\", version = \"0.0.1\")\nNOTE = \"bazel_dep(name = 'rules_cc', version = '0.0.2')\"\nbazel_dep(\n    version = '0.2.21',  # ) \" (\n    name = 'rules_cc',\n    repo_name = \"cc\",\n)\nbazel_dep(name = \"rules_rust\", version = V)\n";
+        let after = before.replace("'0.2.21'", "'0.2.22'");
+        harness.write_source("MODULE.bazel", before);
+        let read =
+            || std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        let (code, _, err) = harness.run(&["bump", "bazel:rules_cc", "0.2.22"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("bump drift"), "{err}");
+        assert_eq!(read(), before, "check must not write");
+        let (code, out, err) = harness.run(&["bump", "bazel:rules_cc", "0.2.22", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("widened bazel:rules_cc to 0.2.22"), "{out}");
+        assert_eq!(read(), after);
+        let (code, out, err) = harness.run(&["bump", "bazel:rules_cc", "0.2.22", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(read(), after, "second run is a no-op");
+        for (selector, reason) in [
+            (
+                "bazel:rules_rust",
+                "bazel_dep \"rules_rust\" at line 10 has a computed version",
+            ),
+            ("bazel:rules_go", "no declared requirement for \"rules_go\""),
+        ] {
+            let (code, _, err) = harness.run(&["bump", selector, "1.0.0", "--apply"]);
+            assert_eq!(code, 1, "{err}");
+            assert!(err.contains(reason), "{err}");
+            assert_eq!(read(), after, "{selector} must not write");
+        }
+        harness.write_source(
+            "MODULE.bazel",
+            "bazel_dep(name = 'rules_cc', version = '0.2.21'\n",
+        );
+        let (code, _, err) = harness.run(&["bump", "bazel:rules_cc", "0.2.22", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("MODULE.bazel does not parse at line"), "{err}");
+        assert_eq!(read(), "bazel_dep(name = 'rules_cc', version = '0.2.21'\n");
+    }
+
+    #[test]
     fn live_missing_requirement_fails_without_writing() {
         let harness = Harness::new("bump-live-missing");
         harness.write_source(

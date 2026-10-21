@@ -220,6 +220,14 @@ mod tests {
             out.contains("dependency rules_dx 0.0.0 via local_path_override ../rules_dx"),
             "{out}"
         );
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "# bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\nbazel_dep(\n    repo_name = 'dx',\n    version = '0.0.0',  # ) (\n    name = 'rules_dx',\n)\n",
+        )
+        .expect("multiline");
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("dependency rules_dx 0.0.0\n"), "{out}");
         std::fs::remove_file(root.join("MODULE.bazel")).expect("remove module");
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0, "{out}");

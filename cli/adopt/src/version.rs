@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use dx_module_bazel::{Call, ModuleFile, Value};
+
 use super::AdoptError;
 
 pub const DX_VERSION: &str = "0.0.0";
@@ -303,236 +305,51 @@ pub struct ModuleDependency {
     pub override_source: Option<String>,
 }
 
-fn strip_module_comments(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut quote: Option<char> = None;
-    let mut escaped = false;
-    let mut skipping = false;
-    for c in text.chars() {
-        if c == '\n' {
-            skipping = false;
-            out.push(c);
-            continue;
-        }
-        if skipping {
-            continue;
-        }
-        if let Some(open) = quote {
-            out.push(c);
-            if escaped {
-                escaped = false;
-            } else if c == '\\' {
-                escaped = true;
-            } else if c == open {
-                quote = None;
-            }
-            continue;
-        }
-        if c == '"' || c == '\'' {
-            quote = Some(c);
-            out.push(c);
-            continue;
-        }
-        if c == '#' {
-            skipping = true;
-            continue;
-        }
-        out.push(c);
-    }
-    out
-}
-
-fn take_balanced(text: &[u8], mut at: usize) -> Option<(String, usize)> {
-    let mut depth = 1usize;
-    let mut quote: Option<u8> = None;
-    let mut escaped = false;
-    let start = at;
-    while at < text.len() {
-        let byte = text[at];
-        if let Some(open) = quote {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == open {
-                quote = None;
-            }
-            at += 1;
-            continue;
-        }
-        match byte {
-            b'"' | b'\'' => {
-                quote = Some(byte);
-                at += 1;
-            }
-            b'(' => {
-                depth += 1;
-                at += 1;
-            }
-            b')' => {
-                depth -= 1;
-                at += 1;
-                if depth == 0 {
-                    let inner = std::str::from_utf8(&text[start..at - 1]).ok()?;
-                    return Some((inner.to_owned(), at));
-                }
-            }
-            _ => {
-                at += 1;
-            }
-        }
-    }
-    None
-}
-
-fn module_arg(args: &str, key: &str) -> Option<String> {
-    let bytes = args.as_bytes();
-    let mut at = 0usize;
-    let mut quote: Option<u8> = None;
-    let mut escaped = false;
-    let mut depth = 0usize;
-    let mut parts: Vec<&str> = Vec::new();
-    let mut part_start = 0usize;
-    while at <= bytes.len() {
-        let byte = if at < bytes.len() { bytes[at] } else { b',' };
-        if let Some(open) = quote {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == open {
-                quote = None;
-            }
-            at += 1;
-            continue;
-        }
-        match byte {
-            b'"' | b'\'' => {
-                quote = Some(byte);
-                at += 1;
-            }
-            b'(' | b'[' | b'{' => {
-                depth += 1;
-                at += 1;
-            }
-            b')' | b']' | b'}' => {
-                depth = depth.saturating_sub(1);
-                at += 1;
-            }
-            b',' if depth == 0 => {
-                parts.push(&args[part_start..at]);
-                at += 1;
-                part_start = at;
-            }
-            _ => {
-                at += 1;
-            }
-        }
-    }
-    for part in parts {
-        let part = part.trim();
-        if part.len() <= key.len() || !part.starts_with(key) {
-            continue;
-        }
-        let rest = part[key.len()..].trim_start();
-        if !rest.starts_with('=') {
-            continue;
-        }
-        let value = rest[1..].trim_start();
-        let quote = value.as_bytes().first()?;
-        if *quote != b'"' && *quote != b'\'' {
-            continue;
-        }
-        let mut out = String::new();
-        let mut chars = value[1..].chars();
-        let mut closed = false;
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                if let Some(next) = chars.next() {
-                    out.push(next);
-                }
-                continue;
-            }
-            if c as u8 == *quote {
-                closed = true;
-                break;
-            }
-            out.push(c);
-        }
-        if closed {
-            return Some(out);
-        }
-    }
-    None
-}
-
 pub fn parse_module_dependency(text: &str) -> ModuleDependency {
-    let clean = strip_module_comments(text);
-    let bytes = clean.as_bytes();
-    let mut at = 0usize;
     let mut dependency = ModuleDependency {
         workspace_module: None,
         declared: None,
         override_kind: None,
         override_source: None,
     };
-    while at < bytes.len() {
-        if !(bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_') {
-            at += 1;
-            continue;
-        }
-        let start = at;
-        while at < bytes.len() && (bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_') {
-            at += 1;
-        }
-        let name = &clean[start..at];
-        let mut next = at;
-        while next < bytes.len() && bytes[next].is_ascii_whitespace() {
-            next += 1;
-        }
-        if next >= bytes.len() || bytes[next] != b'(' {
-            continue;
-        }
-        let Some((args, end)) = take_balanced(bytes, next + 1) else {
-            break;
-        };
-        at = end;
+    let Ok(module) = ModuleFile::parse(text) else {
+        return dependency;
+    };
+    for call in module.calls() {
+        let name = call.name.as_str();
         if name == "module" {
             if dependency.workspace_module.is_none() {
-                if let Some(module_name) = module_arg(&args, "name") {
-                    dependency.workspace_module = Some((module_name, module_arg(&args, "version")));
+                if let Some(module_name) = call.str("name") {
+                    dependency.workspace_module = Some((
+                        module_name.to_owned(),
+                        call.str("version").map(str::to_owned),
+                    ));
                 }
             }
             continue;
         }
         if name == "bazel_dep" {
-            if dependency.declared.is_none()
-                && module_arg(&args, "name").as_deref() == Some("rules_dx")
-            {
-                dependency.declared = module_arg(&args, "version");
+            if dependency.declared.is_none() && call.str("name") == Some("rules_dx") {
+                dependency.declared = call.str("version").map(str::to_owned);
             }
             continue;
         }
-        if !name.ends_with("_override") {
+        if !name.ends_with("_override")
+            || dependency.override_kind.is_some()
+            || call.str("module_name") != Some("rules_dx")
+        {
             continue;
         }
-        if dependency.override_kind.is_some() {
-            continue;
-        }
-        if module_arg(&args, "module_name").as_deref() != Some("rules_dx") {
-            continue;
-        }
-        let mut source = module_arg(&args, "path").or_else(|| module_arg(&args, "remote"));
-        if name == "git_override" {
-            if let (Some(remote), Some(commit)) = (source.clone(), module_arg(&args, "commit")) {
-                source = Some(format!("{remote}@{commit}"));
-            }
-        }
+        let mut source = call.str("path").or_else(|| call.str("remote"));
+        let pinned = match (name, source, call.str("commit")) {
+            ("git_override", Some(remote), Some(commit)) => Some(format!("{remote}@{commit}")),
+            _ => None,
+        };
         if source.is_none() {
-            source = module_arg(&args, "version");
+            source = call.str("version");
         }
         dependency.override_kind = Some(name.to_owned());
-        dependency.override_source = source;
+        dependency.override_source = pinned.or_else(|| source.map(str::to_owned));
     }
     dependency
 }
@@ -543,7 +360,7 @@ pub struct ConsumerSetup {
     pub extensions: Vec<(String, String)>,
     pub repos: Vec<(String, String)>,
     pub registered: Vec<String>,
-    pub tags: Vec<(String, String)>,
+    pub tags: Vec<Call>,
     pub repo_names: Vec<(String, String)>,
 }
 
@@ -563,154 +380,27 @@ impl ConsumerSetup {
     }
 
     pub fn tag_arg(&self, tag: &str, key: &str) -> Option<String> {
-        self.tags
-            .iter()
-            .find(|(name, _)| name == tag)
-            .and_then(|(_, args)| module_arg(args, key))
+        self.tag(tag)
+            .and_then(|call| call.str(key))
+            .map(str::to_owned)
     }
 
     pub fn tag_list_arg(&self, tag: &str, key: &str) -> Vec<String> {
-        let Some(args) = self
-            .tags
-            .iter()
-            .find(|(name, _)| name == tag)
-            .map(|(_, a)| a)
-        else {
-            return Vec::new();
-        };
-        list_arg(args, key)
+        self.tag(tag)
+            .map(|call| call.str_list(key).into_iter().map(str::to_owned).collect())
+            .unwrap_or_default()
+    }
+
+    fn tag(&self, tag: &str) -> Option<&Call> {
+        self.tags.iter().find(|call| call.name == tag)
     }
 }
 
-fn list_arg(args: &str, key: &str) -> Vec<String> {
-    for part in split_call_args(args) {
-        let part = part.trim();
-        if part.len() <= key.len() || !part.starts_with(key) {
-            continue;
-        }
-        let rest = part[key.len()..].trim_start();
-        if !rest.starts_with('=') {
-            continue;
-        }
-        let value = rest[1..].trim_start();
-        if !value.starts_with('[') || !value.ends_with(']') {
-            continue;
-        }
-        return split_call_args(&value[1..value.len() - 1])
-            .iter()
-            .filter_map(|item| unquote_part(item))
-            .collect();
+fn literal(value: &Value) -> Option<String> {
+    match value {
+        Value::Str(literal) => Some(literal.value.clone()),
+        _ => None,
     }
-    Vec::new()
-}
-
-fn unquote_part(part: &str) -> Option<String> {
-    let value = part.trim();
-    let quote = value.as_bytes().first()?;
-    if *quote != b'"' && *quote != b'\'' {
-        return None;
-    }
-    let mut out = String::new();
-    let mut chars = value[1..].chars();
-    let mut closed = false;
-    while let Some(c) = chars.next() {
-        if c == '\\' {
-            if let Some(next) = chars.next() {
-                out.push(next);
-            }
-            continue;
-        }
-        if c as u8 == *quote {
-            closed = true;
-            break;
-        }
-        out.push(c);
-    }
-    if closed {
-        Some(out)
-    } else {
-        None
-    }
-}
-
-fn split_call_args(args: &str) -> Vec<String> {
-    let bytes = args.as_bytes();
-    let mut at = 0usize;
-    let mut quote: Option<u8> = None;
-    let mut escaped = false;
-    let mut depth = 0usize;
-    let mut part_start = 0usize;
-    let mut parts = Vec::new();
-    while at <= bytes.len() {
-        let byte = if at < bytes.len() { bytes[at] } else { b',' };
-        if let Some(open) = quote {
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == open {
-                quote = None;
-            }
-            at += 1;
-            continue;
-        }
-        match byte {
-            b'"' | b'\'' => {
-                quote = Some(byte);
-                at += 1;
-            }
-            b'(' | b'[' | b'{' => {
-                depth += 1;
-                at += 1;
-            }
-            b')' | b']' | b'}' => {
-                depth = depth.saturating_sub(1);
-                at += 1;
-            }
-            b',' if depth == 0 => {
-                parts.push(args[part_start..at].to_owned());
-                at += 1;
-                part_start = at;
-            }
-            _ => {
-                at += 1;
-            }
-        }
-    }
-    parts
-}
-
-fn scan_setup_calls(text: &str) -> Vec<(String, String)> {
-    let clean = strip_module_comments(text);
-    let bytes = clean.as_bytes();
-    let mut at = 0usize;
-    let mut calls = Vec::new();
-    while at < bytes.len() {
-        if !(bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_') {
-            at += 1;
-            continue;
-        }
-        let start = at;
-        while at < bytes.len()
-            && (bytes[at].is_ascii_alphanumeric() || bytes[at] == b'_' || bytes[at] == b'.')
-        {
-            at += 1;
-        }
-        let name = &clean[start..at];
-        let mut next = at;
-        while next < bytes.len() && bytes[next].is_ascii_whitespace() {
-            next += 1;
-        }
-        if next >= bytes.len() || bytes[next] != b'(' {
-            continue;
-        }
-        let Some((args, end)) = take_balanced(bytes, next + 1) else {
-            break;
-        };
-        at = end;
-        calls.push((name.to_owned(), args));
-    }
-    calls
 }
 
 pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
@@ -722,49 +412,39 @@ pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
         tags: Vec::new(),
         repo_names: Vec::new(),
     };
-    for (name, args) in scan_setup_calls(text) {
-        match name.as_str() {
+    let Ok(module) = ModuleFile::parse(text) else {
+        return setup;
+    };
+    for call in module.calls() {
+        match call.name.as_str() {
             "bazel_dep" => {
-                if let (Some(dep), Some(version)) =
-                    (module_arg(&args, "name"), module_arg(&args, "version"))
-                {
-                    setup.deps.push((dep.clone(), version));
-                    if let Some(repo) = module_arg(&args, "repo_name") {
-                        setup.repo_names.push((dep, repo));
+                if let (Some(dep), Some(version)) = (call.str("name"), call.str("version")) {
+                    setup.deps.push((dep.to_owned(), version.to_owned()));
+                    if let Some(repo) = call.str("repo_name") {
+                        setup.repo_names.push((dep.to_owned(), repo.to_owned()));
                     }
                 }
             }
             "use_extension" => {
-                let parts = split_call_args(&args);
-                if parts.len() >= 2 {
-                    if let (Some(label), Some(tag)) =
-                        (unquote_part(&parts[0]), unquote_part(&parts[1]))
-                    {
+                if let [label, tag, ..] = call.positional.as_slice() {
+                    if let (Some(label), Some(tag)) = (literal(label), literal(tag)) {
                         setup.extensions.push((label, tag));
                     }
                 }
             }
             "use_repo" => {
-                let parts = split_call_args(&args);
-                if parts.len() >= 2 {
-                    let var = parts[0].trim().to_owned();
-                    for part in parts.iter().skip(1) {
-                        if let Some(repo) = unquote_part(part) {
-                            setup.repos.push((var.clone(), repo));
-                        }
+                if let [Value::Ident(var), repos @ ..] = call.positional.as_slice() {
+                    for repo in repos.iter().filter_map(literal) {
+                        setup.repos.push((var.clone(), repo));
                     }
                 }
             }
             "register_toolchains" => {
-                for part in split_call_args(&args) {
-                    if let Some(label) = unquote_part(&part) {
-                        setup.registered.push(label);
-                    }
-                }
+                setup
+                    .registered
+                    .extend(call.positional.iter().filter_map(literal));
             }
-            _ if name.contains('.') => {
-                setup.tags.push((name, args));
-            }
+            name if name.contains('.') => setup.tags.push(call.clone()),
             _ => {}
         }
     }
@@ -1078,6 +758,34 @@ mod tests {
             "unknown (no rules_dx dependency in MODULE.bazel)"
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn module_dependency_reads_only_real_literal_declarations() {
+        let fake = parse_module_dependency(
+            "\"\"\"bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\"\"\"\n# bazel_dep(name = \"rules_dx\", version = \"8.8.8\")\nNOTE = 'local_path_override(module_name = \"rules_dx\", path = \"x\")'\nmodule(name = 'demo')\n",
+        );
+        assert_eq!(fake.declared, None);
+        assert_eq!(fake.override_kind, None);
+        assert_eq!(fake.workspace_module, Some(("demo".to_owned(), None)));
+        let multiline = parse_module_dependency(
+            "bazel_dep(\n    version = '''1.2.3''',  # ) ( \" '\n    repo_name = \"dx\",\n    name = 'rules_dx',\n)\ngit_override(\n    commit = \"abc123\",\n    module_name = \"rules_dx\",\n    remote = \"https://example.test/dx\",\n)\n",
+        );
+        assert_eq!(
+            render_module_dependency(&multiline),
+            "rules_dx 1.2.3 via git_override https://example.test/dx@abc123"
+        );
+        let computed =
+            parse_module_dependency("V = \"1.2.3\"\nbazel_dep(name = \"rules_dx\", version = V)\n");
+        assert_eq!(computed.declared, None);
+        assert_eq!(
+            render_module_dependency(&computed),
+            "unknown (no rules_dx dependency in MODULE.bazel)"
+        );
+        let unterminated = parse_module_dependency(
+            "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"x\", version = \"1.0.0\"\n",
+        );
+        assert_eq!(unterminated.declared, None);
     }
 
     #[test]

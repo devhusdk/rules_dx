@@ -341,6 +341,7 @@ crate.from_cargo(
         "//tools/depcheck:Cargo.toml",
         "//tools/repin_all:Cargo.toml",
         "//libs/gomod:Cargo.toml",
+        "//libs/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",
     ],
     supported_platform_triples = [

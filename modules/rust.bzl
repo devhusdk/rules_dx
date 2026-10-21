@@ -63,6 +63,7 @@ CRATE_SHARED_MANIFESTS = [
     "//tools/bazelrc:Cargo.toml",
     "//tools/depcheck:Cargo.toml",
     "//libs/gomod:Cargo.toml",
+    "//libs/module_bazel:Cargo.toml",
     "//tools/testing:Cargo.toml",
 ]
 

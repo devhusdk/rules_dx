@@ -25,6 +25,7 @@ dx_rust_crate(
     extra_deps = [
         "//cli/digest:dx_digest",
         "//cli/identity:dx_identity",
+        "//libs/module_bazel:dx_module_bazel",
     ],
     deps = [
         "regex",

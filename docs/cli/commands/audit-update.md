@@ -228,7 +228,11 @@ Widens one declared requirement to a new version. Checks by default;
 `--apply` widens. Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. The package must already be declared in the
-manifest, or the run fails without writing. A `github-actions` version is
+manifest, or the run fails without writing. A `bazel` bump rewrites the one
+literal `version` of the matching top-level `bazel_dep` in `MODULE.bazel`
+and keeps every other byte. Duplicate declarations, a missing or computed
+version or name, and a `MODULE.bazel` that does not parse fail without
+writing. A `github-actions` version is
 the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 

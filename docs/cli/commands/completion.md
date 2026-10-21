@@ -1,14 +1,14 @@
 # `dx completion`
 
 ```text
-dx completion [<shell>] [--check]
+dx completion <shell>
 ```
 
 Prints the completion script for one shell: `bash`, `zsh`, `fish`, or
 `powershell`. Runs outside a workspace.
 
-- With one shell and no `--check`: print that shell script.
-- With `--check`: verify without writing. Zero shells checks all shells.
+- Takes exactly one shell and prints its script to stdout.
+- No shell, more than one shell, or `--check` is a usage error.
 - Unknown shells fail with `unknown-shell`.
 
 The script asks `dx` for candidates as you type, so keep `dx` on your `PATH`.
@@ -23,10 +23,9 @@ writes files.
 
 Output: `--output text`.
 
-Exit codes: `0` success, `2` usage errors including an unknown shell, `1` a
-completion check failed.
+Exit codes: `0` success, `2` usage errors including a missing or unknown
+shell, `1` stdout could not be written.
 
 ```sh
 bazel run @rules_dx//:dx -- completion bash > ~/.cache/dx-completion.bash
-bazel run @rules_dx//:dx -- completion --check
 ```

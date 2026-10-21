@@ -18,7 +18,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx docs`](docs.md)
 - [`dx init`](init.md)
 - [`dx status`, `dx version`](status-version.md)
-- [`dx tests`](tests.md)
+- [`dx list-tests`](list-tests.md)
 - [`dx completion`](completion.md)
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`, `dx rollback`](new-upgrade.md)

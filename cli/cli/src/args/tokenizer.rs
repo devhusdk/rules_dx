@@ -83,6 +83,7 @@ fn removed_command(error: &clap::Error) -> Option<String> {
         "owners" => "run `bazel query 'rdeps(//..., <label>, 1)'`, or `bazel cquery` for the configured graph; wrap the expression in single quotes",
         "deps" => "run `bazel query 'deps(<label>)'`, or `bazel cquery 'deps(<label>)' --platforms=<platform>` for the configured graph; wrap the expression in single quotes",
         "why" => "run `bazel query 'somepath(<from>, <to>)'`, or `bazel cquery` for the configured graph; wrap the expression in single quotes",
+        "tests" => "run `dx list-tests` to list test targets, or `dx test` to run them",
         "rerun" => "run `dx test <target>` for the targets you want to run again",
         _ => return None,
     };

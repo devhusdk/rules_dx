@@ -118,7 +118,7 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[StandardFormat::Sarif],
             settings: &[],
         },
-        Command::Tests => CommandSpec {
+        Command::ListTests => CommandSpec {
             command,
             aspects: &[],
             reports: &[],

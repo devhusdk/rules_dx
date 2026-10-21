@@ -798,6 +798,16 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
+        "id": "command.list-tests",
+        "native": True,
+        "owner": "//cli/cli:dx",
+        "page": "list-tests.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
         "id": "command.migrate",
         "native": True,
         "owner": "//cli/cli:dx",
@@ -862,16 +872,6 @@ PROMISES = [
         "native": True,
         "owner": "//cli/cli:dx",
         "page": "build-test-coverage.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "command.tests",
-        "native": True,
-        "owner": "//cli/cli:dx",
-        "page": "tests.md",
         "state": "evidenced",
     },
     {
@@ -1579,6 +1579,16 @@ PROMISES = [
         "evidence": [
             "//cli/cli:dx_cli_test",
         ],
+        "id": "doc.list-tests.md",
+        "native": False,
+        "owner": "//docs:command_docs",
+        "page": "list-tests.md",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//cli/cli:dx_cli_test",
+        ],
         "id": "doc.migrate.md",
         "native": False,
         "owner": "//docs:command_docs",
@@ -1623,16 +1633,6 @@ PROMISES = [
         "native": False,
         "owner": "//docs:command_docs",
         "page": "status-version.md",
-        "state": "evidenced",
-    },
-    {
-        "evidence": [
-            "//cli/cli:dx_cli_test",
-        ],
-        "id": "doc.tests.md",
-        "native": False,
-        "owner": "//docs:command_docs",
-        "page": "tests.md",
         "state": "evidenced",
     },
     {

@@ -81,7 +81,7 @@ fn family(command: Command) -> Family {
         Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
             Family::Workflow
         }
-        Command::Check | Command::Fix | Command::Tests => Family::Umbrella,
+        Command::Check | Command::Fix | Command::ListTests => Family::Umbrella,
         Command::Clean => Family::Clean,
         Command::Update => Family::Update,
         Command::Bump => Family::Bump,
@@ -131,7 +131,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             )
         }
         Family::Umbrella => {
-            if invocation.command == Command::Tests {
+            if invocation.command == Command::ListTests {
                 test_inventory::execute_tests(invocation, env)
             } else {
                 umbrella::execute_umbrella(invocation, env)

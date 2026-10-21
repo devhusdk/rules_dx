@@ -29,7 +29,7 @@ NOT_WATCHABLE_COMMANDS = [
     "rollback",
     "security",
     "status",
-    "tests",
+    "list-tests",
     "update",
     "upgrade",
     "version",
@@ -89,7 +89,7 @@ REPORT_NONE = [
     "upgrade",
     "rollback",
     "completion",
-    "tests",
+    "list-tests",
 ]
 REPORT_DISPOSITION = "wont-fix"
 

@@ -417,6 +417,16 @@ fn setup_is_rejected_with_env_and_codegen_tip() {
 }
 
 #[test]
+fn old_tests_command_is_rejected_with_list_tests_tip() {
+    let words = ["tests", "//..."];
+    assert_usage(
+        &words,
+        parse(&strings(&words)).unwrap_err(),
+        &["unsupported command 'tests'", "dx list-tests"],
+    );
+}
+
+#[test]
 fn removed_version_flags_fail_with_explicit_command_tips() {
     for (words, tip) in [
         (vec!["version", "--pin", "1.0.0"], "dx upgrade --from"),

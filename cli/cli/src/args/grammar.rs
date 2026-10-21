@@ -633,8 +633,8 @@ command_args! {
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx tests` accepts.
-    Tests => 27, BazelTail, {
+    /// The flags `dx list-tests` accepts.
+    ListTests => 27, BazelTail, {
         own: CasesFlag,
         configured: ConfiguredFlag,
         here: HereFlag,

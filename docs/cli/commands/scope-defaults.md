@@ -7,7 +7,7 @@ with a scope.
 
 - `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
   `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`, `dx migrate`,
-  `dx tests`
+  `dx list-tests`
 
 ## No Scope Means The Repository
 
@@ -50,7 +50,7 @@ Patterns, paths, and multiple labels are usage errors.
   `//...` at the root). Never combines with explicit scopes. Accepted by
   `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
   `dx format`, `dx generate`, `dx check`, `dx fix`, `dx security`,
-  `dx license`, `dx tests`, and `dx docs`.
+  `dx license`, `dx list-tests`, and `dx docs`.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --here

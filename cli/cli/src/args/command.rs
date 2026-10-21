@@ -27,7 +27,7 @@ pub enum Command {
     Watch,
     Completion,
     Docs,
-    Tests,
+    ListTests,
     Rollback,
 }
 
@@ -840,12 +840,12 @@ pub static COMMANDS: [CommandMeta; 29] = [
         labels: LabelsPolicy::Always,
     },
     CommandMeta {
-        command: Command::Tests,
-        name: "tests",
+        command: Command::ListTests,
+        name: "list-tests",
         scope_policy: "default-//...",
-        describe: "list configured test targets with optional Rust case enumeration (non-mutating; --cases builds and lists without running bodies)",
-        usage: "Usage: dx tests [--cases] [--configured] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --cases (enumerate supported test cases via the test runtime; Rust libtest first; other frameworks report unsupported). --configured (use `bazel cquery` instead of `bazel query`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label or case).",
+        describe: "list configured test targets without building or running them (non-mutating; --cases builds and runs supported test binaries to list cases)",
+        usage: "Usage: dx list-tests [--cases] [--configured] [--here] [scope ...] [-- bazel-options ...]",
+        flags: "Per-command flags: --cases (build and run supported Rust test binaries with --list to enumerate cases; other frameworks report unsupported). --configured (use `bazel cquery` instead of `bazel query`; --output text|json only, diff has no patch; JSON reuses the status envelope with one status event per label or case).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,
@@ -998,7 +998,7 @@ impl Command {
     }
 
     pub fn supports_cases(self) -> bool {
-        matches!(self, Command::Tests)
+        matches!(self, Command::ListTests)
     }
 
     pub fn supports_profile(self) -> bool {
@@ -1147,7 +1147,7 @@ mod tests {
             Command::Watch,
             Command::Completion,
             Command::Docs,
-            Command::Tests,
+            Command::ListTests,
             Command::Rollback,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
@@ -1188,6 +1188,7 @@ mod tests {
             "init",
             "license",
             "lint",
+            "list-tests",
             "migrate",
             "new",
             "rollback",
@@ -1195,7 +1196,6 @@ mod tests {
             "security",
             "status",
             "test",
-            "tests",
             "typecheck",
             "update",
             "upgrade",
@@ -1244,7 +1244,7 @@ mod tests {
             Command::Watch,
             Command::Completion,
             Command::Docs,
-            Command::Tests,
+            Command::ListTests,
             Command::Rollback,
         ] {
             assert!(
@@ -1363,7 +1363,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|tests|rollback",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback",
             "pipe_list order must match declaration order"
         );
     }
@@ -1495,15 +1495,16 @@ mod tests {
             page.contains(".SH SUBCOMMANDS"),
             "man/dx.1 has no SUBCOMMANDS section:\n{page}"
         );
-        let mut sections: Vec<&str> = page
+        let mut sections: Vec<String> = page
             .lines()
             .filter_map(|line| line.strip_prefix("dx\\-"))
             .filter_map(|rest| rest.strip_suffix("(1)"))
+            .map(|name| name.replace("\\-", "-"))
             .collect();
         sections.sort_unstable();
-        let mut expected: Vec<&str> = Command::value_variants()
+        let mut expected: Vec<String> = Command::value_variants()
             .iter()
-            .map(|command| command.name())
+            .map(|command| command.name().to_owned())
             .collect();
         expected.sort_unstable();
         assert_eq!(

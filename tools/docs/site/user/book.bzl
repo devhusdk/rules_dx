@@ -73,8 +73,8 @@ USER_BOOK = [
     ),
     mdbook_page(
         "Tests",
-        "docs/cli/commands/tests.md",
-        "//docs:cli/commands/tests.md",
+        "docs/cli/commands/list-tests.md",
+        "//docs:cli/commands/list-tests.md",
     ),
     mdbook_page(
         "Scope Defaults",

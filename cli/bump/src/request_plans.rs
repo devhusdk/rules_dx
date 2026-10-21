@@ -542,37 +542,64 @@ pub(super) fn plan_github_workflow(
             tag: tag.clone(),
         }),
         WidenVersion::GitCommit(sha) => {
-            let mut matches = 0usize;
-            let mut out = String::with_capacity(content.len());
-            for line in content.split_inclusive('\n') {
-                if crate::gha::uses_pin_targets_package(line, package) {
-                    let needle = format!("{package}@");
-                    match replace_gha_sha(line, &needle, sha) {
-                        Some(replaced) => {
-                            matches += 1;
-                            out.push_str(&replaced);
-                            continue;
-                        }
-                        None => {
-                            return Err(BumpError::UnsupportedManifest {
-                                manifest: WORKFLOW_DIR.to_owned(),
-                                reason: format!("{package:?} has no replaceable @SHA pin"),
-                            });
-                        }
-                    }
-                }
-                out.push_str(line);
+            let unsupported = |reason: String| BumpError::UnsupportedManifest {
+                manifest: WORKFLOW_DIR.to_owned(),
+                reason,
+            };
+            let parsed = crate::gha::parse_workflow_pins(content)
+                .map_err(|error| unsupported(error.to_string()))?;
+            let targets_package =
+                |kind, value: &str| crate::gha::pin_targets_package(kind, value, package);
+            if parsed.indirect
+                && parsed
+                    .loose
+                    .iter()
+                    .any(|value| targets_package(crate::gha::UsesKind::Step, value))
+            {
+                return Err(unsupported(format!(
+                    "{package:?} sits in a workflow with aliases or merge keys"
+                )));
             }
-            match matches {
-                0 => Err(BumpError::NotFound {
+            let matched: Vec<usize> = parsed
+                .pins
+                .iter()
+                .enumerate()
+                .filter(|(_, pin)| targets_package(pin.kind, &pin.value))
+                .map(|(index, _)| index)
+                .collect();
+            match matched.as_slice() {
+                [] => Err(BumpError::NotFound {
                     manifest: WORKFLOW_DIR.to_owned(),
                     package: package.to_owned(),
                 }),
-                1 => Ok(out),
-                count => Err(BumpError::Ambiguous {
+                [index] => {
+                    let pin = &parsed.pins[*index];
+                    let no_pin = || unsupported(format!("{package:?} has no replaceable @SHA pin"));
+                    let out =
+                        crate::gha::replace_pin_reference(content, pin, sha).ok_or_else(no_pin)?;
+                    let reparsed = crate::gha::parse_workflow_pins(&out)
+                        .map_err(|error| unsupported(error.to_string()))?;
+                    let (action, _) = crate::gha::split_pin(&pin.value).ok_or_else(no_pin)?;
+                    let expected = format!("{action}@{sha}");
+                    let kept = reparsed.pins.len() == parsed.pins.len()
+                        && reparsed.pins.iter().zip(&parsed.pins).enumerate().all(
+                            |(at, (after, before))| {
+                                if at == *index {
+                                    after.value == expected
+                                } else {
+                                    after.value == before.value
+                                }
+                            },
+                        );
+                    if !kept {
+                        return Err(unsupported("edit did not round-trip".to_owned()));
+                    }
+                    Ok(out)
+                }
+                many => Err(BumpError::Ambiguous {
                     manifest: WORKFLOW_DIR.to_owned(),
                     package: package.to_owned(),
-                    count,
+                    count: many.len(),
                 }),
             }
         }
@@ -581,20 +608,6 @@ pub(super) fn plan_github_workflow(
             reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
         }),
     }
-}
-
-pub(super) fn replace_gha_sha(line: &str, needle: &str, sha: &str) -> Option<String> {
-    let at = line.find(needle)? + needle.len();
-    let rest = &line[at..];
-    let end = rest.find(|c: char| c.is_whitespace()).unwrap_or(rest.len());
-    if end == 0 {
-        return None;
-    }
-    let mut replaced = String::with_capacity(line.len());
-    replaced.push_str(&line[..at]);
-    replaced.push_str(sha);
-    replaced.push_str(&rest[end..]);
-    Some(replaced)
 }
 
 pub(super) fn target_prefix_re() -> Option<&'static Regex> {

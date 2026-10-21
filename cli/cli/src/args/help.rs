@@ -182,8 +182,8 @@ per-command flags: clean --bazel|--prune-unobserved (also run `bazel clean`; def
 --prune-unobserved prunes generations no observation protects); owners|deps|why|tests --configured (cquery); tests --cases (enumerate supported cases); \
 coverage --min-coverage; build|run|test|deploy|watch --debug|--release; \
 version --check; docs --check|--serve|--port|--host|--open; \
-completion <{shells}> [--check] (no shell with --check verifies all). \
---check is per-command only (quality/codegen/env/clean/version/update/docs/completion/check|fix; status rejects --check; \
+completion <{shells}>. \
+--check is per-command only (quality/codegen/env/clean/version/update/docs/check|fix; status rejects --check; \
 see `dx <command> --help`). --apply is per-command only and authorizes the managed mutation or effect \
 where the command takes it (lint/typecheck/format/fix/generate writes, codegen/env selection, run/deploy launch, clean pruning, \
 update/bump/migrate/upgrade writes, init/new scaffolding, \
@@ -696,12 +696,12 @@ mod tests {
     }
 
     #[test]
-    fn completion_help_names_check_verification() {
+    fn completion_help_names_shells_without_check() {
         let text = match parse(&strings(&["completion", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
-        assert!(text.contains("--check"), "completion help:\n{text}");
+        assert!(!text.contains("--check]"), "completion help:\n{text}");
         assert!(
             text.contains("bash|zsh|fish|powershell"),
             "completion help:\n{text}"

@@ -61,7 +61,7 @@ commands. See [Version Skew](status-version.md#version-skew).
   `coverage`. Every other command rejects it.
 - `--check`: report without changing files. Taken by `lint`, `typecheck`, `format`,
   `generate`, `codegen`, `env`, `clean`, `check`, `fix`, `update`,
-  `version`, `completion`, and `docs`.
+  `version`, and `docs`.
   Every other command rejects it.
 - `--apply`: authorize the managed mutation or effect. Taken by `lint`, `typecheck`,
   `format`, `generate`, `run`, `deploy`, `fix`, `clean`, `update`, `bump`, `migrate`,

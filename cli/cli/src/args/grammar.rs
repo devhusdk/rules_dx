@@ -634,7 +634,7 @@ command_args! {
     /// The flags `dx why` accepts.
     Why => 27, NoPassthroughTail, { own: ConfiguredFlag, };
     /// The flags `dx completion` accepts.
-    Completion => 28, NoPassthroughTail, { own: CheckFlag, };
+    Completion => 28, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
     Docs => 29, BazelTail, {
         check: CheckFlag,

@@ -35,7 +35,7 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx watch`: needs a watchable command plus its scopes.
 - `dx new`: needs a language, plus an optional name.
 - `dx init`: optional module name.
-- `dx completion`: exactly one shell, or none with `--check`.
+- `dx completion`: exactly one shell.
 
 ## No Scopes
 

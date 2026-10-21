@@ -178,7 +178,7 @@ pub fn usage_banner() -> String {
 [--fail-on info|warning|error] [--min-coverage 0-100 (coverage only)] \
 [scope ...] [-- command-options...]\n\
 flags go after the command: `dx lint --check //...`. \
-per-command flags: clean --prune-unobserved (prunes generations no observation protects); tests --configured (cquery); tests --cases (enumerate supported cases); \
+per-command flags: clean --prune-unobserved (prunes generations no observation protects); list-tests --configured (cquery); list-tests --cases (enumerate supported cases); \
 coverage --min-coverage; build|run|test|deploy|watch --debug|--release; \
 version --check; docs --check|--serve|--port|--host|--open; \
 completion <{shells}>. \

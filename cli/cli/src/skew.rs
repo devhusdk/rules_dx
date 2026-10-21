@@ -67,7 +67,7 @@ mod tests {
         Command::Check,
         Command::Security,
         Command::License,
-        Command::Tests,
+        Command::ListTests,
     ];
 
     const REFUSE: &[Command] = &[

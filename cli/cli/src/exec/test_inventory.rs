@@ -146,7 +146,7 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
         err,
         ..
     } = env;
-    if invocation.command != Command::Tests {
+    if invocation.command != Command::ListTests {
         return pre_exec(err, "not a tests command");
     }
     let verb = if invocation.configured {
@@ -257,14 +257,14 @@ fn emit_inventory_json(
     empty_scopes: &[String],
     code: i32,
 ) -> i32 {
-    if let Ok(event) = command_started("tests", "default") {
+    if let Ok(event) = command_started("list-tests", "default") {
         if let Err(exit) = emit_event(ctx.out, &event) {
             return exit;
         }
     }
     for (_, label, scope) in pairs {
         if let Ok(event) = status_event(&StatusEvent {
-            name: "tests".to_owned(),
+            name: "list-tests".to_owned(),
             status: "ok".to_owned(),
             detail: label.clone(),
             hint: format!(
@@ -394,14 +394,14 @@ fn emit_cases_json(
     problems: &[(String, String)],
     code: i32,
 ) -> i32 {
-    if let Ok(event) = command_started("tests", "default") {
+    if let Ok(event) = command_started("list-tests", "default") {
         if let Err(exit) = emit_event(ctx.out, &event) {
             return exit;
         }
     }
     for (label, case) in listed {
         if let Ok(event) = status_event(&StatusEvent {
-            name: "tests".to_owned(),
+            name: "list-tests".to_owned(),
             status: "ok".to_owned(),
             detail: case.clone(),
             hint: format!(
@@ -450,7 +450,7 @@ mod tests {
             &harness.query,
             "rust_test rule //z:two\nrust_test rule //a:one\nrust_test rule //z:two\n",
         );
-        let (code, out, err) = harness.run(&["tests", "//..."]);
+        let (code, out, err) = harness.run(&["list-tests", "//..."]);
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//a:one\n//z:two\n");
         assert!(err.is_empty(), "{err}");
@@ -471,7 +471,7 @@ mod tests {
             &harness.query,
             "rust_test rule //a:one\npy_test rule //b:two\n",
         );
-        let (code, out, _) = harness.run(&["tests", "//...", "--output=json"]);
+        let (code, out, _) = harness.run(&["list-tests", "//...", "--output=json"]);
         assert_eq!(code, 0);
         let events = json_events(&out);
         assert_eq!(event_kinds(&events)[0], "command_started");
@@ -481,7 +481,7 @@ mod tests {
             .collect();
         assert_eq!(details, vec!["//a:one", "//b:two"]);
         for event in events_of_kind(&events, "status") {
-            assert_eq!(event["name"], serde_json::json!("tests"));
+            assert_eq!(event["name"], serde_json::json!("list-tests"));
             assert_eq!(event["status"], serde_json::json!("ok"));
             assert!(
                 event["hint"]
@@ -497,7 +497,7 @@ mod tests {
     fn inventory_configured_uses_cquery() {
         let harness = Harness::new("tests-configured");
         script_output(&harness.query, "rust_test rule //a:one (3b48b08)\n");
-        let (code, out, _) = harness.run(&["tests", "--configured", "//a:one"]);
+        let (code, out, _) = harness.run(&["list-tests", "--configured", "//a:one"]);
         assert_eq!(code, 0);
         assert_eq!(out, "//a:one\n");
         let calls = harness.query.calls.borrow();
@@ -509,7 +509,7 @@ mod tests {
     fn inventory_empty_scope_is_no_tests() {
         let harness = Harness::new("tests-empty");
         script_output(&harness.query, "\n");
-        let (code, _, err) = harness.run(&["tests", "//empty/..."]);
+        let (code, _, err) = harness.run(&["list-tests", "//empty/..."]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("no_tests"), "{err}");
     }
@@ -522,7 +522,7 @@ mod tests {
             stdout: Vec::new(),
             stderr: b"no such package\n".to_vec(),
         });
-        let (code, _, err) = harness.run(&["tests", "//..."]);
+        let (code, _, err) = harness.run(&["list-tests", "//..."]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_failed"), "{err}");
     }
@@ -531,7 +531,7 @@ mod tests {
     fn inventory_malformed_kind_is_operational() {
         let harness = Harness::new("tests-malformed");
         script_output(&harness.query, "not a kind line\n");
-        let (code, _, err) = harness.run(&["tests", "//..."]);
+        let (code, _, err) = harness.run(&["list-tests", "//..."]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_failed"), "{err}");
     }
@@ -547,7 +547,7 @@ mod tests {
             &harness.query,
             "alpha: test\nbeta: test\n1 test, 0 benchmarks\n",
         );
-        let (code, out, err) = harness.run(&["tests", "--cases", "//..."]);
+        let (code, out, err) = harness.run(&["list-tests", "--cases", "//..."]);
         assert_eq!(code, 1, "{out} {err}");
         assert_eq!(out, "//a:one: alpha\n//a:one: beta\n");
         assert!(err.contains("unsupported"), "{err}");
@@ -564,7 +564,7 @@ mod tests {
         let harness = Harness::new("tests-forwarded");
         script_output(&harness.query, "_rust_forward_test rule //a:one\n");
         script_output(&harness.query, "solo: test\n");
-        let (code, out, err) = harness.run(&["tests", "--cases", "//a:one"]);
+        let (code, out, err) = harness.run(&["list-tests", "--cases", "//a:one"]);
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//a:one: solo\n");
     }
@@ -574,7 +574,7 @@ mod tests {
         let harness = Harness::new("tests-no-cases");
         script_output(&harness.query, "rust_test rule //a:one\n");
         script_output(&harness.query, "0 tests, 0 benchmarks\n");
-        let (code, _, err) = harness.run(&["tests", "--cases", "//a:one"]);
+        let (code, _, err) = harness.run(&["list-tests", "--cases", "//a:one"]);
         assert_eq!(code, 1);
         assert!(err.contains("no_cases"), "{err}");
     }
@@ -588,7 +588,7 @@ mod tests {
             stdout: Vec::new(),
             stderr: b"build failed\n".to_vec(),
         });
-        let (code, _, err) = harness.run(&["tests", "--cases", "//a:one"]);
+        let (code, _, err) = harness.run(&["list-tests", "--cases", "//a:one"]);
         assert_eq!(code, 1);
         assert!(err.contains("case_failed"), "{err}");
     }
@@ -601,7 +601,7 @@ mod tests {
             "rust_test rule //a:one\nsh_test rule //b:two\n",
         );
         script_output(&harness.query, "alpha: test\n");
-        let (code, out, _) = harness.run(&["tests", "--cases", "//...", "--output=json"]);
+        let (code, out, _) = harness.run(&["list-tests", "--cases", "//...", "--output=json"]);
         assert_eq!(code, 1);
         let events = json_events(&out);
         let kinds = event_kinds(&events);
@@ -628,7 +628,7 @@ mod tests {
             lines.push_str(&format!("case_{index:05}: test\n"));
         }
         script_output(&harness.query, &lines);
-        let (code, out, err) = harness.run(&["tests", "--cases", "//a:one"]);
+        let (code, out, err) = harness.run(&["list-tests", "--cases", "//a:one"]);
         assert_eq!(code, 1);
         assert!(err.contains("cases_truncated"), "{err}");
         assert_eq!(out.lines().count(), MAX_CASES_PER_TARGET);
@@ -642,7 +642,7 @@ mod tests {
         script_output(&harness.query, "//pkg:lib\n");
         script_output(&harness.query, "//pkg:unit\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
-        let (code, out, err) = harness.run(&["tests", "pkg/a.py"]);
+        let (code, out, err) = harness.run(&["list-tests", "pkg/a.py"]);
         assert_eq!(code, 0, "{err}");
         assert_eq!(out, "//pkg:unit\n");
     }
@@ -653,7 +653,7 @@ mod tests {
         script_output(&harness.query, "rust_test rule //a:one\n");
         script_output(&harness.query, "solo: test\n");
         let inv = invocation(&[
-            "tests",
+            "list-tests",
             "--cases",
             "--bazel-startup-option=--output_base=/tmp/a",
             "//a:one",
@@ -693,7 +693,7 @@ mod tests {
         script_output(&harness.query, "//pkg:unit\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
         let (code, out, err) = harness.run(&[
-            "tests",
+            "list-tests",
             "--configured",
             "pkg/a.py",
             "--",
@@ -738,7 +738,7 @@ mod tests {
         let harness = Harness::new("tests-configured-hint");
         script_output(&harness.query, "rust_test rule //a:one\n");
         let (code, out, _) = harness.run(&[
-            "tests",
+            "list-tests",
             "--configured",
             "//a:one",
             "--output=json",
@@ -769,7 +769,7 @@ mod tests {
             stderr: b"analysis failed\n".to_vec(),
         });
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
-        let (code, _, err) = harness.run(&["tests", "--configured", "pkg/a.py"]);
+        let (code, _, err) = harness.run(&["list-tests", "--configured", "pkg/a.py"]);
         assert_ne!(code, 0, "configured analysis failure must fail: {err}");
         assert!(err.contains("analysis failed"), "{err}");
         let calls = harness.query.calls.borrow();
@@ -786,7 +786,7 @@ mod tests {
         script_output(&harness.query, "//pkg:unit\n");
         script_output(&harness.query, "rust_test rule //pkg:unit\n");
         let (code, out, err) = harness.run(&[
-            "tests",
+            "list-tests",
             "--configured",
             "pkg/a.py",
             "--",
@@ -811,7 +811,7 @@ mod tests {
         let harness = Harness::new("tests-selection-secret");
         script_output(&harness.query, "rust_test rule //a:one\n");
         let (code, out, _) = harness.run(&[
-            "tests",
+            "list-tests",
             "--configured",
             "//a:one",
             "--output=json",

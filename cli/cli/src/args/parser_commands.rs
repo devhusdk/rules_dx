@@ -66,8 +66,8 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
 }
 
 const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 8] = [
-    ("--configured", &["--configured"], &["tests"]),
-    ("--cases", &["--cases"], &["tests"]),
+    ("--configured", &["--configured"], &["list-tests"]),
+    ("--cases", &["--cases"], &["list-tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
     ("--serve", &["--serve"], &["docs"]),
     ("--port", &["--serve", "--port=8080"], &["docs"]),
@@ -885,13 +885,13 @@ fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
 fn version_rollback_check_and_configured_parse() {
     let got = parse(&strings(&["version", "--check"])).expect("parse");
     assert!(got.check);
-    let got = parse(&strings(&["tests", "--configured", "//a:one"])).expect("parse");
-    assert_eq!(got.command, Command::Tests);
+    let got = parse(&strings(&["list-tests", "--configured", "//a:one"])).expect("parse");
+    assert_eq!(got.command, Command::ListTests);
     assert!(got.configured);
     for words in [
         vec!["status", "--serve"],
         vec!["status", "--check"],
-        vec!["tests", "//a:one", "--from=0.1.0"],
+        vec!["list-tests", "//a:one", "--from=0.1.0"],
         vec!["build", "//a:one", "--configured"],
         vec!["lint", "--serve"],
         vec!["check", "//...", "--configured"],

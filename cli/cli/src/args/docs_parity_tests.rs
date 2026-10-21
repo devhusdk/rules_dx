@@ -2684,7 +2684,7 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
     for (argv, needle) in [
         (
             vec!["lintt"],
-            "some similar subcommands exist: 'init', 'lint'",
+            "some similar subcommands exist: 'list-tests', 'init', 'lint'",
         ),
         (
             vec!["lint", "--ouptut=json"],

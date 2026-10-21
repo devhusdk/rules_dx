@@ -827,7 +827,7 @@ mod tests {
             ["//pkg"]
         );
         assert_eq!(
-            prior_scopes(&words(&["--", "dx", "tests", "a.rs", ""])),
+            prior_scopes(&words(&["--", "dx", "list-tests", "a.rs", ""])),
             ["a.rs"]
         );
         assert_eq!(

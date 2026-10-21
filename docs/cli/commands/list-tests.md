@@ -1,15 +1,16 @@
-# `dx tests`
+# `dx list-tests`
 
 ```text
-dx tests [scope ...] [-- bazel-options ...]
-dx tests --cases [scope ...] [-- bazel-options ...]
-dx tests --configured [scope ...] [-- bazel-options ...]
-dx tests --here [-- bazel-options ...]
+dx list-tests [scope ...] [-- bazel-options ...]
+dx list-tests --cases [scope ...] [-- bazel-options ...]
+dx list-tests --configured [scope ...] [-- bazel-options ...]
+dx list-tests --here [-- bazel-options ...]
 ```
 
-Lists the configured test targets for a scope without running them. The
-inventory reads Bazel facts through the `tests()` query function, so a
-custom test rule counts when Bazel marks it a test, even when its name
+Lists the configured test targets for a scope. It never builds or runs
+them unless you pass `--cases`. Use `dx test` to run tests. The old
+`dx tests` is rejected with exit `2`. The inventory reads Bazel facts
+through the `tests()` query function, so a custom test rule counts when Bazel marks it a test, even when its name
 does not end in `_test`. An explicit label that is not a test, and a
 pattern that matches no tests, fail instead of reporting an empty suite.
 
@@ -25,8 +26,9 @@ resolution stays unconfigured in both modes.
 
 `--cases` enumerates test cases for Rust targets (`rust_test` and the
 `dx_wrap` forwarder) by building each test and running it with `--list`.
-Listing never runs test bodies, but it builds the test and executes its
-initialization code; treat the target as untrusted code. Every other
+Listing never runs test bodies, but `--cases` builds the selected tests
+and executes their binaries and initialization code; pass it only for
+targets you trust. Every other
 framework reports `unsupported_framework` with its rule kind, never an
 empty suite. Case output is sorted and deterministic, capped at 2000 cases
 per target and 5000 total; a cap reports `cases_truncated` instead of
@@ -47,8 +49,8 @@ relative label, or an unreadable path, `1` operational failures including
 any scope contributed no tests.
 
 ```sh
-bazel run @rules_dx//:dx -- tests //cli/test_scratch/...
-bazel run @rules_dx//:dx -- tests --cases //cli/test_scratch:dx_test_scratch_test_upstream
-bazel run @rules_dx//:dx -- tests --cases //cli/test_scratch/... --output=json
-bazel run @rules_dx//:dx -- tests --configured //cli/test_scratch/... -- --config=ci
+bazel run @rules_dx//:dx -- list-tests //cli/test_scratch/...
+bazel run @rules_dx//:dx -- list-tests --cases //cli/test_scratch:dx_test_scratch_test_upstream
+bazel run @rules_dx//:dx -- list-tests --cases //cli/test_scratch/... --output=json
+bazel run @rules_dx//:dx -- list-tests --configured //cli/test_scratch/... -- --config=ci
 ```

@@ -651,7 +651,7 @@ mod startup_tests {
         let scratch = dx_test_scratch::scratch(name);
         std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx dir");
         if let Some(text) = config {
-            std::fs::write(scratch.path().join(".dx/config.toml"), text).expect("config");
+            std::fs::write(scratch.path().join("dx.toml"), text).expect("config");
         }
         scratch
     }
@@ -930,7 +930,7 @@ mod startup_tests {
         let scratch = scratch_with_config("startup-malformed-", Some("not toml = ["));
         let error =
             select_startup_defaults(scratch.path(), None, None).expect_err("malformed fails");
-        assert!(error.contains("config.toml"), "{error}");
+        assert!(error.contains("dx.toml"), "{error}");
     }
 
     #[test]

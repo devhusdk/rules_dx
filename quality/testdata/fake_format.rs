@@ -19,7 +19,6 @@ enum Mode {
     Warn,
     Diff,
     Listed,
-    ListedRel,
     YamlReport,
 }
 
@@ -56,7 +55,6 @@ fn mode_for(ext: &str) -> Mode {
         "go" => Mode::Diff0,
         "css" | "less" | "scss" | "feature" | "sql" | "xml" => Mode::Warn,
         "jsonnet" | "pkl" | "mod" => Mode::Listed,
-        "tf" => Mode::ListedRel,
         "yaml" => Mode::YamlReport,
         _ => Mode::Diff,
     }
@@ -421,20 +419,6 @@ pub fn run(argv: &[String]) -> i32 {
                 0
             }
         }
-        Mode::ListedRel => {
-            let mut dirty = false;
-            for file in &files {
-                if is_dirty(file) {
-                    println!("{}", relpath(&cwd, file));
-                    dirty = true;
-                }
-            }
-            if dirty {
-                1
-            } else {
-                0
-            }
-        }
         Mode::YamlReport => {
             let mut dirty = false;
             for file in &files {
@@ -483,23 +467,12 @@ mod tests {
     /// The tools that name the files they would rewrite print no diff header at all.
     #[test]
     fn the_listing_tools_never_print_a_diff_header() {
-        for ext in ["jsonnet", "pkl", "mod", "tf"] {
+        for ext in ["jsonnet", "pkl", "mod"] {
             assert!(
-                matches!(mode_for(ext), Mode::Listed | Mode::ListedRel),
+                matches!(mode_for(ext), Mode::Listed),
                 "{ext}"
             );
         }
-    }
-
-    /// `terraform fmt -check` names each file from its working directory, not as handed.
-    #[test]
-    fn terraform_names_its_files_relative_to_the_working_directory() {
-        assert!(matches!(mode_for("tf"), Mode::ListedRel));
-        assert_eq!(
-            relpath(Path::new("/tmp/dx"), "/tmp/dx/matrix/x.tf"),
-            "matrix/x.tf"
-        );
-        assert_eq!(relpath(Path::new("/tmp/dx/sub"), "/tmp/dx/x.tf"), "../x.tf");
     }
 
     /// `yamlfmt -lint` reports to stderr, so its shape only survives on stderr.
@@ -531,7 +504,7 @@ mod tests {
         assert_eq!(json_escape("plain/a.py"), "plain/a.py");
     }
 
-    /// `Mode::Relpath` and `Mode::ListedRel` print paths the runner matches against its own
+    /// `Mode::Relpath` prints paths the runner matches against its own
     /// absolute names, so they must spell separators the way the checked-in paths do.
     #[test]
     fn a_relative_report_never_names_a_backslash() {

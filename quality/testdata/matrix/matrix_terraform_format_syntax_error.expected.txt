@@ -5,7 +5,7 @@ stage terraform classes=terraform sources=matrix/terraform_broken.tf
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR terraform - matrix/terraform_broken.tf 1 0 fixable=false "Invalid expression"
+initial ERROR terraform - matrix/terraform_broken.tf 9 9 fixable=false "Invalid expression"
 terminal 1
-terminal ERROR terraform - matrix/terraform_broken.tf 1 0 fixable=false "Invalid expression"
+terminal ERROR terraform - matrix/terraform_broken.tf 9 9 fixable=false "Invalid expression"
 replacements 0

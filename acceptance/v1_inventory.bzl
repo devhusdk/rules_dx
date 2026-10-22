@@ -195,7 +195,7 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
         ],
         "id": "aspect.real_terraform_format_aspect",
         "native": True,
@@ -2734,7 +2734,7 @@ PROMISES = [
     {
         "evidence": [
             "//quality/adapter:quality_adapter_test",
-            "//quality:real_pipeline_unit",
+            "//quality:support_unit",
         ],
         "id": "tool.terraform",
         "native": True,

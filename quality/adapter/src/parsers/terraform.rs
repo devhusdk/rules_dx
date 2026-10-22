@@ -67,12 +67,15 @@ fn syntax_errors(
 /// The path and line from a `  on <path> line <n>[, in <block>]:` header.
 fn located(line: &str) -> Option<(&str, u64)> {
     let rest = line.strip_prefix("  on ")?;
-    let (path, tail) = rest
-        .rsplit_once(" line ")
-        .or_else(|| rest.split_once(" line "))?;
-    let digits: String = tail.chars().take_while(char::is_ascii_digit).collect();
-    let number = digits.parse().ok()?;
-    Some((path, number))
+    rest.match_indices(" line ").find_map(|(at, marker)| {
+        let tail = &rest[at + marker.len()..];
+        let digits: String = tail.chars().take_while(char::is_ascii_digit).collect();
+        let after = &tail[digits.len()..];
+        if !(after.is_empty() || after.starts_with(',') || after.starts_with(':')) {
+            return None;
+        }
+        Some((&rest[..at], digits.parse().ok()?))
+    })
 }
 
 #[cfg(test)]
@@ -155,6 +158,14 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[1].file, "/tmp/dx-scratch/sub/Other.tf");
         assert_eq!(findings[1].finding.start.line, 1);
+    }
+
+    #[test]
+    fn terraform_block_labels_naming_a_line_do_not_move_the_location() {
+        let stderr = b"Error: Invalid expression\n\n  on sub/main.tf line 2, in resource \"a\" \"my line 5\":\n   2:   a = \n\n";
+        let findings = parse_terraform(b"", stderr, Some(2), &files(), scratch()).expect("parsed");
+        assert_eq!(findings[0].file, "/tmp/dx-scratch/sub/main.tf");
+        assert_eq!(findings[0].finding.start.line, 2);
     }
 
     #[test]

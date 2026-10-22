@@ -1778,7 +1778,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::terraform::parse_terraform(input, code, files, std::path::Path::new("/"))
+        super::terraform::parse_terraform(input, input, code, files, std::path::Path::new("/"))
     }
 
     fn fuzz_tsc(

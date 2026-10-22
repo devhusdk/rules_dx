@@ -46,10 +46,25 @@ SHELL_SHFMT_SUPPORT = {
     "transport": "single",
 }
 
+TERRAFORM_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["terraform"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "terraform",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "terraform",
+    "transport": "single",
+}
+
 SUPPORT_RECORDS = [
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
+    TERRAFORM_FORMAT_SUPPORT,
 ]
 
 def _is_canonical_token(text):
@@ -139,6 +154,10 @@ def support_shell_wiring_error(wired_tools):
             return err
     return ""
 
+def support_terraform_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Terraform family."""
+    return _wiring_error(TERRAFORM_FORMAT_SUPPORT, wired_tools, "real_terraform_format_aspect")
+
 def _cli_error(record, cli_aspects, aspect):
     """Reports the missing CLI aspect for one qualified record."""
     for seen in cli_aspects:
@@ -158,6 +177,10 @@ def support_shell_cli_error(cli_aspects):
             return err
     return ""
 
+def support_terraform_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Terraform family."""
+    return _cli_error(TERRAFORM_FORMAT_SUPPORT, cli_aspects, "real_terraform_format_aspect")
+
 def _artifact_error(record):
     """Reports the missing pinned artifact for one qualified record."""
     if record["artifact"] == "pinned":
@@ -175,6 +198,10 @@ def support_shell_artifact_error():
         if err != "":
             return err
     return ""
+
+def support_terraform_artifact_error():
+    """Reports the actionable artifact gap for the Terraform family."""
+    return _artifact_error(TERRAFORM_FORMAT_SUPPORT)
 
 def is_support_tool(tool_id):
     """Reports whether a tool carries an explicit support record."""

@@ -442,7 +442,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "6Ro3ov6z/J79qivR1cb0Re/0GsRBKlRZzb90cPmqA3Y=",
+        "bzlTransitiveDigest": "eD/6Vla2MH4Ld2ZVK+DkFIng2DssVIyd+nPiksMK6n0=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -844,6 +844,50 @@
               "executable_sha256": "12660d24becf05a78b39133112e91d1bd319b22b8e49660448c222a6858a6827"
             }
           },
+          "dx_terraform_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_amd64.zip",
+              "sha256": "745d33b4b02b7980c62a38ec1beea24ee084ea8caf3f503c200554bd9a0cbe49",
+              "asset": "terraform_1.16.1_linux_amd64.zip",
+              "archive_format": "zip",
+              "executable": "terraform",
+              "executable_sha256": "0b5a4e400548d9538af88a4c5a2726b97b38751b8f577aa6687ad051ba2070f2"
+            }
+          },
+          "dx_terraform_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_arm64.zip",
+              "sha256": "423288a23ab024d42ac05c409972585f7ec0cf1be572b773ad952f9a1c41387d",
+              "asset": "terraform_1.16.1_linux_arm64.zip",
+              "archive_format": "zip",
+              "executable": "terraform",
+              "executable_sha256": "6d4234db9e03a2203f844037ee1de02657e5bd52c097a89770292c929bf2b122"
+            }
+          },
+          "dx_terraform_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_darwin_arm64.zip",
+              "sha256": "e22cba761ddbd4d218939b28715ab3af37aaf8a42efa41f7d75b2c3d73636060",
+              "asset": "terraform_1.16.1_darwin_arm64.zip",
+              "archive_format": "zip",
+              "executable": "terraform",
+              "executable_sha256": "39d08f802c61d133c04b9b22ffcdf2434f1aeec0c4cd5b144698e63441ea57c0"
+            }
+          },
+          "dx_terraform_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_windows_amd64.zip",
+              "sha256": "5c6c6d8fedf56ce29c55f0c1fc91de3c259f42c2d220a28e827b5b60fd47bfa1",
+              "asset": "terraform_1.16.1_windows_amd64.zip",
+              "archive_format": "zip",
+              "executable": "terraform.exe",
+              "executable_sha256": "31825d5276c00019b22f24796862b1d1989e22ec918bb048d2438e6aba47818a"
+            }
+          },
           "dx_ty_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -935,7 +979,7 @@
           "dx_tools": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_hub_repo",
             "attributes": {
-              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"}}",
+              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"}}",
               "os_linux": "'@@platforms//os:linux'",
               "os_macos": "'@@platforms//os:macos'",
               "os_windows": "'@@platforms//os:windows'",

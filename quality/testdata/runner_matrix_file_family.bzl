@@ -1,5 +1,13 @@
 """Interpreted/file-family cohort matrix cells."""
 
+_TERRAFORM_ENV = [
+    "terraform=CHECKPOINT_DISABLE=1",
+    "terraform=TF_IN_AUTOMATION=1",
+    "terraform=TF_INPUT=0",
+]
+
+_TERRAFORM_MODULE = "quality/tests/fixtures/consumer_policy/terraform_module/"
+
 FILE_FAMILY_CASES = [
     {
         "name": "matrix_cue_format_pass",
@@ -97,19 +105,61 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["terraform;terraform;matrix/terraform_clean.tf"],
         "tool_names": ["terraform"],
-        "tool_binaries": ["//quality/testdata:fake_terraform"],
+        "tool_binaries": ["@dx_tools//:terraform"],
+        "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_pass.expected.txt",
     },
     {
         "name": "matrix_terraform_format_fail",
         "generated": {
-            "matrix/terraform_dirty.tf": "resourceBADFMT\n",
+            "matrix/terraform_dirty.tf": "locals {\n  a=1\n}\n",
         },
         "capability": "format",
         "stages": ["terraform;terraform;matrix/terraform_dirty.tf"],
         "tool_names": ["terraform"],
-        "tool_binaries": ["//quality/testdata:fake_terraform"],
+        "tool_binaries": ["@dx_tools//:terraform"],
+        "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_terraform_format_syntax_error",
+        "generated": {
+            "matrix/terraform_broken.tf": "locals {\n  a = \n}\n",
+        },
+        "capability": "format",
+        "stages": ["terraform;terraform;matrix/terraform_broken.tf"],
+        "tool_names": ["terraform"],
+        "tool_binaries": ["@dx_tools//:terraform"],
+        "tool_env": _TERRAFORM_ENV,
+        "expected_file": ":matrix/matrix_terraform_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_terraform_format_module",
+        "srcs": ["//quality/tests/fixtures/consumer_policy:terraform_module"],
+        "capability": "format",
+        "stages": ["terraform;terraform;" + ",".join([
+            _TERRAFORM_MODULE + "main.tf",
+            _TERRAFORM_MODULE + "modules/child/main.tf",
+            _TERRAFORM_MODULE + "outputs.tf",
+            _TERRAFORM_MODULE + "terraform.tfvars",
+        ])],
+        "tool_names": ["terraform"],
+        "tool_binaries": ["@dx_tools//:terraform"],
+        "tool_env": _TERRAFORM_ENV,
+        "expected_file": ":matrix/matrix_terraform_format_module.expected.txt",
+    },
+    {
+        "name": "matrix_terraform_format_module_syntax_error",
+        "generated": {
+            "matrix/tf_module/main.tf": "module \"child\" {\n  source = \"./modules/child\"\n}\n",
+            "matrix/tf_module/modules/child/main.tf": "output \"name\" {\n  value = \n}\n",
+        },
+        "capability": "format",
+        "stages": ["terraform;terraform;matrix/tf_module/main.tf,matrix/tf_module/modules/child/main.tf"],
+        "tool_names": ["terraform"],
+        "tool_binaries": ["@dx_tools//:terraform"],
+        "tool_env": _TERRAFORM_ENV,
+        "expected_file": ":matrix/matrix_terraform_format_module_syntax_error.expected.txt",
     },
     {
         "name": "matrix_yaml_format_pass",

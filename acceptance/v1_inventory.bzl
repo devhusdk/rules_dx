@@ -195,6 +195,16 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality:consumer_policy_terraform_formatted_test",
+            "//quality:support_unit",
+        ],
+        "id": "aspect.real_terraform_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
             "//quality:real_pipeline_unit",
         ],
         "id": "aspect.real_text_lint_aspect",
@@ -2724,12 +2734,16 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality/testdata:matrix_terraform_format_fail",
+            "//quality/testdata:matrix_terraform_format_module",
+            "//quality/testdata:matrix_terraform_format_module_syntax_error",
+            "//quality/testdata:matrix_terraform_format_syntax_error",
         ],
         "id": "tool.terraform",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:terraform",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3176,7 +3190,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 343
+PROMISE_COUNT = 344
 
 PROMISE_FAMILIES = [
     "artifact",
@@ -3246,10 +3260,16 @@ V1_EVIDENCE = [
     "//examples/mixed/hello:hello_test",
     "//modules:versions_contract",
     "//quality/adapter:quality_adapter_test",
+    "//quality/testdata:matrix_terraform_format_fail",
+    "//quality/testdata:matrix_terraform_format_module",
+    "//quality/testdata:matrix_terraform_format_module_syntax_error",
+    "//quality/testdata:matrix_terraform_format_syntax_error",
+    "//quality:consumer_policy_terraform_formatted_test",
     "//quality:curated_defaults_unit",
     "//quality:parity_unit",
     "//quality:real_pipeline_unit",
     "//quality:registry_unit",
     "//quality:sources_registry",
+    "//quality:support_unit",
     "//quality:wrapper_owners_unit",
 ]

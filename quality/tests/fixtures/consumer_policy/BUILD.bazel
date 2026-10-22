@@ -159,3 +159,34 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+quality_family(
+    name = "terraform_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "terraform",
+    format = ["terraform"],
+)
+
+workspace_policy(
+    name = "terraform_policy",
+    families = [":terraform_family"],
+)
+
+filegroup(
+    name = "terraform_module",
+    srcs = [
+        "terraform_module/main.tf",
+        "terraform_module/modules/child/main.tf",
+        "terraform_module/outputs.tf",
+        "terraform_module/terraform.tfvars",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_terraform",
+    terraform_srcs = [":terraform_module"],
+)

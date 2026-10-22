@@ -67,6 +67,8 @@ def _real_source_target_impl(ctx):
         direct_sources["shell"] = depset(ctx.files.shell_srcs)
     if len(ctx.files.starlark_srcs) > 0:
         direct_sources["starlark"] = depset(ctx.files.starlark_srcs)
+    if len(ctx.files.terraform_srcs) > 0:
+        direct_sources["terraform"] = depset(ctx.files.terraform_srcs)
     if len(ctx.files.text_srcs) > 0:
         direct_sources["text"] = depset(ctx.files.text_srcs)
     if len(ctx.files.toml_srcs) > 0:
@@ -89,7 +91,7 @@ def _real_source_target_impl(ctx):
     )
     if sibling_error != "":
         fail(sibling_error)
-    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs)
+    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs)
     return [
         DefaultInfo(files = depset(all_files)),
         QualitySourcesInfo(direct_sources = direct_sources),
@@ -168,6 +170,10 @@ real_source_target = rule(
         ),
         "starlark_srcs": attr.label_list(
             allow_files = [".bzl", ".bazel"],
+            default = [],
+        ),
+        "terraform_srcs": attr.label_list(
+            allow_files = [".tf", ".tfvars", ".hcl"],
             default = [],
         ),
         "text_srcs": attr.label_list(

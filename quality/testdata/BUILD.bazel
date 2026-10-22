@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
 load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
+load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
@@ -255,6 +256,18 @@ upstream_cc_library(
 no_context_cc(
     name = "fixture_upstream_cc_no_context",
     tags = ["manual"],
+)
+
+dx_cc_library(
+    name = "fixture_wrapped_cc_no_format",
+    srcs = ["upstream_hello.cc"],
+    hdrs = ["upstream_hello.h"],
+    tags = ["no-format"],
+)
+
+real_aspect_subject(
+    name = "fixture_wrapped_cc_no_format_upstream_subject",
+    target = ":fixture_wrapped_cc_no_format_upstream",
 )
 
 real_aspect_subject(
@@ -984,6 +997,7 @@ real_aspect_fixture_tests(
         ":fixture_real_toml_subject",
         ":fixture_upstream_cc_subject",
         ":fixture_upstream_rust_subject",
+        ":fixture_wrapped_cc_no_format_upstream_subject",
         ":real_plain_subject",
     ],
 )

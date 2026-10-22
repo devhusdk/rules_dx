@@ -1,8 +1,7 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
+load("//quality:pipeline.bzl", "upstream_skip_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
-
-_UPSTREAM_BLOCK_TAGS = ["no-audit", "no-format", "no-lint", "no-typecheck"]
 
 def dx_forwarded_runtime_providers(upstream, what):
     """Forwards the upstream runtime providers every wrapper preserves."""
@@ -327,11 +326,10 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, **kwargs
     hints = kwargs.get("aspect_hints", None)
     hdrs = kwargs.get("hdrs", None)
     tags = kwargs.pop("tags", None)
-    blocks = [tag for tag in tags if tag in _UPSTREAM_BLOCK_TAGS] if tags != None else []
     upstream_rule(
         name = name + "_upstream",
         srcs = srcs,
-        tags = blocks,
+        tags = upstream_skip_tags(tags) if tags != None else [],
         visibility = ["//visibility:private"],
         **kwargs
     )

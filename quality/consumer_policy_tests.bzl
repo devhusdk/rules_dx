@@ -15,6 +15,7 @@ load(
     "real_rust_lint_aspect",
     "real_shell_format_aspect",
     "real_shell_lint_aspect",
+    "real_terraform_format_aspect",
     "real_text_lint_aspect",
 )
 
@@ -42,6 +43,7 @@ _ASPECTS = [
     real_rust_lint_aspect,
     real_shell_format_aspect,
     real_shell_lint_aspect,
+    real_terraform_format_aspect,
     real_text_lint_aspect,
 ]
 

@@ -880,11 +880,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let tf = Path::new("/scratch/main.tf");
     assert_eq!(
         argv_strings(&terraform_check(Path::new(BIN), &[tf])),
-        vec![BIN, "fmt", "-check", "/scratch/main.tf"]
+        vec![BIN, "fmt", "-check", "-no-color", "/scratch/main.tf"]
     );
     assert_eq!(
         argv_strings(&terraform_fix(Path::new(BIN), &[tf])),
-        vec![BIN, "fmt", "/scratch/main.tf"]
+        vec![BIN, "fmt", "-no-color", "/scratch/main.tf"]
     );
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(

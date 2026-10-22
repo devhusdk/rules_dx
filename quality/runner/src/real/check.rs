@@ -535,7 +535,7 @@ impl RealBackend {
                 let cwd = scratch.root().join(&cwd_rel);
                 parsed(
                     tool_id,
-                    parsers::parse_terraform(&out.stdout, out.code, &strs, &cwd),
+                    parsers::parse_terraform(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
             "yamlfmt" => {

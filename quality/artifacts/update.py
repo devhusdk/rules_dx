@@ -486,6 +486,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "terraform": {
+        "upstream_version": "1.16.1",
+        "release_page": "https://releases.hashicorp.com/terraform/1.16.1/",
+        "licenses": [
+            {
+                "name": "BUSL-1.1",
+                "source": "https://github.com/hashicorp/terraform/blob/v1.16.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "terraform_1.16.1_linux_amd64.zip",
+                "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_amd64.zip",
+                "kind": "zip",
+                "executable": "terraform",
+                "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "terraform_1.16.1_linux_arm64.zip",
+                "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_linux_arm64.zip",
+                "kind": "zip",
+                "executable": "terraform",
+                "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "terraform_1.16.1_darwin_arm64.zip",
+                "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_darwin_arm64.zip",
+                "kind": "zip",
+                "executable": "terraform",
+                "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "terraform_1.16.1_windows_amd64.zip",
+                "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "terraform.exe",
+                "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
+            },
+        },
+    },
     "shfmt": {
         "upstream_version": "3.12.0",
         "release_page": "https://github.com/mvdan/sh/releases/tag/v3.12.0",
@@ -632,7 +680,7 @@ def _abi_floor(path):
 
 
 def _native_bounds(tool, spec):
-    if tool in ("buildifier", "keep_sorted", "shfmt"):
+    if tool in ("buildifier", "keep_sorted", "shfmt", "terraform"):
         linkage = "static"
     else:
         linkage = "dynamic"

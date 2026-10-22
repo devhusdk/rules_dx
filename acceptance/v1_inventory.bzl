@@ -197,6 +197,15 @@ PROMISES = [
         "evidence": [
             "//quality:real_pipeline_unit",
         ],
+        "id": "aspect.real_terraform_format_aspect",
+        "native": True,
+        "owner": "//quality:real_aspects.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//quality:real_pipeline_unit",
+        ],
         "id": "aspect.real_text_lint_aspect",
         "native": True,
         "owner": "//quality:real_aspects.bzl",
@@ -2724,12 +2733,13 @@ PROMISES = [
     },
     {
         "evidence": [
-            "//quality:registry_unit",
+            "//quality/adapter:quality_adapter_test",
+            "//quality:real_pipeline_unit",
         ],
         "id": "tool.terraform",
         "native": True,
-        "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "owner": "@dx_tools//:terraform",
+        "state": "evidenced",
     },
     {
         "evidence": [
@@ -3176,7 +3186,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 343
+PROMISE_COUNT = 344
 
 PROMISE_FAMILIES = [
     "artifact",

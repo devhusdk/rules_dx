@@ -279,6 +279,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_toml",
         },
         {
+            "case": "terraform_formatted",
+            "expected_dx_results": [
+                "clean_terraform-real-format-terraform.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:terraform_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_terraform",
+        },
+        {
             "case": "toml_format_off",
             "expected_dx_results": [
                 "clean_toml-real-lint.pb",

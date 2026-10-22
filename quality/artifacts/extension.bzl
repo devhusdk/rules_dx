@@ -39,6 +39,10 @@ load("//quality/artifacts:taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT
 load("//quality/artifacts:taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:taplo.windows_x86_64.bzl", _taplo_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:terraform.linux_arm64.bzl", _terraform_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:terraform.linux_x86_64.bzl", _terraform_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:terraform.macos_arm64.bzl", _terraform_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:terraform.windows_x86_64.bzl", _terraform_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ty.linux_arm64.bzl", _ty_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ty.linux_x86_64.bzl", _ty_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ty.macos_arm64.bzl", _ty_macos_arm64 = "ARTIFACT")
@@ -85,6 +89,10 @@ _ARTIFACTS = [
     _taplo_linux_arm64,
     _taplo_macos_arm64,
     _taplo_windows_x86_64,
+    _terraform_linux_x86_64,
+    _terraform_linux_arm64,
+    _terraform_macos_arm64,
+    _terraform_windows_x86_64,
     _ty_linux_x86_64,
     _ty_linux_arm64,
     _ty_macos_arm64,

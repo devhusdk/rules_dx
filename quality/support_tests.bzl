@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":support.bzl", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_wiring_error")
+load(":support.bzl", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_record_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -172,6 +172,41 @@ def support_unit_tests(name):
             expect_equal(
                 "pinned shell artifacts clear the artifact gap",
                 support_shell_artifact_error(),
+                "",
+            ),
+            expect_equal(
+                "terraform record validates and is qualified",
+                [support_record_error(TERRAFORM_FORMAT_SUPPORT), is_support_tool("terraform"), support_state("terraform")],
+                ["", True, "qualified"],
+            ),
+            expect_equal(
+                "terraform record keeps direct single format with fix",
+                [TERRAFORM_FORMAT_SUPPORT["capability"], TERRAFORM_FORMAT_SUPPORT["execution"], TERRAFORM_FORMAT_SUPPORT["transport"], TERRAFORM_FORMAT_SUPPORT["fix"]],
+                ["format", "direct", "single", "supported"],
+            ),
+            expect_equal(
+                "missing terraform aspect wiring is an actionable failure",
+                support_terraform_wiring_error([]),
+                "support: terraform format is qualified but has no wired aspect (missing real_terraform_format_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired terraform clears the aspect gap",
+                support_terraform_wiring_error(["terraform"]),
+                "",
+            ),
+            expect_equal(
+                "missing terraform CLI aspect is an actionable failure",
+                support_terraform_cli_error(["//quality:real_aspects.bzl%real_shell_format_aspect"]),
+                "support: terraform format is qualified but has no CLI format aspect (missing real_terraform_format_aspect)",
+            ),
+            expect_equal(
+                "terraform CLI aspect clears the CLI gap",
+                support_terraform_cli_error(["//quality:real_aspects.bzl%real_terraform_format_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned terraform artifact clears the artifact gap",
+                support_terraform_artifact_error(),
                 "",
             ),
         ],

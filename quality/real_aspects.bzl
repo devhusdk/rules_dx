@@ -43,6 +43,7 @@ _REAL_TOOL_TABLE = {
     "shfmt": {"capabilities": ["format"], "shard": "shell"},
     "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
     "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
+    "terraform": {"capabilities": ["format"], "shard": "terraform"},
     "ty": {"capabilities": ["typecheck"], "shard": "core"},
     "vale": {"capabilities": ["lint"], "shard": "core"},
 }
@@ -65,11 +66,12 @@ _RUST_TYPECHECK_TOOLS = _shard_tools("rust", "typecheck")
 _SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
 _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
+_TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
 _JVM_FORMAT_TOOLS = _shard_tools("jvm", "format")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS)),
     "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
@@ -269,6 +271,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["keep_sorted"] = ctx.file._keep_sorted
     if "taplo" in stage_tools:
         tool_binaries["taplo"] = ctx.file._taplo
+    if "terraform" in stage_tools:
+        tool_binaries["terraform"] = ctx.file._terraform
     if "ty" in stage_tools:
         tool_binaries["ty"] = ctx.file._ty
     if "vale" in stage_tools:
@@ -368,6 +372,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "pylint" in stage_tools:
         run_tools.append(ctx.attr._pylint[DefaultInfo].files_to_run)
         tool_env_entries["pylint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
+    if "terraform" in stage_tools:
+        tool_env_entries["terraform"] = [
+            real_request_tool_env("CHECKPOINT_DISABLE", "1"),
+            real_request_tool_env("TF_IN_AUTOMATION", "1"),
+            real_request_tool_env("TF_INPUT", "0"),
+        ]
 
     if "google_java_format" in stage_tools:
         run_tools.append(ctx.attr._google_java_format[DefaultInfo].files_to_run)
@@ -474,7 +484,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS +
+        _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -607,6 +617,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "terraform": attr.label(
+        default = "@dx_tools//:terraform",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
     "ty": attr.label(
         default = "@dx_tools//:ty",
         allow_single_file = True,
@@ -635,6 +650,7 @@ _REAL_RUST_ATTRS = _REAL_BASE_ATTRS
 _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
 _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
+_REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
 
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
@@ -651,6 +667,7 @@ _REAL_SHARDS = {
     "real_rust_typecheck": {"attrs": _REAL_RUST_ATTRS, "capability": "typecheck", "doc": "Additive Rust typecheck family aspect (delegated rustc).", "has_rust": True, "suffix": "-rust", "tools": _RUST_TYPECHECK_TOOLS},
     "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint family aspect (ShellCheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
     "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format family aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
+    "real_terraform_format": {"attrs": _REAL_TERRAFORM_FORMAT_ATTRS, "capability": "format", "doc": "Additive Terraform format family aspect (terraform fmt).", "has_rust": False, "suffix": "-terraform", "tools": _TERRAFORM_FORMAT_TOOLS},
     "real_text_lint": {"attrs": _REAL_TEXT_LINT_ATTRS, "capability": "lint", "doc": "Additive text lint family aspect (keep-sorted).", "has_rust": False, "suffix": "-text", "tools": _TEXT_LINT_TOOLS},
     "real_typecheck": {"attrs": _REAL_CORE_ATTRS, "capability": "typecheck", "doc": "Registers the exact-input real typecheck pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_TYPECHECK_TOOLS},
 }
@@ -708,5 +725,7 @@ real_rust_typecheck_aspect = _make_real_aspect("real_rust_typecheck")
 real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
+
+real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 
 real_text_lint_aspect = _make_real_aspect("real_text_lint")

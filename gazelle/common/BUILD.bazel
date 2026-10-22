@@ -11,6 +11,7 @@ go_library(
         "ignore.go",
         "jsscan.go",
         "jvmmask.go",
+        "jvmplatform.go",
         "langcore.go",
         "manifest.go",
         "naming.go",

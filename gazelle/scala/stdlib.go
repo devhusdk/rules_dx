@@ -1,24 +1,9 @@
 package scala
 
-import "strings"
+import "github.com/devhusdk/rules_dx/gazelle/common"
 
-var stdlibRoots = []string{
-	"scala.",
-	"java.",
-	"javax.",
-	"javafx.",
-	"jdk.",
-	"org.w3c.",
-	"org.xml.",
-	"com.sun.",
-	"sun.",
-}
+var platformPackages = []string{"scala"}
 
 func IsStdLib(spec string) bool {
-	for _, root := range stdlibRoots {
-		if strings.HasPrefix(spec, root) {
-			return true
-		}
-	}
-	return false
+	return common.InPackages(spec, platformPackages) || common.IsJDKPlatform(spec)
 }

@@ -66,12 +66,12 @@ func TestDefinesMain(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"scala.collection.immutable.List", "java.util.List", "javax.inject.Inject", "javafx.application.Application", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"scala.collection.immutable.List", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

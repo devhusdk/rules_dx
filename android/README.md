@@ -86,7 +86,8 @@ rust_android_apk(
 ```
 
 The upstream `android_binary` links one `lib/<abi>/lib<name>.so` per ABI
-from the static native deps and signs the APK with the debug key. Build
+from the static native deps and signs the APK with the debug key. Builds
+never use a release key. Build
 `:app_apk_file` for the installable `app_apk.apk`; it selects the
 `arm64-v8a` and `x86_64` platforms from `abis`. The native deps need
 `alwayslink = True` so `ANativeActivity_onCreate` stays exported, and
@@ -96,8 +97,8 @@ pass `manifest` to package a custom one. `app_id`, `permissions`,
 `abis`, `api_level`, `version_code`, and `version_name` stay with the
 consumer; unknown ABIs, empty ABI sets, malformed app IDs, downgraded
 API levels, non-positive version codes, and empty launch activities
-fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. Custom
-release signing and AAB distribution are later stages.
+fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. AAB
+distribution is a later stage.
 
 The upstream resource tool crashes on its pinned protobuf-java. A
 module that depends on `rules_dx` applies the patch in its own
@@ -125,6 +126,48 @@ android_adb_log(name = "log", serial = "emulator-5554")
 Run one with `bazel run //path:install`. `serial` names the target
 device or emulator; `ADB` selects the adb binary and defaults to
 `PATH`.
+
+## Release signing
+
+`:app_apk_unsigned_file` is the unsigned package. Sign it with an
+explicit launcher that runs only when you ask:
+
+```python
+load("@rules_dx//android/packaging:defs.bzl", "android_apk_check", "android_apk_release_sign")
+
+android_apk_release_sign(name = "sign", apk = ":app_apk_unsigned_file")
+android_apk_check(name = "sign_check", apk = ":app_apk_unsigned_file")
+```
+
+`bazel test :sign_check` validates the package without signing: it must
+be a readable zip with an `AndroidManifest.xml` and no existing
+signature. `schemes` picks from `v1`, `v2`, `v3` and `v4` (default
+`v1`, `v2`, `v3`) and `min_sdk` sets the signing minimum SDK (default
+the manifest value, at least 31). Unknown or duplicate schemes and a
+low `min_sdk` fail at analysis.
+
+Pass the key through the environment of the run, never through BUILD
+files:
+
+```sh
+export DX_SIGN_KEYSTORE=release.jks DX_SIGN_STORE_PASS_FILE=store.pass
+export DX_SIGN_KEY_ALIAS=release DX_SIGN_KEY_PASS_FILE=key.pass DX_SIGN_OUT=app-release.apk
+export ANDROID_HOME="$HOME/Android/Sdk"
+bazel run //path:sign
+```
+
+Passwords are read from the named files only. `DX_SIGN_KEY_ALIAS` and
+`DX_SIGN_KEY_PASS_FILE` are optional. Relative paths resolve against
+the directory you ran from. The launcher aligns the APK with the pinned
+build-tools `zipalign`, signs it with `apksigner`, verifies the result,
+and only then writes `DX_SIGN_OUT`. Missing inputs exit 2, missing build
+tools exit 127, and a wrong password, wrong alias or malformed package
+exits 1 without writing an APK. Apksigner enables the schemes the
+minimum SDK needs, so an API 31 package carries a v3 signature.
+
+Run `bazel test //android/tests/fixtures/rust_apk:sign_test
+--test_env=ANDROID_HOME` on an SDK host to sign a package with a
+generated test key and verify it.
 
 ## Qualified SDK for packaging builds
 

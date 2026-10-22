@@ -1,7 +1,7 @@
 """Application packaging selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "apk_manifest_errors", "rust_android_apk_errors")
+load(":defs.bzl", "apk_manifest_errors", "release_sign_errors", "rust_android_apk_errors")
 load(
     ":repos.bzl",
     "ABI_PLATFORMS",
@@ -93,6 +93,28 @@ def _packaging_checks():
     checks.append(expect_true(
         "manifest errors app id api version and activity",
         len(apk_manifest_errors("app", 29, 0, "")) == 4,
+    ))
+    checks.append(expect_equal("default sign errors", release_sign_errors(["v1", "v2", "v3"], 0), []))
+    checks.append(expect_equal("min sdk sign errors", release_sign_errors(["v2"], 31), []))
+    checks.append(expect_equal(
+        "unknown scheme sign errors",
+        release_sign_errors(["v9"], 0),
+        ["android_apk_release_sign: scheme 'v9' is unknown: want v1, v2, v3, v4"],
+    ))
+    checks.append(expect_equal(
+        "empty scheme sign errors",
+        release_sign_errors([], 0),
+        ["android_apk_release_sign: schemes must name at least one signature scheme"],
+    ))
+    checks.append(expect_equal(
+        "duplicate scheme sign errors",
+        release_sign_errors(["v2", "v2"], 0),
+        ["android_apk_release_sign: schemes holds duplicates"],
+    ))
+    checks.append(expect_equal(
+        "low min sdk sign errors",
+        release_sign_errors(["v2"], 21),
+        ["android_apk_release_sign: min_sdk 21 is below 31"],
     ))
     return checks
 

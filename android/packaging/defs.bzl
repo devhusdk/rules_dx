@@ -2,8 +2,9 @@
 
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
-load("//android/sdk:repos.bzl", "SDK_PLATFORM")
+load("//android/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "app_id_errors")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
@@ -141,6 +142,7 @@ def rust_android_apk(
 
     The upstream android_binary links one lib/<name>.so per selected ABI from
     the given static native deps and signs the APK with the debug key. The
+    <name>_unsigned_file output is the package that release signing takes. The
     default manifest launches a NativeActivity loading that library. Package
     outputs stay explicit-label only so setups without an SDK keep working.
     """
@@ -177,6 +179,15 @@ def rust_android_apk(
         tags = ["manual"],
         visibility = visibility,
     )
+    _apk_file(
+        name = name + "_unsigned_file",
+        abis = abis,
+        src = ":" + name,
+        unsigned = True,
+        validation = ":" + name + "_validation",
+        tags = ["manual"],
+        visibility = visibility,
+    )
     android_binary(
         name = name,
         assets = assets,
@@ -204,9 +215,14 @@ _abi_transition = transition(
 
 def _apk_file_impl(ctx):
     src = ctx.attr.src[0] if type(ctx.attr.src) == "list" else ctx.attr.src
-    apks = [file for file in src[DefaultInfo].files.to_list() if file.extension == "apk" and not file.basename.endswith("_unsigned.apk")]
+    kind = "unsigned" if ctx.attr.unsigned else "signed"
+    apks = [
+        file
+        for file in src[DefaultInfo].files.to_list()
+        if file.extension == "apk" and file.basename.endswith("_unsigned.apk") == ctx.attr.unsigned
+    ]
     if len(apks) != 1:
-        fail("android_apk_file: '" + str(src.label) + "' built " + str(len(apks)) + " signed apk files, want exactly one")
+        fail("android_apk_file: '" + str(src.label) + "' built " + str(len(apks)) + " " + kind + " apk files, want exactly one")
     return [DefaultInfo(files = depset(apks))]
 
 _apk_file = rule(
@@ -214,6 +230,7 @@ _apk_file = rule(
     attrs = {
         "abis": attr.string_list(default = []),
         "src": attr.label(allow_files = True, mandatory = True, cfg = _abi_transition),
+        "unsigned": attr.bool(default = False),
         "validation": attr.label(),
     },
 )
@@ -309,5 +326,74 @@ def android_adb_log(name, serial = "", visibility = None):
             "DX_ADB_SERIAL": serial,
         },
         tags = ["manual"],
+        visibility = visibility,
+    )
+
+KNOWN_SCHEMES = ["v1", "v2", "v3", "v4"]
+
+def release_sign_errors(schemes, min_sdk):
+    """Returns one error string per rejected release signing selection."""
+    errors = []
+    if len(schemes) == 0:
+        errors.append("android_apk_release_sign: schemes must name at least one signature scheme")
+    for scheme in schemes:
+        if scheme not in KNOWN_SCHEMES:
+            errors.append("android_apk_release_sign: scheme '" + scheme + "' is unknown: want " + ", ".join(KNOWN_SCHEMES))
+    if len(schemes) != len(dict([(scheme, True) for scheme in schemes])):
+        errors.append("android_apk_release_sign: schemes holds duplicates")
+    if min_sdk != 0 and min_sdk < api_floor():
+        errors.append("android_apk_release_sign: min_sdk " + str(min_sdk) + " is below " + str(api_floor()))
+    return errors
+
+def _sign_selection_impl(ctx):
+    failures = release_sign_errors(ctx.attr.schemes, ctx.attr.min_sdk)
+    apks = [file for file in ctx.attr.apk[DefaultInfo].files.to_list() if file.extension == "apk"]
+    if len(apks) != 1:
+        failures.append("android_apk_release_sign: '" + str(ctx.attr.apk.label) + "' built " + str(len(apks)) + " apk files, want exactly one")
+    if len(failures) > 0:
+        fail("; ".join(failures))
+    return []
+
+_sign_selection = rule(
+    implementation = _sign_selection_impl,
+    attrs = {
+        "apk": attr.label(allow_files = True, mandatory = True),
+        "min_sdk": attr.int(default = 0),
+        "schemes": attr.string_list(mandatory = True),
+    },
+)
+
+def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 0, visibility = None):
+    """Declares an explicit release signing launcher; builds never sign or read keys."""
+    _sign_selection(
+        name = name + "_selection",
+        apk = apk,
+        min_sdk = min_sdk,
+        schemes = schemes,
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
+    sh_binary(
+        name = name,
+        srcs = ["//android/packaging:sign_apk.sh"],
+        data = [apk, ":" + name + "_selection"],
+        env = {
+            "DX_SIGN_APK": "$(rootpath " + apk + ")",
+            "DX_SIGN_BUILD_TOOLS": BUILD_TOOLS,
+            "DX_SIGN_MIN_SDK": str(min_sdk) if min_sdk != 0 else "",
+            "DX_SIGN_SCHEMES": ",".join(schemes),
+        },
+        tags = ["manual"],
+        visibility = visibility,
+    )
+
+def android_apk_check(name, apk, size = "small", visibility = None):
+    """Declares a nonmutating test that the package is an unsigned APK ready to sign."""
+    sh_test(
+        name = name,
+        srcs = ["//android/packaging:check_apk.sh"],
+        args = ["$(rootpath " + apk + ")"],
+        data = [apk],
+        size = size,
         visibility = visibility,
     )

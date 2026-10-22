@@ -1,5 +1,7 @@
 use super::common::*;
+use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
+use super::quality::execute_quality_phase;
 use super::quality::execute_quality_request;
 use crate::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use crate::plan::spec;
@@ -9,7 +11,7 @@ use dx_output::{
     command_finished, command_started, error_event, notice_event, operation_event, report_event,
     with_correlation, write_event, FinishedCounts, NoticeEvent, OutputMode,
 };
-use dx_process::Runner;
+use dx_process::{interrupted, Runner};
 use serde_json::{json, Value};
 use serde_sarif::sarif::Sarif;
 use std::io::Write;
@@ -55,6 +57,7 @@ struct PhaseCapture {
 struct PhaseOutcome {
     phase: Command,
     state: PhaseState,
+    kind: Option<PhaseKind>,
     capture: Option<PhaseCapture>,
 }
 
@@ -82,6 +85,8 @@ fn parse_capture(bytes: &[u8]) -> Result<Value, CaptureState> {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct PhaseCollector {
     phases: Vec<PhaseOutcome>,
+    skip_cause: String,
+    continues: bool,
 }
 
 impl PhaseCollector {
@@ -90,6 +95,7 @@ impl PhaseCollector {
         self.phases.push(PhaseOutcome {
             phase,
             state: PhaseState::Planned,
+            kind: None,
             capture: None,
         });
     }
@@ -105,8 +111,9 @@ impl PhaseCollector {
     }
 
     /// Records the exit code of the phase at `index`.
-    fn record_exit(&mut self, index: usize, code: i32) {
+    fn record_exit(&mut self, index: usize, code: i32, kind: PhaseKind) {
         if let Some(running) = self.phases.get_mut(index) {
+            running.kind = Some(kind);
             running.state = if code == 0 {
                 PhaseState::Executed
             } else {
@@ -116,7 +123,8 @@ impl PhaseCollector {
     }
 
     /// Records every phase that never started as skipped.
-    fn skip_remaining(&mut self) {
+    fn skip_remaining(&mut self, cause: String) {
+        self.skip_cause = cause;
         for phase in &mut self.phases {
             if phase.state == PhaseState::Planned {
                 phase.state = PhaseState::Skipped;
@@ -144,6 +152,38 @@ impl PhaseCollector {
         }
     }
 
+    /// Reports whether a phase finished with findings the run carried on past.
+    fn is_findings(&self, phase: &PhaseOutcome) -> bool {
+        self.continues && phase.kind == Some(PhaseKind::Findings)
+    }
+
+    /// Names every phase that finished with ordinary findings.
+    fn with_findings(&self) -> Vec<&'static str> {
+        self.phases
+            .iter()
+            .filter(|phase| self.is_findings(phase))
+            .map(|phase| phase.phase.name())
+            .collect()
+    }
+
+    /// Describes how every planned phase ended.
+    fn summary(&self) -> String {
+        let parts: Vec<String> = self
+            .phases
+            .iter()
+            .map(|phase| {
+                let word = match (phase.state, phase.kind) {
+                    (PhaseState::Skipped | PhaseState::Planned, _) => "skipped",
+                    (_, Some(PhaseKind::Clean)) => "clean",
+                    (_, Some(PhaseKind::Findings)) if self.continues => "findings",
+                    _ => "failed",
+                };
+                format!("{} {word}", phase.phase.name())
+            })
+            .collect();
+        parts.join(", ")
+    }
+
     /// Names every phase that never started.
     fn skipped(&self) -> Vec<&'static str> {
         self.phases
@@ -162,6 +202,7 @@ impl PhaseCollector {
                 let capture = phase.capture.as_ref()?;
                 let owed = match phase.state {
                     PhaseState::Executed => true,
+                    PhaseState::Failed if self.is_findings(phase) => true,
                     PhaseState::Failed => capture.state != CaptureState::Absent,
                     PhaseState::Planned | PhaseState::Skipped => false,
                 };
@@ -179,11 +220,14 @@ impl PhaseCollector {
         for phase in &self.phases {
             let name = phase.phase.name();
             if phase.state == PhaseState::Failed {
-                reasons.push(format!("{name} failed"));
+                let findings = self.is_findings(phase);
+                if !findings {
+                    reasons.push(format!("{name} failed"));
+                }
                 if let Some(reason) = phase
                     .capture
                     .as_ref()
-                    .filter(|capture| capture.state != CaptureState::Absent)
+                    .filter(|capture| findings || capture.state != CaptureState::Absent)
                     .and_then(capture_reason)
                 {
                     reasons.push(format!("{name} {reason}"));
@@ -275,14 +319,36 @@ fn announce_phase(
 }
 
 /// Emits the JSON notice for one phase that never started.
-fn announce_skip(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str) {
+fn announce_skip(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str, cause: &str) {
     if output != OutputMode::Json {
         return;
     }
     let notice = NoticeEvent {
         level: "warning".to_owned(),
         code: "umbrella_phase_skipped".to_owned(),
-        message: format!("{phase} skipped after an earlier phase failed"),
+        message: format!("{phase} skipped after {cause}"),
+        related_command: Some(command.to_owned()),
+        scope: None,
+        path: None,
+        language: None,
+        import: None,
+    };
+    if let Ok(event) = notice_event(&notice) {
+        let correlated =
+            with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event);
+        let _ = write_event(out, &correlated);
+    }
+}
+
+/// Emits the JSON notice for one phase that finished with ordinary findings.
+fn announce_findings(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str) {
+    if output != OutputMode::Json {
+        return;
+    }
+    let notice = NoticeEvent {
+        level: "warning".to_owned(),
+        code: "umbrella_phase_findings".to_owned(),
+        message: format!("{phase} reported findings"),
         related_command: Some(command.to_owned()),
         scope: None,
         path: None,
@@ -502,7 +568,11 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
     for phase in &UMBRELLA_PHASES {
         collector.plan(*phase);
     }
+    let keep_going = request.command == Command::Check;
+    collector.continues = keep_going;
     let mut stop_code: Option<i32> = None;
+    let mut findings_code: Option<i32> = None;
+    let mut skip_cause = String::from("an earlier phase failed");
     let mut stdout_exit: Option<i32> = None;
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate() {
         let phase_nonce = nonce.wrapping_add(index as u64);
@@ -534,6 +604,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         }
         if let Err(exit) = announce_phase(out, request.common.output, command, phase.name()) {
             stdout_exit = Some(exit);
+            skip_cause = String::from("output delivery failed");
             break;
         }
         if let Some(capture) = sarif_capture {
@@ -541,7 +612,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         }
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
-        let code = {
+        let (code, mut kind) = {
             let phase_env = Env {
                 workspace,
                 runner,
@@ -554,36 +625,60 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
                 ci,
             };
             if *phase == Command::Generate {
-                execute_generate_request(&request.phase_generate_request(phase_reports), phase_env)
+                execute_generate_phase(&request.phase_generate_request(phase_reports), phase_env)
             } else {
                 match request.phase_quality_request(*phase, phase_reports) {
-                    Ok(phase_request) => execute_quality_request(&phase_request, phase_env),
+                    Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
                     Err(message) => {
                         let _ = writeln!(&mut phase_err, "dx: {message}");
-                        2
+                        (2, PhaseKind::Selection)
                     }
                 }
             }
         };
-        collector.record_exit(index, code);
+        if code != 0 && interrupted().is_some() {
+            kind = PhaseKind::Cancelled;
+        }
+        collector.record_exit(index, code, kind);
         let forwarded = check_stdout_write(out.write_all(&phase_out))
             .and_then(|()| check_stdout_write(err.write_all(&phase_err)));
         if let Err(exit) = forwarded {
             stdout_exit = Some(exit);
+            skip_cause = String::from("output delivery failed");
             break;
         }
         if code != 0 {
+            if keep_going && kind.continues() {
+                findings_code.get_or_insert(code);
+                continue;
+            }
             stop_code = Some(code);
+            skip_cause = if kind == PhaseKind::Findings {
+                String::from("an earlier phase failed")
+            } else {
+                format!("{} {}", phase.name(), kind.stop_reason())
+            };
             break;
         }
     }
-    collector.skip_remaining();
+    collector.skip_remaining(skip_cause);
     collector.collect();
     let complete = collector.complete();
     let reasons = collector.reasons();
     let mut reports_ok = true;
+    if keep_going {
+        for phase in collector.with_findings() {
+            announce_findings(out, request.common.output, command, phase);
+        }
+    }
     for phase in collector.skipped() {
-        announce_skip(out, request.common.output, command, phase);
+        announce_skip(
+            out,
+            request.common.output,
+            command,
+            phase,
+            &collector.skip_cause,
+        );
     }
     for (phase, reason) in collector.collection_failures() {
         reports_ok = false;
@@ -618,6 +713,12 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         }
     }
     collector.cleanup();
+    if keep_going
+        && !matches!(request.common.output, OutputMode::Json)
+        && (stop_code.is_some() || findings_code.is_some())
+    {
+        let _ = writeln!(err, "dx: phases: {}", collector.summary());
+    }
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
     if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
@@ -653,7 +754,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         Some(exit) => exit,
         None => match verify_forward_exit {
             Some(exit) => exit,
-            None => match stop_code {
+            None => match stop_code.or(findings_code) {
                 Some(phase_code) => phase_code,
                 None if reports_ok && !verification_failed => 0,
                 None => 1,
@@ -722,6 +823,33 @@ mod tests {
                     std::fs::write(path, payload).expect("rewrite capture");
                 }
             }
+        }
+    }
+
+    /// Serves the inner runner but exits nonzero from one launch on.
+    struct FailFrom<R> {
+        inner: R,
+        from: usize,
+        code: i32,
+        launches: Cell<usize>,
+    }
+
+    impl<R: Runner> Runner for FailFrom<R> {
+        fn run(
+            &self,
+            argv: &[String],
+            cwd: &Path,
+            env: &[(&str, &str)],
+        ) -> io::Result<ChildStatus> {
+            let launch = self.launches.get();
+            self.launches.set(launch + 1);
+            let status = self.inner.run(argv, cwd, env)?;
+            if launch >= self.from {
+                return Ok(ChildStatus {
+                    code: Some(self.code),
+                });
+            }
+            Ok(status)
         }
     }
 
@@ -945,29 +1073,34 @@ mod tests {
     }
 
     #[test]
-    fn check_stops_at_first_failing_phase() {
-        let harness = umbrella_findings("umbrella-stop");
-        let (code, out, _) = harness.run(&["check", "--output=text"]);
-        assert_eq!(code, 1, "{out}");
+    fn check_runs_every_phase_after_ordinary_findings() {
+        let harness = umbrella_findings("umbrella-continue");
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
-        assert!(!out.contains("Running lint analysis"), "{out}");
-        assert!(!out.contains("Running typecheck analysis"), "{out}");
-        assert!(!out.contains("Running generate"), "{out}");
+        assert!(out.contains("Running lint analysis for //..."), "{out}");
+        assert!(
+            out.contains("Running typecheck analysis for //..."),
+            "{out}"
+        );
+        assert!(out.contains("Running generate for //..."), "{out}");
+        assert!(
+            err.contains(
+                "dx: phases: format findings, lint findings, typecheck findings, generate failed"
+            ),
+            "{err}"
+        );
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
             b"x = 1\n",
             "check mode never mutates"
         );
-        assert_eq!(
-            harness.seen_env.borrow().len(),
-            1,
-            "later phases never launch"
-        );
+        assert_eq!(harness.seen_env.borrow().len(), 4, "every phase launches");
     }
 
     #[test]
-    fn check_json_stop_reports_umbrella_failure() {
-        let harness = umbrella_findings("umbrella-stop-json");
+    fn check_json_reports_every_phase_after_findings() {
+        let harness = umbrella_findings("umbrella-continue-json");
         let (code, out, _) = harness.run(&["check", "--output=json"]);
         assert_eq!(code, 1, "{out}");
         let events = json_events(&out);
@@ -979,7 +1112,19 @@ mod tests {
             .filter(|event| event["event"] == "command_started")
             .map(|event| event["command"].as_str().expect("command"))
             .collect();
-        assert_eq!(started, vec!["check", "format"]);
+        assert_eq!(
+            started,
+            vec!["check", "format", "lint", "typecheck", "generate"]
+        );
+        let findings: Vec<&str> = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == "umbrella_phase_findings")
+            .map(|notice| notice["correlation"].as_str().expect("correlation"))
+            .collect();
+        assert_eq!(
+            findings,
+            vec!["check/format", "check/lint", "check/typecheck"]
+        );
     }
 
     #[test]
@@ -1394,9 +1539,14 @@ mod tests {
     }
 
     #[test]
-    fn umbrella_sarif_covers_only_executed_phases() {
+    fn fix_sarif_covers_only_executed_phases() {
         let harness = umbrella_findings("umbrella-sarif-stop");
-        let (code, out, err) = harness.run(&["check", "--output=json", "--report=sarif=out.sarif"]);
+        let (code, out, err) = harness.run(&[
+            "fix",
+            "--check",
+            "--output=json",
+            "--report=sarif=out.sarif",
+        ]);
         assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         assert_eq!(
@@ -1416,7 +1566,12 @@ mod tests {
             "no executed SARIF-capable phase, no runs"
         );
 
-        let (code, _, err) = harness.run(&["check", "--output=diff", "--report=sarif=out.sarif"]);
+        let (code, _, err) = harness.run(&[
+            "fix",
+            "--check",
+            "--output=diff",
+            "--report=sarif=out.sarif",
+        ]);
         assert_eq!(code, 1);
         assert_eq!(
             err,
@@ -1503,16 +1658,12 @@ mod tests {
     }
 
     #[test]
-    fn umbrella_diff_stops_after_first_phase_patch() {
+    fn umbrella_diff_renders_every_phase_patch() {
         let harness = umbrella_findings("umbrella-diff");
         let (code, out, _) = harness.run(&["check", "--output=diff"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("src/a.py"), "{out}");
-        assert_eq!(
-            harness.seen_env.borrow().len(),
-            1,
-            "later phases never launch"
-        );
+        assert_eq!(harness.seen_env.borrow().len(), 4, "every phase launches");
     }
 
     #[test]
@@ -1558,8 +1709,18 @@ mod tests {
 
     #[test]
     fn check_json_names_every_skipped_phase() {
-        let harness = umbrella_findings("umbrella-skip-events");
-        let (code, out, err) = harness.run(&["check", "--output=json", "--report=sarif=out.sarif"]);
+        let harness = umbrella_clean("umbrella-skip-events");
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 1,
+            code: 7,
+            launches: Cell::new(0),
+        };
+        let inv = umbrella_invocation(
+            &harness,
+            &["check", "--output=json", "--report=sarif=out.sarif"],
+        );
+        let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         let skipped: Vec<(&str, &str)> = events_of_kind(&events, "notice")
@@ -1576,15 +1737,11 @@ mod tests {
             vec![
                 (
                     "umbrella_phase_skipped",
-                    "lint skipped after an earlier phase failed"
+                    "typecheck skipped after lint failed to run its tools"
                 ),
                 (
                     "umbrella_phase_skipped",
-                    "typecheck skipped after an earlier phase failed"
-                ),
-                (
-                    "umbrella_phase_skipped",
-                    "generate skipped after an earlier phase failed"
+                    "generate skipped after lint failed to run its tools"
                 ),
             ]
         );
@@ -1603,6 +1760,11 @@ mod tests {
             .expect("umbrella finished");
         assert_eq!(finished["exit_code"], serde_json::json!(1));
         assert_eq!(finished["results_complete"], serde_json::json!(false));
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            2,
+            "unsafe work never starts"
+        );
     }
 
     #[test]
@@ -1882,13 +2044,13 @@ mod tests {
             collector.plan(phase);
         }
         collector.require_capture(0, good.clone());
-        collector.record_exit(0, 0);
+        collector.record_exit(0, 0, PhaseKind::Clean);
         collector.require_capture(1, bad.clone());
-        collector.record_exit(1, 0);
+        collector.record_exit(1, 0, PhaseKind::Clean);
         collector.require_capture(2, missing.clone());
-        collector.record_exit(2, 0);
-        collector.record_exit(3, 1);
-        collector.skip_remaining();
+        collector.record_exit(2, 0, PhaseKind::Clean);
+        collector.record_exit(3, 1, PhaseKind::Tool);
+        collector.skip_remaining(String::new());
         collector.collect();
 
         assert_eq!(
@@ -1945,7 +2107,7 @@ mod tests {
             if let Some(path) = captures.get(index) {
                 collector.require_capture(index, path.clone());
             }
-            collector.record_exit(index, 0);
+            collector.record_exit(index, 0, PhaseKind::Clean);
         }
         collector.collect();
         assert!(collector.complete(), "{:?}", collector.reasons());
@@ -1973,14 +2135,19 @@ mod tests {
             vec![Harness::diagnostic("unused", true)],
             vec![harness.replacement(b"y")],
         );
-        let staged = staged_runner(&harness, vec![(artifact, findings)], None, 1);
+        let staged = staged_runner(
+            &harness,
+            vec![(artifact, findings)],
+            harness.intended.clone(),
+            1,
+        );
         let inv = umbrella_invocation(&harness, words);
         let (code, out, err) = harness.execute_with(&inv, &staged);
         (harness, code, out, err)
     }
 
     #[test]
-    fn check_failed_phase_keeps_its_findings_in_the_merged_report() {
+    fn check_findings_phases_keep_their_findings_in_a_complete_report() {
         let (harness, code, out, err) = check_with_failing_lint(
             "umbrella-failed-lint",
             &["check", "--output=json", "--report=sarif=out.sarif"],
@@ -1990,14 +2157,14 @@ mod tests {
         let report = *events_of_kind(&events, "report")
             .last()
             .expect("umbrella report");
-        assert_eq!(report["results_complete"], serde_json::json!(false));
+        assert_eq!(report["results_complete"], serde_json::json!(true));
         let finished = *events_of_kind(&events, "command_finished")
             .last()
             .expect("umbrella finished");
         assert_eq!(finished["exit_code"], serde_json::json!(1));
-        assert_eq!(finished["results_complete"], serde_json::json!(false));
+        assert_eq!(finished["results_complete"], serde_json::json!(true));
         let runs = merged_runs(&harness);
-        assert_eq!(runs.len(), 1, "the failed lint capture is retained");
+        assert_eq!(runs.len(), 2, "lint and typecheck captures are retained");
         assert!(
             runs[0]["results"]
                 .as_array()
@@ -2009,7 +2176,7 @@ mod tests {
             .filter(|notice| notice["code"] == "umbrella_phase_skipped")
             .map(|notice| notice["correlation"].as_str().expect("correlation"))
             .collect();
-        assert_eq!(skipped, vec!["check/typecheck", "check/generate"]);
+        assert!(skipped.is_empty(), "{skipped:?}");
         assert!(
             events_of_kind(&events, "error").is_empty(),
             "a findings failure is not a collection failure: {out}"
@@ -2056,7 +2223,7 @@ mod tests {
             let mut collector = PhaseCollector::default();
             collector.plan(Command::Lint);
             collector.require_capture(0, path.clone());
-            collector.record_exit(0, 1);
+            collector.record_exit(0, 1, PhaseKind::Tool);
             collector.collect();
             assert_eq!(collector.collection_failures(), expected);
             assert!(!collector.complete());
@@ -2076,8 +2243,8 @@ mod tests {
             collector.plan(phase);
         }
         collector.require_capture(0, PathBuf::from("/nonexistent/format.sarif"));
-        collector.record_exit(0, 1);
-        collector.skip_remaining();
+        collector.record_exit(0, 1, PhaseKind::Tool);
+        collector.skip_remaining(String::new());
         collector.collect();
         assert_eq!(collector.collection_failures(), Vec::new());
         assert_eq!(
@@ -2091,6 +2258,110 @@ mod tests {
         );
         assert_eq!(collector.skipped(), vec!["lint", "typecheck", "generate"]);
         collector.cleanup();
+    }
+
+    #[test]
+    fn check_stop_after_findings_keeps_both_facts() {
+        let harness = umbrella_findings("umbrella-stop-after-findings");
+        let runner = FailFrom {
+            inner: harness.runner(),
+            from: 2,
+            code: 7,
+            launches: Cell::new(0),
+        };
+        let inv = umbrella_invocation(
+            &harness,
+            &["check", "--output=text", "--report=sarif=out.sarif"],
+        );
+        let (code, out, err) = harness.execute_with(&inv, &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains(
+                "dx: phases: format findings, lint findings, typecheck failed, generate skipped"
+            ),
+            "{err}"
+        );
+        assert!(
+            out.contains("(incomplete: typecheck failed, generate skipped)"),
+            "{out}"
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 3, "generate never starts");
+        assert_eq!(
+            merged_runs(&harness).len(),
+            2,
+            "lint and typecheck captures merge"
+        );
+    }
+
+    #[test]
+    fn check_later_clean_phases_never_clear_earlier_findings() {
+        let harness = umbrella_findings("umbrella-later-clean");
+        let (artifact, _) = harness
+            .staged_artifacts()
+            .into_iter()
+            .next()
+            .expect("artifact");
+        let clean = harness.valid_result(vec![], vec![]);
+        let witness = intended_witness("check", true, "", "");
+        let staged = staged_runner(&harness, vec![(artifact, clean)], Some(witness), 1);
+        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
+        let (code, out, err) = harness.execute_with(&inv, &staged);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let findings: Vec<&str> = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == "umbrella_phase_findings")
+            .map(|notice| notice["correlation"].as_str().expect("correlation"))
+            .collect();
+        assert_eq!(findings, vec!["check/format"]);
+        let finished = *events_of_kind(&events, "command_finished")
+            .last()
+            .expect("umbrella finished");
+        assert_eq!(finished["exit_code"], serde_json::json!(1));
+        assert_eq!(finished["results_complete"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn check_below_threshold_findings_keep_every_phase_clean() {
+        let mut harness = umbrella_clean("umbrella-below-threshold");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![Harness::diagnostic("unused", true)], vec![]),
+        );
+        let (code, out, err) = harness.run(&["check", "--output=text", "--fail-on=error"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!err.contains("dx: phases"), "{err}");
+        assert_eq!(harness.seen_env.borrow().len(), 4);
+    }
+
+    #[test]
+    fn check_stops_on_a_rejected_scope_before_any_later_phase() {
+        let harness = umbrella_findings("umbrella-bad-scope");
+        let (code, out, err) = harness.run(&["check", "--output=text", "no/such/dir"]);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(
+            err.contains("dx: phases: format failed, lint skipped"),
+            "{err}"
+        );
+        assert!(harness.seen_env.borrow().is_empty(), "{out}{err}");
+    }
+
+    #[test]
+    fn phase_kind_continues_only_after_clean_or_findings() {
+        for kind in [PhaseKind::Clean, PhaseKind::Findings] {
+            assert!(kind.continues(), "{kind:?}");
+        }
+        for kind in [
+            PhaseKind::NonConvergence,
+            PhaseKind::Selection,
+            PhaseKind::Tool,
+            PhaseKind::Incomplete,
+            PhaseKind::Report,
+            PhaseKind::Cancelled,
+        ] {
+            assert!(!kind.continues(), "{kind:?}");
+            assert!(!kind.stop_reason().is_empty());
+        }
     }
 
     #[test]

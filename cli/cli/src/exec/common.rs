@@ -107,6 +107,39 @@ pub(crate) const CODE_MIGRATE_FAILED: &str = "migrate_failed";
 pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
 pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
 
+/// How one umbrella phase ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PhaseKind {
+    Clean,
+    Findings,
+    NonConvergence,
+    Selection,
+    Tool,
+    Incomplete,
+    Report,
+    Cancelled,
+}
+
+impl PhaseKind {
+    /// Reports whether later independent read-only phases may still run.
+    pub(crate) fn continues(self) -> bool {
+        matches!(self, PhaseKind::Clean | PhaseKind::Findings)
+    }
+
+    /// Names why the run stopped after a phase of this kind.
+    pub(crate) fn stop_reason(self) -> &'static str {
+        match self {
+            PhaseKind::Clean | PhaseKind::Findings => "finished",
+            PhaseKind::NonConvergence => "did not converge",
+            PhaseKind::Selection => "rejected its scope or configuration",
+            PhaseKind::Tool => "failed to run its tools",
+            PhaseKind::Incomplete => "returned incomplete results",
+            PhaseKind::Report => "failed to write its report",
+            PhaseKind::Cancelled => "was cancelled",
+        }
+    }
+}
+
 pub struct Env<'a> {
     pub workspace: &'a Path,
     pub runner: &'a dyn Runner,

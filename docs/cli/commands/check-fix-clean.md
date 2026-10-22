@@ -13,14 +13,23 @@ dx check [--here] [--check] [--fail-on info|warning|error] [--report sarif=<dest
 dx fix [--here] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
-Runs `format`, then `lint`, then `typecheck`, then `generate` in order. Stops
-on the first failure. `--fail-on` and `--report sarif=<dest>` pass through to
-each phase. A relative destination anchors at the workspace root; an absolute
-one writes as given. Colliding destinations fail before anything runs, parents
-must exist, and a failed write keeps the previous file bytes. `dx check` is
-always a check, so `--check` is implied. Reports
-merge the `lint` and `typecheck` phases; `-` for stdout is rejected because
-the phases share one document.
+Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
+`--fail-on` and `--report sarif=<dest>` pass through to each phase. A relative
+destination anchors at the workspace root; an absolute one writes as given.
+Colliding destinations fail before anything runs, parents must exist, and a
+failed write keeps the previous file bytes. `dx check` is always a check, so
+`--check` is implied. Reports merge the `lint` and `typecheck` phases; `-` for
+stdout is rejected because the phases share one document.
+
+`dx check` runs every phase against the unchanged workspace. A phase that
+finds drift or ordinary findings does not stop the next one, so one run lists
+every finding. The run still exits nonzero, and a later clean phase never
+clears it. `dx check` stops, and marks the remaining phases skipped, when a
+phase fails for any other reason: a bad scope or configuration, a tool or
+build that cannot run, a target that does not converge, incomplete results, a
+report that cannot be written, or a cancel. The skipped phases are named in
+the JSON `notice` events and in the `dx: phases:` line in text output.
+`dx fix` stops on the first failing phase.
 
 Every phase that ran and owed a capture must leave a readable SARIF document
 behind. A missing, unreadable, or malformed capture is a `collection_failed`
@@ -29,13 +38,16 @@ phases that did land are still merged. The written line names every phase
 that failed, was skipped, or lost its capture.
 
 A phase that fails still keeps the findings it wrote: its SARIF is merged and
-the report is marked incomplete. The run exits with that phase's code, even
-when the report cannot be written. A failed phase that wrote nothing adds no
-`collection_failed` error.
+the report is marked incomplete. A phase that only reports findings leaves the
+report complete. The run exits with the code of the phase that stopped it, or
+of the first phase with findings, even when the report cannot be written. A
+failed phase that wrote nothing adds no `collection_failed` error.
 
 Output: `--output text|diff|json`. JSON adds one correlated `operation` event
-per phase (`check/format`), a correlated `notice` per skipped phase, and a
-correlated `error` per capture the run could not collect.
+per phase (`check/format`), a correlated `notice` per phase that reported
+findings (`umbrella_phase_findings`), a correlated `notice` per skipped phase
+(`umbrella_phase_skipped`), and a correlated `error` per capture the run could
+not collect.
 
 Findings keep the tool's labels, notes, help, and related locations. Text
 prints them under the finding, JSON adds an ordered `related` list, and SARIF
@@ -48,10 +60,11 @@ check pass. `dx fix --apply` succeeds only when that verification passes;
 remaining findings, a target that did not converge, or a failed verification
 stay visible and fail the run.
 
-Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed, a
-capture could not be collected, the post-apply verification failed, or a
-report could not be written. The failing phase's code wins, so a `generate`
-phase keeps Bazel's code.
+Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed or
+reported findings, a capture could not be collected, the post-apply
+verification failed, or a report could not be written. A phase that stopped
+the run keeps its code, so a `generate` phase keeps Bazel's code. Otherwise the
+first phase with findings sets the code.
 
 ```sh
 bazel run @rules_dx//:dx -- check //...

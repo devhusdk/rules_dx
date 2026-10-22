@@ -26,6 +26,16 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) -> i32 {
+    run_quality(request, env, &mut PhaseKind::Selection)
+}
+
+pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> (i32, PhaseKind) {
+    let mut kind = PhaseKind::Selection;
+    let code = run_quality(request, env, &mut kind);
+    (code, kind)
+}
+
+fn run_quality(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
     let Env {
         workspace,
         runner,
@@ -80,6 +90,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         Ok(build) => build,
         Err(message) => return pre_exec(request.common.output, out, err, &message),
     };
+    *kind = PhaseKind::Tool;
     let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
@@ -105,6 +116,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         Ok(collected) => collected,
         Err((code, message)) => {
             let _ = std::fs::remove_file(&bep);
+            *kind = PhaseKind::Incomplete;
             return operational_output(request.common.output, out, err, &code, &message);
         }
     };
@@ -284,6 +296,21 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         );
         let _ = write_event(out, &finished);
     }
+    *kind = if !collected.complete {
+        if bazel_code != 0 {
+            PhaseKind::Tool
+        } else {
+            PhaseKind::Incomplete
+        }
+    } else if !collected.unstable.is_empty() {
+        PhaseKind::NonConvergence
+    } else if !reports_ok {
+        PhaseKind::Report
+    } else if failed {
+        PhaseKind::Findings
+    } else {
+        PhaseKind::Clean
+    };
     if collected.complete && !failed && reports_ok {
         0
     } else {

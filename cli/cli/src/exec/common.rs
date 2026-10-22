@@ -5,7 +5,7 @@ use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
-    command_started, write_event, ChangeEvent, ChangeKind, DiagnosticEvent, OutputMode,
+    command_started, write_event, ChangeEvent, ChangeKind, FindingRecord, OutputMode, Span,
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
 use std::io::{self, BufReader, Write};
@@ -313,15 +313,24 @@ pub(crate) fn apply_to_bytes(original: &[u8], edits: &[(u64, u64, String)]) -> O
     Some(candidate)
 }
 
-pub(crate) fn text_diagnostic(diagnostic: &DiagnosticEvent) -> String {
-    let mut line = format!("{} ", diagnostic.severity.name());
-    if let Some(path) = &diagnostic.path {
-        line.push_str(path);
-        line.push_str(": ");
+fn place(path: Option<&String>, span: Option<Span>) -> String {
+    match (path, span) {
+        (Some(path), Some((start, _))) => format!("{path}:{}:{}", start.line, start.column),
+        (Some(path), None) => path.clone(),
+        (None, _) => "(no file)".to_owned(),
     }
-    line.push_str(&diagnostic.message);
-    line.push_str(" [");
-    line.push_str(&diagnostic.tool);
+}
+
+pub(crate) fn text_finding(record: &FindingRecord) -> String {
+    let diagnostic = &record.diagnostic;
+    let span = diagnostic.range.and(record.span);
+    let mut line = format!(
+        "{}: {}: {} [{}",
+        place(diagnostic.path.as_ref(), span),
+        diagnostic.severity.name(),
+        diagnostic.message,
+        diagnostic.tool
+    );
     if let Some(rule) = &diagnostic.rule {
         line.push('/');
         line.push_str(rule);
@@ -330,14 +339,20 @@ pub(crate) fn text_diagnostic(diagnostic: &DiagnosticEvent) -> String {
     if diagnostic.fixable {
         line.push_str(" (fixable)");
     }
-    for item in &diagnostic.related {
+    if record.count > 1 {
+        line.push_str(&format!(" (x{})", record.count));
+    }
+    for (index, item) in diagnostic.related.iter().enumerate() {
         line.push_str("\n  ");
         line.push_str(&item.role);
         line.push_str(": ");
         line.push_str(&item.message);
         if let Some(path) = &item.path {
+            let span = item
+                .range
+                .and(record.related_spans.get(index).copied().flatten());
             line.push_str(" (");
-            line.push_str(path);
+            line.push_str(&place(Some(path), span));
             line.push(')');
         }
         if let Some(replacement) = &item.replacement {
@@ -407,6 +422,9 @@ pub(crate) fn report_failed(
     detail: &str,
 ) {
     let _ = writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}");
+    if let Some(next) = super::guidance::next_action(CODE_REPORT_FAILED) {
+        let _ = writeln!(err, "{next}");
+    }
     if output == OutputMode::Json {
         let facts = dx_output::FailureFacts {
             cause: Cause::Report.name(),
@@ -616,7 +634,7 @@ pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_output::{command_finished, FinishedCounts, Severity, Snapshot};
+    use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity, Snapshot};
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -814,30 +832,66 @@ mod tests {
         assert!(apply_to_bytes(b"\xff\xfe", &[(0, 1, "a".to_owned())]).is_none());
     }
 
-    #[test]
-    fn text_diagnostic_renders_identity() {
-        let mut diagnostic = DiagnosticEvent {
+    fn finding(path: Option<&str>, range: Option<(u64, u64)>) -> FindingRecord {
+        FindingRecord::single(DiagnosticEvent {
             severity: Severity::Warning,
             tool: "lint-tool".to_owned(),
             message: "mapped".to_owned(),
-            rule: Some("lint-tool/rule".to_owned()),
-            path: Some("src/a.py".to_owned()),
-            range: None,
+            rule: Some("rule".to_owned()),
+            path: path.map(str::to_owned),
+            range,
             snapshot: Snapshot::Terminal,
             fixable: true,
             related: Vec::new(),
             resolution: None,
             origins: Vec::new(),
-        };
+        })
+    }
+
+    fn at(line: u64, column: u64) -> dx_output::Position {
+        dx_output::Position { line, column }
+    }
+
+    #[test]
+    fn text_finding_prints_the_verified_location_tool_rule_severity_and_message() {
+        let mut record = finding(Some("src/a.py"), Some((4, 6)));
+        record.span = Some((at(2, 3), at(2, 5)));
         assert_eq!(
-            text_diagnostic(&diagnostic),
-            "warning src/a.py: mapped [lint-tool/lint-tool/rule] (fixable)"
+            text_finding(&record),
+            "src/a.py:2:3: warning: mapped [lint-tool/rule] (fixable)"
         );
-        diagnostic.path = None;
-        diagnostic.rule = None;
-        diagnostic.fixable = false;
-        assert_eq!(text_diagnostic(&diagnostic), "warning mapped [lint-tool]");
-        diagnostic.related = vec![
+        record.count = 3;
+        record.diagnostic.fixable = false;
+        assert_eq!(
+            text_finding(&record),
+            "src/a.py:2:3: warning: mapped [lint-tool/rule] (x3)"
+        );
+    }
+
+    #[test]
+    fn text_finding_never_guesses_a_location() {
+        let unverified = finding(Some("src/a.py"), Some((4, 6)));
+        assert_eq!(
+            text_finding(&unverified),
+            "src/a.py: warning: mapped [lint-tool/rule] (fixable)"
+        );
+        let mut pathless = finding(None, None);
+        pathless.diagnostic.rule = None;
+        pathless.diagnostic.fixable = false;
+        assert_eq!(
+            text_finding(&pathless),
+            "(no file): warning: mapped [lint-tool]"
+        );
+        let mut stray = finding(Some("src/a.py"), None);
+        stray.span = Some((at(9, 9), at(9, 9)));
+        assert!(text_finding(&stray).starts_with("src/a.py: warning"));
+    }
+
+    #[test]
+    fn text_finding_places_related_items_and_suggestions() {
+        let mut record = finding(None, None);
+        record.diagnostic.fixable = false;
+        record.diagnostic.related = vec![
             dx_output::RelatedEvent {
                 role: "label".to_owned(),
                 message: "expected `i32`".to_owned(),
@@ -855,9 +909,10 @@ mod tests {
                 applicability: Some("MaybeIncorrect".to_owned()),
             },
         ];
+        record.related_spans = vec![Some((at(7, 2), at(7, 3))), None];
         assert_eq!(
-            text_diagnostic(&diagnostic),
-            "warning mapped [lint-tool]\n  label: expected `i32` (src/b.rs)\n  help: try this suggests `1` [MaybeIncorrect]"
+            text_finding(&record),
+            "(no file): warning: mapped [lint-tool/rule]\n  label: expected `i32` (src/b.rs:7:2)\n  help: try this suggests `1` [MaybeIncorrect]"
         );
     }
 
@@ -969,19 +1024,19 @@ mod tests {
             OutputMode::Text { quiet: false },
             "boom",
         );
-        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\n");
+        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         assert!(out.is_empty());
 
         let mut out = Vec::new();
         let mut err = Vec::new();
         report_failed(&mut out, &mut err, OutputMode::Diff, "boom");
-        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\n");
+        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         assert!(out.is_empty());
 
         let mut out = Vec::new();
         let mut err = Vec::new();
         report_failed(&mut out, &mut err, OutputMode::Json, "boom");
-        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\n");
+        assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(event["code"], CODE_REPORT_FAILED);
         assert_eq!(event["message"], "boom");

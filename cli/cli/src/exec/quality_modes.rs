@@ -17,7 +17,7 @@ fn check_mode_reports_findings_and_fails_on_changes() {
     let (code, out, _) = harness.run(&["lint", "--check", "--output=text"]);
     assert_eq!(code, 1);
     assert!(out.contains("Running lint analysis for //..."));
-    assert!(out.contains("warning src/a.py: unused [lint-tool/lint-tool/rule] (fixable)"));
+    assert!(out.contains("src/a.py:1:1: warning: unused [lint-tool/lint-tool/rule] (fixable)"));
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
         b"x = 1\n"

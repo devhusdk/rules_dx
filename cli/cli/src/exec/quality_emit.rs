@@ -6,7 +6,7 @@ use dx_output::{
     DiagnosticEvent, FindingRecord, OutputMode, Position, Resolution, Snapshot, Span,
 };
 
-use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
+use super::common::{change_event_for, text_finding, FileChange, REASON_INCOMPLETE_COLLECTION};
 use super::quality_baseline::BaselineView;
 use super::quality_reconcile::Conflict;
 use super::quality_reports::Snapshots;
@@ -154,7 +154,6 @@ pub(crate) fn emit_findings(
         original_digests,
         terminal_digests,
     } = inputs;
-    let held = |index: usize| suppressed.get(index).copied().unwrap_or(false);
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
     if request.common.output == OutputMode::Json {
@@ -222,9 +221,15 @@ pub(crate) fn emit_findings(
         }
     } else if matches!(request.common.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
-        for (index, diagnostic) in status.iter().enumerate() {
-            let mut line = text_diagnostic(diagnostic);
-            if held(index) {
+        for record in finding_records(
+            status,
+            suppressed,
+            snapshots,
+            original_digests,
+            terminal_digests,
+        ) {
+            let mut line = text_finding(&record);
+            if record.suppressed {
                 line.push_str(" (baselined)");
             }
             let _ = writeln!(human, "{line}");

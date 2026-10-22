@@ -1,4 +1,5 @@
 use super::common::*;
+use super::guidance::{apply_hint, rerun_hint};
 use super::quality_apply::{apply_collected_changes, project_status};
 use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
@@ -154,16 +155,18 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         }
     };
     let _ = std::fs::remove_file(&bep);
-    if bazel_code != 0 && request.common.output == OutputMode::Json {
-        if let Some(event) = bazel_exit_event(
-            CODE_ANALYSIS_FAILED,
-            &format!(
-                "{} analysis failed with Bazel exit {bazel_code}; results are incomplete",
-                request.command.name()
-            ),
-            bazel_code,
-        ) {
-            let _ = write_event(out, &event);
+    if bazel_code != 0 {
+        let detail = format!(
+            "{} analysis failed with Bazel exit {bazel_code}; results are incomplete",
+            request.command.name()
+        );
+        if request.common.output == OutputMode::Json {
+            if let Some(event) = bazel_exit_event(CODE_ANALYSIS_FAILED, &detail, bazel_code) {
+                let _ = write_event(out, &event);
+            }
+        } else {
+            let _ = writeln!(err, "dx: {CODE_ANALYSIS_FAILED}: {detail}");
+            let _ = writeln!(err, "{}", rerun_hint(request, "fix the Bazel error above"));
         }
     }
     collected.complete = collected.complete && bazel_code == 0;
@@ -236,7 +239,10 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         }
     }
 
-    let snapshots: Snapshots = if request.common.output == OutputMode::Json {
+    let snapshots: Snapshots = if matches!(
+        request.common.output,
+        OutputMode::Json | OutputMode::Text { .. }
+    ) {
         verified_snapshots(workspace, &collected, &sources, &status)
     } else {
         Snapshots::new()
@@ -264,6 +270,12 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
     let not_applied_count = emit_counts.not_applied_count;
     let change_count = collected.changes.len() as u64;
 
+    if !apply
+        && !collected.changes.is_empty()
+        && matches!(request.common.output, OutputMode::Text { .. })
+    {
+        let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
+    }
     let reports_ok = write_standard_reports(
         StandardReports {
             workspace,
@@ -303,6 +315,11 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             }
         } else {
             let _ = writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}");
+            let _ = writeln!(
+                err,
+                "{}",
+                rerun_hint(request, "fix the conflicting tool configuration")
+            );
         }
     }
     if let Some(detail) = collected.problem_detail() {
@@ -314,6 +331,10 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             }
         } else {
             let _ = writeln!(err, "dx: incomplete_results: {detail}");
+            if bazel_code == 0 {
+                let action = "make sure every target reports results";
+                let _ = writeln!(err, "{}", rerun_hint(request, action));
+            }
         }
     }
     if request.common.output == OutputMode::Json {
@@ -377,3 +398,6 @@ mod quality_reporting;
 #[cfg(test)]
 #[path = "quality_shared.rs"]
 mod quality_shared;
+#[cfg(test)]
+#[path = "text_output_tests.rs"]
+mod text_output_tests;

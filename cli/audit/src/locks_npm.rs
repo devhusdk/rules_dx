@@ -138,6 +138,77 @@ fn entry_text(
     }
 }
 
+const MAX_LEGACY_DEPTH: usize = 64;
+
+fn collect_legacy(
+    dependencies: &serde_json::Value,
+    depth: usize,
+    out: &mut Vec<LockedPackage>,
+) -> Result<(), String> {
+    if depth >= MAX_LEGACY_DEPTH {
+        return Err(format!(
+            "invalid package-lock.json: dependencies nested deeper than {MAX_LEGACY_DEPTH}"
+        ));
+    }
+    let dependencies = dependencies
+        .as_object()
+        .ok_or_else(|| "invalid package-lock.json: dependencies is not an object".to_owned())?;
+    for (name, detail) in dependencies {
+        let name = name.trim();
+        if name.is_empty() {
+            continue;
+        }
+        let detail = detail
+            .as_object()
+            .ok_or_else(|| format!("invalid package-lock.json: entry {name} is not an object"))?;
+        if let Some(children) = detail.get("dependencies") {
+            collect_legacy(children, depth + 1, out)?;
+        }
+        if detail
+            .get("link")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let version = entry_text(detail, "version", name)?;
+        let resolved = entry_text(detail, "resolved", name)?;
+        let from = entry_text(detail, "from", name)?;
+        if version.is_empty() {
+            continue;
+        }
+        if version.starts_with("file:") || version.starts_with("link:") {
+            continue;
+        }
+        if resolved.starts_with("file:") {
+            continue;
+        }
+        let is_git = is_npm_git_reference(&version)
+            || is_npm_git_reference(&resolved)
+            || is_npm_git_reference(&from);
+        let (identity, version) = if is_git {
+            (name.to_owned(), version)
+        } else {
+            legacy_alias_identity(name, &version)?
+        };
+        let location = (identity != name).then(|| name.to_owned());
+        if out.iter().any(|package| {
+            package.name == identity && package.version == version && package.is_git == is_git
+        }) {
+            continue;
+        }
+        out.push(LockedPackage {
+            name: identity,
+            version,
+            set: "npm".to_owned(),
+            is_git,
+            is_private: false,
+            location,
+        });
+    }
+    Ok(())
+}
+
 pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
     let value: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| format!("invalid package-lock.json: {error}"))?;
@@ -192,59 +263,7 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         }
     }
     if let Some(dependencies) = object.get("dependencies") {
-        let dependencies = dependencies
-            .as_object()
-            .ok_or_else(|| "invalid package-lock.json: dependencies is not an object".to_owned())?;
-        for (name, detail) in dependencies {
-            let name = name.trim();
-            if name.is_empty() {
-                continue;
-            }
-            let detail = detail.as_object().ok_or_else(|| {
-                format!("invalid package-lock.json: entry {name} is not an object")
-            })?;
-            if detail
-                .get("link")
-                .and_then(|value| value.as_bool())
-                .unwrap_or(false)
-            {
-                continue;
-            }
-            let version = entry_text(detail, "version", name)?;
-            let resolved = entry_text(detail, "resolved", name)?;
-            let from = entry_text(detail, "from", name)?;
-            if version.is_empty() {
-                continue;
-            }
-            if version.starts_with("file:") || version.starts_with("link:") {
-                continue;
-            }
-            if resolved.starts_with("file:") {
-                continue;
-            }
-            let is_git = is_npm_git_reference(&version)
-                || is_npm_git_reference(&resolved)
-                || is_npm_git_reference(&from);
-            let (identity, version) = if is_git {
-                (name.to_owned(), version)
-            } else {
-                legacy_alias_identity(name, &version)?
-            };
-            let location = (identity != name).then(|| name.to_owned());
-            if out.iter().any(|package| {
-                package.name == identity && package.version == version && package.is_git == is_git
-            }) {
-                continue;
-            }
-            out.push(LockedPackage {
-                name: identity,
-                version,
-                set: "npm".to_owned(),
-                is_git,
-                is_private: false,
-                location,
-            });
-        }
+        collect_legacy(dependencies, 0, &mut out)?;
     }
     out.sort_by(|a, b| (&a.name, &a.version, a.is_git).cmp(&(&b.name, &b.version, b.is_git)));
     out.dedup_by(|b, a| a.name == b.name && a.version == b.version && a.is_git == b.is_git);

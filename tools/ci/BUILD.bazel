@@ -111,6 +111,31 @@ python_test(
 )
 
 # keep
+python_library(
+    name = "changed_line_coverage",
+    srcs = ["changed_line_coverage.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_test(
+    name = "changed_line_coverage_test",
+    size = "medium",
+    srcs = ["changed_line_coverage_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        "changed_line_coverage.py",
+        "//.github:workflows/reusable-consumer.yml",
+    ],
+    dep_group = "dx-ci-tools",
+    deps = [
+        "@pypi//diff_cover",
+        "@pypi//pytest",
+    ],
+)
+
+# keep
 rust_test(
     name = "actionlint_test",
     size = "small",

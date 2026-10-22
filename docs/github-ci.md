@@ -51,7 +51,8 @@ every platform in `platforms`:
 - `test`: `dx test //...`
 - `build`: `dx build //...`
 - `coverage`: `dx coverage //...`, plus `--min-coverage <percent>` when
-  `min_coverage` is set.
+  `min_coverage` is set. With `min_changed_line_coverage` it also writes the
+  LCOV report and gates the lines a pull request adds.
 
 `--check` applies to the four quality checks. `dx security`, `dx license`,
 `dx test`, `dx build`, and `dx coverage` reject it.
@@ -78,12 +79,51 @@ Inputs:
 - `min_coverage`: fails below that percent, a whole number from 0 to 100 such as
   `80`. Empty collects without enforcing a threshold. `80%`, `80.5`, `-1`, `101`,
   `eighty` and a leading space fail. Coverage comes from `dx coverage`.
+- `min_changed_line_coverage`: fails when fewer than that percent of the
+  executable lines a pull request adds are covered, a whole number from 0 to
+  100. Empty skips the check. It accepts and rejects the same values as
+  `min_coverage`, and it never changes `min_coverage`.
 - `invocation_id`: 1 to 40 letters, digits, underscores or hyphens. Empty
   uploads `advisory-snapshots`, which suits one call per workflow run. Two calls
   in one workflow run, including matrix cells, each need their own ID, such as
   `api-linux`; a repeated ID makes the second upload fail. Anything else fails.
   The ID also keeps the calls' concurrency groups apart, so one call never
   cancels another. A rerun reuses the same ID.
+
+## Changed-Line Coverage
+
+Set `min_changed_line_coverage` to require coverage on new code without raising
+the whole-repo threshold. The `coverage` job fetches full history, runs
+`dx coverage --report lcov=<path>`, then runs `diff-cover` 10.6.0 over that
+report. It runs on `pull_request` events only. Other events print a notice and
+skip it.
+
+The base is the pull request base commit. The head is the checked out `HEAD`.
+Lines come from the diff between their merge-base and `HEAD`. Renames follow
+the file, so a pure rename adds no lines. Deleted lines are not counted. Report
+paths are mapped to workspace-relative paths.
+
+The check prints the base, merge-base and head commits, the threshold, the
+covered and eligible line counts, whether the evidence is complete, and each
+uncovered `path:line`. Lines the report does not list, such as comments and
+docs, are not eligible. With no eligible line the result is `not-applicable`,
+not 100 percent.
+
+It fails when:
+
+- fewer than the threshold percent of eligible lines are covered. The compare is
+  exact, with no rounding.
+- the base commit is not available, or the history is too shallow to reach a
+  merge-base.
+- the report is missing, empty, or not valid LCOV.
+- a changed file has the extension of files in the report but is not in it.
+  The result is `incomplete`.
+
+```yaml
+    with:
+      rules_dx_version: "0.0.0"
+      min_changed_line_coverage: "80"
+```
 
 A rejected input fails in the `validate` job before any check starts. The nine
 checks need it, so none of them run. `dx-ci (aggregate)` names the validation

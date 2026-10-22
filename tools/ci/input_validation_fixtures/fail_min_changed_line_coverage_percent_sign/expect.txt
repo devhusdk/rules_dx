@@ -1,0 +1,4 @@
+input {"DX_MIN_CHANGED_LINE_COVERAGE": "80%"}
+exit 1
+says dx-ci: DX_MIN_CHANGED_LINE_COVERAGE='80%' is not a whole percent from 0 to 100.
+says skip the changed-line check

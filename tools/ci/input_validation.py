@@ -17,6 +17,7 @@ DISABLED_ENV = "DX_DISABLED_CHECKS"
 SCHEDULING_ENV = "DX_SCHEDULING_MODE"
 SCANNING_ENV = "DX_CODE_SCANNING_OPT_IN"
 MIN_COVERAGE_ENV = "DX_MIN_COVERAGE"
+MIN_CHANGED_ENV = "DX_MIN_CHANGED_LINE_COVERAGE"
 INVOCATION_ENV = "DX_INVOCATION_ID"
 OUTPUT_ENV = "GITHUB_OUTPUT"
 
@@ -166,18 +167,27 @@ def validate_scanning(text):
     return None
 
 
-def validate_min_coverage(text):
-    """Returns the coverage threshold to enforce, or None after a diagnostic."""
+def validate_percent(text, name, omitted):
+    """Returns the threshold to enforce, or None after a diagnostic."""
     if text == "":
         return ""
     if WHOLE_PERCENT.fullmatch(text) is None or not 0 <= int(text) <= 100:
         fail(
-            f"{MIN_COVERAGE_ENV}={text!r} is not a whole percent from 0 to 100. "
-            "Write a whole number such as 80, or omit it to collect without a "
-            "threshold."
+            f"{name}={text!r} is not a whole percent from 0 to 100. "
+            f"Write a whole number such as 80, or omit it to {omitted}."
         )
         return None
     return text
+
+
+def validate_min_coverage(text):
+    """Returns the coverage threshold to enforce, or None after a diagnostic."""
+    return validate_percent(text, MIN_COVERAGE_ENV, "collect without a threshold")
+
+
+def validate_min_changed(text):
+    """Returns the changed-line threshold to enforce, or None after a diagnostic."""
+    return validate_percent(text, MIN_CHANGED_ENV, "skip the changed-line check")
 
 
 def validate_invocation(text):
@@ -219,6 +229,7 @@ def main():
         SCHEDULING_ENV: validate_scheduling(os.environ.get(SCHEDULING_ENV, SCHEDULING)),
         SCANNING_ENV: validate_scanning(os.environ.get(SCANNING_ENV, "false")),
         MIN_COVERAGE_ENV: validate_min_coverage(os.environ.get(MIN_COVERAGE_ENV, "")),
+        MIN_CHANGED_ENV: validate_min_changed(os.environ.get(MIN_CHANGED_ENV, "")),
         INVOCATION_ENV: validate_invocation(os.environ.get(INVOCATION_ENV, "")),
     }
     if any(value is None for value in accepted_values.values()):
@@ -228,6 +239,7 @@ def main():
         "runners": compact(PLATFORMS),
         "disabled": ",".join(accepted_values[DISABLED_ENV]),
         "min_coverage": accepted_values[MIN_COVERAGE_ENV],
+        "min_changed_line_coverage": accepted_values[MIN_CHANGED_ENV],
         "snapshot_artifact": "-".join(
             part for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV]) if part
         ),
@@ -239,6 +251,7 @@ def main():
     print(f"{SCHEDULING_ENV} {accepted_values[SCHEDULING_ENV]}")
     print(f"{SCANNING_ENV} {accepted_values[SCANNING_ENV]}")
     print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
+    print(f"{MIN_CHANGED_ENV} {outputs['min_changed_line_coverage'] or '(none)'}")
     print(f"{INVOCATION_ENV} {accepted_values[INVOCATION_ENV] or '(none)'}")
     return 0
 

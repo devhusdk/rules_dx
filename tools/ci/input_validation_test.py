@@ -24,6 +24,7 @@ INPUTS = (
     "DX_SCHEDULING_MODE",
     "DX_CODE_SCANNING_OPT_IN",
     "DX_MIN_COVERAGE",
+    "DX_MIN_CHANGED_LINE_COVERAGE",
     "DX_INVOCATION_ID",
 )
 CHECKS = (
@@ -46,7 +47,7 @@ GATE_JOBS = (
 )
 CONSUMER_JOBS = ("validate", "advisory-snapshots", *CHECKS)
 RESULTS = ("success", "failure", "skipped", "cancelled")
-PLAIN_OUTPUTS = ("disabled", "min_coverage", "snapshot_artifact")
+PLAIN_OUTPUTS = ("disabled", "min_changed_line_coverage", "min_coverage", "snapshot_artifact")
 
 
 def workspace_root():
@@ -170,7 +171,14 @@ def test_every_fixture_states_one_expected_outcome():
         _, status, says, outputs = expectation(FIXTURE_DIR, case)
         assert status in (0, 1), f"{case} declares no exit status"
         assert len(says) > 0, f"{case} expects no validator text"
-        assert set(outputs) <= {"platforms", "runners", "disabled", "min_coverage", "snapshot_artifact"}, (
+        assert set(outputs) <= {
+            "platforms",
+            "runners",
+            "disabled",
+            "min_coverage",
+            "min_changed_line_coverage",
+            "snapshot_artifact",
+        }, (
             f"{case} expects an unknown output {sorted(outputs)}"
         )
         assert (status == 0) == bool(outputs), (

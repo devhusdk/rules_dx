@@ -32,6 +32,11 @@ on:
         required: false
         default: ""
         type: string
+      min_changed_line_coverage:
+        description: "Required percent of executable lines a pull request adds that tests cover, a whole number from 0 to 100. Empty skips the changed-line check."
+        required: false
+        default: ""
+        type: string
       invocation_id:
         description: "Names this call's advisory artifact. Empty keeps advisory-snapshots for a single call. Two calls in one parent run need distinct IDs of 1 to 40 letters, digits, underscores or hyphens."
         required: false
@@ -66,6 +71,7 @@ jobs:
       contents: read
     outputs:
       disabled: ${{ steps.validate.outputs.disabled }}
+      min_changed_line_coverage: ${{ steps.validate.outputs.min_changed_line_coverage }}
       min_coverage: ${{ steps.validate.outputs.min_coverage }}
       platforms: ${{ steps.validate.outputs.platforms }}
       runners: ${{ steps.validate.outputs.runners }}
@@ -79,6 +85,7 @@ jobs:
           DX_SCHEDULING_MODE: ${{ inputs.scheduling_mode }}
           DX_CODE_SCANNING_OPT_IN: ${{ inputs.code_scanning_opt_in }}
           DX_MIN_COVERAGE: ${{ inputs.min_coverage }}
+          DX_MIN_CHANGED_LINE_COVERAGE: ${{ inputs.min_changed_line_coverage }}
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
         run: |
           python3 - <<'DX_INPUT_VALIDATION'
@@ -101,6 +108,7 @@ jobs:
           SCHEDULING_ENV = "DX_SCHEDULING_MODE"
           SCANNING_ENV = "DX_CODE_SCANNING_OPT_IN"
           MIN_COVERAGE_ENV = "DX_MIN_COVERAGE"
+          MIN_CHANGED_ENV = "DX_MIN_CHANGED_LINE_COVERAGE"
           INVOCATION_ENV = "DX_INVOCATION_ID"
           OUTPUT_ENV = "GITHUB_OUTPUT"
 
@@ -250,18 +258,27 @@ jobs:
               return None
 
 
-          def validate_min_coverage(text):
-              """Returns the coverage threshold to enforce, or None after a diagnostic."""
+          def validate_percent(text, name, omitted):
+              """Returns the threshold to enforce, or None after a diagnostic."""
               if text == "":
                   return ""
               if WHOLE_PERCENT.fullmatch(text) is None or not 0 <= int(text) <= 100:
                   fail(
-                      f"{MIN_COVERAGE_ENV}={text!r} is not a whole percent from 0 to 100. "
-                      "Write a whole number such as 80, or omit it to collect without a "
-                      "threshold."
+                      f"{name}={text!r} is not a whole percent from 0 to 100. "
+                      f"Write a whole number such as 80, or omit it to {omitted}."
                   )
                   return None
               return text
+
+
+          def validate_min_coverage(text):
+              """Returns the coverage threshold to enforce, or None after a diagnostic."""
+              return validate_percent(text, MIN_COVERAGE_ENV, "collect without a threshold")
+
+
+          def validate_min_changed(text):
+              """Returns the changed-line threshold to enforce, or None after a diagnostic."""
+              return validate_percent(text, MIN_CHANGED_ENV, "skip the changed-line check")
 
 
           def validate_invocation(text):
@@ -303,6 +320,7 @@ jobs:
                   SCHEDULING_ENV: validate_scheduling(os.environ.get(SCHEDULING_ENV, SCHEDULING)),
                   SCANNING_ENV: validate_scanning(os.environ.get(SCANNING_ENV, "false")),
                   MIN_COVERAGE_ENV: validate_min_coverage(os.environ.get(MIN_COVERAGE_ENV, "")),
+                  MIN_CHANGED_ENV: validate_min_changed(os.environ.get(MIN_CHANGED_ENV, "")),
                   INVOCATION_ENV: validate_invocation(os.environ.get(INVOCATION_ENV, "")),
               }
               if any(value is None for value in accepted_values.values()):
@@ -312,6 +330,7 @@ jobs:
                   "runners": compact(PLATFORMS),
                   "disabled": ",".join(accepted_values[DISABLED_ENV]),
                   "min_coverage": accepted_values[MIN_COVERAGE_ENV],
+                  "min_changed_line_coverage": accepted_values[MIN_CHANGED_ENV],
                   "snapshot_artifact": "-".join(
                       part for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV]) if part
                   ),
@@ -323,6 +342,7 @@ jobs:
               print(f"{SCHEDULING_ENV} {accepted_values[SCHEDULING_ENV]}")
               print(f"{SCANNING_ENV} {accepted_values[SCANNING_ENV]}")
               print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
+              print(f"{MIN_CHANGED_ENV} {outputs['min_changed_line_coverage'] or '(none)'}")
               print(f"{INVOCATION_ENV} {accepted_values[INVOCATION_ENV] or '(none)'}")
               return 0
 
@@ -2031,6 +2051,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || '1' }}
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -2194,6 +2215,7 @@ jobs:
       - name: Run coverage with optional threshold
         env:
           DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
+          DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
         run: |
           set +e
           # shellcheck disable=SC2086
@@ -2203,9 +2225,330 @@ jobs:
           if [ -n "$DX_MIN_COVERAGE" ]; then
             extra=(--min-coverage "$DX_MIN_COVERAGE")
           fi
+          if [ -n "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
+            extra+=(--report "lcov=${RUNNER_TEMP:-/tmp}/dx_coverage.lcov")
+          fi
           bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" //... -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
           rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
+          exit "$rc"
+      - name: Install diff-cover
+        if: ${{ needs.validate.outputs.min_changed_line_coverage != '' }}
+        run: python3 -m pip install --disable-pip-version-check --target "${RUNNER_TEMP}/diff_cover" diff-cover==10.6.0
+      - name: Check changed-line coverage
+        if: ${{ needs.validate.outputs.min_changed_line_coverage != '' }}
+        env:
+          DX_THRESHOLD: ${{ needs.validate.outputs.min_changed_line_coverage }}
+          DX_EVENT: ${{ github.event_name }}
+          DX_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$DX_EVENT" != "pull_request" ]; then
+            echo "dx-ci: changed-line coverage needs a pull_request event, so it did not run on $DX_EVENT." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          cat > "${RUNNER_TEMP}/changed_line_coverage.py" <<'DX_CHANGED_LINES'
+          """Gates the executable lines a change adds against an existing LCOV report.
+
+          The consumer workflow runs this file from standard input after `dx coverage`
+          wrote the report. The base revision is explicit. The head is the checked out
+          HEAD. The diff between their merge-base and HEAD is handed to diff-cover,
+          which maps the added lines onto the report. Missing history, a missing or
+          malformed report, and changed sources the report never saw fail the gate.
+          """
+
+          import argparse
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import sys
+          import tempfile
+
+          RECORD_KEYS = ("SF", "DA", "FN", "FNDA", "FNF", "FNH", "BRDA", "BRF", "BRH", "LF", "LH", "TN", "VER")
+
+
+          def fail(message):
+              """Reports one diagnostic and returns a failing exit status."""
+              print(f"dx-ci: changed-line coverage: {message}", file=sys.stderr)
+              return 1
+
+
+          def git(*args, check=True):
+              """Runs one git command and returns the completed process."""
+              done = subprocess.run(
+                  ["git", *args], capture_output=True, check=False, encoding="utf-8"
+              )
+              if check and done.returncode != 0:
+                  raise RuntimeError(f"git {' '.join(args)} failed: {done.stderr.strip()}")
+              return done
+
+
+          def revision_pair(base):
+              """Returns the base, merge-base and head commits, or raises with a diagnostic."""
+              shallow = git("rev-parse", "--is-shallow-repository").stdout.strip() == "true"
+              base_commit = git("rev-parse", "--verify", "--quiet", f"{base}^{{commit}}", check=False)
+              if base_commit.returncode != 0:
+                  hint = (
+                      "The checkout is shallow. Fetch the base with `git fetch --no-tags origin "
+                      f"{base}` or fetch full history."
+                      if shallow
+                      else f"Fetch it with `git fetch --no-tags origin {base}`."
+                  )
+                  raise RuntimeError(f"base revision {base!r} is not available. {hint}")
+              head = git("rev-parse", "--verify", "HEAD^{commit}").stdout.strip()
+              merge_base = git("merge-base", base_commit.stdout.strip(), head, check=False)
+              if merge_base.returncode != 0:
+                  reason = (
+                      "The checkout is shallow, so the history never reaches a common commit. "
+                      "Fetch full history."
+                      if shallow
+                      else "The two revisions share no history."
+                  )
+                  raise RuntimeError(f"no merge-base between {base!r} and HEAD. {reason}")
+              return base_commit.stdout.strip(), merge_base.stdout.strip(), head
+
+
+          def normalized(path):
+              """Returns one report path with forward slashes and no leading dot segment."""
+              path = path.replace("\\", "/")
+              while path.startswith("./"):
+                  path = path[2:]
+              return path
+
+
+          def report_files(lcov):
+              """Returns the source files the report records, or raises when it is unusable."""
+              try:
+                  text = pathlib.Path(lcov).read_text(encoding="utf-8")
+              except OSError as error:
+                  raise RuntimeError(f"coverage report {lcov!r} is unreadable: {error}") from error
+              files = set()
+              current = None
+              for number, raw in enumerate(text.splitlines(), 1):
+                  line = raw.strip()
+                  if line == "":
+                      continue
+                  if line == "end_of_record":
+                      if current is None:
+                          raise RuntimeError(f"{lcov}:{number} ends a record that never began")
+                      current = None
+                      continue
+                  key, separator, value = line.partition(":")
+                  if separator == "" or key not in RECORD_KEYS:
+                      raise RuntimeError(f"{lcov}:{number} is not an LCOV record: {raw!r}")
+                  if key == "SF":
+                      if current is not None:
+                          raise RuntimeError(f"{lcov}:{number} starts a record inside another")
+                      if value == "":
+                          raise RuntimeError(f"{lcov}:{number} names no source file")
+                      current = normalized(value)
+                      files.add(current)
+                  elif key == "DA":
+                      fields = value.split(",")
+                      if current is None or len(fields) < 2 or not all(
+                          field.strip().lstrip("-").isdigit() for field in fields[:2]
+                      ):
+                          raise RuntimeError(f"{lcov}:{number} is a malformed line record: {raw!r}")
+              if current is not None:
+                  raise RuntimeError(f"{lcov} ends inside the record for {current}")
+              if not files:
+                  raise RuntimeError(f"coverage report {lcov!r} records no source files")
+              return files
+
+
+          def added_files(merge_base, head):
+              """Returns the files that gained lines between the two commits, by new path."""
+              done = git("diff", "--numstat", "-M", "-z", merge_base, head)
+              tokens = done.stdout.split("\0")
+              files = []
+              index = 0
+              while index < len(tokens) and tokens[index] != "":
+                  added, _, rest = tokens[index].partition("\t")
+                  _, _, path = rest.partition("\t")
+                  if path == "":
+                      path = tokens[index + 2]
+                      index += 2
+                  index += 1
+                  if added != "0":
+                      files.append(path)
+              return files
+
+
+          def in_report(path, recorded):
+              """Returns whether the report records the repository-relative path."""
+              return any(item == path or item.endswith("/" + path) for item in recorded)
+
+
+          def uninstrumented(files, recorded):
+              """Returns the changed files the report lacks, among kinds the report covers."""
+              extensions = {os.path.splitext(item)[1] for item in recorded} - {""}
+              return sorted(
+                  path
+                  for path in files
+                  if os.path.splitext(path)[1] in extensions
+                  and not in_report(path, recorded)
+              )
+
+
+          def mapped_report(lcov, files, destination):
+              """Writes the report with workspace-relative source paths and returns its path."""
+              toplevel = normalized(git("rev-parse", "--show-toplevel").stdout.strip()).rstrip("/") + "/"
+              out = []
+              for raw in pathlib.Path(lcov).read_text(encoding="utf-8").splitlines():
+                  if raw.strip().startswith("SF:"):
+                      source = normalized(raw.strip()[3:])
+                      if source.startswith(toplevel):
+                          source = source[len(toplevel) :]
+                      elif source.startswith("/"):
+                          source = next(
+                              (path for path in files if source.endswith("/" + path)), source
+                          )
+                      raw = "SF:" + source
+                  out.append(raw)
+              pathlib.Path(destination).write_text("\n".join(out) + "\n", encoding="utf-8")
+              return destination
+
+
+          def run_diff_cover(lcov, diff, report):
+              """Runs diff-cover over the diff and returns its parsed JSON report."""
+              done = subprocess.run(
+                  [
+                      sys.executable,
+                      "-m",
+                      "diff_cover.diff_cover_tool",
+                      lcov,
+                      "--diff-file",
+                      diff,
+                      "--format",
+                      f"json:{report}",
+                      "--quiet",
+                  ],
+                  capture_output=True,
+                  check=False,
+                  encoding="utf-8",
+              )
+              if done.returncode != 0 or not os.path.exists(report):
+                  raise RuntimeError(
+                      f"diff-cover exited {done.returncode}: {(done.stdout + done.stderr).strip()}"
+                  )
+              with open(report, encoding="utf-8") as handle:
+                  return json.load(handle)
+
+
+          def evaluate(arguments):
+              """Returns the result record for one run, raising when evidence is unusable."""
+              base, merge_base, head = revision_pair(arguments.base)
+              recorded = report_files(arguments.lcov)
+              files = added_files(merge_base, head)
+              missing = uninstrumented(files, recorded)
+              with tempfile.TemporaryDirectory() as scratch:
+                  diff = os.path.join(scratch, "change.diff")
+                  text = git("diff", "--no-color", "--no-ext-diff", "-U0", "-M", merge_base, head)
+                  pathlib.Path(diff).write_text(text.stdout, encoding="utf-8")
+                  mapped = mapped_report(arguments.lcov, files, os.path.join(scratch, "mapped.lcov"))
+                  parsed = run_diff_cover(mapped, diff, os.path.join(scratch, "report.json"))
+              eligible = int(parsed.get("total_num_lines", 0))
+              uncovered = int(parsed.get("total_num_violations", 0))
+              locations = [
+                  f"{path}:{line}"
+                  for path, stats in sorted(parsed.get("src_stats", {}).items())
+                  for line in stats.get("violation_lines", [])
+              ]
+              return {
+                  "base": base,
+                  "merge_base": merge_base,
+                  "head": head,
+                  "threshold": arguments.threshold,
+                  "eligible": eligible,
+                  "covered": eligible - uncovered,
+                  "uncovered": locations,
+                  "uninstrumented": missing,
+              }
+
+
+          def verdict(result):
+              """Returns pass, fail, not-applicable or incomplete for one result record."""
+              if result["uninstrumented"]:
+                  return "incomplete"
+              if result["eligible"] == 0:
+                  return "not-applicable"
+              if result["covered"] * 100 >= result["threshold"] * result["eligible"]:
+                  return "pass"
+              return "fail"
+
+
+          def render(result, outcome):
+              """Returns the report lines for one result record."""
+              lines = [
+                  "dx changed-line coverage",
+                  f"base: {result['base']}",
+                  f"merge-base: {result['merge_base']}",
+                  f"head: {result['head']}",
+                  f"threshold: {result['threshold']}%",
+              ]
+              if result["eligible"] == 0:
+                  lines.append("changed executable lines: none")
+              else:
+                  exact = result["covered"] * 100 / result["eligible"]
+                  lines.append(
+                      f"changed executable lines: {result['covered']} of {result['eligible']} "
+                      f"covered ({exact:.2f}%)"
+                  )
+              lines.append(f"complete: {'no' if result['uninstrumented'] else 'yes'}")
+              for path in result["uninstrumented"]:
+                  lines.append(f"uninstrumented: {path}")
+              for location in result["uncovered"]:
+                  lines.append(f"uncovered: {location}")
+              lines.append(f"result: {outcome}")
+              return lines
+
+
+          def parse(argv):
+              """Returns the parsed command line."""
+              parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+              parser.add_argument("--base", required=True, help="Base revision to compare against.")
+              parser.add_argument("--lcov", required=True, help="LCOV report from dx coverage.")
+              parser.add_argument(
+                  "--threshold", required=True, type=int, help="Whole percent from 0 to 100."
+              )
+              parser.add_argument("--report-json", help="Write the result record here.")
+              return parser.parse_args(argv)
+
+
+          def main(argv):
+              """Runs the gate and returns its exit status."""
+              arguments = parse(argv)
+              if not 0 <= arguments.threshold <= 100:
+                  return fail(f"threshold {arguments.threshold} is not a whole percent from 0 to 100")
+              try:
+                  result = evaluate(arguments)
+              except (RuntimeError, ValueError, OSError) as error:
+                  return fail(str(error))
+              outcome = verdict(result)
+              print("\n".join(render(result, outcome)))
+              if arguments.report_json:
+                  record = dict(result, result=outcome)
+                  pathlib.Path(arguments.report_json).write_text(
+                      json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+                  )
+              return 0 if outcome in ("pass", "not-applicable") else 1
+
+
+          if __name__ == "__main__":
+              sys.exit(main(sys.argv[1:]))
+          DX_CHANGED_LINES
+          set +e
+          PYTHONPATH="${RUNNER_TEMP}/diff_cover" python3 "${RUNNER_TEMP}/changed_line_coverage.py" \
+            --base "$DX_BASE" \
+            --lcov "${RUNNER_TEMP}/dx_coverage.lcov" \
+            --threshold "$DX_THRESHOLD" 2>&1 | tee "${RUNNER_TEMP}/dx_changed_lines.txt"
+          rc=${PIPESTATUS[0]}
+          {
+            echo "## Changed-line coverage - ${{ matrix.platform }}"
+            echo '```text'
+            cat "${RUNNER_TEMP}/dx_changed_lines.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
           exit "$rc"
       - name: Render first-party coverage summary (per-cell, no union)
         # Presents this cell's counts; the gate above stays authoritative.

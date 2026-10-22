@@ -41,3 +41,13 @@ sh_test(
         ":dep_results",
     ],
 )
+
+sh_test(
+    name = "spotbugs_native_test",
+    srcs = ["native.sh"],
+    data = [
+        ":app",
+        ":dep",
+        "//quality/tools/jvm:spotbugs",
+    ],
+)

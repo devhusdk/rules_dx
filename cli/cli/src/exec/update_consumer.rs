@@ -1,4 +1,4 @@
-use super::super::common::{frozen_summary, offline_summary, pre_exec, Env};
+use super::super::common::{check_stdout_write, frozen_summary, offline_summary, pre_exec, Env};
 use super::{record_named, RunMode};
 use crate::args::Invocation;
 use dx_adopt::dependency_sets::{self, ResolvedSet, ResolvedTarget, Selection};
@@ -39,7 +39,9 @@ pub(super) fn execute_configured(
             let _ = dx_output::write_event(out, &event);
         }
     } else if verbose {
-        let _ = writeln!(out, "{summary}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
     }
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, String> = BTreeMap::new();

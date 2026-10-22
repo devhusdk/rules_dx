@@ -3,6 +3,8 @@ mod build_failures;
 mod bump;
 mod clean;
 pub mod common;
+#[cfg(test)]
+mod delivery_sink;
 mod deploy;
 mod docs;
 mod failure;

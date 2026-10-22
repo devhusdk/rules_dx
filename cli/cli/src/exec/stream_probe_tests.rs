@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
-case " $* " in *" build "*) ;; *) exit 0 ;; esac
+case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
 echo "start $$" >> "$FAKE_BAZEL_LOG"
 exec "$FAKE_PROBE" $FAKE_PROBE_ARGS
 "#;
@@ -357,7 +357,7 @@ fn stopping_one_worktree_leaves_another_running() {
 }
 
 const GATED_BAZEL: &str = r#"#!/bin/sh
-case " $* " in *" build "*) ;; *) exit 0 ;; esac
+case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
 echo "start $$" >> "$FAKE_BAZEL_LOG"
 while [ ! -e "$FAKE_GATE" ]; do sleep 0.05; done
 exit "${FAKE_EXIT:-0}"
@@ -540,5 +540,49 @@ fn quality_with_a_failing_destination_starts_nothing() {
         assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
         assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
         assert_eq!(fs::read_to_string(source).expect("source"), "x = 1\n");
+    }
+}
+
+const DELIVERY_WORDS: [&[&str]; 2] = [
+    &["generate", "--apply", "--output=json"],
+    &["status", "--output=json"],
+];
+
+#[test]
+fn generate_and_adoption_with_stdout_closed_start_nothing() {
+    for words in DELIVERY_WORDS {
+        let scratch = dx_test_scratch::scratch("dx-delivery-closed-");
+        let (reader, writer) = std::io::pipe().expect("pipe");
+        drop(reader);
+        let (mut command, gate) = gated_words(scratch.path(), 0, words);
+        fs::write(gate, "").expect("gate open");
+        let status = command
+            .stdout(writer)
+            .stderr(Stdio::null())
+            .status()
+            .expect("dx runs");
+        assert_eq!(status.code(), Some(141), "{words:?} {status:?}");
+        assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
+    }
+}
+
+#[test]
+fn generate_and_adoption_with_a_failing_destination_start_nothing() {
+    for words in DELIVERY_WORDS {
+        let scratch = dx_test_scratch::scratch("dx-delivery-full-");
+        let (mut command, gate) = gated_words(scratch.path(), 0, words);
+        fs::write(gate, "").expect("gate open");
+        let status = command
+            .stdout(
+                fs::OpenOptions::new()
+                    .write(true)
+                    .open("/dev/full")
+                    .expect("/dev/full"),
+            )
+            .stderr(Stdio::null())
+            .status()
+            .expect("dx runs");
+        assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
+        assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
     }
 }

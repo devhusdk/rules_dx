@@ -29,13 +29,13 @@ pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), 
 }
 
 /// Drops every stdout write after the first failure, so no later record lands.
-pub(crate) struct LatchedOut<'a> {
+pub struct LatchedOut<'a> {
     inner: &'a mut dyn Write,
     failed: Option<(io::ErrorKind, String)>,
 }
 
 impl<'a> LatchedOut<'a> {
-    pub(crate) fn new(inner: &'a mut dyn Write) -> Self {
+    pub fn new(inner: &'a mut dyn Write) -> Self {
         LatchedOut {
             inner,
             failed: None,
@@ -43,7 +43,7 @@ impl<'a> LatchedOut<'a> {
     }
 
     /// The run's exit code, or the stdout failure code once a write failed.
-    pub(crate) fn exit_code(&mut self, code: i32) -> i32 {
+    pub fn exit_code(&mut self, code: i32) -> i32 {
         let _ = self.flush();
         match &self.failed {
             Some((kind, message)) => stdout_io_code(&io::Error::new(*kind, message.clone())),
@@ -84,6 +84,17 @@ impl Write for LatchedOut<'_> {
         let result = self.inner.flush();
         self.latch(result)
     }
+}
+
+pub(crate) fn kept_child(err: &mut dyn Write, child: i32, delivery: i32) -> i32 {
+    if child == 0 {
+        return delivery;
+    }
+    let _ = writeln!(
+        err,
+        "dx: could not write the final events to stdout; keeping exit {child}"
+    );
+    child
 }
 
 pub(crate) fn check_stdout_write(result: io::Result<()>) -> Result<(), i32> {
@@ -1056,6 +1067,30 @@ mod tests {
         let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(event["code"], CODE_REPORT_FAILED);
         assert_eq!(event["message"], "boom");
+    }
+
+    #[test]
+    fn a_later_flush_failure_keeps_the_earlier_write_failure() {
+        struct WriteThenFlush;
+        impl Write for WriteThenFlush {
+            fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+                Err(io::Error::from(io::ErrorKind::PermissionDenied))
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Err(io::Error::from(io::ErrorKind::BrokenPipe))
+            }
+        }
+        let mut inner = WriteThenFlush;
+        let mut latched = LatchedOut::new(&mut inner);
+        assert!(latched.write_all(b"x").is_err());
+        assert_eq!(latched.exit_code(0), operational_code());
+    }
+
+    #[test]
+    fn a_flush_failure_alone_fails_a_clean_run() {
+        let mut inner = BrokenPipeWriter;
+        let mut latched = LatchedOut::new(&mut inner);
+        assert_eq!(latched.exit_code(0), 128 + 13);
     }
 
     #[test]

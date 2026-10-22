@@ -2,8 +2,8 @@ use super::common::*;
 use crate::args::{Command, Invocation};
 use crate::reports::plan_reports;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, write_event, FinishedCounts,
-    NoticeEvent, OutputMode,
+    command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
+    OutputMode,
 };
 
 pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -84,10 +84,14 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
     } else if verbose {
-        let _ = writeln!(out, "{summary}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
     }
     if invocation.frozen {
         return operational(
@@ -170,7 +174,9 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                 language: None,
                 import: None,
             }) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
             }
             let finished = command_finished(
                 0,
@@ -179,11 +185,15 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                     ..FinishedCounts::default()
                 },
             );
-            let _ = write_event(out, &finished);
+            if let Err(exit) = emit_event(out, &finished) {
+                return exit;
+            }
             return 0;
         }
         if verbose {
-            let _ = writeln!(out, "{message}");
+            if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                return exit;
+            }
         }
         return 0;
     }
@@ -246,7 +256,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             if request.version.is_semver() {
                 refreshed_message.push_str(&format!("; {}", dx_bump::generic_major_bump_hint()));
             }
-            emit_bump_refreshed(BumpRefreshedNotice {
+            match emit_bump_refreshed(BumpRefreshedNotice {
                 invocation,
                 out,
                 err,
@@ -256,8 +266,10 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                 refreshed_message: &refreshed_message,
                 set_name: update_set.name(),
                 verbose,
-            });
-            0
+            }) {
+                Ok(()) => 0,
+                Err(exit) => exit,
+            }
         }
         dx_update::backend::BackendPlan::Run { argv, env: extra } => {
             let env_refs: Vec<(&str, &str)> = extra
@@ -291,7 +303,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                                 dx_bump::generic_major_bump_hint()
                             ));
                         }
-                        emit_bump_refreshed(BumpRefreshedNotice {
+                        match emit_bump_refreshed(BumpRefreshedNotice {
                             invocation,
                             out,
                             err,
@@ -301,8 +313,10 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
                             refreshed_message: &refreshed_message,
                             set_name: update_set.name(),
                             verbose,
-                        });
-                        0
+                        }) {
+                            Ok(()) => 0,
+                            Err(exit) => exit,
+                        }
                     }
                     Some(code) => bump_refresh_failed(
                         invocation,
@@ -340,7 +354,9 @@ fn check_bump(
 ) -> i32 {
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "check") {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
     }
     let planned = match plan_widens(request, workspace) {
@@ -380,7 +396,9 @@ fn check_bump(
                 language: None,
                 import: None,
             }) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
             }
             let finished = command_finished(
                 0,
@@ -389,11 +407,15 @@ fn check_bump(
                     ..FinishedCounts::default()
                 },
             );
-            let _ = write_event(out, &finished);
+            if let Err(exit) = emit_event(out, &finished) {
+                return exit;
+            }
             return 0;
         }
         if verbose {
-            let _ = writeln!(out, "{message}");
+            if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+                return exit;
+            }
         }
         return 0;
     }
@@ -528,7 +550,9 @@ fn emit_bump_no_change(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
         let finished = command_finished(
             0,
@@ -537,11 +561,15 @@ fn emit_bump_no_change(
                 ..FinishedCounts::default()
             },
         );
-        let _ = write_event(out, &finished);
+        if let Err(exit) = emit_event(out, &finished) {
+            return exit;
+        }
         return 0;
     }
     if verbose {
-        let _ = writeln!(out, "{message}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
+            return exit;
+        }
     }
     0
 }
@@ -558,7 +586,7 @@ struct BumpRefreshedNotice<'a> {
     verbose: bool,
 }
 
-fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) {
+fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) -> Result<(), i32> {
     let BumpRefreshedNotice {
         invocation,
         out,
@@ -582,7 +610,7 @@ fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) {
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "info".to_owned(),
@@ -594,7 +622,7 @@ fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) {
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
         let finished = command_finished(
             0,
@@ -603,10 +631,11 @@ fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) {
                 ..FinishedCounts::default()
             },
         );
-        let _ = write_event(out, &finished);
+        emit_event(out, &finished)?;
     } else if verbose {
-        let _ = writeln!(out, "{refreshed_message}");
+        check_stdout_write(writeln!(out, "{refreshed_message}"))?;
     }
+    Ok(())
 }
 
 fn bump_refresh_failed(
@@ -641,10 +670,14 @@ fn bump_refresh_failed(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
         if let Ok(event) = error_event(code, message, None, None, Some("execute")) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
         let finished = command_finished(
             1,
@@ -653,7 +686,9 @@ fn bump_refresh_failed(
                 ..FinishedCounts::default()
             },
         );
-        let _ = write_event(out, &finished);
+        if let Err(exit) = emit_event(out, &finished) {
+            return exit;
+        }
     }
     dx_process::operational_code()
 }

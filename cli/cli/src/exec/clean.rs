@@ -5,8 +5,8 @@ use dx_clean::{
     UnobservedPolicy,
 };
 use dx_output::{
-    command_finished, command_started, notice_event, operation_event, write_event, FinishedCounts,
-    NoticeEvent, OutputMode,
+    command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
+    OutputMode,
 };
 
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -21,10 +21,14 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mode = if apply { "default" } else { "check" };
     if json {
         if let Ok(event) = command_started(invocation.command.name(), mode) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
         if let Ok(event) = operation_event(invocation.command.name(), "collect", None) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
     }
     let unobserved = if invocation.prune_unobserved {
@@ -56,12 +60,16 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     };
     if json {
-        emit_clean_pruned(out, &outcome, &bytes);
+        if let Err(exit) = emit_clean_pruned(out, &outcome, &bytes) {
+            return exit;
+        }
     } else if verbose {
         if outcome.removed_setup_records.is_empty() && outcome.removed_generations.is_empty() {
-            let _ = writeln!(out, "dx clean: nothing to prune");
+            if let Err(exit) = check_stdout_write(writeln!(out, "dx clean: nothing to prune")) {
+                return exit;
+            }
         } else {
-            let _ = writeln!(
+            if let Err(exit) = check_stdout_write(writeln!(
                 out,
                 "dx clean: pruned {} setup records and {} generations ({} bytes reclaimed){}",
                 outcome.removed_setup_records.len(),
@@ -75,11 +83,15 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
                         outcome.skipped_leased_generations.len()
                     )
                 }
-            );
+            )) {
+                return exit;
+            }
         }
     }
     if json {
-        let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            return exit;
+        }
     }
     0
 }
@@ -94,22 +106,36 @@ fn check_clean(
     let drift = !plan.prune_setup_records.is_empty() || !plan.prune_generations.is_empty();
     if !drift {
         if json {
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+                return exit;
+            }
             return 0;
         }
         if verbose {
-            let _ = writeln!(out, "dx clean: nothing to prune");
+            if let Err(exit) = check_stdout_write(writeln!(out, "dx clean: nothing to prune")) {
+                return exit;
+            }
         }
         return 0;
     }
     if json {
-        emit_clean_notices(out, plan, bytes, true);
-        let _ = write_event(out, &command_finished(1, &FinishedCounts::default()));
+        if let Err(exit) = emit_clean_notices(out, plan, bytes, true) {
+            return exit;
+        }
+        if let Err(exit) = emit_event(out, &command_finished(1, &FinishedCounts::default())) {
+            return exit;
+        }
         return 1;
     }
     if verbose {
-        let _ = writeln!(out, "{}", render_prune_listing(plan, bytes));
-        let _ = writeln!(out, "run `dx clean --apply` to prune it");
+        if let Err(exit) =
+            check_stdout_write(writeln!(out, "{}", render_prune_listing(plan, bytes)))
+        {
+            return exit;
+        }
+        if let Err(exit) = check_stdout_write(writeln!(out, "run `dx clean --apply` to prune it")) {
+            return exit;
+        }
     }
     1
 }
@@ -119,7 +145,7 @@ fn emit_clean_notices(
     plan: &dx_clean::CleanPlan,
     bytes: &dx_clean::PruneBytes,
     planned: bool,
-) {
+) -> Result<(), i32> {
     let code = if planned {
         "clean_planned"
     } else {
@@ -148,7 +174,7 @@ fn emit_clean_notices(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
     for generation in &plan.prune_generations {
@@ -174,7 +200,7 @@ fn emit_clean_notices(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
     for hex in &plan.preserved_unobserved_setup_records {
@@ -189,7 +215,7 @@ fn emit_clean_notices(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
     for generation in &plan.preserved_unobserved_generations {
@@ -204,16 +230,17 @@ fn emit_clean_notices(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
+    Ok(())
 }
 
 fn emit_clean_pruned(
     out: &mut dyn std::io::Write,
     outcome: &dx_clean::CleanOutcome,
     bytes: &dx_clean::PruneBytes,
-) {
+) -> Result<(), i32> {
     for hex in &outcome.removed_setup_records {
         let size = bytes
             .setup_record_bytes
@@ -232,7 +259,7 @@ fn emit_clean_pruned(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
     for generation in &outcome.removed_generations {
@@ -253,7 +280,7 @@ fn emit_clean_pruned(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
     for generation in &outcome.skipped_leased_generations {
@@ -268,9 +295,10 @@ fn emit_clean_pruned(
             language: None,
             import: None,
         }) {
-            let _ = write_event(out, &event);
+            emit_event(out, &event)?;
         }
     }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -2,8 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use crate::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionContext};
 use dx_output::{
-    command_finished, command_started, error_event, operation_event, write_event, FinishedCounts,
-    OutputMode,
+    command_finished, command_started, error_event, operation_event, FinishedCounts, OutputMode,
 };
 use dx_process::build_workflow_argv;
 use std::path::{Path, PathBuf};
@@ -144,16 +143,22 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if json {
         if let Ok(event) = command_started(invocation.command.name(), mode) {
-            let _ = write_event(out, &event);
+            if let Err(exit) = emit_event(out, &event) {
+                return exit;
+            }
         }
         for action in actions {
             if let Ok(event) = operation_event(invocation.command.name(), action, Some(&labels)) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
             }
         }
     }
     if !json && invocation.chatty() {
-        let _ = writeln!(out, "{summary}");
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &argv, &[]) {
         Ok(code) => code,
@@ -171,18 +176,24 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
                 None,
                 Some("execute"),
             ) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+ return kept_child(err, bazel_code, exit);
+ }
             }
-            let _ = write_event(
+            if let Err(exit) = emit_event(
                 out,
                 &command_finished(bazel_code, &FinishedCounts::default()),
-            );
+            ) {
+                return kept_child(err, bazel_code, exit);
+            }
         }
         return bazel_code;
     }
     if !invocation.serve {
         if json {
-            let _ = write_event(out, &command_finished(0, &FinishedCounts::default()));
+            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+                return exit;
+            }
         }
         return 0;
     }
@@ -203,9 +214,15 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let serve_dir_text = serve_dir.display().to_string();
     if !json && invocation.chatty() {
-        let _ = writeln!(out, "Serving docs at {url} ({serve_dir_text})");
+        if let Err(exit) =
+            check_stdout_write(writeln!(out, "Serving docs at {url} ({serve_dir_text})"))
+        {
+            return exit;
+        }
         if invocation.open {
-            let _ = writeln!(out, "Opening {url}");
+            if let Err(exit) = check_stdout_write(writeln!(out, "Opening {url}")) {
+                return exit;
+            }
         }
     }
     if invocation.open {
@@ -267,13 +284,17 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
                 None,
                 Some("serve"),
             ) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+ return kept_child(err, serve_code, exit);
+ }
             }
         }
-        let _ = write_event(
+        if let Err(exit) = emit_event(
             out,
             &command_finished(serve_code, &FinishedCounts::default()),
-        );
+        ) {
+            return kept_child(err, serve_code, exit);
+        }
     }
     serve_code
 }

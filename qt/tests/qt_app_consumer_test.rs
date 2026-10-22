@@ -359,8 +359,21 @@ fn app_builds_tests_and_runs_through_a_renamed_qt_repo() {
         qml.combined()
     );
     assert_ne!(read(&qrc), original);
-    let stale = dx(&root, "test", &["//app:stock_test"], &[]);
+    let stale = dx(
+        &root,
+        "test",
+        &["//app:stock_test"],
+        &["--test_output=errors"],
+    );
     assert_ne!(stale.status.code(), Some(0), "{}", stale.combined());
+    assert!(
+        stale
+            .combined()
+            .contains("Compared values are not the same")
+            && stale.combined().contains("units 30 level 30"),
+        "{}",
+        stale.combined()
+    );
 
     write(&root.join("shelf/stock.h"), STOCK_H);
     write(&root.join("shelf/Main.qml"), MAIN_QML);

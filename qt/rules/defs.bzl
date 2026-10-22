@@ -39,13 +39,28 @@ _GENERATED = "_qt"
 
 _TOOL_ENV = {"LC_ALL": "C.UTF-8"}
 
+_PUNCTUATION = " !\"#$%&'()*+,.:;<=>?@[\\]^`{|}~"
+
 def qt_identifier(label):
     """Returns the C identifier rcc and qmltyperegistrar use for one label."""
-    text = label.repo_name + "_" + label.package + "_" + label.name
     out = ""
-    for char in text.elems():
-        out += char if char.isalnum() else "_"
-    return "qt_" + out.strip("_")
+    for index, part in enumerate([label.repo_name, label.package, label.name]):
+        out += "_p" if index > 0 else ""
+        for char in part.elems():
+            if char.isalnum():
+                out += char
+            elif char == "_":
+                out += "_u"
+            elif char == "/":
+                out += "_s"
+            elif char == "-":
+                out += "_d"
+            else:
+                index = _PUNCTUATION.find(char)
+                if index < 0:
+                    fail("qt_identifier: label '" + str(label) + "' holds unsupported character '" + char + "'")
+                out += "_x%d_" % index
+    return "qt" + out
 
 def qt_module_path(uri):
     """Returns the directory a QML module URI lives in below an import root."""
@@ -131,7 +146,17 @@ def _include_args(deps):
             args.append("-D" + define)
     return args, headers
 
-def _moc(ctx, include_args, headers):
+def _flag_args(ctx):
+    args = []
+    for flag in ctx.attr.copts:
+        expanded = ctx.expand_make_variables("copts", flag, {})
+        if expanded.startswith(("-D", "-U", "-I")):
+            args.append(expanded)
+    for define in ctx.attr.defines:
+        args.append("-D" + define)
+    return args
+
+def _moc(ctx, include_args, headers, generated):
     sources = []
     metatypes = []
     for header in ctx.files.moc_hdrs:
@@ -145,12 +170,15 @@ def _moc(ctx, include_args, headers):
         args.add("--output-json")
         args.add("-o", out)
         args.add("-f" + include)
+        args.add("-I.")
+        args.add("-I" + ctx.bin_dir.path)
         args.add_all(include_args)
+        args.add_all(_flag_args(ctx))
         args.add(header)
         ctx.actions.run(
             executable = ctx.executable.moc,
             arguments = [args],
-            inputs = depset([header], transitive = headers),
+            inputs = depset(ctx.files.moc_hdrs + ctx.files.hdrs + generated, transitive = headers),
             outputs = [out, json],
             env = _TOOL_ENV,
             mnemonic = "QtMoc",
@@ -179,9 +207,13 @@ def _collect(ctx, metatypes):
 
 def _uic(ctx):
     headers = []
+    names = {}
     for form in ctx.files.forms:
-        relative = _relative(ctx, form, "form")
-        out = ctx.actions.declare_file("ui_" + relative.rsplit(".", 1)[0] + ".h")
+        _relative(ctx, form, "form")
+        if _stem(form) in names:
+            fail(str(ctx.label) + ": forms '" + names[_stem(form)] + "' and '" + str(form.owner) + "' both produce ui_" + _stem(form) + ".h")
+        names[_stem(form)] = str(form.owner)
+        out = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/ui_" + _stem(form) + ".h")
         args = ctx.actions.args()
         args.add("-o", out)
         args.add(form)
@@ -276,10 +308,10 @@ def _qml_module(ctx, collected, dep_metatypes):
 
 def _qt_generate_impl(ctx):
     include_args, headers = _include_args(ctx.attr.deps)
-    sources, metatypes = _moc(ctx, include_args, headers)
+    public = _uic(ctx)
+    sources, metatypes = _moc(ctx, include_args, headers, public)
     dep_metatypes = depset(transitive = [dep[QtInfo].metatypes for dep in ctx.attr.deps if QtInfo in dep])
     collected = _collect(ctx, metatypes) if len(metatypes) > 0 else None
-    public = _uic(ctx)
     module_files = []
     if ctx.attr.uri != "":
         generated, module_files = _qml_module(ctx, collected, dep_metatypes)
@@ -303,7 +335,10 @@ _qt_generate = rule(
     attrs = {
         "base": attr.string(mandatory = True, doc = "Name of the public target."),
         "deps": attr.label_list(doc = "C++ and Qt dependencies whose include context moc reads."),
+        "copts": attr.string_list(doc = "Compiler options whose defines and include paths moc reads."),
+        "defines": attr.string_list(doc = "Preprocessor defines moc reads."),
         "forms": attr.label_list(allow_files = [".ui"], doc = "Qt Designer forms for uic."),
+        "hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Public headers moc may include."),
         "metatypes": attr.label_list(allow_files = [".json"], doc = "Qt module metatypes for qmltyperegistrar."),
         "moc": attr.label(cfg = "exec", executable = True, doc = "moc executable."),
         "moc_hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Headers moc reads."),
@@ -407,19 +442,22 @@ def _upstream_tags(tags):
         return []
     return upstream_skip_tags(tags) + (["manual"] if "manual" in tags else [])
 
-def _include_copts():
+def _include_copts(name):
     repository = native.repository_name().lstrip("@")
     package = native.package_name()
     parts = (["external", repository] if repository != "" else []) + ([package] if package != "" else [])
     directory = "/".join(parts) if len(parts) > 0 else "."
-    return ["-fPIC", "-I" + directory, "-I$(BINDIR)/" + directory]
+    return ["-fPIC", "-I" + directory, "-I$(BINDIR)/" + directory, "-I$(BINDIR)/" + directory + "/" + _GENERATED + "/" + name]
 
-def _generate(name, qt, deps, moc_hdrs, forms, resources, resource_prefix, qml_srcs, uri, version, tags, testonly, target_compatible_with):
+def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, resource_prefix, qml_srcs, uri, version, tags, testonly, target_compatible_with):
     uses_qml = uri != None
     _qt_generate(
         name = name + "_qt",
         base = name,
         deps = deps,
+        hdrs = hdrs,
+        copts = copts,
+        defines = defines,
         forms = forms,
         metatypes = [qt + "//:metatypes"] if uses_qml else [],
         moc = qt + "//:moc",
@@ -465,12 +503,12 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, deps
     tags = kwargs.pop("tags", None)
     testonly = kwargs.get("testonly", None)
     compatible = kwargs.get("target_compatible_with", None)
-    _generate(name, qt, effective_deps, moc_hdrs, forms, resources, resource_prefix, qml_srcs, uri, version, tags, testonly, compatible)
+    _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, qml_srcs, uri, version, tags, testonly, compatible)
     _cc_library(
         name = name + "_upstream",
         srcs = srcs + [":" + name + "_qt_srcs"],
         hdrs = hdrs + moc_hdrs + [":" + name + "_qt_hdrs"],
-        copts = copts + _include_copts(),
+        copts = copts + _include_copts(name),
         deps = effective_deps,
         alwayslink = True,
         tags = _upstream_tags(tags),
@@ -538,13 +576,13 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
     upstream_kwargs = dx_test_upstream_kwargs(kwargs) if test else dict(kwargs)
     tags = upstream_kwargs.pop("tags", None)
     upstream_kwargs.pop("visibility", None)
-    _generate(name, qt, effective_deps, moc_hdrs, forms, resources, resource_prefix, [], None, "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
+    _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, [], None, "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
     upstream_kwargs.setdefault("linkstatic", False)
     upstream = _cc_test if test else _cc_binary
     upstream(
         name = name + "_upstream",
         srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
-        copts = copts + _include_copts(),
+        copts = copts + _include_copts(name),
         deps = effective_deps,
         tags = tags if test else _upstream_tags(tags),
         visibility = ["//visibility:private"],

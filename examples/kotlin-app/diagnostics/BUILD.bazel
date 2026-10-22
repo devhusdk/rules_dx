@@ -1,0 +1,98 @@
+load("@rules_java//java:defs.bzl", "java_binary", "java_import")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/kotlin-app:__subpackages__"])
+
+java_import(
+    name = "kotlinc_jars",
+    testonly = True,
+    jars = [
+        "@com_github_jetbrains_kotlin//:annotations",
+        "@com_github_jetbrains_kotlin//:kotlin-compiler",
+        "@com_github_jetbrains_kotlin//:kotlin-daemon",
+        "@com_github_jetbrains_kotlin//:kotlin-reflect",
+        "@com_github_jetbrains_kotlin//:kotlin-script-runtime",
+        "@com_github_jetbrains_kotlin//:kotlin-stdlib",
+        "@com_github_jetbrains_kotlin//:kotlinx-coroutines-core-jvm",
+    ],
+)
+
+java_binary(
+    name = "kotlinc",
+    testonly = True,
+    main_class = "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler",
+    runtime_deps = [":kotlinc_jars"],
+)
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["//tools/testing:kotlin_diagnostics_test.rs"],
+    data = [
+        "Clean.kt",
+        "SyntaxError.kt",
+        "TypeError.kt",
+        "Unformatted.kt",
+        "UncheckedCast.kt",
+        "WildcardImport.kt",
+        ":kotlinc",
+        "@com_github_jetbrains_kotlin//:kotlin-stdlib",
+        "//quality/tools/jvm:ktfmt",
+        "//quality/tools/jvm:ktlint",
+    ],
+    env = {
+        "DX_CLEAN": "$(rootpath Clean.kt)",
+        "DX_FORMAT": "$(rootpath Unformatted.kt)",
+        "DX_KOTLINC": "$(rootpath :kotlinc)",
+        "DX_KTFMT": "$(rootpath //quality/tools/jvm:ktfmt)",
+        "DX_KTLINT": "$(rootpath //quality/tools/jvm:ktlint)",
+        "DX_LINT": "$(rootpath WildcardImport.kt)",
+        "DX_STDLIB": "$(rootpath @com_github_jetbrains_kotlin//:kotlin-stdlib)",
+        "DX_SYNTAX": "$(rootpath SyntaxError.kt)",
+        "DX_TYPE": "$(rootpath TypeError.kt)",
+        "DX_WARNING": "$(rootpath UncheckedCast.kt)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:jvm_format_test.rs"],
+    data = [
+        "//examples/kotlin-app/cli:Cli.kt",
+        "//examples/kotlin-app/cli:CliTest.kt",
+        "//examples/kotlin-app/cli:Main.kt",
+        "//examples/kotlin-app/grades:ClasspathTest.kt",
+        "//examples/kotlin-app/grades:GradeException.kt",
+        "//examples/kotlin-app/grades:GradeReader.kt",
+        "//examples/kotlin-app/grades:GradeReaderTest.kt",
+        "//examples/kotlin-app/grades:Stats.kt",
+        "//examples/kotlin-app/grades:StatsTest.kt",
+        "//examples/kotlin-app/grades:Student.kt",
+        "//quality/tools/jvm:ktfmt",
+    ],
+    env = {
+        "DX_FORMATTER": "$(rootpath //quality/tools/jvm:ktfmt)",
+        "DX_FORMAT_ARGS": "--kotlinlang-style",
+        "DX_FORMAT_SRCS": " ".join([
+            "$(rootpath //examples/kotlin-app/cli:Cli.kt)",
+            "$(rootpath //examples/kotlin-app/cli:CliTest.kt)",
+            "$(rootpath //examples/kotlin-app/cli:Main.kt)",
+            "$(rootpath //examples/kotlin-app/grades:ClasspathTest.kt)",
+            "$(rootpath //examples/kotlin-app/grades:GradeException.kt)",
+            "$(rootpath //examples/kotlin-app/grades:GradeReader.kt)",
+            "$(rootpath //examples/kotlin-app/grades:GradeReaderTest.kt)",
+            "$(rootpath //examples/kotlin-app/grades:Stats.kt)",
+            "$(rootpath //examples/kotlin-app/grades:StatsTest.kt)",
+            "$(rootpath //examples/kotlin-app/grades:Student.kt)",
+        ]),
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

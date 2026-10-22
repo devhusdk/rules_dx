@@ -1,0 +1,85 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/java-app:__subpackages__"])
+
+java_binary(
+    name = "javac",
+    testonly = True,
+    main_class = "com.sun.tools.javac.Main",
+    runtime_deps = [],
+)
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["//tools/testing:java_diagnostics_test.rs"],
+    data = [
+        "Clean.java",
+        "RawType.java",
+        "SyntaxError.java",
+        "TypeError.java",
+        "Unformatted.java",
+        "UnusedImport.java",
+        ":javac",
+        "//quality:corpus_checkstyle.xml",
+        "//quality/tools/jvm:checkstyle",
+        "//quality/tools/jvm:google_java_format",
+    ],
+    env = {
+        "DX_CHECKSTYLE": "$(rootpath //quality/tools/jvm:checkstyle)",
+        "DX_CHECKSTYLE_CONFIG": "$(rootpath //quality:corpus_checkstyle.xml)",
+        "DX_CLEAN": "$(rootpath Clean.java)",
+        "DX_FORMAT": "$(rootpath Unformatted.java)",
+        "DX_FORMATTER": "$(rootpath //quality/tools/jvm:google_java_format)",
+        "DX_JAVAC": "$(rootpath :javac)",
+        "DX_LINT": "$(rootpath UnusedImport.java)",
+        "DX_SYNTAX": "$(rootpath SyntaxError.java)",
+        "DX_TYPE": "$(rootpath TypeError.java)",
+        "DX_WARNING": "$(rootpath RawType.java)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:jvm_format_test.rs"],
+    data = [
+        "//examples/java-app/billing:ClasspathTest.java",
+        "//examples/java-app/billing:Invoice.java",
+        "//examples/java-app/billing:InvoiceException.java",
+        "//examples/java-app/billing:InvoiceReader.java",
+        "//examples/java-app/billing:InvoiceReaderTest.java",
+        "//examples/java-app/billing:LineItem.java",
+        "//examples/java-app/billing:Totals.java",
+        "//examples/java-app/billing:TotalsTest.java",
+        "//examples/java-app/cli:Cli.java",
+        "//examples/java-app/cli:CliTest.java",
+        "//examples/java-app/cli:Main.java",
+        "//quality/tools/jvm:google_java_format",
+    ],
+    env = {
+        "DX_FORMATTER": "$(rootpath //quality/tools/jvm:google_java_format)",
+        "DX_FORMAT_SRCS": " ".join([
+            "$(rootpath //examples/java-app/billing:ClasspathTest.java)",
+            "$(rootpath //examples/java-app/billing:Invoice.java)",
+            "$(rootpath //examples/java-app/billing:InvoiceException.java)",
+            "$(rootpath //examples/java-app/billing:InvoiceReader.java)",
+            "$(rootpath //examples/java-app/billing:InvoiceReaderTest.java)",
+            "$(rootpath //examples/java-app/billing:LineItem.java)",
+            "$(rootpath //examples/java-app/billing:Totals.java)",
+            "$(rootpath //examples/java-app/billing:TotalsTest.java)",
+            "$(rootpath //examples/java-app/cli:Cli.java)",
+            "$(rootpath //examples/java-app/cli:CliTest.java)",
+            "$(rootpath //examples/java-app/cli:Main.java)",
+        ]),
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

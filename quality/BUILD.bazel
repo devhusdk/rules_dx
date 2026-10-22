@@ -40,6 +40,7 @@ exports_files([
 ])
 
 exports_files([
+    "corpus_checkstyle.xml",
     "corpus_vale.ini",
     "corpus_styles/Dx/Markers.yml",
 ])

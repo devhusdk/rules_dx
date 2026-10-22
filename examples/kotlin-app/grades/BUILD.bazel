@@ -1,0 +1,83 @@
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library", "kotlin_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/kotlin-app:__subpackages__"])
+
+exports_files(
+    [
+        "ClasspathTest.kt",
+        "GradeException.kt",
+        "GradeReaderTest.kt",
+        "GradeReader.kt",
+        "StatsTest.kt",
+        "Stats.kt",
+        "Student.kt",
+        "VERSION",
+        "grades.json",
+    ] + glob(["malformed/*"]),
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "build_info",
+    srcs = ["VERSION"],
+    outs = ["BuildInfo.kt"],
+    cmd = "printf 'package grades\\n\\n/** Build constants. */\\nobject BuildInfo {\\n    /** Schema number. */\\n    const val SCHEMA = %s\\n}\\n' \"$$(cat $<)\" > $@",
+)
+
+kotlin_library(
+    name = "grades",
+    srcs = [
+        "GradeException.kt",
+        "GradeReader.kt",
+        "Stats.kt",
+        "Student.kt",
+        ":build_info",
+    ],
+    resource_strip_prefix = "examples/kotlin-app",
+    resources = ["grades.json"],
+    deps = [
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+kotlin_test(
+    name = "grade_reader_test",
+    srcs = ["GradeReaderTest.kt"],
+    test_class = "grades.GradeReaderTest",
+    deps = [
+        ":grades",
+        "@maven//:junit_junit",
+    ],
+)
+
+kotlin_test(
+    name = "stats_test",
+    srcs = ["StatsTest.kt"],
+    test_class = "grades.StatsTest",
+    deps = [
+        ":grades",
+        "@maven//:com_google_guava_guava",
+        "@maven//:junit_junit",
+    ],
+)
+
+kotlin_test(
+    name = "classpath_test",
+    srcs = ["ClasspathTest.kt"],
+    test_class = "grades.ClasspathTest",
+    deps = [
+        ":grades",
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_guava_guava",
+        "@maven//:junit_junit",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -69,7 +69,7 @@ _kotlin_forward_test = dx_executable_forward_rule(
 def kotlin_kotlinc_opts_with_werror(kwargs):
     """Returns kwargs defaulting kotlinc_opts to warnings_as_errors."""
     upstream_kwargs = dict(kwargs)
-    upstream_kwargs.setdefault("kotlinc_opts", "//kotlin/rules:warnings_as_errors")
+    upstream_kwargs.setdefault("kotlinc_opts", str(Label("//kotlin/rules:warnings_as_errors")))
     return upstream_kwargs
 
 def _kotlin_with_werror(kwargs):

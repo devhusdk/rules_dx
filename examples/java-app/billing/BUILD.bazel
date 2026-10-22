@@ -1,0 +1,91 @@
+load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/java-app:__subpackages__"])
+
+exports_files(
+    [
+        "invoices.json",
+        "LineItem.java",
+        "Invoice.java",
+        "InvoiceException.java",
+        "InvoiceReader.java",
+        "Totals.java",
+        "InvoiceReaderTest.java",
+        "TotalsTest.java",
+        "ClasspathTest.java",
+        "VERSION",
+    ] + glob(["malformed/*"]),
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "build_info",
+    srcs = ["VERSION"],
+    outs = ["BuildInfo.java"],
+    cmd = "printf 'package billing;\\n\\n/** Build constants. */\\npublic final class BuildInfo {\\n  /** Schema number. */\\n  public static final int SCHEMA = %s;\\n\\n  private BuildInfo() {}\\n}\\n' \"$$(cat $<)\" > $@",
+)
+
+java_library(
+    name = "billing",
+    srcs = [
+        "Invoice.java",
+        "InvoiceException.java",
+        "InvoiceReader.java",
+        "LineItem.java",
+        "Totals.java",
+        ":build_info",
+    ],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    resource_strip_prefix = "examples/java-app",
+    resources = ["invoices.json"],
+    visibility = ["//examples/java-app:__subpackages__"],
+    deps = [
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+java_test(
+    name = "invoice_reader_test",
+    srcs = ["InvoiceReaderTest.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    test_class = "billing.InvoiceReaderTest",
+    deps = [
+        ":billing",
+        "@maven//:com_google_guava_guava",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
+    name = "totals_test",
+    srcs = ["TotalsTest.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    test_class = "billing.TotalsTest",
+    deps = [
+        ":billing",
+        "@maven//:com_google_guava_guava",
+        "@maven//:junit_junit",
+    ],
+)
+
+java_test(
+    name = "classpath_test",
+    srcs = ["ClasspathTest.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    test_class = "billing.ClasspathTest",
+    deps = [
+        ":billing",
+        "@maven//:com_google_code_gson_gson",
+        "@maven//:com_google_guava_guava",
+        "@maven//:junit_junit",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

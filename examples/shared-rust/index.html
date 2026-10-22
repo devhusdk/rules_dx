@@ -2,32 +2,47 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>dx shared core</title>
+<title>dx shared tasks</title>
 </head>
 <body>
 <main>
-<h1>dx shared core</h1>
-<label>expression <input id="input" value="2 * (3 + 4)"></label>
-<button id="run" type="button">Evaluate</button>
-<p id="proof">loading</p>
-<p id="failure">pending</p>
-<p id="version">loading</p>
+<h1>dx shared tasks</h1>
+<ul id="tasks"></ul>
+<p id="summary">loading</p>
+<label>command <input id="command" value="add Ship the browser build"></label>
+<button id="run" type="button">Apply</button>
+<p id="reply">pending</p>
 <p id="asset">loading</p>
+<p id="load-error">pending</p>
+<p id="version">loading</p>
 </main>
 <script type="module">
-import init, { evaluate, core_version } from "./shared_core.js";
+import init, { WebBoard, asset_report, core_version } from "./shared_tasks.js";
 await init();
-const proof = document.getElementById("proof");
-const failure = document.getElementById("failure");
-const run = () => {
-  proof.textContent = evaluate(document.getElementById("input").value);
+const board = new WebBoard(await (await fetch("./assets/board.txt")).text());
+const render = () => {
+  document.getElementById("tasks").replaceChildren(...board.lines().map((line) => {
+    const item = document.createElement("li");
+    item.textContent = line;
+    return item;
+  }));
+  document.getElementById("summary").textContent = board.summary();
 };
-document.getElementById("run").addEventListener("click", run);
-run();
-failure.textContent = evaluate("1 / 0");
+document.getElementById("run").addEventListener("click", () => {
+  const reply = board.apply(document.getElementById("command").value);
+  document.getElementById("reply").textContent = reply;
+  render();
+});
+render();
+const notes = new Uint8Array(await (await fetch("./assets/notes.txt")).arrayBuffer());
+document.getElementById("asset").textContent = asset_report("notes.txt", notes);
+try {
+  new WebBoard("not a board");
+  document.getElementById("load-error").textContent = "accepted";
+} catch (error) {
+  document.getElementById("load-error").textContent = error.message;
+}
 document.getElementById("version").textContent = core_version();
-const asset = await (await fetch("./assets/queries.txt")).text();
-document.getElementById("asset").textContent = asset.trim();
 </script>
 </body>
 </html>

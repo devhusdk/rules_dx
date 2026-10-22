@@ -1,0 +1,11 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "adler2",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:public"],
+)

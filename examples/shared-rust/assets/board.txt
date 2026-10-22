@@ -1,0 +1,5 @@
+# dx shared tasks
+[x] Pin the Rust toolchain
+[ ] Draft release notes @notes.txt
+[ ] Record emulator evidence
+[ ] Ship the browser build

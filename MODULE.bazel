@@ -437,6 +437,17 @@ _web_consumer_repo(
     name = "web_consumer",
 )
 
+_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+_http_archive(
+    name = "shared_tasks_adler2",
+    build_file = "//examples/shared-rust:adler2.BUILD.bazel",
+    sha256 = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",
+    strip_prefix = "adler2-2.0.1",
+    type = "tar.gz",
+    urls = ["https://static.crates.io/crates/adler2/adler2-2.0.1.crate"],
+)
+
 _shared_consumer_repo = use_repo_rule("//examples/shared-rust:repos.bzl", "shared_consumer_repo")
 
 _shared_consumer_repo(

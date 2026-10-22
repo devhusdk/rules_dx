@@ -31,4 +31,4 @@ workspace below records exact commands and expected evidence in its own
 
 ## Share One Core
 
-- [shared-rust](shared-rust/) one dependency-free Rust core driving native, browser, and Android outputs.
+- [shared-rust](shared-rust/) one Rust task board driving native, browser, WASI, and Android outputs.

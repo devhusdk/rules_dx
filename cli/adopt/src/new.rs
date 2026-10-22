@@ -877,35 +877,7 @@ fn new_language_files(
 }
 
 pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>, AdoptError> {
-    let files = plan_new_files(language, name)?;
-    let mut staged = Vec::with_capacity(files.len());
-    for file in &files {
-        staged.push(super::scaffold_dest_within_root(root, &file.path)?);
-    }
-    let mut written = Vec::new();
-    let mut refused = Vec::new();
-    for (file, dest) in files.iter().zip(staged.iter()) {
-        if dest.exists() {
-            refused.push(format!("refused:{}", file.path));
-            continue;
-        }
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| AdoptError::CreateParent {
-                parent: parent.display().to_string(),
-                detail: e.to_string(),
-            })?;
-        }
-        dx_atomic_fs::write_atomic(dest, file.content.as_ref()).map_err(|e| {
-            AdoptError::WriteFile {
-                path: dest.display().to_string(),
-                detail: e.to_string(),
-            }
-        })?;
-        written.push(file.path.clone());
-    }
-    written.push("---".to_owned());
-    written.extend(refused);
-    Ok(written)
+    super::apply_scaffold(root, &plan_new_files(language, name)?)
 }
 
 #[cfg(test)]

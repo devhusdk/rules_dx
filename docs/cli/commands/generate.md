@@ -5,7 +5,8 @@ bazel run @rules_dx//:dx -- generate //...
 bazel run @rules_dx//:dx -- generate --check //...
 ```
 
-Refreshes Gazelle `BUILD` files over the scope. No scope means the whole
+Updates `BUILD` declarations from source with Gazelle over the scope. To
+materialize declared generated source, use `dx codegen`. No scope means the whole
 repo. Use `--here` for the current dir tree. Checks by default and reports
 stale files without writing. Pass `--apply` to write them.
 

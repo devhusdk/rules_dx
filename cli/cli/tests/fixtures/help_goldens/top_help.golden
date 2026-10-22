@@ -14,7 +14,7 @@ Commands:
   lint        run lint analysis over resolved scopes (check by default; --apply writes fixes)
   typecheck   run typecheck analysis over resolved scopes (check by default; --apply writes fixes)
   format      check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)
-  generate    emit/sync BUILD files (Gazelle pipeline; check by default; --apply writes generated sources)
+  generate    update BUILD declarations from source with Gazelle (check by default; --apply writes)
   build       run Bazel build over resolved targets
   test        run Bazel test over resolved targets
   coverage    collect LCOV coverage with optional threshold
@@ -26,10 +26,10 @@ Commands:
   update      update dependencies per set through qualified resolvers (check by default; --apply writes updates)
   bump        widen one declared requirement to a new version (check by default; --apply widens)
   migrate     rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)
-  codegen     collect codegen outputs with atomic commit (check by default; --apply writes managed state)
+  codegen     materialize declared generated source (check by default; --apply writes)
   env         collect the managed development environment (check by default; --apply writes managed state)
-  init        scaffold dx into a foreign tree (absent-only; check by default; --apply scaffolds)
-  new         scaffold a minimal qualified project for one language (absent-only; check by default; --apply scaffolds)
+  init        adopt dx into an existing tree (absent-only; check by default; --apply scaffolds)
+  new         start a new project for one language (absent-only; check by default; --apply scaffolds)
   upgrade     one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)
   status      report workspace status and machine-readable capabilities
   version     report version and pin drift

@@ -10,7 +10,7 @@ bazel run @rules_dx//:dx -- init --apply
 dx init [--apply] [module-name]
 ```
 
-Checks by default; `--apply` scaffolds. Scaffolds `dx` into a foreign tree. Takes an optional module name, which
+Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks by default; `--apply` scaffolds. Takes an optional module name, which
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Never overwrites existing files. It writes `.dx/version`, `.envrc`, `.devcontainer/devcontainer.json`,

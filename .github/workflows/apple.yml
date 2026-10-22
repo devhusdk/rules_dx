@@ -12,11 +12,12 @@ on:
         required: false
         default: "//apple/... //apple/tests:macos_consumer_test"
       runner:
-        description: "macos-15 (arm64) or macos-13 (x86_64)."
+        description: "macos-15 (arm64)."
         required: false
         default: "macos-15"
   push:
     branches: ["issue-*"]
+    paths: ["apple/**", ".github/workflows/apple.yml"]
 
 permissions:
   contents: read
@@ -52,8 +53,8 @@ jobs:
             *) echo "apple input rejected: command must be build or test, got $DX_COMMAND" && exit 1 ;;
           esac
           case "$DX_RUNNER" in
-            macos-15 | macos-13) ;;
-            *) echo "apple input rejected: runner must be macos-15 or macos-13, got $DX_RUNNER" && exit 1 ;;
+            macos-15) ;;
+            *) echo "apple input rejected: runner must be macos-15, got $DX_RUNNER" && exit 1 ;;
           esac
           for target in $DX_TARGETS; do
             case "$target" in

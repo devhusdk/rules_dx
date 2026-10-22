@@ -5,7 +5,7 @@ load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc:action_names.bzl", "C_COMPILE_ACTION_NAME")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
-load(":defs.bzl", "AppleToolingInfo", "deployment_floor", "version_below", "version_matches")
+load(":defs.bzl", "AppleToolingInfo", "MANAGED_ROUTE", "deployment_floor", "version_below", "version_matches")
 
 PLATFORMS = {
     "iphoneos": str(Label("@apple_support//platforms:ios_arm64")),
@@ -69,7 +69,7 @@ def _apple_toolchain_probe_impl(ctx):
     floor = deployment_floor(sdk)
     if version_below(sdk_version, floor):
         fail("apple: Xcode {} ships the {} {} SDK, below {}".format(xcode, sdk, sdk_version, floor))
-    if tooling.deployment and not version_matches(tooling.deployment, minimum):
+    if tooling.deployment and (version_below(tooling.deployment, minimum) or version_below(minimum, tooling.deployment)):
         fail("apple: provisioning sets deployment {} but this build uses {}; pass {}={}".format(
             tooling.deployment,
             minimum,
@@ -113,13 +113,17 @@ def _apple_toolchain_probe_impl(ctx):
     env = {"PATH": _PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     env.update(apple_common.target_apple_env(xcode_config, platform))
+    requirements = dict(xcode_config.execution_info())
+    requirements["no-cache"] = "1"
+    if tooling.route == MANAGED_ROUTE:
+        requirements["no-local"] = "1"
     ctx.actions.run(
         executable = ctx.executable._probe,
         arguments = [args],
         inputs = cc_toolchain.all_files,
         outputs = [report],
         env = env,
-        execution_requirements = xcode_config.execution_info(),
+        execution_requirements = requirements,
         mnemonic = "AppleToolingProbe",
         progress_message = "Probing Xcode {} and the {} SDK for %{{label}}".format(xcode, sdk),
     )

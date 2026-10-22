@@ -166,14 +166,14 @@ preinstalled. Dispatch it per run:
 
 ```sh
 gh workflow run apple.yml --ref <branch> -f command=test \
-  -f targets="//apple/... //apple/tests:macos_consumer_test" -f runner=macos-15
+  -f targets="//apple/... //apple/tests:macos_consumer_test"
 ```
 
 - `command`: `test` (default) or `build`.
 - `targets`: space-separated Bazel targets. Each must start with `//`.
-- `runner`: `macos-15` (arm64, default) or `macos-13` (x86_64).
+- `runner`: `macos-15` (arm64, default).
 
-It also runs on pushes to `issue-*` branches. Each run uploads the
+Each run uploads the
 `apple-evidence-<runner>` artifact with the executor's macOS, Xcode, and SDK
 identities, the Bazel log, and the test logs and outputs.
 

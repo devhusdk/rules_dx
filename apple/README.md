@@ -44,7 +44,7 @@ use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
 register_toolchains("@local_config_apple_cc_toolchains//:all")
 ```
 
-The probe writes `bazel-bin/<name>.txt` with the executor's real
+The probe writes `bazel-bin/<package>/<name>.txt` with the executor's real
 identities: route, endpoint, host, arch, macOS version and build, Xcode
 version and build, `DEVELOPER_DIR`, SDK version, build, and path,
 deployment target, `clang` path, compiler identity, and license state.
@@ -70,7 +70,8 @@ Xcode preinstalled.
 Use `route = "managed"` with `endpoint` and `credential_file` for a
 preprovisioned macOS remote executor. Point `--xcode_version_config` at
 an `xcode_config` naming the executor's Xcode and register a
-`macos_arm64` execution platform. Credentials travel by file only;
+`macos_arm64` execution platform. The managed probe never runs locally: a build with no remote executor
+fails instead of probing the developer's Mac. Credentials travel by file only;
 inline tokens fail. Xcode has no unattended download, so automatic
 acquisition fails with that diagnostic. Accepting the Xcode license is
 the executor administrator's step.

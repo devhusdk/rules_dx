@@ -49,14 +49,8 @@ rust_test(
         "macos_consumer_test.rs",
     ],
     crate_root = "macos_consumer_test.rs",
-    data = [
-        "//apple/provisioning:probe.sh",
-        "//cli/cli:dx",
-    ],
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    },
+    data = ["//apple/provisioning:probe.sh"],
+    env = {"RUST_TEST_THREADS": "1"},
     env_inherit = [
         "HOME",
         "PATH",

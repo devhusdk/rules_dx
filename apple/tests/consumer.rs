@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 pub const APPLE_SUPPORT: &str = "1.24.2";
 
@@ -44,18 +44,6 @@ pub fn consumer(prefix: &str, module_extra: &str, bazelrc: &str) -> PathBuf {
         &format!("startup --max_idle_secs=120\ncommon --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --remote_download_outputs=all\n{bazelrc}"),
     );
     root
-}
-
-pub fn dx(root: &Path, command: &str, args: &[&str], bazel: &[&str]) -> Run {
-    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
-    let workspace = root.to_string_lossy().into_owned();
-    let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
-    argv.extend_from_slice(args);
-    if !bazel.is_empty() {
-        argv.push("--");
-        argv.extend_from_slice(bazel);
-    }
-    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
 }
 
 pub fn fails_with(run: &Run, needle: &str) {

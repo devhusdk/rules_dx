@@ -1,6 +1,9 @@
 mod consumer;
 
-use consumer::{consumer, dx, fails_with, write};
+use std::path::Path;
+
+use consumer::{consumer, fails_with, write};
+use dx_testing::{resolve_runfiles, run, Run};
 
 const SECRET: &str = "tok-7f3a9c41e2";
 
@@ -57,6 +60,18 @@ xcode_config(
 "#;
 
 const BAZELRC: &str = "build:sim --platforms=@xcode_support//platforms:ios_sim_arm64\nbuild:sim --ios_minimum_os=17.0\n";
+
+pub fn dx(root: &Path, command: &str, args: &[&str], bazel: &[&str]) -> Run {
+    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+    let workspace = root.to_string_lossy().into_owned();
+    let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
+    argv.extend_from_slice(args);
+    if !bazel.is_empty() {
+        argv.push("--");
+        argv.extend_from_slice(bazel);
+    }
+    run(&resolve_runfiles(&rel), &argv, &[]).unwrap_or_else(|error| panic!("run dx: {error}"))
+}
 
 #[test]
 fn unsupported_routes_fail_with_explicit_diagnostics_and_keep_secrets_out() {

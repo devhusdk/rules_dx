@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use consumer::{consumer, dx, fails_with, module, read, write};
+use consumer::{consumer, fails_with, module, read, write};
+use dx_testing::Run;
 
 const TOOLCHAINS: &str = r#"
 apple_cc_configure = use_extension("@xcode_support//crosstool:setup.bzl", "apple_cc_configure_extension")
@@ -197,6 +198,35 @@ fn keep(name: &str, text: &str) {
     }
 }
 
+fn bazel(root: &Path, command: &str, targets: &[&str], flags: &[&str]) -> Run {
+    let output = Command::new("bazel")
+        .current_dir(root)
+        .arg(command)
+        .args(flags)
+        .args(targets)
+        .output()
+        .unwrap_or_else(|error| panic!("bazel: {error}"));
+    let run = Run {
+        status: output.status,
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    };
+    let name: String = [command]
+        .iter()
+        .chain(flags)
+        .flat_map(|part| part.chars().chain(['-']))
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    keep(&format!("bazel-{name}log.txt"), &run.combined());
+    run
+}
+
 fn report(path: &Path) -> BTreeMap<String, String> {
     let text = read(path);
     keep(
@@ -245,7 +275,7 @@ fn simulator_and_macos_cells_build_with_the_selected_xcode() {
     let developer_dir = tool("xcode-select", &["-p"], &[]);
     let root = ledger(&xcode);
 
-    let sim = dx(&root, "build", &["//..."], &["--config=sim"]);
+    let sim = bazel(&root, "build", &["//..."], &["--config=sim"]);
     assert_eq!(sim.status.code(), Some(0), "{}", sim.combined());
     let probe = report(&root.join("bazel-bin/simulator_probe.txt"));
     let sdk_version = tool(
@@ -274,7 +304,7 @@ fn simulator_and_macos_cells_build_with_the_selected_xcode() {
     assert!(archive.contains("minos 17.0"), "{archive}");
     assert!(archive.contains(&format!("sdk {sdk_version}")), "{archive}");
 
-    let mac = dx(&root, "build", &["//..."], &["--config=mac"]);
+    let mac = bazel(&root, "build", &["//..."], &["--config=mac"]);
     assert_eq!(mac.status.code(), Some(0), "{}", mac.combined());
     let probe = report(&root.join("bazel-bin/mac_probe.txt"));
     let sdk_version = tool("xcrun", &["--sdk", "macosx", "--show-sdk-version"], &[]);
@@ -296,7 +326,7 @@ fn simulator_and_macos_cells_build_with_the_selected_xcode() {
         "macosx 3 entries 1375 cents"
     );
 
-    let tested = dx(&root, "test", &["//ledger:ledger_test"], &["--config=mac"]);
+    let tested = bazel(&root, "test", &["//ledger:ledger_test"], &["--config=mac"]);
     assert_eq!(tested.status.code(), Some(0), "{}", tested.combined());
     assert!(
         tested.combined().contains("//ledger:ledger_test"),
@@ -315,7 +345,7 @@ fn a_second_installed_xcode_is_selected_and_never_substituted() {
     let root = ledger(&xcode);
     let selected = format!("--xcode_version={xcode}");
 
-    let sim = dx(
+    let sim = bazel(
         &root,
         "build",
         &["//:simulator_probe", "//ledger:ledger"],
@@ -335,7 +365,7 @@ fn a_second_installed_xcode_is_selected_and_never_substituted() {
     let archive = build_version(&root.join("bazel-bin/ledger/libledger.a"));
     assert!(archive.contains(&format!("sdk {sdk_version}")), "{archive}");
 
-    let fallback = dx(&root, "build", &["//:simulator_probe"], &["--config=sim"]);
+    let fallback = bazel(&root, "build", &["//:simulator_probe"], &["--config=sim"]);
     fails_with(
         &fallback,
         &format!("apple: provisioning selects Xcode {xcode} but Bazel resolved {default}"),
@@ -348,6 +378,6 @@ fn a_non_xcode_compiler_is_rejected() {
     let root = ledger(&xcode);
     write(&root.join("MODULE.bazel"), &module(""));
 
-    let mac = dx(&root, "build", &["//:mac_probe"], &["--config=mac"]);
+    let mac = bazel(&root, "build", &["//:mac_probe"], &["--config=mac"]);
     fails_with(&mac, "not Xcode's Apple clang");
 }

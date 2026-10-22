@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{first_line, parse_owners, QueryRunner, ResolveError};
+use super::{parse_owners, QueryRunner, ResolveError};
 
 pub(crate) fn quote_set(items: &[String]) -> String {
     let mut sorted: Vec<&String> = items.iter().collect();
@@ -39,25 +39,14 @@ pub(crate) fn run_label_query(
     startup_options: &[String],
 ) -> Result<Vec<String>, ResolveError> {
     let argv = query_argv(expression, startup_options);
-    let result = runner
-        .run_query(&argv, workspace)
-        .map_err(|error| ResolveError::QueryFailed {
-            label: expression.to_owned(),
-            detail: error.to_string(),
-        })?;
-    if result.code != Some(0) {
-        return Err(ResolveError::QueryFailed {
-            label: expression.to_owned(),
-            detail: first_line(&result.stderr),
-        });
-    }
+    let result = ResolveError::run(runner, &argv, workspace, expression)?;
     parse_owners(&result.stdout, expression)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::{resolve, QueryResult};
+    use crate::resolve::{first_line, resolve, QueryFailure, QueryResult};
     use crate::test_support::strings;
     use std::cell::RefCell;
 
@@ -69,14 +58,6 @@ mod tests {
         fn new(outputs: Vec<QueryResult>) -> Self {
             FakeQuery {
                 outputs: RefCell::new(outputs),
-            }
-        }
-
-        fn failed(stderr: &str) -> QueryResult {
-            QueryResult {
-                code: Some(2),
-                stdout: Vec::new(),
-                stderr: stderr.as_bytes().to_vec(),
             }
         }
     }
@@ -176,21 +157,53 @@ mod tests {
     }
 
     #[test]
-    fn query_failures_report_the_first_bazel_line() {
+    fn query_failures_keep_the_bazel_status_and_a_bounded_excerpt() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-query-fail-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::failed(
-            "\n  no such package 'pkg': BUILD file not found  \nmore context\n",
-        )]);
+        let label = "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))";
+        let query = FakeQuery::new(vec![QueryResult {
+            code: Some(7),
+            stdout: b"//pkg:partial\n".to_vec(),
+            stderr: b"Loading: 0 packages loaded\nERROR: no such package 'pkg'\nERROR: Evaluation of query failed\n".to_vec(),
+        }]);
         let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("failed");
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label: "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
-                detail: "no such package 'pkg': BUILD file not found".to_owned(),
+                label: label.to_owned(),
+                failure: QueryFailure::exit_for_test(
+                    7,
+                    "Loading: 0 packages loaded\nERROR: no such package 'pkg'\nERROR: Evaluation of query failed"
+                ),
             }
+        );
+        assert_eq!(
+            err.to_string(),
+            format!("query {label} failed: Bazel exited 7")
+        );
+        let query = FakeQuery::new(vec![QueryResult {
+            code: None,
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        }]);
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("signal");
+        assert_eq!(
+            err,
+            ResolveError::QueryFailed {
+                label: label.to_owned(),
+                failure: QueryFailure::Exit {
+                    status: None,
+                    excerpt: None,
+                },
+            }
+        );
+        assert!(
+            err.to_string().ends_with(
+                "Bazel terminated by signal; cause unknown: Bazel printed no diagnostic"
+            ),
+            "{err}"
         );
         let query = FakeQuery::new(vec![QueryResult {
             code: Some(0),
@@ -201,9 +214,40 @@ mod tests {
         assert_eq!(
             err,
             ResolveError::QueryFailed {
-                label: "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
-                detail: "query output is not UTF-8".to_owned(),
+                label: label.to_owned(),
+                failure: QueryFailure::Output {
+                    detail: "query output is not UTF-8".to_owned(),
+                },
             }
+        );
+    }
+
+    #[test]
+    fn a_query_that_cannot_launch_is_typed_as_a_launch_failure() {
+        struct Missing;
+        impl QueryRunner for Missing {
+            fn run_query(&self, _argv: &[String], _cwd: &Path) -> std::io::Result<QueryResult> {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "bazel: not found",
+                ))
+            }
+        }
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-launch-");
+        let workspace = scratch.path().to_path_buf();
+        let err = run_label_query("owners", &workspace, &Missing, &[]).expect_err("launch");
+        assert_eq!(
+            err,
+            ResolveError::QueryFailed {
+                label: "owners".to_owned(),
+                failure: QueryFailure::Launch {
+                    detail: "bazel: not found".to_owned(),
+                },
+            }
+        );
+        assert_eq!(
+            err.to_string(),
+            "query owners failed: could not launch Bazel: bazel: not found"
         );
     }
 

@@ -353,6 +353,24 @@ pub fn load_defaults_with_mode(
     Ok((FileDefaults::default(), None))
 }
 
+/// The `[dx] output` the config files name, read even when the rest of a file is invalid.
+pub fn raw_output(start: &Path, ignore_local: bool) -> Option<String> {
+    let sources = find_config_sources(start);
+    let local = if ignore_local { None } else { sources.local };
+    [local, sources.committed]
+        .into_iter()
+        .flatten()
+        .find_map(|path| {
+            let text = std::fs::read_to_string(path).ok()?;
+            let root = text.parse::<toml::Table>().ok()?;
+            root.get("dx")?
+                .as_table()?
+                .get("output")?
+                .as_str()
+                .map(str::to_owned)
+        })
+}
+
 pub fn load_defaults(start: &Path) -> Result<(FileDefaults, Option<PathBuf>), super::AdoptError> {
     load_defaults_with_mode(start, false)
 }
@@ -360,6 +378,26 @@ pub fn load_defaults(start: &Path) -> Result<(FileDefaults, Option<PathBuf>), su
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn raw_output_survives_an_invalid_key_and_prefers_the_local_file() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-raw-output-");
+        let root = scratch.path();
+        std::fs::write(root.join("MODULE.bazel"), "").expect("module");
+        assert_eq!(raw_output(root, false), None);
+        std::fs::write(
+            root.join("dx.toml"),
+            "[dx]\noutput = \"json\"\nlog-level = \"debug\"\n",
+        )
+        .expect("config");
+        assert!(load_defaults(root).is_err());
+        assert_eq!(raw_output(root, false), Some("json".to_owned()));
+        std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"text\"\n").expect("local");
+        assert_eq!(raw_output(root, false), Some("text".to_owned()));
+        assert_eq!(raw_output(root, true), Some("json".to_owned()));
+        std::fs::write(root.join("dx.toml"), "[dx\noutput = \"json\"\n").expect("broken");
+        assert_eq!(raw_output(root, true), None);
+    }
 
     fn env_of<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
         move |name| {

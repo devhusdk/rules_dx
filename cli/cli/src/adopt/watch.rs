@@ -7,7 +7,7 @@ use dx_adopt::AdoptError;
 use dx_output::OutputMode;
 
 use crate::args::{Command, Invocation};
-use crate::exec::common::{check_stdout_write, emit_startup_outcome};
+use crate::exec::common::check_stdout_write;
 use crate::exec::Env;
 
 use super::{operational, pre_exec, summaries_suppressed};
@@ -63,13 +63,7 @@ impl Progress {
 }
 
 fn refuse(invocation: &Invocation, out: &mut dyn Write, err: &mut dyn Write, message: &str) -> i32 {
-    let code = pre_exec(err, message);
-    if invocation.output == OutputMode::Json {
-        if let Err(exit) = emit_startup_outcome(out, "invalid_arguments", message, code) {
-            return exit;
-        }
-    }
-    code
+    pre_exec(invocation.output, out, err, message)
 }
 
 fn stopped(progress: Progress, out: &mut dyn Write, err: &mut dyn Write, signo: i32) -> i32 {

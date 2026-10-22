@@ -18,8 +18,8 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.quality_request() {
         Ok(request) => request,
         Err(message) => {
-            let Env { err, .. } = env;
-            return pre_exec(err, &message);
+            let Env { out, err, .. } = env;
+            return pre_exec(invocation.output, out, err, &message);
         }
     };
     execute_quality_request(&request, env)
@@ -44,7 +44,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         &request.common.output,
     ) {
         Ok(planned) => planned,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(request.common.output, out, err, &error.to_string()),
     };
     let stdout_report = planned_reports
         .iter()
@@ -64,11 +64,9 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         workspace,
         query_runner,
         &request.bazel_startup_options,
-    )
-    .map_err(|error| error.to_string())
-    {
+    ) {
         Ok(resolved) => resolved,
-        Err(message) => return pre_exec(err, &message),
+        Err(error) => return resolve_failed(request.common.output, out, err, &error),
     };
     let build = match plan_build(
         request.command,
@@ -80,7 +78,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
     .map_err(|error| format!("{error}"))
     {
         Ok(build) => build,
-        Err(message) => return pre_exec(err, &message),
+        Err(message) => return pre_exec(request.common.output, out, err, &message),
     };
     let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
@@ -111,6 +109,18 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         }
     };
     let _ = std::fs::remove_file(&bep);
+    if bazel_code != 0 && request.common.output == OutputMode::Json {
+        if let Some(event) = bazel_exit_event(
+            CODE_ANALYSIS_FAILED,
+            &format!(
+                "{} analysis failed with Bazel exit {bazel_code}; results are incomplete",
+                request.command.name()
+            ),
+            bazel_code,
+        ) {
+            let _ = write_event(out, &event);
+        }
+    }
     collected.complete = collected.complete && bazel_code == 0;
     dx_output::sort_diagnostics(&mut collected.initial);
     dx_output::sort_diagnostics(&mut collected.terminal);

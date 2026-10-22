@@ -23,12 +23,12 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.output,
     ) {
         Ok(planned) => planned,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     debug_assert!(planned_reports.is_empty(), "dx deploy takes no --report");
     let label = match resolve_deploy(&invocation.targets) {
         Ok(label) => label,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
     let info = match check_deployable(
         &label,
@@ -37,7 +37,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.bazel_startup_options,
     ) {
         Ok(info) => info,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
     let attr = if info.profile_raw == "NONE" || info.profile_raw == "None" {
         None
@@ -85,8 +85,11 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
             words.push(label.clone());
             if !invocation.bazel_options.is_empty() {
+                let (safe, withheld) =
+                    crate::plan::quality::partition_provenance_options(&invocation.bazel_options);
                 words.push("--".to_owned());
-                words.extend(invocation.bazel_options.iter().cloned());
+                words.extend(safe);
+                words.extend(withheld);
             }
             let _ = writeln!(
                 err,

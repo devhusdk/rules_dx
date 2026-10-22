@@ -10,19 +10,7 @@ use dx_output::{
 use std::io::Write;
 use std::path::Path;
 
-const CODE_NO_RUNNABLE: &str = "no_runnable";
-const CODE_AMBIGUOUS_RUNNABLE: &str = "ambiguous_runnable";
-const CODE_NO_TESTS: &str = "no_tests";
 const WITHDRAW_SIGNAL: i32 = 15;
-
-fn resolve_code(error: &ResolveError) -> &'static str {
-    match error {
-        ResolveError::NoRunnable { .. } => CODE_NO_RUNNABLE,
-        ResolveError::AmbiguousRunnable { .. } => CODE_AMBIGUOUS_RUNNABLE,
-        ResolveError::NoTests { .. } => CODE_NO_TESTS,
-        _ => "scope_error",
-    }
-}
 
 pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
     run_app(invocation, env, None)
@@ -56,7 +44,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
         &invocation.output,
     ) {
         Ok(planned) => planned,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     debug_assert!(planned_reports.is_empty(), "dx run takes no --report");
     let targets = match resolve_run(
@@ -67,15 +55,14 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
     ) {
         Ok(targets) => targets,
         Err(error) => {
-            let code = resolve_code(&error);
-            let message = error.to_string();
+            let mut failure = Failure::resolve(&error);
             if matches!(
                 error,
                 ResolveError::NoRunnable { .. } | ResolveError::AmbiguousRunnable { .. }
             ) {
-                return operational(invocation, out, err, code, &message);
+                failure.exit = dx_process::operational_code();
             }
-            return pre_exec(err, &message);
+            return report_failure(invocation.output, out, err, &failure);
         }
     };
     let launcher = Launcher {
@@ -325,26 +312,30 @@ mod tests {
     }
 
     #[test]
-    fn resolve_code_maps_all_variants() {
-        assert_eq!(
-            resolve_code(&ResolveError::NoRunnable {
-                scopes: vec!["a".to_owned()],
-            }),
-            "no_runnable"
-        );
-        assert_eq!(
-            resolve_code(&ResolveError::AmbiguousRunnable {
-                candidates: vec!["//a:one".to_owned(), "//a:two".to_owned()],
-            }),
-            "ambiguous_runnable"
-        );
-        assert_eq!(
-            resolve_code(&ResolveError::NoTests {
-                owners: vec!["//a:lib".to_owned()],
-            }),
-            "no_tests"
-        );
-        assert_eq!(resolve_code(&ResolveError::EmptyScope), "scope_error");
+    fn resolve_failures_map_every_run_variant_to_a_code() {
+        for (error, code) in [
+            (
+                ResolveError::NoRunnable {
+                    scopes: vec!["a".to_owned()],
+                },
+                "no_runnable",
+            ),
+            (
+                ResolveError::AmbiguousRunnable {
+                    candidates: vec!["//a:one".to_owned(), "//a:two".to_owned()],
+                },
+                "ambiguous_runnable",
+            ),
+            (
+                ResolveError::NoTests {
+                    owners: vec!["//a:lib".to_owned()],
+                },
+                "no_tests",
+            ),
+            (ResolveError::EmptyScope, "invalid_scope"),
+        ] {
+            assert_eq!(Failure::resolve(&error).code, code);
+        }
     }
 
     #[test]

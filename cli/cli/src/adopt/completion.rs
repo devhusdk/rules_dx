@@ -12,7 +12,12 @@ pub(crate) fn execute_completion(
 ) -> i32 {
     let shell = invocation.targets.first().map(String::as_str).unwrap_or("");
     if !crate::args::COMPLETION_SHELLS.contains(&shell) {
-        return pre_exec(err, &format!("unknown-shell: {shell}"));
+        return pre_exec(
+            invocation.output,
+            out,
+            err,
+            &format!("unknown-shell: {shell}"),
+        );
     }
     match crate::args::render_completion(shell) {
         Ok(script) => {
@@ -21,7 +26,7 @@ pub(crate) fn execute_completion(
             }
             0
         }
-        Err(error) => pre_exec(err, &error.to_string()),
+        Err(error) => pre_exec(invocation.output, out, err, &error.to_string()),
     }
 }
 

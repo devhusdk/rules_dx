@@ -120,6 +120,99 @@ pub enum ResolveError {
         "not_deployable {label}: target provides no DxDeployInfo and is not executable; pass a dx_deployment target or an executable"
     )]
     NotDeployable { label: String },
-    #[error("ownership query for {label} failed: {detail}")]
-    QueryFailed { label: String, detail: String },
+    #[error("query {label} failed: {failure}")]
+    QueryFailed {
+        label: String,
+        failure: QueryFailure,
+    },
+}
+
+const EXCERPT_LINES: usize = 20;
+const EXCERPT_BYTES: usize = 4096;
+
+/// Why one Bazel query did not yield a selection.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum QueryFailure {
+    /// dx could not build the query or read the scope it asks about.
+    #[error("{detail}")]
+    Prepare { detail: String },
+    /// The query process did not start.
+    #[error("could not launch Bazel: {detail}")]
+    Launch { detail: String },
+    /// The query ran and did not succeed.
+    #[error("{}", exit_text(*.status, .excerpt.as_ref()))]
+    Exit {
+        status: Option<i32>,
+        excerpt: Option<dx_output::Excerpt>,
+    },
+    /// The query succeeded but its output is unusable.
+    #[error("{detail}")]
+    Output { detail: String },
+}
+
+fn exit_text(status: Option<i32>, excerpt: Option<&dx_output::Excerpt>) -> String {
+    let head = match status {
+        Some(code) => format!("Bazel exited {code}"),
+        None => "Bazel terminated by signal".to_owned(),
+    };
+    match excerpt {
+        Some(_) => head,
+        None => format!("{head}; cause unknown: Bazel printed no diagnostic"),
+    }
+}
+
+impl QueryFailure {
+    /// The failure of a query that ran, with its native status and a bounded stderr tail.
+    pub fn exited(result: &QueryResult) -> Self {
+        QueryFailure::Exit {
+            status: result.code,
+            excerpt: dx_output::diagnostic_excerpt(&result.stderr, EXCERPT_LINES, EXCERPT_BYTES),
+        }
+    }
+
+    /// The failure of a query that never started.
+    pub fn launch(error: &io::Error) -> Self {
+        QueryFailure::Launch {
+            detail: error.to_string(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl QueryFailure {
+    pub(crate) fn exit_for_test(status: i32, excerpt: &str) -> Self {
+        QueryFailure::Exit {
+            status: Some(status),
+            excerpt: Some(dx_output::Excerpt {
+                text: excerpt.to_owned(),
+                truncated: false,
+            }),
+        }
+    }
+}
+
+impl ResolveError {
+    /// A failed query named by its expression.
+    pub fn query(label: &str, failure: QueryFailure) -> Self {
+        ResolveError::QueryFailed {
+            label: label.to_owned(),
+            failure,
+        }
+    }
+
+    /// Runs one query and turns a launch error or an unsuccessful exit into a typed failure.
+    pub fn run(
+        runner: &dyn QueryRunner,
+        argv: &[String],
+        cwd: &Path,
+        label: &str,
+    ) -> Result<QueryResult, ResolveError> {
+        let result = runner
+            .run_query(argv, cwd)
+            .map_err(|error| ResolveError::query(label, QueryFailure::launch(&error)))?;
+        if result.code != Some(0) {
+            return Err(ResolveError::query(label, QueryFailure::exited(&result)));
+        }
+        Ok(result)
+    }
 }

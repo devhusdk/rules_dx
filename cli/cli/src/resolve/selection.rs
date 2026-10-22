@@ -330,6 +330,37 @@ mod tests {
     }
 
     #[test]
+    fn selection_redacts_headers_env_values_and_url_credentials() {
+        let selection = SelectionContext::for_tests_configured(
+            &strings(&[
+                "--remote_header=Authorization=Bearer hunter2",
+                "--bes_header",
+                "x-api=hunter2",
+                "--action_env=API_KEY=hunter2",
+                "--test_env",
+                "DB=hunter2",
+                "--repo_env=HOME",
+                "--remote_cache=grpcs://ci:hunter2@cache.example",
+                "--config=ci",
+            ]),
+            &[],
+        );
+        let detail = selection.redacted_detail();
+        assert!(!detail.contains("hunter2"), "{detail}");
+        for kept in [
+            "--remote_header",
+            "--bes_header",
+            "--action_env=API_KEY=(value)",
+            "--test_env DB=(value)",
+            "--repo_env=HOME",
+            "--remote_cache=grpcs://(credentials)@cache.example",
+            "--config=ci",
+        ] {
+            assert!(detail.contains(kept), "{kept}: {detail}");
+        }
+    }
+
+    #[test]
     fn startup_options_reach_selection_argv() {
         let selection =
             SelectionContext::for_tests_configured(&[], &strings(&["--output_base=/tmp/a"]));

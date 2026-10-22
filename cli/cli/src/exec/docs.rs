@@ -117,7 +117,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
                 };
                 (resolved.targets, scope_text)
             }
-            Err(error) => return pre_exec(err, &error.to_string()),
+            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
         }
     };
     let (actions, summary): (&[&str], String) = if invocation.check {
@@ -140,7 +140,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.bazel_startup_options,
     ) {
         Ok(argv) => argv,
-        Err(error) => return pre_exec(err, &format!("{error}")),
+        Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
     if json {
         if let Ok(event) = command_started(invocation.command.name(), mode) {

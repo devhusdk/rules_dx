@@ -8,9 +8,7 @@ use crate::args::{Command, Invocation};
 use crate::plan::{bep_path, plan_workflow, WorkflowVerb};
 use crate::reports::{plan_reports, Destination, StandardFormat};
 use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
-use dx_output::{
-    command_finished, command_started, error_event, write_event, FinishedCounts, OutputMode,
-};
+use dx_output::{command_finished, command_started, write_event, FinishedCounts, OutputMode};
 use dx_process::ForwardError;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -38,7 +36,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.output,
     ) {
         Ok(planned) => planned,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let (failure_reports, planned_reports): (Vec<_>, Vec<_>) = planned_reports
         .into_iter()
@@ -77,6 +75,8 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         _ => {
             return pre_exec(
+                invocation.output,
+                out,
                 err,
                 &ForwardError::UnsupportedCommand {
                     command: invocation.command.name().to_owned(),
@@ -87,10 +87,12 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let resolved = match resolved {
         Ok(resolved) => resolved,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return resolve_failed(invocation.output, out, err, &error),
     };
     let Some(verb) = invocation.command.workflow_verb() else {
         return pre_exec(
+            invocation.output,
+            out,
             err,
             &ForwardError::UnsupportedCommand {
                 command: invocation.command.name().to_owned(),
@@ -124,7 +126,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.bazel_startup_options,
     ) {
         Ok(plan) => plan,
-        Err(error) => return pre_exec(err, &format!("{error}")),
+        Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
@@ -158,15 +160,13 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         };
         if invocation.output == OutputMode::Json {
             if bazel_code != 0 {
-                if let Ok(event) = error_event(
-                    "bazel_failed",
+                if let Some(event) = bazel_exit_event(
+                    CODE_BAZEL_FAILED,
                     &format!(
                         "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
                         invocation.command.name(),
                     ),
-                    None,
-                    None,
-                    Some("execute"),
+                    bazel_code,
                 ) {
                     let _ = write_event(out, &event);
                 }
@@ -467,3 +467,7 @@ mod build_failure_launcher_tests;
 #[cfg(all(test, unix))]
 #[path = "test_case_launcher_tests.rs"]
 mod test_case_launcher_tests;
+
+#[cfg(all(test, unix))]
+#[path = "error_boundary_launcher_tests.rs"]
+mod error_boundary_launcher_tests;

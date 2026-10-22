@@ -25,14 +25,19 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.output,
     ) {
         Ok(_) => {}
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     }
     if invocation.targets.len() != 2 {
-        return pre_exec(err, "bump needs exactly <selector> <version>");
+        return pre_exec(
+            invocation.output,
+            out,
+            err,
+            "bump needs exactly <selector> <version>",
+        );
     }
     if let Some(registry) = match dx_adopt::dependency_sets::load(workspace) {
         Ok(registry) => registry,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     } {
         let head = invocation.targets[0]
             .split_once(':')
@@ -61,7 +66,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match dx_bump::BumpRequest::parse(&invocation.targets[0], &invocation.targets[1])
     {
         Ok(request) => request,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let request = match resolve_gha_tag_request(&request) {
         Ok(request) => request,

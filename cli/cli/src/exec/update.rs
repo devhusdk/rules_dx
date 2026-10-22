@@ -20,7 +20,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.output,
     ) {
         Ok(_) => {}
-        Err(error) => return pre_exec(env.err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     }
     let verbose = invocation.chatty();
     if invocation.applies() {
@@ -55,7 +55,7 @@ impl RunMode {
 fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) -> i32 {
     if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
         Ok(registry) => registry,
-        Err(error) => return pre_exec(env.err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     } {
         return update_consumer::execute_configured(invocation, env, &registry, verbose);
     }
@@ -68,7 +68,7 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
     } = env;
     let resolved = match dx_update::selector::resolve(&invocation.targets) {
         Ok(resolved) => resolved,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let summary = frozen_summary(
         offline_summary(
@@ -107,7 +107,7 @@ fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) ->
 fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) -> i32 {
     if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
         Ok(registry) => registry,
-        Err(error) => return pre_exec(env.err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     } {
         return update_consumer::execute_configured(invocation, env, &registry, verbose);
     }
@@ -120,7 +120,7 @@ fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) 
     } = env;
     let resolved = match dx_update::selector::resolve(&invocation.targets) {
         Ok(resolved) => resolved,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let summary = frozen_summary(
         offline_summary(

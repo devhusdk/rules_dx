@@ -16,7 +16,12 @@ pub(crate) fn execute_upgrade(
     err: &mut dyn Write,
 ) -> i32 {
     let (Some(from), Some(to)) = (invocation.from.as_deref(), invocation.to.as_deref()) else {
-        return pre_exec(err, "upgrade needs --from <version> --to <version>");
+        return pre_exec(
+            invocation.output,
+            out,
+            err,
+            "upgrade needs --from <version> --to <version>",
+        );
     };
     let intent = dx_adopt::UpgradeIntent {
         apply: invocation.applies(),
@@ -24,7 +29,7 @@ pub(crate) fn execute_upgrade(
     };
     let syntax = match dx_adopt::plan_upgrade(from, to, &intent) {
         Ok(plan) => plan,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let verbose = invocation.chatty();
     let mode = if invocation.applies() {

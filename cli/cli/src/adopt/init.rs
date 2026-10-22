@@ -1,10 +1,9 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::check_stdout_write;
+use crate::exec::common::{check_stdout_write, pre_exec};
 
 use super::{operational, summaries_suppressed};
-use dx_process::pre_exec_code;
 
 pub(crate) const CODE_INIT_FAILED: &str = "init_failed";
 
@@ -16,8 +15,7 @@ fn invalid_module_code(
 ) -> i32 {
     match error {
         dx_adopt::AdoptError::InitInvalidModule { .. } => {
-            let _ = writeln!(err, "dx: {error}");
-            pre_exec_code()
+            pre_exec(invocation.output, out, err, &error.to_string())
         }
         _ => operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string()),
     }

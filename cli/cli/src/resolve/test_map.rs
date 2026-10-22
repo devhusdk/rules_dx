@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::query::quote_label;
 
-use super::{first_line, parse_owners, quote_set, QueryRunner, ResolveError, SelectionContext};
+use super::{parse_owners, quote_set, QueryFailure, QueryRunner, ResolveError, SelectionContext};
 
 pub(crate) fn strip_configuration(line: &str) -> &str {
     let line = line.trim();
@@ -24,19 +24,17 @@ fn run_labels(
     expression: &str,
     workspace: &Path,
 ) -> Result<Vec<String>, ResolveError> {
-    let failed = |detail: String| ResolveError::QueryFailed {
-        label: expression.to_owned(),
-        detail,
-    };
     let argv = selection
         .selection_argv(verb, &[], expression)
-        .map_err(|error| failed(error.to_string()))?;
-    let result = runner
-        .run_query(&argv, workspace)
-        .map_err(|error| failed(error.to_string()))?;
-    if result.code != Some(0) {
-        return Err(failed(first_line(&result.stderr)));
-    }
+        .map_err(|error| {
+            ResolveError::query(
+                expression,
+                QueryFailure::Prepare {
+                    detail: error.to_string(),
+                },
+            )
+        })?;
+    let result = ResolveError::run(runner, &argv, workspace, expression)?;
     let lines = parse_owners(&result.stdout, expression)?;
     let mut labels: Vec<String> = lines
         .iter()
@@ -220,7 +218,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mapping_failures_report_the_first_bazel_line() {
+    fn test_mapping_failures_keep_the_bazel_status_and_excerpt() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-fail-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
@@ -230,7 +228,7 @@ mod tests {
             err,
             ResolveError::QueryFailed {
                 label: "tests(rdeps(//..., set(\"//pkg:lib\")))".to_owned(),
-                detail: "query failed: blah".to_owned(),
+                failure: QueryFailure::exit_for_test(2, "  query failed: blah\nmore"),
             }
         );
     }

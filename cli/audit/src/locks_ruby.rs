@@ -1,4 +1,4 @@
-use crate::vuln::LockedPackage;
+use crate::vuln::{split_gem_lock_version, LockedPackage};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum Source {
@@ -47,9 +47,11 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         if !in_specs || indent != 4 {
             continue;
         }
-        let Some((name, version)) = split_gem_spec(trimmed) else {
+        let Some((name, locked)) = split_gem_spec(trimmed) else {
             continue;
         };
+        let (version, platform) = split_gem_lock_version(&locked);
+        let (version, platform) = (version.to_owned(), platform.map(str::to_owned));
         out.push(LockedPackage {
             name,
             version,
@@ -57,13 +59,14 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             is_git: source == Some(Source::Git),
             is_private: source == Some(Source::Path),
             location: None,
+            platform,
         });
     }
     if !saw_section {
         return Err("invalid Gemfile.lock: missing GEM section".to_owned());
     }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
-    out.dedup_by(|b, a| a.name == b.name && a.version == b.version);
+    out.sort_by(|a, b| (&a.name, &a.version, &a.platform).cmp(&(&b.name, &b.version, &b.platform)));
+    out.dedup_by(|b, a| a.name == b.name && a.version == b.version && a.platform == b.platform);
     Ok(out)
 }
 

@@ -78,6 +78,7 @@ fn pnpm_packages_from_value(value: &yaml_serde::Value, out: &mut Vec<LockedPacka
                 is_git,
                 is_private: false,
                 location: None,
+                platform: None,
             });
         }
     }
@@ -247,6 +248,7 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
         is_git,
         is_private: false,
         location: None,
+        platform: None,
     })
 }
 

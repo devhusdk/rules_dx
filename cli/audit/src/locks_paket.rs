@@ -42,6 +42,7 @@ pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
                 is_git: in_git,
                 is_private: false,
                 location: None,
+                platform: None,
             });
         }
     }

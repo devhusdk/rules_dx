@@ -25,6 +25,7 @@ pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
                 is_git: true,
                 is_private: false,
                 location: None,
+                platform: None,
             });
             continue;
         }
@@ -38,6 +39,7 @@ pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             is_git: false,
             is_private: false,
             location: None,
+            platform: None,
         });
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));

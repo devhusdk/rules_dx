@@ -204,6 +204,7 @@ fn collect_legacy(
             is_git,
             is_private: false,
             location,
+            platform: None,
         });
     }
     Ok(())
@@ -259,6 +260,7 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
                 is_git,
                 is_private: false,
                 location: Some(path.trim().to_owned()),
+                platform: None,
             });
         }
     }

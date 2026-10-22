@@ -8,6 +8,8 @@ pub struct LockedPackage {
     pub is_git: bool,
     pub is_private: bool,
     pub location: Option<String>,
+    #[serde(default)]
+    pub platform: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -33,6 +35,7 @@ pub struct VulnFinding {
 
 pub const REASON_GIT: &str = "unsupported git revision";
 pub const REASON_PRIVATE: &str = "unidentified private package";
+pub const REASON_VERSION_SYNTAX: &str = "unsupported version syntax";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Unassessed {

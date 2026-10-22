@@ -8,4 +8,19 @@ public class Dirty {
     }
     return value.length();
   }
+
+  @SuppressWarnings("fallthrough")
+  int sw(int x) {
+    int r = 0;
+    switch (x) {
+      case 1:
+        r = 1;
+      case 2:
+        r = 2;
+        break;
+      default:
+        break;
+    }
+    return r;
+  }
 }

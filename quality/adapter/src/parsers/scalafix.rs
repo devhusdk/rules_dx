@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
 struct ScalafixRecord {
@@ -95,6 +95,7 @@ pub fn parse_scalafix(
                 },
                 end,
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }

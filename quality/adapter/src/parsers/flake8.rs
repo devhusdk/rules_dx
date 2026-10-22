@@ -1,5 +1,5 @@
 use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 fn flake8_severity(code: &str) -> Result<ToolSeverity, ParseError> {
     const TOOL: &str = "flake8";
@@ -70,6 +70,7 @@ pub fn parse_flake8(
                 start,
                 end,
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }

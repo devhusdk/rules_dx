@@ -8,7 +8,7 @@
     )
 )]
 
-use line_index::{LineIndex, WideEncoding, WideLineCol};
+use line_index::LineIndex;
 use quality_result::proto::{Diagnostic, Severity};
 
 pub mod commands;
@@ -48,6 +48,14 @@ pub struct Suggestion {
     pub replacement: Vec<u8>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ColumnEncoding {
+    #[default]
+    Scalars,
+    Utf16,
+    Utf8,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Finding {
     pub tool_id: String,
@@ -57,6 +65,7 @@ pub struct Finding {
     pub start: TextPosition,
     pub end: Option<TextPosition>,
     pub suggestions: Vec<Suggestion>,
+    pub encoding: ColumnEncoding,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -68,30 +77,49 @@ pub enum PlaceError {
 }
 
 pub fn line_col_to_byte(text: &str, line: u64, column: u64) -> Option<u64> {
+    line_col_to_byte_in(text, line, column, ColumnEncoding::Scalars)
+}
+
+pub fn line_col_to_byte_in(
+    text: &str,
+    line: u64,
+    column: u64,
+    encoding: ColumnEncoding,
+) -> Option<u64> {
     if line == 0 || column == 0 {
         return None;
     }
     if text.len() >= u32::MAX as usize {
-        return legacy_line_col_to_byte(text, line, column);
+        return legacy_line_col_to_byte(text, line, column, encoding);
     }
     let line_index = u32::try_from(line - 1).ok()?;
-    let col_index = u32::try_from(column - 1).ok()?;
-    let index = LineIndex::new(text);
-    let range = index.line(line_index)?;
+    let range = LineIndex::new(text).line(line_index)?;
     let start = u32::from(range.start()) as usize;
     let end = u32::from(range.end()) as usize;
     let line_text = text.get(start..end)?;
     let body = line_text.strip_suffix('\n').unwrap_or(line_text);
-    if column - 1 > body.chars().count() as u64 {
-        return None;
+    Some((start + column_to_offset(body, column - 1, encoding)?) as u64)
+}
+
+fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<usize> {
+    if encoding == ColumnEncoding::Utf8 {
+        let offset = usize::try_from(units).ok()?;
+        return body.is_char_boundary(offset).then_some(offset);
     }
-    let wide = WideLineCol {
-        line: line_index,
-        col: col_index,
-    };
-    let utf8 = index.to_utf8(WideEncoding::Utf32, wide)?;
-    let offset = index.offset(utf8)?;
-    Some(u32::from(offset) as u64)
+    let mut seen = 0u64;
+    for (offset, ch) in body.char_indices() {
+        if seen == units {
+            return Some(offset);
+        }
+        if seen > units {
+            return None;
+        }
+        seen += match encoding {
+            ColumnEncoding::Utf16 => ch.len_utf16() as u64,
+            _ => 1,
+        };
+    }
+    (seen == units).then_some(body.len())
 }
 
 pub fn line_end_to_byte(text: &str, line: u64) -> Option<u64> {
@@ -108,27 +136,17 @@ pub fn line_end_to_byte(text: &str, line: u64) -> Option<u64> {
     (index == 0 && text.is_empty()).then_some(0)
 }
 
-fn legacy_line_col_to_byte(text: &str, line: u64, column: u64) -> Option<u64> {
-    if line == 0 || column == 0 {
-        return None;
-    }
+fn legacy_line_col_to_byte(
+    text: &str,
+    line: u64,
+    column: u64,
+    encoding: ColumnEncoding,
+) -> Option<u64> {
     let mut offset = 0u64;
     for (index, content) in text.split_inclusive('\n').enumerate() {
         if index as u64 + 1 == line {
             let body = content.strip_suffix('\n').unwrap_or(content);
-            let mut byte = 0u64;
-            let mut chars = 0u64;
-            for ch in body.chars() {
-                if chars + 1 == column {
-                    return Some(offset + byte);
-                }
-                byte += ch.len_utf8() as u64;
-                chars += 1;
-            }
-            if chars + 1 == column {
-                return Some(offset + byte);
-            }
-            return None;
+            return Some(offset + column_to_offset(body, column - 1, encoding)? as u64);
         }
         offset += content.len() as u64;
     }
@@ -136,18 +154,22 @@ fn legacy_line_col_to_byte(text: &str, line: u64, column: u64) -> Option<u64> {
 }
 
 pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagnostic, PlaceError> {
-    let start = line_col_to_byte(text, finding.start.line, finding.start.column).ok_or(
-        PlaceError::UnmappablePosition {
-            line: finding.start.line,
-            column: finding.start.column,
-        },
-    )?;
+    let start = line_col_to_byte_in(
+        text,
+        finding.start.line,
+        finding.start.column,
+        finding.encoding,
+    )
+    .ok_or(PlaceError::UnmappablePosition {
+        line: finding.start.line,
+        column: finding.start.column,
+    })?;
     let end = match finding.end {
         Some(position) => {
             let byte = if position.column == LINE_END {
                 line_end_to_byte(text, position.line)
             } else {
-                line_col_to_byte(text, position.line, position.column)
+                line_col_to_byte_in(text, position.line, position.column, finding.encoding)
             };
             byte.ok_or(PlaceError::UnmappablePosition {
                 line: position.line,
@@ -236,6 +258,7 @@ mod tests {
             start: TextPosition { line: 2, column: 1 },
             end: None,
             suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
         };
         let placed = place_finding(&point, "src/main.rs", CAFE).expect("mappable");
         assert_eq!(placed.start_byte, Some(12));
@@ -275,6 +298,7 @@ mod tests {
                 column: LINE_END,
             }),
             suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
         };
         let placed = place_finding(&finding, "a", "ab\r\ncd\n").expect("placed");
         assert_eq!((placed.start_byte, placed.end_byte), (Some(0), Some(6)));
@@ -306,6 +330,7 @@ mod tests {
             start: TextPosition { line: 9, column: 1 },
             end: None,
             suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
         };
         assert_eq!(
             place_finding(&base, "a.toml", CAFE),
@@ -329,5 +354,49 @@ mod tests {
             place_finding(&bad_end, "a.toml", CAFE),
             Err(PlaceError::UnmappablePosition { line: 9, column: 1 })
         );
+    }
+
+    #[test]
+    fn encodings_map_columns_after_astral_characters() {
+        let text = "const s = \"\u{1f600}\"; missing();\n";
+        let at = |line, col, enc| line_col_to_byte_in(text, line, col, enc);
+        assert_eq!(at(1, 17, ColumnEncoding::Utf16), Some(18));
+        assert_eq!(at(1, 24, ColumnEncoding::Utf16), Some(25));
+        assert_eq!(at(1, 27, ColumnEncoding::Utf16), Some(28));
+        assert_eq!(at(1, 28, ColumnEncoding::Utf16), None);
+        assert_eq!(at(1, 16, ColumnEncoding::Scalars), Some(18));
+        assert_eq!(at(1, 23, ColumnEncoding::Scalars), Some(25));
+        assert_eq!(at(1, 19, ColumnEncoding::Utf8), Some(18));
+        assert_eq!(at(1, 26, ColumnEncoding::Utf8), Some(25));
+        assert_eq!(at(1, 15, ColumnEncoding::Utf8), None);
+    }
+
+    #[test]
+    fn invalid_interior_columns_are_rejected() {
+        let text = "a\u{1f600}b\r\nc";
+        assert_eq!(line_col_to_byte_in(text, 1, 3, ColumnEncoding::Utf16), None);
+        assert_eq!(
+            line_col_to_byte_in(text, 1, 4, ColumnEncoding::Utf16),
+            Some(5)
+        );
+        assert_eq!(line_col_to_byte_in(text, 1, 3, ColumnEncoding::Utf8), None);
+        assert_eq!(
+            line_col_to_byte_in(text, 1, 6, ColumnEncoding::Utf8),
+            Some(5)
+        );
+        assert_eq!(
+            line_col_to_byte_in(text, 1, 7, ColumnEncoding::Utf8),
+            Some(6)
+        );
+        assert_eq!(
+            line_col_to_byte_in(text, 1, 8, ColumnEncoding::Utf8),
+            Some(7)
+        );
+        assert_eq!(line_col_to_byte_in(text, 1, 9, ColumnEncoding::Utf8), None);
+        assert_eq!(
+            line_col_to_byte_in(text, 2, 2, ColumnEncoding::Utf16),
+            Some(9)
+        );
+        assert_eq!(line_col_to_byte_in(text, 2, 3, ColumnEncoding::Utf16), None);
     }
 }

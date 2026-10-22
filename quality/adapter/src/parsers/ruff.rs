@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
 struct RuffPosition {
@@ -74,6 +74,7 @@ pub fn parse_ruff(
                 start,
                 end: Some(end),
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }
@@ -119,6 +120,7 @@ pub fn parse_ruff_format(
                 start,
                 end: Some(end),
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }

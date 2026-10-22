@@ -109,7 +109,7 @@ pub use yamllint::parse_yamllint;
 
 use std::path::Path;
 
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileFinding {
@@ -294,6 +294,7 @@ fn finding(
             start,
             end,
             suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
         },
     }
 }
@@ -581,6 +582,7 @@ pub(super) fn rubocop_json(
                     start,
                     end,
                     suggestions: Vec::new(),
+                    encoding: ColumnEncoding::Scalars,
                 },
             });
         }
@@ -728,7 +730,7 @@ mod tests {
         bracketed, check_output_size, code_name, columned, finding, lines, located, missing,
         numbered, require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
     };
-    use crate::{Finding, TextPosition, ToolSeverity};
+    use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
     #[test]
     fn lines_drops_blank_lines_and_trims_the_rest() {
@@ -858,6 +860,7 @@ mod tests {
                 start: crate::TextPosition { line: 3, column: 4 },
                 end: None,
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             }
         );
     }

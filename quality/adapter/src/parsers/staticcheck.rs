@@ -1,5 +1,5 @@
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 fn json_fail(tool: &'static str, detail: String) -> ParseError {
     ParseError::Json { tool, detail }
@@ -108,6 +108,7 @@ pub fn parse_staticcheck(
                 start,
                 end,
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }

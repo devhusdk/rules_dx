@@ -1,5 +1,5 @@
 use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 pub fn parse_stylelint(
     stdout: &[u8],
@@ -92,6 +92,7 @@ pub fn parse_stylelint(
                     start,
                     end,
                     suggestions: Vec::new(),
+                    encoding: ColumnEncoding::Scalars,
                 },
             });
         }

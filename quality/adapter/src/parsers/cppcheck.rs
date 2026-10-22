@@ -4,7 +4,7 @@ use quick_xml::reader::Reader;
 use quick_xml::XmlVersion;
 
 use super::{check_output_size, code_name, known, missing, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "cppcheck";
 
@@ -106,6 +106,7 @@ fn location_finding(
             start,
             end: Some(start),
             suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
         },
     })
 }

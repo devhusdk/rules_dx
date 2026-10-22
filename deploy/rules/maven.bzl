@@ -12,7 +12,9 @@ _VALID_ARTIFACT_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012
 
 _VALID_VERSION_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-+"
 
-MAVEN_DEFAULT_REPOSITORY_URL = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+MAVEN_DEFAULT_REPOSITORY_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+
+_RETIRED_HOSTS = ["oss.sonatype.org", "s01.oss.sonatype.org"]
 
 def maven_schema_error():
     """Validates the versioned coordinate charset schema."""
@@ -107,6 +109,11 @@ def maven_repository_error(repository_url):
     if not repository_url.startswith("https://"):
         return ("maven_deploy: invalid repository_url '" + repository_url +
                 "': want an https URL so uploads never go over plaintext")
+    host = repository_url[len("https://"):].split("/")[0].lower()
+    if host in _RETIRED_HOSTS:
+        return ("maven_deploy: invalid repository_url '" + repository_url +
+                "': " + host + " is retired OSSRH infrastructure (use '" +
+                MAVEN_DEFAULT_REPOSITORY_URL + "')")
     for c in repository_url.elems():
         if c in ["\"", "\\", "'", " ", "\n", "`", "$"]:
             return ("maven_deploy: invalid repository_url '" + repository_url +

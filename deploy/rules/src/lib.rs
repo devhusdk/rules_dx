@@ -1693,6 +1693,45 @@ pub fn maven_settings_xml(username: &str, password: &str, passphrase: &str) -> S
     body
 }
 
+/// Central Portal OSSRH staging API deploy URL.
+pub const MAVEN_PORTAL_STAGING_URL: &str =
+    "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/";
+
+/// Returns the retired OSSRH host named by a repository URL.
+pub fn maven_retired_host(repository_url: &str) -> Option<&'static str> {
+    let rest = repository_url.strip_prefix("https://")?;
+    let host = rest.split('/').next().unwrap_or("");
+    ["oss.sonatype.org", "s01.oss.sonatype.org"]
+        .into_iter()
+        .find(|retired| host.eq_ignore_ascii_case(retired))
+}
+
+/// Builds the mvn deploy-file arguments.
+pub fn maven_deploy_args(
+    settings: &Path,
+    repository_url: &str,
+    jar: &Path,
+    pom: &Path,
+    group: &str,
+    artifact: &str,
+    version: &str,
+) -> Vec<String> {
+    vec![
+        "-B".to_owned(),
+        "--settings".to_owned(),
+        settings.display().to_string(),
+        "deploy:deploy-file".to_owned(),
+        format!("-Durl={repository_url}"),
+        "-DrepositoryId=dx-staging".to_owned(),
+        format!("-Dfile={}", jar.display()),
+        format!("-DpomFile={}", pom.display()),
+        format!("-DgroupId={group}"),
+        format!("-DartifactId={artifact}"),
+        format!("-Dversion={version}"),
+        "-Dpackaging=jar".to_owned(),
+    ]
+}
+
 /// Runs the Maven deploy launcher.
 pub fn maven_main(
     jar_rloc: &str,
@@ -1773,18 +1812,15 @@ pub fn maven_main(
             }
         };
         let mut cmd = std::process::Command::new("mvn");
-        cmd.arg("-B")
-            .arg("--settings")
-            .arg(&settings)
-            .arg("deploy:deploy-file")
-            .arg(format!("-Durl={repository_url}"))
-            .arg("-DrepositoryId=dx-staging")
-            .arg(format!("-Dfile={}", jar.display()))
-            .arg(format!("-DpomFile={}", pom.display()))
-            .arg(format!("-DgroupId={group}"))
-            .arg(format!("-DartifactId={artifact}"))
-            .arg(format!("-Dversion={version}"))
-            .arg("-Dpackaging=jar");
+        cmd.args(maven_deploy_args(
+            &settings,
+            repository_url,
+            &jar,
+            &pom,
+            group,
+            artifact,
+            version,
+        ));
         if !passphrase.is_empty() {
             cmd.arg("-Pgpg-sign");
         } else {
@@ -1804,7 +1840,10 @@ pub fn maven_main(
         let _ = std::fs::remove_dir_all(&workdir);
         match status {
             Ok(status) if status.success() => {
-                println!("maven_deploy: staged {group}:{artifact}:{version}");
+                println!("maven_deploy: uploaded {group}:{artifact}:{version} to {repository_url}");
+                println!(
+                    "maven_deploy: not published yet; validate and publish the deployment in the Central Portal"
+                );
                 return 0;
             }
             Ok(status) => {
@@ -3932,6 +3971,38 @@ mod tests {
         assert!(!plain.contains("gpg.passphrase"));
         let secure = write_secure_file(scratch.path(), "settings.xml", &settings).expect("secure");
         assert!(secure.is_file());
+    }
+
+    #[test]
+    fn maven_retired_ossrh_hosts_are_rejected() {
+        assert_eq!(
+            maven_retired_host("https://oss.sonatype.org/service/local/staging/deploy/maven2/"),
+            Some("oss.sonatype.org")
+        );
+        assert_eq!(
+            maven_retired_host("https://s01.oss.sonatype.org/service/local/"),
+            Some("s01.oss.sonatype.org")
+        );
+        assert_eq!(maven_retired_host(MAVEN_PORTAL_STAGING_URL), None);
+        assert_eq!(maven_retired_host("https://repo.example.com/maven2/"), None);
+    }
+
+    #[test]
+    fn maven_deploy_args_target_the_given_repository() {
+        let args = maven_deploy_args(
+            Path::new("/tmp/settings.xml"),
+            MAVEN_PORTAL_STAGING_URL,
+            Path::new("/tmp/a.jar"),
+            Path::new("/tmp/a.pom"),
+            "com.example",
+            "a",
+            "1.0.0",
+        );
+        assert!(args.contains(&format!("-Durl={MAVEN_PORTAL_STAGING_URL}")));
+        assert!(args.contains(&"deploy:deploy-file".to_owned()));
+        assert!(args.contains(&"-Dfile=/tmp/a.jar".to_owned()));
+        assert!(args.contains(&"-Dversion=1.0.0".to_owned()));
+        assert!(!args.iter().any(|arg| arg.contains("password")));
     }
 
     fn write_nupkg(path: &Path, entries: &[(&str, &str)]) {

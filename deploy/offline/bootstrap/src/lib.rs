@@ -171,7 +171,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         return format!("checksum mismatch for {asset}: got {got} want {want}");
     }
 
-    let installed = match install(&source, &options.install_dir, asset) {
+    let installed = match install(&source, &options.install_dir, asset, &want) {
         Ok(path) => path,
         Err(detail) => return detail,
     };
@@ -274,7 +274,7 @@ fn verify(dir: &Path, manifest: &str) -> Option<String> {
     None
 }
 
-fn install(source: &Path, install_dir: &str, asset: &str) -> Result<PathBuf, String> {
+fn install(source: &Path, install_dir: &str, asset: &str, want: &str) -> Result<PathBuf, String> {
     let dir = Path::new(install_dir);
     std::fs::create_dir_all(dir)
         .map_err(|error| format!("cannot create {install_dir}: {error}"))?;
@@ -285,6 +285,13 @@ fn install(source: &Path, install_dir: &str, asset: &str) -> Result<PathBuf, Str
     };
     let target = dir.join(name);
     copy(source, &target)?;
+    let got = digest(&target);
+    if got != want {
+        return Err(format!(
+            "installed {} does not match the verified launcher: got {got} want {want}",
+            target.display()
+        ));
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -295,9 +302,13 @@ fn install(source: &Path, install_dir: &str, asset: &str) -> Result<PathBuf, Str
 }
 
 fn copy(source: &Path, target: &Path) -> Result<(), String> {
-    let bytes = std::fs::read(source)
-        .map_err(|error| format!("cannot read {}: {error}", source.display()))?;
-    write(target, &String::from_utf8_lossy(&bytes))
+    std::fs::copy(source, target).map(|_| ()).map_err(|error| {
+        format!(
+            "cannot copy {} to {}: {error}",
+            source.display(),
+            target.display()
+        )
+    })
 }
 
 fn write(target: &Path, body: &str) -> Result<(), String> {

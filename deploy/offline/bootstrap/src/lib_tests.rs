@@ -170,3 +170,51 @@ fn an_unsupported_host_is_refused() {
 fn the_usage_line_names_the_required_bundle() {
     assert!(usage().contains("--bundle DIR"));
 }
+
+fn bundle_with_launcher(name: &str, bytes: &[u8]) -> (PathBuf, Options) {
+    let root = scratch(name);
+    let bazelisk = root.join("bazelisk");
+    let advisory = root.join("advisory");
+    std::fs::create_dir(&bazelisk).expect("bazelisk dir");
+    std::fs::create_dir(&advisory).expect("advisory dir");
+    let asset = host_launcher("linux", "x86_64").expect("launcher");
+    std::fs::write(bazelisk.join(asset), bytes).expect("launcher");
+    let sum = dx_digest::sha256_file_hex(&bazelisk.join(asset)).expect("digest");
+    std::fs::write(bazelisk.join("SHA256SUMS"), format!("{sum}  {asset}\n")).expect("manifest");
+    let set = ADVISORY_SETS[0];
+    std::fs::write(advisory.join(format!("{set}.json")), b"{}").expect("snapshot");
+    let sum = dx_digest::sha256_file_hex(&advisory.join(format!("{set}.json"))).expect("digest");
+    std::fs::write(advisory.join("SHA256SUMS"), format!("{sum}  {set}.json\n")).expect("manifest");
+    let options = Options {
+        bundle: Some(root.to_string_lossy().into_owned()),
+        install_dir: root.join("bin").to_string_lossy().into_owned(),
+        workspace: root.join("ws").to_string_lossy().into_owned(),
+    };
+    (root, options)
+}
+
+#[test]
+fn a_non_utf8_launcher_is_installed_byte_for_byte() {
+    let bytes = [0x7f, b'E', b'L', b'F', 0xff, 0x80, 0x00, 0xc3, 0x28];
+    let (root, options) = bundle_with_launcher("dx-bootstrap-binary-", &bytes);
+    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    let installed = std::fs::read(root.join("bin").join("bazel")).expect("installed launcher");
+    assert_eq!(installed, bytes);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(root.join("bin").join("bazel"))
+            .expect("metadata")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o111, 0o111);
+    }
+}
+
+#[test]
+fn a_launcher_that_cannot_be_copied_is_reported() {
+    let (root, options) = bundle_with_launcher("dx-bootstrap-copyfail-", b"\xff\xfe");
+    std::fs::create_dir_all(root.join("bin").join("bazel")).expect("blocking dir");
+    let refusal = run(&options, "linux", "x86_64", "2026-01-01");
+    assert!(refusal.starts_with("cannot copy "), "{refusal}");
+}

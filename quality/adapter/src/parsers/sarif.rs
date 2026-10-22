@@ -235,11 +235,24 @@ pub fn parse_sarif(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
+    let log = read_sarif(tool, stdout)?;
+    sarif_findings(tool, &log, code, files)
+}
+
+pub(super) fn read_sarif(tool: &'static str, stdout: &[u8]) -> Result<Sarif, ParseError> {
     check_output_size(tool, stdout)?;
-    let log: Sarif = serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
+    serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
         tool,
         detail: err.to_string(),
-    })?;
+    })
+}
+
+pub(super) fn sarif_findings(
+    tool: &'static str,
+    log: &Sarif,
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
     let mut findings = Vec::new();
     for run in &log.runs {
         check_invocations(tool, run.invocations.as_deref().unwrap_or_default())?;

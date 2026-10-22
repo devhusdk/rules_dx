@@ -174,12 +174,25 @@ pub fn cosign_argv(
     ]
 }
 
-pub fn gh_argv(gh: &str, subject: &Path, owner: &str) -> Vec<String> {
+pub fn gh_argv(
+    gh: &str,
+    subject: &Path,
+    attestation: &Path,
+    identity: &str,
+    issuer: &str,
+    owner: &str,
+) -> Vec<String> {
     vec![
         gh.to_owned(),
         "attestation".to_owned(),
         "verify".to_owned(),
         subject.to_string_lossy().into_owned(),
+        "--bundle".to_owned(),
+        attestation.to_string_lossy().into_owned(),
+        "--cert-identity".to_owned(),
+        identity.to_owned(),
+        "--cert-oidc-issuer".to_owned(),
+        issuer.to_owned(),
         "--owner".to_owned(),
         owner.to_owned(),
     ]
@@ -196,7 +209,15 @@ pub trait Verifier {
         issuer: &str,
         subject: &Path,
     ) -> bool;
-    fn gh_verify(&self, gh: &str, subject: &Path, owner: &str) -> bool;
+    fn gh_verify(
+        &self,
+        gh: &str,
+        subject: &Path,
+        attestation: &Path,
+        identity: &str,
+        issuer: &str,
+        owner: &str,
+    ) -> bool;
     fn cosign_bin(&self) -> String;
     fn gh_bin(&self) -> String;
     fn have(&self, bin: &str) -> bool;
@@ -271,8 +292,16 @@ impl Verifier for SystemVerifier {
         dx_process::spawn_success(&cosign_argv(cosign, bundle, identity, issuer, subject))
     }
 
-    fn gh_verify(&self, gh: &str, subject: &Path, owner: &str) -> bool {
-        dx_process::spawn_success(&gh_argv(gh, subject, owner))
+    fn gh_verify(
+        &self,
+        gh: &str,
+        subject: &Path,
+        attestation: &Path,
+        identity: &str,
+        issuer: &str,
+        owner: &str,
+    ) -> bool {
+        dx_process::spawn_success(&gh_argv(gh, subject, attestation, identity, issuer, owner))
     }
 
     fn cosign_bin(&self) -> String {
@@ -401,11 +430,19 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
             "dx_verify: verifying {} against attestation via {gh} attestation verify\n",
             binary.display()
         ));
-        if verifier.gh_verify(&gh, &binary, &args.owner) {
+        let attestation = PathBuf::from(&args.attestation);
+        if verifier.gh_verify(
+            &gh,
+            &binary,
+            &attestation,
+            &args.identity,
+            &args.issuer,
+            &args.owner,
+        ) {
             verified = "gh-attestation".to_owned();
             out.push_str(&format!(
-                "dx_verify: attestation publisher-identity OK (owner={})\n",
-                args.owner
+                "dx_verify: attestation publisher-identity OK (identity={} issuer={} owner={})\n",
+                args.identity, args.issuer, args.owner
             ));
         } else {
             return Err(
@@ -498,6 +535,7 @@ mod tests {
         gh_ok: bool,
         have_cosign: bool,
         have_gh: bool,
+        gh_policy: Option<(&'static str, &'static str)>,
     }
 
     impl FakeVerifier {
@@ -508,6 +546,7 @@ mod tests {
                 gh_ok: true,
                 have_cosign: true,
                 have_gh: true,
+                gh_policy: None,
             }
         }
 
@@ -547,8 +586,20 @@ mod tests {
             }
         }
 
-        fn gh_verify(&self, _gh: &str, _subject: &Path, _owner: &str) -> bool {
+        fn gh_verify(
+            &self,
+            _gh: &str,
+            _subject: &Path,
+            _attestation: &Path,
+            identity: &str,
+            issuer: &str,
+            _owner: &str,
+        ) -> bool {
             self.gh_ok
+                && self
+                    .gh_policy
+                    .as_ref()
+                    .is_none_or(|p| *p == (identity, issuer))
         }
 
         fn cosign_bin(&self) -> String {
@@ -631,8 +682,28 @@ mod tests {
             ]
         );
         assert_eq!(
-            gh_argv("gh", std::path::Path::new("/b"), "owner",),
-            vec!["gh", "attestation", "verify", "/b", "--owner", "owner",]
+            gh_argv(
+                "gh",
+                std::path::Path::new("/b"),
+                std::path::Path::new("/a"),
+                "ID",
+                "ISS",
+                "owner",
+            ),
+            vec![
+                "gh",
+                "attestation",
+                "verify",
+                "/b",
+                "--bundle",
+                "/a",
+                "--cert-identity",
+                "ID",
+                "--cert-oidc-issuer",
+                "ISS",
+                "--owner",
+                "owner",
+            ]
         );
     }
 
@@ -944,7 +1015,9 @@ mod tests {
             fake
         };
         let out = verify(&attestation_args(), &attestation_fake(false, true)).expect("gh path");
-        assert!(out.contains("attestation publisher-identity OK (owner=owner)"));
+        assert!(out.contains(
+            "attestation publisher-identity OK (identity=IDENT issuer=ISSUER owner=owner)"
+        ));
         let mut no_owner = attestation_args();
         no_owner.owner.clear();
         let err = verify(&no_owner, &attestation_fake(false, true)).expect_err("owner required");
@@ -952,6 +1025,16 @@ mod tests {
         let err = verify(&attestation_args(), &attestation_fake(false, false))
             .expect_err("attestation rejected");
         assert!(err.contains("attestation verification failed"), "got {err}");
+        let mut wrong_signer = attestation_fake(false, true);
+        wrong_signer.gh_policy = Some(("OTHER", "ISSUER"));
+        let err = verify(&attestation_args(), &wrong_signer).expect_err("identity mismatch");
+        assert!(err.contains("attestation verification failed"), "got {err}");
+        let mut wrong_issuer = attestation_fake(false, true);
+        wrong_issuer.gh_policy = Some(("IDENT", "OTHER"));
+        verify(&attestation_args(), &wrong_issuer).expect_err("issuer mismatch");
+        let mut right_signer = attestation_fake(false, true);
+        right_signer.gh_policy = Some(("IDENT", "ISSUER"));
+        verify(&attestation_args(), &right_signer).expect("policy forwarded");
         let mut with_sbom = attestation_args();
         with_sbom.sbom = "/tmp/sbom".to_owned();
         with_sbom.sbom_bundle = "/tmp/sbom.bundle".to_owned();
@@ -1065,8 +1148,8 @@ mod tests {
             assert!(verifier.have("/usr/bin/true"));
             assert!(verifier.cosign_verify("/usr/bin/true", &file, "ID", "ISS", &file));
             assert!(!verifier.cosign_verify("/usr/bin/false", &file, "ID", "ISS", &file));
-            assert!(verifier.gh_verify("/usr/bin/true", &file, "owner"));
-            assert!(!verifier.gh_verify("/usr/bin/false", &file, "owner"));
+            assert!(verifier.gh_verify("/usr/bin/true", &file, &file, "ID", "ISS", "owner"));
+            assert!(!verifier.gh_verify("/usr/bin/false", &file, &file, "ID", "ISS", "owner"));
         }
     }
 
@@ -1181,7 +1264,15 @@ mod tests {
             }
         }
 
-        fn gh_verify(&self, _gh: &str, _subject: &Path, _owner: &str) -> bool {
+        fn gh_verify(
+            &self,
+            _gh: &str,
+            _subject: &Path,
+            _attestation: &Path,
+            _identity: &str,
+            _issuer: &str,
+            _owner: &str,
+        ) -> bool {
             false
         }
 

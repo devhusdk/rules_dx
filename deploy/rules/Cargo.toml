@@ -16,6 +16,10 @@ name = "hasher"
 path = "src/bin_hasher.rs"
 
 [[bin]]
+name = "cloudflare_verify"
+path = "src/bin_cloudflare_verify.rs"
+
+[[bin]]
 name = "npm_pack"
 path = "src/bin_npm_pack.rs"
 

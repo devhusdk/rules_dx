@@ -85,6 +85,84 @@ fn github_case() {
     );
 }
 
+fn cloudflare_case() {
+    let prog = data("DX_CLOUDFLARE_PROG");
+    let production = data("DX_CLOUDFLARE_PRODUCTION_PROG");
+    let token = "dx-test-token-123";
+    let env = [
+        ("CLOUDFLARE_API_TOKEN", token),
+        ("AMBIENT_SECRET", "ambient"),
+        ("DX_PROFILE", "release"),
+    ];
+
+    let preview = dx_testing::run(&prog, &[], &env).expect("preview deploy must execute");
+    let out = preview.combined();
+    assert!(preview.status.success(), "preview deploy failed\n{out}");
+    for want in [
+        "deployed dx-demo (branch feature/demo, preview, profile: release)",
+        "  account: 0123456789abcdef0123456789abcdef",
+        "  project: dx-demo",
+        "  branch: feature/demo",
+        "  intent: preview",
+        "  files: 3 (",
+        "  deployment: dep-clean",
+        "  url: https://feature-demo.dx-demo.pages.dev",
+    ] {
+        assert!(out.contains(want), "missing '{want}'\n{out}");
+    }
+    assert!(!out.contains(token), "token leaked\n{out}");
+
+    let live = dx_testing::run(&production, &[], &[("CLOUDFLARE_API_TOKEN", token)])
+        .expect("production deploy must execute");
+    let out = live.combined();
+    assert!(live.status.success(), "production deploy failed\n{out}");
+    assert!(out.contains("  intent: production"), "{out}");
+    assert!(out.contains("url: https://main.dx-demo.pages.dev"), "{out}");
+
+    let missing = dx_testing::run(&prog, &[], &[("CLOUDFLARE_API_TOKEN", "")])
+        .expect("missing token run must execute");
+    assert!(!missing.status.success());
+    assert!(
+        missing.stderr.contains("CLOUDFLARE_API_TOKEN is not set"),
+        "{}",
+        missing.stderr
+    );
+
+    let denied = dx_testing::run(&prog, &[], &[("CLOUDFLARE_API_TOKEN", "bad-token")])
+        .expect("denied run must execute");
+    assert_eq!(denied.status.code(), Some(9), "{}", denied.combined());
+    assert!(
+        !denied.combined().contains("bad-token"),
+        "{}",
+        denied.combined()
+    );
+    assert!(denied.stderr.contains("[redacted]"), "{}", denied.stderr);
+
+    for removed in [
+        dx_testing::run(&prog, &["--dry-run"], &env).expect("removed flag must execute"),
+        dx_testing::run(
+            &prog,
+            &[],
+            &[
+                ("CLOUDFLARE_PAGES_DRY_RUN", "1"),
+                ("CLOUDFLARE_API_TOKEN", token),
+            ],
+        )
+        .expect("removed env must execute"),
+    ] {
+        assert!(!removed.status.success(), "{}", removed.combined());
+        assert!(removed.stdout.is_empty(), "{}", removed.combined());
+        assert!(
+            removed.stderr.contains("takes no arguments")
+                || removed
+                    .stderr
+                    .contains("CLOUDFLARE_PAGES_DRY_RUN is not supported"),
+            "{}",
+            removed.stderr
+        );
+    }
+}
+
 fn resources_case() {
     let plain = std::env::var("DX_RESOURCES_PLAIN").expect("DX_RESOURCES_PLAIN must list files");
     let processed =
@@ -127,6 +205,7 @@ fn deploy_verify() {
     let mode = std::env::var("DX_VERIFY_MODE").expect("DX_VERIFY_MODE must select the harness");
     match mode.as_str() {
         "archive" => archive_case(),
+        "cloudflare" => cloudflare_case(),
         "github" => github_case(),
         "resources" => resources_case(),
         other => panic!("unknown DX_VERIFY_MODE: {other}"),

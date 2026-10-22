@@ -632,11 +632,10 @@ pub fn write_event(writer: &mut dyn std::io::Write, event: &Value) -> Result<(),
         }
         _ => return Err(OutputError::NotAnEvent),
     }
-    let mut buf = serde_json::to_vec(event).map_err(|e| OutputError::Io(e.to_string()))?;
+    let mut buf =
+        serde_json::to_vec(event).map_err(|e| OutputError::from(std::io::Error::from(e)))?;
     buf.push(b'\n');
-    writer
-        .write_all(&buf)
-        .map_err(|e| OutputError::Io(e.to_string()))
+    writer.write_all(&buf).map_err(OutputError::from)
 }
 
 #[cfg(test)]

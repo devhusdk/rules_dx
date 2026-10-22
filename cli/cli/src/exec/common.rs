@@ -117,10 +117,26 @@ pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
 }
 
 pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), i32> {
-    if let Ok(event) = command_started(invocation.command.name(), "default") {
-        emit_event(out, &event)?;
-    }
-    Ok(())
+    let event = command_started(invocation.command.name(), "default")
+        .map_err(|error| stdout_output_code(&error))?;
+    emit_event(out, &event)
+}
+
+/// Writes the `error` event for a Bazel run that exited nonzero, keeping its native status.
+pub(crate) fn emit_bazel_exit(
+    out: &mut dyn Write,
+    code: &str,
+    message: &str,
+    status: i32,
+) -> Result<(), i32> {
+    let facts = dx_output::FailureFacts {
+        cause: Cause::of(code).name(),
+        status: Some(status),
+        excerpt: None,
+    };
+    let event = dx_output::failure_event(code, message, Some("execute"), &facts)
+        .map_err(|error| stdout_output_code(&error))?;
+    emit_event(out, &event)
 }
 
 pub const REASON_STALE_SOURCE: &str = "stale_source";
@@ -992,10 +1008,10 @@ mod tests {
         assert_eq!(stdout_io_code(&broken), 128 + 13);
         let other = io::Error::new(io::ErrorKind::Other, "boom");
         assert_eq!(stdout_io_code(&other), operational_code());
-        let broken_out = dx_output::OutputError::Io("Broken pipe (os error 32)".to_owned());
+        let broken_out = dx_output::OutputError::from(io::Error::from(io::ErrorKind::BrokenPipe));
         assert!(broken_out.is_broken_pipe());
         assert_eq!(stdout_output_code(&broken_out), 128 + 13);
-        let other_out = dx_output::OutputError::Io("boom".to_owned());
+        let other_out = dx_output::OutputError::from(io::Error::other("boom"));
         assert!(!other_out.is_broken_pipe());
         assert_eq!(stdout_output_code(&other_out), operational_code());
     }

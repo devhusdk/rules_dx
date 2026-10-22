@@ -42,8 +42,11 @@ pub enum OutputError {
     NotAnEvent,
     #[error("unsupported schema {major}.{minor}: want major {want}", want = crate::lifecycle::SCHEMA_MAJOR)]
     UnsupportedSchema { major: u64, minor: u64 },
-    #[error("I/O error: {0}")]
-    Io(String),
+    #[error("I/O error: {message}")]
+    Io {
+        kind: std::io::ErrorKind,
+        message: String,
+    },
     #[error("invalid correlation {value:?}: want 1-128 chars of [A-Za-z0-9/_:.-]")]
     BadCorrelation { value: String },
 }
@@ -51,8 +54,17 @@ pub enum OutputError {
 impl OutputError {
     pub fn is_broken_pipe(&self) -> bool {
         match self {
-            OutputError::Io(message) => message.to_lowercase().contains("broken pipe"),
+            OutputError::Io { kind, .. } => *kind == std::io::ErrorKind::BrokenPipe,
             _ => false,
+        }
+    }
+}
+
+impl From<std::io::Error> for OutputError {
+    fn from(error: std::io::Error) -> Self {
+        OutputError::Io {
+            kind: error.kind(),
+            message: error.to_string(),
         }
     }
 }
@@ -280,9 +292,11 @@ mod tests {
 
     #[test]
     fn broken_pipe_detected_case_insensitive() {
-        assert!(OutputError::Io("Broken pipe (os error 32)".to_owned()).is_broken_pipe());
-        assert!(OutputError::Io("broken pipe".to_owned()).is_broken_pipe());
-        assert!(!OutputError::Io("boom".to_owned()).is_broken_pipe());
+        use std::io::{Error, ErrorKind};
+        assert!(OutputError::from(Error::from(ErrorKind::BrokenPipe)).is_broken_pipe());
+        assert!(OutputError::from(Error::new(ErrorKind::BrokenPipe, "gone")).is_broken_pipe());
+        assert!(!OutputError::from(Error::other("broken pipe")).is_broken_pipe());
+        assert!(!OutputError::from(Error::from(ErrorKind::PermissionDenied)).is_broken_pipe());
         assert!(!OutputError::NotAnEvent.is_broken_pipe());
     }
 }

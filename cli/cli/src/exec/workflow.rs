@@ -8,8 +8,9 @@ use crate::args::{Command, Invocation};
 use crate::plan::{bep_path, plan_workflow, WorkflowVerb};
 use crate::reports::{plan_reports, Destination, StandardFormat};
 use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
-use dx_output::{command_finished, command_started, write_event, FinishedCounts, OutputMode};
+use dx_output::{command_finished, FinishedCounts, OutputMode};
 use dx_process::ForwardError;
+use std::io::Write;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.command == Command::Run {
@@ -18,6 +19,40 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.command == Command::Deploy {
         return execute_deploy(invocation, env);
     }
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+    } = env;
+    let mut latched = LatchedOut::new(out);
+    let code = execute_checked(
+        invocation,
+        Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut latched,
+            err,
+            ci,
+        },
+    );
+    if code == 0 {
+        latched.exit_code(code)
+    } else {
+        code
+    }
+}
+
+fn execute_checked(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
@@ -129,11 +164,13 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            let _ = write_event(out, &event);
+        if let Err(exit) = emit_started(invocation, out) {
+            return exit;
         }
     } else if invocation.chatty() && !stdout_report {
-        let _ = writeln!(out, "{}", plan.summary);
+        if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.summary)) {
+            return exit;
+        }
     }
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
@@ -159,19 +196,16 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
             bazel_code
         };
         if invocation.output == OutputMode::Json {
-            if bazel_code != 0 {
-                if let Some(event) = bazel_exit_event(
-                    CODE_BAZEL_FAILED,
-                    &format!(
-                        "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
-                        invocation.command.name(),
-                    ),
-                    bazel_code,
-                ) {
-                    let _ = write_event(out, &event);
+            if let Err(exit) = emit_build_completion(invocation, out, bazel_code, code) {
+                if code == 0 {
+                    return exit;
                 }
+                let _ = writeln!(
+                    err,
+                    "dx: could not write the final events to stdout; keeping exit {code}"
+                );
+                return code;
             }
-            let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
         }
         return code;
     }
@@ -188,6 +222,27 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         bazel_code,
         query_runner,
     })
+}
+
+fn emit_build_completion(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    bazel_code: i32,
+    code: i32,
+) -> Result<(), i32> {
+    if bazel_code != 0 {
+        emit_bazel_exit(
+            out,
+            CODE_BAZEL_FAILED,
+            &format!(
+                "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
+                invocation.command.name(),
+            ),
+            bazel_code,
+        )?;
+    }
+    emit_event(out, &command_finished(code, &FinishedCounts::default()))?;
+    flush_out(out)
 }
 
 #[cfg(test)]
@@ -471,3 +526,7 @@ mod test_case_launcher_tests;
 #[cfg(all(test, unix))]
 #[path = "error_boundary_launcher_tests.rs"]
 mod error_boundary_launcher_tests;
+
+#[cfg(test)]
+#[path = "workflow_delivery_tests.rs"]
+mod workflow_delivery_tests;

@@ -395,18 +395,30 @@ impl Harness {
 
     /// Runs one invocation through a recording runner and returns what it saw.
     pub(crate) fn probe_with(&self, inv: &Invocation, codes: &[Option<i32>]) -> ProbeRun {
+        let mut out = Vec::new();
+        let mut run = self.probe_streams(inv, codes, &mut out, &mut Vec::new());
+        run.out = String::from_utf8(out).expect("stdout");
+        run
+    }
+
+    /// Like `probe_with`, writing to the given streams; `out` in the result stays empty.
+    pub(crate) fn probe_streams<O: std::io::Write, E: std::io::Write>(
+        &self,
+        inv: &Invocation,
+        codes: &[Option<i32>],
+        out: &mut O,
+        err: &mut E,
+    ) -> ProbeRun {
         let probe = ArgvProbe {
             codes: codes.to_vec(),
             seen: Rc::new(RefCell::new(Vec::new())),
             seen_env: Rc::clone(&self.seen_env),
         };
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let code = execute(inv, self.env(&probe, &mut out, &mut err));
+        let code = execute(inv, self.env_with(&probe, out, err));
         let argv = probe.seen.borrow().clone();
         ProbeRun {
             code,
-            out: String::from_utf8(out).expect("stdout"),
+            out: String::new(),
             argv,
         }
     }

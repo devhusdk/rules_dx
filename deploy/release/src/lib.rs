@@ -426,14 +426,14 @@ pub fn render_signing_dry_run(identity: &str, issuer: &str, assets: &[String]) -
         let base = basename_of(asset);
         out.push_str(&format!("  asset: {base} ({asset})\n"));
         out.push_str(&format!(
-            "  command: cosign sign-blob --bundle {base}.bundle --certificate-identity {identity} --certificate-issuer {issuer} {asset}\n"
+            "  command: cosign sign-blob --yes --bundle {base}.bundle {asset}\n"
         ));
         out.push_str(&format!(
             "  command: gh attestation create {asset} --bundle {base}.bundle\n"
         ));
     }
     out.push_str(&format!(
-        "  verify: cosign verify-blob --bundle <bundle> --certificate-identity {identity} --certificate-issuer {issuer} <binary>\n"
+        "  verify: cosign verify-blob --bundle <bundle> --certificate-identity {identity} --certificate-oidc-issuer {issuer} <binary>\n"
     ));
     out
 }
@@ -466,17 +466,13 @@ pub fn signing_run(
     signing_live(identity, issuer, assets)
 }
 
-pub fn signing_sign_argv(asset: &str, bundle: &str, identity: &str, issuer: &str) -> Vec<String> {
+pub fn signing_sign_argv(asset: &str, bundle: &str) -> Vec<String> {
     vec![
         "cosign".to_owned(),
         "sign-blob".to_owned(),
         "--yes".to_owned(),
         "--bundle".to_owned(),
         bundle.to_owned(),
-        "--certificate-identity".to_owned(),
-        identity.to_owned(),
-        "--certificate-oidc-issuer".to_owned(),
-        issuer.to_owned(),
         asset.to_owned(),
     ]
 }
@@ -523,7 +519,7 @@ fn signing_live(identity: &str, issuer: &str, assets: &[String]) -> Result<Strin
     ));
     for asset in assets {
         let bundle = signing_bundle_for(asset);
-        let sign_argv = signing_sign_argv(asset, &bundle, identity, issuer);
+        let sign_argv = signing_sign_argv(asset, &bundle);
         let sign_out = dx_process::spawn_output(&sign_argv, std::path::Path::new("."), &[], false)
             .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
         if !sign_out.status.success() {
@@ -1394,7 +1390,7 @@ mod tests {
 
     #[test]
     fn signing_argv_pins_bundle_and_version() {
-        let sign = signing_sign_argv("/tmp/a.bin", "a.bin.bundle", "IDENT", "ISSUER");
+        let sign = signing_sign_argv("/tmp/a.bin", "a.bin.bundle");
         assert_eq!(
             sign,
             vec![
@@ -1403,10 +1399,6 @@ mod tests {
                 "--yes",
                 "--bundle",
                 "a.bin.bundle",
-                "--certificate-identity",
-                "IDENT",
-                "--certificate-oidc-issuer",
-                "ISSUER",
                 "/tmp/a.bin",
             ]
         );

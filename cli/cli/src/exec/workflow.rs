@@ -463,3 +463,7 @@ mod stream_probe_tests;
 #[cfg(all(test, unix))]
 #[path = "build_failure_launcher_tests.rs"]
 mod build_failure_launcher_tests;
+
+#[cfg(all(test, unix))]
+#[path = "test_case_launcher_tests.rs"]
+mod test_case_launcher_tests;

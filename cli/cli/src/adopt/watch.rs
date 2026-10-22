@@ -267,6 +267,7 @@ mod tests {
                     "testActionOutput": [{"name": "test.xml", "uri": uri}],
                 },
             }),
+            serde_json::json!({"id": {"buildMetrics": {}}, "lastMessage": true}),
         ];
         let text = lines
             .iter()

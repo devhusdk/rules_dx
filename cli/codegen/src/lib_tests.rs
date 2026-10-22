@@ -111,7 +111,11 @@ fn shard_bytes_with_replaces(
 fn output(label: &str, files: Vec<(&str, Vec<u8>)>) -> TargetOutput {
     TargetOutput {
         label: label.to_owned(),
+        aspect: None,
+        configuration: None,
         success: true,
+        declared: true,
+        incomplete: false,
         artifacts: files
             .into_iter()
             .map(|(path, bytes)| CollectedArtifact {

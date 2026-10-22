@@ -5,7 +5,7 @@ use crate::plan::OUTPUT_GROUP;
 use dx_output::{DiagnosticEvent, RelatedEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
-use super::common::{collect_targets, FileChange};
+use super::common::{collect_output_account, FileChange};
 use super::quality_reconcile::{reconcile, Conflict, Producer};
 
 #[derive(Default)]
@@ -73,6 +73,18 @@ pub(crate) struct Collected {
     pub(crate) original_digests: BTreeMap<String, [u8; 32]>,
     pub(crate) conflicts: Vec<Conflict>,
     pub(crate) complete: bool,
+    pub(crate) problems: Vec<String>,
+}
+
+impl Collected {
+    /// Names the first missing or invalid result, with how many there were.
+    pub(crate) fn problem_detail(&self) -> Option<String> {
+        let first = self.problems.first()?;
+        Some(match self.problems.len() {
+            1 => first.clone(),
+            count => format!("{count} missing or invalid results: {first}"),
+        })
+    }
 }
 
 fn map_severity(value: i32) -> Option<Severity> {
@@ -149,14 +161,27 @@ pub(crate) fn collect_results_in(
     group: &str,
     workspace: &Path,
 ) -> Result<Collected, (String, String)> {
-    let targets = collect_targets(bep, group, workspace)?;
+    let account = collect_output_account(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
     let mut initial = Vec::new();
     let mut terminal = Vec::new();
     let mut producers = Vec::new();
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
     let mut complete = true;
-    for target in &targets {
+    let mut problems = Vec::new();
+    for gap in account.gaps.iter().filter(|gap| !gap.is_skipped()) {
+        problems.push(gap.describe());
+    }
+    if !account.ended {
+        problems.push("build events ended before Bazel's last event".to_owned());
+    }
+    for target in &account.targets {
+        if target.incomplete {
+            problems.push(format!(
+                "{} reported an incomplete {group} output group",
+                target.label
+            ));
+        }
         if !target.success {
             complete = false;
             continue;
@@ -171,7 +196,10 @@ pub(crate) fn collect_results_in(
             staged.absorb(part);
         }
         if !staged_ok {
-            complete = false;
+            problems.push(format!(
+                "{} reported an invalid quality result",
+                target.label
+            ));
             continue;
         }
         tools.extend(staged.tools.iter().cloned());
@@ -206,7 +234,8 @@ pub(crate) fn collect_results_in(
             .filter_map(|(path, digest)| Some((path, digest?)))
             .collect(),
         conflicts: reconciled.conflicts,
-        complete,
+        complete: complete && problems.is_empty(),
+        problems,
     })
 }
 
@@ -309,5 +338,199 @@ mod tests {
         };
         assert_eq!(code, CODE_INVALID_BEP);
         assert!(message.contains("invalid BEP config"));
+    }
+
+    const ASPECT: &str = "//quality:real_aspects.bzl%real_lint_aspect";
+
+    fn completion_id(label: &str) -> serde_json::Value {
+        serde_json::json!({"targetCompleted": {
+            "label": label,
+            "aspect": ASPECT,
+            "configuration": {"id": "cfg1"},
+        }})
+    }
+
+    fn configured(labels: &[&str]) -> String {
+        let children: Vec<serde_json::Value> =
+            labels.iter().map(|label| completion_id(label)).collect();
+        serde_json::json!({
+            "id": {"targetConfigured": {"label": labels[0], "aspect": ASPECT}},
+            "children": children,
+        })
+        .to_string()
+    }
+
+    fn produced(harness: &Harness, label: &str, set: &str) -> Vec<String> {
+        let artifact = harness.temp.join(format!("{set}.pb"));
+        std::fs::write(&artifact, harness.valid_result(vec![], vec![])).expect("artifact");
+        vec![
+            serde_json::json!({
+                "id": {"namedSet": {"id": set}},
+                "namedSetOfFiles": {"files": [{"uri": format!("file://{}", artifact.display())}]},
+            })
+            .to_string(),
+            serde_json::json!({
+                "id": completion_id(label),
+                "completed": {
+                    "success": true,
+                    "outputGroup": [{"name": "dx_results", "fileSets": [{"id": set}]}],
+                },
+            })
+            .to_string(),
+        ]
+    }
+
+    fn collect(harness: &Harness, lines: &[String]) -> Collected {
+        let bep = harness.temp.join("events.json");
+        std::fs::write(&bep, lines.join("\n")).expect("bep");
+        collect_results_in(&bep, "dx_results", &harness.workspace).expect("collected")
+    }
+
+    #[test]
+    fn two_producers_both_reported_are_complete() {
+        let harness = Harness::new("producers-both");
+        harness.write_source("src/a.py", "x = 1\n");
+        let mut lines = vec![configured(&["//a:one", "//a:two"])];
+        lines.extend(produced(&harness, "//a:one", "0"));
+        lines.extend(produced(&harness, "//a:two", "1"));
+        lines.push(LAST_EVENT.to_owned());
+        let collected = collect(&harness, &lines);
+        assert!(collected.complete, "{:?}", collected.problems);
+        assert!(collected.problem_detail().is_none());
+    }
+
+    #[test]
+    fn an_announced_producer_that_never_reports_is_incomplete() {
+        let harness = Harness::new("producers-one-missing");
+        harness.write_source("src/a.py", "x = 1\n");
+        let mut lines = vec![configured(&["//a:one", "//a:two"])];
+        lines.extend(produced(&harness, "//a:one", "0"));
+        lines.push(LAST_EVENT.to_owned());
+        let collected = collect(&harness, &lines);
+        assert!(!collected.complete);
+        assert_eq!(
+            collected.problem_detail().as_deref(),
+            Some(
+                "targetCompleted for //a:two (//quality:real_aspects.bzl%real_lint_aspect) \
+                 was announced but never reported"
+            )
+        );
+    }
+
+    #[test]
+    fn a_stream_without_bazels_last_event_is_incomplete() {
+        let harness = Harness::new("producers-unterminated");
+        harness.write_source("src/a.py", "x = 1\n");
+        let lines = produced(&harness, "//a:one", "0");
+        let collected = collect(&harness, &lines);
+        assert!(!collected.complete);
+        assert_eq!(
+            collected.problems,
+            vec!["build events ended before Bazel's last event".to_owned()]
+        );
+        let empty = collect(&harness, &[]);
+        assert!(!empty.complete, "an empty stream proves nothing");
+    }
+
+    #[test]
+    fn no_applicable_work_is_complete_only_once_every_target_reported() {
+        let harness = Harness::new("producers-no-work");
+        let done = serde_json::json!({
+            "id": {"targetCompleted": {"label": "//a:docs", "configuration": {"id": "cfg1"}}},
+            "completed": {"success": true},
+        })
+        .to_string();
+        let announce = serde_json::json!({
+            "id": {"targetConfigured": {"label": "//a:docs"}},
+            "children": [{"targetCompleted": {"label": "//a:docs", "configuration": {"id": "cfg1"}}}],
+        })
+        .to_string();
+        let clean = collect(
+            &harness,
+            &[announce.clone(), done.clone(), LAST_EVENT.to_owned()],
+        );
+        assert!(clean.complete, "{:?}", clean.problems);
+        assert!(clean.tools.is_empty());
+        let missing = collect(&harness, &[announce, LAST_EVENT.to_owned()]);
+        assert!(!missing.complete);
+    }
+
+    #[test]
+    fn skipped_targets_are_not_missing_results() {
+        let harness = Harness::new("producers-skipped");
+        harness.write_source("src/a.py", "x = 1\n");
+        let mut lines = vec![configured(&["//a:one", "//a:windows_only"])];
+        lines.extend(produced(&harness, "//a:one", "0"));
+        lines.push(
+            serde_json::json!({"id": completion_id("//a:windows_only"), "aborted": {"reason": "SKIPPED"}})
+                .to_string(),
+        );
+        lines.push(LAST_EVENT.to_owned());
+        let collected = collect(&harness, &lines);
+        assert!(collected.complete, "{:?}", collected.problems);
+    }
+
+    #[test]
+    fn aborted_and_incomplete_producers_name_their_cause() {
+        let harness = Harness::new("producers-aborted");
+        harness.write_source("src/a.py", "x = 1\n");
+        let mut lines = vec![configured(&["//a:one", "//a:two"])];
+        lines.extend(produced(&harness, "//a:one", "0"));
+        lines.push(
+            serde_json::json!({"id": completion_id("//a:two"), "aborted": {"reason": "USER_INTERRUPTED"}})
+                .to_string(),
+        );
+        lines.push(LAST_EVENT.to_owned());
+        let collected = collect(&harness, &lines);
+        assert!(!collected.complete);
+        assert!(
+            collected.problems[0].ends_with("was aborted: USER_INTERRUPTED"),
+            "{:?}",
+            collected.problems
+        );
+
+        let partial = serde_json::json!({
+            "id": completion_id("//a:one"),
+            "completed": {
+                "success": true,
+                "outputGroup": [{"name": "dx_results", "incomplete": true}],
+            },
+        })
+        .to_string();
+        let collected = collect(&harness, &[partial, LAST_EVENT.to_owned()]);
+        assert!(!collected.complete);
+        assert_eq!(
+            collected.problems,
+            vec!["//a:one reported an incomplete dx_results output group".to_owned()]
+        );
+    }
+
+    #[test]
+    fn an_invalid_result_names_its_producer() {
+        let harness = Harness::new("producers-invalid");
+        let artifact = harness.temp.join("bad.pb");
+        std::fs::write(&artifact, b"not a result").expect("artifact");
+        let lines = vec![
+            serde_json::json!({
+                "id": {"namedSet": {"id": "0"}},
+                "namedSetOfFiles": {"files": [{"uri": format!("file://{}", artifact.display())}]},
+            })
+            .to_string(),
+            serde_json::json!({
+                "id": completion_id("//a:one"),
+                "completed": {
+                    "success": true,
+                    "outputGroup": [{"name": "dx_results", "fileSets": [{"id": "0"}]}],
+                },
+            })
+            .to_string(),
+            LAST_EVENT.to_owned(),
+        ];
+        let collected = collect(&harness, &lines);
+        assert!(!collected.complete);
+        assert_eq!(
+            collected.problems,
+            vec!["//a:one reported an invalid quality result".to_owned()]
+        );
     }
 }

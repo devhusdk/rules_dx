@@ -32,6 +32,13 @@ disagree leave the file unchanged, name the targets on stderr, and report
 `not_applied` with reason `conflicting_candidates` or `conflicting_digests`.
 Other files still apply.
 
+The result set is incomplete when a target fails, a result is invalid, Bazel
+announces a target or aspect it never reports, an output group is marked
+incomplete, or the build events end before Bazel's last event. Targets Bazel
+skips as incompatible are not missing. An incomplete run prints
+`dx: incomplete_results: <reason>` on stderr, or an `incomplete_results`
+error event in JSON, and never applies fixes.
+
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
 `--fail-on`, an incomplete result set, a conflicting fix, a failed report write, or a missing,
 malformed, or stale baseline. Bazel failures report `1`, not Bazel's code.

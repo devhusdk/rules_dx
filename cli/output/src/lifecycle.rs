@@ -18,6 +18,7 @@ pub const EVENTS: &[&str] = &[
     "report",
     "selection",
     "status",
+    "test_case",
     "test_outcome",
 ];
 
@@ -305,7 +306,24 @@ pub struct TestOutcome {
     pub artifacts_collected: u64,
     pub artifacts_missing: u64,
     pub artifacts_invalid: u64,
+    pub cases_omitted: u64,
     pub evidence_complete: bool,
+}
+
+/// One test case read from a native test report.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TestCase {
+    pub target: String,
+    pub configuration: Option<String>,
+    pub run: Option<u32>,
+    pub shard: Option<u32>,
+    pub attempt: Option<u32>,
+    pub cached: Option<bool>,
+    pub classname: Option<String>,
+    pub name: String,
+    pub outcome: String,
+    pub message: Option<String>,
+    pub message_truncated: bool,
 }
 
 fn opt_str(map: &mut serde_json::Map<String, Value>, field: &str, value: &Option<String>) {
@@ -347,10 +365,39 @@ pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
             "invalid": outcome.artifacts_invalid,
         }),
     );
+    if outcome.cases_omitted > 0 {
+        map.insert(
+            "cases_omitted".to_owned(),
+            Value::from(outcome.cases_omitted),
+        );
+    }
     map.insert(
         "evidence_complete".to_owned(),
         Value::Bool(outcome.evidence_complete),
     );
+    Ok(Value::Object(map))
+}
+
+pub fn test_case_event(case: &TestCase) -> Result<Value, OutputError> {
+    nonempty("target", &case.target)?;
+    nonempty("name", &case.name)?;
+    nonempty("outcome", &case.outcome)?;
+    let mut map = base("test_case");
+    map.insert("target".to_owned(), Value::String(case.target.clone()));
+    opt_str(&mut map, "configuration", &case.configuration);
+    opt_u64(&mut map, "run", case.run.map(u64::from));
+    opt_u64(&mut map, "shard", case.shard.map(u64::from));
+    opt_u64(&mut map, "attempt", case.attempt.map(u64::from));
+    if let Some(cached) = case.cached {
+        map.insert("cached".to_owned(), Value::Bool(cached));
+    }
+    opt_str(&mut map, "classname", &case.classname);
+    map.insert("name".to_owned(), Value::String(case.name.clone()));
+    map.insert("outcome".to_owned(), Value::String(case.outcome.clone()));
+    opt_str(&mut map, "message", &case.message);
+    if case.message_truncated {
+        map.insert("message_truncated".to_owned(), Value::Bool(true));
+    }
     Ok(Value::Object(map))
 }
 
@@ -844,6 +891,62 @@ mod tests {
         write_event(&mut buf, &event).expect("write");
         let parsed: Value = serde_json::from_slice(&buf).expect("parse");
         assert_eq!(parsed["outcome"], Value::String("passed".to_owned()));
+    }
+
+    #[test]
+    fn test_case_shape_omits_unknowns() {
+        let event = test_case_event(&TestCase {
+            target: "//a:t".to_owned(),
+            configuration: Some("c1".to_owned()),
+            run: Some(1),
+            shard: Some(2),
+            attempt: Some(1),
+            cached: Some(false),
+            classname: Some("suite".to_owned()),
+            name: "fails".to_owned(),
+            outcome: "failed".to_owned(),
+            message: Some("boom".to_owned()),
+            message_truncated: true,
+        })
+        .expect("case");
+        assert_eq!(event["event"], Value::String("test_case".to_owned()));
+        assert_eq!(event["shard"], Value::from(2));
+        assert_eq!(event["classname"], Value::String("suite".to_owned()));
+        assert_eq!(event["outcome"], Value::String("failed".to_owned()));
+        assert_eq!(event["message"], Value::String("boom".to_owned()));
+        assert_eq!(event["message_truncated"], Value::Bool(true));
+        let bare = test_case_event(&TestCase {
+            target: "//a:t".to_owned(),
+            name: "passes".to_owned(),
+            outcome: "passed".to_owned(),
+            ..TestCase::default()
+        })
+        .expect("bare");
+        for field in [
+            "configuration",
+            "run",
+            "cached",
+            "classname",
+            "message",
+            "message_truncated",
+        ] {
+            assert!(bare.get(field).is_none(), "{field} stays unknown");
+        }
+        assert!(test_case_event(&TestCase::default()).is_err());
+        assert!(test_case_event(&TestCase {
+            target: "//a:t".to_owned(),
+            outcome: "passed".to_owned(),
+            ..TestCase::default()
+        })
+        .is_err());
+        let omitted = test_outcome_event(&TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "failed".to_owned(),
+            cases_omitted: 3,
+            ..TestOutcome::default()
+        })
+        .expect("omitted");
+        assert_eq!(omitted["cases_omitted"], Value::from(3));
     }
 
     #[test]

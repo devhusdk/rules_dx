@@ -9,16 +9,18 @@
 )]
 
 pub mod failures;
+pub mod ledger;
 pub mod outputs;
 pub mod test_outputs;
 
 pub use failures::{
     collect_build_failures, BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef,
 };
-pub use outputs::{collect, collect_with_workspace};
+pub use ledger::{EventGap, EventLedger};
+pub use outputs::{collect, collect_account, collect_with_workspace, OutputAccount};
 pub use test_outputs::{
     collect_test_events, collect_test_outputs, TestEvents, TestOutputFile, TestResultFile,
-    TestResultRecord, TestSummaryRecord,
+    TestResultRecord, TestSummaryRecord, UnbuiltTest,
 };
 
 use std::path::{Path, PathBuf};
@@ -56,7 +58,11 @@ pub struct CollectedArtifact {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TargetOutput {
     pub label: String,
+    pub aspect: Option<String>,
+    pub configuration: Option<String>,
     pub success: bool,
+    pub declared: bool,
+    pub incomplete: bool,
     pub artifacts: Vec<CollectedArtifact>,
 }
 

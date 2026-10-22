@@ -831,6 +831,7 @@ mod tests {
                     },
                 })
                 .to_string(),
+                LAST_EVENT.to_owned(),
             ],
             apply_files: staged,
             verify_files,

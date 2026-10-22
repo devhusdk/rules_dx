@@ -25,6 +25,9 @@ pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
 }
 
+/// The event Bazel ends every complete build event stream with.
+pub(crate) const LAST_EVENT: &str = r#"{"id":{"buildMetrics":{}},"lastMessage":true}"#;
+
 pub(crate) struct Harness {
     pub(crate) workspace: PathBuf,
     pub(crate) temp: PathBuf,
@@ -38,6 +41,7 @@ pub(crate) struct Harness {
     pub(crate) signalled: bool,
     pub(crate) skip_bep: bool,
     pub(crate) raw_bep: Option<Vec<String>>,
+    pub(crate) unterminated_bep: bool,
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
@@ -104,6 +108,7 @@ impl Harness {
             signalled: false,
             skip_bep: false,
             raw_bep: None,
+            unterminated_bep: false,
             query: ScriptQuery {
                 calls: RefCell::new(Vec::new()),
                 outputs: RefCell::new(Vec::new()),
@@ -234,9 +239,13 @@ impl Harness {
 
     pub(crate) fn runner(&self) -> FakeRunner {
         if let Some(lines) = &self.raw_bep {
+            let mut lines = lines.clone();
+            if !self.unterminated_bep {
+                lines.push(LAST_EVENT.to_owned());
+            }
             return FakeRunner {
                 code: Some(self.bazel_code),
-                bep_lines: lines.clone(),
+                bep_lines: lines,
                 io_error: self.io_error,
                 skip_bep: self.skip_bep,
                 intended: self.intended.clone(),
@@ -279,6 +288,9 @@ impl Harness {
                 })
                 .to_string(),
             );
+        }
+        if !self.unterminated_bep {
+            lines.push(LAST_EVENT.to_owned());
         }
         FakeRunner {
             code: if self.signalled {

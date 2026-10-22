@@ -229,6 +229,7 @@ mod tests {
             original_digests: BTreeMap::from([("a.py".to_owned(), digest(ORIGINAL))]),
             conflicts: Vec::new(),
             complete: true,
+            problems: Vec::new(),
         }
     }
 

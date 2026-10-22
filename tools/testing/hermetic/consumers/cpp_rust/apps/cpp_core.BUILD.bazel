@@ -1,0 +1,40 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+
+_PUBLIC = ["//visibility:public"]
+
+genrule(
+    name = "build_config_h",
+    srcs = ["VERSION"],
+    outs = ["build_config.h"],
+    cmd = "printf 'inline constexpr int kMenuVersion = %s;\\n' \"$$(cat $<)\" > $@",
+)
+
+filegroup(
+    name = "menu_csv",
+    srcs = ["menu.csv"],
+    visibility = _PUBLIC,
+)
+
+cc_library(
+    name = "core",
+    srcs = ["menu.cc"],
+    hdrs = [
+        "group.h",
+        "menu.h",
+        ":build_config_h",
+    ],
+    copts = ["-std=c++17"],
+    data = ["menu.csv"],
+    visibility = _PUBLIC,
+)
+
+cc_test(
+    name = "menu_test",
+    srcs = ["menu_test.cc"],
+    copts = ["-std=c++17"],
+    data = ["menu.csv"],
+    deps = [
+        ":core",
+        "@googletest//:gtest_main",
+    ],
+)

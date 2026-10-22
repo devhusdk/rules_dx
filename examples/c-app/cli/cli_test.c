@@ -3,12 +3,12 @@
 
 #include "examples/c-app/cli/cli.h"
 
-#define CHECK(cond)                                         \
-  do {                                                      \
-    if (!(cond)) {                                          \
-      fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #cond); \
-      return 1;                                             \
-    }                                                       \
+#define CHECK(cond)                                                            \
+  do {                                                                         \
+    if (!(cond)) {                                                             \
+      fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #cond);               \
+      return 1;                                                                \
+    }                                                                          \
   } while (0)
 
 static int run(char **argv, int argc, char *out, size_t out_len, char *err,
@@ -36,7 +36,8 @@ int main(void) {
 
   char *list[] = {"stock", "list"};
   CHECK(run(list, 2, out, sizeof(out), err, sizeof(err)) == 0);
-  CHECK(strcmp(out, "bolt-m6 120 @ 35\nwasher-m6 300 @ 8\nnut-m6 0 @ 22\n") == 0);
+  CHECK(strcmp(out, "bolt-m6 120 @ 35\nwasher-m6 300 @ 8\nnut-m6 0 @ 22\n") ==
+        0);
 
   char *total[] = {"stock", "total"};
   CHECK(run(total, 2, out, sizeof(out), err, sizeof(err)) == 0);
@@ -59,8 +60,8 @@ int main(void) {
   CHECK(run(no_file, 4, out, sizeof(out), err, sizeof(err)) == 3);
   CHECK(strcmp(err, "stock: cannot read stock file\n") == 0);
 
-  char *bad_file[] = {"stock", "--file", "examples/c-app/store/bad_stock.json",
-                      "list"};
+  char *bad_file[] = {"stock", "--file",
+                      "examples/c-app/store/malformed/negative.json", "list"};
   CHECK(run(bad_file, 4, out, sizeof(out), err, sizeof(err)) == 3);
   CHECK(strcmp(err, "stock: stock item is malformed\n") == 0);
   return 0;

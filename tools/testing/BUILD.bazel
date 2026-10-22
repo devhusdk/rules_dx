@@ -5,6 +5,8 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library",
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "clang_diagnostics_test.rs",
+    "clang_format_test.rs",
     "hello_output.bzl",
     "hello_output_test.rs",
 ])

@@ -1,0 +1,35 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+cc_library(
+    name = "report",
+    srcs = ["report.cc"],
+    hdrs = ["report.h"],
+    copts = ["-std=c++17"],
+    deps = [
+        "//examples/cpp-app/core",
+        "@cpp_app_fmt//:fmt",
+    ],
+)
+
+cc_binary(
+    name = "pantry",
+    srcs = ["main.cc"],
+    copts = ["-std=c++17"],
+    data = ["//examples/cpp-app/core:menu_csv"],
+    local_defines = ['MENU_RLOCATION=\\"$(rlocationpath //examples/cpp-app/core:menu_csv)\\"'],
+    deps = [
+        ":report",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+cc_test(
+    name = "report_test",
+    srcs = ["report_test.cc"],
+    copts = ["-std=c++17"],
+    data = ["//examples/cpp-app/core:menu_csv"],
+    deps = [
+        ":report",
+        "@googletest//:gtest_main",
+    ],
+)

@@ -9,7 +9,7 @@ namespace pantry {
 
 namespace {
 
-std::vector<std::string> split(const std::string& line) {
+std::vector<std::string> split(const std::string &line) {
   std::vector<std::string> cells;
   std::stringstream stream(line);
   std::string cell;
@@ -19,9 +19,9 @@ std::vector<std::string> split(const std::string& line) {
   return cells;
 }
 
-}  // namespace
+} // namespace
 
-std::vector<Dish> parse_menu(std::istream& in) {
+std::vector<Dish> parse_menu(std::istream &in) {
   std::string line;
   if (!std::getline(in, line) || line != "name,category,price_cents") {
     throw ParseError("menu header is missing");
@@ -32,13 +32,14 @@ std::vector<Dish> parse_menu(std::istream& in) {
     ++number;
     const auto cells = split(line);
     if (cells.size() != 3) {
-      throw ParseError("line " + std::to_string(number) + ": expected 3 columns");
+      throw ParseError("line " + std::to_string(number) +
+                       ": expected 3 columns");
     }
     std::size_t used = 0;
     long price = 0;
     try {
       price = std::stol(cells[2], &used);
-    } catch (const std::logic_error&) {
+    } catch (const std::logic_error &) {
       used = 0;
     }
     if (used != cells[2].size()) {
@@ -49,7 +50,7 @@ std::vector<Dish> parse_menu(std::istream& in) {
   return dishes;
 }
 
-std::vector<Dish> load_menu(const std::string& path) {
+std::vector<Dish> load_menu(const std::string &path) {
   std::ifstream file(path);
   if (!file) {
     throw ParseError("cannot open " + path);
@@ -59,4 +60,4 @@ std::vector<Dish> load_menu(const std::string& path) {
 
 int menu_version() { return kMenuVersion; }
 
-}  // namespace pantry
+} // namespace pantry

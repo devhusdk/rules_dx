@@ -1,20 +1,35 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(default_visibility = ["//examples/c-app:__subpackages__"])
+
+exports_files(
+    [
+        "cli.c",
+        "cli.h",
+        "cli_test.c",
+        "main.c",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 cc_library(
     name = "cli",
     srcs = ["cli.c"],
     hdrs = ["cli.h"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
+    data = ["//examples/c-app/store:stock.json"],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //examples/c-app/store:stock.json)\\"'],
     deps = ["//examples/c-app/store"],
 )
 
 cc_binary(
     name = "stock",
     srcs = ["main.c"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = ["//examples/c-app/store:stock.json"],
     deps = [":cli"],
@@ -23,9 +38,10 @@ cc_binary(
 cc_test(
     name = "cli_test",
     srcs = ["cli_test.c"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = [
-        "//examples/c-app/store:bad_stock.json",
+        "//examples/c-app/store:malformed/negative.json",
         "//examples/c-app/store:stock.json",
     ],
     deps = [":cli"],
@@ -35,6 +51,41 @@ dx_hello_output_test(
     name = "stock_output_test",
     binary = ":stock",
     expected = "bolt-m6 120 @ 35\nwasher-m6 300 @ 8\nnut-m6 0 @ 22",
+)
+
+rust_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":stock",
+        "//examples/c-app/store:malformed/wrong_type.json",
+        "//examples/c-app/store:stock.json",
+    ],
+    env = {
+        "STOCK_BIN": "$(rootpath :stock)",
+        "STOCK_JSON": "$(rootpath //examples/c-app/store:stock.json)",
+        "STOCK_WRONG_TYPE": "$(rootpath //examples/c-app/store:malformed/wrong_type.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:clang_format_test.rs"],
+    data = [
+        "cli.c",
+        "cli.h",
+        "cli_test.c",
+        "main.c",
+        "//:.clang-format",
+        "@llvm//tools:clang-format",
+    ],
+    env = {
+        "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
+        "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
+        "DX_FORMAT_SRCS": "$(rootpath cli.c) $(rootpath cli.h) $(rootpath cli_test.c) $(rootpath main.c)",
+    },
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

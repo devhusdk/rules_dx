@@ -1,0 +1,54 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+
+_PUBLIC = ["//visibility:public"]
+
+genrule(
+    name = "store_build_h",
+    srcs = ["VERSION"],
+    outs = ["store_build.h"],
+    cmd = "printf '#define STORE_SCHEMA %s\\n' \"$$(cat $<)\" > $@",
+)
+
+filegroup(
+    name = "stock_json",
+    srcs = ["stock.json"],
+    visibility = _PUBLIC,
+)
+
+filegroup(
+    name = "negative_json",
+    srcs = ["malformed/negative.json"],
+    visibility = _PUBLIC,
+)
+
+cc_library(
+    name = "store",
+    srcs = ["store.c"],
+    hdrs = [
+        "store.h",
+        ":store_build_h",
+    ],
+    copts = ["-std=c11"],
+    visibility = _PUBLIC,
+    deps = ["@c_app_cjson//:cjson"],
+)
+
+cc_test(
+    name = "store_test",
+    srcs = ["store_test.c"],
+    copts = ["-std=c11"],
+    data = [
+        "VERSION",
+        "not_json.txt",
+        "stock.json",
+    ] + glob(["malformed/*.json"]),
+    deps = [":store"],
+)
+
+cc_test(
+    name = "linkage_test",
+    srcs = ["linkage_test.cc"],
+    copts = ["-std=c++17"],
+    data = ["stock.json"],
+    deps = [":store"],
+)

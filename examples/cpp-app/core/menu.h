@@ -15,14 +15,14 @@ struct Dish {
 };
 
 class ParseError : public std::runtime_error {
- public:
+public:
   using std::runtime_error::runtime_error;
 };
 
-std::vector<Dish> parse_menu(std::istream& in);
-std::vector<Dish> load_menu(const std::string& path);
+std::vector<Dish> parse_menu(std::istream &in);
+std::vector<Dish> load_menu(const std::string &path);
 int menu_version();
 
-}  // namespace pantry
+} // namespace pantry
 
 #endif

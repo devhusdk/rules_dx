@@ -132,6 +132,7 @@ exports_files([
     ".bazelignore",
     ".bazelrc",
     ".bazelversion",
+    ".clang-format",
     ".editorconfig",
     ".gitignore",
     ".shellcheckrc",

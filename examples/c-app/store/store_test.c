@@ -9,12 +9,12 @@
 
 #define STOCK "examples/c-app/store/stock.json"
 
-#define CHECK(cond)                                         \
-  do {                                                      \
-    if (!(cond)) {                                          \
-      fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #cond); \
-      return 1;                                             \
-    }                                                       \
+#define CHECK(cond)                                                            \
+  do {                                                                         \
+    if (!(cond)) {                                                             \
+      fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #cond);               \
+      return 1;                                                                \
+    }                                                                          \
   } while (0)
 
 int main(void) {
@@ -44,5 +44,17 @@ int main(void) {
   CHECK(store_load("examples/c-app/store/VERSION", &store, err, sizeof(err)) !=
         0);
   CHECK(strcmp(err, "stock file has no items array") == 0);
+
+  const char *malformed[] = {
+      "examples/c-app/store/malformed/wrong_type.json",
+      "examples/c-app/store/malformed/fractional.json",
+      "examples/c-app/store/malformed/negative.json",
+      "examples/c-app/store/malformed/huge.json",
+  };
+  for (size_t i = 0; i < sizeof(malformed) / sizeof(malformed[0]); i++) {
+    CHECK(store_load(malformed[i], &store, err, sizeof(err)) != 0);
+    CHECK(strcmp(err, "stock item is malformed") == 0);
+    CHECK(store.count == 0 && store.items == NULL);
+  }
   return 0;
 }

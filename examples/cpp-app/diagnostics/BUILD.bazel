@@ -1,0 +1,38 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/cpp-app:__subpackages__"])
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["//tools/testing:clang_diagnostics_test.rs"],
+    data = [
+        "clean.cc",
+        "lint_error.cc",
+        "syntax_error.cc",
+        "type_error.cc",
+        "@llvm//tools:clang",
+        "@llvm//tools:clang-tidy",
+    ],
+    env = {
+        "DX_CLANG": "$(rootpath @llvm//tools:clang)",
+        "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",
+        "DX_CLEAN": "$(rootpath clean.cc)",
+        "DX_LINT": "$(rootpath lint_error.cc)",
+        "DX_STD": "-std=c++17",
+        "DX_SYNTAX": "$(rootpath syntax_error.cc)",
+        "DX_TYPE": "$(rootpath type_error.cc)",
+    },
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

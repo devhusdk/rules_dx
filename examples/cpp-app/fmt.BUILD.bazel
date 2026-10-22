@@ -4,11 +4,7 @@ cc_library(
     name = "fmt",
     srcs = ["src/format.cc"],
     hdrs = glob(["include/fmt/*.h"]),
-    copts = [
-        "-std=c++17",
-        "-include",
-        "stdlib.h",
-    ],
+    copts = ["-std=c++17"],
     features = ["-treat_warnings_as_errors"],
     includes = ["include"],
     visibility = ["//visibility:public"],

@@ -42,8 +42,8 @@ TEST(MenuTest, LoadsPackagedResource) {
 TEST(GroupTest, SumsByCategoryWithTemplates) {
   const auto dishes = load_menu("examples/cpp-app/core/menu.csv");
   const auto totals = group_sum(
-      dishes, [](const Dish& d) { return d.category; },
-      [](const Dish& d) { return d.price_cents; });
+      dishes, [](const Dish &d) { return d.category; },
+      [](const Dish &d) { return d.price_cents; });
   ASSERT_EQ(totals.size(), 3u);
   EXPECT_EQ(totals.at("starter"), 1370);
   EXPECT_EQ(totals.at("main"), 3830);
@@ -58,5 +58,5 @@ TEST(GroupTest, WorksForOtherRowTypes) {
   EXPECT_DOUBLE_EQ(totals.at(false), 13.5);
 }
 
-}  // namespace
-}  // namespace pantry
+} // namespace
+} // namespace pantry

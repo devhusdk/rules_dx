@@ -470,9 +470,9 @@ _http_archive(
 _http_archive(
     name = "cpp_app_fmt",
     build_file = "//examples/cpp-app:fmt.BUILD.bazel",
-    sha256 = "bc23066d87ab3168f27cef3e97d545fa63314f5c79df5ea444d41d56f962c6af",
-    strip_prefix = "fmt-11.2.0",
-    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/11.2.0.tar.gz"],
+    sha256 = "ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea",
+    strip_prefix = "fmt-12.1.0",
+    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
 )
 
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")

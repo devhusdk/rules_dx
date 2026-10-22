@@ -8,8 +8,8 @@
 
 namespace pantry {
 
-std::string render_report(const std::vector<Dish>& dishes);
+std::string render_report(const std::vector<Dish> &dishes);
 
-}  // namespace pantry
+} // namespace pantry
 
 #endif

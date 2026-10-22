@@ -1,12 +1,21 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//examples/c-app:__subpackages__"])
 
-exports_files([
-    "bad_stock.json",
-    "stock.json",
-])
+exports_files(
+    [
+        "VERSION",
+        "linkage_test.cc",
+        "not_json.txt",
+        "store.c",
+        "store.h",
+        "store_test.c",
+        "stock.json",
+    ] + glob(["malformed/*.json"]),
+    visibility = ["//visibility:public"],
+)
 
 genrule(
     name = "store_build_h",
@@ -22,6 +31,7 @@ cc_library(
         "store.h",
         ":store_build_h",
     ],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = ["stock.json"],
     deps = ["@c_app_cjson//:cjson"],
@@ -30,21 +40,42 @@ cc_library(
 cc_test(
     name = "store_test",
     srcs = ["store_test.c"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c11"],
     data = [
         "VERSION",
         "not_json.txt",
         "stock.json",
-    ],
+    ] + glob(["malformed/*.json"]),
     deps = [":store"],
 )
 
 cc_test(
     name = "linkage_test",
     srcs = ["linkage_test.cc"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["stock.json"],
     deps = [":store"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:clang_format_test.rs"],
+    data = [
+        "linkage_test.cc",
+        "store.c",
+        "store.h",
+        "store_test.c",
+        "//:.clang-format",
+        "@llvm//tools:clang-format",
+    ],
+    env = {
+        "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
+        "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
+        "DX_FORMAT_SRCS": "$(rootpath linkage_test.cc) $(rootpath store.c) $(rootpath store.h) $(rootpath store_test.c)",
+    },
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

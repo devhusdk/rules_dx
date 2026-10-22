@@ -46,6 +46,17 @@ static int fail(char *err, size_t err_len, const char *message) {
   return -1;
 }
 
+#define STORE_MAX_VALUE 1000000.0
+
+static int whole(const cJSON *number, long long *out) {
+  double value = number->valuedouble;
+  if (!(value >= 0.0 && value <= STORE_MAX_VALUE)) {
+    return 0;
+  }
+  *out = (long long)value;
+  return (double)*out == value;
+}
+
 int store_schema(void) { return STORE_SCHEMA; }
 
 int store_load(const char *path, store_t *out, char *err, size_t err_len) {
@@ -77,15 +88,19 @@ int store_load(const char *path, store_t *out, char *err, size_t err_len) {
     const cJSON *name = cJSON_GetObjectItemCaseSensitive(entry, "name");
     const cJSON *qty = cJSON_GetObjectItemCaseSensitive(entry, "qty");
     const cJSON *price = cJSON_GetObjectItemCaseSensitive(entry, "price_cents");
+    long long qty_value = 0;
+    long long price_value = 0;
     if (!cJSON_IsString(name) || !cJSON_IsNumber(qty) ||
-        !cJSON_IsNumber(price) || strlen(name->valuestring) >= sizeof(list[0].name)) {
+        !cJSON_IsNumber(price) || !whole(qty, &qty_value) ||
+        !whole(price, &price_value) ||
+        strlen(name->valuestring) >= sizeof(list[0].name)) {
       free(list);
       cJSON_Delete(root);
       return fail(err, err_len, "stock item is malformed");
     }
     snprintf(list[used].name, sizeof(list[used].name), "%s", name->valuestring);
-    list[used].qty = (long)qty->valuedouble;
-    list[used].price_cents = (long)price->valuedouble;
+    list[used].qty = qty_value;
+    list[used].price_cents = price_value;
     used++;
   }
   cJSON_Delete(root);
@@ -94,8 +109,8 @@ int store_load(const char *path, store_t *out, char *err, size_t err_len) {
   return 0;
 }
 
-long store_total_cents(const store_t *store) {
-  long total = 0;
+long long store_total_cents(const store_t *store) {
+  long long total = 0;
   for (size_t i = 0; i < store->count; i++) {
     total += store->items[i].qty * store->items[i].price_cents;
   }

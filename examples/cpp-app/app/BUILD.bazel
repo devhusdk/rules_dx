@@ -1,13 +1,25 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(default_visibility = ["//examples/cpp-app:__subpackages__"])
+
+exports_files(
+    [
+        "main.cc",
+        "report.cc",
+        "report.h",
+        "report_test.cc",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 cc_library(
     name = "report",
     srcs = ["report.cc"],
     hdrs = ["report.h"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     deps = [
         "//examples/cpp-app/core",
@@ -18,8 +30,10 @@ cc_library(
 cc_binary(
     name = "pantry",
     srcs = ["main.cc"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["//examples/cpp-app/core:menu.csv"],
+    local_defines = ['MENU_RLOCATION=\\"$(rlocationpath //examples/cpp-app/core:menu.csv)\\"'],
     deps = [
         ":report",
         "@rules_cc//cc/runfiles",
@@ -29,6 +43,7 @@ cc_binary(
 cc_test(
     name = "report_test",
     srcs = ["report_test.cc"],
+    aspect_hints = ["//:clang_format_config"],
     copts = ["-std=c++17"],
     data = ["//examples/cpp-app/core:menu.csv"],
     deps = [
@@ -48,6 +63,41 @@ tiramisu    dessert    7.90
 total dessert 790
 total main 3830
 total starter 1370""",
+)
+
+rust_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":pantry",
+        "//examples/cpp-app/core:bad_menu.csv",
+        "//examples/cpp-app/core:menu.csv",
+    ],
+    env = {
+        "PANTRY_BAD_MENU": "$(rootpath //examples/cpp-app/core:bad_menu.csv)",
+        "PANTRY_BIN": "$(rootpath :pantry)",
+        "PANTRY_MENU": "$(rootpath //examples/cpp-app/core:menu.csv)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:clang_format_test.rs"],
+    data = [
+        "main.cc",
+        "report.cc",
+        "report.h",
+        "report_test.cc",
+        "//:.clang-format",
+        "@llvm//tools:clang-format",
+    ],
+    env = {
+        "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
+        "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
+        "DX_FORMAT_SRCS": "$(rootpath main.cc) $(rootpath report.cc) $(rootpath report.h) $(rootpath report_test.cc)",
+    },
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

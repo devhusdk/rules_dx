@@ -36,6 +36,13 @@ pub(crate) fn execute_new(
         .get(1)
         .map(String::as_str)
         .unwrap_or(dx_adopt::default_new_name());
+    if let Some(canonical) = dx_adopt::removed_new_language(language) {
+        let _ = writeln!(
+            err,
+            "dx: language spelling for dx new was removed: {language} (use {canonical})"
+        );
+        return pre_exec_code();
+    }
     if !dx_adopt::new_is_known_language(language) {
         let _ = writeln!(
             err,

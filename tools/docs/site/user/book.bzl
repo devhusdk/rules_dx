@@ -131,6 +131,8 @@ USER_BOOK = [
     ),
     mdbook_page("C App", "examples/c-app/README.md", "//examples/c-app:README.md"),
     mdbook_page("C++ App", "examples/cpp-app/README.md", "//examples/cpp-app:README.md"),
+    mdbook_page("Java App", "examples/java-app/README.md", "//examples/java-app:README.md"),
+    mdbook_page("Kotlin App", "examples/kotlin-app/README.md", "//examples/kotlin-app:README.md"),
     mdbook_page(
         "Python Service",
         "examples/python-service/README.md",

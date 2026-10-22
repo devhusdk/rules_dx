@@ -1,0 +1,74 @@
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/kotlin-app:__subpackages__"])
+
+exports_files(
+    [
+        "Cli.kt",
+        "CliTest.kt",
+        "Main.kt",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+kotlin_library(
+    name = "cli",
+    srcs = ["Cli.kt"],
+    deps = [
+        "//examples/kotlin-app/grades",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+kotlin_binary(
+    name = "grades",
+    srcs = ["Main.kt"],
+    main_class = "cli.MainKt",
+    visibility = ["//visibility:public"],
+    deps = [":cli"],
+)
+
+kotlin_test(
+    name = "cli_test",
+    srcs = ["CliTest.kt"],
+    test_class = "cli.CliTest",
+    deps = [
+        ":cli",
+        "@maven//:junit_junit",
+    ],
+)
+
+rust_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":grades",
+        "//examples/kotlin-app/grades:grades.json",
+        "//examples/kotlin-app/grades:malformed/above_max.json",
+        "//examples/kotlin-app/grades:malformed/empty.json",
+        "//examples/kotlin-app/grades:malformed/negative.json",
+        "//examples/kotlin-app/grades:malformed/not_array.json",
+        "//examples/kotlin-app/grades:malformed/not_json.txt",
+        "//examples/kotlin-app/grades:malformed/wrong_type.json",
+    ],
+    env = {
+        "GRADES_ABOVE_MAX": "$(rootpath //examples/kotlin-app/grades:malformed/above_max.json)",
+        "GRADES_BIN": "$(rootpath :grades)",
+        "GRADES_EMPTY": "$(rootpath //examples/kotlin-app/grades:malformed/empty.json)",
+        "GRADES_JSON": "$(rootpath //examples/kotlin-app/grades:grades.json)",
+        "GRADES_NEGATIVE": "$(rootpath //examples/kotlin-app/grades:malformed/negative.json)",
+        "GRADES_NOT_ARRAY": "$(rootpath //examples/kotlin-app/grades:malformed/not_array.json)",
+        "GRADES_NOT_JSON": "$(rootpath //examples/kotlin-app/grades:malformed/not_json.txt)",
+        "GRADES_WRONG_TYPE": "$(rootpath //examples/kotlin-app/grades:malformed/wrong_type.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

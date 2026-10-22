@@ -1,0 +1,68 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/kotlin-app:__subpackages__"])
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["//tools/testing:kotlin_diagnostics_test.rs"],
+    data = [
+        "Clean.kt",
+        "SyntaxError.kt",
+        "Unformatted.kt",
+        "WildcardImport.kt",
+        "//quality/tools/jvm:ktfmt",
+        "//quality/tools/jvm:ktlint",
+    ],
+    env = {
+        "DX_CLEAN": "$(rootpath Clean.kt)",
+        "DX_FORMAT": "$(rootpath Unformatted.kt)",
+        "DX_KTFMT": "$(rootpath //quality/tools/jvm:ktfmt)",
+        "DX_KTLINT": "$(rootpath //quality/tools/jvm:ktlint)",
+        "DX_LINT": "$(rootpath WildcardImport.kt)",
+        "DX_SYNTAX": "$(rootpath SyntaxError.kt)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:jvm_format_test.rs"],
+    data = [
+        "//examples/kotlin-app/cli:Cli.kt",
+        "//examples/kotlin-app/cli:CliTest.kt",
+        "//examples/kotlin-app/cli:Main.kt",
+        "//examples/kotlin-app/grades:ClasspathTest.kt",
+        "//examples/kotlin-app/grades:GradeException.kt",
+        "//examples/kotlin-app/grades:GradeReader.kt",
+        "//examples/kotlin-app/grades:GradeReaderTest.kt",
+        "//examples/kotlin-app/grades:Stats.kt",
+        "//examples/kotlin-app/grades:StatsTest.kt",
+        "//examples/kotlin-app/grades:Student.kt",
+        "//quality/tools/jvm:ktfmt",
+    ],
+    env = {
+        "DX_FORMATTER": "$(rootpath //quality/tools/jvm:ktfmt)",
+        "DX_FORMAT_ARGS": "--kotlinlang-style",
+        "DX_FORMAT_SRCS": " ".join([
+            "$(rootpath //examples/kotlin-app/cli:Cli.kt)",
+            "$(rootpath //examples/kotlin-app/cli:CliTest.kt)",
+            "$(rootpath //examples/kotlin-app/cli:Main.kt)",
+            "$(rootpath //examples/kotlin-app/grades:ClasspathTest.kt)",
+            "$(rootpath //examples/kotlin-app/grades:GradeException.kt)",
+            "$(rootpath //examples/kotlin-app/grades:GradeReader.kt)",
+            "$(rootpath //examples/kotlin-app/grades:GradeReaderTest.kt)",
+            "$(rootpath //examples/kotlin-app/grades:Stats.kt)",
+            "$(rootpath //examples/kotlin-app/grades:StatsTest.kt)",
+            "$(rootpath //examples/kotlin-app/grades:Student.kt)",
+        ]),
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

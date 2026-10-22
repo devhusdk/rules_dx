@@ -1,0 +1,24 @@
+[
+  {
+    "id": "INV-1001",
+    "customer": "acme",
+    "items": [
+      {"sku": "bolt-m6", "quantity": 100, "cents": 35},
+      {"sku": "washer-m6", "quantity": 200, "cents": 8}
+    ]
+  },
+  {
+    "id": "INV-1002",
+    "customer": "globex",
+    "items": [
+      {"sku": "nut-m6", "quantity": 50, "cents": 22}
+    ]
+  },
+  {
+    "id": "INV-1003",
+    "customer": "acme",
+    "items": [
+      {"sku": "bolt-m8", "quantity": 10, "cents": 60}
+    ]
+  }
+]

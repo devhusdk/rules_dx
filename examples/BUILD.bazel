@@ -37,6 +37,8 @@ filegroup(
         "//examples/mixed/hello:README.md",
         "//examples/c-app:README.md",
         "//examples/cpp-app:README.md",
+        "//examples/java-app:README.md",
+        "//examples/kotlin-app:README.md",
         "//examples/python-service:README.md",
         "//examples/qt-app:README.md",
     ],

@@ -1,0 +1,75 @@
+load("@rules_dx//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/java-app:__subpackages__"])
+
+exports_files(
+    [
+        "Cli.java",
+        "CliTest.java",
+        "Main.java",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+java_library(
+    name = "cli",
+    srcs = ["Cli.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    deps = [
+        "//examples/java-app/billing",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+java_binary(
+    name = "invoice",
+    srcs = ["Main.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "cli.Main",
+    visibility = ["//visibility:public"],
+    deps = [":cli"],
+)
+
+java_test(
+    name = "cli_test",
+    srcs = ["CliTest.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    test_class = "cli.CliTest",
+    deps = [
+        ":cli",
+        "@maven//:junit_junit",
+    ],
+)
+
+rust_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":invoice",
+        "//examples/java-app/billing:invoices.json",
+        "//examples/java-app/billing:malformed/fractional.json",
+        "//examples/java-app/billing:malformed/negative.json",
+        "//examples/java-app/billing:malformed/not_array.json",
+        "//examples/java-app/billing:malformed/not_json.txt",
+        "//examples/java-app/billing:malformed/wrong_type.json",
+    ],
+    env = {
+        "INVOICE_BIN": "$(rootpath :invoice)",
+        "INVOICE_FRACTIONAL": "$(rootpath //examples/java-app/billing:malformed/fractional.json)",
+        "INVOICE_JSON": "$(rootpath //examples/java-app/billing:invoices.json)",
+        "INVOICE_NEGATIVE": "$(rootpath //examples/java-app/billing:malformed/negative.json)",
+        "INVOICE_NOT_ARRAY": "$(rootpath //examples/java-app/billing:malformed/not_array.json)",
+        "INVOICE_NOT_JSON": "$(rootpath //examples/java-app/billing:malformed/not_json.txt)",
+        "INVOICE_WRONG_TYPE": "$(rootpath //examples/java-app/billing:malformed/wrong_type.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

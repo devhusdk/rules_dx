@@ -13,7 +13,7 @@ def kotlin_wrapper_contract_tests(name):
             expect_equal(
                 "empty gains warnings-as-errors",
                 kotlin_kotlinc_opts_with_werror({})["kotlinc_opts"],
-                "//kotlin/rules:warnings_as_errors",
+                str(Label("//kotlin/rules:warnings_as_errors")),
             ),
             expect_equal(
                 "explicit opts win",

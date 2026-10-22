@@ -19,7 +19,7 @@ fn good_evidence() -> Value {
     json!({
         "schema": SCHEMA,
         "qualification": "//tools/testing/hermetic:cpp_rust",
-        "languages": ["cpp", "rust"],
+        "languages": ["cpp", "java", "kotlin", "rust"],
         "rules_dx": {"commit": "abc123", "dirty": false},
         "result": "qualified",
         "host": {"os": "linux", "arch": "x86_64", "kernel": "6.8.0"},
@@ -37,7 +37,7 @@ fn verify(evidence: &Value) -> Result<(), String> {
         evidence,
         "abc123",
         "//tools/testing/hermetic:cpp_rust",
-        &["cpp".to_owned(), "rust".to_owned()],
+        &["cpp", "java", "kotlin", "rust"].map(str::to_owned),
     )
 }
 
@@ -128,7 +128,7 @@ fn consumer_paths_stay_inside_the_workspace() {
 fn manifest_parses_and_resolves_against_the_runfiles_base() {
     let text = json!({
         "label": "//tools/testing/hermetic:cpp_rust",
-        "languages": ["cpp", "rust"],
+        "languages": ["cpp", "java", "kotlin", "rust"],
         "module": "hermetic_consumer",
         "repo_name": "my_dx",
         "workspace_dir": "consumer ws",
@@ -142,7 +142,7 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
     .to_string();
     let manifest = parse_manifest(&text, Path::new("/run")).unwrap();
     assert_eq!(manifest.workspace_dir, "consumer ws");
-    assert_eq!(manifest.languages, vec!["cpp", "rust"]);
+    assert_eq!(manifest.languages, vec!["cpp", "java", "kotlin", "rust"]);
     assert_eq!(
         manifest.files,
         vec![(
@@ -493,7 +493,7 @@ fn runfiles_manifest() -> Manifest {
 fn the_cpp_rust_target_names_a_real_consumer() {
     let manifest = runfiles_manifest();
     assert_eq!(manifest.label, "//tools/testing/hermetic:cpp_rust");
-    assert_eq!(manifest.languages, vec!["cpp", "rust"]);
+    assert_eq!(manifest.languages, vec!["cpp", "java", "kotlin", "rust"]);
     assert_eq!(manifest.repo_name, "my_dx");
     assert!(
         manifest.workspace_dir.contains(' '),

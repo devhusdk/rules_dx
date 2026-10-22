@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{is_covered_language, is_starlark, FileVerdict, GateVerdict};
 use crate::{find_ignores, is_ignored, FileHits, LcovError, ELIGIBLE, SUPPORT};
@@ -193,4 +193,59 @@ pub fn evaluate(
             .push("no executable lines in scope: an empty denominator is never a pass".to_string());
     }
     verdict
+}
+
+fn normalize_path(path: &str) -> String {
+    let slashed = path.replace('\\', "/");
+    let mut rest = slashed.as_str();
+    while let Some(stripped) = rest.strip_prefix("./") {
+        rest = stripped;
+    }
+    rest.to_string()
+}
+
+fn alias_errors(label: &str, paths: &[&str], errors: &mut Vec<String>) {
+    let mut seen: BTreeMap<String, &str> = BTreeMap::new();
+    for path in paths {
+        let key = normalize_path(path);
+        match seen.get(&key) {
+            Some(first) if first != path => errors.push(format!(
+                "path alias in {label}: {first} and {path} name the same file"
+            )),
+            Some(_) => errors.push(format!("duplicate path in {label}: {path}")),
+            None => {
+                seen.insert(key, path);
+            }
+        }
+    }
+}
+
+pub fn reconcile_tracked(
+    inventory: &BTreeMap<String, String>,
+    bazel_sources: &[String],
+    tracked: &[String],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let inventory_paths: Vec<&str> = inventory.keys().map(String::as_str).collect();
+    let bazel_paths: Vec<&str> = bazel_sources.iter().map(String::as_str).collect();
+    let tracked_paths: Vec<&str> = tracked.iter().map(String::as_str).collect();
+    alias_errors("inventory", &inventory_paths, &mut errors);
+    alias_errors("Bazel source list", &bazel_paths, &mut errors);
+    alias_errors("tracked source list", &tracked_paths, &mut errors);
+    let tracked_set: BTreeSet<&str> = tracked_paths.iter().copied().collect();
+    for path in tracked {
+        if is_covered_language(path) && !inventory.contains_key(path.as_str()) {
+            errors.push(format!(
+                "tracked production source has no disposition: {path}; add it to the inventory as eligible or support"
+            ));
+        }
+    }
+    for path in inventory.keys() {
+        if !tracked_set.contains(path.as_str()) {
+            errors.push(format!(
+                "inventory source is not a tracked file: {path}; remove the stale row"
+            ));
+        }
+    }
+    errors
 }

@@ -1,8 +1,8 @@
-use super::{evaluate, parse_inventory, parse_lcov, render, LcovError};
+use super::{evaluate, parse_inventory, parse_lcov, reconcile_tracked, render, LcovError};
 use clap::{error::ErrorKind, Parser};
 
 fn print_usage(print: &mut dyn FnMut(&str)) {
-    print("usage: check --report <combined.lcov> --inventory <inventory.txt> --sources <sources.txt> [--root <dir>]");
+    print("usage: check --report <combined.lcov> --inventory <inventory.txt> --sources <sources.txt> [--tracked <tracked.txt>] [--root <dir>]");
 }
 
 #[derive(Parser, Debug)]
@@ -14,6 +14,8 @@ struct Cli {
     inventory: Option<String>,
     #[arg(long, allow_hyphen_values = true, overrides_with = "sources")]
     sources: Option<String>,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "tracked")]
+    tracked: Option<String>,
     #[arg(long, allow_hyphen_values = true, overrides_with = "root")]
     root: Option<String>,
     #[arg(long = "help", short = 'h', action = clap::ArgAction::SetTrue)]
@@ -39,6 +41,14 @@ fn parse_error(error: clap::Error, args: &[String]) -> String {
 fn parse_args(args: &[String]) -> Result<Cli, String> {
     Cli::try_parse_from(std::iter::once("check").chain(args.iter().map(|arg| arg as &str)))
         .map_err(|error| parse_error(error, args))
+}
+
+fn path_lines(text: &str) -> Vec<String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(str::to_string)
+        .collect()
 }
 
 pub fn run(
@@ -126,14 +136,20 @@ pub fn run(
             return 2;
         }
     };
-    let mut bazel_sources = Vec::new();
-    for raw in sources_text.lines() {
-        let line = raw.trim();
-        if !line.is_empty() && !line.starts_with('#') {
-            bazel_sources.push(line.to_string());
-        }
-    }
-    let verdict = evaluate(&inventory, &bazel_sources, &report, &|path| {
+    let bazel_sources = path_lines(&sources_text);
+    let tracked = match &cli.tracked {
+        Some(tracked_path) => match read_file(tracked_path) {
+            Ok(text) => Some(path_lines(&text)),
+            Err(message) => {
+                print(&format!(
+                    "unreadable tracked source list {tracked_path}: {message}"
+                ));
+                return 2;
+            }
+        },
+        None => None,
+    };
+    let mut verdict = evaluate(&inventory, &bazel_sources, &report, &|path| {
         let full = if root == "." {
             path.to_string()
         } else {
@@ -143,6 +159,13 @@ pub fn run(
             message: format!("cannot read eligible source {full}: {error}"),
         })
     });
+    if let Some(tracked) = &tracked {
+        let errors = reconcile_tracked(&inventory, &bazel_sources, tracked);
+        if !errors.is_empty() {
+            verdict.passed = false;
+            verdict.errors.extend(errors);
+        }
+    }
     print(&render(&verdict));
     if verdict.passed {
         0
@@ -201,6 +224,76 @@ mod tests {
         assert_eq!(code, 0);
         assert!(
             printed.iter().any(|line| line.contains("PASS 1/1")),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_fails_on_tracked_source_without_disposition() {
+        let mut store = passing_store();
+        store.insert("tracked.txt", "elf.rs\norphan.rs\n");
+        let (code, printed) = run_harness(
+            store,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+                "tracked.txt",
+            ],
+        );
+        assert_eq!(code, 1);
+        assert!(
+            printed.iter().any(
+                |line| line.contains("tracked production source has no disposition: orphan.rs")
+            ),
+            "{printed:?}"
+        );
+    }
+
+    #[test]
+    fn run_passes_with_complete_tracked_list() {
+        let mut store = passing_store();
+        store.insert("tracked.txt", "elf.rs\n");
+        let (code, _) = run_harness(
+            store,
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+                "tracked.txt",
+            ],
+        );
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn run_reports_unreadable_tracked_list() {
+        let (code, printed) = run_harness(
+            passing_store(),
+            &[
+                "--report",
+                "report.info",
+                "--inventory",
+                "inventory.txt",
+                "--sources",
+                "sources.txt",
+                "--tracked",
+                "missing.txt",
+            ],
+        );
+        assert_eq!(code, 2);
+        assert!(
+            printed
+                .iter()
+                .any(|line| line.contains("unreadable tracked source list missing.txt")),
             "{printed:?}"
         );
     }

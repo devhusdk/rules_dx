@@ -212,6 +212,11 @@ uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(hub_name = "pypi")
 uv.project(
     hub_name = "pypi",
+    lock = "//examples/python-service:uv.lock",
+    pyproject = "//examples/python-service:pyproject.toml",
+)
+uv.project(
+    hub_name = "pypi",
     lock = "//python/tests/fixtures/hello:uv.lock",
     pyproject = "//python/tests/fixtures/hello:pyproject.toml",
 )

@@ -1,0 +1,5 @@
+[
+  {"sku": "bolt-m6", "name": "Bolt M6", "price_cents": 45},
+  {"sku": "nut-m6", "name": "Nut M6", "price_cents": 20},
+  {"sku": "washer-m6", "name": "Washer M6", "price_cents": 8}
+]

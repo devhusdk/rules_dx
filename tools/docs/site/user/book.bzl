@@ -129,4 +129,9 @@ USER_BOOK = [
         "examples/mixed/hello/README.md",
         "//examples/mixed/hello:README.md",
     ),
+    mdbook_page(
+        "Python Service",
+        "examples/python-service/README.md",
+        "//examples/python-service:README.md",
+    ),
 ]

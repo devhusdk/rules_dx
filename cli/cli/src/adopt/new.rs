@@ -548,21 +548,6 @@ mod tests {
         std::fs::read_to_string(workspace_root().join("MODULE.bazel")).expect("MODULE.bazel ships")
     }
 
-    fn wasm_bindgen_use_repos(source: &str) -> Vec<String> {
-        let marker = "use_repo(\n    wasm_bindgen,\n";
-        let start = source
-            .find(marker)
-            .expect("MODULE.bazel provisions the wasm extension repos")
-            + marker.len();
-        let tail = &source[start..];
-        let end = tail.find(')').expect("the use_repo block is closed");
-        tail[..end]
-            .lines()
-            .map(|line| line.trim().trim_matches(',').trim_matches('"').to_owned())
-            .filter(|name| !name.is_empty())
-            .collect()
-    }
-
     #[test]
     fn rust_web_template_pins_come_from_supported_metadata() {
         let versions = std::fs::read_to_string(workspace_root().join("modules/versions.bzl"))
@@ -592,21 +577,17 @@ mod tests {
                 .unwrap_or_else(|| panic!("MODULE.bazel pins {wanted}"));
             assert!(generated.contains(pinned.trim()), "{generated}");
         }
-        let provisioned = wasm_bindgen_use_repos(&module);
-        let mut missing = Vec::new();
-        for repo in &provisioned {
-            if !generated.contains(&format!("\"{repo}\"")) {
-                missing.push(repo.clone());
-            }
+        for duplicated in [
+            "use_extension",
+            "use_repo",
+            "geckodriver",
+            "chromedriver",
+            "firefox",
+        ] {
+            assert!(
+                !generated.contains(duplicated),
+                "template duplicates {duplicated} pins: {generated}"
+            );
         }
-        assert!(
-            missing.is_empty(),
-            "template drops managed repos: {missing:?}"
-        );
-        let generated_repos = wasm_bindgen_use_repos(&generated);
-        assert_eq!(
-            generated_repos, provisioned,
-            "template adds no unmanaged repos"
-        );
     }
 }

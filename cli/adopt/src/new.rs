@@ -35,43 +35,6 @@ pub const RUST_WEB_WASM_BINDGEN_CRATE_VERSION: &str = "0.2.121";
 pub const RULES_RUST_WASM_BINDGEN_VERSION: &str = "0.74.0";
 pub const RUST_WEB_PLATFORMS_VERSION: &str = "1.1.0";
 pub const RUST_WEB_BAZEL_VERSION: &str = "9.2.0";
-pub const RUST_WEB_WASM_REPOS: &[&str] = &[
-    "chrome",
-    "chrome_headless_shell",
-    "chrome_headless_shell_linux64",
-    "chrome_headless_shell_mac_arm64",
-    "chrome_headless_shell_mac_x64",
-    "chrome_headless_shell_win32",
-    "chrome_headless_shell_win64",
-    "chrome_linux64",
-    "chrome_mac_arm64",
-    "chrome_mac_x64",
-    "chrome_win32",
-    "chrome_win64",
-    "chromedriver",
-    "chromedriver_linux64",
-    "chromedriver_mac_arm64",
-    "chromedriver_mac_x64",
-    "chromedriver_win32",
-    "chromedriver_win64",
-    "firefox",
-    "firefox_linux_aarch64",
-    "firefox_linux_x86_64",
-    "firefox_local",
-    "firefox_mac",
-    "geckodriver",
-    "geckodriver_linux64",
-    "geckodriver_linux_aarch64",
-    "geckodriver_macos",
-    "geckodriver_macos_aarch64",
-    "geckodriver_win64",
-    "rrwbd",
-    "rrwbd__serde_json-1.0.145",
-    "rrwbd__wasm-bindgen-0.2.121",
-    "rrwbd__wasm-bindgen-cli-0.2.121",
-    "rrwbd__wasm-bindgen-test-0.3.71",
-    "safaridriver",
-];
 
 const REMOVED_NEW_LANGUAGES: &[(&str, &str)] = &[
     ("cc", "cpp"),
@@ -376,12 +339,8 @@ fn rust_web_build_bazel(identity: &str) -> String {
 }
 
 fn rust_web_module_bazel(identity: &str) -> String {
-    let mut repos = String::new();
-    for repo in RUST_WEB_WASM_REPOS {
-        repos.push_str(&format!("    \"{repo}\",\n"));
-    }
     format!(
-        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"{bindgen}\")\nbazel_dep(name = \"platforms\", version = \"{platforms}\")\n\nwasm_bindgen = use_extension(\"@rules_rust_wasm_bindgen//:extensions.bzl\", \"rust_ext\")\nuse_repo(\n    wasm_bindgen,\n{repos})\n",
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"{bindgen}\")\nbazel_dep(name = \"platforms\", version = \"{platforms}\")\n",
         dx = super::DX_VERSION,
         bindgen = RULES_RUST_WASM_BINDGEN_VERSION,
         platforms = RUST_WEB_PLATFORMS_VERSION,

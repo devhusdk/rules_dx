@@ -1273,3 +1273,99 @@ fn measured_python_pytest_block_with_functions_parses_and_passes() {
     assert_eq!(verdict.covered, 2);
     assert!(verdict.other_sources.is_empty());
 }
+
+fn split_module_fixture() -> BTreeMap<&'static str, String> {
+    BTreeMap::from([
+        ("lib/src/lib.rs", "mod split;\nfn f() {}\n".to_string()),
+        ("lib/src/split.rs", "fn g() {}\n".to_string()),
+    ])
+}
+
+fn paths(items: &[&str]) -> Vec<String> {
+    items.iter().map(|item| item.to_string()).collect()
+}
+
+#[test]
+fn unexecuted_split_module_is_counted_and_fails() {
+    let mut report = report_of("lib/src/lib.rs", &[(1, 1), (2, 1)]);
+    report.insert("lib/src/split.rs".to_string(), hits(&[(1, 0)]));
+    let verdict = evaluate(
+        &eligible_inventory(&["lib/src/lib.rs", "lib/src/split.rs"]),
+        &paths(&["lib/src/lib.rs", "lib/src/split.rs"]),
+        &report,
+        &loader(split_module_fixture()),
+    );
+    assert!(!verdict.passed);
+    assert_eq!((verdict.covered, verdict.eligible), (2, 3));
+}
+
+#[test]
+fn dropping_split_module_from_inventory_and_report_still_fails() {
+    let verdict = evaluate(
+        &eligible_inventory(&["lib/src/lib.rs"]),
+        &paths(&["lib/src/lib.rs", "lib/src/split.rs"]),
+        &report_of("lib/src/lib.rs", &[(1, 1), (2, 1)]),
+        &loader(split_module_fixture()),
+    );
+    assert!(!verdict.passed);
+    assert!(verdict
+        .errors
+        .contains(&"Bazel-declared source missing from inventory: lib/src/split.rs".to_string()));
+}
+
+#[test]
+fn tracked_reconciliation_catches_module_dropped_everywhere() {
+    let errors = reconcile_tracked(
+        &eligible_inventory(&["lib/src/lib.rs"]),
+        &paths(&["lib/src/lib.rs"]),
+        &paths(&["lib/src/lib.rs", "lib/src/split.rs"]),
+    );
+    assert_eq!(
+        errors,
+        vec![
+            "tracked production source has no disposition: lib/src/split.rs; add it to the inventory as eligible or support"
+                .to_string()
+        ]
+    );
+}
+
+#[test]
+fn tracked_reconciliation_accepts_complete_accounting() {
+    let mut inventory = eligible_inventory(&["lib/src/lib.rs"]);
+    inventory.insert("lib/src/split.rs".to_string(), SUPPORT.to_string());
+    let errors = reconcile_tracked(
+        &inventory,
+        &paths(&["lib/src/lib.rs", "lib/src/split.rs"]),
+        &paths(&["lib/src/lib.rs", "lib/src/split.rs", "docs/readme.md"]),
+    );
+    assert!(errors.is_empty(), "{errors:?}");
+}
+
+#[test]
+fn tracked_reconciliation_flags_stale_inventory_rows() {
+    let errors = reconcile_tracked(
+        &eligible_inventory(&["lib/src/lib.rs", "gone.rs"]),
+        &paths(&["lib/src/lib.rs"]),
+        &paths(&["lib/src/lib.rs"]),
+    );
+    assert_eq!(
+        errors,
+        vec!["inventory source is not a tracked file: gone.rs; remove the stale row".to_string()]
+    );
+}
+
+#[test]
+fn tracked_reconciliation_flags_path_aliases_and_duplicates() {
+    let errors = reconcile_tracked(
+        &eligible_inventory(&["a.rs", "./a.rs"]),
+        &paths(&["a.rs", "a.rs"]),
+        &paths(&["a.rs", "sub\\b.rs", "sub/b.rs"]),
+    );
+    assert!(
+        errors.contains(&"path alias in inventory: ./a.rs and a.rs name the same file".to_string())
+    );
+    assert!(errors.contains(&"duplicate path in Bazel source list: a.rs".to_string()));
+    assert!(errors.contains(
+        &"path alias in tracked source list: sub\\b.rs and sub/b.rs name the same file".to_string()
+    ));
+}

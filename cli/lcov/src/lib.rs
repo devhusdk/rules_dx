@@ -18,7 +18,9 @@ pub use ignores::{find_ignores, is_ignored, Ignores};
 pub use inventory::{parse_inventory, ELIGIBLE, SUPPORT};
 pub use parse::{merge_lcov_reports, parse_lcov, validate_lcov_report, FileHits};
 pub use run::run;
-pub use verdict::{evaluate, is_covered_language, render, FileVerdict, GateVerdict};
+pub use verdict::{
+    evaluate, is_covered_language, reconcile_tracked, render, FileVerdict, GateVerdict,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LcovError {

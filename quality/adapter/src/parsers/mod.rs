@@ -1610,7 +1610,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::qmlformat::parse_qmlformat(input, code, files)
+        super::qmlformat::parse_qmlformat(input, code, b"", files.first().copied().unwrap_or(""))
     }
 
     fn fuzz_qmllint(

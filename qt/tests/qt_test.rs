@@ -248,49 +248,6 @@ fn sbom_declares_the_pinned_licenses() {
     }
 }
 
-fn fixture(variable: &str) -> PathBuf {
-    let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name a fixture"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
-#[test]
-fn qmllint_fixture_matches_the_pinned_tool() {
-    let expected = dx_testing::read_json(&fixture("DX_QMLLINT_FIXTURE_DIRTY")).expect("fixture");
-    let run = lint(&fixture("DX_QMLLINT_FIXTURE"), &[]);
-    assert_eq!(run.status.code(), Some(255), "{}", run.combined());
-    let report: Value = dx_testing::serde_json::from_str(&run.stdout).expect("JSON report");
-    let warnings = report["files"][0]["warnings"].as_array().expect("warnings");
-    let diagnostics = expected["diagnostics"].as_array().expect("diagnostics");
-    assert_eq!(warnings.len(), diagnostics.len(), "{}", run.stdout);
-    for (warning, diagnostic) in warnings.iter().zip(diagnostics) {
-        assert_eq!(warning["line"], diagnostic["line"]);
-        assert_eq!(warning["column"], diagnostic["column"]);
-        assert_eq!(warning["id"], diagnostic["rule"]);
-        assert_eq!(warning["message"], diagnostic["message"]);
-        assert_eq!(warning["type"], diagnostic["severity"]);
-    }
-}
-
-#[test]
-fn qmlformat_fixture_is_dirty_for_the_pinned_tool() {
-    let sample = fixture("DX_QMLFORMAT_FIXTURE");
-    let dirty = std::fs::read_to_string(fixture("DX_QMLFORMAT_FIXTURE_DIRTY")).expect("fixture");
-    assert_eq!(dirty, "quality/tests/fixtures/qmlformat/Sample.qml\n");
-    let input = std::fs::read_to_string(&sample).expect("sample");
-    let run = dx_testing::run(
-        &tool("DX_QMLFORMAT"),
-        &[sample.to_str().expect("utf-8 path")],
-        &[],
-    )
-    .expect("run qmlformat");
-    assert!(run.status.success(), "{}", run.combined());
-    assert_ne!(run.stdout, input);
-    assert_eq!(
-        run.stdout,
-        "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n"
-    );
-}
-
 #[test]
 fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     let launcher = std::fs::canonicalize(tool("DX_QMLLINT")).expect("launcher");

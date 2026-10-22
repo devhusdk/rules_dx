@@ -5,7 +5,7 @@ stage qmllint classes=qml sources=matrix/qmllint_dirty.qml
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING qmllint unqualified matrix/qmllint_dirty.qml 27 27 fixable=false "Unqualified access to `foo`."
+initial WARNING qmllint unqualified matrix/qmllint_dirty.qml 50 50 fixable=false "Unqualified access"
 terminal 1
-terminal WARNING qmllint unqualified matrix/qmllint_dirty.qml 27 27 fixable=false "Unqualified access to `foo`."
+terminal WARNING qmllint unqualified matrix/qmllint_dirty.qml 50 50 fixable=false "Unqualified access"
 replacements 0

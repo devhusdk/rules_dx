@@ -1,1 +1,1 @@
-{"diagnostics": [{"file": "quality/tests/fixtures/qmllint/Sample.qml", "line": 4, "column": 28, "rule": "unqualified", "message": "Unqualified access", "severity": "warning"}]}
+{"files":[{"filename":"quality/tests/fixtures/qmllint/Sample.qml","success":false,"warnings":[{"charOffset":50,"column":28,"id":"unqualified","length":3,"line":4,"message":"Unqualified access","suggestions":[{"charOffset":50,"column":28,"hint":"","isAutoApplicable":false,"length":3,"line":4,"message":"Did you mean \"top\"?","replacement":"top"}],"type":"warning"}]}],"revision":4}

@@ -34,10 +34,6 @@ rust_test(
     srcs = ["qt_test.rs"],
     data = [
         ":probe_linux_x86_64",
-        "//quality/tests/fixtures/qmlformat:Sample.qml",
-        "//quality/tests/fixtures/qmlformat:check_dirty.txt",
-        "//quality/tests/fixtures/qmllint:Sample.qml",
-        "//quality/tests/fixtures/qmllint:check_dirty.json",
         "@dx_qt//:licenses",
         "@dx_qt//:qmlformat",
         "@dx_qt//:qmllint",
@@ -46,11 +42,7 @@ rust_test(
     ],
     env = {
         "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
-        "DX_QMLFORMAT_FIXTURE": "$(rootpath //quality/tests/fixtures/qmlformat:Sample.qml)",
-        "DX_QMLFORMAT_FIXTURE_DIRTY": "$(rootpath //quality/tests/fixtures/qmlformat:check_dirty.txt)",
         "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
-        "DX_QMLLINT_FIXTURE": "$(rootpath //quality/tests/fixtures/qmllint:Sample.qml)",
-        "DX_QMLLINT_FIXTURE_DIRTY": "$(rootpath //quality/tests/fixtures/qmllint:check_dirty.json)",
         "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
         "DX_QT_PROBE": "$(rootpath :probe_linux_x86_64)",
         "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",

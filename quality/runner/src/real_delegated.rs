@@ -61,7 +61,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         (
             "qmllint",
-            r#"{"diagnostics":[{"file":"src/a.scala","line":1,"column":1,"rule":"demo","message":"finding","severity":"warning"}]}"#,
+            r#"{"files":[{"filename":"src/a.scala","success":false,"warnings":[{"column":1,"id":"demo","line":1,"message":"finding","type":"warning"}]}],"revision":4}"#,
         ),
         (
             "roslyn",

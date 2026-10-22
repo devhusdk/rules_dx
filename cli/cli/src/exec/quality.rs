@@ -13,8 +13,7 @@ use crate::plan::{bep_path, plan_build};
 use crate::reports::{plan_reports, BaselineReport, Destination};
 use crate::resolve::resolve;
 use dx_output::{
-    command_finished, command_started, meets_threshold, write_event, FinishedCounts, OutputMode,
-    Severity,
+    command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
 };
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -128,11 +127,18 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
     let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        if let Ok(event) = command_started(request.command.name(), mode) {
-            let _ = write_event(out, &event);
+        match command_started(request.command.name(), mode) {
+            Ok(event) => {
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
+            }
+            Err(error) => return stdout_output_code(&error),
         }
     } else if request.chatty() && !stdout_report {
-        let _ = writeln!(out, "{}", build.summary);
+        if let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary)) {
+            return exit;
+        }
     }
     let bazel_code = match run_bazel_output(
         request.common.output,
@@ -162,7 +168,9 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         );
         if request.common.output == OutputMode::Json {
             if let Some(event) = bazel_exit_event(CODE_ANALYSIS_FAILED, &detail, bazel_code) {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
             }
         } else {
             let _ = writeln!(err, "dx: {CODE_ANALYSIS_FAILED}: {detail}");
@@ -247,7 +255,7 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
     } else {
         Snapshots::new()
     };
-    let emit_counts = emit_findings(
+    let emit_counts = match emit_findings(
         EmitInputs {
             request,
             status: &status,
@@ -265,7 +273,10 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         },
         out,
         err,
-    );
+    ) {
+        Ok(counts) => counts,
+        Err(exit) => return exit,
+    };
     let applied_count = emit_counts.applied_count;
     let not_applied_count = emit_counts.not_applied_count;
     let change_count = collected.changes.len() as u64;
@@ -276,7 +287,7 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
     {
         let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
     }
-    let reports_ok = write_standard_reports(
+    let reports_ok = match write_standard_reports(
         StandardReports {
             workspace,
             collected: &collected,
@@ -294,7 +305,10 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         },
         out,
         err,
-    );
+    ) {
+        Ok(ok) => ok,
+        Err(exit) => return exit,
+    };
 
     let mut info = 0u64;
     let mut warning = 0u64;
@@ -311,7 +325,9 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
         if request.common.output == OutputMode::Json {
             if let Ok(event) = dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None)
             {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
             }
         } else {
             let _ = writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}");
@@ -327,7 +343,9 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
             if let Ok(event) =
                 dx_output::error_event("incomplete_results", &detail, None, None, None)
             {
-                let _ = write_event(out, &event);
+                if let Err(exit) = emit_event(out, &event) {
+                    return exit;
+                }
             }
         } else {
             let _ = writeln!(err, "dx: incomplete_results: {detail}");
@@ -356,7 +374,9 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
                 baseline: baseline.as_ref().map(BaselineView::counts),
             },
         );
-        let _ = write_event(out, &finished);
+        if let Err(exit) = emit_event(out, &finished) {
+            return exit;
+        }
     }
     *kind = if !collected.complete {
         if bazel_code != 0 {
@@ -383,6 +403,9 @@ fn run_quality_request(request: &QualityRequest, env: Env<'_>, kind: &mut PhaseK
 #[cfg(test)]
 #[path = "quality_convergence.rs"]
 mod quality_convergence;
+#[cfg(test)]
+#[path = "quality_delivery_tests.rs"]
+mod quality_delivery_tests;
 #[cfg(test)]
 #[path = "quality_edits.rs"]
 mod quality_edits;

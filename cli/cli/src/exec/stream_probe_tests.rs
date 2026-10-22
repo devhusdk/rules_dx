@@ -364,7 +364,11 @@ exit "${FAKE_EXIT:-0}"
 "#;
 
 fn gated_command(base: &Path, exit: i32) -> (Command, PathBuf) {
-    let mut command = dx_command(base, &["build", "//...", "--output=json"], "");
+    gated_words(base, exit, &["build", "//...", "--output=json"])
+}
+
+fn gated_words(base: &Path, exit: i32, words: &[&str]) -> (Command, PathBuf) {
+    let mut command = dx_command(base, words, "");
     let bazel = base.join("bin/bazel");
     fs::write(&bazel, GATED_BAZEL).expect("gated bazel");
     fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -451,4 +455,90 @@ fn a_failing_destination_is_an_operational_failure() {
         .expect("dx runs");
     assert_eq!(status.code(), Some(1), "{status:?}");
     assert_eq!(bazel_starts(scratch.path()), 0);
+}
+
+const QUALITY_WORDS: [&[&str]; 2] = [
+    &["lint", "//...", "--apply", "--output=json"],
+    &["format", "//...", "--apply", "--output=json"],
+];
+
+fn write_source(base: &Path) -> PathBuf {
+    let source = base.join("ws/a.py");
+    fs::write(&source, "x = 1\n").expect("source");
+    source
+}
+
+#[test]
+fn quality_with_stdout_closed_before_the_start_event_starts_nothing() {
+    for words in QUALITY_WORDS {
+        let scratch = dx_test_scratch::scratch("dx-quality-nostart-");
+        let (reader, writer) = std::io::pipe().expect("pipe");
+        drop(reader);
+        let (mut command, gate) = gated_words(scratch.path(), 0, words);
+        let source = write_source(scratch.path());
+        fs::write(gate, "").expect("gate open");
+        let status = command
+            .stdout(writer)
+            .stderr(Stdio::null())
+            .status()
+            .expect("dx runs");
+        assert_eq!(status.code(), Some(141), "{words:?} {status:?}");
+        assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
+        assert_eq!(fs::read_to_string(source).expect("source"), "x = 1\n");
+    }
+}
+
+#[test]
+fn quality_with_stdout_closed_after_the_start_event_ends_with_141() {
+    use std::io::Read;
+    for words in QUALITY_WORDS {
+        let scratch = dx_test_scratch::scratch("dx-quality-closed-");
+        let (mut reader, writer) = std::io::pipe().expect("pipe");
+        let (mut command, gate) = gated_words(scratch.path(), 0, words);
+        let source = write_source(scratch.path());
+        let mut child = command
+            .stdout(writer)
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("dx starts");
+        drop(command);
+        let mut received = Vec::new();
+        let mut byte = [0u8; 1];
+        while !received.ends_with(b"\n") {
+            reader.read_exact(&mut byte).expect("start event arrives");
+            received.push(byte[0]);
+        }
+        drop(reader);
+        fs::write(&gate, "").expect("gate open");
+        let status = child.wait().expect("dx exits");
+        let events = json_events(&received);
+        assert_eq!(events.len(), 1, "{words:?} {events:?}");
+        assert_eq!(events[0]["event"], "command_started");
+        assert_eq!(status.code(), Some(141), "{words:?} {status:?}");
+        assert_eq!(bazel_starts(scratch.path()), 1);
+        assert_eq!(fs::read_to_string(source).expect("source"), "x = 1\n");
+    }
+}
+
+#[test]
+fn quality_with_a_failing_destination_starts_nothing() {
+    for words in QUALITY_WORDS {
+        let scratch = dx_test_scratch::scratch("dx-quality-full-");
+        let (mut command, gate) = gated_words(scratch.path(), 0, words);
+        let source = write_source(scratch.path());
+        fs::write(gate, "").expect("gate open");
+        let status = command
+            .stdout(
+                fs::OpenOptions::new()
+                    .write(true)
+                    .open("/dev/full")
+                    .expect("/dev/full"),
+            )
+            .stderr(Stdio::null())
+            .status()
+            .expect("dx runs");
+        assert_eq!(status.code(), Some(1), "{words:?} {status:?}");
+        assert_eq!(bazel_starts(scratch.path()), 0, "{words:?}");
+        assert_eq!(fs::read_to_string(source).expect("source"), "x = 1\n");
+    }
 }

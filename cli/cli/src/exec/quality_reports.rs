@@ -3,9 +3,12 @@ use std::io::Write;
 use std::path::Path;
 
 use dx_digest::blake3 as digest;
-use dx_output::{report_event, write_event, DiagnosticEvent, OutputMode, Snapshot};
+use dx_output::{report_event, DiagnosticEvent, OutputMode, Snapshot};
 
-use super::common::{apply_to_bytes, report_failed, write_report_document, SourceRead};
+use super::common::{
+    apply_to_bytes, check_stdout_write, emit_event, report_failed, write_report_document,
+    SourceRead,
+};
 use super::results::Collected;
 use crate::reports::{render_sarif_with_baseline, BaselineReport, PlannedReport, ReportError};
 
@@ -138,7 +141,7 @@ pub(crate) fn write_standard_reports(
     inputs: StandardReports<'_>,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> bool {
+) -> Result<bool, i32> {
     let StandardReports {
         workspace,
         collected,
@@ -195,15 +198,15 @@ pub(crate) fn write_standard_reports(
                         planned.destination.display(),
                         collected.complete,
                     ) {
-                        let _ = write_event(out, &event);
+                        emit_event(out, &event)?;
                     }
                 } else if matches!(output, OutputMode::Text { .. }) && !stdout_report {
-                    let _ = writeln!(
+                    check_stdout_write(writeln!(
                         out,
                         "Wrote {} report to {}.",
                         planned.format.name(),
                         planned.destination.display()
-                    );
+                    ))?;
                 } else if *output == OutputMode::Diff {
                     let _ = writeln!(
                         err,
@@ -224,7 +227,7 @@ pub(crate) fn write_standard_reports(
             }
         }
     }
-    reports_ok
+    Ok(reports_ok)
 }
 
 #[cfg(test)]

@@ -520,7 +520,7 @@ fn the_cpp_rust_target_names_a_real_consumer() {
     for (src, dest) in &manifest.files {
         assert!(src.is_file(), "{src:?} for {dest} is not in the runfiles");
         if dest.ends_with("BUILD.bazel") {
-            let text = std::fs::read_to_string(src).unwrap();
+            let text = consumer_build(&std::fs::read_to_string(src).unwrap(), "my_dx");
             assert!(
                 text.contains("@my_dx//"),
                 "{dest} loads through the renamed repository"
@@ -562,10 +562,16 @@ fn the_consumer_materializes_from_dx_init() {
         std::fs::read(&manifest.bazelversion).unwrap()
     );
     for (src, dest) in &manifest.files {
+        let original = std::fs::read(src).unwrap();
+        let want = if dest.ends_with("BUILD.bazel") {
+            consumer_build(&String::from_utf8(original).unwrap(), "my_dx").into_bytes()
+        } else {
+            original
+        };
         assert_eq!(
             std::fs::read(workspace.join(dest)).unwrap(),
-            std::fs::read(src).unwrap(),
-            "{dest} is copied byte for byte"
+            want,
+            "{dest} is derived from its source"
         );
     }
     assert_eq!(
@@ -867,4 +873,13 @@ fn host_names_this_machine() {
     assert_eq!(host["os"], json!(std::env::consts::OS));
     assert_eq!(host["arch"], json!(std::env::consts::ARCH));
     assert!(!host["kernel"].as_str().unwrap().is_empty());
+}
+
+#[test]
+fn consumer_build_keeps_targets_and_drops_repository_only_statements() {
+    let original = "load(\"@rules_dx//cc/rules:defs.bzl\", \"cc_test\")\nload(\"//quality:fixtures.bzl\", \"real_source_target\")\n\npackage(default_visibility = [\"//:__subpackages__\"])\n\nexports_files(\n    [\"a.cc\"],\n    visibility = [\"//x:__pkg__\"],\n)\n\ncc_test(\n    name = \"t\",\n    srcs = [\"a.cc\"],\n    visibility = [\"//:__subpackages__\"],\n)\n\nreal_source_target(\n    name = \"corpus_starlark\",\n    starlark_srcs = [\"BUILD.bazel\"],\n)\n";
+    assert_eq!(
+        consumer_build(original, "my_dx"),
+        "load(\"@my_dx//cc/rules:defs.bzl\", \"cc_test\")\n\ncc_test(\n    name = \"t\",\n    srcs = [\"a.cc\"],\n)\n"
+    );
 }

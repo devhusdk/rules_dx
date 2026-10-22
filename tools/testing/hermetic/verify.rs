@@ -21,13 +21,20 @@ fn value(args: &[String], flag: &str) -> Result<String, String> {
 fn run(args: &[String]) -> Result<(), String> {
     let evidence = PathBuf::from(value(args, "--evidence")?);
     let commit = value(args, "--commit")?;
-    let label = value(args, "--label")?;
-    let languages: Vec<String> = value(args, "--languages")?
-        .split(',')
-        .map(str::to_owned)
-        .collect();
+    let manifest = dx_testing::read_json(&PathBuf::from(value(args, "--manifest")?))?;
+    let label = manifest["label"]
+        .as_str()
+        .ok_or_else(|| "manifest has no label".to_owned())?;
+    let languages: Vec<String> = manifest["languages"]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default();
     let parsed = dx_testing::read_json(&evidence)?;
-    hermetic::verify_evidence(&parsed, &commit, &label, &languages)
+    hermetic::verify_evidence(&parsed, &commit, label, &languages)
 }
 
 fn main() -> ExitCode {

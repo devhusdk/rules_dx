@@ -88,15 +88,7 @@ jobs:
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
     timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux_x86_64
-            runner: ubuntu-latest
-          - platform: linux_arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -117,27 +109,38 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing/hermetic:cpp_rust
+          targets="$(bazel query 'attr(tags, hermetic-consumer, //...)' --output=label)"
+          test -n "$targets"
+          echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test $targets
       - name: Verify the evidence
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/tools/testing/hermetic/cpp_rust/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --label //tools/testing/hermetic:cpp_rust --languages cpp,rust
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
+          done < "$RUNNER_TEMP/hermetic-targets"
       - name: Collect the evidence
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/hermetic-evidence"
-          cp -R bazel-testlogs/tools/testing/hermetic/cpp_rust/test.outputs/. "$RUNNER_TEMP/hermetic-evidence/" || true
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
+            cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
+          done < "$RUNNER_TEMP/hermetic-targets"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: hermetic-evidence-${{ matrix.platform }}
+          name: hermetic-evidence-linux_x86_64
           path: ${{ runner.temp }}/hermetic-evidence
           retention-days: 7
       - name: Write job summary
         if: always()
         run: |
-          echo "### hermetic (${{ matrix.platform }}) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### hermetic (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
   preflight:
     name: preflight (native bootstrap and tool launch)

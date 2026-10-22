@@ -95,7 +95,7 @@ def hermetic_qualification(
         srcs = ["//tools/testing/hermetic:qualification_test.rs"],
         data = [":" + name + "_manifest"],
         env = {"DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name},
-        tags = QUALIFICATION_TAGS,
+        tags = QUALIFICATION_TAGS + ["hermetic-consumer"],
         target_compatible_with = ["@platforms//os:linux"],
         deps = [
             "//tools/testing:dx_testing",

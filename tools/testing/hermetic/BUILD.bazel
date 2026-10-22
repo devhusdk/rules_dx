@@ -14,7 +14,6 @@ rust_library(
     testonly = True,
     srcs = [
         "src/lib.rs",
-        "src/sha256.rs",
         "src/tests.rs",
     ],
     aliases = aliases(
@@ -26,7 +25,10 @@ rust_library(
     edition = "2021",
     target_compatible_with = LINUX,
     deps = crate_deps(
-        ["serde_json"],
+        [
+            "serde_json",
+            "sha2",
+        ],
         package_name = "tools/dx_testing",
     ) + ["//tools/testing:dx_testing"],
 )
@@ -79,8 +81,8 @@ hermetic_qualification(
         "consumers/cpp_rust/config_test.cc": "config_test.cc",
         "consumers/cpp_rust/consumer.bazelrc": ".bazelrc",
         "consumers/cpp_rust/root.BUILD.bazel": "BUILD.bazel",
-        "consumers/cpp_rust/solo_cpp.BUILD.bazel": "examples/adopt-cpp/solo/BUILD.bazel",
-        "consumers/cpp_rust/solo_rust.BUILD.bazel": "examples/adopt-rust/solo/BUILD.bazel",
+        "//examples/adopt-cpp/solo:BUILD.bazel": "examples/adopt-cpp/solo/BUILD.bazel",
+        "//examples/adopt-rust/solo:BUILD.bazel": "examples/adopt-rust/solo/BUILD.bazel",
         "//examples/adopt-cpp/solo:pure.cc": "examples/adopt-cpp/solo/pure.cc",
         "//examples/adopt-cpp/solo:pure.h": "examples/adopt-cpp/solo/pure.h",
         "//examples/adopt-cpp/solo:pure_test.cc": "examples/adopt-cpp/solo/pure_test.cc",
@@ -125,8 +127,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "consumers/cpp_rust/root.BUILD.bazel",
-        "consumers/cpp_rust/solo_cpp.BUILD.bazel",
-        "consumers/cpp_rust/solo_rust.BUILD.bazel",
         "defs.bzl",
     ],
     tags = ["corpus"],

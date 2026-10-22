@@ -14,9 +14,11 @@ use std::time::Instant;
 
 use serde_json::{json, Value};
 
-mod sha256;
-
-pub use sha256::sha256_hex;
+/// Returns the lowercase hex SHA-256 digest of `data`.
+pub fn sha256_hex(data: &[u8]) -> String {
+    use sha2::{Digest as _, Sha256};
+    format!("{:x}", Sha256::digest(data))
+}
 
 pub const SCHEMA: &str = "dx.hermetic.v1";
 
@@ -775,6 +777,40 @@ fn copy(from: &Path, to: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot copy {} to {}: {err}", from.display(), to.display()))
 }
 
+/// Derives the consumer BUILD file from a repository one: rules_dx renamed, repository-only statements dropped.
+pub fn consumer_build(text: &str, repo_name: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    let mut depth = 0i32;
+    for line in text.lines() {
+        let drop = if depth > 0 {
+            true
+        } else {
+            line.starts_with("package(")
+                || line.starts_with("exports_files(")
+                || line.starts_with("real_source_target(")
+                || (line.starts_with("load(") && line.contains("//quality:fixtures.bzl"))
+        };
+        if drop {
+            depth += line.matches('(').count() as i32 - line.matches(')').count() as i32;
+            continue;
+        }
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("visibility = ") && trimmed.ends_with("],") {
+            continue;
+        }
+        out.push(line.replace("@rules_dx//", &format!("@{repo_name}//")));
+    }
+    let mut text = String::new();
+    for line in out {
+        if line.is_empty() && (text.is_empty() || text.ends_with("\n\n")) {
+            continue;
+        }
+        text.push_str(&line);
+        text.push('\n');
+    }
+    format!("{}\n", text.trim_end())
+}
+
 fn executable(path: &Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
@@ -815,7 +851,13 @@ pub fn materialize(
     write(&workspace.join("MODULE.bazel"), &module)?;
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))?;
     for (src, dest) in &manifest.files {
-        copy(src, &workspace.join(dest))?;
+        if dest.ends_with("BUILD.bazel") {
+            let text = std::fs::read_to_string(src)
+                .map_err(|err| format!("cannot read {}: {err}", src.display()))?;
+            write(&workspace.join(dest), &consumer_build(&text, repo))?;
+        } else {
+            copy(src, &workspace.join(dest))?;
+        }
     }
     write(
         &workspace.join(LEAKS_PACKAGE).join("BUILD.bazel"),

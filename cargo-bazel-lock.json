@@ -1,5 +1,5 @@
 {
-  "checksum": "00ba00943d38db35de4dd6e2ead9fca1bc0d14d9429882000215699548d4a67d",
+  "checksum": "0bf47fa825f3d9210dcabd36fa7686be4c67fba833798a236ad8c3a349831e09",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -4872,6 +4872,10 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
+          },
+          {
+            "id": "sha2 0.10.9",
+            "target": "sha2"
           }
         ],
         "deps_dev": [

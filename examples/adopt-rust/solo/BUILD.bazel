@@ -3,6 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
     [
+        "BUILD.bazel",
         "src/lib.rs",
         "src/net.rs",
     ],

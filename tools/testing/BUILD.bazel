@@ -20,7 +20,10 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     deps = crate_deps(
-        ["serde_json"],
+        [
+            "serde_json",
+            "sha2",
+        ],
         package_name = "tools/dx_testing",
     ) + ["//cli/path:dx_path"],
 )

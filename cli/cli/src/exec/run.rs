@@ -13,6 +13,7 @@ use std::path::Path;
 const CODE_NO_RUNNABLE: &str = "no_runnable";
 const CODE_AMBIGUOUS_RUNNABLE: &str = "ambiguous_runnable";
 const CODE_NO_TESTS: &str = "no_tests";
+const WITHDRAW_SIGNAL: i32 = 15;
 
 fn resolve_code(error: &ResolveError) -> &'static str {
     match error {
@@ -24,6 +25,19 @@ fn resolve_code(error: &ResolveError) -> &'static str {
 }
 
 pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
+    run_app(invocation, env, None)
+}
+
+/// Runs the app like `dx run` and stops its process tree once `withdraw` holds.
+pub(crate) fn execute_run_until(
+    invocation: &Invocation,
+    env: Env<'_>,
+    withdraw: &dyn Fn() -> bool,
+) -> i32 {
+    run_app(invocation, env, Some(withdraw))
+}
+
+fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> bool>) -> i32 {
     let Env {
         workspace,
         runner,
@@ -64,10 +78,62 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
             return pre_exec(err, &message);
         }
     };
+    let launcher = Launcher {
+        invocation,
+        workspace,
+        runner,
+        withdraw,
+    };
     if targets.len() == 1 {
-        return execute_run_single(invocation, workspace, runner, out, err, &targets[0]);
+        return execute_run_single(&launcher, out, err, &targets[0]);
     }
-    execute_run_multi(invocation, workspace, runner, out, err, &targets)
+    execute_run_multi(&launcher, out, err, &targets)
+}
+
+struct Launcher<'a> {
+    invocation: &'a Invocation,
+    workspace: &'a Path,
+    runner: &'a dyn dx_process::Runner,
+    withdraw: Option<&'a dyn Fn() -> bool>,
+}
+
+impl Launcher<'_> {
+    fn launch(
+        &self,
+        out: &mut dyn Write,
+        err: &mut dyn Write,
+        argv: &[String],
+    ) -> Result<Option<i32>, i32> {
+        match self.withdraw {
+            Some(withdraw) => run_bazel_withdrawable(
+                self.invocation,
+                out,
+                err,
+                self.workspace,
+                self.runner,
+                argv,
+                withdraw,
+            ),
+            None => run_bazel(
+                self.invocation,
+                out,
+                err,
+                self.workspace,
+                self.runner,
+                argv,
+                &[],
+            )
+            .map(Some),
+        }
+    }
+}
+
+fn withdrawn(invocation: &Invocation, out: &mut dyn Write) -> i32 {
+    let code = dx_process::interrupted_code(WITHDRAW_SIGNAL);
+    if invocation.output == OutputMode::Json {
+        let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
+    }
+    code
 }
 
 fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) {
@@ -83,13 +149,12 @@ fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) {
 }
 
 fn execute_run_single(
-    invocation: &Invocation,
-    workspace: &Path,
-    runner: &dyn dx_process::Runner,
+    launcher: &Launcher<'_>,
     out: &mut dyn Write,
     err: &mut dyn Write,
     target: &str,
 ) -> i32 {
+    let invocation = launcher.invocation;
     let plan = plan_run(
         target,
         &invocation.bazel_options,
@@ -101,8 +166,9 @@ fn execute_run_single(
             let _ = write_event(out, &event);
         }
         emit_run_operations(out, invocation.command.name(), &[target.to_owned()]);
-        let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
-            Ok(code) => code,
+        let code = match launcher.launch(out, err, &plan.argv) {
+            Ok(Some(code)) => code,
+            Ok(None) => return withdrawn(invocation, out),
             Err(exit) => return exit,
         };
         if code != 0 {
@@ -122,20 +188,20 @@ fn execute_run_single(
     if !invocation.quiet {
         let _ = writeln!(err, "{}", plan.summary);
     }
-    match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
-        Ok(code) => code,
+    match launcher.launch(out, err, &plan.argv) {
+        Ok(Some(code)) => code,
+        Ok(None) => withdrawn(invocation, out),
         Err(exit) => exit,
     }
 }
 
 fn execute_run_multi(
-    invocation: &Invocation,
-    workspace: &Path,
-    runner: &dyn dx_process::Runner,
+    launcher: &Launcher<'_>,
     out: &mut dyn Write,
     err: &mut dyn Write,
     targets: &[String],
 ) -> i32 {
+    let invocation = launcher.invocation;
     if invocation.output == OutputMode::Json {
         if let Ok(event) = command_started(invocation.command.name(), "default") {
             let _ = write_event(out, &event);
@@ -148,8 +214,9 @@ fn execute_run_multi(
                 invocation.profile(),
                 &invocation.bazel_startup_options,
             );
-            let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
-                Ok(code) => code,
+            let code = match launcher.launch(out, err, &plan.argv) {
+                Ok(Some(code)) => code,
+                Ok(None) => return withdrawn(invocation, out),
                 Err(exit) => return exit,
             };
             if code != 0 {
@@ -181,8 +248,9 @@ fn execute_run_multi(
         if !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
-        let code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
-            Ok(code) => code,
+        let code = match launcher.launch(out, err, &plan.argv) {
+            Ok(Some(code)) => code,
+            Ok(None) => return withdrawn(invocation, out),
             Err(exit) => return exit,
         };
         if code != 0 {

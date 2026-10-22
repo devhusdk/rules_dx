@@ -386,7 +386,35 @@ pub(crate) fn run_bazel_output(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
-    let status = match runner.run(argv, workspace, env) {
+    bazel_exit(output, out, err, runner.run(argv, workspace, env))
+}
+
+/// Runs one Bazel argv that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
+pub(crate) fn run_bazel_withdrawable(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    withdraw: &dyn Fn() -> bool,
+) -> Result<Option<i32>, i32> {
+    match runner
+        .run_withdrawable(argv, workspace, &[], withdraw)
+        .transpose()
+    {
+        None => Ok(None),
+        Some(status) => bazel_exit(invocation.output, out, err, status).map(Some),
+    }
+}
+
+fn bazel_exit(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    status: io::Result<dx_process::ChildStatus>,
+) -> Result<i32, i32> {
+    let status = match status {
         Ok(status) => status,
         Err(error) => {
             return Err(operational_output(

@@ -8,8 +8,11 @@ use std::time::{Duration, Instant};
 const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
-case " $* " in *" build "*) ;; *) exit 0 ;; esac
+case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
 log="$FAKE_BAZEL_LOG"
+for pid in $(sed -nE 's/^(start|child) ([0-9]+).*/\2/p' "$log"); do
+  kill -0 "$pid" 2>/dev/null && echo "overlap $pid" >> "$log"
+done
 echo "start $$ $*" >> "$log"
 n=$(grep -c '^start ' "$log")
 trap 'kill "$child" 2>/dev/null; wait "$child"; echo "interrupted $$" >> "$log"; exit 8' INT TERM
@@ -56,6 +59,8 @@ impl Probe {
         fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
         fs::create_dir_all(workspace.join("src")).expect("src");
         fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");
+        fs::create_dir_all(workspace.join("app")).expect("app");
+        fs::write(workspace.join("app/BUILD.bazel"), "").expect("app build file");
         let bazel = bin.join("bazel");
         fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
         fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -405,4 +410,80 @@ fn json_watch_keeps_every_stdout_line_an_event() {
     for needle in ["iteration=1", "changed ", "iteration=2", "stopped"] {
         assert!(stderr.contains(needle), "{needle}: {stderr}");
     }
+}
+
+fn descendants(probe: &Probe) -> Vec<i32> {
+    probe
+        .log()
+        .lines()
+        .filter_map(|line| line.strip_prefix("child "))
+        .filter_map(|pid| pid.trim().parse().ok())
+        .collect()
+}
+
+#[test]
+fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
+    let mut probe = Probe::start(
+        "dx-watch-probe-run-",
+        &["watch", "run", "//app:bin", "--", "--help"],
+        &[("FAKE_BAZEL_SLEEP", "30")],
+    );
+    probe.until("the app", |probe| probe.count("child ") == 1);
+    for round in 2..=3 {
+        fs::write(probe.workspace.join("src/main.rs"), format!("edit {round}")).expect("edit");
+        probe.until("the relaunched app", |probe| probe.count("child ") == round);
+    }
+    let log = probe.log();
+    assert_eq!(probe.count("start "), 3, "{log}");
+    assert_eq!(
+        probe.count("interrupted "),
+        2,
+        "each old app was stopped:\n{log}"
+    );
+    assert_eq!(
+        probe.count("overlap "),
+        0,
+        "no app outlives its replacement:\n{log}"
+    );
+    assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
+    for line in log.lines().filter(|line| line.starts_with("start ")) {
+        assert!(
+            line.ends_with(" run --config=dx_dev //app:bin -- --help"),
+            "the -- payload reaches the app unchanged: {line}"
+        );
+    }
+    let pids = descendants(&probe);
+    for old in &pids[..2] {
+        assert!(!alive(*old), "old descendant {old} survived:\n{log}");
+    }
+    let current = pids[2];
+    assert!(alive(current));
+    let stdout = probe.stdout();
+    assert_eq!(stdout.matches("changed ").count(), 2, "{stdout}");
+    assert!(stdout.contains("iteration=3"), "{stdout}");
+    let status = probe.stop();
+    assert!(
+        status.code() == Some(130) || status.signal() == Some(libc::SIGINT),
+        "{status:?}\n{}",
+        probe.stderr()
+    );
+    assert!(!alive(current), "the last app {current} survived Ctrl-C");
+    std::thread::sleep(Duration::from_millis(400));
+    assert_eq!(probe.count("start "), 3, "no launch after the signal");
+}
+
+#[test]
+fn watch_run_relaunches_a_finished_app_only_after_a_change() {
+    let mut probe = Probe::start(
+        "dx-watch-probe-run-exit-",
+        &["watch", "run", "//app:bin"],
+        &[("FAKE_BAZEL_CODES", "4 0")],
+    );
+    probe.idle(1);
+    probe.settle();
+    assert_eq!(probe.count("start "), 1, "{}", probe.log());
+    fs::write(probe.workspace.join("src/main.rs"), "edit").expect("edit");
+    probe.idle(2);
+    assert_eq!(probe.count("overlap "), 0, "{}", probe.log());
+    assert_eq!(probe.stop().code(), Some(130));
 }

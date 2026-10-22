@@ -105,6 +105,18 @@ fn family(command: Command) -> Family {
     }
 }
 
+/// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
+pub(crate) fn execute_until(
+    invocation: &Invocation,
+    env: Env<'_>,
+    withdraw: &dyn Fn() -> bool,
+) -> i32 {
+    if invocation.command == Command::Run && !invocation.here {
+        return run::execute_run_until(invocation, env, withdraw);
+    }
+    execute(invocation, env)
+}
+
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.output != dx_output::OutputMode::Diff

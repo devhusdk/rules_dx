@@ -764,7 +764,7 @@ pub static COMMANDS: [CommandMeta; 29] = [
         scope_policy: "require",
         describe: "watch for changes and rebuild (local only)",
         usage: "Usage: dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|--app-args ...]",
-        flags: "Per-command flags: any flag of the wrapped command (--output, --check, --apply, --fail-on, --report, --debug | --release); a flag the wrapped command rejects is rejected here. watch only wraps build|test|run|lint|typecheck|format|check|fix; local only, refuses CI; Ctrl-C stops it with exit 130.",
+        flags: "Per-command flags: any flag of the wrapped command (--output, --check, --apply, --fail-on, --report, --debug | --release); a flag the wrapped command rejects is rejected here. watch only wraps build|test|run|lint|typecheck|format|check|fix; local only, refuses CI; watch run stops the running app before relaunching it; Ctrl-C stops it with exit 130.",
         scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check|fix are watchable). Args after `--` reach the wrapped command as its own command-options.",
         is_audit_update: false,
         is_managed: false,

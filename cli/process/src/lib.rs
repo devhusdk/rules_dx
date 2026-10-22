@@ -507,6 +507,20 @@ pub trait Runner {
         self.run(argv, cwd, env)
     }
 
+    /// Runs one child in its own process group and stops that tree once `withdraw` holds; `None` means withdrawn.
+    fn run_withdrawable(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: &dyn Fn() -> bool,
+    ) -> io::Result<Option<ChildStatus>> {
+        if withdraw() {
+            return Ok(None);
+        }
+        self.run(argv, cwd, env).map(Some)
+    }
+
     fn gitleaks_tool(&self) -> Option<PathBuf> {
         None
     }

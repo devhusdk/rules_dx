@@ -759,6 +759,22 @@ fn fake_runner_substitutes_the_boundary() {
     assert_eq!(status.code, Some(3));
 }
 
+#[test]
+fn default_withdrawable_run_checks_withdraw_only_before_launch() {
+    let runner = FakeRunner {
+        status: ChildStatus { code: Some(3) },
+    };
+    let argv = ["bazel".to_owned(), "run".to_owned()];
+    let ran = runner
+        .run_withdrawable(&argv, Path::new("."), &[], &|| false)
+        .expect("fake");
+    assert_eq!(ran, Some(ChildStatus { code: Some(3) }));
+    let withdrawn = runner
+        .run_withdrawable(&argv, Path::new("."), &[], &|| true)
+        .expect("fake");
+    assert_eq!(withdrawn, None);
+}
+
 fn probe_strings(flags: &[&str]) -> Vec<String> {
     let mut argv = vec![dx_testing::process_probe().to_string_lossy().into_owned()];
     argv.extend(flags.iter().map(ToString::to_string));

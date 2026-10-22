@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -15,9 +16,13 @@ const WATCH_POLL: Duration = Duration::from_millis(100);
 
 /// Runs the wrapped command, then reruns it after every change until interrupted.
 pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
-    watch(invocation, env, None, &dx_process::interrupted, |session| {
-        session.wait(WATCH_POLL)
-    })
+    watch(
+        invocation,
+        env,
+        None,
+        &dx_process::interrupted,
+        |session, timeout| session.wait(timeout),
+    )
 }
 
 /// Where watch writes its own progress lines.
@@ -79,7 +84,10 @@ fn watch(
     env: Env<'_>,
     max_iterations: Option<u32>,
     stop: &dyn Fn() -> Option<i32>,
-    mut wait_for_change: impl FnMut(&dx_adopt::watch::WatchSession) -> Result<Vec<PathBuf>, AdoptError>,
+    wait_for_change: impl FnMut(
+        &dx_adopt::watch::WatchSession,
+        Duration,
+    ) -> Result<Vec<PathBuf>, AdoptError>,
 ) -> i32 {
     let Env {
         workspace,
@@ -114,6 +122,7 @@ fn watch(
             return operational(invocation, out, err, "watch_failed", &error.to_string());
         }
     };
+    let wait = RefCell::new(wait_for_change);
     let mut round = 0u32;
     loop {
         if let Some(signo) = stop() {
@@ -127,7 +136,20 @@ fn watch(
         ) {
             return exit;
         }
-        let code = crate::exec::execute(
+        let pending = RefCell::new(None);
+        let withdraw = || {
+            if pending.borrow().is_some() {
+                return true;
+            }
+            match (wait.borrow_mut())(&session, Duration::ZERO) {
+                Ok(paths) if paths.is_empty() => false,
+                change => {
+                    *pending.borrow_mut() = Some(change);
+                    true
+                }
+            }
+        };
+        let code = crate::exec::execute_until(
             &iteration,
             Env {
                 workspace,
@@ -140,6 +162,7 @@ fn watch(
                 err: &mut err,
                 ci,
             },
+            &withdraw,
         );
         if max_iterations == Some(round) {
             return code;
@@ -152,11 +175,18 @@ fn watch(
                 return exit;
             }
         }
+        let mut change = pending.into_inner();
         loop {
-            if let Some(signo) = stop() {
-                return stopped(progress, out, err, signo);
-            }
-            match wait_for_change(&session) {
+            let paths = match change.take() {
+                Some(change) => change,
+                None => {
+                    if let Some(signo) = stop() {
+                        return stopped(progress, out, err, signo);
+                    }
+                    (wait.borrow_mut())(&session, WATCH_POLL)
+                }
+            };
+            match paths {
                 Ok(paths) if paths.is_empty() => {}
                 Ok(paths) => {
                     if let Err(exit) = progress.say(&mut *out, &mut *err, &changed_line(&paths)) {
@@ -335,7 +365,7 @@ mod tests {
                 },
                 max_iterations,
                 stop,
-                |session| wait(session),
+                |session, _| wait(session),
             );
             *self.seen.borrow_mut() = runner.seen.borrow().clone();
             code
@@ -363,7 +393,7 @@ mod tests {
                 },
                 max_iterations,
                 &|| None,
-                |_| Ok(Vec::new()),
+                |_, _| Ok(Vec::new()),
             )
         }
 
@@ -616,7 +646,7 @@ mod tests {
             },
             Some(2),
             &|| None,
-            |session| session.wait(Duration::from_secs(10)),
+            |session, _| session.wait(Duration::from_secs(10)),
         );
         assert_eq!(code, 0, "rerun succeeds: {}", String::from_utf8_lossy(&err));
         assert_eq!(
@@ -743,7 +773,7 @@ mod tests {
             },
             Some(1),
             &|| None,
-            |_| Ok(Vec::new()),
+            |_, _| Ok(Vec::new()),
         );
         assert_eq!(code, 1);
         assert!(runner.seen.borrow().is_empty(), "nothing runs");
@@ -929,7 +959,7 @@ mod tests {
             harness.env(&runner, &mut out, &mut err),
             None,
             &|| None,
-            |_| {
+            |_, _| {
                 waits += 1;
                 match waits {
                     1 => Ok(vec![PathBuf::from("/ws/src/a.py")]),
@@ -956,6 +986,223 @@ mod tests {
             b"x = 1\n",
             "a diff watch never writes"
         );
+    }
+
+    struct AppRunner {
+        events: RefCell<Vec<String>>,
+        running: std::cell::Cell<bool>,
+    }
+
+    impl AppRunner {
+        fn new() -> Self {
+            Self {
+                events: RefCell::new(Vec::new()),
+                running: std::cell::Cell::new(false),
+            }
+        }
+    }
+
+    impl dx_process::Runner for AppRunner {
+        fn run(
+            &self,
+            argv: &[String],
+            _cwd: &Path,
+            _env: &[(&str, &str)],
+        ) -> io::Result<dx_process::ChildStatus> {
+            self.events
+                .borrow_mut()
+                .push(format!("exit {}", argv.join(" ")));
+            Ok(dx_process::ChildStatus { code: Some(0) })
+        }
+
+        fn run_withdrawable(
+            &self,
+            argv: &[String],
+            _cwd: &Path,
+            _env: &[(&str, &str)],
+            withdraw: &dyn Fn() -> bool,
+        ) -> io::Result<Option<dx_process::ChildStatus>> {
+            assert!(!self.running.get(), "app instances overlap");
+            self.running.set(true);
+            self.events
+                .borrow_mut()
+                .push(format!("launch {}", argv.join(" ")));
+            for _ in 0..50 {
+                if withdraw() {
+                    self.events.borrow_mut().push("withdrawn".to_owned());
+                    self.running.set(false);
+                    return Ok(None);
+                }
+            }
+            self.events.borrow_mut().push("exited".to_owned());
+            self.running.set(false);
+            Ok(Some(dx_process::ChildStatus { code: Some(0) }))
+        }
+    }
+
+    fn run_app_watch(
+        words: &[&str],
+        runner: &AppRunner,
+        wait: impl FnMut(&dx_adopt::watch::WatchSession, Duration) -> Result<Vec<PathBuf>, AdoptError>,
+    ) -> (i32, String, String) {
+        let scratch = dx_test_scratch::scratch("dx-watch-run-");
+        let workspace = scratch.path().to_path_buf();
+        let temp_dir = workspace.join(".tmp");
+        std::fs::create_dir_all(&temp_dir).expect("temp dir");
+        let query = NullQuery;
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = watch(
+            &invocation(words),
+            Env {
+                workspace: &workspace,
+                runner,
+                query_runner: &query,
+                temp_dir: &temp_dir,
+                pid: 1,
+                nonce: 1,
+                out: &mut out,
+                err: &mut err,
+                ci: false,
+            },
+            None,
+            &|| None,
+            wait,
+        );
+        (
+            code,
+            String::from_utf8(out).expect("stdout"),
+            String::from_utf8(err).expect("stderr"),
+        )
+    }
+
+    #[test]
+    fn watch_run_stops_the_running_app_before_launching_its_replacement() {
+        let runner = AppRunner::new();
+        let mut polls = 0;
+        let (code, stdout, stderr) = run_app_watch(
+            &["watch", "run", "//app:bin", "--", "--help"],
+            &runner,
+            |_, timeout| {
+                assert_eq!(
+                    timeout,
+                    Duration::ZERO,
+                    "a running app is polled, not awaited"
+                );
+                polls += 1;
+                match polls {
+                    3 => Ok(vec![PathBuf::from("/ws/src/main.rs")]),
+                    6 => Err(AdoptError::WatchFailed {
+                        detail: "stop".to_owned(),
+                    }),
+                    _ => Ok(Vec::new()),
+                }
+            },
+        );
+        assert_eq!(code, 1, "{stderr}");
+        assert!(stderr.contains("watch_failed"), "{stderr}");
+        let events = runner.events.borrow();
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.split(' ').next().unwrap_or_default())
+                .collect::<Vec<_>>(),
+            ["launch", "withdrawn", "launch", "withdrawn"],
+            "{events:?}"
+        );
+        assert!(
+            events[0].ends_with(" run --config=dx_dev //app:bin -- --help"),
+            "the -- payload reaches the app unchanged: {}",
+            events[0]
+        );
+        assert_eq!(events[0], events[2], "the replacement runs the same argv");
+        let lines: Vec<&str> = stdout.lines().collect();
+        assert_eq!(
+            lines,
+            [
+                "watch:run:debounce=200ms scope=//app:bin iteration=1",
+                "watching (Ctrl-C to stop)",
+                "changed /ws/src/main.rs",
+                "watch:run:debounce=200ms scope=//app:bin iteration=2",
+            ],
+            "{stdout}"
+        );
+    }
+
+    #[test]
+    fn watch_run_waits_for_a_change_after_the_app_exits_on_its_own() {
+        let runner = AppRunner::new();
+        let mut calls = Vec::new();
+        let (code, stdout, _) =
+            run_app_watch(&["watch", "run", "//app:bin"], &runner, |_, timeout| {
+                calls.push(timeout);
+                if timeout == Duration::ZERO {
+                    return Ok(Vec::new());
+                }
+                Err(AdoptError::WatchFailed {
+                    detail: "stop".to_owned(),
+                })
+            });
+        assert_eq!(code, 1);
+        assert_eq!(
+            runner.events.borrow().last().map(String::as_str),
+            Some("exited")
+        );
+        assert_eq!(calls.last(), Some(&WATCH_POLL), "idle waits block");
+        assert!(stdout.contains("watching (Ctrl-C to stop)"), "{stdout}");
+    }
+
+    #[test]
+    fn watch_run_json_ends_each_replaced_iteration_in_command_finished() {
+        let runner = AppRunner::new();
+        let mut polls = 0;
+        let (code, stdout, stderr) = run_app_watch(
+            &["watch", "run", "//app:bin", "--output=json"],
+            &runner,
+            |_, _| {
+                polls += 1;
+                match polls {
+                    2 => Ok(vec![PathBuf::from("/ws/src/main.rs")]),
+                    4 => Err(AdoptError::WatchFailed {
+                        detail: "stop".to_owned(),
+                    }),
+                    _ => Ok(Vec::new()),
+                }
+            },
+        );
+        assert_eq!(code, 1);
+        let events = json_events(&stdout);
+        assert_eq!(
+            event_kinds(&events)
+                .iter()
+                .filter(|kind| **kind == "command_started")
+                .count(),
+            2,
+            "{stdout}"
+        );
+        let finished = events_of_kind(&events, "command_finished");
+        assert_eq!(finished.len(), 3, "{stdout}");
+        assert_eq!(finished[0]["exit_code"], 143, "{stdout}");
+        assert_eq!(finished[1]["exit_code"], 143, "{stdout}");
+        assert_eq!(finished[2]["exit_code"], 1, "{stdout}");
+        assert!(stderr.contains("changed /ws/src/main.rs"), "{stderr}");
+    }
+
+    #[test]
+    fn watch_finite_commands_never_withdraw_the_running_command() {
+        let runner = AppRunner::new();
+        let mut waits = Vec::new();
+        let (code, _, _) = run_app_watch(&["watch", "build", "//..."], &runner, |_, timeout| {
+            waits.push(timeout);
+            Err(AdoptError::WatchFailed {
+                detail: "stop".to_owned(),
+            })
+        });
+        assert_eq!(code, 1);
+        assert_eq!(waits, [WATCH_POLL], "build is never polled mid-run");
+        let events = runner.events.borrow();
+        assert_eq!(events.len(), 1, "{events:?}");
+        assert!(events[0].starts_with("exit "), "{events:?}");
     }
 }
 

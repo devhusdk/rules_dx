@@ -1265,3 +1265,87 @@ fn osv_typed_malformed_fails_closed() {
     assert!(parse_snapshot("").is_err());
     assert_eq!(parse_snapshot("[]").expect("empty"), Vec::new());
 }
+
+fn nuget_package(name: &str) -> LockedPackage {
+    LockedPackage {
+        name: name.to_owned(),
+        version: "12.0.1".to_owned(),
+        set: "nuget".to_owned(),
+        is_git: false,
+        is_private: false,
+        location: None,
+    }
+}
+
+fn nuget_advisory(package: &str) -> Advisory {
+    Advisory {
+        id: "GHSA-nuget-case".to_owned(),
+        package: package.to_owned(),
+        versions: "(,13.0.1)".to_owned(),
+        severity: "high".to_owned(),
+        fixed: vec![],
+        set: "nuget".to_owned(),
+    }
+}
+
+#[test]
+fn nuget_package_ids_match_case_insensitively() {
+    let advisories = vec![nuget_advisory("Newtonsoft.Json")];
+    let (lower, _) = match_packages(&[nuget_package("newtonsoft.json")], &advisories);
+    let (exact, _) = match_packages(&[nuget_package("Newtonsoft.Json")], &advisories);
+    assert_eq!(lower.len(), 1);
+    assert_eq!(exact.len(), 1);
+    assert_eq!(lower[0].package, "newtonsoft.json");
+    assert_eq!(lower[0].advisory, exact[0].advisory);
+}
+
+#[test]
+fn nuget_distinct_and_malformed_ids_do_not_match() {
+    let advisories = vec![nuget_advisory("Newtonsoft.Json")];
+    for name in ["Newtonsoft.Json.Bson", "", "  "] {
+        let (findings, _) = match_packages(&[nuget_package(name)], &advisories);
+        assert!(findings.is_empty(), "{name:?}");
+    }
+    let (findings, _) = match_packages(&[nuget_package("Newtonsoft.Json")], &[nuget_advisory("")]);
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn case_sensitive_ecosystems_keep_exact_identity() {
+    let mut package = nuget_package("Foo");
+    package.set = "npm".to_owned();
+    let mut advisory = nuget_advisory("foo");
+    advisory.set = "npm".to_owned();
+    advisory.versions = "<=12.0.1".to_owned();
+    let (findings, _) = match_packages(&[package], &[advisory]);
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn nuget_exceptions_match_case_insensitively_without_widening() {
+    let (findings, _) = match_packages(
+        &[nuget_package("newtonsoft.json")],
+        &[nuget_advisory("Newtonsoft.Json")],
+    );
+    let exception = |package: &str, versions: &str| RiskException {
+        advisory: "GHSA-nuget-case".to_owned(),
+        package: package.to_owned(),
+        set: "nuget".to_owned(),
+        versions: versions.to_owned(),
+        reason: "No fixed release exists.".to_owned(),
+        expires: "2027-03-01".to_owned(),
+    };
+    let (left, problems) = apply_exceptions(
+        &findings,
+        &[exception("NEWTONSOFT.JSON", "(,13.0.0)")],
+        "2026-09-18",
+    );
+    assert!(problems.is_empty());
+    assert!(left.is_empty());
+    let (left, _) = apply_exceptions(
+        &findings,
+        &[exception("NEWTONSOFT.JSON", "[13.0.0,)")],
+        "2026-09-18",
+    );
+    assert_eq!(left.len(), 1);
+}

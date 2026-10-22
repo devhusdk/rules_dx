@@ -45,7 +45,19 @@ pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             });
         }
     }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    out.sort_by_cached_key(|package| {
+        (
+            crate::vuln::package_identity("nuget", &package.name),
+            package.name.clone(),
+            package.version.clone(),
+        )
+    });
+    out.dedup_by(|b, a| {
+        a.is_git == b.is_git
+            && a.version == b.version
+            && crate::vuln::package_identity("nuget", &a.name)
+                == crate::vuln::package_identity("nuget", &b.name)
+    });
     Ok(out)
 }
 

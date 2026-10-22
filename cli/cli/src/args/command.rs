@@ -413,7 +413,7 @@ pub static COMMANDS: [CommandMeta; 29] = [
         scope_policy: "default-//...",
         describe: "run format+lint+typecheck+generate checks in order (non-mutating)",
         usage: "Usage: dx check|fix [--check] [--here] [scope ...] [-- bazel-options ...]",
-        flags: "Per-command flags: --check/--fail-on/--report pass through per phase (check only; non-mutating umbrella over format+lint+typecheck+generate, stop-on-first-failure).",
+        flags: "Per-command flags: --check/--fail-on/--report pass through per phase (check only; non-mutating umbrella over format+lint+typecheck+generate; later phases still run after ordinary findings).",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_audit_update: false,
         is_managed: false,

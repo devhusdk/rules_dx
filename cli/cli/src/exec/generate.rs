@@ -51,6 +51,16 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) -> i32 {
+    run_generate(request, env, &mut PhaseKind::Selection)
+}
+
+pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) -> (i32, PhaseKind) {
+    let mut kind = PhaseKind::Selection;
+    let code = run_generate(request, env, &mut kind);
+    (code, kind)
+}
+
+fn run_generate(request: &GenerateRequest, env: Env<'_>, kind: &mut PhaseKind) -> i32 {
     match plan_reports(
         env.workspace,
         crate::args::Command::Generate,
@@ -81,6 +91,7 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
             return pre_exec(request.common.output, env.out, env.err, &format!("{error}"))
         }
     };
+    *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
         if let Ok(event) = command_started("generate", mode) {
@@ -113,6 +124,7 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
         if bazel_code != 0 {
             return finish_incomplete_generate(request.common.output, env.out, bazel_code);
         }
+        *kind = PhaseKind::Incomplete;
         return operational_output(
             request.common.output,
             env.out,
@@ -131,9 +143,13 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
     let projected = match finalized {
         Ok(projected) => projected,
         Err(FinalizeError::IncompleteCheck) => {
+            if bazel_code == 0 {
+                *kind = PhaseKind::Incomplete;
+            }
             return finish_incomplete_generate(request.common.output, env.out, bazel_code);
         }
         Err(error) => {
+            *kind = PhaseKind::Incomplete;
             return operational_output(
                 request.common.output,
                 env.out,
@@ -164,6 +180,7 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
             let _ = write_event(env.out, &notice_value(notice));
         }
         let code = projected.exit_code(bazel_code);
+        *kind = generate_kind(code, bazel_code, projected.results_complete);
         let _ = write_event(
             env.out,
             &command_finished(code, &projected.finished_counts()),
@@ -190,7 +207,21 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
             let _ = writeln!(env.out, "{line}");
         }
     }
-    projected.exit_code(bazel_code)
+    let code = projected.exit_code(bazel_code);
+    *kind = generate_kind(code, bazel_code, projected.results_complete);
+    code
+}
+
+fn generate_kind(code: i32, bazel_code: i32, results_complete: bool) -> PhaseKind {
+    if bazel_code != 0 {
+        PhaseKind::Tool
+    } else if !results_complete {
+        PhaseKind::Incomplete
+    } else if code != 0 {
+        PhaseKind::Findings
+    } else {
+        PhaseKind::Clean
+    }
 }
 
 #[cfg(test)]

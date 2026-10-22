@@ -16,6 +16,8 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "c",
     "cpp",
     "rust-web",
+    "ruby",
+    "powershell",
 ];
 
 pub const RUST_WEB_EDITION: &str = "2021";
@@ -216,6 +218,7 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
             dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
         }
         "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
+        "ruby" | "powershell" => validate_bazel_module_name(&identity),
         _ => Ok(()),
     };
     check.map_err(|reason| AdoptError::NewInvalidIdentity {
@@ -224,6 +227,26 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
         reason: reason.to_owned(),
     })?;
     Ok(identity)
+}
+
+fn validate_bazel_module_name(name: &str) -> Result<(), &'static str> {
+    const REASON: &str =
+        "bazel module names start with a letter, end with a letter or digit, and use [a-z0-9._-] only";
+    let bytes = name.as_bytes();
+    let (Some(first), Some(last)) = (bytes.first(), bytes.last()) else {
+        return Err(REASON);
+    };
+    if !first.is_ascii_lowercase() || !(last.is_ascii_lowercase() || last.is_ascii_digit()) {
+        return Err(REASON);
+    }
+    if bytes
+        .iter()
+        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'.' | b'-' | b'_'))
+    {
+        Ok(())
+    } else {
+        Err(REASON)
+    }
 }
 
 fn escape_json_string(text: &str) -> String {
@@ -374,6 +397,143 @@ fn rust_web_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
     ])
 }
 
+fn consumer_module_bazel(identity: &str, platforms: bool) -> String {
+    let mut module = format!(
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n",
+        super::DX_VERSION
+    );
+    if platforms {
+        module.push_str(&format!(
+            "bazel_dep(name = \"platforms\", version = \"{RUST_WEB_PLATFORMS_VERSION}\")\n"
+        ));
+    }
+    module
+}
+
+fn consumer_bazelrc() -> String {
+    "build --java_runtime_version=remotejdk_21\n".to_owned()
+}
+
+fn consumer_bazelversion() -> String {
+    format!("{RUST_WEB_BAZEL_VERSION}\n")
+}
+
+fn ruby_files(identity: &str) -> Vec<(String, String)> {
+    let build =
+        r#"load("@rules_dx//ruby/rules:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
+
+ruby_library(
+    name = "IDENTITY",
+    srcs = ["hello.rb"],
+)
+
+ruby_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.rb"],
+    main = "main.rb",
+    deps = [":IDENTITY"],
+)
+
+ruby_test(
+    name = "IDENTITY_test",
+    srcs = ["hello_test.rb"],
+    deps = [":IDENTITY"],
+)
+"#
+        .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "hello.rb".to_owned(),
+            "module Hello\n  def self.greet(name)\n    \"hello #{name}\"\n  end\nend\n".to_owned(),
+        ),
+        (
+            "main.rb".to_owned(),
+            "require_relative \"hello\"\n\nputs Hello.greet(\"world\")\n".to_owned(),
+        ),
+        (
+            "hello_test.rb".to_owned(),
+            "require_relative \"hello\"\n\ngot = Hello.greet(\"world\")\nif got != \"hello world\"\n  warn \"unexpected greeting: #{got}\"\n  exit 1\nend\nputs \"PASS\"\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn powershell_files(identity: &str) -> Vec<(String, String)> {
+    let build =
+        r#"load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
+
+pwsh_library(
+    name = "IDENTITY",
+    srcs = [
+        "Hello.psd1",
+        "Hello.psm1",
+    ],
+)
+
+pwsh_binary(
+    name = "IDENTITY_bin",
+    srcs = ["Main.ps1"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":IDENTITY"],
+)
+
+pwsh_test(
+    name = "IDENTITY_test",
+    srcs = ["Hello.Tests.ps1"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":IDENTITY"],
+)
+"#
+        .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+
+The targets are Linux only.
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, true)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "Hello.psd1".to_owned(),
+            "@{\n    RootModule = 'Hello.psm1'\n    ModuleVersion = '0.1.0'\n    GUID = '5b0f3a52-7c1e-4d0e-9a57-3f1c2b8e6d41'\n    PowerShellVersion = '7.0'\n}\n".to_owned(),
+        ),
+        (
+            "Hello.psm1".to_owned(),
+            "function Get-Greeting {\n    [OutputType([string])]\n    param([string]$Name = \"world\")\n    return \"hello $Name\"\n}\n".to_owned(),
+        ),
+        (
+            "Main.ps1".to_owned(),
+            "#!/usr/bin/env pwsh\n$ErrorActionPreference = \"Stop\"\nImport-Module (Join-Path $PSScriptRoot \"Hello.psm1\") -Force\nWrite-Output (Get-Greeting)\n".to_owned(),
+        ),
+        (
+            "Hello.Tests.ps1".to_owned(),
+            "#!/usr/bin/env pwsh\n$ErrorActionPreference = \"Stop\"\nImport-Module (Join-Path $PSScriptRoot \"Hello.psm1\") -Force\n$got = Get-Greeting\nif ($got -ne \"hello world\") {\n    Write-Error \"unexpected greeting: $got\"\n    exit 1\n}\nexit 0\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
 fn python_manifest(identity: &str) -> Result<String, AdoptError> {
     let mut project = toml::Table::new();
     project.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
@@ -521,6 +681,8 @@ fn new_language_files(
                 "module Hello\n\nlet greet name = \"hello \" + name\n".to_owned(),
             ),
         ],
+        "ruby" => ruby_files(identity),
+        "powershell" => powershell_files(identity),
         "c" => vec![
             (
                 "hello.c".to_owned(),
@@ -595,11 +757,12 @@ mod tests {
             assert_eq!(normalize_new_language(spelling), None);
             assert!(removed_new_language(spelling).is_some());
         }
-        assert_eq!(normalize_new_language("ruby"), None);
+        assert_eq!(normalize_new_language("ruby"), Some("ruby"));
+        assert_eq!(normalize_new_language("powershell"), Some("powershell"));
         assert!(new_is_known_language("go"));
         assert!(new_is_known_language("rust-web"));
         assert!(!new_is_known_language("swift"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 13);
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 15);
     }
 
     #[test]
@@ -666,10 +829,10 @@ mod tests {
             .find(|f| f.path == "demo/.dx/version")
             .expect("version");
         assert_eq!(version.content, format!("{DX_VERSION}\n"));
-        assert!(plan_new_files("ruby", "demo").is_err());
+        assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
-            plan_new_files("ruby", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: ruby (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web)"
+            plan_new_files("swift", "demo").unwrap_err().to_string(),
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell)"
         );
     }
 

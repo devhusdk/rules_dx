@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn new_rejects_unknown_language_pre_exec() {
-        let inv = invocation(&["new", "ruby", "demo"]);
+        let inv = invocation(&["new", "swift", "demo"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-new-unknown-");
         let root = scratch.path().to_path_buf();
         let (code, _out, err) = run(&inv, &root);
@@ -278,6 +278,158 @@ mod tests {
             err.contains("shop/Cargo.toml (absent-only, left untouched)"),
             "{err}"
         );
+    }
+
+    const BAZEL_STARTERS: &[(&str, &str, &[&str])] = &[
+        (
+            "ruby",
+            "demo-app",
+            &["hello.rb", "main.rb", "hello_test.rb"],
+        ),
+        (
+            "powershell",
+            "demo-app",
+            &["Hello.psm1", "Main.ps1", "Hello.Tests.ps1"],
+        ),
+    ];
+
+    #[test]
+    fn new_bazel_starters_check_then_apply_with_hyphenated_names() {
+        for (language, name, sources) in BAZEL_STARTERS {
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-starter-");
+            let root = scratch.path().to_path_buf();
+            let (code, _out, err) = run(&invocation(&["new", language, name]), &root);
+            assert_eq!(code, 1, "{language}: {err}");
+            assert!(
+                !root.join(name).exists(),
+                "{language}: check must not write"
+            );
+            let (code, out, err) = run(&invocation(&["new", "--apply", language, name]), &root);
+            assert_eq!(code, 0, "{language}: {err}");
+            assert!(out.contains("MODULE.bazel"), "{out}");
+            for file in [
+                "MODULE.bazel",
+                "BUILD.bazel",
+                ".bazelversion",
+                ".dx/version",
+            ] {
+                assert!(root.join(name).join(file).exists(), "{language}: {file}");
+            }
+            for file in *sources {
+                assert!(root.join(name).join(file).exists(), "{language}: {file}");
+            }
+            let build =
+                std::fs::read_to_string(root.join(name).join("BUILD.bazel")).expect("build");
+            for target in ["\"demo-app\"", "\"demo-app_bin\"", "\"demo-app_test\""] {
+                assert!(build.contains(target), "{language}: {build}");
+            }
+            let module =
+                std::fs::read_to_string(root.join(name).join("MODULE.bazel")).expect("module");
+            assert!(module.contains("module(name = \"demo-app\")"), "{module}");
+            assert_eq!(module.contains("platforms"), *language == "powershell");
+            let (code, out, _err) = run(&invocation(&["new", language, name]), &root);
+            assert_eq!(code, 0, "{language}: {out}");
+        }
+    }
+
+    #[test]
+    fn new_bazel_starters_reject_malformed_names_without_writing() {
+        for (language, _, _) in BAZEL_STARTERS {
+            for name in ["+", "9lives", "1"] {
+                let scratch = dx_test_scratch::scratch("dx-adopt-new-starter-bad-");
+                let root = scratch.path().to_path_buf();
+                let (code, _out, err) =
+                    run(&invocation(&["new", "--apply", language, name]), &root);
+                assert_eq!(code, pre_exec_code(), "{language} {name}");
+                assert!(err.contains("invalid package identity"), "{err}");
+                assert_eq!(std::fs::read_dir(&root).expect("read").count(), 0);
+            }
+        }
+    }
+
+    #[test]
+    fn new_bazel_starters_quiet_check_and_apply_stay_silent() {
+        for (language, name, _) in BAZEL_STARTERS {
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-starter-quiet-");
+            let root = scratch.path().to_path_buf();
+            let (code, out, _err) = run(
+                &invocation(&["new", "--apply", language, name, "--quiet"]),
+                &root,
+            );
+            assert_eq!(code, 0, "{language}");
+            assert!(out.is_empty(), "{language}: {out}");
+            assert!(root.join(name).join("MODULE.bazel").exists());
+            let (code, out, _err) = run(&invocation(&["new", language, name, "--quiet"]), &root);
+            assert_eq!(code, 0, "{language}");
+            assert!(out.is_empty(), "{language}: {out}");
+        }
+    }
+
+    #[test]
+    fn new_bazel_starters_never_overwrite_foreign_files() {
+        for (language, name, _) in BAZEL_STARTERS {
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-starter-foreign-");
+            let root = scratch.path().to_path_buf();
+            let existing = root.join(name);
+            std::fs::create_dir_all(&existing).expect("dir");
+            std::fs::write(existing.join("BUILD.bazel"), "# mine\n").expect("build");
+            let (code, _out, err) = run(&invocation(&["new", "--apply", language, name]), &root);
+            assert_eq!(code, 0, "{language}: {err}");
+            assert_eq!(
+                std::fs::read_to_string(existing.join("BUILD.bazel")).expect("build"),
+                "# mine\n"
+            );
+            assert!(
+                err.contains("BUILD.bazel (absent-only, left untouched)"),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn new_rejects_removed_mode_requests_for_bazel_starters() {
+        for words in [
+            vec!["new", "--apply", "ruby", "demo", "--force"],
+            vec!["new", "--apply", "powershell", "demo", "--dry-run"],
+        ] {
+            let parsed = crate::args::parse(&crate::test_support::strings(&words));
+            assert!(parsed.is_err(), "{words:?}");
+        }
+        for words in [vec!["new", "rb", "demo"], vec!["new", "pwsh", "demo"]] {
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-starter-removed-");
+            let root = scratch.path().to_path_buf();
+            let (code, _out, err) = run(&invocation(&words), &root);
+            assert_eq!(code, pre_exec_code(), "{words:?}");
+            assert!(err.contains("unknown language"), "{err}");
+            assert_eq!(
+                std::fs::read_dir(&root).expect("read").count(),
+                0,
+                "{words:?}"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn new_bazel_starters_refuse_symlink_destination_escape() {
+        for (language, _, _) in BAZEL_STARTERS {
+            let scratch = dx_test_scratch::scratch("dx-adopt-new-starter-link-");
+            let root = scratch.path().join("ws");
+            let outside = scratch.path().join("outside");
+            std::fs::create_dir_all(&root).expect("root");
+            std::fs::create_dir_all(&outside).expect("outside");
+            std::os::unix::fs::symlink(&outside, root.join("link")).expect("symlink");
+            let (code, _out, _err) = run(
+                &invocation(&["new", "--apply", language, "link/demo"]),
+                &root,
+            );
+            assert_ne!(code, 0, "{language}");
+            assert_eq!(
+                std::fs::read_dir(&outside).expect("read").count(),
+                0,
+                "{language}"
+            );
+        }
     }
 
     #[test]

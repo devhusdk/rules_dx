@@ -69,6 +69,9 @@ def _javascript_web_app_impl(ctx):
              display_label(bindgen.label) + " produces no snippets directory")
     entry_out = _web_stage_file(ctx, prefix, staged, entry)
     wasm_out = _web_stage_file(ctx, prefix, staged, info.wasm)
+    for module in info.js.to_list():
+        if module != entry:
+            _web_stage_file(ctx, prefix, staged, module)
     snippets_out = ctx.actions.declare_directory(prefix + info.snippets.basename)
     ctx.actions.symlink(output = snippets_out, target_file = info.snippets)
     staged.append(snippets_out)

@@ -6,6 +6,7 @@ use dx_output::{DiagnosticEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 
 use super::common::{collect_targets, FileChange};
+use super::quality_reconcile::{reconcile, Conflict, Producer};
 
 #[derive(Default)]
 struct Staged {
@@ -63,6 +64,7 @@ pub(crate) struct Collected {
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
     pub(crate) terminal_digests: BTreeMap<String, [u8; 32]>,
+    pub(crate) conflicts: Vec<Conflict>,
     pub(crate) complete: bool,
 }
 
@@ -128,8 +130,7 @@ pub(crate) fn collect_results_in(
     let mut tools = BTreeSet::new();
     let mut initial = Vec::new();
     let mut terminal = Vec::new();
-    let mut changes = Vec::new();
-    let mut terminal_digests = BTreeMap::new();
+    let mut producers = Vec::new();
     let mut complete = true;
     for target in &targets {
         if !target.success {
@@ -149,18 +150,24 @@ pub(crate) fn collect_results_in(
             complete = false;
             continue;
         }
-        tools.extend(staged.tools);
+        tools.extend(staged.tools.iter().cloned());
         initial.extend(staged.initial);
         terminal.extend(staged.terminal);
-        changes.extend(staged.changes);
-        terminal_digests.extend(staged.digests);
+        producers.push(Producer {
+            label: target.label.clone(),
+            tools: staged.tools,
+            changes: staged.changes,
+            digests: staged.digests,
+        });
     }
+    let reconciled = reconcile(workspace, producers);
     Ok(Collected {
         tools: tools.into_iter().collect(),
         initial,
         terminal,
-        changes,
-        terminal_digests,
+        changes: reconciled.changes,
+        terminal_digests: reconciled.digests,
+        conflicts: reconciled.conflicts,
         complete,
     })
 }

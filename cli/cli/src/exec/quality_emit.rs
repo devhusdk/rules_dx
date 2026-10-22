@@ -8,6 +8,7 @@ use dx_output::{
 
 use super::common::{change_event_for, text_diagnostic, FileChange, REASON_INCOMPLETE_COLLECTION};
 use super::quality_baseline::BaselineView;
+use super::quality_reconcile::Conflict;
 use crate::args::QualityRequest;
 
 pub(crate) struct EmitInputs<'a> {
@@ -16,6 +17,7 @@ pub(crate) struct EmitInputs<'a> {
     pub(crate) changes: &'a [FileChange],
     pub(crate) applied: &'a BTreeMap<String, bool>,
     pub(crate) not_applied: &'a [(String, &'static str)],
+    pub(crate) conflicts: &'a [Conflict],
     pub(crate) patch: &'a str,
     pub(crate) stdout_report: bool,
     pub(crate) suppressed: &'a [bool],
@@ -38,6 +40,7 @@ pub(crate) fn emit_findings(
         changes,
         applied,
         not_applied,
+        conflicts,
         patch,
         stdout_report,
         suppressed,
@@ -108,6 +111,18 @@ pub(crate) fn emit_findings(
                     ),
                 );
             }
+            for conflict in conflicts {
+                not_applied_count += 1;
+                let _ = write_event(
+                    out,
+                    &mutation_value(
+                        &conflict.path,
+                        ChangeKind::Modify,
+                        MutationOutcome::NotApplied,
+                        Some(conflict.reason),
+                    ),
+                );
+            }
         }
     } else if matches!(request.common.output, OutputMode::Text { .. }) {
         let human: &mut dyn Write = if stdout_report { err } else { out };
@@ -133,6 +148,15 @@ pub(crate) fn emit_findings(
             let _ = writeln!(err, "Not applied: {path} ({reason})");
         }
         out.write_all(patch.as_bytes()).ok();
+    }
+    for conflict in conflicts {
+        let _ = writeln!(
+            err,
+            "Conflict: {} ({}; producers: {})",
+            conflict.path,
+            conflict.reason,
+            conflict.producers.join(", ")
+        );
     }
     if let Some(view) = baseline {
         for stale in &view.stale {

@@ -246,31 +246,39 @@ impl Harness {
         for (artifact, bytes) in &staged {
             std::fs::write(artifact, bytes).expect("artifact");
         }
-        let files: Vec<serde_json::Value> = staged
-            .iter()
-            .map(|(artifact, _)| {
-                serde_json::json!({"uri": format!("file://{}", artifact.to_string_lossy())})
-            })
-            .collect();
-        let mut lines = Vec::new();
-        lines.push(
-            serde_json::json!({
-                "id": {"namedSet": {"id": "0"}},
-                "namedSetOfFiles": {"files": files},
-            })
-            .to_string(),
-        );
         let success = !self.fail_target;
-        lines.push(
-            serde_json::json!({
-                "id": {"targetCompleted": {"label": "//test:corpus"}},
-                "completed": {
-                    "success": success,
-                    "outputGroup": [{"name": "dx_results", "fileSets": [{"id": "0"}]}],
-                },
-            })
-            .to_string(),
-        );
+        let mut lines = Vec::new();
+        if staged.is_empty() {
+            lines.push(
+                serde_json::json!({
+                    "id": {"targetCompleted": {"label": "//test:corpus"}},
+                    "completed": {"success": success, "outputGroup": [{"name": "dx_results", "fileSets": []}]},
+                })
+                .to_string(),
+            );
+        }
+        for (index, ((artifact, _), label)) in staged.iter().zip(self.results.keys()).enumerate() {
+            let id = index.to_string();
+            lines.push(
+                serde_json::json!({
+                    "id": {"namedSet": {"id": id}},
+                    "namedSetOfFiles": {"files": [
+                        {"uri": format!("file://{}", artifact.to_string_lossy())}
+                    ]},
+                })
+                .to_string(),
+            );
+            lines.push(
+                serde_json::json!({
+                    "id": {"targetCompleted": {"label": label}},
+                    "completed": {
+                        "success": success,
+                        "outputGroup": [{"name": "dx_results", "fileSets": [{"id": id}]}],
+                    },
+                })
+                .to_string(),
+            );
+        }
         FakeRunner {
             code: if self.signalled {
                 None

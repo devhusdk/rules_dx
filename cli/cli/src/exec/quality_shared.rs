@@ -1,0 +1,152 @@
+use super::super::test_support::*;
+use dx_digest::blake3 as digest;
+use quality_result::proto;
+use quality_result::proto::FileSnapshot;
+
+fn result_for(
+    harness: &Harness,
+    original: &[u8],
+    original_digest: &[u8],
+    terminal: &[u8],
+    edits: Vec<proto::Edit>,
+) -> Vec<u8> {
+    let _ = original;
+    harness.result_full(
+        vec![Harness::diagnostic("unused", true)],
+        vec![],
+        vec![harness.replacement_at("src/a.py", original_digest.to_vec(), edits)],
+        vec![FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: digest(terminal).to_vec(),
+        }],
+    )
+}
+
+fn edit(replacement: &[u8]) -> Vec<proto::Edit> {
+    vec![proto::Edit {
+        start_byte: 0,
+        end_byte: 1,
+        replacement: replacement.to_vec(),
+    }]
+}
+
+fn setup(name: &str) -> (Harness, Vec<u8>) {
+    let harness = Harness::new(name);
+    harness.write_source("src/a.py", "x = 1\n");
+    let original = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    (harness, original)
+}
+
+fn source(harness: &Harness) -> Vec<u8> {
+    std::fs::read(harness.workspace.join("src/a.py")).expect("source")
+}
+
+#[test]
+fn disagreeing_candidates_leave_the_file_untouched_in_every_order() {
+    for swap in [false, true] {
+        let (mut harness, original) = setup("shared-conflict");
+        let d = digest(&original).to_vec();
+        let one = result_for(&harness, &original, &d, b"y = 1\n", edit(b"y"));
+        let two = result_for(&harness, &original, &d, b"z = 1\n", edit(b"z"));
+        let (first, second) = if swap { (two, one) } else { (one, two) };
+        harness.results.insert("//test:one".to_owned(), first);
+        harness.results.insert("//test:two".to_owned(), second);
+        let (code, out, err) = harness.run(&["lint", "--apply", "--output=json"]);
+        assert_eq!(code, 1);
+        assert_eq!(source(&harness), original);
+        let events = json_events(&out);
+        assert!(events_of_kind(&events, "change").is_empty());
+        let mutations = events_of_kind(&events, "mutation");
+        assert_eq!(mutations.len(), 1);
+        assert_eq!(mutations[0]["outcome"], serde_json::json!("not_applied"));
+        assert_eq!(
+            mutations[0]["reason"],
+            serde_json::json!("conflicting_digests")
+        );
+        assert!(err.contains("Conflict: src/a.py"), "{err}");
+        assert!(
+            err.contains("//test:one") && err.contains("//test:two"),
+            "{err}"
+        );
+    }
+}
+
+#[test]
+fn identical_candidates_apply_once() {
+    let (mut harness, original) = setup("shared-identical");
+    let d = digest(&original).to_vec();
+    let terminal = b"y = 1\n";
+    let one = result_for(&harness, &original, &d, terminal, edit(b"y"));
+    let two = result_for(&harness, &original, &d, terminal, edit(b"y"));
+    harness.results.insert("//test:one".to_owned(), one);
+    harness.results.insert("//test:two".to_owned(), two);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0);
+    assert_eq!(source(&harness), terminal);
+    let events = json_events(&out);
+    assert_eq!(events_of_kind(&events, "change").len(), 1);
+    let mutations = events_of_kind(&events, "mutation");
+    assert_eq!(mutations.len(), 1);
+    assert_eq!(mutations[0]["outcome"], serde_json::json!("applied"));
+}
+
+#[test]
+fn different_edit_encodings_of_the_same_bytes_agree() {
+    let (mut harness, original) = setup("shared-encodings");
+    let d = digest(&original).to_vec();
+    let terminal = b"y = 1\n";
+    let one = result_for(&harness, &original, &d, terminal, edit(b"y"));
+    let two = result_for(
+        &harness,
+        &original,
+        &d,
+        terminal,
+        vec![proto::Edit {
+            start_byte: 0,
+            end_byte: 5,
+            replacement: b"y = 1".to_vec(),
+        }],
+    );
+    harness.results.insert("//test:one".to_owned(), one);
+    harness.results.insert("//test:two".to_owned(), two);
+    let (code, _, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0);
+    assert_eq!(source(&harness), terminal);
+}
+
+#[test]
+fn differing_original_digests_conflict_in_check_mode() {
+    let (mut harness, original) = setup("shared-original");
+    let d = digest(&original).to_vec();
+    let one = result_for(&harness, &original, &d, b"y = 1\n", edit(b"y"));
+    let two = result_for(
+        &harness,
+        &original,
+        &digest(b"other\n").to_vec(),
+        b"y = 1\n",
+        edit(b"y"),
+    );
+    harness.results.insert("//test:one".to_owned(), one);
+    harness.results.insert("//test:two".to_owned(), two);
+    let (code, _, err) = harness.run(&["lint"]);
+    assert_eq!(code, 1);
+    assert_eq!(source(&harness), original);
+    assert!(
+        err.contains("Conflict: src/a.py (conflicting_digests"),
+        "{err}"
+    );
+}
+
+#[test]
+fn text_mode_reports_one_not_applied_file_for_a_conflict() {
+    let (mut harness, original) = setup("shared-text");
+    let d = digest(&original).to_vec();
+    let one = result_for(&harness, &original, &d, b"y = 1\n", edit(b"y"));
+    let two = result_for(&harness, &original, &d, b"y = 1\n", edit(b"z"));
+    harness.results.insert("//test:one".to_owned(), one);
+    harness.results.insert("//test:two".to_owned(), two);
+    let (code, _, err) = harness.run(&["lint", "--apply"]);
+    assert_eq!(code, 1);
+    assert_eq!(source(&harness), original);
+    assert!(err.contains("conflicting_candidates"), "{err}");
+}

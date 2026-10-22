@@ -22,6 +22,20 @@ fn install(bin: &Path, root: &Path) -> String {
     run.combined()
 }
 
+fn host(name: &str) -> String {
+    dx_path::host::host_filename(name)
+}
+
+#[cfg(windows)]
+fn link(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_file(target, link)
+}
+
+#[cfg(not(windows))]
+fn link(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
 fn is_symlink(path: &Path) -> bool {
     std::fs::symlink_metadata(path)
         .map(|meta| meta.file_type().is_symlink())
@@ -37,7 +51,7 @@ fn copy_tree(src: &Path, dst: &Path) {
         let dst_path = dst.join(entry.file_name());
         if file_type.is_symlink() {
             let target = std::fs::read_link(entry.path()).expect("read link");
-            std::os::unix::fs::symlink(target, dst_path).expect("copy link");
+            link(&target, &dst_path).expect("copy link");
         } else if file_type.is_dir() {
             copy_tree(&entry.path(), &dst_path);
         } else {
@@ -61,7 +75,7 @@ fn env_bootstrap() {
 
     for tool in ["doctor", "dx", "quality_markdown"] {
         assert!(
-            is_symlink(&root.join(".dx/bin").join(tool)),
+            is_symlink(&root.join(".dx/bin").join(host(tool))),
             "missing managed symlink: {tool}"
         );
     }
@@ -75,7 +89,7 @@ fn env_bootstrap() {
         "staging leftovers after commit"
     );
 
-    let doctor_bin = root.join(".dx/bin/doctor");
+    let doctor_bin = root.join(".dx/bin").join(host("doctor"));
     let doctor = dx_testing::run(&doctor_bin, &[], &[]).expect("doctor must execute");
     assert!(
         doctor.status.success(),
@@ -116,7 +130,8 @@ fn env_bootstrap() {
     });
     let alt_metadata = alt.join("metadata.json");
     dx_testing::write_json(&alt_metadata, &doc).expect("write alt metadata");
-    std::fs::remove_file(alt.join("bin/quality_markdown")).expect("drop quality_markdown");
+    std::fs::remove_file(alt.join("bin").join(host("quality_markdown")))
+        .expect("drop quality_markdown");
 
     let replace = dx_testing::run(
         &bin,
@@ -144,11 +159,11 @@ fn env_bootstrap() {
         replace.combined()
     );
     assert!(
-        !root.join(".dx/bin/quality_markdown").exists(),
+        !root.join(".dx/bin").join(host("quality_markdown")).exists(),
         "stale entry survived replacement"
     );
     assert!(
-        is_symlink(&root.join(".dx/bin/doctor")),
+        is_symlink(&root.join(".dx/bin").join(host("doctor"))),
         "surviving entry lost in replacement"
     );
 
@@ -158,13 +173,13 @@ fn env_bootstrap() {
         "unexpected restore output: {restore}"
     );
     assert!(
-        is_symlink(&root.join(".dx/bin/quality_markdown")),
+        is_symlink(&root.join(".dx/bin").join(host("quality_markdown"))),
         "restored entry missing"
     );
 
     let foreign = scratch.join("foreign");
     std::fs::create_dir_all(foreign.join(".dx/bin")).expect("foreign");
-    std::fs::write(foreign.join(".dx/bin/stale_tool"), b"stale").expect("stale tool");
+    std::fs::write(foreign.join(".dx/bin").join(host("stale_tool")), b"stale").expect("stale tool");
     let refused = dx_testing::run(
         &bin,
         &["--workspace", foreign.to_string_lossy().as_ref()],
@@ -178,7 +193,8 @@ fn env_bootstrap() {
         refused.combined()
     );
     assert_eq!(
-        std::fs::read_to_string(foreign.join(".dx/bin/stale_tool")).expect("read stale"),
+        std::fs::read_to_string(foreign.join(".dx/bin").join(host("stale_tool")))
+            .expect("read stale"),
         "stale",
         "foreign tree was modified"
     );

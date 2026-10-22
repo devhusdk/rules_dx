@@ -109,6 +109,7 @@ rustfmt_test(
     name = "dx_env_fmt_test",
     size = "small",
     targets = [
+        ":bootstrap_test",
         ":dx_env",
         ":env",
     ],
@@ -118,6 +119,7 @@ rust_clippy_test(
     name = "dx_env_clippy_test",
     size = "small",
     targets = [
+        ":bootstrap_test",
         ":dx_env",
         ":env",
     ],
@@ -145,8 +147,10 @@ rust_test(
         "DX_STAGED_METADATA": "env/default_tree.metadata.json",
     },
     tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/path:dx_path",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

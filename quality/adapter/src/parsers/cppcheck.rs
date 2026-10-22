@@ -107,6 +107,7 @@ fn location_finding(
             end: Some(start),
             suggestions: Vec::new(),
             encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
         },
     })
 }

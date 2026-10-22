@@ -97,6 +97,7 @@ pub fn parse_buf_lint(
                 end,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

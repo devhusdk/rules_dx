@@ -267,6 +267,7 @@ mod status_tests {
             range: Some((0, 1)),
             snapshot,
             fixable,
+            related: Vec::new(),
             resolution: None,
         }
     }

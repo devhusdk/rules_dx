@@ -75,6 +75,7 @@ pub fn parse_fsharplint(
                 }),
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

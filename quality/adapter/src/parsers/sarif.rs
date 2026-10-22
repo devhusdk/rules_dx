@@ -5,7 +5,9 @@ use url::Url;
 use serde_sarif::sarif::{ArtifactLocation, Invocation, Notification, Region, ResultLevel, Sarif};
 
 use super::{check_output_size, code_name, FileFinding, ParseError};
-use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity, LINE_END};
+use crate::{
+    ColumnEncoding, Finding, Related, RelatedLocation, TextPosition, ToolSeverity, LINE_END,
+};
 
 fn sarif_severity(level: Option<ResultLevel>) -> ToolSeverity {
     match level {
@@ -269,6 +271,45 @@ pub(super) fn read_sarif(tool: &'static str, stdout: &[u8]) -> Result<Sarif, Par
     })
 }
 
+const MAX_RELATED: usize = 32;
+
+fn related_locations(
+    tool: &'static str,
+    result: &serde_sarif::sarif::Result,
+    files: &[&str],
+    bases: &std::collections::BTreeMap<String, ArtifactLocation>,
+) -> Vec<Related> {
+    let mut out = Vec::new();
+    for location in result.related_locations.iter().flatten() {
+        let message = location
+            .message
+            .as_ref()
+            .and_then(|message| message.text.as_deref())
+            .unwrap_or_default();
+        let mut item = Related::new("related", message);
+        item.location = location.physical_location.as_ref().and_then(|physical| {
+            let artifact = physical.artifact_location.as_ref()?;
+            let uri = artifact.uri.as_deref().filter(|uri| !uri.is_empty())?;
+            let region = physical.region.as_ref()?;
+            let start = start(tool, region).ok()?;
+            let end = end(tool, region, start).ok()?;
+            let file =
+                resolve_file(tool, files, uri, artifact.uri_base_id.as_deref(), bases).ok()?;
+            Some(RelatedLocation {
+                file: file.to_owned(),
+                start,
+                end,
+            })
+        });
+        if item.message.is_empty() && item.location.is_none() {
+            continue;
+        }
+        out.push(item);
+    }
+    out.truncate(MAX_RELATED);
+    out
+}
+
 pub(super) fn sarif_findings(
     tool: &'static str,
     log: &Sarif,
@@ -299,6 +340,7 @@ pub(super) fn sarif_findings(
                     detail: "result with no locations".to_owned(),
                 });
             }
+            let related = related_locations(tool, result, files, bases);
             for location in locations {
                 let physical = location
                     .physical_location
@@ -341,6 +383,7 @@ pub(super) fn sarif_findings(
                         end,
                         suggestions: Vec::new(),
                         encoding,
+                        related: related.clone(),
                     },
                 });
             }
@@ -697,5 +740,27 @@ mod tests {
         assert_eq!(place("\"columnKind\":\"utf16CodeUnits\",", 4), Some(5));
         assert_eq!(place("\"columnKind\":\"unicodeCodePoints\",", 3), Some(5));
         assert_eq!(place("", 3), None);
+    }
+
+    #[test]
+    fn sarif_related_locations_become_related_items() {
+        let result = r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":5}}}],"relatedLocations":[{"id":1,"message":{"text":"declared here"},"physicalLocation":{"artifactLocation":{"uri":"/s/b.java"},"region":{"startLine":3,"startColumn":2}}},{"message":{"text":"outside"},"physicalLocation":{"artifactLocation":{"uri":"/elsewhere/c.java"},"region":{"startLine":1,"startColumn":1}}},{"physicalLocation":{"artifactLocation":{"uri":"/s/b.java"}}}]}"#;
+        let log = format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},\"results\":[{result}]}}]}}");
+        let found = parse_sarif(TOOL, log.as_bytes(), Some(1), &["/s/a.java", "/s/b.java"])
+            .expect("parsed");
+        assert_eq!(found.len(), 1);
+        let related = &found[0].finding.related;
+        assert_eq!(related.len(), 2);
+        assert_eq!(related[0].role, "related");
+        assert_eq!(related[0].message, "declared here");
+        assert_eq!(
+            related[0]
+                .location
+                .as_ref()
+                .map(|l| (l.file.as_str(), l.start.line)),
+            Some(("/s/b.java", 3))
+        );
+        assert_eq!(related[1].message, "outside");
+        assert!(related[1].location.is_none());
     }
 }

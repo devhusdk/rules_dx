@@ -84,6 +84,7 @@ pub fn parse_buildifier(
                     }),
                     suggestions: Vec::new(),
                     encoding: ColumnEncoding::Scalars,
+                    related: Vec::new(),
                 },
             });
         }

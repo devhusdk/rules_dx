@@ -9,7 +9,7 @@
 )]
 
 use line_index::LineIndex;
-use quality_result::proto::{Diagnostic, Severity};
+use quality_result::proto::{self, Diagnostic, Severity};
 
 pub mod commands;
 pub mod exec;
@@ -48,6 +48,34 @@ pub struct Suggestion {
     pub replacement: Vec<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelatedLocation {
+    pub file: String,
+    pub start: TextPosition,
+    pub end: Option<TextPosition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Related {
+    pub role: String,
+    pub message: String,
+    pub location: Option<RelatedLocation>,
+    pub replacement: Option<String>,
+    pub applicability: String,
+}
+
+impl Related {
+    pub fn new(role: &str, message: &str) -> Self {
+        Related {
+            role: role.to_owned(),
+            message: message.to_owned(),
+            location: None,
+            replacement: None,
+            applicability: String::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ColumnEncoding {
     #[default]
@@ -66,6 +94,7 @@ pub struct Finding {
     pub end: Option<TextPosition>,
     pub suggestions: Vec<Suggestion>,
     pub encoding: ColumnEncoding,
+    pub related: Vec<Related>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -154,6 +183,15 @@ fn legacy_line_col_to_byte(
 }
 
 pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagnostic, PlaceError> {
+    place_finding_with(finding, path, text, |_| None)
+}
+
+pub fn place_finding_with<'t>(
+    finding: &Finding,
+    path: &str,
+    text: &str,
+    lookup: impl Fn(&str) -> Option<(String, &'t str)>,
+) -> Result<Diagnostic, PlaceError> {
     let start = line_col_to_byte_in(
         text,
         finding.start.line,
@@ -181,6 +219,11 @@ pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagno
     if end < start {
         return Err(PlaceError::InvertedRange);
     }
+    let related = finding
+        .related
+        .iter()
+        .map(|item| place_related(item, finding.encoding, &lookup))
+        .collect();
     Ok(Diagnostic {
         severity: finding.severity.proto(),
         message: finding.message.clone(),
@@ -190,7 +233,44 @@ pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagno
         start_byte: Some(start),
         end_byte: Some(end),
         fixable: false,
+        related,
     })
+}
+
+fn place_related<'t>(
+    item: &Related,
+    encoding: ColumnEncoding,
+    lookup: &impl Fn(&str) -> Option<(String, &'t str)>,
+) -> proto::Related {
+    let mut placed = proto::Related {
+        role: item.role.clone(),
+        message: item.message.clone(),
+        path: String::new(),
+        start_byte: None,
+        end_byte: None,
+        replacement: item.replacement.clone(),
+        applicability: item.applicability.clone(),
+    };
+    let Some(location) = &item.location else {
+        return placed;
+    };
+    let Some((path, text)) = lookup(&location.file) else {
+        return placed;
+    };
+    let start = line_col_to_byte_in(text, location.start.line, location.start.column, encoding);
+    let end = match location.end {
+        Some(position) if position.column == LINE_END => line_end_to_byte(text, position.line),
+        Some(position) => line_col_to_byte_in(text, position.line, position.column, encoding),
+        None => start,
+    };
+    if let (Some(start), Some(end)) = (start, end) {
+        if start <= end {
+            placed.path = path;
+            placed.start_byte = Some(start);
+            placed.end_byte = Some(end);
+        }
+    }
+    placed
 }
 
 #[cfg(test)]
@@ -259,6 +339,7 @@ mod tests {
             end: None,
             suggestions: Vec::new(),
             encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
         };
         let placed = place_finding(&point, "src/main.rs", CAFE).expect("mappable");
         assert_eq!(placed.start_byte, Some(12));
@@ -299,6 +380,7 @@ mod tests {
             }),
             suggestions: Vec::new(),
             encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
         };
         let placed = place_finding(&finding, "a", "ab\r\ncd\n").expect("placed");
         assert_eq!((placed.start_byte, placed.end_byte), (Some(0), Some(6)));
@@ -331,6 +413,7 @@ mod tests {
             end: None,
             suggestions: Vec::new(),
             encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
         };
         assert_eq!(
             place_finding(&base, "a.toml", CAFE),
@@ -398,5 +481,57 @@ mod tests {
             Some(9)
         );
         assert_eq!(line_col_to_byte_in(text, 2, 3, ColumnEncoding::Utf16), None);
+    }
+
+    #[test]
+    fn related_locations_resolve_against_the_named_file_bytes() {
+        let other = "a\r\n\u{e9}x\r\n";
+        let mut finding = Finding {
+            tool_id: "clippy".to_owned(),
+            rule_id: String::new(),
+            message: "m".to_owned(),
+            severity: ToolSeverity::Warning,
+            start: TextPosition { line: 2, column: 1 },
+            end: None,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
+        };
+        let mut on_other = Related::new("label", "second");
+        on_other.location = Some(RelatedLocation {
+            file: "/s/b.rs".to_owned(),
+            start: TextPosition { line: 2, column: 2 },
+            end: Some(TextPosition { line: 2, column: 3 }),
+        });
+        let mut external = Related::new("note", "external");
+        external.location = Some(RelatedLocation {
+            file: "/rustc/lib.rs".to_owned(),
+            start: TextPosition { line: 1, column: 1 },
+            end: None,
+        });
+        let mut off_end = Related::new("note", "far");
+        off_end.location = Some(RelatedLocation {
+            file: "/s/b.rs".to_owned(),
+            start: TextPosition { line: 9, column: 1 },
+            end: None,
+        });
+        finding.related = vec![on_other, external, off_end, Related::new("help", "bare")];
+        let placed = place_finding_with(&finding, "a.rs", CAFE, |file| {
+            (file == "/s/b.rs").then(|| ("src/b.rs".to_owned(), other))
+        })
+        .expect("placed");
+        assert_eq!(placed.related.len(), 4);
+        assert_eq!(placed.related[0].path, "src/b.rs");
+        assert_eq!(
+            (placed.related[0].start_byte, placed.related[0].end_byte),
+            (Some(5), Some(6))
+        );
+        for unlocated in &placed.related[1..] {
+            assert_eq!(unlocated.path, "");
+            assert_eq!(unlocated.start_byte, None);
+        }
+        assert_eq!(placed.related[3].role, "help");
+        let plain = place_finding(&finding, "a.rs", CAFE).expect("placed");
+        assert!(plain.related.iter().all(|item| item.path.is_empty()));
     }
 }

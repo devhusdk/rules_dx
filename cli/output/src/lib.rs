@@ -29,7 +29,7 @@ pub use diagnostics::{
 };
 pub use findings::{
     diagnostic_event, diagnostic_value, notice_event, notice_value, sort_diagnostics,
-    DiagnosticEvent, NoticeEvent, Resolution, Snapshot,
+    DiagnosticEvent, NoticeEvent, RelatedEvent, Resolution, Snapshot,
 };
 pub use lifecycle::{
     build_failure_event, capability_event, capability_value, command_finished, command_started,

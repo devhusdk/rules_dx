@@ -98,6 +98,7 @@ pub fn parse_biome_lint(
                 end: Some(end),
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

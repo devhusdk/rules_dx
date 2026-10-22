@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 
-use quality_adapter::place_finding;
+use quality_adapter::place_finding_with;
 use quality_result::proto::Diagnostic;
 
 use crate::{
@@ -62,11 +62,15 @@ impl RealBackend {
                 path: workspace.clone(),
             })?;
             diagnostics.push(
-                place_finding(&found.finding, &workspace, text).map_err(|err| {
-                    RunnerError::UnplaceableFinding {
-                        tool_id: tool_id.to_owned(),
-                        detail: err.to_string(),
-                    }
+                place_finding_with(&found.finding, &workspace, text, |file| {
+                    let (name, _) = pairs.iter().find(|(workspace, absolute)| {
+                        workspace == file || absolute.as_os_str() == OsStr::new(file)
+                    })?;
+                    Some((name.clone(), files.get(name)?.as_str()))
+                })
+                .map_err(|err| RunnerError::UnplaceableFinding {
+                    tool_id: tool_id.to_owned(),
+                    detail: err.to_string(),
                 })?,
             );
         }

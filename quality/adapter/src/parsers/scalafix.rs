@@ -96,6 +96,7 @@ pub fn parse_scalafix(
                 end,
                 suggestions: Vec::new(),
                 encoding: ColumnEncoding::Scalars,
+                related: Vec::new(),
             },
         });
     }

@@ -220,6 +220,11 @@ uv.project(
     lock = "//quality/tools/python:uv.lock",
     pyproject = "//quality/tools/python:pyproject.toml",
 )
+uv.project(
+    hub_name = "pypi",
+    lock = "//tools/ci/tooling:uv.lock",
+    pyproject = "//tools/ci/tooling:pyproject.toml",
+)
 use_repo(uv, "pypi")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")

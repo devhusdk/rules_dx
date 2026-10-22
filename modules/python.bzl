@@ -10,13 +10,16 @@ UV_HUB = "pypi"
 UV_PROJECTS = [
     "//python/tests/fixtures/hello:pyproject.toml",
     "//quality/tools/python:pyproject.toml",
+    "//tools/ci/tooling:pyproject.toml",
 ]
 UV_LOCKS = [
     "//python/tests/fixtures/hello:uv.lock",
     "//quality/tools/python:uv.lock",
+    "//tools/ci/tooling:uv.lock",
 ]
 
 UV_REPIN_DIRS = [
     "python/tests/fixtures/hello",
     "quality/tools/python",
+    "tools/ci/tooling",
 ]

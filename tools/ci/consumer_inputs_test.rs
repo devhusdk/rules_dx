@@ -36,10 +36,11 @@ const MATRIX: &str = "${{ fromJSON(needs.validate.outputs.platforms) }}";
 
 const RUNNER: &str = "${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
 
-const RAW_INPUTS: [&str; 3] = [
+const RAW_INPUTS: [&str; 4] = [
     "inputs.platforms",
     "inputs.disabled_checks",
     "inputs.min_coverage",
+    "inputs.min_changed_line_coverage",
 ];
 
 /// Returns the parsed workflow, which must be valid Actions YAML.

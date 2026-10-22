@@ -51,6 +51,7 @@ def python_runtime_unit_tests(name):
                 [
                     "//python/tests/fixtures/hello:pyproject.toml",
                     "//quality/tools/python:pyproject.toml",
+                    "//tools/ci/tooling:pyproject.toml",
                 ],
             ),
             expect_equal(
@@ -59,6 +60,7 @@ def python_runtime_unit_tests(name):
                 [
                     "//python/tests/fixtures/hello:uv.lock",
                     "//quality/tools/python:uv.lock",
+                    "//tools/ci/tooling:uv.lock",
                 ],
             ),
             expect_equal(
@@ -67,6 +69,7 @@ def python_runtime_unit_tests(name):
                 [
                     "python/tests/fixtures/hello",
                     "quality/tools/python",
+                    "tools/ci/tooling",
                 ],
             ),
         ],

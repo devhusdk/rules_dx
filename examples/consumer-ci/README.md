@@ -15,7 +15,8 @@ quoted string, and no other dependency may declare `rules_dx`.
 
 A `validate` job runs before the checks and rejects a bad input with the
 accepted values. Only `parallel` scheduling, `false` for `code_scanning_opt_in`
-and a whole `min_coverage` from 0 to 100 are accepted.
+and a whole `min_coverage` or `min_changed_line_coverage` from 0 to 100 are
+accepted.
 
 Set approval policy, branch protection, and least-privilege permissions manually.
 

@@ -1,5 +1,6 @@
 package grades
 
+import java.io.IOException
 import java.io.StringReader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -67,6 +68,41 @@ class GradeReaderTest {
     @Test
     fun rejectsNonArray() {
         assertEquals("grade file must hold an array", message("{}"))
+    }
+
+    @Test
+    fun missingResourceIsReported() {
+        val e =
+            assertThrows(IOException::class.java) {
+                GradeReader.fromResource("/grades/absent.json")
+            }
+        assertEquals("missing resource /grades/absent.json", e.message)
+    }
+
+    @Test
+    fun rejectsNonStringName() {
+        assertEquals("name must be a string", message("""[{"name":3,"scores":[1]}]"""))
+    }
+
+    @Test
+    fun rejectsScoresThatAreNotAnArray() {
+        assertEquals("scores must be an array", message("""[{"name":"ada","scores":{}}]"""))
+    }
+
+    @Test
+    fun rejectsJsonThatOnlyALenientParserAccepts() {
+        val lenient =
+            listOf(
+                "[{'name':'ada','scores':[1]}]",
+                "[{name:\"ada\",scores:[1]}]",
+                "// note\n$one",
+                "$one []",
+                """[{"name":"ada","scores":[1]},]""",
+                "",
+            )
+        for (json in lenient) {
+            assertEquals(json, "grade file is not valid JSON", message(json))
+        }
     }
 
     @Test

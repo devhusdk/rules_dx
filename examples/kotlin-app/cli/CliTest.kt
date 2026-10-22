@@ -22,9 +22,9 @@ class CliTest {
             PrintStream(err, true, Charsets.UTF_8),
         )
 
-    private fun stdout() = out.toString(Charsets.UTF_8)
+    private fun stdout() = out.toString(Charsets.UTF_8).replace("\r\n", "\n")
 
-    private fun stderr() = err.toString(Charsets.UTF_8)
+    private fun stderr() = err.toString(Charsets.UTF_8).replace("\r\n", "\n")
 
     @Test
     fun listReadsTheBundledGrades() {

@@ -27,11 +27,11 @@ public class CliTest {
   }
 
   private String stdout() {
-    return out.toString(StandardCharsets.UTF_8);
+    return out.toString(StandardCharsets.UTF_8).replace("\r\n", "\n");
   }
 
   private String stderr() {
-    return err.toString(StandardCharsets.UTF_8);
+    return err.toString(StandardCharsets.UTF_8).replace("\r\n", "\n");
   }
 
   @Test

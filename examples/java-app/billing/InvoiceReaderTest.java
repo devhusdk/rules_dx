@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import java.io.StringReader;
 import org.junit.Test;
 
@@ -74,6 +75,40 @@ public class InvoiceReaderTest {
   @Test
   public void rejectsNonArray() {
     assertEquals("invoice file must hold an array", message("{}"));
+  }
+
+  @Test
+  public void missingResourceIsReported() {
+    IOException e =
+        assertThrows(IOException.class, () -> InvoiceReader.fromResource("/billing/absent.json"));
+    assertEquals("missing resource /billing/absent.json", e.getMessage());
+  }
+
+  @Test
+  public void rejectsItemsThatAreNotAnArray() {
+    assertEquals(
+        "items must be an array", message("[{\"id\":\"A\",\"customer\":\"c\",\"items\":{}}]"));
+  }
+
+  @Test
+  public void rejectsNonStringField() {
+    assertEquals(
+        "customer must be a string", message(ONE.replace("\"customer\":\"c\"", "\"customer\":3")));
+  }
+
+  @Test
+  public void rejectsJsonThatOnlyALenientParserAccepts() {
+    String[] lenient = {
+      "[{'id':'A','customer':'c','items':[]}]",
+      "[{id:\"A\",customer:\"c\",items:[]}]",
+      "// note\n" + ONE,
+      ONE + " []",
+      "[{\"id\":\"A\",\"customer\":\"c\",\"items\":[]},]",
+      "",
+    };
+    for (String json : lenient) {
+      assertEquals(json, "invoice file is not valid JSON", message(json));
+    }
   }
 
   @Test

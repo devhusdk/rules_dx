@@ -1,9 +1,9 @@
 package grades
 
+import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.google.gson.JsonParseException
-import com.google.gson.JsonParser
+import com.google.gson.stream.JsonReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.Reader
@@ -13,28 +13,41 @@ object GradeReader {
     /** Highest accepted score. */
     const val MAX = 100
 
+    private val GSON = Gson()
+
     private const val BUNDLED = "/grades/grades.json"
 
     /** Reads the students packaged with this library. */
-    fun bundled(): List<Student> {
+    fun bundled(): List<Student> = fromResource(BUNDLED)
+
+    /** Reads the students stored in a classpath resource. */
+    fun fromResource(resource: String): List<Student> {
         val stream =
-            GradeReader::class.java.getResourceAsStream(BUNDLED)
-                ?: throw IOException("missing resource $BUNDLED")
+            GradeReader::class.java.getResourceAsStream(resource)
+                ?: throw IOException("missing resource $resource")
         return stream.use { read(InputStreamReader(it, Charsets.UTF_8)) }
     }
 
     /** Parses a JSON array of students. */
     fun read(reader: Reader): List<Student> {
-        val root =
-            try {
-                JsonParser.parseReader(reader)
-            } catch (e: JsonParseException) {
-                throw GradeException("grade file is not valid JSON", e)
-            }
+        val root = parse(reader)
         if (!root.isJsonArray) {
             throw GradeException("grade file must hold an array")
         }
         return root.asJsonArray.map { student(obj(it, "student")) }
+    }
+
+    private fun parse(reader: Reader): JsonElement {
+        try {
+            JsonReader(reader).use { json ->
+                json.isLenient = false
+                val root = GSON.getAdapter(JsonElement::class.java).read(json)
+                json.peek()
+                return root
+            }
+        } catch (e: IOException) {
+            throw GradeException("grade file is not valid JSON", e)
+        }
     }
 
     private fun student(json: JsonObject): Student {

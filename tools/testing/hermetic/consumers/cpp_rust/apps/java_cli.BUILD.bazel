@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
 
 java_library(
@@ -24,4 +25,18 @@ java_test(
         ":cli",
         "@maven//:junit_junit",
     ],
+)
+
+sh_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes.sh"],
+    args = ["$(rootpath :invoice)"],
+    data = [":invoice"],
+)
+
+java_test(
+    name = "consumer_choice_test",
+    srcs = ["ConsumerChoiceTest.java"],
+    test_class = "cli.ConsumerChoiceTest",
+    deps = ["@maven//:junit_junit"],
 )

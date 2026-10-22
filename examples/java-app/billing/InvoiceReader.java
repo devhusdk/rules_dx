@@ -1,10 +1,10 @@
 package billing;
 
 import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -19,13 +19,21 @@ public final class InvoiceReader {
 
   private static final String BUNDLED = "/billing/invoices.json";
 
+  private static final Gson GSON = new Gson();
+
   private InvoiceReader() {}
 
   /** Reads the invoices packaged with this library. */
   public static ImmutableList<Invoice> bundled() throws InvoiceException, IOException {
-    try (InputStream in = InvoiceReader.class.getResourceAsStream(BUNDLED)) {
+    return fromResource(BUNDLED);
+  }
+
+  /** Reads the invoices stored in a classpath resource. */
+  public static ImmutableList<Invoice> fromResource(String resource)
+      throws InvoiceException, IOException {
+    try (InputStream in = InvoiceReader.class.getResourceAsStream(resource)) {
       if (in == null) {
-        throw new IOException("missing resource " + BUNDLED);
+        throw new IOException("missing resource " + resource);
       }
       return read(new InputStreamReader(in, StandardCharsets.UTF_8));
     }
@@ -33,12 +41,7 @@ public final class InvoiceReader {
 
   /** Parses a JSON array of invoices. */
   public static ImmutableList<Invoice> read(Reader reader) throws InvoiceException {
-    JsonElement root;
-    try {
-      root = JsonParser.parseReader(reader);
-    } catch (JsonParseException e) {
-      throw new InvoiceException("invoice file is not valid JSON", e);
-    }
+    JsonElement root = parse(reader);
     if (!root.isJsonArray()) {
       throw new InvoiceException("invoice file must hold an array");
     }
@@ -47,6 +50,17 @@ public final class InvoiceReader {
       invoices.add(invoice(object(element, "invoice")));
     }
     return invoices.build();
+  }
+
+  private static JsonElement parse(Reader reader) throws InvoiceException {
+    try (JsonReader json = new JsonReader(reader)) {
+      json.setLenient(false);
+      JsonElement root = GSON.getAdapter(JsonElement.class).read(json);
+      json.peek();
+      return root;
+    } catch (IOException e) {
+      throw new InvoiceException("invoice file is not valid JSON", e);
+    }
   }
 
   private static Invoice invoice(JsonObject json) throws InvoiceException {

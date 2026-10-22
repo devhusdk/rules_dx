@@ -17,11 +17,11 @@ fn invoice(args: &[&str], working_dir: Option<&PathBuf>) -> Output {
 }
 
 fn stdout(run: &Output) -> String {
-    String::from_utf8_lossy(&run.stdout).into_owned()
+    String::from_utf8_lossy(&run.stdout).replace("\r\n", "\n")
 }
 
 fn stderr(run: &Output) -> String {
-    String::from_utf8_lossy(&run.stderr).into_owned()
+    String::from_utf8_lossy(&run.stderr).replace("\r\n", "\n")
 }
 
 #[test]

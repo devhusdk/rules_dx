@@ -1132,3 +1132,109 @@ fn go_mod_nonselected_replacement_reports_the_original_version() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].version, "v1.2.0");
 }
+
+const UV_LOCK: &str = r#"
+version = 1
+requires-python = ">=3.9"
+
+[manifest]
+members = ["app", "lib-one"]
+
+[[package]]
+name = "app"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [{ name = "Django" }]
+
+[[package]]
+name = "lib-one"
+version = "0.2.0"
+source = { editable = "libs/one" }
+
+[[package]]
+name = "django"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "sqlparse"
+version = "0.4.1"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "gitdep"
+version = "1.0"
+source = { git = "https://example.com/gitdep.git?rev=abc#abc" }
+
+[[package]]
+name = "vendored"
+version = "1.0"
+source = { path = "vendor/vendored-1.0.tar.gz" }
+
+[[package]]
+name = "internal"
+version = "2.0"
+source = { registry = "https://pypi.corp.example/simple" }
+
+[[package]]
+name = "localdir"
+version = "1.0"
+source = { directory = "../localdir" }
+
+[[package]]
+name = "direct"
+version = "1.0"
+source = { url = "https://example.com/direct-1.0.whl" }
+"#;
+
+#[test]
+fn uv_lock_lists_transitive_packages_and_marks_unassessable_sources() {
+    let packages = parse_uv_lock(UV_LOCK).expect("parses");
+    let names: Vec<&str> = packages
+        .iter()
+        .map(|package| package.name.as_str())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["direct", "django", "gitdep", "internal", "localdir", "sqlparse", "vendored"]
+    );
+    assert!(packages.iter().all(|package| package.set == "uv"));
+    let flags: Vec<(&str, bool, bool)> = packages
+        .iter()
+        .map(|package| (package.name.as_str(), package.is_git, package.is_private))
+        .collect();
+    assert_eq!(
+        flags,
+        vec![
+            ("direct", false, true),
+            ("django", false, false),
+            ("gitdep", true, false),
+            ("internal", false, true),
+            ("localdir", false, true),
+            ("sqlparse", false, false),
+            ("vendored", false, true),
+        ]
+    );
+}
+
+#[test]
+fn uv_lock_rejects_malformed_documents() {
+    for text in [
+        "not = [toml",
+        "[[package]]\nname = \"a\"\nversion = \"1\"\nsource = { registry = \"https://pypi.org/simple\" }\n",
+        "version = 1\n",
+        "version = 1\n[[package]]\nversion = \"1\"\nsource = { registry = \"https://pypi.org/simple\" }\n",
+        "version = 1\n[[package]]\nname = \"a\"\nversion = \"1\"\n",
+        "version = 1\n[[package]]\nname = \"a\"\nversion = \"1\"\nsource = { mystery = \"x\" }\n",
+    ] {
+        assert!(parse_uv_lock(text).is_err(), "{text}");
+    }
+}
+
+#[test]
+fn uv_lock_package_without_a_version_is_kept_for_unassessed_reporting() {
+    let text = "version = 1\n[[package]]\nname = \"dyn\"\nsource = { registry = \"https://pypi.org/simple\" }\n";
+    let packages = parse_uv_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].version, "");
+}

@@ -1,5 +1,5 @@
 {
-  "checksum": "d96d308058c254efa39343655dbc64d09142fb1fc896e8c9a98d2554f2036a44",
+  "checksum": "00ba00943d38db35de4dd6e2ead9fca1bc0d14d9429882000215699548d4a67d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3844,6 +3844,10 @@
           {
             "id": "packageurl 0.7.0",
             "target": "packageurl"
+          },
+          {
+            "id": "pep440_rs 0.7.3",
+            "target": "pep440_rs"
           },
           {
             "id": "regex 1.13.1",

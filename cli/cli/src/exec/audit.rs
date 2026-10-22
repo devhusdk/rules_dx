@@ -172,7 +172,7 @@ impl AuditTarget<'_> {
         match self {
             AuditTarget::Builtin(set) => !dx_audit::backend::is_empty_set(set.name()),
             AuditTarget::Configured(set) => match set.ecosystem {
-                dx_adopt::dependency_sets::Ecosystem::Uv => false,
+                dx_adopt::dependency_sets::Ecosystem::Uv => true,
             },
         }
     }
@@ -184,7 +184,7 @@ impl AuditTarget<'_> {
                     && dx_audit::advisory::advisory_source(set.name()).is_some()
             }
             AuditTarget::Configured(set) => match set.ecosystem {
-                dx_adopt::dependency_sets::Ecosystem::Uv => false,
+                dx_adopt::dependency_sets::Ecosystem::Uv => true,
             },
         }
     }
@@ -258,31 +258,24 @@ fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError
     }
 }
 
-fn advisory_path(set: dx_update::sets::SetId) -> String {
-    dx_audit::advisory::snapshot_rel(set.name())
-}
-
-fn advisory_identity_path(set: dx_update::sets::SetId) -> String {
-    dx_audit::advisory::identity_rel(set.name())
-}
-
 fn load_advisories(
     workspace: &Path,
-    set: dx_update::sets::SetId,
+    key: &str,
+    label: &str,
     today: &str,
 ) -> Result<Vec<dx_audit::vuln::Advisory>, AuditError> {
-    let set_name = set.name().to_owned();
-    let family = dx_audit::advisory::advisory_family(set.name())
+    let set_name = label.to_owned();
+    let family = dx_audit::advisory::advisory_family(key)
         .ok_or_else(|| AuditError::AdvisoryUnsupported {
             set: set_name.clone(),
         })?
         .to_owned();
-    let source = dx_audit::advisory::advisory_source(set.name())
+    let source = dx_audit::advisory::advisory_source(key)
         .ok_or_else(|| AuditError::AdvisoryUnsupported {
             set: set_name.clone(),
         })?
         .to_owned();
-    let rel = advisory_path(set);
+    let rel = dx_audit::advisory::snapshot_rel(key);
     let full = workspace.join(&rel);
     let bytes = match std::fs::read(&full) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -316,7 +309,7 @@ fn load_advisories(
             rel: rel.clone(),
         });
     }
-    let meta_rel = advisory_identity_path(set);
+    let meta_rel = dx_audit::advisory::identity_rel(key);
     let meta_text = match read_workspace_text(workspace, &meta_rel) {
         Err(AuditError::Read { rel, error }) if error.kind() == std::io::ErrorKind::NotFound => {
             return Err(AuditError::AdvisoryMissingMeta {
@@ -459,6 +452,42 @@ fn parse_locked_for_set(
     }
     all.sort_by(|a, b| (&a.set, &a.name, &a.version).cmp(&(&b.set, &b.name, &b.version)));
     all.dedup_by(|b, a| a.set == b.set && a.name == b.name && a.version == b.version);
+    let fallback = locks
+        .first()
+        .map(|(rel, _)| rel.clone())
+        .unwrap_or_else(|| "unknown lockfile".to_owned());
+    Ok((
+        all,
+        LockPaths {
+            by_package,
+            fallback,
+        },
+    ))
+}
+
+fn parse_locked_for_configured(
+    set: &dx_adopt::dependency_sets::ResolvedSet,
+    locks: &[(String, String)],
+) -> Result<(Vec<dx_audit::vuln::LockedPackage>, LockPaths), AuditError> {
+    let mut all = Vec::new();
+    let mut by_package: BTreeMap<(String, String), String> = BTreeMap::new();
+    for (rel, text) in locks {
+        let mut packages = match set.ecosystem {
+            dx_adopt::dependency_sets::Ecosystem::Uv => dx_audit::locks::parse_uv_lock(text),
+        }
+        .map_err(|detail| AuditError::LockParse {
+            rel: rel.clone(),
+            detail,
+        })?;
+        for package in &packages {
+            by_package
+                .entry((package.name.clone(), package.version.clone()))
+                .or_insert_with(|| rel.clone());
+        }
+        all.append(&mut packages);
+    }
+    all.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    all.dedup_by(|b, a| a.name == b.name && a.version == b.version);
     let fallback = locks
         .first()
         .map(|(rel, _)| rel.clone())
@@ -798,6 +827,69 @@ struct SecurityInputs<'a> {
     offline: bool,
 }
 
+struct Assessable {
+    label: String,
+    packages: Vec<dx_audit::vuln::LockedPackage>,
+    lock_paths: LockPaths,
+    advisories: Vec<dx_audit::vuln::Advisory>,
+    exception_set: String,
+}
+
+fn collect_target(
+    workspace: &Path,
+    target: &AuditTarget<'_>,
+    today: &str,
+    offline: bool,
+) -> Result<Option<Assessable>, String> {
+    if !target.lock_covered() {
+        return Ok(None);
+    }
+    let label = target.name().to_owned();
+    let (locks, key) = match target {
+        AuditTarget::Builtin(set) => (lock_texts_for_set(workspace, *set), label.clone()),
+        AuditTarget::Configured(set) => (
+            lock_texts_for_configured(workspace, set),
+            dx_audit::advisory::PYPI_FAMILY.to_owned(),
+        ),
+    };
+    let locks = locks.map_err(|error| format!("failed to assess {label}: {error}"))?;
+    let parsed = match target {
+        AuditTarget::Builtin(set) => parse_locked_for_set(*set, &locks),
+        AuditTarget::Configured(set) => parse_locked_for_configured(set, &locks),
+    };
+    let (packages, lock_paths) = parsed.map_err(|error| error.to_string())?;
+    if !target.advisory_covered() {
+        if packages.is_empty() {
+            return Ok(None);
+        }
+        return Err(format!(
+            "failed to assess {label}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply"
+        ));
+    }
+    let advisories = load_advisories(workspace, &key, &label, today).map_err(|error| {
+        let wrapped = if offline {
+            AuditError::OfflineRequired {
+                set: label.clone(),
+                detail: error.to_string(),
+            }
+        } else {
+            error
+        };
+        format!("failed to assess {label}: {wrapped}")
+    })?;
+    let exception_set = match target {
+        AuditTarget::Builtin(_) => label.clone(),
+        AuditTarget::Configured(_) => "uv".to_owned(),
+    };
+    Ok(Some(Assessable {
+        label,
+        packages,
+        lock_paths,
+        advisories,
+        exception_set,
+    }))
+}
+
 fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
     let SecurityInputs {
         workspace,
@@ -853,70 +945,32 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         }
     }
     for target in sets {
-        if let AuditTarget::Configured(set) = target {
-            if let Err(error) = lock_texts_for_configured(workspace, set) {
+        let assessable = match collect_target(workspace, target, today, offline) {
+            Err(message) => {
                 if incomplete.is_none() {
-                    incomplete = Some(format!("failed to assess {}: {error}", target.name()));
-                }
-            }
-            continue;
-        }
-        let AuditTarget::Builtin(set) = target else {
-            continue;
-        };
-        if !target.lock_covered() {
-            continue;
-        }
-        let locks = match lock_texts_for_set(workspace, *set) {
-            Err(error) => {
-                let message = format!("failed to assess {}: {error}", set.name());
-                if incomplete.is_none() {
-                    incomplete = Some(message.clone());
+                    incomplete = Some(message);
                 }
                 continue;
             }
-            Ok(locks) => locks,
+            Ok(None) => continue,
+            Ok(Some(assessable)) => assessable,
         };
-        let (packages, lock_paths) = match parse_locked_for_set(*set, &locks) {
-            Err(error) => {
-                if incomplete.is_none() {
-                    incomplete = Some(error.to_string());
-                }
-                continue;
-            }
-            Ok(parsed) => parsed,
-        };
-        if !target.advisory_covered() {
-            if !packages.is_empty() && incomplete.is_none() {
-                incomplete = Some(format!(
-                    "failed to assess {}: no advisory backend for PowerShell Gallery modules; NuGet.org advisories do not apply",
-                    set.name()
-                ));
-            }
-            continue;
-        }
-        let advisories = match load_advisories(workspace, *set, today) {
-            Err(error) => {
-                let wrapped = if offline {
-                    AuditError::OfflineRequired {
-                        set: set.name().to_owned(),
-                        detail: error.to_string(),
-                    }
-                } else {
-                    error
-                };
-                if incomplete.is_none() {
-                    incomplete = Some(format!("failed to assess {}: {wrapped}", set.name()));
-                }
-                continue;
-            }
-            Ok(advisories) => advisories,
-        };
+        let Assessable {
+            label,
+            packages,
+            lock_paths,
+            advisories,
+            exception_set,
+        } = assessable;
         let (findings, unassessed) = dx_audit::vuln::match_packages(&packages, &advisories);
         let set_exceptions: Vec<dx_audit::exception::RiskException> = live_exceptions
             .iter()
-            .filter(|exception| exception.set == set.name())
-            .map(|exception| (*exception).clone())
+            .filter(|exception| exception.set == label)
+            .map(|exception| {
+                let mut exception = (*exception).clone();
+                exception.set = exception_set.clone();
+                exception
+            })
             .collect();
         let (unexempted, problems) =
             dx_audit::vuln::apply_exceptions(&findings, &set_exceptions, today);
@@ -926,7 +980,7 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 .map(|problem| problem.to_string())
                 .unwrap_or_else(|| "exception validation failed".to_owned());
             if incomplete.is_none() {
-                incomplete = Some(format!("failed to assess {}: {first}", set.name()));
+                incomplete = Some(format!("failed to assess {label}: {first}"));
             }
         }
         for finding in &unexempted {
@@ -958,8 +1012,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         for item in &unassessed {
             if incomplete.is_none() {
                 incomplete = Some(format!(
-                    "incomplete assessment: {} in {} ({})",
-                    item.package, item.set, item.reason
+                    "incomplete assessment: {} in {label} ({})",
+                    item.package, item.reason
                 ));
             }
         }

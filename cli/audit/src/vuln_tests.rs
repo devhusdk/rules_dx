@@ -1198,10 +1198,10 @@ fn osv_typed_withdrawn_unsupported_and_git_skip() {
         }]
     },
     {
-        "id": "GHSA-pypi-0001",
+        "id": "GHSA-packagist-0001",
         "modified": "2026-09-18T00:00:00Z",
         "affected": [{
-            "package": {"name": "django", "ecosystem": "PyPI"},
+            "package": {"name": "monolog/monolog", "ecosystem": "Packagist"},
             "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0"}, {"fixed": "2.0"}]}]
         }]
     },
@@ -1517,4 +1517,115 @@ fn a_nuget_advisory_never_matches_a_powershell_module_of_the_same_name_and_versi
     let (findings, unassessed) = match_packages(&[module], &[advisory]);
     assert!(findings.is_empty());
     assert!(unassessed.is_empty());
+}
+
+fn pypi_osv(events: &str) -> Vec<Advisory> {
+    let text = format!(
+        r#"[{{
+        "id": "PYSEC-2024-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{{
+            "package": {{"ecosystem": "PyPI", "name": "Django"}},
+            "ranges": [{{"type": "ECOSYSTEM", "events": {events}}}]
+        }}]
+    }}]"#
+    );
+    parse_snapshot(&text).expect("parses")
+}
+
+fn pypi_lock(name: &str, version: &str) -> Vec<LockedPackage> {
+    vec![LockedPackage {
+        name: name.to_owned(),
+        version: version.to_owned(),
+        set: "uv".to_owned(),
+        is_git: false,
+        is_private: false,
+        location: None,
+        platform: None,
+    }]
+}
+
+fn pypi_hits(events: &str, name: &str, version: &str) -> (usize, usize) {
+    let (findings, unassessed) = match_packages(&pypi_lock(name, version), &pypi_osv(events));
+    (findings.len(), unassessed.len())
+}
+
+#[test]
+fn pypi_names_normalize_per_pep_503() {
+    assert_eq!(normalize_pypi_name("Django"), "django");
+    assert_eq!(normalize_pypi_name("zope.interface"), "zope-interface");
+    assert_eq!(normalize_pypi_name("Foo__Bar..baz--qux"), "foo-bar-baz-qux");
+    assert_eq!(normalize_pypi_name("  Pillow "), "pillow");
+    let events = r#"[{"introduced":"0"},{"fixed":"3.2.5"}]"#;
+    assert_eq!(pypi_hits(events, "django", "3.2.4"), (1, 0));
+    assert_eq!(pypi_hits(events, "DJANGO", "3.2.4"), (1, 0));
+    assert_eq!(pypi_hits(events, "dja-ngo", "3.2.4"), (0, 0));
+    assert!(!same_package("uv", "", ""));
+}
+
+#[test]
+fn pypi_ranges_use_pep_440_ordering() {
+    let events = r#"[{"introduced":"1.0"},{"fixed":"2.0"}]"#;
+    for (version, hit) in [
+        ("0.9", 0),
+        ("1.0", 1),
+        ("1.0.0", 1),
+        ("1.9.9", 1),
+        ("2.0rc1", 1),
+        ("2.0.dev1", 1),
+        ("2.0", 0),
+        ("2.0.post1", 0),
+        ("1!0.5", 0),
+        ("1.0+local", 1),
+        ("1.0a1", 0),
+    ] {
+        assert_eq!(pypi_hits(events, "django", version), (hit, 0), "{version}");
+    }
+    let inclusive = r#"[{"introduced":"0"},{"last_affected":"2.0"}]"#;
+    assert_eq!(pypi_hits(inclusive, "django", "2.0"), (1, 0));
+    assert_eq!(pypi_hits(inclusive, "django", "2.0.1"), (0, 0));
+}
+
+#[test]
+fn pypi_exact_versions_and_wildcard_scopes() {
+    assert_eq!(pypi_assess("=1.0", "1.0.0"), PypiScope::Affected);
+    assert_eq!(pypi_assess("=1.0", "1.1"), PypiScope::Unaffected);
+    assert_eq!(pypi_assess("*", "9.9"), PypiScope::Affected);
+    assert_eq!(pypi_assess("", "1.0"), PypiScope::Unaffected);
+    assert!(pypi_in_scope(">=1.0, <2.0", "1.5"));
+    assert!(!pypi_in_scope(">=1.0, <2.0", "2.0"));
+}
+
+#[test]
+fn pypi_unparseable_versions_are_unassessed_never_clean() {
+    let events = r#"[{"introduced":"0"},{"fixed":"3.2.5"}]"#;
+    assert_eq!(pypi_hits(events, "django", "not-a-version"), (0, 1));
+    assert_eq!(pypi_hits(events, "django", ""), (0, 1));
+    assert_eq!(pypi_assess(">=banana", "1.0"), PypiScope::Incomplete);
+    assert_eq!(pypi_assess("~=1.0", "1.0"), PypiScope::Incomplete);
+}
+
+#[test]
+fn pypi_findings_carry_fixed_versions_and_skip_withdrawn() {
+    let events = r#"[{"introduced":"0"},{"fixed":"3.2.5"}]"#;
+    let (findings, _) = match_packages(&pypi_lock("django", "3.2.0"), &pypi_osv(events));
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].advisory, "PYSEC-2024-0001");
+    assert_eq!(findings[0].fixed, vec!["3.2.5".to_owned()]);
+    let withdrawn = r#"[{
+        "id": "PYSEC-1", "modified": "2026-09-18T00:00:00Z", "withdrawn": "2024-01-01T00:00:00Z",
+        "affected": [{"package": {"ecosystem": "PyPI", "name": "x"},
+        "versions": ["1.0"]}]
+    }]"#;
+    assert!(parse_snapshot(withdrawn).expect("parses").is_empty());
+    let listed = r#"[{
+        "id": "PYSEC-2", "modified": "2026-09-18T00:00:00Z",
+        "affected": [{"package": {"ecosystem": "PyPI", "name": "x"},
+        "versions": ["1.0", "1.1"]}]
+    }]"#;
+    let advisories = parse_snapshot(listed).expect("parses");
+    assert_eq!(advisories.len(), 2);
+    assert!(advisories.iter().all(|entry| entry.set == "uv"));
+    let (hit, _) = match_packages(&pypi_lock("X", "1.1"), &advisories);
+    assert_eq!(hit.len(), 1);
 }

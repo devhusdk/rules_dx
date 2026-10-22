@@ -6,6 +6,8 @@ mod vuln_match;
 mod vuln_maven;
 #[path = "vuln_nuget.rs"]
 mod vuln_nuget;
+#[path = "vuln_pypi.rs"]
+mod vuln_pypi;
 #[path = "vuln_ruby.rs"]
 mod vuln_ruby;
 #[path = "vuln_snapshot.rs"]
@@ -17,6 +19,7 @@ pub use vuln_go::*;
 pub use vuln_match::*;
 pub use vuln_maven::*;
 pub use vuln_nuget::*;
+pub use vuln_pypi::*;
 pub use vuln_ruby::*;
 pub use vuln_snapshot::*;
 pub use vuln_types::*;

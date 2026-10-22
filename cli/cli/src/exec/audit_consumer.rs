@@ -2,7 +2,7 @@
 mod tests {
     use super::super::super::test_support::Harness;
     use super::super::super::test_support::{event_kinds, json_events};
-    use super::super::audit_live::AuditRunner;
+    use super::super::audit_live::{write_advisory, AuditRunner};
 
     const DX_TOML: &str = r#"
 schema_version = 1
@@ -65,17 +65,71 @@ source = { registry = "https://pypi.org/simple" }
         AuditRunner::clean()
     }
 
+    const NO_ADVISORIES: &str = "[]";
+
+    const DJANGO_ADVISORY: &str = r#"[{
+        "id": "PYSEC-2021-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "PyPI", "name": "Django"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "3.2"}, {"fixed": "3.2.5"}]}]
+        }]
+    }]"#;
+
+    const SQLPARSE_ADVISORY: &str = r#"[{
+        "id": "PYSEC-2021-0002",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "PyPI", "name": "SQLParse"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0.4.4"}]}]
+        }]
+    }]"#;
+
+    fn lock_with(packages: &str) -> String {
+        format!(
+            "version = 1\nrequires-python = \">=3.9\"\n\n\
+             [[package]]\nname = \"project\"\nversion = \"0.1.0\"\n\
+             source = {{ virtual = \".\" }}\ndependencies = [{{ name = \"django\" }}]\n\n{packages}"
+        )
+    }
+
+    fn registry_package(name: &str, version: &str) -> String {
+        format!(
+            "[[package]]\nname = \"{name}\"\nversion = \"{version}\"\n\
+             source = {{ registry = \"https://pypi.org/simple\" }}\n\n"
+        )
+    }
+
+    fn audited(
+        name: &str,
+        lock: &str,
+        advisories: Option<&str>,
+        extra: &[&str],
+    ) -> (i32, String, String) {
+        let harness = consumer_harness(name, DX_TOML, true);
+        harness.write_source("apps/frontend/uv.lock", lock);
+        if let Some(json) = advisories {
+            write_advisory(&harness, "pypi", json);
+        }
+        let runner = clean_runner();
+        let mut argv = vec!["security", "--output=json", "frontend"];
+        argv.extend_from_slice(extra);
+        argv.extend_from_slice(&["--report", "sarif=audit.sarif"]);
+        let (code, out, err) = run_with(&argv, &runner, &harness);
+        let sarif =
+            std::fs::read_to_string(harness.workspace.join("audit.sarif")).unwrap_or_default();
+        (code, format!("{out}{sarif}"), err)
+    }
+
     #[test]
-    fn consumer_bare_security_reports_coverage_gap_and_no_phantoms() {
+    fn consumer_security_with_current_advisories_is_clean_with_no_coverage_gap() {
         let harness = consumer_harness("bare", DX_TOML, true);
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
         let runner = clean_runner();
         let (code, out, err) = run_with(&["security", "--output=json"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("audit_security_clean"), "{out}");
-        assert!(
-            out.contains("no advisory coverage for frontend, worker"),
-            "{out}"
-        );
+        assert!(!out.contains("no advisory coverage"), "{out}");
         for phantom in [
             "cargo",
             "pnpm",
@@ -90,8 +144,154 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     #[test]
-    fn consumer_name_and_scope_select_the_same_set() {
-        let harness = consumer_harness("select", DX_TOML, true);
+    fn consumer_detects_a_vulnerable_direct_package() {
+        let lock = lock_with(&registry_package("django", "3.2.0"));
+        let (code, out, err) = audited("direct", &lock, Some(DJANGO_ADVISORY), &[]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("1 vulnerability findings"), "{out}");
+        assert!(out.contains("vuln/PYSEC-2021-0001"), "{out}");
+        assert!(
+            out.contains("django@3.2.0 vulnerable to PYSEC-2021-0001"),
+            "{out}"
+        );
+        assert!(out.contains("fixed in 3.2.5"), "{out}");
+        assert!(out.contains("apps/frontend/uv.lock"), "{out}");
+    }
+
+    #[test]
+    fn consumer_detects_a_vulnerable_transitive_package() {
+        let packages = format!(
+            "{}{}",
+            registry_package("django", "3.2.5"),
+            registry_package("sqlparse", "0.4.1")
+        );
+        let (code, out, err) = audited(
+            "transitive",
+            &lock_with(&packages),
+            Some(SQLPARSE_ADVISORY),
+            &[],
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            out.contains("sqlparse@0.4.1 vulnerable to PYSEC-2021-0002"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn consumer_accepts_the_patched_version() {
+        let packages = format!(
+            "{}{}",
+            registry_package("django", "3.2.5"),
+            registry_package("sqlparse", "0.4.4")
+        );
+        let combined = format!(
+            "{}",
+            DJANGO_ADVISORY.trim_end_matches(']').to_owned()
+                + ","
+                + SQLPARSE_ADVISORY.trim_start_matches('[')
+        );
+        let (code, out, err) = audited("patched", &lock_with(&packages), Some(&combined), &[]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("audit_security_clean"), "{out}");
+        assert!(!out.contains("vuln/"), "{out}");
+    }
+
+    #[test]
+    fn consumer_stale_advisories_are_a_backend_failure_not_clean_or_a_finding() {
+        let harness = consumer_harness("stale", DX_TOML, true);
+        let lock = lock_with(&registry_package("django", "3.2.0"));
+        harness.write_source("apps/frontend/uv.lock", &lock);
+        write_advisory(&harness, "pypi", DJANGO_ADVISORY);
+        let meta_rel = ".dx/advisory/pypi.meta.json";
+        let meta = std::fs::read_to_string(harness.workspace.join(meta_rel)).expect("meta");
+        let mut value: serde_json::Value = serde_json::from_str(&meta).expect("json");
+        value["retrieved_at"] = serde_json::json!("2020-01-01");
+        harness.write_source(meta_rel, &value.to_string());
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &["security", "--output=json", "frontend"],
+            &runner,
+            &harness,
+        );
+        let all = format!("{out}{err}");
+        assert_ne!(code, 0, "{all}");
+        assert!(all.contains("failed to assess frontend"), "{all}");
+        assert!(all.contains("advisory_refresh_failed"), "{all}");
+        assert!(!all.contains("audit_security_clean"), "{all}");
+        assert!(!all.contains("vulnerable to"), "{all}");
+    }
+
+    #[test]
+    fn consumer_missing_advisories_fail_and_name_the_offline_requirement() {
+        let lock = lock_with(&registry_package("django", "3.2.5"));
+        let (code, out, err) = audited("missing", &lock, None, &["--offline"]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(out.contains("failed to assess frontend"), "{out}{err}");
+        assert!(out.contains("offline_required"), "{out}{err}");
+        assert!(out.contains(".dx/advisory/pypi.json"), "{out}{err}");
+    }
+
+    #[test]
+    fn consumer_malformed_lock_is_incomplete() {
+        let (code, out, err) = audited("malformed", "version = [", Some(NO_ADVISORIES), &[]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(out.contains("uv.lock"), "{out}{err}");
+        assert!(!out.contains("audit_security_clean"), "{out}");
+    }
+
+    #[test]
+    fn consumer_unassessed_sources_are_incomplete_not_clean() {
+        for (case, source, reason) in [
+            (
+                "git",
+                "{ git = \"https://example.com/x.git?rev=abc#abc\" }",
+                "unsupported git revision",
+            ),
+            (
+                "path",
+                "{ path = \"vendor/x-1.0.tar.gz\" }",
+                "unidentified private package",
+            ),
+            (
+                "private",
+                "{ registry = \"https://pypi.corp.example/simple\" }",
+                "unidentified private package",
+            ),
+        ] {
+            let packages = format!(
+                "[[package]]\nname = \"x\"\nversion = \"1.0\"\nsource = {source}\n\n{}",
+                registry_package("django", "3.2.5")
+            );
+            let (code, out, err) = audited(case, &lock_with(&packages), Some(NO_ADVISORIES), &[]);
+            assert_ne!(code, 0, "{case}: {out}{err}");
+            assert!(out.contains(reason), "{case}: {out}{err}");
+            assert!(!out.contains("audit_security_clean"), "{case}: {out}");
+        }
+    }
+
+    #[test]
+    fn consumer_unparseable_locked_version_is_incomplete() {
+        let lock = lock_with(&registry_package("django", "banana"));
+        let (code, out, err) = audited("version", &lock, Some(DJANGO_ADVISORY), &[]);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(out.contains("unsupported version syntax"), "{out}{err}");
+    }
+
+    #[test]
+    fn consumer_security_toml_exception_exempts_a_configured_set_finding() {
+        let harness = consumer_harness("exception", DX_TOML, true);
+        harness.write_source(
+            "apps/frontend/uv.lock",
+            &lock_with(&registry_package("django", "3.2.0")),
+        );
+        write_advisory(&harness, "pypi", DJANGO_ADVISORY);
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n[[exception]]\nadvisory = \"PYSEC-2021-0001\"\n\
+             package = \"Django\"\nset = \"frontend\"\nversions = \">=3.2, <3.2.5\"\n\
+             reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+        );
         let runner = clean_runner();
         let (code, out, err) = run_with(
             &["security", "--output=json", "frontend"],
@@ -99,17 +299,42 @@ source = { registry = "https://pypi.org/simple" }
             &harness,
         );
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("no advisory coverage for frontend\""), "{out}");
-        assert!(!out.contains("worker"), "{out}");
+        assert!(!out.contains("vuln/PYSEC"), "{out}");
+    }
+
+    #[test]
+    fn consumer_name_and_scope_select_the_same_set() {
+        let harness = consumer_harness("select", DX_TOML, true);
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
+        harness.write_source(
+            "services/worker/uv.lock",
+            &lock_with(&registry_package("django", "3.2.0")),
+        );
+        write_advisory(&harness, "pypi", DJANGO_ADVISORY);
         let runner = clean_runner();
         let (code, out, err) = run_with(
-            &["security", "--output=json", "services/worker/jobs"],
+            &["security", "--output=json", "frontend"],
             &runner,
             &harness,
         );
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("no advisory coverage for worker"), "{out}");
-        assert!(!out.contains("frontend"), "{out}");
+        assert!(!out.contains("PYSEC"), "{out}");
+        let runner = clean_runner();
+        let (code, out, err) = run_with(
+            &[
+                "security",
+                "--output=json",
+                "services/worker/jobs",
+                "--report",
+                "sarif=select.sarif",
+            ],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        let sarif = std::fs::read_to_string(harness.workspace.join("select.sarif")).expect("sarif");
+        assert!(sarif.contains("services/worker/uv.lock"), "{sarif}");
+        assert!(!sarif.contains("apps/frontend"), "{sarif}");
     }
 
     #[test]

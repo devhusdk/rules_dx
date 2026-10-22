@@ -37,9 +37,12 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
         "nuget" => Some("nuget"),
         "go" => Some("go"),
         "ruby" => Some("rubygems"),
+        PYPI_FAMILY => Some(PYPI_FAMILY),
         _ => None,
     }
 }
+
+pub const PYPI_FAMILY: &str = "pypi";
 
 pub fn advisory_source(set: &str) -> Option<&'static str> {
     match family_of(set) {
@@ -49,6 +52,7 @@ pub fn advisory_source(set: &str) -> Option<&'static str> {
         "nuget" => Some("https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip"),
         "go" => Some("https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"),
         "rubygems" => Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
+        "pypi" => Some("https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"),
         _ => None,
     }
 }

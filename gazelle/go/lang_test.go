@@ -613,6 +613,7 @@ func TestResolveTestBranches(t *testing.T) {
 	}
 
 	self := rule.NewRule(TestKind, "demo_test")
+	self.SetAttr("embed", []string{":demo"})
 	l.Resolve(cfg, index, nil, self, testTargetImports{imports: []string{"example.test/pkg/demo"}}, label.New("", "pkg/demo", "demo_test"))
 	if self.Attr("deps") != nil {
 		t.Errorf("same-package test dep was emitted: %v", self.AttrStrings("deps"))
@@ -637,6 +638,50 @@ func TestResolveTestBranches(t *testing.T) {
 	l.Resolve(cfg, index, nil, rule.NewRule(TestKind, "unknown_test"), testTargetImports{imports: []string{"example.test/unknown"}}, label.New("", "pkg/demo", "unknown_test"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
 		t.Errorf("unresolved test errors = %v", l.errors)
+	}
+}
+
+func TestResolveTestKeepsNonEmbeddedSamePackageDeps(t *testing.T) {
+	from := label.New("", "pkg", "pkg_test")
+	cases := []struct {
+		name    string
+		mapping string
+		embed   []string
+		want    string
+	}{
+		{"external same package", "go helper @other//pkg:helper", []string{":pkg"}, "@other//pkg:helper"},
+		{"external different package", "go helper @other//different:helper", []string{":pkg"}, "@other//different:helper"},
+		{"same repo distinct library", "go helper //pkg:helper", []string{":pkg"}, ":helper"},
+		{"embedded library", "go helper //pkg:pkg", []string{":pkg"}, ""},
+		{"embedded library absolute", "go helper //pkg:pkg", []string{"//pkg:pkg"}, ""},
+		{"self reference", "go helper //pkg:pkg_test", []string{":pkg"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l := &goLang{}
+			cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: tc.mapping}})
+			r := rule.NewRule(TestKind, "pkg_test")
+			r.SetAttr("embed", tc.embed)
+			l.Resolve(cfg, resolverIndex(l), nil, r, testTargetImports{imports: []string{"helper"}}, from)
+			if got := strings.Join(r.AttrStrings("deps"), ","); got != tc.want {
+				t.Errorf("deps = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestResolveIndexedTestKeepsNonEmbeddedSamePackageDeps(t *testing.T) {
+	l := &goLang{}
+	index := resolverIndex(l,
+		indexEntry{"pkg", "pkg", "example.test/pkg"},
+		indexEntry{"pkg", "helper", "example.test/pkg/helper"},
+	)
+	cfg := resolverConfig(t, nil)
+	r := rule.NewRule(TestKind, "pkg_test")
+	r.SetAttr("embed", []string{":pkg"})
+	l.Resolve(cfg, index, nil, r, testTargetImports{imports: []string{"example.test/pkg", "example.test/pkg/helper"}}, label.New("", "pkg", "pkg_test"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != ":helper" {
+		t.Errorf("deps = %q, want :helper", got)
 	}
 }
 

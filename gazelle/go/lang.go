@@ -338,6 +338,25 @@ func goImportPath(repoRoot, dir string) (string, bool) {
 	}
 }
 
+func embeds(r *rule.Rule, from, dep label.Label) bool {
+	for _, e := range r.AttrStrings("embed") {
+		lbl, err := label.Parse(e)
+		if err != nil {
+			continue
+		}
+		if lbl.Relative {
+			lbl = label.New(from.Repo, from.Pkg, lbl.Name)
+		}
+		if lbl.Repo == "" {
+			lbl.Repo = from.Repo
+		}
+		if lbl == dep {
+			return true
+		}
+	}
+	return false
+}
+
 func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	var roots []string
 	isTest := false
@@ -368,7 +387,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 				l.fail("go: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
-			if isTest && override.Pkg == from.Pkg {
+			if override == from || (isTest && embeds(r, from, override)) {
 				continue
 			}
 			deps[override.Rel(from.Repo, from.Pkg).String()] = true
@@ -377,10 +396,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
 		switch len(matches) {
 		case 1:
-			if matches[0].Label == from {
-				continue
-			}
-			if isTest && matches[0].Label.Pkg == from.Pkg {
+			if matches[0].Label == from || (isTest && embeds(r, from, matches[0].Label)) {
 				continue
 			}
 			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true

@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript/rules:defs.bzl", "javascript_library", "javascript_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//vue/rules:defs.bzl", "vue_library")
@@ -30,6 +31,14 @@ javascript_test(
     ],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
+)
+
+build_test(
+    name = "hello_aggregate_test",
+    targets = [
+        ":hello_lib",
+        ":hello_test",
+    ],
 )
 
 real_source_target(

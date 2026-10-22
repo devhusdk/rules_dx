@@ -1,6 +1,11 @@
 """Pure pipeline-construction helpers."""
 
 load(":applicability.bzl", "effective_classes")
+load(":policy.bzl", "CAPABILITIES")
+
+_SKIP_TAGS = ["no-" + capability for capability in CAPABILITIES]
+
+_UPSTREAM_SKIP_PREFIX = "dx:"
 
 def authorize_classes(family_selections, class_to_family):
     """Expands per-family tool selections into tool to authorizing classes."""
@@ -97,8 +102,13 @@ def runfiles_subject_paths(checked_paths, runfiles_paths):
     return sorted(seen.keys())
 
 def aspect_capability_blocked(rule_attr, capability):
-    """Reports whether no-<capability> blocks the aspect."""
-    return ("no-" + capability) in getattr(rule_attr, "tags", [])
+    """Reports whether no-<capability> or its upstream marker blocks the aspect."""
+    tags = getattr(rule_attr, "tags", [])
+    return ("no-" + capability) in tags or (_UPSTREAM_SKIP_PREFIX + "no-" + capability) in tags
+
+def upstream_skip_tags(tags):
+    """Rewrites no-<capability> tags into upstream markers that stay out of execution info."""
+    return [_UPSTREAM_SKIP_PREFIX + tag for tag in tags if tag in _SKIP_TAGS]
 
 def aspect_family_selections(policy, capability):
     """Expands one capability across policy families."""

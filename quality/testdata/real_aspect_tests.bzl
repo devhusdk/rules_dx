@@ -312,6 +312,16 @@ aspect_field field_count=4
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:fixture_upstream_rust_subject
 aspect_field transitive_count=0
+subject //quality/testdata:fixture_wrapped_cc_no_format_upstream_subject
+field dx_count=0
+field dx_results=(none)
+field has_quality_sources=False
+field label=//quality/testdata:fixture_wrapped_cc_no_format_upstream
+aspect_field aspect_seen=True
+aspect_field field_count=4
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:fixture_wrapped_cc_no_format_upstream_subject
+aspect_field transitive_count=0
 subject //quality/testdata:real_plain_subject
 field dx_count=0
 field dx_results=(none)

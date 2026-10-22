@@ -1,0 +1,39 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@npm_node_app//:defs.bzl", "npm_link_all_packages")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+])
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+)
+
+npm_link_all_packages(name = "node_modules")
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_json",
+    aspect_hints = ["//:biome_config"],
+    json_srcs = ["package.json"],
+    tags = ["corpus"],
+)

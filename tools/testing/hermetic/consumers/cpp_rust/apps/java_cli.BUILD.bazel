@@ -1,5 +1,5 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 java_library(
     name = "cli",

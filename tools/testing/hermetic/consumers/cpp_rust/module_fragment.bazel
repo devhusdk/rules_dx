@@ -38,3 +38,22 @@ maven.install(
     ],
 )
 use_repo(maven, "maven")
+
+bazel_dep(name = "aspect_rules_js", version = "3.4.1")
+bazel_dep(name = "aspect_rules_ts", version = "3.10.0")
+bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
+
+typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
+typescript.deps(
+    integrity = "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
+    version = "5.9.3",
+)
+use_repo(typescript, "npm_typescript")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "npm_consumer_app",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//examples/node-app:pnpm-lock.yaml",
+)
+use_repo(npm, "npm_consumer_app")

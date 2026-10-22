@@ -12,6 +12,8 @@ exports_files([
     "java_diagnostics_test.rs",
     "jvm_format_test.rs",
     "kotlin_diagnostics_test.rs",
+    "node_diagnostics_test.rs",
+    "node_format_test.rs",
 ])
 
 rust_library(

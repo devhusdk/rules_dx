@@ -197,7 +197,13 @@ npm.npm_translate_lock(
     pnpm_lock = "//quality/tools/javascript:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
-use_repo(npm, "npm", "npm_tools")
+npm.npm_translate_lock(
+    name = "npm_node_app",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//examples/node-app:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm, "npm", "npm_node_app", "npm_tools")
 
 python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
 python_interpreters.toolchain(python_version = "3.12")

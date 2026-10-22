@@ -1,0 +1,96 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/node-app:__subpackages__"])
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+)
+
+alias(
+    name = "biome",
+    testonly = True,
+    actual = select({
+        ":linux_arm64": "@dx_biome_linux_arm64//:tool",
+        "@platforms//os:macos": "@dx_biome_macos_arm64//:tool",
+        "@platforms//os:windows": "@dx_biome_windows_x86_64//:tool",
+        "//conditions:default": "@dx_biome_linux_x86_64//:tool",
+    }),
+)
+
+rust_test(
+    name = "diagnostics_test",
+    srcs = ["//tools/testing:node_diagnostics_test.rs"],
+    data = [
+        "clean.ts",
+        "isolated_declarations.ts",
+        "lint.js",
+        "lint.ts",
+        "missing_dep.ts",
+        "spaces/biome.json",
+        "syntax_error.ts",
+        "type_error.ts",
+        "unformatted.ts",
+        ":biome",
+        "//:biome.json",
+        "@npm_typescript//:tsc",
+    ],
+    env = {
+        "DX_BIOME": "$(rootpath :biome)",
+        "DX_CLEAN": "$(rootpath clean.ts)",
+        "DX_CONFIG": "$(rootpath //:biome.json)",
+        "DX_OTHER_CONFIG": "$(rootpath spaces/biome.json)",
+        "DX_FORMAT": "$(rootpath unformatted.ts)",
+        "DX_ISOLATED": "$(rootpath isolated_declarations.ts)",
+        "DX_LINT_JS": "$(rootpath lint.js)",
+        "DX_LINT_TS": "$(rootpath lint.ts)",
+        "DX_MISSING_DEP": "$(rootpath missing_dep.ts)",
+        "DX_SYNTAX": "$(rootpath syntax_error.ts)",
+        "DX_TSC": "$(rootpath @npm_typescript//:tsc)",
+        "DX_TYPE": "$(rootpath type_error.ts)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:node_format_test.rs"],
+    data = [
+        ":biome",
+        "//:biome.json",
+        "//examples/node-app/cli:cli.ts",
+        "//examples/node-app/cli:cli_test.ts",
+        "//examples/node-app/cli:jest.config.cjs",
+        "//examples/node-app/cli:main.js",
+        "//examples/node-app/registry:jest.config.cjs",
+        "//examples/node-app/registry:plain_test.ts",
+        "//examples/node-app/registry:registry.ts",
+        "//examples/node-app/registry:registry_test.ts",
+    ],
+    env = {
+        "DX_BIOME": "$(rootpath :biome)",
+        "DX_CONFIG": "$(rootpath //:biome.json)",
+        "DX_FORMAT_SRCS": " ".join([
+            "$(rootpath //examples/node-app/cli:cli.ts)",
+            "$(rootpath //examples/node-app/cli:cli_test.ts)",
+            "$(rootpath //examples/node-app/cli:jest.config.cjs)",
+            "$(rootpath //examples/node-app/cli:main.js)",
+            "$(rootpath //examples/node-app/registry:jest.config.cjs)",
+            "$(rootpath //examples/node-app/registry:plain_test.ts)",
+            "$(rootpath //examples/node-app/registry:registry.ts)",
+            "$(rootpath //examples/node-app/registry:registry_test.ts)",
+        ]),
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

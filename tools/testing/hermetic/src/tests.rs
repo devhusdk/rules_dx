@@ -19,7 +19,7 @@ fn good_evidence() -> Value {
     json!({
         "schema": SCHEMA,
         "qualification": "//tools/testing/hermetic:cpp_rust",
-        "languages": ["cpp", "java", "kotlin", "rust"],
+        "languages": ["cpp", "java", "javascript", "kotlin", "rust", "typescript"],
         "rules_dx": {"commit": "abc123", "dirty": false},
         "result": "qualified",
         "host": {"os": "linux", "arch": "x86_64", "kernel": "6.8.0"},
@@ -37,7 +37,7 @@ fn verify(evidence: &Value) -> Result<(), String> {
         evidence,
         "abc123",
         "//tools/testing/hermetic:cpp_rust",
-        &["cpp", "java", "kotlin", "rust"].map(str::to_owned),
+        &["cpp", "java", "javascript", "kotlin", "rust", "typescript"].map(str::to_owned),
     )
 }
 
@@ -128,7 +128,7 @@ fn consumer_paths_stay_inside_the_workspace() {
 fn manifest_parses_and_resolves_against_the_runfiles_base() {
     let text = json!({
         "label": "//tools/testing/hermetic:cpp_rust",
-        "languages": ["cpp", "java", "kotlin", "rust"],
+        "languages": ["cpp", "java", "javascript", "kotlin", "rust", "typescript"],
         "module": "hermetic_consumer",
         "repo_name": "my_dx",
         "workspace_dir": "consumer ws",
@@ -142,7 +142,10 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
     .to_string();
     let manifest = parse_manifest(&text, Path::new("/run")).unwrap();
     assert_eq!(manifest.workspace_dir, "consumer ws");
-    assert_eq!(manifest.languages, vec!["cpp", "java", "kotlin", "rust"]);
+    assert_eq!(
+        manifest.languages,
+        vec!["cpp", "java", "javascript", "kotlin", "rust", "typescript"]
+    );
     assert_eq!(
         manifest.files,
         vec![(
@@ -493,7 +496,10 @@ fn runfiles_manifest() -> Manifest {
 fn the_cpp_rust_target_names_a_real_consumer() {
     let manifest = runfiles_manifest();
     assert_eq!(manifest.label, "//tools/testing/hermetic:cpp_rust");
-    assert_eq!(manifest.languages, vec!["cpp", "java", "kotlin", "rust"]);
+    assert_eq!(
+        manifest.languages,
+        vec!["cpp", "java", "javascript", "kotlin", "rust", "typescript"]
+    );
     assert_eq!(manifest.repo_name, "my_dx");
     assert!(
         manifest.workspace_dir.contains(' '),
@@ -520,9 +526,10 @@ fn the_cpp_rust_target_names_a_real_consumer() {
     for (src, dest) in &manifest.files {
         assert!(src.is_file(), "{src:?} for {dest} is not in the runfiles");
         if dest.ends_with("BUILD.bazel") {
-            let text = consumer_build(&std::fs::read_to_string(src).unwrap(), "my_dx");
+            let original = std::fs::read_to_string(src).unwrap();
+            let text = consumer_build(&original, "my_dx");
             assert!(
-                text.contains("@my_dx//"),
+                text.contains("@my_dx//") || !original.contains("@rules_dx//"),
                 "{dest} loads through the renamed repository"
             );
             assert!(
@@ -882,4 +889,10 @@ fn consumer_build_keeps_targets_and_drops_repository_only_statements() {
         consumer_build(original, "my_dx"),
         "load(\"@my_dx//cc/rules:defs.bzl\", \"cc_test\")\n\ncc_test(\n    name = \"t\",\n    srcs = [\"a.cc\"],\n)\n"
     );
+}
+
+#[test]
+fn consumer_build_keeps_a_public_default_visibility() {
+    let original = "_PUBLIC = [\"//visibility:public\"]\n\npackage(default_visibility = _PUBLIC)\n";
+    assert_eq!(consumer_build(original, "my_dx"), original);
 }

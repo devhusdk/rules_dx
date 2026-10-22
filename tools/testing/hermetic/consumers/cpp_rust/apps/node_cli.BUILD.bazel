@@ -1,0 +1,43 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+typescript_project(
+    name = "cli",
+    srcs = ["cli.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = ["//examples/node-app/registry"],
+)
+
+javascript_binary(
+    name = "registry",
+    srcs = ["main.js"],
+    data = [
+        ":cli",
+        "//examples/node-app:node_modules/semver",
+        "//examples/node-app:package_json",
+        "//examples/node-app/registry",
+    ],
+    entry_point = "main.js",
+)
+
+typescript_test(
+    name = "cli_test",
+    srcs = ["cli_test.ts"],
+    config = "jest.config.cjs",
+    declaration = True,
+    node_modules = "//examples/node-app:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":cli"],
+)
+
+sh_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes.sh"],
+    args = ["$(rootpath :registry)"],
+    data = [":registry"],
+)

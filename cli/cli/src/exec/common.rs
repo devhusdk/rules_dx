@@ -128,6 +128,15 @@ pub(crate) fn collect_targets(
     group: &str,
     workspace: &Path,
 ) -> Result<Vec<dx_bep::TargetOutput>, (String, String)> {
+    Ok(collect_output_account(bep, group, workspace)?.targets)
+}
+
+/// Reads one build event file and returns one output group's outputs with the stream's gaps.
+pub(crate) fn collect_output_account(
+    bep: &Path,
+    group: &str,
+    workspace: &Path,
+) -> Result<dx_bep::OutputAccount, (String, String)> {
     let file = std::fs::File::open(bep).map_err(|err| {
         (
             CODE_UNREADABLE_BEP.to_owned(),
@@ -140,13 +149,14 @@ pub(crate) fn collect_targets(
             format!("invalid BEP config: {err}"),
         )
     })?;
-    dx_bep::collect_with_workspace(BufReader::new(file), &config, &FsArtifacts, Some(workspace))
-        .map_err(|err| {
+    dx_bep::collect_account(BufReader::new(file), &config, &FsArtifacts, Some(workspace)).map_err(
+        |err| {
             (
                 CODE_INVALID_BEP.to_owned(),
                 format!("invalid build events: {err}"),
             )
-        })
+        },
+    )
 }
 
 #[derive(Clone)]

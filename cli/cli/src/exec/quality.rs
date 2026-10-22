@@ -227,6 +227,17 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
             Severity::Error => error += 1,
         }
     }
+    if let Some(detail) = collected.problem_detail() {
+        if request.common.output == OutputMode::Json {
+            if let Ok(event) =
+                dx_output::error_event("incomplete_results", &detail, None, None, None)
+            {
+                let _ = write_event(out, &event);
+            }
+        } else {
+            let _ = writeln!(err, "dx: incomplete_results: {detail}");
+        }
+    }
     if request.common.output == OutputMode::Json {
         let finished = command_finished(
             if collected.complete && !failed && reports_ok {

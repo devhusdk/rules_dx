@@ -57,8 +57,10 @@ per failure on stderr, with its rustc diagnostics under it.
 
 Anything Bazel did not report reads `unknown`. An analysis failure has no
 action, so its action fields are `unknown`. A test target that fails to build
-emits a `build_failure` with `target_kind` `test`, no `test_outcome` event and
-no test case in the JUnit report. Environment variables and command lines are
+emits a `build_failure` with `target_kind` `test` and no test case in the JUnit
+report. It also gets a `test_outcome` with outcome `failed_to_build`, no case
+counts, and `status` `FAILED_TO_BUILD` only when Bazel reports that summary.
+The run's results are incomplete. Environment variables and command lines are
 never reported.
 
 Diagnostics come from rustc's JSON diagnostics in the failed action's stderr.
@@ -110,8 +112,16 @@ If Bazel's event file ends early or cannot be read, dx still returns Bazel's
 code and reports a `build_events_incomplete` notice.
 
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
-failures. Bazel failures keep Bazel's code. A missing, truncated or invalid
-`test.xml` artifact fails the run as incomplete, even when Bazel passes.
+failures. Bazel failures keep Bazel's code. Results are incomplete when a
+result has no `test.xml`, a `test.xml` is missing, truncated or invalid,
+Bazel announces a result it never reports, a target has a summary but no
+result, or the build events end before Bazel's last event. Another test's
+evidence never makes up for it. Incomplete results fail the run, even when
+Bazel passes. `--output=text` prints `dx: incomplete_results: <reason>` on
+stderr, `--output=json` emits an `incomplete_results` error, the JUnit report
+gets a `dx.infrastructure` error case, and `results_complete` reads `false`.
+Failing tests with every result collected keep Bazel's code `3` and read
+`results_complete: true`. Other Bazel failures read `false`.
 
 ```sh
 bazel run @rules_dx//:dx -- build //cli/...
@@ -193,8 +203,9 @@ counts, and whether its evidence is complete.
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures
 keep Bazel's code. Coverage is incomplete when Bazel reports a
-`coverage.dat` artifact that is missing or invalid, or when no coverage
-artifacts are reported. Incomplete coverage fails the run, blocks
+`coverage.dat` artifact that is missing or invalid, when no coverage
+artifacts are reported, or when the build events are incomplete as for
+`dx test`. Incomplete coverage fails the run, blocks
 `--min-coverage`, and marks a written LCOV report incomplete. A retried
 test counts only its final attempt. Tests without coverage outputs are
 not expected to produce coverage. Empty but valid `coverage.dat` files

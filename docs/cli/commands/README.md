@@ -130,9 +130,12 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `notice`: a note, with `level`, `code`, `message`, and optional
   `related_command`, `scope`, `path`, `language`, and `import`.
 - `report`: a report written, with `format`, `path`, and `results_complete`.
+- `test_case`: one case from a test result's report, with `target`, `name`, and
+  `outcome`, plus optional `configuration`, `run`, `shard`, `attempt`,
+  `cached`, `classname`, `message`, and `message_truncated`.
 - `test_outcome`: one test result, with `target`, `outcome`, `evidence_complete`,
   and `artifacts`, plus optional `configuration`, `status`, `cached`, `run`,
-  `shard`, `attempt`, `duration_millis`, and case counts.
+  `shard`, `attempt`, `duration_millis`, case counts, and `cases_omitted`.
 - `error`: a failure, with `code`, `message`, and optional `path`, `flag`, and
   `phase`.
 - `command_finished`: the `exit_code`, plus any `results_complete`,

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
 use std::path::PathBuf;
 
@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::{
     file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, testlog_path, BepError,
-    OutputLocations, TestOutputIdentity,
+    EventGap, EventLedger, OutputLocations, TestOutputIdentity,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,11 +52,22 @@ pub struct TestSummaryRecord {
     pub attempt_count: Option<u64>,
 }
 
+/// One test target whose build Bazel reported as failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnbuiltTest {
+    pub label: String,
+    pub configuration: Option<String>,
+}
+
 /// The test result and summary events of one build event stream.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TestEvents {
     pub results: Vec<TestResultRecord>,
     pub summaries: Vec<TestSummaryRecord>,
+    pub ended: bool,
+    pub gaps: Vec<EventGap>,
+    pub skipped: Vec<EventGap>,
+    pub unbuilt: Vec<UnbuiltTest>,
 }
 
 struct TestResultId<'a> {
@@ -235,6 +246,9 @@ pub fn collect_test_events(
     let mut pending: Vec<PendingResult> = Vec::new();
     let mut summaries: Vec<PendingSummary> = Vec::new();
     let mut shard_counts: HashMap<String, u32> = HashMap::new();
+    let mut ledger = EventLedger::default();
+    let mut test_labels: HashSet<String> = HashSet::new();
+    let mut failed_completions: Vec<UnbuiltTest> = Vec::new();
     for (index, line) in reader.lines().enumerate() {
         let line_no = (index + 1) as u64;
         let text = line.map_err(|e| BepError::MalformedEvent {
@@ -255,6 +269,16 @@ pub fn collect_test_events(
                 reason: "event without id".to_owned(),
             }
         })?;
+        ledger.observe(object);
+        if object.contains_key("aborted") {
+            continue;
+        }
+        if let Some(label) = test_label(id, object) {
+            test_labels.insert(label.to_owned());
+        }
+        if let Some(failed) = failed_completion(id, object) {
+            failed_completions.push(failed);
+        }
         if let Some(summary_id) = id.get("testSummary").and_then(Value::as_object) {
             record_shard_count(summary_id, object, line_no, &mut shard_counts)?;
             summaries.push(parse_summary(summary_id, object));
@@ -374,10 +398,70 @@ pub fn collect_test_events(
         });
     }
     summary_records.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
+    let skipped = ledger
+        .gaps(&["targetCompleted"])
+        .into_iter()
+        .filter(|gap| {
+            gap.is_skipped()
+                && gap.aspect.is_none()
+                && gap
+                    .label
+                    .as_ref()
+                    .is_some_and(|label| test_labels.contains(label))
+        })
+        .collect();
+    let mut unbuilt: Vec<UnbuiltTest> = failed_completions
+        .into_iter()
+        .filter(|target| test_labels.contains(&target.label))
+        .collect();
+    unbuilt.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
     Ok(TestEvents {
         results,
         summaries: summary_records,
+        ended: ledger.ended(),
+        gaps: ledger.gaps(&["testResult", "testSummary"]),
+        skipped,
+        unbuilt,
     })
+}
+
+/// A top-level target completion Bazel reported without success.
+fn failed_completion(
+    id: &serde_json::Map<String, Value>,
+    object: &serde_json::Map<String, Value>,
+) -> Option<UnbuiltTest> {
+    let completed = id.get("targetCompleted").and_then(Value::as_object)?;
+    if completed.contains_key("aspect") {
+        return None;
+    }
+    let success = object
+        .get("completed")
+        .and_then(Value::as_object)
+        .and_then(|body| opt_bool(body, "success"))
+        .unwrap_or(false);
+    if success {
+        return None;
+    }
+    Some(UnbuiltTest {
+        label: completed.get("label").and_then(Value::as_str)?.to_owned(),
+        configuration: opt_configuration(completed),
+    })
+}
+
+/// The label of a configured target Bazel will test, from its test size.
+fn test_label<'a>(
+    id: &'a serde_json::Map<String, Value>,
+    object: &serde_json::Map<String, Value>,
+) -> Option<&'a str> {
+    let configured = id.get("targetConfigured").and_then(Value::as_object)?;
+    if configured.contains_key("aspect") {
+        return None;
+    }
+    object
+        .get("configured")
+        .and_then(Value::as_object)
+        .filter(|body| body.contains_key("testSize"))?;
+    configured.get("label").and_then(Value::as_str)
 }
 
 /// One `testSummary` body beside its id, with unknown fields left unknown.

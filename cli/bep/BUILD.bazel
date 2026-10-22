@@ -13,6 +13,7 @@ dx_rust_crate(
     package_name = "cli/dx_bep",
     srcs = [
         "src/failures.rs",
+        "src/ledger.rs",
         "src/lib.rs",
         "src/outputs.rs",
         "src/test_outputs.rs",

@@ -252,6 +252,41 @@ fn typecheck_and_format_apply_without_rerunning_bazel() {
 }
 
 #[test]
+fn a_stream_without_bazels_last_event_never_reads_clean() {
+    let mut harness = Harness::new("unterminated");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+    );
+    harness.unterminated_bep = true;
+    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(code, 1, "{out}");
+    let events = json_events(&out);
+    let incomplete = events_of_kind(&events, "error")
+        .into_iter()
+        .find(|error| error["code"] == "incomplete_results")
+        .expect("incomplete_results");
+    assert_eq!(
+        incomplete["message"],
+        serde_json::json!("build events ended before Bazel's last event")
+    );
+    let finished = event(&events, "command_finished");
+    assert_eq!(finished["results_complete"], serde_json::json!(false));
+    let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
+    assert_eq!(code, 1);
+    assert!(
+        err.contains("dx: incomplete_results: build events ended before Bazel's last event"),
+        "{err}"
+    );
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"x = 1\n",
+        "missing evidence never authorizes an edit"
+    );
+}
+
+#[test]
 fn failed_target_prevents_mutation() {
     let harness = Harness {
         fail_target: true,

@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::{
     file_uri_to_path, is_bytestream_uri, local_path_for_bep_file, ArtifactReader, BepError,
-    CollectedArtifact, CollectorConfig, TargetOutput,
+    CollectedArtifact, CollectorConfig, EventGap, EventLedger, TargetOutput,
 };
 
 struct RawFile {
@@ -25,8 +25,21 @@ struct RawSet {
 struct PendingTarget {
     line: u64,
     label: String,
+    aspect: Option<String>,
+    configuration: Option<String>,
     success: bool,
+    declared: bool,
+    incomplete: bool,
     set_ids: Vec<String>,
+}
+
+/// The requested outputs of one build event stream, with what Bazel announced but never delivered.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct OutputAccount {
+    pub targets: Vec<TargetOutput>,
+    pub no_work: Vec<TargetOutput>,
+    pub ended: bool,
+    pub gaps: Vec<EventGap>,
 }
 
 fn named_set_id(id: &serde_json::Map<String, Value>) -> Option<&str> {
@@ -57,8 +70,20 @@ pub fn collect_with_workspace(
     artifacts: &dyn ArtifactReader,
     workspace: Option<&Path>,
 ) -> Result<Vec<TargetOutput>, BepError> {
+    Ok(collect_account(reader, config, artifacts, workspace)?.targets)
+}
+
+/// Collects the requested outputs plus the stream facts that say whether every producer reported.
+pub fn collect_account(
+    reader: impl BufRead,
+    config: &CollectorConfig,
+    artifacts: &dyn ArtifactReader,
+    workspace: Option<&Path>,
+) -> Result<OutputAccount, BepError> {
     let mut sets: BTreeMap<String, RawSet> = BTreeMap::new();
     let mut pending: Vec<PendingTarget> = Vec::new();
+    let mut no_work: Vec<TargetOutput> = Vec::new();
+    let mut ledger = EventLedger::default();
     for (index, line) in reader.lines().enumerate() {
         let line_no = (index + 1) as u64;
         let text = line.map_err(|e| BepError::MalformedEvent {
@@ -79,6 +104,7 @@ pub fn collect_with_workspace(
                 reason: "event without id".to_owned(),
             }
         })?;
+        ledger.observe(object);
         if let Some(set_id) = named_set_id(id) {
             let named = object.get("namedSetOfFiles").and_then(Value::as_object);
             let mut raw = Vec::new();
@@ -150,20 +176,31 @@ pub fn collect_with_workspace(
                     line: line_no,
                     reason: "completed must be an object".to_owned(),
                 })?;
-            let label = id
-                .get("targetCompleted")
-                .and_then(Value::as_object)
+            let target_id = id.get("targetCompleted").and_then(Value::as_object);
+            let label = target_id
                 .and_then(|target| target.get("label"))
                 .and_then(Value::as_str)
                 .ok_or_else(|| BepError::MalformedEvent {
                     line: line_no,
                     reason: "completed event without target label".to_owned(),
                 })?;
+            let aspect = target_id
+                .and_then(|target| target.get("aspect"))
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            let configuration = target_id
+                .and_then(|target| target.get("configuration"))
+                .and_then(Value::as_object)
+                .and_then(|configuration| configuration.get("id"))
+                .and_then(Value::as_str)
+                .map(str::to_owned);
             let success = completed
                 .get("success")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
             let mut set_ids = Vec::new();
+            let mut declared = false;
+            let mut incomplete = false;
             if success {
                 if let Some(groups) = completed.get("outputGroup") {
                     let groups = groups.as_array().ok_or_else(|| BepError::MalformedEvent {
@@ -177,6 +214,9 @@ pub fn collect_with_workspace(
                         })?;
                         if group.get("name").and_then(Value::as_str) != Some(&config.output_group) {
                             continue;
+                        }
+                        if group.get("incomplete").and_then(Value::as_bool) == Some(true) {
+                            incomplete = true;
                         }
                         if let Some(file_sets) = group.get("fileSets") {
                             let file_sets =
@@ -196,18 +236,32 @@ pub fn collect_with_workspace(
                                         reason: "file set without id".to_owned(),
                                     })?;
                                 set_ids.push(set_id.to_owned());
+                                declared = true;
                             }
                         }
                     }
                 }
             }
             if success && set_ids.is_empty() && !mentions_group(completed, config.output_group()) {
+                no_work.push(TargetOutput {
+                    label: label.to_owned(),
+                    aspect,
+                    configuration,
+                    success,
+                    declared: false,
+                    incomplete: false,
+                    artifacts: Vec::new(),
+                });
                 continue;
             }
             pending.push(PendingTarget {
                 line: line_no,
                 label: label.to_owned(),
+                aspect,
+                configuration,
                 success,
+                declared,
+                incomplete,
                 set_ids,
             });
         }
@@ -274,12 +328,22 @@ pub fn collect_with_workspace(
         });
         outputs.push(TargetOutput {
             label: target.label.clone(),
+            aspect: target.aspect.clone(),
+            configuration: target.configuration.clone(),
             success: target.success,
+            declared: target.declared,
+            incomplete: target.incomplete,
             artifacts: collected,
         });
     }
     outputs.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
-    Ok(outputs)
+    no_work.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
+    Ok(OutputAccount {
+        targets: outputs,
+        no_work,
+        ended: ledger.ended(),
+        gaps: ledger.gaps(&["targetConfigured", "targetCompleted"]),
+    })
 }
 
 fn mentions_group(completed: &serde_json::Map<String, Value>, group: &str) -> bool {

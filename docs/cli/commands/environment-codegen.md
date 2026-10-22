@@ -10,8 +10,8 @@ dx env [--check] [--apply] [<label>] [-- bazel-options...]
 dx codegen [--check] [--apply] [<label>] [-- bazel-options...]
 ```
 
-`dx env` refreshes the managed tools. `dx codegen` collects generated
-sources. Repository-wide by default. With one exact `//` or `@` label, each
+`dx env` refreshes the managed tools. `dx codegen` materializes declared
+generated source. Repository-wide by default. With one exact `//` or `@` label, each
 acts on that target only.
 
 Both check the intended selection by default and report drift without

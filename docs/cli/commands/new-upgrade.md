@@ -12,7 +12,7 @@ bazel run @rules_dx//:dx -- rollback
 dx new [--apply] <language> [name]
 ```
 
-Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
+Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
 `fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, or `mdx`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.

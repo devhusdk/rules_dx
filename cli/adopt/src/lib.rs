@@ -50,7 +50,7 @@ pub use preset_fragment::{
     PresetError, PRESET_BAZEL_VERSION,
 };
 pub use scaffold::{
-    apply_init, editor_disposition, editor_language_supported, plan_init_files,
+    apply_init, apply_scaffold, editor_disposition, editor_language_supported, plan_init_files,
     plan_init_files_for_host, render_consumer_caller, render_consumer_module_setup,
     render_consumer_own_toolchain_setup, render_consumer_renamed_setup, render_editor_settings,
     scaffold_dest_within_root, validate_init_module, ScaffoldFile, CONSUMER_LLVM_VERSION,

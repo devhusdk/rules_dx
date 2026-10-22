@@ -280,10 +280,9 @@ fn ensure_physically_within(root: &Path, relative: &str) -> Result<(), AdoptErro
     Ok(())
 }
 
-pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
-    let files = plan_init_files(module_name)?;
+pub fn apply_scaffold(root: &Path, files: &[ScaffoldFile]) -> Result<Vec<String>, AdoptError> {
     let mut staged = Vec::with_capacity(files.len());
-    for file in &files {
+    for file in files {
         staged.push(scaffold_dest_within_root(root, &file.path)?);
     }
     let mut written = Vec::new();
@@ -310,6 +309,10 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
     written.push("---".to_owned());
     written.extend(refused);
     Ok(written)
+}
+
+pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
+    apply_scaffold(root, &plan_init_files(module_name)?)
 }
 
 #[cfg(test)]
@@ -899,6 +902,33 @@ mod tests {
             assert_eq!(entries, vec!["sentinel".to_owned()], "{hostile:?}");
             scratch.close().expect("cleanup");
         }
+    }
+
+    #[test]
+    fn init_and_new_share_absent_only_collision_behavior() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-shared-collision-");
+        let root = scratch.path().join("root");
+        std::fs::create_dir_all(&root).expect("root");
+        std::fs::write(root.join(".envrc"), "mine\n").expect("handwritten");
+        let init = apply_init(&root, "demo").expect("init");
+        assert!(init.contains(&"refused:.envrc".to_owned()), "{init:?}");
+        assert!(init.contains(&".dx/version".to_owned()), "{init:?}");
+        assert_eq!(
+            std::fs::read_to_string(root.join(".envrc")).unwrap(),
+            "mine\n"
+        );
+        std::fs::create_dir_all(root.join("app")).expect("app");
+        std::fs::write(root.join("app/Cargo.toml"), "# mine\n").expect("manual build");
+        let new = super::super::apply_new(&root, "rust", "app").expect("new");
+        assert!(
+            new.contains(&"refused:app/Cargo.toml".to_owned()),
+            "{new:?}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("app/Cargo.toml")).unwrap(),
+            "# mine\n"
+        );
+        scratch.close().expect("cleanup");
     }
 
     #[cfg(unix)]

@@ -1312,3 +1312,28 @@ fn keep_sorted_middle_batch_garbage_aborts() {
     assert!(matches!(err, RunnerError::ToolOutput { .. }));
     assert!(err.to_string().contains("batch 2/"), "{err}");
 }
+
+#[test]
+fn qml_import_roots_come_from_declared_module_uris() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let write = |rel: &str, text: &str| {
+        let path = dir.path().join(rel);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&path, text).expect("write");
+        (rel.to_owned(), path)
+    };
+    let context = vec![
+        write("mods/Foo/qmldir", "module Foo\nBar 1.0 Bar.qml\n"),
+        write("mods/Foo/Bar.qml", "import QtQuick\nItem {}\n"),
+        write("libs/Acme/Ui/qmldir", "# comment\nmodule Acme.Ui\n"),
+        write("plain/qmldir", "Thing 1.0 Thing.qml\n"),
+    ];
+    let roots = staging::qml_import_roots("qmllint", &context).expect("roots");
+    assert_eq!(
+        roots,
+        vec![dir.path().join("mods"), dir.path().join("libs")]
+    );
+    let wrong = vec![write("elsewhere/qmldir", "module Foo.Bar\n")];
+    let err = staging::qml_import_roots("qmllint", &wrong).expect_err("mismatch");
+    assert!(err.to_string().contains("declares module Foo.Bar"), "{err}");
+}

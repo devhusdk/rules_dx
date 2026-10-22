@@ -31,7 +31,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
     "qmlformat": [".qmlformat.ini"],
-    "qmllint": [".ini"],
+    "qmllint": [".qmllint.ini"],
     "ruff": [".toml"],
     "rustfmt": [".toml"],
     "scalafix": [".conf"],

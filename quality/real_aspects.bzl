@@ -37,6 +37,7 @@ _REAL_TOOL_TABLE = {
     "pydoclint": {"capabilities": ["lint"], "shard": "py"},
     "pylint": {"capabilities": ["lint"], "shard": "py"},
     "qmlformat": {"capabilities": ["format"], "shard": "core"},
+    "qmllint": {"capabilities": ["lint"], "shard": "core"},
     "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
@@ -127,6 +128,8 @@ def upstream_direct_sources(target, ctx):
             direct_sources[class_id] = depset(buckets[class_id])
     check_direct_sources(direct_sources, str(target.label))
     return (True, direct_sources, "")
+
+_QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]
 
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
@@ -267,6 +270,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if qmlformat == None:
             fail(what + ": qmlformat has no executable; set --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat")
         tool_binaries["qmlformat"] = qmlformat
+    if "qmllint" in stage_tools:
+        qmllint = ctx.attr._qmllint[DefaultInfo].files_to_run.executable
+        if qmllint == None:
+            fail(what + ": qmllint has no executable; set --@rules_dx//config:tool_qmllint=@dx_qt//:qmllint")
+        tool_binaries["qmllint"] = qmllint
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
     if "shellcheck" in stage_tools:
@@ -363,6 +371,20 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 if f.is_directory and f.short_path.endswith(".install"):
                     ty_search_dirs.append(f)
                     inputs.append(f)
+    if "qmllint" in stage_tools:
+        context_files = list(target[DefaultInfo].files.to_list())
+        for dep in getattr(ctx.rule.attr, "deps", []):
+            if type(dep) == "Target" and DefaultInfo in dep:
+                context_files.extend(dep[DefaultInfo].files.to_list())
+        for f in context_files:
+            ws_path = f.short_path
+            if ".." in ws_path.split("/"):
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            if f.basename != "qmldir" and f.extension not in _QML_CONTEXT_EXTENSIONS:
+                continue
+            resolve_pairs[ws_path] = f
     request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]
@@ -395,6 +417,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
 
     if "qmlformat" in stage_tools:
         run_tools.append(ctx.attr._qmlformat[DefaultInfo].files_to_run)
+    if "qmllint" in stage_tools:
+        run_tools.append(ctx.attr._qmllint[DefaultInfo].files_to_run)
     if "google_java_format" in stage_tools:
         run_tools.append(ctx.attr._google_java_format[DefaultInfo].files_to_run)
     if "ktfmt" in stage_tools:
@@ -606,6 +630,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "qmlformat": attr.label(
         default = "//config:tool_qmlformat",
+        allow_files = True,
+        cfg = "exec",
+    ),
+    "qmllint": attr.label(
+        default = "//config:tool_qmllint",
         allow_files = True,
         cfg = "exec",
     ),

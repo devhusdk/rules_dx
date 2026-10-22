@@ -22,7 +22,12 @@ fn run(invocation: &Invocation) -> dx_testing::Run {
 fn qmllint_output_parses_through_the_adapter() {
     let sample = path("DX_QMLLINT_FIXTURE");
     let name = sample.to_str().expect("utf-8 path");
-    let out = run(&qmllint_check(&path("DX_QMLLINT"), &[sample.as_path()]));
+    let out = run(&qmllint_check(
+        &path("DX_QMLLINT"),
+        &[sample.as_path()],
+        &[],
+        false,
+    ));
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let report: Value = dx_testing::serde_json::from_str(&out.stdout).expect("JSON report");
     let pinned = dx_testing::read_json(&path("DX_QMLLINT_FIXTURE_DIRTY")).expect("fixture");
@@ -155,5 +160,202 @@ fn qmlformat_ini_next_to_the_source_changes_the_formatting() {
         out.stdout.contains("\n  property string greet"),
         "{}",
         out.stdout
+    );
+}
+
+fn lint(
+    files: &[&Path],
+    import_dirs: &[&Path],
+    use_settings: bool,
+) -> (
+    dx_testing::Run,
+    Result<Vec<quality_adapter::parsers::FileFinding>, quality_adapter::parsers::ParseError>,
+) {
+    let out = run(&qmllint_check(
+        &path("DX_QMLLINT"),
+        files,
+        import_dirs,
+        use_settings,
+    ));
+    let names: Vec<&str> = files
+        .iter()
+        .map(|file| file.to_str().expect("utf-8 path"))
+        .collect();
+    let parsed = parse_qmllint(out.stdout.as_bytes(), out.status.code(), &names);
+    (out, parsed)
+}
+
+#[test]
+fn qmllint_clean_source_exits_zero_with_no_findings() {
+    let file = scratch_file("Clean.qml", CLEAN);
+    let (out, parsed) = lint(&[file.as_path()], &[], false);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(parsed.expect("parsed").is_empty());
+}
+
+#[test]
+fn qmllint_syntax_error_is_a_located_finding() {
+    let file = scratch_file(
+        "Syntax.qml",
+        "import QtQuick\nItem {\n    property int x: 1 +\n}\n",
+    );
+    let (out, parsed) = lint(&[file.as_path()], &[], false);
+    assert_eq!(out.status.code(), Some(255), "{}", out.combined());
+    let found = parsed.expect("parsed");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].finding.rule_id, "syntax");
+    assert_eq!(found[0].finding.start.line, 4);
+}
+
+#[test]
+fn qmllint_reports_every_file_of_a_batch() {
+    let clean = scratch_file("A.qml", CLEAN);
+    let dirty = scratch_file("B.qml", "import QtQuick\nItem { property string s: foo }\n");
+    let (out, parsed) = lint(&[clean.as_path(), dirty.as_path()], &[], false);
+    assert_eq!(out.status.code(), Some(255), "{}", out.combined());
+    let found = parsed.expect("parsed");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].file, dirty.to_str().expect("utf-8 path"));
+}
+
+#[test]
+fn qmllint_unknown_import_is_reported_not_ignored() {
+    let file = scratch_file("Import.qml", "import Nope.Missing\nItem {}\n");
+    let (out, parsed) = lint(&[file.as_path()], &[], false);
+    assert_eq!(out.status.code(), Some(255), "{}", out.combined());
+    let found = parsed.expect("parsed");
+    assert!(found.iter().all(|item| item.finding.rule_id == "import"));
+    assert!(found.iter().any(|item| item
+        .finding
+        .message
+        .contains("Failed to import Nope.Missing")));
+}
+
+#[test]
+fn qmllint_missing_file_is_an_infrastructure_failure() {
+    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
+    let (out, parsed) = lint(&[dir.join("Gone.qml").as_path()], &[], false);
+    assert_eq!(out.status.code(), Some(255), "{}", out.combined());
+    let err = parsed.expect_err("no location");
+    assert!(err.to_string().contains("Failed to open file"), "{err}");
+}
+
+#[test]
+fn qmllint_declared_import_dir_resolves_a_module() {
+    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
+    let module = dir.join("mods/Foo");
+    std::fs::create_dir_all(&module).expect("module dir");
+    std::fs::write(module.join("qmldir"), "module Foo\nBar 1.0 Bar.qml\n").expect("qmldir");
+    std::fs::write(
+        module.join("Bar.qml"),
+        "import QtQuick\nItem { property int v: 1 }\n",
+    )
+    .expect("Bar.qml");
+    let user = dir.join("Use.qml");
+    std::fs::write(
+        &user,
+        "import QtQuick\nimport Foo\nBar { property int w: v }\n",
+    )
+    .expect("Use.qml");
+    let roots = dir.join("mods");
+
+    let (out, parsed) = lint(&[user.as_path()], &[], false);
+    assert_eq!(out.status.code(), Some(255), "{}", out.combined());
+    assert!(parsed
+        .expect("parsed")
+        .iter()
+        .any(|item| item.finding.message.contains("Failed to import Foo")));
+
+    let (out, parsed) = lint(&[user.as_path()], &[roots.as_path()], false);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(parsed.expect("parsed").is_empty());
+}
+
+#[test]
+fn qmllint_ignores_the_host_import_path_variable() {
+    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
+    let module = dir.join("mods/Foo");
+    std::fs::create_dir_all(&module).expect("module dir");
+    std::fs::write(module.join("qmldir"), "module Foo\nBar 1.0 Bar.qml\n").expect("qmldir");
+    std::fs::write(module.join("Bar.qml"), "import QtQuick\nItem {}\n").expect("Bar.qml");
+    let user = dir.join("Use.qml");
+    std::fs::write(&user, "import QtQuick\nimport Foo\nBar {}\n").expect("Use.qml");
+    let invocation = qmllint_check(&path("DX_QMLLINT"), &[user.as_path()], &[], false);
+    let argv: Vec<&str> = invocation
+        .argv
+        .iter()
+        .map(|arg| arg.to_str().expect("utf-8 argument"))
+        .collect();
+    let mods = dir.join("mods");
+    let out = dx_testing::run(
+        Path::new(argv[0]),
+        &argv[1..],
+        &[
+            ("QML_IMPORT_PATH", mods.to_str().expect("utf-8 path")),
+            ("QML2_IMPORT_PATH", mods.to_str().expect("utf-8 path")),
+        ],
+    )
+    .expect("run tool");
+    assert_eq!(out.status.code(), Some(255), "{}", out.combined());
+}
+
+const UNQUALIFIED: &str = "import QtQuick\nItem {\n    property string s: foo\n}\n";
+
+#[test]
+fn qmllint_settings_file_changes_results_only_when_declared() {
+    let file = scratch_file("Settings.qml", UNQUALIFIED);
+    std::fs::write(
+        file.with_file_name(".qmllint.ini"),
+        "[Warnings]\nUnqualifiedAccess=disable\n",
+    )
+    .expect("write settings");
+
+    let (_, ignored) = lint(&[file.as_path()], &[], false);
+    assert_eq!(ignored.expect("parsed").len(), 1);
+
+    let (out, honored) = lint(&[file.as_path()], &[], true);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(honored.expect("parsed").is_empty());
+}
+
+#[test]
+fn qmllint_columns_count_utf16_units() {
+    let line = "Item { property string s: \"\u{1F600}\"; property int q: foo }";
+    let file = scratch_file("Emoji.qml", &format!("import QtQuick\n{line}\n"));
+    let (_, parsed) = lint(&[file.as_path()], &[], false);
+    let found = parsed.expect("parsed");
+    assert_eq!(found.len(), 1);
+    let finding = &found[0].finding;
+    let before = &line[..line.find("foo").expect("foo")];
+    let utf16 = before.encode_utf16().count() as u64 + 1;
+    assert_ne!(utf16, before.chars().count() as u64 + 1);
+    assert_eq!(finding.encoding, quality_adapter::ColumnEncoding::Utf16);
+    assert_eq!(finding.start.column, utf16);
+}
+
+#[test]
+fn qmllint_severity_flags_decide_the_exit_code() {
+    let file = scratch_file("Severity.qml", UNQUALIFIED);
+    let invocation = qmllint_check(&path("DX_QMLLINT"), &[file.as_path()], &[], false);
+    let mut argv: Vec<String> = invocation
+        .argv
+        .iter()
+        .map(|arg| arg.to_str().expect("utf-8 argument").to_owned())
+        .collect();
+    let at = argv.len() - 1;
+    argv.splice(at..at, ["--unqualified".to_owned(), "info".to_owned()]);
+    let args: Vec<&str> = argv[1..].iter().map(String::as_str).collect();
+    let out = dx_testing::run(Path::new(&argv[0]), &args, &[]).expect("run tool");
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+    let found = parse_qmllint(
+        out.stdout.as_bytes(),
+        out.status.code(),
+        &[file.to_str().expect("utf-8 path")],
+    )
+    .expect("parsed");
+    assert_eq!(found.len(), 1);
+    assert_eq!(
+        found[0].finding.severity,
+        quality_adapter::ToolSeverity::Info
     );
 }

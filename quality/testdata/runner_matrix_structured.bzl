@@ -89,4 +89,37 @@ STRUCTURED_CASES = [
         "upstream_srcs": [":matrix/matrix_qml_lint_fail.upstream.qmllint.txt"],
         "expected_file": ":matrix/matrix_qml_lint_fail.expected.txt",
     },
+    {
+        "name": "matrix_qml_lint_binary_pass",
+        "generated": {
+            "matrix/qmllint_binary_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["qmllint;qml;matrix/qmllint_binary_clean.qml"],
+        "tool_names": ["qmllint"],
+        "tool_binaries": ["@dx_qt//:qmllint"],
+        "expected_file": ":matrix/matrix_qml_lint_binary_pass.expected.txt",
+    },
+    {
+        "name": "matrix_qml_lint_binary_fail",
+        "generated": {
+            "matrix/qmllint_binary_dirty.qml": "import QtQuick\n\nItem {\n    property string greet: foo\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["qmllint;qml;matrix/qmllint_binary_dirty.qml"],
+        "tool_names": ["qmllint"],
+        "tool_binaries": ["@dx_qt//:qmllint"],
+        "expected_file": ":matrix/matrix_qml_lint_binary_fail.expected.txt",
+    },
+    {
+        "name": "matrix_qml_lint_binary_import",
+        "generated": {
+            "matrix/qmllint_binary_import.qml": "import Nope.Missing\nItem {}\n",
+        },
+        "capability": "lint",
+        "stages": ["qmllint;qml;matrix/qmllint_binary_import.qml"],
+        "tool_names": ["qmllint"],
+        "tool_binaries": ["@dx_qt//:qmllint"],
+        "expected_file": ":matrix/matrix_qml_lint_binary_import.expected.txt",
+    },
 ]

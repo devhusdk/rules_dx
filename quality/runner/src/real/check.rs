@@ -507,7 +507,10 @@ impl RealBackend {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_qmllint_delegated(tool_id, tool, pairs)
                 } else {
-                    let invocation = commands::qmllint_check(&tool.binary, &refs);
+                    let roots = super::staging::qml_import_roots(tool_id, resolve_pairs)?;
+                    let root_refs: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
+                    let invocation =
+                        commands::qmllint_check(&tool.binary, &refs, &root_refs, config.is_some());
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     parsed(
                         tool_id,

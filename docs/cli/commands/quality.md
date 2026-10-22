@@ -128,11 +128,12 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff` and `qmlformat` have override flags.
+- `ruff`, `qmlformat` and `qmllint` have override flags.
 - The `ruff` alternate must be a single executable file. Anything else fails
   the analysis with the tool named.
-- The `qmlformat` alternate must be an executable target, such as
-  `@dx_qt//:qmlformat`. A target without an executable fails the analysis.
+- The `qmlformat` and `qmllint` alternates must be executable targets, such as
+  `@dx_qt//:qmlformat` and `@dx_qt//:qmllint`. A target without an executable
+  fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
 
@@ -151,6 +152,27 @@ Without the flag, a policy that selects `qmlformat` fails the analysis and
 names the flag. To set formatting options, bind a `qmlformat_config` to the
 QML targets with `aspect_hints`. The file must be named `.qmlformat.ini`. dx
 passes it to `qmlformat` with `-s`.
+
+### QML linting
+
+`qmllint` has no default executable. Enable the managed Qt SDK from
+`qt/README.md`, select `qmllint` in a `qml` family, and point the flag at the
+SDK tool.
+
+```sh
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_qmllint=@dx_qt//:qmllint
+```
+
+Without the flag, a policy that selects `qmllint` fails the analysis and names
+the flag. Findings keep the line and column `qmllint` reports. Info, warning
+and critical messages map to note, warning and error. A file that `qmllint`
+does not report fails the run.
+
+Import context comes from the `qmldir` files in the QML target and its direct
+deps. dx stages them and passes their directories with `-I`. `QML_IMPORT_PATH`
+is not used. To set lint options, bind a config named `.qmllint.ini` to the QML
+targets with `aspect_hints`. Without one, dx runs `qmllint` with
+`--ignore-settings`.
 
 ## Baselines
 

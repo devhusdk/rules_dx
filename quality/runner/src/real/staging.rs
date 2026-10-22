@@ -144,3 +144,42 @@ impl RealBackend {
         }
     }
 }
+
+pub(super) fn qml_import_roots(
+    tool_id: &str,
+    context: &[StagedPair],
+) -> Result<Vec<PathBuf>, RunnerError> {
+    let mut roots: Vec<PathBuf> = Vec::new();
+    for (workspace, absolute) in context {
+        if absolute.file_name().and_then(|name| name.to_str()) != Some("qmldir") {
+            continue;
+        }
+        let text = std::fs::read_to_string(absolute)
+            .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+        let Some(uri) = text
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("module "))
+            .map(str::trim)
+            .next()
+        else {
+            continue;
+        };
+        let mut root = absolute.parent().map(Path::to_path_buf).unwrap_or_default();
+        for segment in uri.rsplit('.') {
+            if root.file_name().and_then(|name| name.to_str()) != Some(segment) {
+                return Err(execution(
+                    tool_id,
+                    format!(
+                        "{workspace} declares module {uri} but its directory does not end in {}",
+                        uri.replace('.', "/")
+                    ),
+                ));
+            }
+            root.pop();
+        }
+        if !roots.contains(&root) {
+            roots.push(root);
+        }
+    }
+    Ok(roots)
+}

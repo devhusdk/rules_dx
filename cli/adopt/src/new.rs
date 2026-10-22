@@ -408,7 +408,7 @@ fn new_language_files(
             ("pyproject.toml".to_owned(), python_manifest(identity)?),
             (
                 "hello.py".to_owned(),
-                "\"\"\"Greeting helper with no dependencies.\"\"\"\n\n\ndef greet(name):\n    \"\"\"Return a greeting for name.\"\"\"\n    return f\"Hello, {{name}}!\"\n".to_owned(),
+                "\"\"\"Greeting helper with no dependencies.\"\"\"\n\n\ndef greet(name):\n    \"\"\"Return a greeting for name.\"\"\"\n    return f\"Hello, {name}!\"\n".to_owned(),
             ),
         ],
         "javascript" => vec![
@@ -805,6 +805,33 @@ mod tests {
             .find(|f| f.path == "demo/package.json")
             .expect("package");
         assert!(!package.content.contains("jest"));
+    }
+
+    #[test]
+    fn python_scaffold_greet_interpolates_name() {
+        let scratch = dx_test_scratch::scratch("dx-new-python-");
+        let root = scratch.path().to_path_buf();
+        apply_new(&root, "python", "demo").expect("new");
+        let dir = root.join("demo");
+        let python = std::env::var("DX_PYTHON").expect("DX_PYTHON");
+        let python = std::fs::canonicalize(python).expect("python path");
+        let script = "import hello\nfor n in ('Ada', 'Grace', ''):\n    print(hello.greet(n))\n";
+        let out = std::process::Command::new(python)
+            .current_dir(&dir)
+            .args(["-S", "-c", script])
+            .env("PYTHONPATH", &dir)
+            .env("PYTHONDONTWRITEBYTECODE", "1")
+            .output()
+            .expect("python runs");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&out.stdout),
+            "Hello, Ada!\nHello, Grace!\nHello, !\n"
+        );
     }
 
     #[test]

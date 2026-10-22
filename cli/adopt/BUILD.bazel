@@ -39,7 +39,9 @@ dx_rust_crate(
     test_data = [
         "//examples:consumer-ci/caller.yml",
         "//modules:versions.bzl",
+        ":python_interpreter",
     ],
+    test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},
     deps = [
         "notify",
         "notify-debouncer-mini",
@@ -48,6 +50,31 @@ dx_rust_crate(
         "thiserror",
         "toml",
     ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+)
+
+config_setting(
+    name = "macos_arm64",
+    constraint_values = ["@platforms//os:macos", "@platforms//cpu:arm64"],
+)
+
+config_setting(
+    name = "macos_x86_64",
+    constraint_values = ["@platforms//os:macos", "@platforms//cpu:x86_64"],
+)
+
+alias(
+    name = "python_interpreter",
+    actual = select({
+        ":linux_arm64": "@@aspect_rules_py++python_interpreters+python_3_12_aarch64_unknown_linux_gnu//:bin/python3",
+        ":macos_arm64": "@@aspect_rules_py++python_interpreters+python_3_12_aarch64_apple_darwin//:bin/python3",
+        ":macos_x86_64": "@@aspect_rules_py++python_interpreters+python_3_12_x86_64_apple_darwin//:bin/python3",
+        "//conditions:default": "@@aspect_rules_py++python_interpreters+python_3_12_x86_64_unknown_linux_gnu//:bin/python3",
+    }),
 )
 
 exports_files([

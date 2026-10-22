@@ -43,7 +43,8 @@ impl RealBackend {
                 )?;
                 let mut kept = Vec::with_capacity(reported.len());
                 for found in reported {
-                    if (capability == "format") == found.finding.rule_id.is_empty() {
+                    let syntax = found.finding.severity == quality_adapter::ToolSeverity::Error;
+                    if syntax || (capability == "format") == found.finding.rule_id.is_empty() {
                         kept.push(found);
                     }
                 }

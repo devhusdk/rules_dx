@@ -572,6 +572,18 @@ pub(super) fn buildifier_format_keeps_only_format_findings() {
 }
 
 #[test]
+pub(super) fn buildifier_syntax_errors_survive_both_capabilities() {
+    for capability in ["lint", "format"] {
+        let backend = backend_for("buildifier", plain_tool(), buildifier_invalid);
+        let findings = backend
+            .diagnose("buildifier", capability, &single("BUILD.bazel", "load(\n"))
+            .expect("diagnosed");
+        assert_eq!(findings.len(), 1, "{capability}");
+        assert!(findings[0].message.contains("syntax error"), "{capability}");
+    }
+}
+
+#[test]
 pub(super) fn buildifier_hint_runs_from_the_config_dir() {
     let tool = RealTool {
         config_rel: Some("cfg/.buildifier.json".to_owned()),

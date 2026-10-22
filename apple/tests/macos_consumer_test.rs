@@ -201,6 +201,7 @@ fn keep(name: &str, text: &str) {
 fn bazel(root: &Path, command: &str, targets: &[&str], flags: &[&str]) -> Run {
     let output = Command::new("bazel")
         .current_dir(root)
+        .args(["--nohome_rc", "--nosystem_rc"])
         .arg(command)
         .args(flags)
         .args(targets)

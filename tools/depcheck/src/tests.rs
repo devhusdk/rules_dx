@@ -1499,3 +1499,191 @@ fn usage_rust_build_only_is_category_error() {
     assert_eq!(code, 1);
     assert!(err.contains("used only by build tooling"), "{err}");
 }
+
+fn js_fixture(manifest: &str, lock_pkgs: &[(&str, &str)], source: &str) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("package.json"), manifest);
+    let mut lock = String::from("lockfileVersion: '9.0'\n\npackages:\n");
+    for (name, ver) in lock_pkgs {
+        lock.push_str(&format!(
+            "  '{name}@{ver}':\n    resolution: {{integrity: sha512-x}}\n"
+        ));
+    }
+    write_file(&dir.path().join("pnpm-lock.yaml"), &lock);
+    write_file(&dir.path().join("src/index.js"), source);
+    dir
+}
+
+fn js_consistency(dir: &Path) -> (i32, String, String) {
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(
+        Ecosystem::Js,
+        &dir.join("package.json"),
+        &dir.join("pnpm-lock.yaml"),
+        &mut out,
+        &mut err,
+    );
+    (code, out, err)
+}
+
+fn js_usage(dir: &Path) -> (i32, String) {
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_usage(
+        Ecosystem::Js,
+        &dir.join("package.json"),
+        dir,
+        None,
+        &mut out,
+        &mut err,
+    );
+    (code, err)
+}
+
+#[test]
+fn js_manifest_concrete_dependency_survives_matching_peer() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("package.json");
+    for text in [
+        r#"{"dependencies":{"react":"^18.0.0"},"peerDependencies":{"react":">=16"}}"#,
+        r#"{"peerDependencies":{"react":">=16"},"dependencies":{"react":"^18.0.0"}}"#,
+    ] {
+        write_file(&man, text);
+        let deps = parse_js_manifest(&man).expect("parse");
+        assert_eq!(deps["react"].spec, "^18.0.0");
+        assert_eq!(deps["react"].category, "prod");
+        assert!(!deps["react"].peer);
+    }
+    write_file(
+        &man,
+        r#"{"peerDependencies":{"react":">=16"},"devDependencies":{"react":"^18.0.0"}}"#,
+    );
+    let deps = parse_js_manifest(&man).expect("parse");
+    assert_eq!(deps["react"].category, "dev");
+    assert!(!deps["react"].peer);
+}
+
+#[test]
+fn js_manifest_peer_only_stays_peer() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("package.json");
+    write_file(
+        &man,
+        r#"{"peerDependencies":{"react":">=16","opt":"1"},"peerDependenciesMeta":{"opt":{"optional":true}}}"#,
+    );
+    let deps = parse_js_manifest(&man).expect("parse");
+    assert!(deps["react"].peer);
+    assert!(deps["opt"].peer);
+}
+
+#[test]
+fn js_manifest_conflicting_concrete_requirements_fail() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("package.json");
+    write_file(
+        &man,
+        r#"{"dependencies":{"react":"^18.0.0"},"devDependencies":{"react":"^17.0.0"}}"#,
+    );
+    let err = parse_js_manifest(&man).expect_err("conflict");
+    assert!(err.to_string().contains("conflicting"), "{err}");
+
+    write_file(
+        &man,
+        r#"{"dependencies":{"react":"^18.0.0"},"devDependencies":{"react":"^18.0.0"}}"#,
+    );
+    let deps = parse_js_manifest(&man).expect("same spec merges");
+    assert_eq!(deps["react"].category, "prod");
+}
+
+#[test]
+fn js_manifest_rejects_malformed_values() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("package.json");
+    for text in [
+        r#"{"dependencies":{"react":18}}"#,
+        r#"{"peerDependencies":{"react":null}}"#,
+        r#"{"devDependencies":["react"]}"#,
+        r#"{"peerDependencies":"react"}"#,
+    ] {
+        write_file(&man, text);
+        assert!(parse_js_manifest(&man).is_err(), "{text}");
+    }
+}
+
+#[test]
+fn js_consistency_checks_concrete_dependency_also_declared_as_peer() {
+    for manifest in [
+        r#"{"dependencies":{"react":"^18.0.0"},"peerDependencies":{"react":">=16"}}"#,
+        r#"{"peerDependencies":{"react":">=16"},"dependencies":{"react":"^18.0.0"}}"#,
+        r#"{"devDependencies":{"react":"^18.0.0"},"peerDependencies":{"react":">=16"}}"#,
+    ] {
+        let missing = js_fixture(
+            manifest,
+            &[("other", "1.0.0")],
+            "import { createElement } from 'react';\nexport const x = createElement;\n",
+        );
+        let (code, _, err) = js_consistency(missing.path());
+        assert_eq!(code, 1, "{manifest}: {err}");
+        assert!(err.contains("react"), "{err}");
+
+        let stale = js_fixture(
+            manifest,
+            &[("react", "17.0.0")],
+            "import { createElement } from 'react';\nexport const x = createElement;\n",
+        );
+        assert_eq!(js_consistency(stale.path()).0, 1, "{manifest}");
+
+        let ok = js_fixture(
+            manifest,
+            &[("react", "18.2.0")],
+            "import { createElement } from 'react';\nexport const x = createElement;\n",
+        );
+        assert_eq!(js_consistency(ok.path()).0, 0, "{manifest}");
+    }
+}
+
+#[test]
+fn js_consistency_peer_only_is_not_checked() {
+    let dir = js_fixture(
+        r#"{"peerDependencies":{"react":">=16"}}"#,
+        &[("other", "1.0.0")],
+        "",
+    );
+    assert_eq!(js_consistency(dir.path()).0, 0);
+}
+
+#[test]
+fn js_consistency_conflicting_and_malformed_manifests_error() {
+    let conflict = js_fixture(
+        r#"{"dependencies":{"react":"^18.0.0"},"devDependencies":{"react":"^17.0.0"}}"#,
+        &[("react", "18.2.0")],
+        "",
+    );
+    assert_eq!(js_consistency(conflict.path()).0, 2);
+    let malformed = js_fixture(r#"{"dependencies":{"react":1}}"#, &[], "");
+    assert_eq!(js_consistency(malformed.path()).0, 2);
+}
+
+#[test]
+fn js_usage_requires_concrete_dependency_also_declared_as_peer() {
+    let manifest = r#"{"dependencies":{"react":"^18.0.0"},"peerDependencies":{"react":">=16"}}"#;
+    let unused = js_fixture(manifest, &[("react", "18.2.0")], "export const x = 1;\n");
+    let (code, err) = js_usage(unused.path());
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("react"), "{err}");
+
+    let used = js_fixture(
+        manifest,
+        &[("react", "18.2.0")],
+        "import { createElement } from 'react';\nexport const x = createElement;\n",
+    );
+    assert_eq!(js_usage(used.path()).0, 0);
+
+    let peer_only = js_fixture(
+        r#"{"peerDependencies":{"react":">=16"}}"#,
+        &[],
+        "export const x = 1;\n",
+    );
+    assert_eq!(js_usage(peer_only.path()).0, 0);
+}

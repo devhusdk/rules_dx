@@ -43,25 +43,6 @@ qml_sources = rule(
 )
 "#;
 
-const ASPECTS: [&str; 16] = [
-    "cc_lint",
-    "lint",
-    "js_lint",
-    "python_lint",
-    "jvm_lint",
-    "rust_lint",
-    "shell_lint",
-    "text_lint",
-    "cc_format",
-    "format",
-    "js_format",
-    "jvm_format",
-    "rust_format",
-    "shell_format",
-    "typecheck",
-    "rust_typecheck",
-];
-
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
@@ -78,17 +59,28 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn aspects_bzl() -> String {
-    let loads: Vec<String> = ASPECTS
+fn aspects_bzl(rules: &Path) -> String {
+    let source = std::fs::read_to_string(rules.join("quality/real_aspects.bzl"))
+        .unwrap_or_else(|error| panic!("real_aspects.bzl: {error}"));
+    let names: Vec<&str> = source
+        .lines()
+        .filter_map(|line| {
+            line.split_once(" = _make_real_aspect(")
+                .map(|(name, _)| name)
+        })
+        .filter(|name| name.starts_with("real_") && name.ends_with("_aspect"))
+        .collect();
+    assert!(!names.is_empty(), "no real aspects found");
+    let loads: Vec<String> = names
         .iter()
-        .map(|name| format!("_{name} = \"real_{name}_aspect\""))
+        .map(|name| format!("_{name} = \"{name}\""))
         .collect();
     let mut text = format!(
         "load(\"@rules_dx//quality:real_aspects.bzl\", {})\n\n",
         loads.join(", ")
     );
-    for name in ASPECTS {
-        text.push_str(&format!("real_{name}_aspect = _{name}\n"));
+    for name in names {
+        text.push_str(&format!("{name} = _{name}\n"));
     }
     text
 }
@@ -109,8 +101,11 @@ fn consumer() -> PathBuf {
     write(&root.join(".bazelrc"), "common --enable_bzlmod\n");
     write(&root.join("BUILD.bazel"), BUILD);
     write(&root.join("quality/BUILD.bazel"), "");
-    write(&root.join("quality/real_aspects.bzl"), &aspects_bzl());
-    write(&root.join("ui/BUILD.bazel"), "exports_files([\"Main.qml\"])\n");
+    write(&root.join("quality/real_aspects.bzl"), &aspects_bzl(&rules));
+    write(
+        &root.join("ui/BUILD.bazel"),
+        "exports_files([\"Main.qml\"])\n",
+    );
     write(&root.join("ui/qml.bzl"), QML_RULE);
     write(&root.join("ui/Main.qml"), DIRTY);
     root
@@ -140,7 +135,9 @@ fn dirty_check_apply_clean_check_round_trip_in_a_consumer_workspace() {
     let dirty = dx(&root, &[]);
     assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
     assert!(
-        dirty.stdout.contains("ui/Main.qml:1:1: warning: file is not formatted [qmlformat]"),
+        dirty
+            .stdout
+            .contains("ui/Main.qml:1:1: warning: file is not formatted [qmlformat]"),
         "{}",
         dirty.combined()
     );

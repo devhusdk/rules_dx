@@ -2,11 +2,11 @@
 
 SCALAFMT_VERSION = "3.11.4"
 
-SCALAFMT_ARTIFACT = "compatible JVM artifact over the shared managed JDK"
+SCALAFMT_ARTIFACT = "native binary"
 
-SCALAFMT_CHECK = "scalafmt --check plus --config when hinted (exit 0 clean, exit 1 with unified diff when dirty)"
+SCALAFMT_CHECK = "scalafmt --list plus --config when hinted (exit 0 clean, exit 1 lists dirty files, other exits are errors)"
 SCALAFMT_FIX = "scalafmt in-place rewrite (re-read on exit 0, keep input otherwise)"
-SCALAFMT_CONFIG_POLICY = "checked-in .scalafmt.conf required to change policy; upstream built-in defaults without config, native interpretation with config"
+SCALAFMT_CONFIG_POLICY = "bound .scalafmt.conf required; a missing config fails analysis"
 
 SCALA_FIXTURE_HELLO = "//scala/tests/fixtures/hello:hello_test"
 

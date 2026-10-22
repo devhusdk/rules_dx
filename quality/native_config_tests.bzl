@@ -16,6 +16,7 @@ _HINTS = [
     struct(tool_id = "taplo"),
     struct(tool_id = "ruff"),
     struct(tool_id = "eslint"),
+    struct(tool_id = "scalafmt"),
 ]
 
 # Each entry is pinned to its runner refusal by the file_checks below.
@@ -288,6 +289,11 @@ def native_config_unit_tests(name):
                 "real_aspect (//q:t): applicable ESLint requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
             ),
             expect_equal(
+                "missing_required_config_error names an unbound scalafmt stage",
+                missing_required_config_error("scalafmt", {}, "//q:t"),
+                "real_aspect (//q:t): applicable Scalafmt requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+            ),
+            expect_equal(
                 "every tool the runner refuses without a config is required here",
                 sorted([
                     tool
@@ -311,10 +317,11 @@ def native_config_unit_tests(name):
                     missing_required_config_error("ruff", {"ruff": _HINTS[3]}, "//q:t"),
                     missing_required_config_error("biome", {"biome": _HINTS[0]}, "//q:t"),
                     missing_required_config_error("eslint", {"eslint": _HINTS[4]}, "//q:t"),
+                    missing_required_config_error("scalafmt", {"scalafmt": _HINTS[5]}, "//q:t"),
                     missing_required_config_error("taplo", {}, "//q:t"),
                     missing_required_config_error("prettier", {}, "//q:t"),
                 ],
-                ["", "", "", "", "", ""],
+                ["", "", "", "", "", "", ""],
             ),
         ],
         file_checks = {

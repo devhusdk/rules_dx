@@ -86,7 +86,7 @@ fn rustfmt_passes_caller_edition_and_config() {
         "2021",
         false,
     );
-    assert!(!argv_strings(&fix).contains(&"--list".to_owned()));
+    assert!(!argv_strings(&fix).contains(&"--check".to_owned()));
 }
 
 #[test]

@@ -32,6 +32,36 @@ SCALA_DOTNET_CASES = [
         "expected_file": ":matrix/matrix_scala_format_fail.expected.txt",
     },
     {
+        "name": "matrix_scala_format_parse_error",
+        "generated": {
+            "matrix/scalafmt_broken.scala": "package fixtures.scalafmt\n\nobject Sample {\n  def greet = (\n}\n",
+        },
+        "capability": "format",
+        "stages": ["scalafmt;scala;matrix/scalafmt_broken.scala"],
+        "tool_names": ["scalafmt"],
+        "tool_binaries": ["@dx_tools//:scalafmt"],
+        "toolfile_tools": ["scalafmt"],
+        "toolfile_srcs": [":scalafmt_cfg/.scalafmt.conf"],
+        "config_tools": ["scalafmt"],
+        "config_files": [":scalafmt_cfg/.scalafmt.conf"],
+        "expected_file": ":matrix/matrix_scala_format_parse_error.expected.txt",
+    },
+    {
+        "name": "matrix_scala_format_config_error",
+        "generated": {
+            "matrix/scalafmt_cfgerr.scala": "package fixtures.scalafmt\n\nobject Sample {\n  def greet = 1\n}\n",
+        },
+        "capability": "format",
+        "stages": ["scalafmt;scala;matrix/scalafmt_cfgerr.scala"],
+        "tool_names": ["scalafmt"],
+        "tool_binaries": ["@dx_tools//:scalafmt"],
+        "toolfile_tools": ["scalafmt"],
+        "toolfile_srcs": [":scalafmt_bad_cfg/.scalafmt.conf"],
+        "config_tools": ["scalafmt"],
+        "config_files": [":scalafmt_bad_cfg/.scalafmt.conf"],
+        "expected_file": ":matrix/matrix_scala_format_config_error.expected.txt",
+    },
+    {
         "name": "matrix_scala_lint_pass",
         "generated": {
             "matrix/scalafix_clean.scala": "package fixtures.scalafix\n\nobject Sample {\n  def greet = 1\n}\n",

@@ -906,6 +906,11 @@ real_source_target(
     name = "fixture_real_scala_dirty",
     aspect_hints = [":scalafmt_cfg"],
     scala_srcs = ["real_dirty.scala"],
+)
+
+real_source_target(
+    name = "fixture_real_scala_no_config",
+    scala_srcs = ["real_clean.scala"],
     tags = ["manual"],
 )
 
@@ -942,8 +947,19 @@ real_aspect_subject(
 
 real_aspect_subject(
     name = "fixture_real_scala_dirty_subject",
-    tags = ["manual"],
     target = ":fixture_real_scala_dirty",
+)
+
+real_aspect_subject(
+    name = "fixture_real_scala_no_config_subject",
+    tags = ["manual"],
+    target = ":fixture_real_scala_no_config",
+)
+
+failure_test(
+    name = "fixture_real_scala_no_config_test",
+    expected_failure_substring = "applicable Scalafmt requires declared config",
+    target = ":fixture_real_scala_no_config_subject",
 )
 
 real_aspect_subject(
@@ -1021,6 +1037,7 @@ real_aspect_fixture_tests(
         ":fixture_real_python_subject",
         ":fixture_real_rust_subject",
         ":fixture_real_rust_generated_shape_subject",
+        ":fixture_real_scala_dirty_subject",
         ":fixture_real_scala_subject",
         ":fixture_real_shell_subject",
         ":fixture_real_starlark_subject",

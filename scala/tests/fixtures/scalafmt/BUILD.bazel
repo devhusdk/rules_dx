@@ -9,7 +9,6 @@ package(
 exports_files([
     "pins.bzl",
     "Sample.scala",
-    "check_dirty.diff",
     "example.scalafmt.conf",
 ])
 
@@ -26,6 +25,7 @@ real_source_target(
 
 scala_library(
     name = "scalafmt",
+    aspect_hints = ["//:scalafmt_config"],
     testonly = True,
     srcs = ["Sample.scala"],
 )

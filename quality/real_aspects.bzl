@@ -131,6 +131,30 @@ def upstream_direct_sources(target, ctx):
 
 _QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]
 
+QmlContextInfo = provider(
+    doc = "QML import context files reachable through deps.",
+    fields = {"files": "depset[File]: qmldir, qml, qmltypes and js files."},
+)
+
+def _qml_context_impl(target, ctx):
+    direct = [
+        f
+        for f in target[DefaultInfo].files.to_list()
+        if f.basename == "qmldir" or f.extension in _QML_CONTEXT_EXTENSIONS
+    ]
+    transitive = [
+        dep[QmlContextInfo].files
+        for dep in getattr(ctx.rule.attr, "deps", [])
+        if type(dep) == "Target" and QmlContextInfo in dep
+    ]
+    return [QmlContextInfo(files = depset(direct, transitive = transitive))]
+
+_qml_context_aspect = aspect(
+    implementation = _qml_context_impl,
+    attr_aspects = ["deps"],
+    provides = [QmlContextInfo],
+)
+
 def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
     what = "real_aspect (" + str(target.label) + ")"
     policy = ctx.attr._policy[QualityPolicyInfo]
@@ -373,11 +397,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                     inputs.append(f)
     if "qmllint" in stage_tools:
         context_files = list(target[DefaultInfo].files.to_list())
-        for dep in getattr(ctx.rule.attr, "deps", []):
-            if type(dep) == "Target" and DefaultInfo in dep:
-                context_files.extend(dep[DefaultInfo].files.to_list())
+        if QmlContextInfo in target:
+            context_files.extend(target[QmlContextInfo].files.to_list())
         for f in context_files:
             ws_path = f.short_path
+            if ws_path.startswith("../"):
+                ws_path = "_external/" + ws_path[3:]
             if ".." in ws_path.split("/"):
                 continue
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
@@ -740,6 +765,14 @@ def _make_real_aspect(shard_name):
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             toolchains = rust_toolchain_toolchains(),
+        )
+    if "qmllint" in shard["tools"]:
+        return aspect(
+            implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            attr_aspects = ["aspect_hints"],
+            attrs = shard["attrs"],
+            requires = [_qml_context_aspect],
+            required_aspect_providers = [[QmlContextInfo]],
         )
     return aspect(
         implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),

@@ -71,7 +71,11 @@ fn implied_code(report: &QmlLintReport) -> i32 {
     }
 }
 
-fn convert(report: &QmlLintReport, files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
+fn convert(
+    report: &QmlLintReport,
+    files: &[&str],
+    require_all: bool,
+) -> Result<Vec<FileFinding>, ParseError> {
     let mut seen: Vec<&str> = Vec::new();
     let mut findings = Vec::new();
     for file in &report.files {
@@ -118,8 +122,10 @@ fn convert(report: &QmlLintReport, files: &[&str]) -> Result<Vec<FileFinding>, P
             )));
         }
     }
-    if let Some(missing) = files.iter().find(|file| !seen.contains(file)) {
-        return Err(shape(format!("no report for {missing}")));
+    if require_all {
+        if let Some(missing) = files.iter().find(|file| !seen.contains(file)) {
+            return Err(shape(format!("no report for {missing}")));
+        }
     }
     Ok(findings)
 }
@@ -133,7 +139,7 @@ pub fn parse_qmllint(
         return Err(shape(format!("exit {} with empty output", code_name(code))));
     }
     let report = read_report(stdout)?;
-    let findings = convert(&report, files)?;
+    let findings = convert(&report, files, true)?;
     let want = implied_code(&report);
     if code != Some(want) {
         return Err(shape(format!(
@@ -145,10 +151,10 @@ pub fn parse_qmllint(
     Ok(findings)
 }
 
-/// Parses a saved report; the exit code comes from the report itself.
+/// Parses one saved report; it may cover only some of the files.
 pub fn parse_qmllint_report(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
     let report = read_report(stdout)?;
-    convert(&report, files)
+    convert(&report, files, false)
 }
 
 #[cfg(test)]
@@ -280,5 +286,7 @@ mod tests {
         let warned = parse_qmllint_report(warning().as_bytes(), &["warn.qml"]).expect("parsed");
         assert_eq!(warned.len(), 1);
         assert!(parse_qmllint_report(b"", &["warn.qml"]).is_err());
+        let partial = parse_qmllint_report(CLEAN.as_bytes(), &["clean.qml", "other.qml"]);
+        assert!(partial.expect("one report per source").is_empty());
     }
 }

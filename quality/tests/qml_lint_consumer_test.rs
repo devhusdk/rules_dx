@@ -30,10 +30,7 @@ const QML_RULE: &str = r#"load("@rules_dx//quality:sources.bzl", "QualitySources
 def _impl(ctx):
     owned = [f for f in ctx.files.srcs if f.extension == "qml"]
     return [
-        DefaultInfo(files = depset(
-            ctx.files.srcs,
-            transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
-        )),
+        DefaultInfo(files = depset(ctx.files.srcs)),
         QualitySourcesInfo(direct_sources = {"qml": depset(owned)}),
     ]
 
@@ -189,6 +186,71 @@ fn deliberate_errors_are_reported_with_locations_and_third_party_is_not_linted()
 }
 
 #[test]
+fn transitive_deps_resolve_without_forwarded_files() {
+    let root = consumer();
+    module(
+        &root,
+        "mods/Baz",
+        "baz",
+        "Baz",
+        "Quux",
+        "import QtQuick\nItem {\n    property int value: 3\n}\n",
+    );
+    write(
+        &root.join("mods/Foo/BUILD.bazel"),
+        "load(\"//:qml.bzl\", \"qml_module\")\n\nqml_module(\n    name = \"foo\",\n    srcs = [\"qmldir\", \"Bar.qml\"],\n    deps = [\"//mods/Baz:baz\"],\n    visibility = [\"//visibility:public\"],\n)\n",
+    );
+    write(
+        &root.join("app/Main.qml"),
+        "import QtQuick\nimport Baz\nItem {\n    Quux {\n    }\n}\n",
+    );
+    write(
+        &root.join("app/BUILD.bazel"),
+        &app_build("\"//mods/Foo:foo\"", ""),
+    );
+    let out = dx(&root, &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn external_repository_modules_resolve() {
+    let root = consumer();
+    let module_file = root.join("MODULE.bazel");
+    let text = std::fs::read_to_string(&module_file).expect("module file");
+    write(
+        &module_file,
+        &format!(
+            "{text}\nlocal_repository = use_repo_rule(\"@bazel_tools//tools/build_defs/repo:local.bzl\", \"local_repository\")\n\nlocal_repository(\n    name = \"ext_qml\",\n    path = \"ext\",\n)\n"
+        ),
+    );
+    write(&root.join("ext/REPO.bazel"), "");
+    write(&root.join("ext/BUILD.bazel"), "");
+    write(&root.join("ext/qml.bzl"), QML_RULE);
+    write(
+        &root.join("ext/Ext/qmldir"),
+        "module Ext\nGadget 1.0 Gadget.qml\n",
+    );
+    write(
+        &root.join("ext/Ext/Gadget.qml"),
+        "import QtQuick\nItem {\n    property int value: 4\n}\n",
+    );
+    write(
+        &root.join("ext/Ext/BUILD.bazel"),
+        "load(\"//:qml.bzl\", \"qml_module\")\n\nqml_module(\n    name = \"ext\",\n    srcs = [\"qmldir\", \"Gadget.qml\"],\n    visibility = [\"//visibility:public\"],\n)\n",
+    );
+    write(
+        &root.join("app/Main.qml"),
+        "import QtQuick\nimport Ext\nItem {\n    Gadget {\n    }\n}\n",
+    );
+    write(
+        &root.join("app/BUILD.bazel"),
+        &app_build("\"@ext_qml//Ext:ext\"", ""),
+    );
+    let out = dx(&root, &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
 fn undeclared_modules_do_not_resolve_even_with_a_host_import_path() {
     let root = consumer();
     write(&root.join("app/BUILD.bazel"), &app_build("", ""));
@@ -215,13 +277,13 @@ fn bound_qmllint_ini_changes_the_findings() {
     let root = consumer();
     write(&root.join("app/Main.qml"), DIRTY);
     write(
-        &root.join("app/.qmllint.ini"),
+        &root.join("app/lint.qmllint.ini"),
         "[Warnings]\nUnqualifiedAccess=disable\n",
     );
     write(
         &root.join("app/BUILD.bazel"),
         &format!(
-            "load(\"@rules_dx//quality:native_config.bzl\", \"qmllint_config\")\n{}\nqmllint_config(\n    name = \"qmllint_ini\",\n    src = \".qmllint.ini\",\n)\n",
+            "load(\"@rules_dx//quality:native_config.bzl\", \"qmllint_config\")\n{}\nqmllint_config(\n    name = \"qmllint_ini\",\n    src = \"lint.qmllint.ini\",\n)\n",
             app_build(DEPS, "    aspect_hints = [\":qmllint_ini\"],\n")
         ),
     );

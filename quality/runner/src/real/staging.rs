@@ -165,21 +165,41 @@ pub(super) fn qml_import_roots(
             continue;
         };
         let mut root = absolute.parent().map(Path::to_path_buf).unwrap_or_default();
+        let mut mirrors = true;
         for segment in uri.rsplit('.') {
             if root.file_name().and_then(|name| name.to_str()) != Some(segment) {
-                return Err(execution(
-                    tool_id,
-                    format!(
-                        "{workspace} declares module {uri} but its directory does not end in {}",
-                        uri.replace('.', "/")
-                    ),
-                ));
+                mirrors = false;
+                break;
             }
             root.pop();
+        }
+        if !mirrors {
+            continue;
         }
         if !roots.contains(&root) {
             roots.push(root);
         }
     }
     Ok(roots)
+}
+
+pub(super) fn place_qmllint_settings(
+    tool_id: &str,
+    config: &Path,
+    sources: &[StagedPair],
+) -> Result<(), RunnerError> {
+    let mut placed: Vec<PathBuf> = Vec::new();
+    for (workspace, absolute) in sources {
+        let Some(dir) = absolute.parent() else {
+            continue;
+        };
+        let target = dir.join(".qmllint.ini");
+        if target == config || placed.contains(&target) {
+            continue;
+        }
+        std::fs::copy(config, &target)
+            .map_err(|err| execution(tool_id, format!("place settings for {workspace}: {err}")))?;
+        placed.push(target);
+    }
+    Ok(())
 }

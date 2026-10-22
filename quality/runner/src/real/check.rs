@@ -509,6 +509,9 @@ impl RealBackend {
                 } else {
                     let roots = super::staging::qml_import_roots(tool_id, resolve_pairs)?;
                     let root_refs: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
+                    if let Some(settings) = config.as_deref() {
+                        super::staging::place_qmllint_settings(tool_id, settings, pairs)?;
+                    }
                     let invocation =
                         commands::qmllint_check(&tool.binary, &refs, &root_refs, config.is_some());
                     let out = self.run(tool_id, tool, &invocation, scratch)?;

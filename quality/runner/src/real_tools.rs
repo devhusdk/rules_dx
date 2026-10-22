@@ -1333,7 +1333,10 @@ fn qml_import_roots_come_from_declared_module_uris() {
         roots,
         vec![dir.path().join("mods"), dir.path().join("libs")]
     );
-    let wrong = vec![write("elsewhere/qmldir", "module Foo.Bar\n")];
-    let err = staging::qml_import_roots("qmllint", &wrong).expect_err("mismatch");
-    assert!(err.to_string().contains("declares module Foo.Bar"), "{err}");
+    let unmatched = vec![
+        write("app/qmldir", "module App\n"),
+        write("elsewhere/qmldir", "module Foo.Bar\n"),
+    ];
+    let skipped = staging::qml_import_roots("qmllint", &unmatched).expect("roots");
+    assert!(skipped.is_empty(), "{skipped:?}");
 }

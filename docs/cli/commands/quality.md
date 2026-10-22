@@ -165,14 +165,16 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_qmllint=@dx_qt//:qm
 
 Without the flag, a policy that selects `qmllint` fails the analysis and names
 the flag. Findings keep the line and column `qmllint` reports. Info, warning
-and critical messages map to note, warning and error. A file that `qmllint`
+and critical messages show as info, warning and error. A file that `qmllint`
 does not report fails the run.
 
-Import context comes from the `qmldir` files in the QML target and its direct
-deps. dx stages them and passes their directories with `-I`. `QML_IMPORT_PATH`
-is not used. To set lint options, bind a config named `.qmllint.ini` to the QML
-targets with `aspect_hints`. Without one, dx runs `qmllint` with
-`--ignore-settings`.
+Import context comes from the `qmldir` files in the QML target and all its
+transitive `deps`, including external repositories. dx stages them and passes
+their module roots with `-I`. A `qmldir` whose directory does not end in its
+module URI is not importable and is skipped. `QML_IMPORT_PATH` is not used. To
+set lint options, bind a config ending in `.qmllint.ini` to the QML targets
+with `aspect_hints`. dx copies it next to each linted file as `.qmllint.ini`.
+Without one, dx runs `qmllint` with `--ignore-settings`.
 
 ## Baselines
 

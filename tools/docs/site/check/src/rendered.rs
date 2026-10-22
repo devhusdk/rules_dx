@@ -197,6 +197,24 @@ pub fn is_internal(target: &str) -> bool {
         && !target.starts_with("//")
 }
 
+/// Percent-decodes one URL fragment, or None when the encoding is malformed.
+pub fn decode_fragment(fragment: &str) -> Option<String> {
+    let bytes = fragment.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        if bytes[at] == b'%' {
+            let pair = fragment.get(at + 1..at + 3)?;
+            out.push(u8::from_str_radix(pair, 16).ok()?);
+            at += 3;
+        } else {
+            out.push(bytes[at]);
+            at += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
 /// Resolves one relative link to the route it addresses inside the site.
 pub fn resolve(from: &str, target: &str) -> String {
     let base = from.rsplit_once('/').map_or("", |(dir, _)| dir);
@@ -288,21 +306,41 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
             }
         }
         for link in &page.links {
-            if !is_internal(link) {
+            if !is_internal(link) && !link.starts_with('#') && !link.starts_with('?') {
                 continue;
             }
             let (route, anchor) = split_target(link);
-            if route.is_empty() {
+            let route = route.split('?').next().unwrap_or("").to_string();
+            if route.is_empty() && !link.contains('#') && !link.starts_with('?') {
                 errors.push(format!("{} links to an empty target", page.route));
                 continue;
             }
-            let target = resolve(&page.route, &route);
-            let name = page_name(root, &target);
-            if !root.join(&name).is_file() {
-                errors.push(format!("{} links to missing '{link}'", page.route));
+            let name = if route.is_empty() {
+                page.route.clone()
+            } else {
+                let target = resolve(&page.route, &route);
+                let name = page_name(root, &target);
+                if !root.join(&name).is_file() {
+                    errors.push(format!("{} links to missing '{link}'", page.route));
+                    continue;
+                }
+                name
+            };
+            if anchor.is_empty() || anchor == "top" || anchor == "searchbar" {
                 continue;
             }
-            if !anchor.is_empty() && !ids.get(&name).is_some_and(|found| found.contains(&anchor)) {
+            let found = ids.get(&name);
+            let has = |id: &str| found.is_some_and(|found| found.iter().any(|f| f == id));
+            let decoded = decode_fragment(&anchor);
+            if has(&anchor) || decoded.as_deref().is_some_and(has) {
+                continue;
+            }
+            if decoded.is_none() {
+                errors.push(format!(
+                    "{} links to malformed anchor encoding '{link}'",
+                    page.route
+                ));
+            } else {
                 errors.push(format!("{} links to missing anchor '{link}'", page.route));
             }
         }
@@ -311,10 +349,11 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> String {
                 continue;
             }
             let (route, _) = split_target(asset);
+            let route = route.split('?').next().unwrap_or("");
             if route.is_empty() {
                 continue;
             }
-            let target = resolve(&page.route, &route);
+            let target = resolve(&page.route, route);
             let name = page_name(root, &target);
             if !root.join(&name).exists() {
                 errors.push(format!("{} references missing asset '{asset}'", page.route));

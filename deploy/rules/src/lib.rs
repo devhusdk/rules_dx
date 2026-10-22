@@ -513,6 +513,61 @@ pub fn archive_main(
     }
 }
 
+/// Returns one distribution name with PEP 503 normalization applied.
+pub fn pypi_normalize_name(raw: &str) -> String {
+    let mut out = String::new();
+    let mut pending = false;
+    for c in raw.chars() {
+        if matches!(c, '.' | '_' | '-') {
+            pending = true;
+            continue;
+        }
+        if pending && !out.is_empty() {
+            out.push('-');
+        }
+        pending = false;
+        out.push(c.to_ascii_lowercase());
+    }
+    out
+}
+
+fn pypi_valid_name(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    !bytes.is_empty()
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes[bytes.len() - 1].is_ascii_alphanumeric()
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+}
+
+/// Reads the distribution name and version from one wheel or sdist filename.
+pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), String> {
+    let (name, version) = if let Some(stem) = base.strip_suffix(".whl") {
+        let parts: Vec<&str> = stem.split('-').collect();
+        if parts.len() < 5 || parts.len() > 6 {
+            return Err(format!(
+                "pypi_deploy: invalid wheel filename {base:?}: want name-version-python-abi-platform.whl"
+            ));
+        }
+        (parts[0], parts[1])
+    } else if let Some(stem) = base.strip_suffix(".tar.gz") {
+        stem.rsplit_once('-').ok_or_else(|| {
+            format!("pypi_deploy: invalid sdist filename {base:?}: want name-version.tar.gz")
+        })?
+    } else {
+        return Err(format!(
+            "pypi_deploy: unsupported artifact {base:?}: want a .whl or .tar.gz"
+        ));
+    };
+    if !pypi_valid_name(name) || version.is_empty() {
+        return Err(format!(
+            "pypi_deploy: invalid distribution name or version in {base:?}"
+        ));
+    }
+    Ok((pypi_normalize_name(name), version.to_owned()))
+}
+
 /// Builds one PyPI wheelhouse.
 pub fn pypi_build_wheelhouse(
     wheel_src: &Path,
@@ -520,6 +575,19 @@ pub fn pypi_build_wheelhouse(
     outdir: &Path,
     dist_name: &str,
 ) -> io::Result<std::path::PathBuf> {
+    let invalid = |message: String| io::Error::new(io::ErrorKind::InvalidData, message);
+    let (project, version) = pypi_artifact_identity(&basename(wheel_src)?).map_err(invalid)?;
+    if let Some(sdist) = sdist_src {
+        let (sdist_project, sdist_version) =
+            pypi_artifact_identity(&basename(sdist)?).map_err(invalid)?;
+        if sdist_project != project || sdist_version != version {
+            return Err(invalid(format!(
+                "pypi_deploy: wheel {} is {project} {version} but sdist {} is {sdist_project} {sdist_version}",
+                basename(wheel_src)?,
+                basename(sdist)?,
+            )));
+        }
+    }
     let house = outdir.join(dist_name.to_owned() + "-wheelhouse");
     std::fs::create_dir_all(&house)?;
     let mut entries: Vec<(String, String)> = Vec::new();
@@ -534,7 +602,7 @@ pub fn pypi_build_wheelhouse(
         entries.push((base, digest));
     }
     entries.sort();
-    let index_dir = house.join("simple-index").join(dist_name);
+    let index_dir = house.join("simple-index").join(&project);
     std::fs::create_dir_all(&index_dir)?;
     let mut body = String::from("<!DOCTYPE html>\n<html><body>\n");
     for (base, digest) in &entries {
@@ -649,6 +717,13 @@ pub fn pypi_main(
     }
     match pypi_build_wheelhouse(&wheel, sdist.as_deref(), &outdir, dist_name) {
         Ok(house) => {
+            let project = basename(&wheel)
+                .and_then(|base| {
+                    pypi_artifact_identity(&base)
+                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+                })
+                .map(|(project, _)| project)
+                .unwrap_or_default();
             let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
             println!("pypi_deploy: staged {dist_name} (profile: {profile})");
             println!("  wheelhouse: {}", house.display());
@@ -656,7 +731,7 @@ pub fn pypi_main(
                 "  index: {}",
                 house
                     .join("simple-index")
-                    .join(dist_name)
+                    .join(&project)
                     .join("index.html")
                     .display()
             );
@@ -3537,7 +3612,7 @@ mod tests {
         }
         let index = house
             .join("simple-index")
-            .join("pypi_demo")
+            .join("pypi-demo")
             .join("index.html");
         let body = std::fs::read_to_string(&index).expect("index");
         assert!(body.contains("pypi_demo-0.0.0-py3-none-any.whl"));
@@ -3546,6 +3621,44 @@ mod tests {
         let house_only =
             pypi_build_wheelhouse(&wheel, None, &outdir, "pypi_demo").expect("wheel only");
         assert!(house_only.join(wheel.file_name().expect("base")).is_file());
+    }
+
+    #[test]
+    fn pypi_index_uses_normalized_distribution_identity() {
+        assert_eq!(pypi_normalize_name("Foo.Bar__baz--Qux"), "foo-bar-baz-qux");
+        assert_eq!(
+            pypi_artifact_identity("My_Pkg.Name-1.0-py3-none-any.whl").expect("wheel"),
+            ("my-pkg-name".to_owned(), "1.0".to_owned())
+        );
+        assert_eq!(
+            pypi_artifact_identity("My_Pkg.Name-1.0.tar.gz").expect("sdist"),
+            ("my-pkg-name".to_owned(), "1.0".to_owned())
+        );
+        assert!(pypi_artifact_identity("broken.whl").is_err());
+        assert!(pypi_artifact_identity("pkg.zip").is_err());
+        let scratch = scratch_dir();
+        let wheel = scratch.path().join("My_Pkg.Name-1.0-py3-none-any.whl");
+        std::fs::write(&wheel, b"w").expect("wheel");
+        let sdist = scratch.path().join("my-pkg-name-1.0.tar.gz");
+        std::fs::write(&sdist, b"s").expect("sdist");
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let house = pypi_build_wheelhouse(&wheel, Some(&sdist), &outdir, "publish").expect("house");
+        assert_eq!(house, outdir.join("publish-wheelhouse"));
+        assert!(house
+            .join("simple-index")
+            .join("my-pkg-name")
+            .join("index.html")
+            .is_file());
+        assert!(!house.join("simple-index").join("publish").exists());
+        let other = scratch.path().join("other-1.0.tar.gz");
+        std::fs::write(&other, b"o").expect("other");
+        let error =
+            pypi_build_wheelhouse(&wheel, Some(&other), &outdir, "publish").expect_err("conflict");
+        assert!(error.to_string().contains("my-pkg-name 1.0"), "{error}");
+        let newer = scratch.path().join("my_pkg_name-2.0.tar.gz");
+        std::fs::write(&newer, b"n").expect("newer");
+        assert!(pypi_build_wheelhouse(&wheel, Some(&newer), &outdir, "publish").is_err());
     }
 
     #[test]

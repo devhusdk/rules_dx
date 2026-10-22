@@ -14,13 +14,16 @@ dx new [--apply] <language> [name]
 
 Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cc`, `cpp`, or `rust-web`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, or `rust-web`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
-Two spellings scaffold the same projects:
+`c` scaffolds C sources and `cpp` scaffolds C++ sources.
 
-- `c#` scaffolds `csharp`.
-- `f#` scaffolds `fsharp`.
+Removed spellings fail with exit `2` and name the replacement:
+
+- `cc` is now `cpp`.
+- `c#` and `c-sharp` are now `csharp`.
+- `f#` and `f-sharp` are now `fsharp`.
 
 Output: text only.
 
@@ -45,8 +48,7 @@ and `README.md`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `c` carries no package identity. `cc` carries no package
-identity. `cpp` carries no package identity. Rejected names fail before any
+takes NuGet ids. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
 file is written.
 
 ## `dx new rust-web`

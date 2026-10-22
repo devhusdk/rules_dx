@@ -123,6 +123,15 @@ fn known_convergence(value: i32) -> bool {
     )
 }
 
+/// Names the convergence of a pipeline that did not settle, or None when it is STABLE.
+pub fn unstable(convergence: i32) -> Option<&'static str> {
+    match Convergence::try_from(convergence) {
+        Ok(Convergence::Stable) => None,
+        Ok(other) => Some(other.as_str_name()),
+        Err(_) => Some("UNKNOWN"),
+    }
+}
+
 fn check_snapshot(snapshot: &FileSnapshot, at: &str) -> Result<(), Error> {
     check_path(at, &snapshot.path)?;
     if snapshot.digest.len() != DIGEST_LEN {
@@ -343,6 +352,24 @@ mod tests {
 
     fn digest_of(byte: u8) -> Vec<u8> {
         vec![byte; DIGEST_LEN]
+    }
+
+    #[test]
+    fn only_stable_pipelines_settle() {
+        assert_eq!(unstable(Convergence::Stable as i32), None);
+        assert_eq!(
+            unstable(Convergence::Oscillation as i32),
+            Some("OSCILLATION")
+        );
+        assert_eq!(
+            unstable(Convergence::IterationLimit as i32),
+            Some("ITERATION_LIMIT")
+        );
+        assert_eq!(
+            unstable(Convergence::Unspecified as i32),
+            Some("CONVERGENCE_UNSPECIFIED")
+        );
+        assert_eq!(unstable(9), Some("UNKNOWN"));
     }
 
     fn sample() -> QualityResult {

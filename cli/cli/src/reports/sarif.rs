@@ -4,8 +4,8 @@ use super::ReportError;
 use dx_output::{sort_diagnostics, DiagnosticEvent, Severity, Snapshot};
 use line_index::{LineIndex, TextSize, WideEncoding};
 use serde_sarif::sarif::{
-    ArtifactLocation, Invocation, Location, Message, PhysicalLocation, Region, ReportingDescriptor,
-    Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
+    ArtifactLocation, Invocation, Location, Message, Notification, PhysicalLocation, Region,
+    ReportingDescriptor, Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
 };
 
 pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), ReportError> {
@@ -191,7 +191,7 @@ pub fn render_sarif(
     snapshots: &BTreeMap<(Snapshot, String), String>,
     complete: bool,
 ) -> Result<String, ReportError> {
-    render_sarif_with_baseline(tools, findings, snapshots, complete, None)
+    render_sarif_with_baseline(tools, findings, snapshots, complete, &BTreeMap::new(), None)
 }
 
 pub struct BaselineReport {
@@ -206,9 +206,10 @@ pub fn render_sarif_with_baseline(
     findings: &[DiagnosticEvent],
     snapshots: &BTreeMap<(Snapshot, String), String>,
     complete: bool,
+    failures: &BTreeMap<String, Vec<String>>,
     baseline: Option<&BaselineReport>,
 ) -> Result<String, ReportError> {
-    let rendered = render_inner(tools, findings, snapshots, complete)?;
+    let rendered = render_inner(tools, findings, snapshots, complete, failures)?;
     let Some(baseline) = baseline else {
         return Ok(rendered);
     };
@@ -243,6 +244,7 @@ fn render_inner(
     findings: &[DiagnosticEvent],
     snapshots: &BTreeMap<(Snapshot, String), String>,
     complete: bool,
+    failures: &BTreeMap<String, Vec<String>>,
 ) -> Result<String, ReportError> {
     let ordered: BTreeSet<&str> = tools.iter().map(String::as_str).collect();
     let mut working = findings.to_vec();
@@ -280,10 +282,22 @@ fn render_inner(
             .rules(descriptors)
             .build();
         let tool_value = Tool::builder().driver(driver).build();
-        if complete {
+        let failed = failures.get(tool);
+        if complete && failed.is_none() {
             runs.push(Run::builder().tool(tool_value).results(results).build());
         } else {
-            let invocation = Invocation::builder().execution_successful(false).build();
+            let mut invocation = Invocation::builder().execution_successful(false).build();
+            invocation.tool_execution_notifications = failed.map(|messages| {
+                messages
+                    .iter()
+                    .map(|text| {
+                        Notification::builder()
+                            .message(Message::builder().text(text.clone()).build())
+                            .level(serde_json::Value::String("error".to_owned()))
+                            .build()
+                    })
+                    .collect()
+            });
             runs.push(
                 Run::builder()
                     .tool(tool_value)
@@ -498,6 +512,7 @@ mod tests {
                 &findings,
                 &BTreeMap::new(),
                 true,
+                &BTreeMap::new(),
                 Some(&report),
             )
             .expect("render"),
@@ -520,6 +535,34 @@ mod tests {
             1,
             "suppressed findings stay visible in SARIF"
         );
+    }
+
+    #[test]
+    fn sarif_names_a_failed_producer_without_findings() {
+        let tools = ["fmt-tool".to_owned(), "lint-tool".to_owned()];
+        let failures = BTreeMap::from([(
+            "fmt-tool".to_owned(),
+            vec!["//a:one did not converge: OSCILLATION after 2 round(s) of fmt-tool".to_owned()],
+        )]);
+        let document: Value = serde_json::from_str(
+            &render_sarif_with_baseline(&tools, &[], &BTreeMap::new(), true, &failures, None)
+                .expect("render"),
+        )
+        .expect("valid JSON");
+        assert_eq!(
+            document["runs"][0]["invocations"],
+            json!([{
+                "executionSuccessful": false,
+                "toolExecutionNotifications": [{
+                    "level": "error",
+                    "message": {
+                        "text": "//a:one did not converge: OSCILLATION after 2 round(s) of fmt-tool"
+                    },
+                }],
+            }])
+        );
+        assert_eq!(document["runs"][0]["results"], json!([]));
+        assert!(document["runs"][1].get("invocations").is_none());
     }
 
     #[test]

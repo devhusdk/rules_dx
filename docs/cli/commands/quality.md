@@ -39,9 +39,19 @@ skips as incompatible are not missing. An incomplete run prints
 `dx: incomplete_results: <reason>` on stderr, or an `incomplete_results`
 error event in JSON, and never applies fixes.
 
+A target whose fixes oscillate or hit the ten-round limit did not converge.
+The run fails even without findings and prints
+`dx: not_converged: <target> in configuration <id> did not converge: <cause> after <n> round(s) of <tools>`
+on stderr, or a `not_converged` error event in JSON. The cause is
+`OSCILLATION` or `ITERATION_LIMIT`. SARIF marks that tool's run
+`executionSuccessful: false` with the same message. Such a target proposes no
+fixes, and `--apply` does not refresh the baseline. Fixes from other targets
+still apply.
+
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
-`--fail-on`, an incomplete result set, a conflicting fix, a failed report write, or a missing,
-malformed, or stale baseline. Bazel failures report `1`, not Bazel's code.
+`--fail-on`, an incomplete result set, a target that did not converge, a
+conflicting fix, a failed report write, or a missing, malformed, or stale
+baseline. Bazel failures report `1`, not Bazel's code.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --check //...

@@ -2,7 +2,9 @@
 
 load("@apple_support//lib:apple_support.bzl", "apple_support")
 load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
+load("@rules_cc//cc:action_names.bzl", "C_COMPILE_ACTION_NAME")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load(":defs.bzl", "AppleToolingInfo", "deployment_floor", "version_below", "version_matches")
 
 PLATFORMS = {
@@ -83,6 +85,16 @@ def _apple_toolchain_probe_impl(ctx):
             tooling.route,
             tooling.host,
         ))
+    features = cc_common.configure_features(
+        ctx = ctx,
+        cc_toolchain = cc_toolchain,
+        requested_features = ctx.features,
+        unsupported_features = ctx.disabled_features,
+    )
+    compiler = cc_common.get_tool_for_action(
+        feature_configuration = features,
+        action_name = C_COMPILE_ACTION_NAME,
+    )
 
     report = ctx.actions.declare_file(ctx.label.name + ".txt")
     args = ctx.actions.args()
@@ -95,7 +107,7 @@ def _apple_toolchain_probe_impl(ctx):
         sdk_version,
         minimum,
         tooling.macos_version,
-        cc_toolchain.compiler_executable,
+        compiler,
         tooling.endpoint,
     ])
     env = {"PATH": _PATH}

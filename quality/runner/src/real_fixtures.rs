@@ -221,6 +221,24 @@ pub(super) fn buildifier_plain(
     })
 }
 
+pub(super) const BUILDIFIER_INVALID: &str =
+    r#"{"files":[{"filename":"FILE","formatted":false,"valid":false,"warnings":[]}]}"#;
+
+pub(super) fn buildifier_invalid(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let stdout = BUILDIFIER_INVALID.replace("FILE", &json_escape(&file));
+    Ok(ChildOutput {
+        code: Some(4),
+        stdout: stdout.into_bytes(),
+        stderr: format!("{file}:1:1: syntax error near unexpected token\n").into_bytes(),
+    })
+}
+
 pub(super) fn buildifier_hinted(
     argv: &[OsString],
     cwd: &Path,

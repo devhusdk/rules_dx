@@ -479,7 +479,11 @@ impl RealBackend {
             "qmlformat" => {
                 let mut findings = Vec::new();
                 for (workspace, absolute) in pairs {
-                    let invocation = commands::qmlformat_check(&tool.binary, &[absolute.as_path()]);
+                    let invocation = commands::qmlformat_check(
+                        &tool.binary,
+                        &[absolute.as_path()],
+                        config.as_deref(),
+                    );
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     let input = std::fs::read(absolute)
                         .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;

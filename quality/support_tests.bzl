@@ -41,12 +41,12 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "missing CLI aspect is an actionable failure",
-                support_cli_error(["//quality:real_aspects.bzl%real_lint_aspect"]),
+                support_cli_error(["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]),
                 "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)",
             ),
             expect_equal(
                 "CLI text aspect clears the CLI gap",
-                support_cli_error(["//quality:real_aspects.bzl%real_text_lint_aspect"]),
+                support_cli_error(["@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect"]),
                 "",
             ),
             expect_equal(
@@ -156,17 +156,17 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "missing shell CLI aspect is an actionable failure",
-                support_shell_cli_error(["//quality:real_aspects.bzl%real_lint_aspect"]),
+                support_shell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]),
                 "support: shellcheck lint is qualified but has no CLI lint aspect (missing real_shell_lint_aspect)",
             ),
             expect_equal(
                 "lint-only shell CLI still names the format gap",
-                support_shell_cli_error(["//quality:real_aspects.bzl%real_shell_lint_aspect"]),
+                support_shell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect"]),
                 "support: shfmt format is qualified but has no CLI format aspect (missing real_shell_format_aspect)",
             ),
             expect_equal(
                 "both shell CLI aspects clear the CLI gap",
-                support_shell_cli_error(["//quality:real_aspects.bzl%real_shell_lint_aspect", "//quality:real_aspects.bzl%real_shell_format_aspect"]),
+                support_shell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect", "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
                 "",
             ),
             expect_equal(
@@ -196,12 +196,12 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "missing terraform CLI aspect is an actionable failure",
-                support_terraform_cli_error(["//quality:real_aspects.bzl%real_shell_format_aspect"]),
+                support_terraform_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
                 "support: terraform format is qualified but has no CLI format aspect (missing real_terraform_format_aspect)",
             ),
             expect_equal(
                 "terraform CLI aspect clears the CLI gap",
-                support_terraform_cli_error(["//quality:real_aspects.bzl%real_terraform_format_aspect"]),
+                support_terraform_cli_error(["@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect"]),
                 "",
             ),
             expect_equal(

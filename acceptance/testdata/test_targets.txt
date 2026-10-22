@@ -469,6 +469,14 @@
 //quality/testdata:matrix_yaml_lint_pass
 //quality/testdata:real_aspect_presence
 //quality/testdata:real_typecheck_presence
+//quality/tests:qml_format_consumer_clippy_test
+//quality/tests:qml_format_consumer_fmt_test
+//quality/tests:qml_format_consumer_test
+//quality/tests:qml_format_consumer_test_upstream
+//quality/tests:qt_adapter_clippy_test
+//quality/tests:qt_adapter_fmt_test
+//quality/tests:qt_adapter_test
+//quality/tests:qt_adapter_test_upstream
 //quality/tools/javascript/launcher:dx_js_launcher_clippy_test
 //quality/tools/javascript/launcher:dx_js_launcher_fmt_test
 //quality/tools/javascript/launcher:dx_js_launcher_test

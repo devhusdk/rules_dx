@@ -290,7 +290,7 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "build",
-                "--aspects=//quality:real_aspects.bzl%real_cc_lint_aspect,//quality:real_aspects.bzl%real_lint_aspect,//quality:real_aspects.bzl%real_js_lint_aspect,//quality:real_aspects.bzl%real_python_lint_aspect,//quality:real_aspects.bzl%real_jvm_lint_aspect,//quality:real_aspects.bzl%real_rust_lint_aspect,//quality:real_aspects.bzl%real_shell_lint_aspect,//quality:real_aspects.bzl%real_text_lint_aspect",
+                "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
                 "--output_groups=dx_results",
                 "--remote_download_outputs=all",
             ]
@@ -436,8 +436,8 @@ mod tests {
         .expect("plan");
         assert!(
             plan.argv.iter().any(|arg| arg
-                .contains("//quality:real_aspects.bzl%real_typecheck_aspect")
-                && arg.contains("//quality:real_aspects.bzl%real_rust_typecheck_aspect")),
+                .contains("@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect")),
             "typecheck selects the real typecheck aspects: {plan:?}"
         );
         assert_eq!(plan.summary, "Running typecheck analysis for //...");

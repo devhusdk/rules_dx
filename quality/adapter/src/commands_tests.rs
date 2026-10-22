@@ -846,10 +846,21 @@ fn structured_checks_encode_pinned_shapes() {
         vec![BIN, "format", "--write", "/scratch/proto/hello.proto"]
     );
     let qml = Path::new("/scratch/qml/Main.qml");
-    let check = qmlformat_check(Path::new(BIN), &[qml]);
+    let check = qmlformat_check(Path::new(BIN), &[qml], None);
     assert_eq!(argv_strings(&check), vec![BIN, "/scratch/qml/Main.qml"]);
-    let fix = qmlformat_fix(Path::new(BIN), &[qml]);
+    let fix = qmlformat_fix(Path::new(BIN), &[qml], None);
     assert_eq!(argv_strings(&fix), vec![BIN, "-i", "/scratch/qml/Main.qml"]);
+    let config = Path::new("/scratch/qml/.qmlformat.ini");
+    let check = qmlformat_check(Path::new(BIN), &[qml], Some(config));
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "-s",
+            "/scratch/qml/.qmlformat.ini",
+            "/scratch/qml/Main.qml"
+        ]
+    );
     let lint = qmllint_check(Path::new(BIN), &[qml]);
     assert_eq!(
         argv_strings(&lint),

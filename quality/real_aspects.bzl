@@ -36,6 +36,7 @@ _REAL_TOOL_TABLE = {
     "prettier": {"capabilities": ["format"], "shard": "js"},
     "pydoclint": {"capabilities": ["lint"], "shard": "py"},
     "pylint": {"capabilities": ["lint"], "shard": "py"},
+    "qmlformat": {"capabilities": ["format"], "shard": "core"},
     "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
     "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
     "rustfmt": {"capabilities": ["format"], "shard": "rust"},
@@ -261,6 +262,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["pydoclint"] = ctx.executable._pydoclint
     if "pylint" in stage_tools:
         tool_binaries["pylint"] = ctx.executable._pylint
+    if "qmlformat" in stage_tools:
+        qmlformat = ctx.attr._qmlformat[DefaultInfo].files_to_run.executable
+        if qmlformat == None:
+            fail(what + ": qmlformat has no executable; set --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat")
+        tool_binaries["qmlformat"] = qmlformat
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
     if "shellcheck" in stage_tools:
@@ -379,6 +385,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             real_request_tool_env("TF_INPUT", "0"),
         ]
 
+    if "qmlformat" in stage_tools:
+        run_tools.append(ctx.attr._qmlformat[DefaultInfo].files_to_run)
     if "google_java_format" in stage_tools:
         run_tools.append(ctx.attr._google_java_format[DefaultInfo].files_to_run)
     if "ktfmt" in stage_tools:
@@ -586,6 +594,11 @@ _REAL_TOOL_ATTR_DEFS = {
         default = "//quality/tools/python:pylint",
         cfg = "exec",
         executable = True,
+    ),
+    "qmlformat": attr.label(
+        default = "//config:tool_qmlformat",
+        allow_files = True,
+        cfg = "exec",
     ),
     "ruff": attr.label(
         default = "//config:tool_ruff",

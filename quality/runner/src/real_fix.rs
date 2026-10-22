@@ -109,7 +109,7 @@ const FIX_SPECS: &[FixSpec] = &[
     },
     FixSpec {
         tool: "qmlformat",
-        config: FixConfig::None,
+        config: FixConfig::Optional,
         keep_exit_one: false,
     },
     FixSpec {
@@ -316,6 +316,11 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "qmlformat" => Ok(commands::qmlformat_fix(
+                        &tool.binary,
+                        refs,
+                        config.as_deref(),
+                    )),
                     "clang_format" => Ok(commands::clang_format_fix(
                         &tool.binary,
                         refs,
@@ -339,7 +344,6 @@ impl super::RealBackend {
                 "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs)),
                 "buf" => Ok(commands::buf_format_fix(&tool.binary, refs)),
                 "gofumpt" => Ok(commands::gofumpt_fix(&tool.binary, refs)),
-                "qmlformat" => Ok(commands::qmlformat_fix(&tool.binary, refs)),
                 "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
                 "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
                 "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),

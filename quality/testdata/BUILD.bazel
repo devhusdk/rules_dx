@@ -4,6 +4,7 @@ load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:aspect_subject.bzl", "aspect_subject")
 load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
 load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "vale_config")
 load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -16,7 +17,7 @@ load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
-load(":tool_override_tests.bzl", "tool_override_subject", "tool_override_tests")
+load(":tool_override_tests.bzl", "qml_sources", "qml_subject", "qmlformat_flag_tests", "tool_override_subject", "tool_override_tests")
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
@@ -1033,6 +1034,37 @@ tool_override_tests(
     subject = ":tool_override_default_subject",
 )
 
+quality_family(
+    name = "qml_family",
+    disabled = [
+        "audit",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "qml",
+    format = ["qmlformat"],
+)
+
+workspace_policy(
+    name = "qml_policy",
+    families = [":qml_family"],
+)
+
+qml_sources(
+    name = "qml_fixture",
+    srcs = ["Fixture.qml"],
+)
+
+qml_subject(
+    name = "qml_subject",
+    target = ":qml_fixture",
+)
+
+qmlformat_flag_tests(
+    name = "qmlformat_flag",
+    subject = ":qml_subject",
+)
+
 real_source_target(
     name = "fixture_real_rust_typecheck_clean",
     rust_srcs = ["typecheck_clean.rs"],
@@ -1093,7 +1125,6 @@ _FAKE_FORMAT_TOOLS = [
     "modfmt",
     "pkl",
     "prettier_file_family",
-    "qmlformat",
     "scalafmt",
     "standardrb",
     "yamlfmt",

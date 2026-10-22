@@ -4,6 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect")
+load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _CANONICAL = "@@"  # buildifier: disable=canonical-repository
 
@@ -14,6 +15,8 @@ _ALTERNATE_SHORT = "quality/testdata/alternate_ruff_bin"
 _PAIR = _CANONICAL + "//quality/testdata:two_ruffs"
 _EMPTY = _CANONICAL + "//quality/testdata:no_ruff"
 _POLICY = _CANONICAL + "//quality:fixture_policy"
+_QML_POLICY = _CANONICAL + "//quality/testdata:qml_policy"
+_WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
 
 def _tool_override_subject_impl(ctx):
     """Exposes the resolved ruff binary path beside the real aspect results."""
@@ -32,6 +35,32 @@ tool_override_subject = rule(
         ),
         "target": attr.label(
             aspects = [real_lint_aspect, real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _qml_sources_impl(ctx):
+    """Provides QML sources for the qmlformat flag proofs."""
+    return [
+        DefaultInfo(files = depset(ctx.files.srcs)),
+        QualitySourcesInfo(direct_sources = {"qml": depset(ctx.files.srcs)}),
+    ]
+
+qml_sources = rule(
+    implementation = _qml_sources_impl,
+    attrs = {"srcs": attr.label_list(allow_files = [".qml"])},
+)
+
+def _qml_subject_impl(ctx):
+    """Applies the real format aspect to a QML target."""
+    return [DefaultInfo(files = depset([]))]
+
+qml_subject = rule(
+    implementation = _qml_subject_impl,
+    attrs = {
+        "target": attr.label(
+            aspects = [real_format_aspect],
             mandatory = True,
         ),
     },
@@ -90,6 +119,22 @@ _tool_override_rejects_policy_test = analysistest.make(
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
     config_settings = {_TOOL_SETTING: _POLICY},
 )
+
+_qmlformat_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _QML_POLICY},
+)
+
+def qmlformat_flag_tests(name, subject):
+    """Instantiates the missing qmlformat flag proof."""
+    _qmlformat_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_qmlformat",
+    )
 
 def tool_override_tests(name, subject):
     """Instantiates the ruff override selection and rejection proofs."""

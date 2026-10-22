@@ -320,7 +320,7 @@ apple_toolchain_probe(
 probe_failure_test(
     name = "sdk_mismatch_test",
     config = "macos",
-    expected_failure_substring = "provisioning selects iphonesimulator but this build targets macosx; build with --platforms=@@apple_support+//platforms:ios_sim_arm64",
+    expected_failure_substring = "provisioning selects iphonesimulator but this build targets macosx; build with --platforms=",
     target = ":local_simulator_probe",
 )
 

@@ -459,6 +459,22 @@ _shared_consumer_repo(
     name = "shared_consumer",
 )
 
+_http_archive(
+    name = "c_app_cjson",
+    build_file = "//examples/c-app:cjson.BUILD.bazel",
+    sha256 = "3aa806844a03442c00769b83e99970be70fbef03735ff898f4811dd03b9f5ee5",
+    strip_prefix = "cJSON-1.7.18",
+    urls = ["https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.18.tar.gz"],
+)
+
+_http_archive(
+    name = "cpp_app_fmt",
+    build_file = "//examples/cpp-app:fmt.BUILD.bazel",
+    sha256 = "ea7de4299689e12b6dddd392f9896f08fb0777ac7168897a244a6d6085043fea",
+    strip_prefix = "fmt-12.1.0",
+    urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
+)
+
 dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",

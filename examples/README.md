@@ -35,4 +35,6 @@ workspace below records exact commands and expected evidence in its own
 
 ## Build an Application
 
+- [c-app](c-app/) multi-package pure C stock CLI with a pinned `cJSON` dependency, a generated header and packaged data.
+- [cpp-app](cpp-app/) multi-package C++17 menu report with templates, a pinned `fmt` dependency, a generated header and a runfiles resource.
 - [python-service](python-service/) multi-package Python CLI and local service with a pinned `click` dependency, a generated module and packaged data.

@@ -1,0 +1,76 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+
+package(default_visibility = ["//examples/cpp-app:__subpackages__"])
+
+exports_files(
+    [
+        "VERSION",
+        "bad_menu.csv",
+        "group.h",
+        "menu.cc",
+        "menu.csv",
+        "menu.h",
+        "menu_test.cc",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "build_config_h",
+    srcs = ["VERSION"],
+    outs = ["build_config.h"],
+    cmd = "printf 'inline constexpr int kMenuVersion = %s;\\n' \"$$(cat $<)\" > $@",
+)
+
+cc_library(
+    name = "core",
+    srcs = ["menu.cc"],
+    hdrs = [
+        "group.h",
+        "menu.h",
+        ":build_config_h",
+    ],
+    aspect_hints = ["//:clang_format_config"],
+    copts = ["-std=c++17"],
+    data = ["menu.csv"],
+)
+
+cc_test(
+    name = "menu_test",
+    srcs = ["menu_test.cc"],
+    aspect_hints = ["//:clang_format_config"],
+    copts = ["-std=c++17"],
+    data = ["menu.csv"],
+    deps = [
+        ":core",
+        "@googletest//:gtest_main",
+    ],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:clang_format_test.rs"],
+    data = [
+        "group.h",
+        "menu.cc",
+        "menu.h",
+        "menu_test.cc",
+        "//:.clang-format",
+        "@llvm//tools:clang-format",
+    ],
+    env = {
+        "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
+        "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
+        "DX_FORMAT_SRCS": "$(rootpath group.h) $(rootpath menu.cc) $(rootpath menu.h) $(rootpath menu_test.cc)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

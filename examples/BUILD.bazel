@@ -35,6 +35,8 @@ filegroup(
         "consumer-ci/README.md",
         "docs-ci/README.md",
         "//examples/mixed/hello:README.md",
+        "//examples/c-app:README.md",
+        "//examples/cpp-app:README.md",
         "//examples/python-service:README.md",
     ],
 )

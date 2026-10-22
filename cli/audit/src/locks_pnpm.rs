@@ -77,6 +77,7 @@ fn pnpm_packages_from_value(value: &yaml_serde::Value, out: &mut Vec<LockedPacka
                 set: "npm".to_owned(),
                 is_git,
                 is_private: false,
+                location: None,
             });
         }
     }
@@ -245,6 +246,7 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
         set: "npm".to_owned(),
         is_git,
         is_private: false,
+        location: None,
     })
 }
 

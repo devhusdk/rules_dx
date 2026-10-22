@@ -23,6 +23,7 @@ pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, String> {
             set: "maven".to_owned(),
             is_git: false,
             is_private: false,
+            location: None,
         });
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));

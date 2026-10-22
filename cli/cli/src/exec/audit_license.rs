@@ -136,6 +136,7 @@ pub(super) fn run_license(
                 set: entry.set.clone(),
                 is_git: false,
                 is_private: false,
+                location: None,
             };
             let present = dx_audit::locks::inventory_text_present(&probe, &policy.inventory);
             notice_present.insert(

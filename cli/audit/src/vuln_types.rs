@@ -7,6 +7,7 @@ pub struct LockedPackage {
     pub set: String,
     pub is_git: bool,
     pub is_private: bool,
+    pub location: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

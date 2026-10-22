@@ -35,5 +35,6 @@ fn locked(name: &str, version: &str) -> LockedPackage {
         set: "go".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }
 }

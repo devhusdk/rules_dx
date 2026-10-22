@@ -81,7 +81,6 @@ fn npm_lock_shapes_keep_registry_and_git_entries_but_skip_workspace_links() {
             "": {"version":"1.0.0"},
             "node_modules/": {},
             "node_modules/@broken": {},
-            "node_modules/not-an-object": 1,
             "node_modules/link": {"link":true,"version":"1.0.0"},
             "node_modules/missing-version": {},
             "node_modules/local": {"version":"file:../local"},
@@ -92,7 +91,6 @@ fn npm_lock_shapes_keep_registry_and_git_entries_but_skip_workspace_links() {
         },
         "dependencies": {
             " ": {"version":"1.0.0"},
-            "not-an-object": 1,
             "link": {"link":true,"version":"1.0.0"},
             "missing-version": {},
             "local": {"version":"file:../local"},
@@ -410,6 +408,7 @@ fn npm_private_packages_are_incomplete_never_clean() {
             set: "npm".to_owned(),
             is_git: false,
             is_private: true,
+            location: None,
         },
         LockedPackage {
             name: "react".to_owned(),
@@ -417,6 +416,7 @@ fn npm_private_packages_are_incomplete_never_clean() {
             set: "npm".to_owned(),
             is_git: false,
             is_private: false,
+            location: None,
         },
     ];
     let (findings, unassessed) = crate::vuln::match_packages(&pkgs, &[]);
@@ -687,6 +687,7 @@ fn unknown_licenses_mark_all_unknown() {
         set: "npm".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let licensed = unknown_licenses(&packages, "npm");
     assert_eq!(licensed[0].license, "UNKNOWN");
@@ -791,6 +792,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
         set: "npm".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     }];
     let licensed = inventory_licenses(&npm_pkgs, &inventory, "npm");
     assert_eq!(licensed[0].license, "MIT");
@@ -808,6 +810,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
         set: "maven".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     };
     assert_eq!(
         inventory_licenses(std::slice::from_ref(&maven), &inventory, "maven")[0].license,
@@ -827,6 +830,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
         set: "go".to_owned(),
         is_git: false,
         is_private: false,
+        location: None,
     };
     assert_eq!(
         inventory_licenses(std::slice::from_ref(&unknown), &inventory, "go")[0].license,
@@ -867,4 +871,89 @@ fn regex_paket_line_keeps_greedy_paren_and_remote_guard() {
     );
     assert!(split_paket_line("remote: foo (1.2.3)").is_none());
     assert!(split_paket_line("no-parens-here").is_none());
+}
+
+#[test]
+fn package_lock_alias_uses_registry_identity_and_keeps_location() {
+    let text = r#"{"lockfileVersion":3,"packages":{"node_modules/safe-name":{"name":"lodash","version":"4.17.20","license":"MIT"},"node_modules/lodash":{"version":"4.17.21","license":"MIT"},"node_modules/other":{"name":"lodash","version":"4.17.20"},"node_modules/@a/alias":{"name":"@scope/real","version":"1.0.0","license":"ISC"},"node_modules/x/node_modules/nested":{"name":"left-pad","version":"1.3.0"},"node_modules/plain":{"version":"1.0.0"},"node_modules/loc":{"version":"file:../loc"},"node_modules/gitdep":{"name":"gitreal","version":"1.0.0","resolved":"git+https://github.com/u/r.git#abc"}}}"#;
+    let packages = parse_package_lock(text).expect("parses");
+    let names: Vec<(&str, &str)> = packages
+        .iter()
+        .map(|p| (p.name.as_str(), p.version.as_str()))
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            ("@scope/real", "1.0.0"),
+            ("gitreal", "1.0.0"),
+            ("left-pad", "1.3.0"),
+            ("lodash", "4.17.20"),
+            ("lodash", "4.17.21"),
+            ("plain", "1.0.0"),
+        ]
+    );
+    let aliased = packages
+        .iter()
+        .find(|p| p.name == "lodash" && p.version == "4.17.20")
+        .expect("lodash");
+    assert!(aliased
+        .location
+        .as_deref()
+        .is_some_and(|l| l.starts_with("node_modules/")));
+    assert!(!packages.iter().any(|p| p.name == "safe-name"));
+    let licensed = npm_licenses(text, &packages);
+    let scoped = licensed
+        .iter()
+        .find(|e| e.name == "@scope/real")
+        .expect("scoped");
+    assert_eq!(scoped.license, "ISC");
+    let lodash = licensed
+        .iter()
+        .find(|e| e.name == "lodash" && e.version == "4.17.20")
+        .expect("lodash license");
+    assert_eq!(lodash.license, "MIT");
+}
+
+#[test]
+fn package_lock_alias_matches_advisory_for_real_package() {
+    let text = r#"{"lockfileVersion":3,"packages":{"node_modules/safe-name":{"name":"lodash","version":"4.17.20"}}}"#;
+    let packages = parse_package_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].name, "lodash");
+}
+
+#[test]
+fn package_lock_legacy_alias_uses_registry_identity() {
+    let text = r#"{"lockfileVersion":1,"dependencies":{"safe-name":{"version":"npm:lodash@4.17.20"},"scoped":{"version":"npm:@scope/real@2.0.0","license":"ISC"}}}"#;
+    let packages = parse_package_lock(text).expect("parses");
+    let names: Vec<(&str, &str)> = packages
+        .iter()
+        .map(|p| (p.name.as_str(), p.version.as_str()))
+        .collect();
+    assert_eq!(names, vec![("@scope/real", "2.0.0"), ("lodash", "4.17.20")]);
+    let licensed = npm_licenses(text, &packages);
+    assert_eq!(
+        licensed
+            .iter()
+            .find(|e| e.name == "@scope/real")
+            .expect("real")
+            .license,
+        "ISC"
+    );
+}
+
+#[test]
+fn package_lock_rejects_malformed_identities_and_shapes() {
+    for text in [
+        r#"{"packages":{"node_modules/a":{"name":"bad name","version":"1.0.0"}}}"#,
+        r#"{"packages":{"node_modules/a":{"name":"@scope","version":"1.0.0"}}}"#,
+        r#"{"packages":{"node_modules/a":{"name":7,"version":"1.0.0"}}}"#,
+        r#"{"packages":{"node_modules/a":{"version":1}}}"#,
+        r#"{"packages":{"node_modules/a":"1.0.0"}}"#,
+        r#"{"packages":[]}"#,
+        r#"{"dependencies":{"a":{"version":"npm:lodash"}}}"#,
+        r#"{"dependencies":{"a":{"version":"npm:@scope"}}}"#,
+    ] {
+        assert!(parse_package_lock(text).is_err(), "{text}");
+    }
 }

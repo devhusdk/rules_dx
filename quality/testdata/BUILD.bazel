@@ -1,3 +1,4 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
 load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
@@ -1246,4 +1247,19 @@ real_source_target(
         exclude = ["real_clean.bzl"],
     ),
     tags = ["corpus"],
+)
+
+sh_test(
+    name = "scalafmt_errors_test",
+    srcs = ["scalafmt_errors.sh"],
+    args = [
+        "$(rootpath @dx_tools//:scalafmt)",
+        "$(rootpath scalafmt_cfg/.scalafmt.conf)",
+        "$(rootpath scalafmt_bad_cfg/.scalafmt.conf)",
+    ],
+    data = [
+        "scalafmt_bad_cfg/.scalafmt.conf",
+        "scalafmt_cfg/.scalafmt.conf",
+        "@dx_tools//:scalafmt",
+    ],
 )

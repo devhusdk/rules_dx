@@ -517,10 +517,16 @@ mod tests {
         );
     }
 
-    struct BrokenPipe;
+    struct BrokenPipe {
+        writes: usize,
+    }
 
     impl std::io::Write for BrokenPipe {
-        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.writes += 1;
+            if self.writes == 1 {
+                return Ok(buf.len());
+            }
             Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
         }
 
@@ -537,7 +543,12 @@ mod tests {
         let harness = with_bep("bf-broken", 5, vec![line]);
         let inv = invocation(&["build", "--output=json"]);
         let runner = harness.runner();
-        let code = harness.run_streams(&inv, &runner, &mut BrokenPipe, &mut Vec::new());
+        let code = harness.run_streams(
+            &inv,
+            &runner,
+            &mut BrokenPipe { writes: 0 },
+            &mut Vec::new(),
+        );
         assert_eq!(code, 5);
     }
 

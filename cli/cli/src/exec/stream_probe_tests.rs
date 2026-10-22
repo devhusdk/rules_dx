@@ -223,7 +223,7 @@ fn a_failed_build_keeps_its_status_and_reports_it() {
 fn a_closed_stdout_ends_the_run_promptly() {
     for (words, want) in [
         (&["build", "//..."][..], Some(141)),
-        (&["build", "//...", "--output=json"][..], Some(0)),
+        (&["build", "//...", "--output=json"][..], Some(141)),
     ] {
         let scratch = dx_test_scratch::scratch("dx-stream-pipe-");
         let (reader, writer) = std::io::pipe().expect("pipe");
@@ -354,4 +354,101 @@ fn stopping_one_worktree_leaves_another_running() {
     assert_eq!(kept.exit().code(), Some(0), "{}", kept.context());
     assert!(kept.dir().join("build").exists());
     assert!(!stopped.dir().join("build").exists());
+}
+
+const GATED_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" build "*) ;; *) exit 0 ;; esac
+echo "start $$" >> "$FAKE_BAZEL_LOG"
+while [ ! -e "$FAKE_GATE" ]; do sleep 0.05; done
+exit "${FAKE_EXIT:-0}"
+"#;
+
+fn gated_command(base: &Path, exit: i32) -> (Command, PathBuf) {
+    let mut command = dx_command(base, &["build", "//...", "--output=json"], "");
+    let bazel = base.join("bin/bazel");
+    fs::write(&bazel, GATED_BAZEL).expect("gated bazel");
+    fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+    let gate = base.join("gate");
+    command
+        .env("FAKE_GATE", &gate)
+        .env("FAKE_EXIT", exit.to_string());
+    (command, gate)
+}
+
+fn bazel_starts(base: &Path) -> usize {
+    fs::read_to_string(base.join("bazel.log"))
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| line.starts_with("start "))
+        .count()
+}
+
+#[test]
+fn a_stdout_closed_before_the_start_event_starts_no_bazel() {
+    let scratch = dx_test_scratch::scratch("dx-stream-nostart-");
+    let (reader, writer) = std::io::pipe().expect("pipe");
+    drop(reader);
+    let (mut command, gate) = gated_command(scratch.path(), 0);
+    fs::write(gate, "").expect("gate open");
+    let status = command
+        .stdout(writer)
+        .stderr(Stdio::null())
+        .status()
+        .expect("dx runs");
+    assert_eq!(status.code(), Some(141), "{status:?}");
+    assert_eq!(bazel_starts(scratch.path()), 0);
+}
+
+#[test]
+fn a_stdout_closed_after_the_start_event_fails_the_completion() {
+    use std::io::Read;
+    for (child_exit, want) in [(0, 141), (3, 3)] {
+        let scratch = dx_test_scratch::scratch("dx-stream-closed-");
+        let (mut reader, writer) = std::io::pipe().expect("pipe");
+        let (mut command, gate) = gated_command(scratch.path(), child_exit);
+        let stderr = scratch.path().join("stderr");
+        let mut child = command
+            .stdout(writer)
+            .stderr(fs::File::create(&stderr).expect("stderr file"))
+            .spawn()
+            .expect("dx starts");
+        drop(command);
+        let mut received = Vec::new();
+        let mut byte = [0u8; 1];
+        while !received.ends_with(b"\n") {
+            reader.read_exact(&mut byte).expect("start event arrives");
+            received.push(byte[0]);
+        }
+        drop(reader);
+        fs::write(&gate, "").expect("gate open");
+        let status = child.wait().expect("dx exits");
+        let events = json_events(&received);
+        assert_eq!(events.len(), 1, "{events:?}");
+        assert_eq!(events[0]["event"], "command_started");
+        assert_eq!(status.code(), Some(want), "{status:?}");
+        assert_eq!(bazel_starts(scratch.path()), 1);
+        if child_exit != 0 {
+            let text = fs::read_to_string(&stderr).unwrap_or_default();
+            assert!(text.contains("keeping exit 3"), "{text}");
+        }
+    }
+}
+
+#[test]
+fn a_failing_destination_is_an_operational_failure() {
+    let scratch = dx_test_scratch::scratch("dx-stream-full-");
+    let (mut command, gate) = gated_command(scratch.path(), 0);
+    fs::write(gate, "").expect("gate open");
+    let status = command
+        .stdout(
+            fs::OpenOptions::new()
+                .write(true)
+                .open("/dev/full")
+                .expect("/dev/full"),
+        )
+        .stderr(Stdio::null())
+        .status()
+        .expect("dx runs");
+    assert_eq!(status.code(), Some(1), "{status:?}");
+    assert_eq!(bazel_starts(scratch.path()), 0);
 }

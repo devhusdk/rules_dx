@@ -89,6 +89,7 @@ rust_library(
         "src/exec/update_consumer.rs",
         "src/exec/update_live.rs",
         "src/exec/workflow.rs",
+        "src/exec/workflow_delivery_tests.rs",
         "src/finalize.rs",
         "src/generate.rs",
         "src/lib.rs",

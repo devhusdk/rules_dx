@@ -29,6 +29,18 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
 - `--include-edits`: add `source_digest` and full `edits` to JSON `change`
   events. Needs `--output json`; otherwise exits `2`.
 
+Text prints one line per finding:
+`path:line:column: severity: message [tool/rule]`. Lines and columns count
+Unicode characters in the checked file. A finding without a verified position
+prints `path:`; a finding without a file prints `(no file):`. Identical
+findings print once with `(xN)`. `--quiet` never hides findings or failures.
+
+When a check finds changes, text prints
+`N file(s) need changes. Apply them with: dx <command> --apply ...` with your
+workspace, scope, and Bazel options quoted for the shell. Credential-bearing
+options are left out. Failures print a `next:` line with the fix and a check
+command to run again.
+
 JSON prints one compact `change` per file with `path`, `kind`, `edit_count`,
 and `effect` (`proposed`, `applied`, or `refused` with a `reason`). Identical
 findings from several targets print once, with a `count` and every target in

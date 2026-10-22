@@ -8,6 +8,7 @@ mod docs;
 mod failure;
 mod failure_reports;
 mod generate;
+mod guidance;
 mod managed;
 mod managed_codegen;
 mod managed_env;

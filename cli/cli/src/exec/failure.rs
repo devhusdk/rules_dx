@@ -193,6 +193,8 @@ pub fn report_failure(
     }
     if failure.shows_usage() {
         let _ = writeln!(err, "{}", crate::args::help::usage_banner());
+    } else if let Some(next) = super::guidance::next_action(&failure.code) {
+        let _ = writeln!(err, "{next}");
     }
     if output == OutputMode::Json {
         if let Err(exit) = emit_failure_events(out, failure) {
@@ -349,7 +351,9 @@ mod tests {
         );
         assert!(String::from_utf8(err)
             .expect("utf8")
-            .ends_with("  ERROR: tail\n  (excerpt truncated)\n"));
+            .ends_with(
+            "  ERROR: tail\n  (excerpt truncated)\nnext: check the scope in the query error above and run the command again.\n"
+        ));
     }
 
     #[test]

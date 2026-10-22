@@ -4,6 +4,7 @@ import argparse
 import http.server
 import json
 import os
+import socket
 import socketserver
 import sys
 import urllib.parse
@@ -38,7 +39,7 @@ _ISOLATION_HEADERS = (
 
 _FORBIDDEN = ("\\", ":", "\0")
 
-_READY = "dx-web-serve ready url=http://{host}:{port}/ root={root}"
+_READY = "dx-web-serve ready url=http://{authority}/ root={root}"
 
 
 def media_type(name):
@@ -167,6 +168,11 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = False
 
+    def __init__(self, address, handler):
+        if ":" in address[0]:
+            self.address_family = socket.AF_INET6
+        super().__init__(address, handler)
+
 
 def check_manifest(root):
     """Fails when the staged manifest names files the directory lacks."""
@@ -241,7 +247,11 @@ def run(argv=None):
     server.dx_headers = headers
     server.dx_isolated = args.cross_origin_isolated
     port = server.server_address[1]
-    print(_READY.format(host=args.host, port=port, root=root), flush=True)
+    host = "[" + args.host + "]" if ":" in args.host else args.host
+    print(
+        _READY.format(authority=host + ":" + str(port), root=root),
+        flush=True,
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, unformatted_at, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
 struct BiomeReport {
@@ -97,6 +97,7 @@ pub fn parse_biome_lint(
                 start,
                 end: Some(end),
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }

@@ -1,5 +1,5 @@
 use super::{check_output_size, code_name, known_spelled, missing, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 fn pydoclint_violation(line: &str) -> Result<(u64, &str, String), ParseError> {
     const TOOL: &str = "pydoclint";
@@ -65,6 +65,7 @@ pub fn parse_pydoclint(
                     start,
                     end,
                     suggestions: Vec::new(),
+                    encoding: ColumnEncoding::Scalars,
                 },
             });
         } else {

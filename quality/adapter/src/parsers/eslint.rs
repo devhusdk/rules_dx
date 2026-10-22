@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
 struct EslintFile {
@@ -106,6 +106,7 @@ pub fn parse_eslint(
                     start,
                     end,
                     suggestions: Vec::new(),
+                    encoding: ColumnEncoding::Utf16,
                 },
             });
         }
@@ -168,5 +169,18 @@ mod tests {
         let partial_end = ESLINT_DIRTY.replace(",\"endColumn\":16", "");
         assert!(parse_eslint(partial_end.as_bytes(), Some(1), &["/s/dirty.js"]).is_err());
         assert!(parse_eslint(b"not json", Some(1), &["/s/dirty.js"]).is_err());
+    }
+
+    #[test]
+    fn eslint_columns_are_utf16_after_astral_characters() {
+        let source = "const s = \"\u{1f600}\"; missing();\n";
+        let report = r#"[{"filePath":"/s/a.js","messages":[{"ruleId":"no-undef","severity":2,"message":"'missing' is not defined.","line":1,"column":17,"endLine":1,"endColumn":24}]}]"#;
+        let findings = parse_eslint(report.as_bytes(), Some(1), &["/s/a.js"]).expect("parsed");
+        let placed = crate::place_finding(&findings[0].finding, "a.js", source).expect("placed");
+        assert_eq!((placed.start_byte, placed.end_byte), (Some(18), Some(25)));
+        let at_end = r#"[{"filePath":"/s/a.js","messages":[{"ruleId":"no-undef","severity":2,"message":"m","line":1,"column":17,"endLine":1,"endColumn":27}]}]"#;
+        let findings = parse_eslint(at_end.as_bytes(), Some(1), &["/s/a.js"]).expect("parsed");
+        let placed = crate::place_finding(&findings[0].finding, "a.js", source).expect("placed");
+        assert_eq!(placed.end_byte, Some(28));
     }
 }

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::{Finding, Suggestion, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, Suggestion, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
 struct ClippyMessage {
@@ -217,6 +217,7 @@ fn parse_rust_diagnostics(
                     column: span.column_end,
                 }),
                 suggestions,
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }

@@ -5,7 +5,7 @@ use url::Url;
 use serde_sarif::sarif::{ArtifactLocation, Invocation, Notification, Region, ResultLevel, Sarif};
 
 use super::{check_output_size, code_name, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity, LINE_END};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity, LINE_END};
 
 fn sarif_severity(level: Option<ResultLevel>) -> ToolSeverity {
     match level {
@@ -191,6 +191,28 @@ fn end(
     }))
 }
 
+fn column_encoding(
+    tool: &'static str,
+    kind: Option<&impl serde::Serialize>,
+) -> Result<ColumnEncoding, ParseError> {
+    let value = kind
+        .map(serde_json::to_value)
+        .transpose()
+        .map_err(|err| ParseError::Shape {
+            tool,
+            detail: err.to_string(),
+        })?;
+    match value.as_ref().and_then(|value| value.as_str()) {
+        None => Ok(ColumnEncoding::Utf16),
+        Some("utf16CodeUnits") => Ok(ColumnEncoding::Utf16),
+        Some("unicodeCodePoints") => Ok(ColumnEncoding::Scalars),
+        Some(other) => Err(ParseError::Shape {
+            tool,
+            detail: format!("unknown columnKind: {other}"),
+        }),
+    }
+}
+
 fn error_notifications(invocation: &Invocation) -> Vec<String> {
     let groups = [
         &invocation.tool_configuration_notifications,
@@ -256,6 +278,7 @@ pub(super) fn sarif_findings(
     let mut findings = Vec::new();
     for run in &log.runs {
         check_invocations(tool, run.invocations.as_deref().unwrap_or_default())?;
+        let encoding = column_encoding(tool, run.column_kind.as_ref())?;
         let bases = run.original_uri_base_ids.as_ref();
         let empty = std::collections::BTreeMap::new();
         let bases = bases.unwrap_or(&empty);
@@ -317,6 +340,7 @@ pub(super) fn sarif_findings(
                         start,
                         end,
                         suggestions: Vec::new(),
+                        encoding,
                     },
                 });
             }
@@ -634,5 +658,44 @@ mod tests {
         assert!(crate::place_finding(&multiline, "a.java", "a\nb\nc\n").is_err());
         let inverted = one_region(r#"{"startLine":3,"startColumn":5,"endColumn":2}"#);
         assert!(crate::place_finding(&inverted, "a.java", "ab\ncd\nefghij\n").is_err());
+    }
+
+    #[test]
+    fn column_kind_selects_the_encoding() {
+        let result = r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":5}}}]}"#;
+        let with = |kind: &str| {
+            format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},{kind}\"results\":[{result}]}}]}}").into_bytes()
+        };
+        let encoding = |kind: &str| {
+            let found = parse_sarif(TOOL, &with(kind), Some(1), &["/s/a.java"]);
+            found.map(|found| found[0].finding.encoding)
+        };
+        assert_eq!(encoding(""), Ok(ColumnEncoding::Utf16));
+        assert_eq!(
+            encoding("\"columnKind\":\"utf16CodeUnits\","),
+            Ok(ColumnEncoding::Utf16)
+        );
+        assert_eq!(
+            encoding("\"columnKind\":\"unicodeCodePoints\","),
+            Ok(ColumnEncoding::Scalars)
+        );
+        assert!(encoding("\"columnKind\":\"bytes\",").is_err());
+    }
+
+    #[test]
+    fn sarif_columns_place_after_astral_characters() {
+        let source = "a\u{1f600}b\n";
+        let result = |kind: &str, column: u64| {
+            format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},{kind}\"results\":[{{\"ruleId\":\"R\",\"message\":{{\"text\":\"m\"}},\"locations\":[{{\"physicalLocation\":{{\"artifactLocation\":{{\"uri\":\"/s/a.java\"}},\"region\":{{\"startLine\":1,\"startColumn\":{column}}}}}}}]}}]}}]}}").into_bytes()
+        };
+        let place = |kind: &str, column: u64| {
+            let found = parse_sarif(TOOL, &result(kind, column), Some(1), &["/s/a.java"]).ok()?;
+            let placed = crate::place_finding(&found[0].finding, "a.java", source).ok()?;
+            placed.start_byte
+        };
+        assert_eq!(place("", 4), Some(5));
+        assert_eq!(place("\"columnKind\":\"utf16CodeUnits\",", 4), Some(5));
+        assert_eq!(place("\"columnKind\":\"unicodeCodePoints\",", 3), Some(5));
+        assert_eq!(place("", 3), None);
     }
 }

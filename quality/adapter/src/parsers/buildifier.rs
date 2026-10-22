@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{check_output_size, finding, known, unformatted_at, FileFinding, ParseError};
-use crate::{Finding, TextPosition, ToolSeverity};
+use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
 struct BuildifierReport {
@@ -83,6 +83,7 @@ pub fn parse_buildifier(
                         column: warning.end.column,
                     }),
                     suggestions: Vec::new(),
+                    encoding: ColumnEncoding::Scalars,
                 },
             });
         }

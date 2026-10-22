@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
-use crate::{Finding, ToolSeverity};
+use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
 struct MarkdownLine {
@@ -69,6 +69,7 @@ pub fn parse_markdown_findings(
                 start,
                 end,
                 suggestions: Vec::new(),
+                encoding: ColumnEncoding::Scalars,
             },
         });
     }

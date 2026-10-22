@@ -32,7 +32,7 @@ def _packaging_checks():
     checks.append(expect_equal(
         "abi platforms",
         ABI_PLATFORMS,
-        {"arm64-v8a": "//android/platforms:android_device", "x86_64": "//android/platforms:android_emulator"},
+        {"arm64-v8a": "//android/platforms:arm64-v8a", "x86_64": "//android/platforms:x86_64"},
     ))
     checks.append(expect_equal("abis for tuples", abis_for(["device", "emulator"]), ["arm64-v8a", "x86_64"]))
     checks.append(expect_equal("abis skip unknown tuples", abis_for(["device", "watch"]), ["arm64-v8a"]))

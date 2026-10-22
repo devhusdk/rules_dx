@@ -31,7 +31,11 @@ rustfmt_test(
 cc_library(
     name = "app_jni",
     srcs = ["activity.c"],
-    linkopts = ["-Wl,--as-needed"],
+    alwayslink = True,
+    linkopts = [
+        "-landroid",
+        "-llog",
+    ],
     tags = ["manual"],
     deps = [":app_rust"],
 )
@@ -49,7 +53,7 @@ rust_android_apk(
 
 android_adb_install(
     name = "install",
-    apk = ":app_apk",
+    apk = ":app_apk_file",
     serial = "emulator-5554",
 )
 
@@ -70,16 +74,64 @@ android_adb_log(
     serial = "emulator-5554",
 )
 
+rust_android_apk(
+    name = "custom_apk",
+    abis = ["x86_64"],
+    api_level = 33,
+    app_id = "org.example.custom.dxrustapk",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.VIBRATE",
+    ],
+    resource_files = glob(["res/**"]),
+    version_code = 7,
+    version_name = "2.3",
+    visibility = ["//visibility:public"],
+    deps = [":app_jni"],
+)
+
 sh_test(
     name = "inspect_apk_test",
     srcs = ["inspect_apk.sh"],
     args = [
-        "$(location :app_apk)",
+        "$(location :app_apk_file)",
         "com.example.dxrustapk",
         "app_apk",
         "arm64-v8a,x86_64",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "31",
+        "android.permission.INTERNET",
+        "1",
+        "1.0",
     ],
-    data = [":app_apk"],
+    data = [
+        ":app_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "inspect_custom_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :custom_apk_file)",
+        "org.example.custom.dxrustapk",
+        "custom_apk",
+        "x86_64",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "33",
+        "android.permission.VIBRATE",
+        "7",
+        "2.3",
+        "android.permission.ACCESS_NETWORK_STATE",
+    ],
+    data = [
+        ":custom_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
     tags = ["manual"],
 )
 

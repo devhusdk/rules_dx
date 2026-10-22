@@ -4,7 +4,7 @@ load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//android/platforms:defs.bzl", "api_floor")
 load("//android/sdk:repos.bzl", "SDK_PLATFORM")
-load(":repos.bzl", "abi_errors", "app_id_errors")
+load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "app_id_errors")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
 
@@ -169,6 +169,14 @@ def rust_android_apk(
             tags = ["manual"],
             visibility = ["//visibility:private"],
         )
+    _apk_file(
+        name = name + "_file",
+        abis = abis,
+        src = ":" + name,
+        validation = ":" + name + "_validation",
+        tags = ["manual"],
+        visibility = visibility,
+    )
     android_binary(
         name = name,
         assets = assets,
@@ -181,6 +189,34 @@ def rust_android_apk(
         visibility = visibility,
         **kwargs
     )
+
+def _abi_transition_impl(settings, attr):
+    current = settings["//command_line_option:android_platforms"]
+    if len(attr.abis) == 0:
+        return {"//command_line_option:android_platforms": current}
+    return {"//command_line_option:android_platforms": [ABI_PLATFORMS[abi] for abi in attr.abis if abi in ABI_PLATFORMS]}
+
+_abi_transition = transition(
+    implementation = _abi_transition_impl,
+    inputs = ["//command_line_option:android_platforms"],
+    outputs = ["//command_line_option:android_platforms"],
+)
+
+def _apk_file_impl(ctx):
+    src = ctx.attr.src[0] if type(ctx.attr.src) == "list" else ctx.attr.src
+    apks = [file for file in src[DefaultInfo].files.to_list() if file.extension == "apk" and not file.basename.endswith("_unsigned.apk")]
+    if len(apks) != 1:
+        fail("android_apk_file: '" + str(src.label) + "' built " + str(len(apks)) + " signed apk files, want exactly one")
+    return [DefaultInfo(files = depset(apks))]
+
+_apk_file = rule(
+    implementation = _apk_file_impl,
+    attrs = {
+        "abis": attr.string_list(default = []),
+        "src": attr.label(allow_files = True, mandatory = True, cfg = _abi_transition),
+        "validation": attr.label(),
+    },
+)
 
 def _adb_selection_impl(ctx):
     failures = []
@@ -212,12 +248,18 @@ def android_adb_install(name, apk, serial = "", visibility = None):
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
+    _apk_file(
+        name = name + "_apk",
+        src = apk,
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
     sh_binary(
         name = name,
         srcs = ["//android/packaging:adb_ops.sh"],
-        data = [apk, ":" + name + "_selection"],
+        data = [":" + name + "_apk", ":" + name + "_selection"],
         env = {
-            "DX_ADB_APK": "$(location " + apk + ")",
+            "DX_ADB_APK": "$(location :" + name + "_apk)",
             "DX_ADB_OP": "install",
             "DX_ADB_SERIAL": serial,
         },

@@ -88,7 +88,17 @@ pub(crate) fn project_status(
     if !apply {
         status.extend(initial.iter().cloned());
     } else {
-        status.extend(terminal.iter().cloned());
+        status.extend(
+            terminal
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic
+                        .path
+                        .as_ref()
+                        .is_none_or(|path| applied.get(path).copied().unwrap_or(true))
+                })
+                .cloned(),
+        );
         for diagnostic in initial {
             let is_applied = diagnostic
                 .path
@@ -238,5 +248,57 @@ mod tests {
             outcome.not_applied,
             vec![("src/a.rs".to_owned(), REASON_INVALID_EDITS)]
         );
+    }
+}
+
+#[cfg(test)]
+mod status_tests {
+    use super::project_status;
+    use dx_output::{DiagnosticEvent, Severity, Snapshot, Threshold};
+    use std::collections::BTreeMap;
+
+    fn event(snapshot: Snapshot, fixable: bool) -> DiagnosticEvent {
+        DiagnosticEvent {
+            severity: Severity::Warning,
+            tool: "lint".to_owned(),
+            message: "m".to_owned(),
+            rule: None,
+            path: Some("a.py".to_owned()),
+            range: Some((0, 1)),
+            snapshot,
+            fixable,
+            resolution: None,
+        }
+    }
+
+    #[test]
+    fn failed_write_keeps_original_findings_and_drops_unwritten_terminal_ones() {
+        let applied = BTreeMap::from([("a.py".to_owned(), false)]);
+        let (status, failed) = project_status(
+            true,
+            &[event(Snapshot::Initial, true)],
+            &[event(Snapshot::Terminal, false)],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert!(failed);
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Initial);
+    }
+
+    #[test]
+    fn written_file_reports_terminal_findings() {
+        let applied = BTreeMap::from([("a.py".to_owned(), true)]);
+        let (status, _) = project_status(
+            true,
+            &[event(Snapshot::Initial, true)],
+            &[event(Snapshot::Terminal, false)],
+            &applied,
+            Threshold::Warning,
+            true,
+        );
+        assert_eq!(status.len(), 1);
+        assert_eq!(status[0].snapshot, Snapshot::Terminal);
     }
 }

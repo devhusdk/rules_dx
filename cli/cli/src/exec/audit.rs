@@ -1201,7 +1201,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         let name = planned.format.name();
         if name == "sarif" {
             let tools: Vec<String> = sarif_tools.iter().cloned().collect();
-            let snapshots: BTreeMap<String, String> = BTreeMap::new();
+            let snapshots = BTreeMap::new();
             let document = match crate::reports::render_sarif(
                 &tools,
                 &sarif_diagnostics,

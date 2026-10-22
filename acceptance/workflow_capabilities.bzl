@@ -392,6 +392,11 @@ WORKFLOW_CAPABILITIES_TABLE = [
     {
         "capability": "wasi.exec",
         "evidence": [
+            "//examples/shared-rust:consumer_wasi_test",
+            "//examples/shared-rust:wasi_error_test",
+            "//examples/shared-rust:wasi_test",
+            "//rust/tests/fixtures/consumer_wasi:acquisition",
+            "//rust/tests/fixtures/consumer_wasi:custom_exit",
             "//rust/tests/fixtures/consumer_wasi:custom_runtime",
             "//rust/tests/fixtures/consumer_wasi:declared_capabilities",
             "//rust/tests/fixtures/consumer_wasi:default_run",

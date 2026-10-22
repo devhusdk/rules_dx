@@ -28,6 +28,7 @@ document.getElementById("c-asset").textContent = asset.trim();
 """
 
 _BUILD_BAZEL = '''load("@rules_dx//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_server")
+load("@rules_dx//rust/rules:defs.bzl", "rust_wasi_test")
 
 package(
     default_testonly = True,
@@ -53,6 +54,13 @@ genrule(
     tools = ["@rules_dx//examples/shared-rust:core_bin"],
     outs = ["probe.txt"],
     cmd = "$(location @rules_dx//examples/shared-rust:core_bin) '2 * (3 + 4)' > $@",
+)
+
+rust_wasi_test(
+    name = "consumer_wasi_test",
+    binary = "@rules_dx//examples/shared-rust:core_bin",
+    args = ["(10 - 4) / 3"],
+    expected_stdout = "ok:2",
 )
 '''
 

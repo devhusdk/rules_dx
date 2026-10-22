@@ -1,8 +1,36 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files(["wasi_run_test.rs"])
+
+rust_library(
+    name = "wasi_run",
+    srcs = ["wasi_run.rs"],
+    crate_name = "wasi_run",
+    crate_root = "wasi_run.rs",
+    edition = "2021",
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "wasi_run_unit_test",
+    size = "small",
+    crate = ":wasi_run",
+)
+
+rustfmt_test(
+    name = "wasi_run_fmt_test",
+    size = "small",
+    targets = [":wasi_run"],
+)
+
+rust_clippy_test(
+    name = "wasi_run_clippy_test",
+    size = "small",
+    targets = [":wasi_run"],
+)
 
 real_source_target(
     name = "corpus_starlark",

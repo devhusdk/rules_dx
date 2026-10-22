@@ -1,6 +1,7 @@
+load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rustfmt_test")
-load("@rules_dx//wasi/rules:defs.bzl", "wasi_binary", "wasi_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_test", "rust_wasi_module", "rust_wasi_test", "rustfmt_test")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load(":acquisition.bzl", "consumer_wasi_acquisition_tests")
 
@@ -10,29 +11,96 @@ package(
 )
 
 exports_files([
+    "build.rs",
     "data/input.txt",
     "data/secret.txt",
+    "macros/lib.rs",
+    "src/lib.rs",
     "src/main.rs",
 ])
 
-wasi_binary(
+cargo_build_script(
+    name = "consumer_wasi_build_script",
+    srcs = ["build.rs"],
+    crate_name = "consumer_wasi_build_script",
+    crate_root = "build.rs",
+    edition = "2021",
+    pkg_name = "consumer_wasi",
+    use_cc_toolchain = 0,
+    use_default_shell_env = 0,
+    version = "0.1.0",
+)
+
+rust_proc_macro(
+    name = "consumer_wasi_macros",
+    srcs = ["macros/lib.rs"],
+    crate_name = "consumer_wasi_macros",
+    crate_root = "macros/lib.rs",
+    edition = "2021",
+)
+
+rust_library(
+    name = "consumer_wasi_lib",
+    srcs = ["src/lib.rs"],
+    crate_name = "consumer_wasi",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    proc_macro_deps = [":consumer_wasi_macros"],
+    deps = [":consumer_wasi_build_script"],
+)
+
+rust_test(
+    name = "consumer_wasi_lib_test",
+    crate = ":consumer_wasi_lib",
+    proc_macro_deps = [":consumer_wasi_macros"],
+    deps = [":consumer_wasi_build_script"],
+)
+
+rust_binary(
     name = "consumer_wasi",
     srcs = ["src/main.rs"],
-    crate_name = "consumer_wasi",
+    crate_name = "consumer_wasi_bin",
     crate_root = "src/main.rs",
     edition = "2021",
+    deps = [":consumer_wasi_lib"],
+)
+
+rust_wasi_module(
+    name = "consumer_wasi_module",
+    binary = ":consumer_wasi",
 )
 
 rustfmt_test(
     name = "consumer_wasi_fmt_test",
     size = "small",
-    targets = [":consumer_wasi_module"],
+    targets = [
+        ":consumer_wasi",
+        ":consumer_wasi_lib",
+        ":consumer_wasi_macros",
+    ],
+)
+
+rust_clippy_test(
+    name = "consumer_wasi_clippy_test",
+    size = "small",
+    targets = [
+        ":consumer_wasi",
+        ":consumer_wasi_lib",
+        ":consumer_wasi_macros",
+    ],
 )
 
 sh_binary(
     name = "injecting_runtime",
     srcs = ["injecting_runtime.sh"],
 )
+
+_TOOLCHAIN_LINES = [
+    "module=wasm",
+    "build_target=wasm32-wasip1",
+    "build_script=native",
+    "proc_macro=native",
+]
 
 _DEFAULT_OUTPUT = "\n".join([
     "argv=[]",
@@ -41,23 +109,24 @@ _DEFAULT_OUTPUT = "\n".join([
     "hostile=hidden",
     "data=no-access",
     "probe=no-access",
-])
+] + _TOOLCHAIN_LINES)
 
-wasi_test(
+rust_wasi_test(
     name = "default_run",
     ambient = {"DX_WASI_HOSTILE": "1"},
+    binary = ":consumer_wasi",
     data = [":data/secret.txt"],
     expected_stdout = _DEFAULT_OUTPUT,
-    module = ":consumer_wasi",
 )
 
-wasi_test(
+rust_wasi_test(
     name = "declared_capabilities",
     ambient = {"DX_WASI_HOSTILE": "1"},
     args = [
         "one",
         "two",
     ],
+    binary = ":consumer_wasi",
     env = {
         "DX_WASI_DECLARED": "declared-value",
         "DX_WASI_PROBE": "/data/input.txt",
@@ -69,22 +138,22 @@ wasi_test(
         "hostile=hidden",
         "data=staged input",
         "probe=staged input",
-    ]),
-    module = ":consumer_wasi",
+    ] + _TOOLCHAIN_LINES),
     preopens = {"/data": ":data/input.txt"},
 )
 
-wasi_test(
+rust_wasi_test(
     name = "custom_exit",
+    binary = ":consumer_wasi",
     env = {"DX_WASI_EXIT": "3"},
     expected_code = 3,
     expected_stdout = _DEFAULT_OUTPUT,
-    module = ":consumer_wasi",
 )
 
-wasi_test(
+rust_wasi_test(
     name = "custom_runtime",
     ambient = {"DX_WASI_HOSTILE": "1"},
+    binary = ":consumer_wasi",
     expected_stdout = "\n".join([
         "argv=[]",
         "declared=<unset>",
@@ -92,9 +161,20 @@ wasi_test(
         "hostile=hidden",
         "data=no-access",
         "probe=no-access",
-    ]),
-    module = ":consumer_wasi",
+    ] + _TOOLCHAIN_LINES),
     runtime = ":injecting_runtime",
+)
+
+rust_wasi_module(
+    name = "library_module",
+    binary = ":consumer_wasi_lib",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "library_module_test",
+    expected_failure_substring = "built 0 .wasm files for wasm32-wasip1, want exactly one",
+    target = ":library_module",
 )
 
 real_source_target(
@@ -110,5 +190,7 @@ real_source_target(
 
 consumer_wasi_acquisition_tests(
     name = "acquisition",
-    module = ":consumer_wasi",
+    binary = ":consumer_wasi",
+    module = ":consumer_wasi_module",
+    run = ":default_run",
 )

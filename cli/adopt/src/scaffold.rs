@@ -250,7 +250,34 @@ pub fn scaffold_dest_within_root(
             path: relative.to_owned(),
         });
     }
+    ensure_physically_within(root, relative)?;
     Ok(dest)
+}
+
+fn ensure_physically_within(root: &Path, relative: &str) -> Result<(), AdoptError> {
+    let escapes = || AdoptError::ScaffoldEscapesRoot {
+        path: relative.to_owned(),
+    };
+    let canonical_root = match root.canonicalize() {
+        Ok(path) => path,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(_) => return Err(escapes()),
+    };
+    let mut current = root.to_path_buf();
+    for part in Path::new(relative).components() {
+        current.push(part);
+        match std::fs::symlink_metadata(&current) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                let resolved = current.canonicalize().map_err(|_| escapes())?;
+                if !resolved.starts_with(&canonical_root) {
+                    return Err(escapes());
+                }
+            }
+            Ok(_) => {}
+            Err(_) => break,
+        }
+    }
+    Ok(())
 }
 
 pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
@@ -870,6 +897,61 @@ mod tests {
                 );
             }
             assert_eq!(entries, vec!["sentinel".to_owned()], "{hostile:?}");
+            scratch.close().expect("cleanup");
+        }
+    }
+
+    #[cfg(unix)]
+    mod symlinks {
+        use super::super::super::{apply_init, scaffold_dest_within_root};
+        use std::os::unix::fs::symlink;
+
+        fn entries(dir: &std::path::Path) -> Vec<String> {
+            let mut names: Vec<String> = std::fs::read_dir(dir)
+                .expect("read")
+                .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+                .collect();
+            names.sort();
+            names
+        }
+
+        #[test]
+        fn init_refuses_external_symlinked_ancestor_and_writes_nothing() {
+            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-out-");
+            let root = scratch.path().join("root");
+            let outside = scratch.path().join("outside");
+            std::fs::create_dir_all(&root).expect("root");
+            std::fs::create_dir_all(&outside).expect("outside");
+            symlink(&outside, root.join(".github")).expect("symlink");
+            let err = apply_init(&root, "demo").expect_err("escape refused");
+            assert!(
+                err.to_string().contains(".github/workflows/ci.yml"),
+                "{err}"
+            );
+            assert!(entries(&outside).is_empty());
+            assert_eq!(entries(&root), vec![".github".to_owned()]);
+            scratch.close().expect("cleanup");
+        }
+
+        #[test]
+        fn dangling_symlink_is_refused() {
+            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-dangling-");
+            let root = scratch.path().join("root");
+            std::fs::create_dir_all(&root).expect("root");
+            symlink(scratch.path().join("missing"), root.join(".github")).expect("symlink");
+            assert!(scaffold_dest_within_root(&root, ".github/workflows/ci.yml").is_err());
+            scratch.close().expect("cleanup");
+        }
+
+        #[test]
+        fn internal_symlink_is_allowed() {
+            let scratch = dx_test_scratch::scratch("dx-adopt-symlink-in-");
+            let root = scratch.path().join("root");
+            std::fs::create_dir_all(root.join("real")).expect("real");
+            symlink(root.join("real"), root.join(".github")).expect("symlink");
+            let written = apply_init(&root, "demo").expect("internal link allowed");
+            assert!(written.contains(&".github/workflows/ci.yml".to_owned()));
+            assert!(root.join("real/workflows/ci.yml").is_file());
             scratch.close().expect("cleanup");
         }
     }

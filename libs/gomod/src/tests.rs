@@ -227,3 +227,70 @@ fn set_rejects_malformed_files_and_versions() {
         Err(GoEditError::Invalid(_))
     ));
 }
+
+fn target_for<'a>(
+    file: &'a GoModFile,
+    module: &str,
+    version: &str,
+) -> Option<&'a GoReplacementTarget> {
+    file.replacement_for(module, version)
+        .map(|replacement| &replacement.target)
+}
+
+fn upstream(module: &str, version: &str) -> GoReplacementTarget {
+    GoReplacementTarget::Module {
+        module: module.to_owned(),
+        version: version.to_owned(),
+    }
+}
+
+#[test]
+fn replacement_for_matches_version_qualified_directives_only_on_that_version() {
+    let text = "module example.com/app\nrequire example.com/lib v1.2.0\nreplace example.com/lib v1.0.0 => example.com/lib v1.3.0\n";
+    let file = parse_mod(text).expect("parses");
+    assert_eq!(target_for(&file, "example.com/lib", "v1.2.0"), None);
+    assert_eq!(
+        target_for(&file, "example.com/lib", "v1.0.0"),
+        Some(&upstream("example.com/lib", "v1.3.0"))
+    );
+    let local =
+        parse_mod("module a\nreplace example.com/lib v1.0.0 => ../local\n").expect("parses");
+    assert_eq!(target_for(&local, "example.com/lib", "v1.2.0"), None);
+    assert_eq!(
+        target_for(&local, "example.com/lib", "v1.0.0"),
+        Some(&GoReplacementTarget::FilePath("../local".to_owned()))
+    );
+}
+
+#[test]
+fn replacement_for_prefers_specific_version_over_wildcard_in_any_order() {
+    for text in [
+        "module a\nreplace (\n\texample.com/lib => example.com/wild v1.0.0\n\texample.com/lib v1.2.0 => example.com/exact v2.0.0 // pin\n)\n",
+        "module a\nreplace (\n\texample.com/lib v1.2.0 => example.com/exact v2.0.0\n\t// comment\n\texample.com/lib => example.com/wild v1.0.0\n)\n",
+    ] {
+        let file = parse_mod(text).expect("parses");
+        assert_eq!(
+            target_for(&file, "example.com/lib", "v1.2.0"),
+            Some(&upstream("example.com/exact", "v2.0.0"))
+        );
+        assert_eq!(
+            target_for(&file, "example.com/lib", "v1.5.0"),
+            Some(&upstream("example.com/wild", "v1.0.0"))
+        );
+        assert_eq!(target_for(&file, "example.com/other", "v1.2.0"), None);
+    }
+}
+
+#[test]
+fn duplicate_replacements_for_one_module_version_are_errors() {
+    let wildcard =
+        "module a\nreplace example.com/lib => ../one\nreplace example.com/lib => ../two\n";
+    assert!(parse_mod(wildcard)
+        .expect_err("rejects")
+        .contains("multiple replacements"));
+    let exact = "module a\nreplace (\n\texample.com/lib v1.0.0 => ../one\n\texample.com/lib v1.0.0 => ../two\n)\n";
+    assert!(parse_mod(exact).is_err());
+    let mixed =
+        "module a\nreplace example.com/lib v1.0.0 => ../one\nreplace example.com/lib => ../two\n";
+    assert!(parse_mod(mixed).is_ok());
+}

@@ -10,10 +10,7 @@ pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, String> {
     let mut out = Vec::new();
     for requirement in &file.require {
         match file
-            .replace
-            .iter()
-            .rev()
-            .find(|replacement| replacement.module == requirement.module)
+            .replacement_for(&requirement.module, &requirement.version)
             .map(|replacement| &replacement.target)
         {
             Some(GoReplacementTarget::FilePath(_)) => continue,

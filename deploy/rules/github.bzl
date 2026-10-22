@@ -109,7 +109,7 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", draft = True, profile 
         name = program_target,
         srcs = [":" + launcher_target],
         data = artifacts,
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

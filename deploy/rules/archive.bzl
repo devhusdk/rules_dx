@@ -5,6 +5,7 @@ load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
 
+_ARCHIVER = Label("//deploy/rules:archiver")
 _HASHER = str(Label("//deploy/rules:hasher"))
 
 def _archive_stage_impl(ctx):
@@ -85,8 +86,8 @@ def archive_deploy(name, app, profile = "release"):
         name = archive_target,
         srcs = [":" + stage_target],
         outs = [tarball],
-        tools = ["//deploy/rules:archiver"],
-        cmd = "$(location //deploy/rules:archiver) $(location :" + stage_target + ") $(OUTS)",
+        tools = [_ARCHIVER],
+        cmd = "$(location " + str(_ARCHIVER) + ") $(location :" + stage_target + ") $(OUTS)",
     )
 
     native.genrule(
@@ -113,7 +114,7 @@ def archive_deploy(name, app, profile = "release"):
             ":" + archive_target,
             ":" + checksum_target,
         ],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(
@@ -263,7 +264,7 @@ _consumer_tarball = rule(
         "tarball_name": attr.string(mandatory = True),
         "_archiver": attr.label(
             cfg = "exec",
-            default = Label("//deploy/rules:archiver"),
+            default = _ARCHIVER,
             executable = True,
         ),
     },

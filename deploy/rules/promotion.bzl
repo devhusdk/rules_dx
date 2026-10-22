@@ -165,7 +165,7 @@ def promotion_deploy(name, artifact, from_environment = "staging", to_environmen
         name = program_target,
         srcs = [":" + launcher_target],
         data = [artifact],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

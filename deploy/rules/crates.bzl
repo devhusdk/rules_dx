@@ -145,7 +145,7 @@ def crates_deploy(name, crate, version = "0.0.0", allow_dirty = False, profile =
         name = program_target,
         srcs = [":" + launcher_target],
         data = [crate],
-        deps = ["//deploy/rules:dx_deploy_tools"],
+        deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 
     dx_deployment(

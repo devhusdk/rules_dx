@@ -109,7 +109,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          targets="$(bazel query 'attr(tags, hermetic-consumer, //...)' --output=label)"
+          targets="$(bazel query 'attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...)' --output=label)"
           test -n "$targets"
           echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086

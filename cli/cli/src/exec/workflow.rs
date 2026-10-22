@@ -1,3 +1,4 @@
+use super::build_failures::report_build_failures;
 use super::common::*;
 use super::deploy::execute_deploy;
 use super::run::execute_run;
@@ -103,11 +104,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
             "temporary event path is not UTF-8",
         );
     };
-    let bep_arg = if verb.collects_reports() {
-        Some(bep_text.as_str())
-    } else {
-        None
-    };
+    let bep_arg = Some(bep_text.as_str());
     let profile = if verb == WorkflowVerb::Coverage {
         None
     } else {
@@ -136,6 +133,10 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(exit) => return exit,
     };
     if verb == WorkflowVerb::Build {
+        if bazel_code != 0 {
+            report_build_failures(&bep, invocation.output, out, err);
+        }
+        let _ = std::fs::remove_file(&bep);
         if invocation.output == OutputMode::Json {
             if bazel_code != 0 {
                 if let Ok(event) = error_event(
@@ -441,3 +442,7 @@ mod tests {
 #[cfg(all(test, unix))]
 #[path = "stream_probe_tests.rs"]
 mod stream_probe_tests;
+
+#[cfg(all(test, unix))]
+#[path = "build_failure_launcher_tests.rs"]
+mod build_failure_launcher_tests;

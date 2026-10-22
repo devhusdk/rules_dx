@@ -1,3 +1,4 @@
+use super::build_failures::report_build_failures;
 use super::common::*;
 use crate::args::Invocation;
 use crate::plan::WorkflowVerb;
@@ -177,6 +178,11 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         bazel_code,
         query_runner,
     } = request;
+    let failure_count = if bazel_code != 0 {
+        report_build_failures(bep, invocation.output, out, err)
+    } else {
+        0
+    };
     let events = match std::fs::File::open(bep).map_err(|err| {
         (
             CODE_UNREADABLE_BEP.to_owned(),
@@ -426,7 +432,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let evidence_complete =
         !events.results.is_empty() && outcomes.iter().all(|outcome| outcome.evidence_complete);
     let strict_fail = bazel_code == 0 && !evidence_complete;
-    if verb == WorkflowVerb::Test && (!complete || strict_fail) {
+    let nothing_ran = failure_count > 0 && events.results.is_empty();
+    if verb == WorkflowVerb::Test && (!complete || strict_fail) && !nothing_ran {
         suites.push(junit_infrastructure_case(&detail));
     }
     if invocation.output == OutputMode::Json {

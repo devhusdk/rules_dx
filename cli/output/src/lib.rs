@@ -32,10 +32,11 @@ pub use findings::{
     DiagnosticEvent, NoticeEvent, Resolution, Snapshot,
 };
 pub use lifecycle::{
-    capability_event, capability_value, command_finished, command_started, error_event,
-    operation_event, report_event, schema, selection_event, status_event, test_outcome_event,
-    with_correlation, write_event, CapabilityEvent, FinishedCounts, StatusEvent, TestOutcome,
-    EVENTS, SCHEMA_MAJOR, SCHEMA_MINOR,
+    build_failure_event, capability_event, capability_value, command_finished, command_started,
+    error_event, operation_event, report_event, schema, selection_event, status_event,
+    test_outcome_event, with_correlation, write_event, BuildFailureEvent, CapabilityEvent,
+    FailureDiagnostic, FinishedCounts, StatusEvent, TestOutcome, EVENTS, SCHEMA_MAJOR,
+    SCHEMA_MINOR,
 };
 pub use modes::{
     check_output_conflict, dx_text_visible, stdout_owner, OutputMode, OutputModeName, StdoutOwner,

@@ -1,4 +1,5 @@
 mod audit;
+mod build_failures;
 mod bump;
 mod clean;
 pub mod common;

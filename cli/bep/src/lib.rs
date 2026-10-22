@@ -8,9 +8,13 @@
     )
 )]
 
+pub mod failures;
 pub mod outputs;
 pub mod test_outputs;
 
+pub use failures::{
+    collect_build_failures, BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef,
+};
 pub use outputs::{collect, collect_with_workspace};
 pub use test_outputs::{
     collect_test_events, collect_test_outputs, TestEvents, TestOutputFile, TestResultFile,

@@ -227,7 +227,8 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     assert!(!starts_before_previous_end(&log), "no overlap:\n{log}");
     for line in log.lines().filter(|line| line.starts_with("start ")) {
         assert!(
-            line.ends_with(" build --config=dx_dev --jobs=4 --apply //..."),
+            line.contains(" build --config=dx_dev --build_event_json_file=")
+                && line.ends_with(".json --jobs=4 --apply //..."),
             "the -- payload reaches Bazel unchanged: {line}"
         );
     }

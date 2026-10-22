@@ -185,7 +185,7 @@ SCOPED_PACKAGES = {
     "generation/result": "VIS_CLI",
     "libs/gomod": "VIS_CLI_TOOLS",
     "libs/module_bazel": "VIS_CLI_TOOLS",
-    "quality/adapter": "VIS_QUALITY",
+    "quality/adapter": "VIS_QUALITY_CLI",
     "quality/artifacts": "VIS_QUALITY",
     "quality/evaluator": "VIS_QUALITY",
     "quality/markdown": "VIS_QUALITY_ENV",

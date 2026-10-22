@@ -1,9 +1,9 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY_CLI")
 
-package(default_visibility = VIS_QUALITY)
+package(default_visibility = VIS_QUALITY_CLI)
 
 rust_library(
     name = "quality_adapter",

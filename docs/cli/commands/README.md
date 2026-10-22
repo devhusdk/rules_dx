@@ -110,6 +110,11 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 ```
 
 - `command_started`: the command and its mode.
+- `build_failure`: one failure Bazel reported while building, from `dx build`,
+  `dx test`, and `dx coverage`. It has `record_version`, `target`,
+  `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`, and
+  `diagnostics`, plus an optional `message`. Facts Bazel did not report read
+  `unknown`.
 - `capability`: one declared capability, with `name`, `source`,
   `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
   `effect`, and `passthrough`.

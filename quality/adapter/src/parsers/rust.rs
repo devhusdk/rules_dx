@@ -62,6 +62,68 @@ pub fn parse_rustc(
     parse_rust_diagnostics("rustc", stderr, code, files)
 }
 
+/// One rustc diagnostic read from an action's stderr.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionDiagnostic {
+    pub severity: ToolSeverity,
+    pub code: Option<String>,
+    pub message: String,
+    pub file: Option<String>,
+    pub line: Option<u64>,
+    pub column: Option<u64>,
+}
+
+/// Reads every rustc JSON diagnostic from action stderr and skips other lines.
+pub fn parse_rustc_action_output(stderr: &[u8]) -> Result<Vec<ActionDiagnostic>, ParseError> {
+    check_output_size("rustc", stderr)?;
+    let text = String::from_utf8_lossy(stderr);
+    let mut found = Vec::new();
+    for line in text.lines() {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if value
+            .get("$message_type")
+            .and_then(serde_json::Value::as_str)
+            != Some("diagnostic")
+        {
+            continue;
+        }
+        let Ok(diagnostic) = serde_json::from_value::<ClippyMessage>(value) else {
+            continue;
+        };
+        let severity = if diagnostic.level.starts_with("error") {
+            ToolSeverity::Error
+        } else if diagnostic.level == "warning" {
+            ToolSeverity::Warning
+        } else {
+            continue;
+        };
+        let span = diagnostic
+            .spans
+            .iter()
+            .find(|span| span.is_primary)
+            .or_else(|| diagnostic.spans.first());
+        if span.is_none()
+            && (diagnostic.message.starts_with("aborting due to")
+                || diagnostic.message.ends_with(" emitted"))
+        {
+            continue;
+        }
+        found.push(ActionDiagnostic {
+            severity,
+            code: diagnostic.code.map(|code| code.code),
+            message: diagnostic.message,
+            file: span.map(|span| span.file_name.clone()),
+            line: span.map(|span| span.line_start).filter(|line| *line > 0),
+            column: span
+                .map(|span| span.column_start)
+                .filter(|column| *column > 0),
+        });
+    }
+    Ok(found)
+}
+
 fn parse_rust_diagnostics(
     tool: &'static str,
     stderr: &[u8],
@@ -235,6 +297,27 @@ mod tests {
 
     const CLIPPY_BROKEN: &str = r#"{"$message_type":"diagnostic","message":"this file contains an unclosed delimiter","code":null,"level":"error","spans":[{"file_name":"/s/broken.rs","byte_start":11,"byte_end":11,"line_start":1,"line_end":1,"column_start":12,"column_end":12,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null}
 {"$message_type":"diagnostic","message":"aborting due to 1 previous error","code":null,"level":"error","spans":[],"children":[],"rendered":null}"#;
+
+    #[test]
+    fn action_output_reads_errors_and_skips_text_and_summaries() {
+        let mut input = String::from("compiling\n");
+        input.push_str(CLIPPY_BROKEN);
+        input.push_str("\nnot json\n");
+        let found = parse_rustc_action_output(input.as_bytes()).expect("parsed");
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].severity, ToolSeverity::Error);
+        assert_eq!(found[0].file.as_deref(), Some("/s/broken.rs"));
+        assert_eq!((found[0].line, found[0].column), (Some(1), Some(12)));
+    }
+
+    #[test]
+    fn action_output_keeps_spanless_link_errors() {
+        let line = r#"{"$message_type":"diagnostic","message":"linking with `cc` failed: exit status: 1","code":null,"level":"error","spans":[],"children":[],"rendered":null}"#;
+        let found = parse_rustc_action_output(line.as_bytes()).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, None);
+        assert_eq!(found[0].line, None);
+    }
 
     #[test]
     fn clippy_places_diagnostics_and_harvests_suggestions() {

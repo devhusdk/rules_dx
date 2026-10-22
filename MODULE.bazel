@@ -57,7 +57,7 @@ bazel_dep(name = "rules_android", version = "0.6.6")
 single_version_override(
     module_name = "rules_android",
     patch_strip = 1,
-    patches = ["//patches/rules_android:cc_loads.patch"],
+    patches = ["//patches/rules_android:rules_android.patch"],
     version = "0.6.6",
 )
 
@@ -425,7 +425,7 @@ _android_ndk_toolchain_repo = use_repo_rule("//android/toolchain:repos.bzl", "an
 _android_ndk_toolchain_repo(
     name = "android_ndk_toolchain",
     api_level = 31,
-    cxx_runtime = "shared",
+    cxx_runtime = "static",
 )
 
 _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")

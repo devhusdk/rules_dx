@@ -22,8 +22,8 @@ TUPLE_ABIS = {
 }
 
 ABI_PLATFORMS = {
-    "arm64-v8a": "//android/platforms:android_device",
-    "x86_64": "//android/platforms:android_emulator",
+    "arm64-v8a": "//android/platforms:arm64-v8a",
+    "x86_64": "//android/platforms:x86_64",
 }
 
 def abis_for(tuples):

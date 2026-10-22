@@ -27,8 +27,13 @@ dx format [--here] [--check] [--apply] [--fail-on info|warning|error] [scope...]
   previous file bytes.
 - `--output text|diff|json`: result shape.
 
+When several targets fix the same file, identical fixes apply once. Fixes that
+disagree leave the file unchanged, name the targets on stderr, and report
+`not_applied` with reason `conflicting_candidates` or `conflicting_digests`.
+Other files still apply.
+
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
-`--fail-on`, an incomplete result set, a failed report write, or a missing,
+`--fail-on`, an incomplete result set, a conflicting fix, a failed report write, or a missing,
 malformed, or stale baseline. Bazel failures report `1`, not Bazel's code.
 
 ```sh

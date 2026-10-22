@@ -121,8 +121,14 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
     let applied_outcome =
         apply_collected_changes(workspace, apply, collected.complete, &collected.changes);
     let sources = applied_outcome.sources;
-    let applied = applied_outcome.applied;
-    let not_applied = applied_outcome.not_applied;
+    let mut applied = applied_outcome.applied;
+    let mut not_applied = applied_outcome.not_applied;
+    if apply {
+        for conflict in &collected.conflicts {
+            applied.insert(conflict.path.clone(), false);
+            not_applied.push((conflict.path.clone(), conflict.reason));
+        }
+    }
     let (status, _) = project_status(
         apply,
         &collected.initial,
@@ -151,7 +157,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         status.iter().zip(&suppressed).any(|(diagnostic, held)| {
             !held && meets_threshold(diagnostic.severity, request.fail_on)
         }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty());
-    if !apply && !collected.changes.is_empty() {
+    if (!apply && !collected.changes.is_empty()) || !collected.conflicts.is_empty() {
         failed = true;
     }
 
@@ -178,6 +184,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
             changes: &collected.changes,
             applied: &applied,
             not_applied: &not_applied,
+            conflicts: &collected.conflicts,
             patch: &patch,
             stdout_report,
             suppressed: &suppressed,
@@ -256,3 +263,6 @@ mod quality_modes;
 #[cfg(test)]
 #[path = "quality_reporting.rs"]
 mod quality_reporting;
+#[cfg(test)]
+#[path = "quality_shared.rs"]
+mod quality_shared;

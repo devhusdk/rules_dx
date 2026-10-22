@@ -41,6 +41,14 @@ pub(crate) fn apply_collected_changes(
                 Some(SourceRead::Bytes(original)) => {
                     match apply_to_bytes(original, &change.edits) {
                         Some(candidate) => {
+                            if !matches!(
+                                read_verified(workspace, &change.path, &change.original_digest),
+                                SourceRead::Bytes(_)
+                            ) {
+                                applied.insert(change.path.clone(), false);
+                                not_applied.push((change.path.clone(), REASON_STALE_SOURCE));
+                                continue;
+                            }
                             match fs.write_atomic(&workspace.join(&change.path), &candidate) {
                                 Ok(()) => {
                                     applied.insert(change.path.clone(), true);

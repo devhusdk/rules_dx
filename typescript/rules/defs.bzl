@@ -113,7 +113,7 @@ def _dx_write_tsconfig_impl(ctx):
             src_files.append(root_prefix + short_path)
     ctx.actions.write(
         output = ctx.outputs.out,
-        content = '{"extends":"' + extends_path + '","files":' + str(src_files) + "}",
+        content = json.encode({"extends": extends_path, "files": src_files, "include": []}),
     )
     return [DefaultInfo(files = depset([ctx.outputs.out]))]
 
@@ -134,7 +134,7 @@ _dx_tsconfig = rule(
             mandatory = True,
         ),
     },
-    doc = "Writes a scoped tsconfig naming an inherited file and these sources.",
+    doc = "Writes a scoped tsconfig naming an inherited file and these sources with an empty include.",
 )
 
 def _dx_write_tsconfig(name, files, out, extends, **kwargs):

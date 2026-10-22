@@ -133,7 +133,7 @@ fn run() -> i32 {
         lock_timeout,
     };
     let tools = match std::fs::read_to_string(&metadata) {
-        Ok(text) => match parse_staged(&text) {
+        Ok(text) => match parse_staged(&text, options.os == "windows") {
             Ok(tools) => tools,
             Err(error) => {
                 tracing::error!("dx env: {error}");

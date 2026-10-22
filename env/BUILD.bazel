@@ -1,7 +1,7 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "environment_config", "environment_tool", "environment_tree")
+load(":defs.bzl", "environment_config", "environment_metadata", "environment_tool", "environment_tree")
 load(":defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
 load(":plan.bzl", "dx_env_shard", "env_plan_subject", "rust_env_shard")
 load(":plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests")
@@ -37,6 +37,17 @@ environment_config(
         ":config_inner",
         ":tool_alpha",
     ],
+)
+
+environment_metadata(
+    name = "posix_metadata",
+    config = ":config_under_test",
+)
+
+environment_metadata(
+    name = "windows_metadata",
+    config = ":config_under_test",
+    windows = True,
 )
 
 env_defs_unit_tests(name = "env_defs_unit")

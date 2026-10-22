@@ -250,3 +250,22 @@ environment_tree = rule(
         ),
     },
 )
+
+def _environment_metadata_impl(ctx):
+    info = ctx.attr.config[EnvironmentInfo]
+    metadata = ctx.actions.declare_file(ctx.label.name + ".metadata.json")
+    ctx.actions.write(metadata, env_tree_metadata(info.tools.to_list(), ctx.attr.windows))
+    return [DefaultInfo(files = depset([metadata]))]
+
+environment_metadata = rule(
+    implementation = _environment_metadata_impl,
+    attrs = {
+        "config": attr.label(
+            mandatory = True,
+            providers = [DefaultInfo, EnvironmentInfo],
+        ),
+        "windows": attr.bool(
+            default = False,
+        ),
+    },
+)

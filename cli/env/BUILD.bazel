@@ -74,6 +74,14 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_env",
+    data = [
+        "//env:posix_metadata",
+        "//env:windows_metadata",
+    ],
+    env = {
+        "DX_POSIX_METADATA": "$(rootpath //env:posix_metadata)",
+        "DX_WINDOWS_METADATA": "$(rootpath //env:windows_metadata)",
+    },
     deps = crate_deps(
         [
             "clap",

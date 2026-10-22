@@ -36,8 +36,14 @@ fn write_staged(root: &Path, tools: &[(&str, &str, &[&str])]) -> (PathBuf, PathB
             .map(|host| format!("\"{host}\""))
             .collect::<Vec<_>>()
             .join(",");
+        let alias_list = hosts
+            .iter()
+            .skip(1)
+            .map(|host| format!("\"{host}\""))
+            .collect::<Vec<_>>()
+            .join(",");
         entries.push(format!(
-            "{{\"bin_name\":\"{bin_name}\",\"owner\":\"{owner}\",\"host_names\":[{host_list}]}}"
+            "{{\"bin_name\":\"{bin_name}\",\"owner\":\"{owner}\",\"aliases\":[{alias_list}],\"host_names\":[{host_list}]}}"
         ));
     }
     let text = format!(
@@ -148,7 +154,7 @@ fn parse_staged_ok() {
             ("beta", "//env:tool_beta", &["beta"]),
         ],
     );
-    let plans = parse_staged(&text).expect("parse");
+    let plans = parse_staged(&text, false).expect("parse");
     assert_eq!(plans.len(), 2);
     assert_eq!(
         plans[0].host_names,
@@ -160,9 +166,12 @@ fn parse_staged_ok() {
 
 #[test]
 fn parse_staged_rejects_syntax_and_shape() {
-    assert!(matches!(parse_staged("{oops"), Err(Error::Staged { .. })));
     assert!(matches!(
-        parse_staged(r#"{"schema_version":1}"#),
+        parse_staged("{oops", false),
+        Err(Error::Staged { .. })
+    ));
+    assert!(matches!(
+        parse_staged(r#"{"schema_version":1}"#, false),
         Err(Error::Staged { .. })
     ));
 }
@@ -170,7 +179,7 @@ fn parse_staged_rejects_syntax_and_shape() {
 #[test]
 fn parse_staged_rejects_schema() {
     assert_eq!(
-        parse_staged(r#"{"schema_version":2,"tools":[]}"#),
+        parse_staged(r#"{"schema_version":2,"tools":[]}"#, false),
         Err(Error::UnsupportedStagedSchema { found: 2 })
     );
 }
@@ -178,7 +187,7 @@ fn parse_staged_rejects_schema() {
 #[test]
 fn parse_staged_rejects_empty_set() {
     assert!(matches!(
-        parse_staged(r#"{"schema_version":1,"tools":[]}"#),
+        parse_staged(r#"{"schema_version":1,"tools":[]}"#, false),
         Err(Error::InvalidTool { .. })
     ));
 }
@@ -188,18 +197,18 @@ fn parse_staged_rejects_bad_records() {
     let empty_bin =
         r#"{"schema_version":1,"tools":[{"bin_name":"","owner":"o","host_names":["a"]}]}"#;
     assert!(matches!(
-        parse_staged(empty_bin),
+        parse_staged(empty_bin, false),
         Err(Error::InvalidTool { .. })
     ));
     let empty_owner =
         r#"{"schema_version":1,"tools":[{"bin_name":"a","owner":"","host_names":["a"]}]}"#;
     assert!(matches!(
-        parse_staged(empty_owner),
+        parse_staged(empty_owner, false),
         Err(Error::InvalidTool { .. })
     ));
     let no_hosts = r#"{"schema_version":1,"tools":[{"bin_name":"a","owner":"o","host_names":[]}]}"#;
     assert!(matches!(
-        parse_staged(no_hosts),
+        parse_staged(no_hosts, false),
         Err(Error::InvalidTool { .. })
     ));
 }
@@ -209,16 +218,15 @@ fn host_name_table() {
     for valid in ["a", "doctor-2", "x.y", "my_tool"] {
         let text = serde_json::json!({
             "schema_version": 1,
-            "tools": [{"bin_name": "t", "owner": "o", "host_names": [valid]}],
+            "tools": [{"bin_name": valid, "owner": "o", "host_names": [valid]}],
         })
         .to_string();
         assert!(
-            parse_staged(&text).is_ok(),
+            parse_staged(&text, false).is_ok(),
             "valid host name rejected: {valid}"
         );
     }
     for invalid in [
-        "",
         ".",
         "..",
         "a/b",
@@ -237,13 +245,81 @@ fn host_name_table() {
     ] {
         let text = serde_json::json!({
             "schema_version": 1,
-            "tools": [{"bin_name": "t", "owner": "o", "host_names": [invalid]}],
+            "tools": [{"bin_name": invalid, "owner": "o", "host_names": [invalid]}],
         })
         .to_string();
         assert!(
-            matches!(parse_staged(&text), Err(Error::InvalidTool { .. })),
+            matches!(parse_staged(&text, false), Err(Error::InvalidTool { .. })),
             "invalid host name accepted: {invalid:?}"
         );
+    }
+}
+
+fn tools_json(tools: serde_json::Value) -> String {
+    serde_json::json!({"schema_version": 1, "tools": tools}).to_string()
+}
+
+#[test]
+fn windows_host_names_carry_the_exe_suffix() {
+    let text = tools_json(serde_json::json!([
+        {"bin_name": "dx", "owner": "o", "aliases": ["d"], "host_names": ["dx.exe", "d.exe"]},
+    ]));
+    let plans = parse_staged(&text, true).expect("windows names accepted");
+    assert_eq!(plans[0].host_names, vec!["dx.exe", "d.exe"]);
+    assert!(matches!(
+        parse_staged(&text, false),
+        Err(Error::InvalidTool { .. })
+    ));
+}
+
+#[test]
+fn host_names_must_match_the_platform_mapping() {
+    let bare = tools_json(serde_json::json!([
+        {"bin_name": "dx", "owner": "o", "host_names": ["dx"]},
+    ]));
+    assert!(parse_staged(&bare, true).is_err());
+    for wrong in ["dx.bat", "other.exe", "dx.exe.exe", "DX.EXE"] {
+        let text = tools_json(serde_json::json!([
+            {"bin_name": "dx", "owner": "o", "host_names": [wrong]},
+        ]));
+        assert!(parse_staged(&text, true).is_err(), "accepted {wrong}");
+    }
+    let missing_alias = tools_json(serde_json::json!([
+        {"bin_name": "dx", "owner": "o", "aliases": ["d"], "host_names": ["dx.exe"]},
+    ]));
+    assert!(parse_staged(&missing_alias, true).is_err());
+}
+
+#[test]
+fn logical_names_with_suffixes_are_rejected_on_windows() {
+    let text = tools_json(serde_json::json!([
+        {"bin_name": "dx.exe", "owner": "o", "host_names": ["dx.exe.exe"]},
+    ]));
+    assert!(parse_staged(&text, true).is_err());
+}
+
+#[test]
+fn colliding_host_names_across_tools_are_rejected() {
+    let text = tools_json(serde_json::json!([
+        {"bin_name": "dx", "owner": "a", "host_names": ["dx.exe"]},
+        {"bin_name": "DX", "owner": "b", "host_names": ["DX.exe"]},
+    ]));
+    assert!(parse_staged(&text, true).is_err());
+}
+
+#[test]
+fn generated_metadata_parses_on_its_platform() {
+    for (var, windows) in [("DX_POSIX_METADATA", false), ("DX_WINDOWS_METADATA", true)] {
+        let rel = std::env::var(var).expect("generated metadata path");
+        let text = fs::read_to_string(&rel).expect("read generated metadata");
+        let plans = parse_staged(&text, windows).expect("generated metadata accepted");
+        assert!(!plans.is_empty());
+        let suffix_count = plans
+            .iter()
+            .flat_map(|plan| &plan.host_names)
+            .filter(|name| name.ends_with(".exe"))
+            .count();
+        assert_eq!(suffix_count > 0, windows);
     }
 }
 
@@ -371,7 +447,7 @@ fn staged_rejects_non_link_and_dangling() {
         refresh(&opts, &probe_symlink),
         Err(Error::Staged { .. })
     ));
-    assert!(parse_staged(&text).is_ok());
+    assert!(parse_staged(&text, false).is_ok());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -682,11 +758,14 @@ fn dx_creation_failure_aborts() {
 fn probe_failure_reports_before_mutation() {
     let scratch = dx_test_scratch::scratch("dx-env-test-probe-fail-");
     let root = scratch.path().to_path_buf();
+    let win_root = root.join("win");
+    fs::create_dir_all(&win_root).expect("win root");
+    let (win_bin, win_metadata, _) = write_staged(&win_root, &[("a", "//o:a", &["a.exe"])]);
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let failing = |_: &Path| -> io::Result<()> {
         Err(io::Error::new(io::ErrorKind::PermissionDenied, "denied"))
     };
-    let mut opts = options(&root, staged_bin.clone(), metadata.clone());
+    let mut opts = options(&root, win_bin, win_metadata);
     opts.os = "windows";
     let error = refresh(&opts, &failing).unwrap_err();
     assert!(matches!(error, Error::SymlinkUnsupported { .. }));
@@ -694,6 +773,7 @@ fn probe_failure_reports_before_mutation() {
         error,
         Error::SymlinkUnsupported { detail } if detail.contains("Developer Mode")
     ));
+    let mut opts = options(&root, staged_bin, metadata);
     opts.os = "other";
     let error = refresh(&opts, &failing).unwrap_err();
     assert!(matches!(

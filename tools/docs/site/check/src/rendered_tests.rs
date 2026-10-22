@@ -4,7 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::{
-    check_rendered, is_internal, pages, resolve, route_report, split_target, usage, Rendered,
+    check_rendered, decode_fragment, is_internal, pages, resolve, route_report, split_target,
+    usage, Rendered,
 };
 
 fn scratch(name: &str) -> PathBuf {
@@ -191,6 +192,73 @@ fn a_dangling_anchor_fails_with_its_target() {
         "{report}"
     );
     let _ = fs::remove_dir_all(&dir);
+}
+
+fn with_link(link: &str) -> String {
+    PAGE.replace("<p>", &format!("<p><a href=\"{link}\">x</a> "))
+}
+
+fn report_for(name: &str, page: &str) -> String {
+    let dir = site(name);
+    write(&dir, "page.html", page);
+    let report = check_rendered(&rendered(&dir), &[]);
+    let _ = fs::remove_dir_all(&dir);
+    report
+}
+
+#[test]
+fn a_dangling_same_page_anchor_fails_like_a_cross_page_one() {
+    let bare = report_for("rendered-same", &with_link("#missing-heading"));
+    assert!(
+        bare.contains("page.html links to missing anchor '#missing-heading'"),
+        "{bare}"
+    );
+    let full = report_for(
+        "rendered-same-full",
+        &with_link("page.html#missing-heading"),
+    );
+    assert!(full.contains("links to missing anchor"), "{full}");
+}
+
+#[test]
+fn present_empty_and_query_fragments_hold() {
+    for link in [
+        "#usage",
+        "#",
+        "#top",
+        "page.html#usage",
+        "page.html?x=1#usage",
+        "?x=1#usage",
+    ] {
+        assert_eq!(
+            report_for("rendered-frag-ok", &with_link(link)),
+            "",
+            "{link}"
+        );
+    }
+    let bad = report_for("rendered-query-bad", &with_link("page.html?x=1#nope"));
+    assert!(bad.contains("links to missing anchor"), "{bad}");
+}
+
+#[test]
+fn encoded_fragments_match_decoded_ids() {
+    let page = with_link("#caf%C3%A9")
+        .replace("id=\"usage\"", "id=\"café\"")
+        .replace("\"#usage\"", "\"#café\"");
+    assert_eq!(report_for("rendered-enc", &page), "");
+    let plus = with_link("#a+b")
+        .replace("id=\"usage\"", "id=\"a b\"")
+        .replace("\"#usage\"", "\"#a b\"");
+    assert!(report_for("rendered-plus", &plus).contains("missing anchor"));
+    let bad = report_for("rendered-malformed", &with_link("#bad%zz"));
+    assert!(bad.contains("malformed anchor encoding '#bad%zz'"), "{bad}");
+}
+
+#[test]
+fn fragments_percent_decode_without_plus_conversion() {
+    assert_eq!(decode_fragment("a%20b+c").as_deref(), Some("a b+c"));
+    assert_eq!(decode_fragment("%"), None);
+    assert_eq!(decode_fragment("%FF"), None);
 }
 
 #[test]

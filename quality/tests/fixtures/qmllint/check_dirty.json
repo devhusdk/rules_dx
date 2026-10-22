@@ -1,1 +1,1 @@
-{"diagnostics": [{"file": "quality/tests/fixtures/qmllint/Sample.qml", "line": 4, "column": 5, "rule": "unqualified", "message": "Unqualified access to `foo`.", "severity": "warning"}]}
+{"diagnostics": [{"file": "quality/tests/fixtures/qmllint/Sample.qml", "line": 4, "column": 28, "rule": "unqualified", "message": "Unqualified access", "severity": "warning"}]}

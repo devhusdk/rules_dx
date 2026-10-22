@@ -565,3 +565,7 @@ _hub_fixture_repo(
     platform = "windows_x86_64",
     tool = "taplo",
 )
+
+qt_sdk = use_extension("//qt/sdk:repos.bzl", "qt_sdk", dev_dependency = True)
+qt_sdk.configure(modules = ["qtdeclarative"])
+use_repo(qt_sdk, "dx_qt")

@@ -1,5 +1,3 @@
 import QtQuick
-
-Item {
-    property string greet: "hello"
+Item {   property string greet:"hello"
 }

@@ -1,7 +1,7 @@
 """Unit plus execution tests for docs site execution."""
 
-load("//tools/docs/site/mdbook:repos.bzl", "MDBOOK_VERSION")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//tools/docs/site/mdbook:repos.bzl", "MDBOOK_VERSION")
 load(":render.bzl", "mdbook_chapters_error", "mdbook_index", "mdbook_index_text", "mdbook_page", "mdbook_page_list", "mdbook_route_error", "mdbook_section", "mdbook_summary_text")
 load(":site.bzl", "DOC_IR_SCHEMA_MAJOR", "DOC_IR_SCHEMA_MINOR", "site_api_name", "site_api_path", "site_guide_step_error", "site_header_value_error", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_shard_name", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
 load(":user/book.bzl", "USER_BOOK")
@@ -32,7 +32,7 @@ def site_unit_tests(name):
                         ["README.md", "docs/README.md", "docs/cli/commands/README.md"],
                         [None, "//docs:README.md", "//docs:cli/commands/README.md"],
                     ],
-                    [39],
+                    [40],
                 ],
             ),
             expect_equal(

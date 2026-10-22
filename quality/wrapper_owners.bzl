@@ -30,7 +30,7 @@ WRAPPER_OWNERS = {
     "powershell": "//powershell/rules:defs.bzl",
     "protobuf": "other",
     "python": "//python/rules:defs.bzl",
-    "qml": "other",
+    "qml": "//qt/rules:defs.bzl",
     "ruby": "//ruby/rules:defs.bzl",
     "rust": "//rust/rules:defs.bzl",
     "scala": "//scala/rules:defs.bzl",

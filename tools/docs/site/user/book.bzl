@@ -136,4 +136,9 @@ USER_BOOK = [
         "examples/python-service/README.md",
         "//examples/python-service:README.md",
     ),
+    mdbook_page(
+        "Qt App",
+        "examples/qt-app/README.md",
+        "//examples/qt-app:README.md",
+    ),
 ]

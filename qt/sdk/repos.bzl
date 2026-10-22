@@ -20,7 +20,14 @@ HUB_NAME = "dx_qt"
 
 SHARED_TARGETS = ["licenses", "runtime", "sbom"]
 
-TOOLS = ["qmlformat", "qmllint"]
+TOOLS = {
+    "moc": struct(data = [], path = "libexec/moc"),
+    "qmlformat": struct(data = [":plugins", ":qml_imports"], path = "bin/qmlformat"),
+    "qmllint": struct(data = [":plugins", ":qml_imports"], path = "bin/qmllint"),
+    "qmltyperegistrar": struct(data = [], path = "libexec/qmltyperegistrar"),
+    "rcc": struct(data = [], path = "libexec/rcc"),
+    "uic": struct(data = [], path = "libexec/uic"),
+}
 
 _CELL_PREFIX = "dx_qt_"
 
@@ -32,12 +39,13 @@ _LIBRARIES = {
     "core": struct(deps = [":closure"], headers = ["QtCore"], library = "libQt6Core.so.6"),
     "network": struct(deps = [":core"], headers = ["QtNetwork"], library = "libQt6Network.so.6"),
     "qml": struct(deps = [":network", ":core"], headers = ["QtQml", "QtQmlIntegration"], library = "libQt6Qml.so.6"),
+    "test": struct(deps = [":core"], headers = ["QtTest"], library = "libQt6Test.so.6"),
 }
 
 _LAUNCH = """int dx_qt_launch(int argc, char **argv, const char *repository, const char *tool);
 
 int main(int argc, char **argv) {
-  return dx_qt_launch(argc, argv, "%s", "bin/%s");
+  return dx_qt_launch(argc, argv, "%s", "%s");
 }
 """
 
@@ -249,11 +257,14 @@ def _library(name, spec):
     ]
 
 def _tool(name):
+    tool = TOOLS[name]
+    data = ['"%s"' % tool.path] + ['"%s"' % label for label in tool.data] + ['":runtime"']
     return [
         "cc_binary(",
         '    name = "%s",' % name,
         '    srcs = ["launcher/launcher.c", "launcher/%s.c"],' % name,
-        '    data = ["bin/%s", ":plugins", ":qml_imports", ":runtime"],' % name,
+        "    data = [%s]," % ", ".join(data),
+        '    features = ["-static_link_cpp_runtimes"],',
         ")",
         "",
     ]
@@ -308,6 +319,14 @@ def cell_build(modules, rules_cc, unsupported):
     for name in sorted(_LIBRARIES.keys()):
         if name in enabled:
             lines.extend(_library(name, _LIBRARIES[name]))
+    if "metatypes" in enabled:
+        lines.extend([
+            "filegroup(",
+            '    name = "metatypes",',
+            '    srcs = glob(["metatypes/*.json"]),',
+            ")",
+            "",
+        ])
     if "qml_imports" in enabled:
         lines.extend([
             "filegroup(",
@@ -326,7 +345,7 @@ def cell_build(modules, rules_cc, unsupported):
             ")",
             "",
         ])
-    for name in TOOLS:
+    for name in sorted(TOOLS.keys()):
         if name in enabled:
             lines.extend(_tool(name))
     for name in sorted(UNSUPPORTED_TARGETS.keys()):
@@ -408,8 +427,8 @@ def _qt_cell_repo_impl(ctx):
         _check_module(ctx, "Qml")
     ctx.delete(_EXTRACT)
     ctx.symlink(ctx.attr._launcher, "launcher/launcher.c")
-    for name in TOOLS:
-        ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, name))
+    for name in sorted(TOOLS.keys()):
+        ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(
         ctx.attr.modules,
         str(Label("@rules_cc//cc:defs.bzl")),

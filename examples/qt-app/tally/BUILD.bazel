@@ -1,0 +1,28 @@
+load("//qt/rules:defs.bzl", "qt_qml_module")
+load("//quality:fixtures.bzl", "real_source_target")
+
+qt_qml_module(
+    name = "tally",
+    srcs = ["counter.cc"],
+    moc_hdrs = ["counter.h"],
+    qml_srcs = [
+        "Badge.qml",
+        "Main.qml",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    uri = "Tally",
+    visibility = [
+        "//examples/qt-app:__subpackages__",
+        "//qt/tests:__pkg__",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

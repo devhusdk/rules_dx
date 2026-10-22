@@ -29,11 +29,11 @@ ICU_LICENSE = "Unicode-DFS-2016"
 MODULES = {
     "qtbase": struct(
         requires = [],
-        targets = ["core", "network"],
+        targets = ["core", "metatypes", "moc", "network", "rcc", "test", "uic"],
     ),
     "qtdeclarative": struct(
         requires = ["qtbase"],
-        targets = ["qml", "qml_imports", "qmlformat", "qmllint", "qtqml_qmldir"],
+        targets = ["qml", "qml_imports", "qmlformat", "qmllint", "qmltyperegistrar", "qtqml_qmldir"],
     ),
 }
 

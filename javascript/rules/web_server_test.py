@@ -2,7 +2,12 @@
 
 import http.client
 import os
+import re
+import socket
+import subprocess
+import sys
 import threading
+import time
 
 import pytest
 import web_server
@@ -91,3 +96,109 @@ def test_http_refuses_outside_root(staged):
     finally:
         server.shutdown()
         server.server_close()
+
+
+def _ipv6_loopback():
+    if not socket.has_ipv6:
+        return False
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe:
+            probe.bind(("::1", 0))
+    except OSError:
+        return False
+    return True
+
+
+needs_ipv6 = pytest.mark.skipif(
+    not _ipv6_loopback(), reason="no IPv6 loopback on this host"
+)
+
+
+def _launch(root, host):
+    return subprocess.Popen(
+        [
+            sys.executable,
+            web_server.__file__,
+            "--root",
+            root,
+            "--host",
+            host,
+            "--port",
+            "0",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def _request(host, port, method):
+    conn = http.client.HTTPConnection(host, port, timeout=10)
+    conn.request(method, "/")
+    response = conn.getresponse()
+    body = response.read()
+    conn.close()
+    return response.status, body
+
+
+def _stop(process):
+    process.terminate()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+    process.stdout.close()
+    process.stderr.close()
+
+
+def _released(host, port):
+    for _ in range(50):
+        try:
+            socket.create_connection((host, port), timeout=1).close()
+        except OSError:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+@needs_ipv6
+def test_launch_serves_on_ipv6_loopback(staged):
+    _, root = staged
+    process = _launch(root, "::1")
+    try:
+        ready = process.stdout.readline()
+        match = re.match(r"dx-web-serve ready url=http://\[::1\]:(\d+)/ ", ready)
+        assert match, ready
+        port = int(match.group(1))
+        assert port != 0
+        assert _request("::1", port, "GET") == (200, b"home")
+        assert _request("::1", port, "HEAD") == (200, b"")
+    finally:
+        _stop(process)
+    assert process.returncode is not None
+    assert _released("::1", port)
+
+
+def test_launch_serves_on_ipv4_loopback(staged):
+    _, root = staged
+    process = _launch(root, "127.0.0.1")
+    try:
+        ready = process.stdout.readline()
+        match = re.match(r"dx-web-serve ready url=http://127\.0\.0\.1:(\d+)/ ", ready)
+        assert match, ready
+        assert _request("127.0.0.1", int(match.group(1)), "GET") == (200, b"home")
+    finally:
+        _stop(process)
+
+
+@pytest.mark.parametrize("host", ["::", "2001:db8::1", "0.0.0.0", "::ffff:10.0.0.1"])
+def test_launch_refuses_non_loopback(staged, host):
+    _, root = staged
+    process = _launch(root, host)
+    try:
+        _, error = process.communicate(timeout=20)
+    finally:
+        _stop(process)
+    assert process.returncode == 2
+    assert "refuses non-loopback host" in error

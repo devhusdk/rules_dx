@@ -357,6 +357,27 @@ pub fn pages_deploy_run(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
 ) -> i32 {
+    pages_deploy_with(
+        launch,
+        site,
+        wrangler,
+        env,
+        &super::tempfile_stage_dir,
+        out,
+        err,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pages_deploy_with(
+    launch: &PagesLaunch<'_>,
+    site: &Path,
+    wrangler: &Path,
+    env: &PagesEnv,
+    stage_dir: &dyn Fn(&str) -> std::io::Result<PathBuf>,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> i32 {
     let name = launch.deploy_name;
     if let Some(message) = pages_identity_error(
         launch.account_id,
@@ -383,7 +404,7 @@ pub fn pages_deploy_run(
         Err(message) => return pages_fail(err, name, &message),
     };
     let intent = pages_intent(launch.branch, launch.production_branch);
-    let work = match super::tempfile_stage_dir("cloudflare-pages-") {
+    let work = match stage_dir("cloudflare-pages-") {
         Ok(dir) => dir,
         Err(error) => {
             return pages_fail(
@@ -461,7 +482,7 @@ fn pages_deploy_staged(
             err,
             "cloudflare_pages_deploy: {name}: wrangler failed with exit {code}; nothing is confirmed published\n{tail}"
         );
-        return if code == 0 { 1 } else { code };
+        return code;
     }
     let text = std::fs::read_to_string(&result_file).unwrap_or_default();
     let deployment = match pages_parse_output(&text, launch.project, intent) {
@@ -486,55 +507,57 @@ fn pages_deploy_staged(
 
 /// Runs the Cloudflare Pages deploy launcher.
 pub fn cloudflare_pages_main(launch: &PagesLaunch<'_>, argv: &[String]) -> i32 {
-    let name = launch.deploy_name;
-    if argv.len() > 1 {
-        eprintln!(
-            "cloudflare_pages_deploy: {name}: this deploy target takes no arguments; the site, project and branch are pinned at analysis time"
-        );
-        return 1;
-    }
-    if std::env::var_os("CLOUDFLARE_PAGES_DRY_RUN").is_some() {
-        eprintln!(
-            "cloudflare_pages_deploy: {name}: CLOUDFLARE_PAGES_DRY_RUN is not supported; check with dx deploy and publish with dx deploy --apply"
-        );
-        return 1;
-    }
-    let site = match super::resolve_runfile(launch.site_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("cloudflare_pages_deploy: {name}: {error}");
-            return 1;
-        }
-    };
-    let wrangler = match super::resolve_runfile(launch.wrangler_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("cloudflare_pages_deploy: {name}: {error}");
-            return 1;
-        }
-    };
-    let passthrough = PASSTHROUGH_ENV
-        .iter()
-        .filter_map(|key| {
-            std::env::var(key)
-                .ok()
-                .map(|value| ((*key).to_owned(), value))
-        })
-        .collect();
-    let env = PagesEnv {
-        token: std::env::var("CLOUDFLARE_API_TOKEN").unwrap_or_default(),
-        account_id: std::env::var("CLOUDFLARE_ACCOUNT_ID").ok(),
-        passthrough,
-        profile: std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned()),
-    };
-    pages_deploy_run(
+    // LCOV_EXCL_START - reason: process wiring, issue: 1684
+    pages_main_with(
         launch,
-        &site,
-        &wrangler,
-        &env,
+        argv,
+        &|key| std::env::var_os(key),
+        &super::resolve_runfile,
         &mut std::io::stdout(),
         &mut std::io::stderr(),
     )
+    // LCOV_EXCL_STOP - reason: end process wiring, issue: 1684
+}
+
+fn pages_main_with(
+    launch: &PagesLaunch<'_>,
+    argv: &[String],
+    vars: &dyn Fn(&str) -> Option<OsString>,
+    resolve: &dyn Fn(&str) -> std::io::Result<PathBuf>,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> i32 {
+    let name = launch.deploy_name;
+    if argv.len() > 1 {
+        return pages_fail(
+            err,
+            name,
+            "this deploy target takes no arguments; the site, project and branch are pinned at analysis time",
+        );
+    }
+    if vars("CLOUDFLARE_PAGES_DRY_RUN").is_some() {
+        return pages_fail(
+            err,
+            name,
+            "CLOUDFLARE_PAGES_DRY_RUN is not supported; check with dx deploy and publish with dx deploy --apply",
+        );
+    }
+    let text = |key: &str| vars(key).and_then(|value| value.into_string().ok());
+    let (site, wrangler) = match (resolve(launch.site_rloc), resolve(launch.wrangler_rloc)) {
+        (Ok(site), Ok(wrangler)) => (site, wrangler),
+        (Err(error), _) | (_, Err(error)) => return pages_fail(err, name, &error.to_string()),
+    };
+    let passthrough = PASSTHROUGH_ENV
+        .iter()
+        .filter_map(|key| text(key).map(|value| ((*key).to_owned(), value)))
+        .collect();
+    let env = PagesEnv {
+        token: text("CLOUDFLARE_API_TOKEN").unwrap_or_default(),
+        account_id: text("CLOUDFLARE_ACCOUNT_ID"),
+        passthrough,
+        profile: text("DX_PROFILE").unwrap_or_else(|| "<unset>".to_owned()),
+    };
+    pages_deploy_run(launch, &site, &wrangler, &env, out, err)
 }
 
 /// Checks one Pages deployment locally and writes its manifest.
@@ -574,7 +597,7 @@ pub fn cloudflare_pages_verify_main(argv: &[String]) -> i32 {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
@@ -929,13 +952,285 @@ exit 7
         assert_eq!(pages_redact("plain", ""), "plain");
     }
 
+    fn run_main(
+        argv: &[&str],
+        vars: &[(&str, &str)],
+        site_dir: &Path,
+        wrangler: &Path,
+    ) -> (i32, String, String) {
+        let argv: Vec<String> = argv.iter().map(|arg| (*arg).to_owned()).collect();
+        let vars: Vec<(String, String)> = vars
+            .iter()
+            .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+            .collect();
+        let lookup = |key: &str| {
+            vars.iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| OsString::from(value))
+        };
+        let resolve = |rloc: &str| match rloc {
+            "site" => Ok(site_dir.to_path_buf()),
+            "wrangler" => Ok(wrangler.to_path_buf()),
+            other => Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("runfile not found for '{other}'"),
+            )),
+        };
+        let mut pinned = launch("feature/x");
+        pinned.site_rloc = "site";
+        pinned.wrangler_rloc = "wrangler";
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = pages_main_with(&pinned, &argv, &lookup, &resolve, &mut out, &mut err);
+        (
+            code,
+            String::from_utf8_lossy(&out).into_owned(),
+            String::from_utf8_lossy(&err).into_owned(),
+        )
+    }
+
     #[test]
-    fn main_refuses_arguments_and_dry_run() {
-        let launch = launch("main");
-        let argv = vec!["prog".to_owned(), "--dry-run".to_owned()];
-        assert_eq!(cloudflare_pages_main(&launch, &argv), 1);
-        let argv = vec!["prog".to_owned()];
-        assert_eq!(cloudflare_pages_main(&launch, &argv), 1);
+    fn main_refuses_arguments() {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let (code, _, err) = run_main(
+            &["prog", "--dry-run"],
+            &[("CLOUDFLARE_API_TOKEN", TOKEN)],
+            tools.path(),
+            tools.path(),
+        );
+        assert_eq!(code, 1);
+        assert!(err.contains("takes no arguments"), "{err}");
+    }
+
+    #[test]
+    fn main_refuses_the_dry_run_variable() {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let (code, _, err) = run_main(
+            &["prog"],
+            &[("CLOUDFLARE_PAGES_DRY_RUN", "1")],
+            tools.path(),
+            tools.path(),
+        );
+        assert_eq!(code, 1);
+        assert!(
+            err.contains("CLOUDFLARE_PAGES_DRY_RUN is not supported"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn main_reports_unresolved_runfiles() {
+        let mut bare = launch("main");
+        bare.site_rloc = "";
+        let resolve = |_: &str| -> std::io::Result<PathBuf> {
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "gone"))
+        };
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = pages_main_with(
+            &bare,
+            &["prog".to_owned()],
+            &|_| None,
+            &resolve,
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(code, 1);
+        assert!(String::from_utf8_lossy(&err).ends_with(": gone\n"));
+    }
+
+    #[test]
+    fn main_deploys_with_the_process_environment() {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let record = tools.path().join("record.txt");
+        let script = format!(
+            "RECORD={}\nENVIRONMENT=preview\n{RECORD_AND_SUCCEED}",
+            record.display()
+        );
+        let wrangler = fake_wrangler(tools.path(), &script);
+        let site = site(&SITE);
+        let (code, out, err) = run_main(
+            &["prog"],
+            &[
+                ("CLOUDFLARE_API_TOKEN", TOKEN),
+                ("CLOUDFLARE_ACCOUNT_ID", ACCOUNT),
+                ("PATH", "/usr/bin:/bin"),
+                ("DX_PROFILE", "debug"),
+                ("AMBIENT_SECRET", "ambient"),
+            ],
+            site.path(),
+            &wrangler,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("profile: debug)"), "{out}");
+        let record = std::fs::read_to_string(&record).expect("record");
+        assert!(record.contains("leak: unset"), "{record}");
+    }
+
+    #[test]
+    fn main_defaults_the_profile_label() {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let record = tools.path().join("record.txt");
+        let script = format!(
+            "RECORD={}\nENVIRONMENT=preview\n{RECORD_AND_SUCCEED}",
+            record.display()
+        );
+        let wrangler = fake_wrangler(tools.path(), &script);
+        let site = site(&SITE);
+        let (code, out, err) = run_main(
+            &["prog"],
+            &[("CLOUDFLARE_API_TOKEN", TOKEN), ("PATH", "/usr/bin:/bin")],
+            site.path(),
+            &wrangler,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("profile: <unset>)"), "{out}");
+    }
+
+    #[test]
+    fn scan_rejects_unsafe_names_and_special_files() {
+        use std::os::unix::ffi::OsStrExt as _;
+        let raw = site(&[("index.html", "x")]);
+        std::fs::write(
+            raw.path().join(std::ffi::OsStr::from_bytes(b"bad\xff")),
+            "x",
+        )
+        .expect("raw");
+        assert!(pages_scan_site(raw.path())
+            .expect_err("utf8")
+            .contains("not UTF-8"));
+        let control = site(&[("index.html", "x"), ("a\u{1}b", "x")]);
+        assert!(pages_scan_site(control.path())
+            .expect_err("control")
+            .contains("control characters"));
+        let slash = site(&[("index.html", "x"), ("a\\b", "x")]);
+        assert!(pages_scan_site(slash.path())
+            .expect_err("backslash")
+            .contains("unsafe path"));
+        let special = site(&[("index.html", "x")]);
+        let made = std::process::Command::new("mkfifo")
+            .arg(special.path().join("sock"))
+            .status()
+            .expect("mkfifo");
+        assert!(made.success());
+        assert!(pages_scan_site(special.path())
+            .expect_err("special")
+            .contains("special file 'sock'"));
+    }
+
+    #[test]
+    fn scan_rejects_too_many_files() {
+        let dir = site(&[("index.html", "x")]);
+        for index in 0..MAX_FILES {
+            std::fs::write(dir.path().join(format!("f{index}")), "").expect("file");
+        }
+        assert!(pages_scan_site(dir.path())
+            .expect_err("count")
+            .contains("more than"));
+    }
+
+    #[test]
+    fn oversize_token_runs_nothing() {
+        let (code, _, err, record) = run_capture(
+            "main",
+            &SITE,
+            RECORD_AND_SUCCEED,
+            "production",
+            &"a".repeat(513),
+        );
+        assert_eq!(code, 1);
+        assert!(err.contains("CLOUDFLARE_API_TOKEN is malformed"), "{err}");
+        assert!(record.is_empty());
+    }
+
+    #[test]
+    fn work_directory_failure_runs_nothing() {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let wrangler = fake_wrangler(tools.path(), "exit 0");
+        let site = site(&SITE);
+        let fail = |_: &str| -> std::io::Result<PathBuf> { Err(std::io::Error::other("no space")) };
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = pages_deploy_with(
+            &launch("main"),
+            site.path(),
+            &wrangler,
+            &env(TOKEN),
+            &fail,
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(code, 1);
+        assert!(String::from_utf8_lossy(&err).contains("cannot create a work directory"));
+    }
+
+    #[test]
+    fn staging_failures_run_nothing() {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let wrangler = fake_wrangler(tools.path(), "exit 0");
+        let run = |work: &Path, files: &[PagesFile]| {
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let code = pages_deploy_staged(
+                &launch("main"),
+                files,
+                &wrangler,
+                &env(TOKEN),
+                work,
+                "production",
+                &mut out,
+                &mut err,
+            );
+            (code, String::from_utf8_lossy(&err).into_owned())
+        };
+        let work_file = tools.path().join("work-file");
+        std::fs::write(&work_file, "x").expect("file");
+        let (code, err) = run(&work_file, &[]);
+        assert_eq!(code, 1);
+        assert!(err.contains("cannot create"), "{err}");
+
+        let missing = PagesFile {
+            path: "index.html".to_owned(),
+            source: tools.path().join("absent"),
+            size: 0,
+        };
+        let work = tempfile::TempDir::new().expect("work");
+        let (code, err) = run(work.path(), &[missing]);
+        assert_eq!(code, 1);
+        assert!(err.contains("cannot stage index.html"), "{err}");
+
+        let nested = PagesFile {
+            path: "a/b".to_owned(),
+            source: wrangler.clone(),
+            size: 0,
+        };
+        let work = tempfile::TempDir::new().expect("work");
+        std::fs::create_dir_all(work.path().join("site")).expect("site");
+        std::fs::write(work.path().join("site/a"), "x").expect("blocker");
+        let (code, err) = run(work.path(), &[nested]);
+        assert_eq!(code, 1);
+        assert!(err.contains("cannot stage a/b"), "{err}");
+    }
+
+    #[test]
+    fn missing_wrangler_is_reported() {
+        let tools = tempfile::TempDir::new().expect("tools");
+        let site = site(&SITE);
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = pages_deploy_run(
+            &launch("main"),
+            site.path(),
+            &tools.path().join("absent"),
+            &env(TOKEN),
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(code, 1);
+        assert!(String::from_utf8_lossy(&err).contains("cannot run wrangler"));
+    }
+
+    #[test]
+    fn signalled_wrangler_exits_nonzero() {
+        let (code, out, err, _) = run_capture("main", &SITE, "kill -9 $$", "production", TOKEN);
+        assert_eq!(code, 1);
+        assert!(out.is_empty());
+        assert!(err.contains("wrangler failed with exit 1"), "{err}");
     }
 
     #[test]

@@ -693,12 +693,12 @@ rust_test(
     name = "cloudflare_demo_verify",
     srcs = ["verify_test.rs"],
     data = [
-        ":cloudflare_demo_production_program",
-        ":cloudflare_demo_program",
+        ":cloudflare_demo",
+        ":cloudflare_demo_production",
     ],
     env = {
-        "DX_CLOUDFLARE_PRODUCTION_PROG": "$(rootpath :cloudflare_demo_production_program)",
-        "DX_CLOUDFLARE_PROG": "$(rootpath :cloudflare_demo_program)",
+        "DX_CLOUDFLARE_PRODUCTION_PROG": "$(rootpath :cloudflare_demo_production)",
+        "DX_CLOUDFLARE_PROG": "$(rootpath :cloudflare_demo)",
         "DX_VERIFY_MODE": "cloudflare",
     },
     tags = ["no-coverage"],

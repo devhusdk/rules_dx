@@ -140,7 +140,7 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
     rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
-        data = [":" + check_target, site, wrangler],
+        data = [":" + check_target, wrangler],
         tags = tags,
         deps = ["//deploy/rules:dx_deploy_tools"],
     )

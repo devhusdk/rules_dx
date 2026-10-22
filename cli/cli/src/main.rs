@@ -21,7 +21,8 @@ use dx_cli::plan::create_run_temp_dir;
 use dx_cli::{execute, Env, ProcessQueryRunner};
 use dx_output::OutputMode;
 use dx_process::lifecycle::{
-    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamSpec, StreamStdout,
+    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamSpec, StreamStdin,
+    StreamStdout,
 };
 use dx_process::{
     discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
@@ -72,18 +73,18 @@ struct BinaryRunner {
     inherit_stdout: bool,
 }
 
-fn spawn_streamed(
+fn stream_spec(
     argv: &[String],
     cwd: &Path,
     env: &[(&str, &str)],
     clear_env: bool,
     inherit_stdout: bool,
-) -> io::Result<ChildStatus> {
+) -> StreamSpec {
     let vars = env
         .iter()
         .map(|(key, value)| ((*key).into(), (*value).into()))
         .collect();
-    let spec = StreamSpec {
+    StreamSpec {
         argv: argv.iter().map(Into::into).collect(),
         cwd: cwd.to_path_buf(),
         env: if clear_env {
@@ -91,6 +92,7 @@ fn spawn_streamed(
         } else {
             EnvPolicy::Inherited { extra: vars }
         },
+        stdin: StreamStdin::Inherit,
         stdout: if inherit_stdout {
             StreamStdout::Inherit
         } else {
@@ -101,14 +103,30 @@ fn spawn_streamed(
         } else {
             StreamGroup::Owned
         },
-    };
-    match lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)? {
-        StreamOutcome::Exited(Exit::Code(code)) => Ok(ChildStatus { code: Some(code) }),
+    }
+}
+
+fn child_status(outcome: StreamOutcome) -> Option<ChildStatus> {
+    match outcome {
+        StreamOutcome::Exited(Exit::Code(code)) => Some(ChildStatus { code: Some(code) }),
         StreamOutcome::Exited(Exit::Signal(signal)) | StreamOutcome::Cancelled { signal } => {
             die_by_signal(signal);
-            Ok(ChildStatus { code: None })
+            Some(ChildStatus { code: None })
         }
+        StreamOutcome::Withdrawn => None,
     }
+}
+
+fn spawn_streamed(
+    argv: &[String],
+    cwd: &Path,
+    env: &[(&str, &str)],
+    clear_env: bool,
+    inherit_stdout: bool,
+) -> io::Result<ChildStatus> {
+    let spec = stream_spec(argv, cwd, env, clear_env, inherit_stdout);
+    let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)?;
+    Ok(child_status(outcome).unwrap_or(ChildStatus { code: None }))
 }
 
 impl Runner for BinaryRunner {
@@ -129,6 +147,25 @@ impl Runner for BinaryRunner {
 
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         spawn_streamed(argv, cwd, env, false, self.inherit_stdout)
+    }
+
+    fn run_withdrawable(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: &dyn Fn() -> bool,
+    ) -> io::Result<Option<ChildStatus>> {
+        let mut spec = stream_spec(argv, cwd, env, false, self.inherit_stdout);
+        spec.stdin = StreamStdin::Null;
+        spec.group = StreamGroup::Owned;
+        let outcome = lifecycle::run_streamed_until(
+            spec,
+            STREAM_CLEANUP,
+            &dx_process::interrupted,
+            withdraw,
+        )?;
+        Ok(child_status(outcome))
     }
 }
 

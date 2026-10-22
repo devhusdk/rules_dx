@@ -20,8 +20,14 @@ the wrapped command unchanged.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
 - Ignores changes under `.dx/` and `bazel-*`. Edits to `dx.toml`, `dx.local.toml`, `BUILD` and `MODULE.bazel` files rerun the command.
 
-Changes made while the command runs queue one more iteration. Iterations
-never overlap. A failing command does not stop the watch.
+Except under `run`, changes made while the command runs queue one more
+iteration. Iterations never overlap. A failing command does not stop the watch.
+
+`watch run` restarts the app on each change. The running app and every
+process it started get `SIGTERM`. Any still running after 10 seconds is
+killed. The replacement builds and launches only after the old app is gone.
+An app that exits on its own is relaunched on the next change. The app gets
+no stdin.
 
 Output: `--output text|diff|json`, when the wrapped command takes that mode.
 Each iteration writes the wrapped command's own output. Watch adds one line
@@ -29,7 +35,7 @@ per iteration and one line per trigger, naming the first changed absolute path.
 `--quiet` drops these lines. With `--output json`, `--output diff`, or
 `--report <format>=-`, they go to stderr so stdout holds only the wrapped
 command's output: under JSON, one event stream per iteration, each ending in
-`command_finished`.
+`command_finished`. For a restarted app, `command_finished` reports `143`.
 
 ```text
 watch:test:debounce=200ms scope=//... iteration=1

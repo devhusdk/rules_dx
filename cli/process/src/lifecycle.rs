@@ -282,6 +282,15 @@ pub enum StreamStdout {
     Forward(Box<dyn io::Write + Send>),
 }
 
+/// What a streamed child reads on stdin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StreamStdin {
+    /// The child reads the parent's stdin.
+    Inherit,
+    /// The child reads nothing.
+    Null,
+}
+
 /// Who owns a streamed child's process tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StreamGroup {
@@ -291,7 +300,7 @@ pub enum StreamGroup {
     Owned,
 }
 
-/// One streamed child: inherited stdin and stderr, no deadline.
+/// One streamed child: inherited stderr, no deadline.
 pub struct StreamSpec {
     /// The binary followed by its arguments. Empty is rejected before spawning.
     pub argv: Vec<OsString>,
@@ -299,6 +308,8 @@ pub struct StreamSpec {
     pub cwd: PathBuf,
     /// Inherited or controlled environment.
     pub env: EnvPolicy,
+    /// What stdin the child reads.
+    pub stdin: StreamStdin,
     /// Where stdout goes.
     pub stdout: StreamStdout,
     /// Who owns the process tree.
@@ -312,7 +323,11 @@ pub enum StreamOutcome {
     Exited(Exit),
     /// A stop signal arrived before the run completed.
     Cancelled { signal: i32 },
+    /// The caller withdrew the run; its tree got SIGTERM and is gone.
+    Withdrawn,
 }
+
+const WITHDRAW_SIGNAL: i32 = 15;
 
 static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
 
@@ -360,8 +375,21 @@ pub fn run_streamed(
     cleanup: CleanupBudget,
     stop: &dyn Fn() -> Option<i32>,
 ) -> io::Result<StreamOutcome> {
+    run_streamed_until(spec, cleanup, stop, &|| false)
+}
+
+/// Like `run_streamed`, and also stops the tree with SIGTERM once `withdraw` returns true.
+pub fn run_streamed_until(
+    spec: StreamSpec,
+    cleanup: CleanupBudget,
+    stop: &dyn Fn() -> Option<i32>,
+    withdraw: &dyn Fn() -> bool,
+) -> io::Result<StreamOutcome> {
     if let Some(signal) = stop() {
         return Ok(StreamOutcome::Cancelled { signal });
+    }
+    if withdraw() {
+        return Ok(StreamOutcome::Withdrawn);
     }
     let (program, args) = spec
         .argv
@@ -371,7 +399,10 @@ pub fn run_streamed(
     command
         .args(args)
         .current_dir(&spec.cwd)
-        .stdin(Stdio::inherit())
+        .stdin(match spec.stdin {
+            StreamStdin::Inherit => Stdio::inherit(),
+            StreamStdin::Null => Stdio::null(),
+        })
         .stderr(Stdio::inherit());
     apply_env(&mut command, &spec.env);
     let sink = match spec.stdout {
@@ -392,6 +423,7 @@ pub fn run_streamed(
     if let Some(signal) = stopped {
         backend::send(target, signal);
     }
+    let mut withdrawn = false;
     let drained = match (sink, child.stdout.take()) {
         (Some(sink), Some(stdout)) => Some(copy_out(stdout, sink)),
         _ => None,
@@ -402,7 +434,7 @@ pub fn run_streamed(
     let mut abandon_at = None;
     let waited = loop {
         match child.try_wait() {
-            Ok(Some(status)) => break Ok(status),
+            Ok(Some(status)) => break Some(status),
             Ok(None) => {}
             Err(err) => {
                 backend::force_stream(&mut child, target);
@@ -411,9 +443,14 @@ pub fn run_streamed(
         }
         if stopped.is_none() {
             stopped = stop();
-            if stopped.is_some() && owned {
+            if stopped.is_some() && owned && escalate_at.is_none() && abandon_at.is_none() {
                 escalate_at = Some(Instant::now() + cleanup.graceful);
             }
+        }
+        if stopped.is_none() && !withdrawn && withdraw() {
+            withdrawn = true;
+            backend::send(target, WITHDRAW_SIGNAL);
+            escalate_at = Some(Instant::now() + cleanup.graceful);
         }
         let now = Instant::now();
         if escalate_at.is_some_and(|at| now >= at) {
@@ -421,10 +458,8 @@ pub fn run_streamed(
             escalate_at = None;
             abandon_at = Some(now + cleanup.forced);
         }
-        if let (Some(at), Some(signal)) = (abandon_at, stopped) {
-            if now >= at {
-                break Err(signal);
-            }
+        if abandon_at.is_some_and(|at| now >= at) {
+            break None;
         }
         std::thread::sleep(POLL_INTERVAL);
     };
@@ -438,7 +473,7 @@ pub fn run_streamed(
             if stopped.is_none() {
                 stopped = stop();
             }
-            if stopped.is_some() || Instant::now() >= deadline {
+            if stopped.is_some() || withdrawn || Instant::now() >= deadline {
                 break false;
             }
             match rx.recv_timeout(POLL_INTERVAL) {
@@ -450,7 +485,7 @@ pub fn run_streamed(
     if stopped.is_none() {
         stopped = stop();
     }
-    if stopped.is_some() {
+    if stopped.is_some() || withdrawn {
         if owned {
             settle_owned_tree(target, cleanup);
         }
@@ -459,10 +494,11 @@ pub fn run_streamed(
         }
     }
     drop(forwarding);
-    match (waited, stopped) {
-        (Ok(status), None) => Ok(StreamOutcome::Exited(exit_of(&status))),
-        (Err(signal), _) | (Ok(_), Some(signal)) => Ok(StreamOutcome::Cancelled { signal }),
-    }
+    Ok(match (stopped, waited) {
+        (Some(signal), _) => StreamOutcome::Cancelled { signal },
+        (None, Some(status)) if !withdrawn => StreamOutcome::Exited(exit_of(&status)),
+        (None, _) => StreamOutcome::Withdrawn,
+    })
 }
 
 fn settle_owned_tree(target: i32, cleanup: CleanupBudget) {

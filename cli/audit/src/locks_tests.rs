@@ -409,6 +409,7 @@ fn npm_private_packages_are_incomplete_never_clean() {
             is_git: false,
             is_private: true,
             location: None,
+            platform: None,
         },
         LockedPackage {
             name: "react".to_owned(),
@@ -417,6 +418,7 @@ fn npm_private_packages_are_incomplete_never_clean() {
             is_git: false,
             is_private: false,
             location: None,
+            platform: None,
         },
     ];
     let (findings, unassessed) = crate::vuln::match_packages(&pkgs, &[]);
@@ -501,7 +503,8 @@ fn gemfile_lock_keeps_platform_and_prerelease_versions_intact() {
         .iter()
         .find(|package| package.name == "nokogiri")
         .expect("nokogiri");
-    assert_eq!(nokogiri.version, "1.16.0-x86_64-linux");
+    assert_eq!(nokogiri.version, "1.16.0");
+    assert_eq!(nokogiri.platform.as_deref(), Some("x86_64-linux"));
     let support = packages
         .iter()
         .find(|package| package.name == "rspec-support")
@@ -688,6 +691,7 @@ fn unknown_licenses_mark_all_unknown() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let licensed = unknown_licenses(&packages, "npm");
     assert_eq!(licensed[0].license, "UNKNOWN");
@@ -793,6 +797,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let licensed = inventory_licenses(&npm_pkgs, &inventory, "npm");
     assert_eq!(licensed[0].license, "MIT");
@@ -811,6 +816,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     };
     assert_eq!(
         inventory_licenses(std::slice::from_ref(&maven), &inventory, "maven")[0].license,
@@ -831,6 +837,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     };
     assert_eq!(
         inventory_licenses(std::slice::from_ref(&unknown), &inventory, "go")[0].license,

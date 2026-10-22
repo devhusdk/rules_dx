@@ -45,6 +45,7 @@ dx_rust_crate(
         "src/vuln_match.rs",
         "src/vuln_maven.rs",
         "src/vuln_nuget.rs",
+        "src/vuln_ruby.rs",
         "src/vuln_snapshot.rs",
         "src/vuln_tests.rs",
         "src/vuln_types.rs",

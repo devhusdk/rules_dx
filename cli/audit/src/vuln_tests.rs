@@ -177,6 +177,7 @@ fn packages() -> Vec<LockedPackage> {
             is_git: false,
             is_private: false,
             location: None,
+            platform: None,
         },
         LockedPackage {
             name: "react".to_owned(),
@@ -185,6 +186,7 @@ fn packages() -> Vec<LockedPackage> {
             is_git: false,
             is_private: false,
             location: None,
+            platform: None,
         },
     ]
 }
@@ -377,6 +379,7 @@ fn npm_range_advisories_report_findings() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![
         Advisory {
@@ -412,6 +415,7 @@ fn npm_exceptions_narrow_with_npm_semantics() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-npm-exception".to_owned(),
@@ -456,6 +460,7 @@ fn scoped_set_exceptions_exempt_a_base_ecosystem_finding() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-npm-scoped".to_owned(),
@@ -489,6 +494,7 @@ fn go_exceptions_narrow_with_go_semantics() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-go-exception".to_owned(),
@@ -635,6 +641,7 @@ fn maven_range_advisories_report_findings() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![
         Advisory {
@@ -670,6 +677,7 @@ fn maven_exceptions_narrow_with_maven_semantics() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-maven-exception".to_owned(),
@@ -828,6 +836,7 @@ fn nuget_range_advisories_report_findings() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![
         Advisory {
@@ -863,6 +872,7 @@ fn nuget_exceptions_narrow_with_nuget_semantics() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let advisories = vec![Advisory {
         id: "GHSA-nuget-exception".to_owned(),
@@ -914,6 +924,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             is_git: true,
             is_private: false,
             location: None,
+            platform: None,
         },
         LockedPackage {
             name: "internal".to_owned(),
@@ -922,6 +933,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             is_git: false,
             is_private: true,
             location: None,
+            platform: None,
         },
         LockedPackage {
             name: "git-nuget-dep".to_owned(),
@@ -930,6 +942,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             is_git: true,
             is_private: false,
             location: None,
+            platform: None,
         },
         LockedPackage {
             name: "private-maven".to_owned(),
@@ -938,6 +951,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
             is_git: false,
             is_private: true,
             location: None,
+            platform: None,
         },
     ];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
@@ -957,6 +971,7 @@ fn clean_package_with_no_matching_advisory_is_clean() {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
     assert!(findings.is_empty());
@@ -1274,6 +1289,7 @@ fn nuget_package(name: &str) -> LockedPackage {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }
 }
 
@@ -1347,5 +1363,134 @@ fn nuget_exceptions_match_case_insensitively_without_widening() {
         &[exception("NEWTONSOFT.JSON", "[13.0.0,)")],
         "2026-09-18",
     );
+    assert_eq!(left.len(), 1);
+}
+
+fn ruby_osv(events: &str) -> Vec<Advisory> {
+    let text = format!(
+        r#"[{{
+        "id": "GHSA-ruby-range-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{{
+            "package": {{"name": "nokogiri", "ecosystem": "RubyGems"}},
+            "ranges": [{{"type": "ECOSYSTEM", "events": {events}}}]
+        }}]
+    }}]"#
+    );
+    parse_snapshot(&text).expect("osv parses")
+}
+
+fn ruby_lock(spec: &str) -> Vec<LockedPackage> {
+    let text = format!("GEM\n  remote: https://rubygems.org/\n  specs:\n    {spec}\n");
+    crate::locks::parse_gemfile_lock(&text).expect("lock parses")
+}
+
+fn ruby_hits(events: &str, spec: &str) -> (usize, usize) {
+    let (findings, unassessed) = match_packages(&ruby_lock(spec), &ruby_osv(events));
+    (findings.len(), unassessed.len())
+}
+
+#[test]
+fn ruby_four_component_version_matches_range_end_to_end() {
+    let events = r#"[{"introduced": "2.0.0"}, {"fixed": "2.2.8.2"}]"#;
+    assert_eq!(ruby_hits(events, "nokogiri (2.2.8.1)"), (1, 0));
+    assert_eq!(ruby_hits(events, "nokogiri (2.2.8.2)"), (0, 0));
+    assert_eq!(ruby_hits(events, "nokogiri (1.9.9.9)"), (0, 0));
+    assert_eq!(ruby_hits(events, "nokogiri (2.0.0)"), (1, 0));
+}
+
+#[test]
+fn ruby_platform_gem_matches_upstream_range_and_keeps_platform() {
+    let events = r#"[{"introduced": "1.16.0"}, {"fixed": "1.16.9"}]"#;
+    let (findings, unassessed) = match_packages(
+        &ruby_lock("nokogiri (1.16.8-x86_64-linux)"),
+        &ruby_osv(events),
+    );
+    assert!(unassessed.is_empty());
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].version, "1.16.8-x86_64-linux");
+    let fixed = ruby_lock("nokogiri (1.16.9-x86_64-linux)");
+    assert!(match_packages(&fixed, &ruby_osv(events)).0.is_empty());
+    let java = ruby_lock("nokogiri (1.16.8-java)");
+    assert_eq!(match_packages(&java, &ruby_osv(events)).0.len(), 1);
+}
+
+#[test]
+fn ruby_prerelease_and_bounds() {
+    let fixed = r#"[{"introduced": "0"}, {"fixed": "3.0.0"}]"#;
+    assert_eq!(ruby_hits(fixed, "nokogiri (3.0.0.pre.1)"), (1, 0));
+    assert_eq!(ruby_hits(fixed, "nokogiri (3.0.0)"), (0, 0));
+    assert_eq!(ruby_hits(fixed, "nokogiri (3.0.0.0)"), (0, 0));
+    let last = r#"[{"introduced": "1.0.0"}, {"last_affected": "1.5.0"}]"#;
+    assert_eq!(ruby_hits(last, "nokogiri (1.5.0)"), (1, 0));
+    assert_eq!(ruby_hits(last, "nokogiri (1.5.0.1)"), (0, 0));
+    assert_eq!(ruby_hits(last, "nokogiri (1.0.0.rc1)"), (0, 0));
+    let disjoint = r#"[{"introduced": "1.0.0"}, {"fixed": "1.2.0"}, {"introduced": "2.0.0"}, {"fixed": "2.1.0"}]"#;
+    assert_eq!(ruby_hits(disjoint, "nokogiri (1.1.0)"), (1, 0));
+    assert_eq!(ruby_hits(disjoint, "nokogiri (1.5.0)"), (0, 0));
+    assert_eq!(ruby_hits(disjoint, "nokogiri (2.0.5)"), (1, 0));
+}
+
+#[test]
+fn ruby_unsupported_syntax_is_incomplete_not_clean() {
+    let bad_scope = vec![Advisory {
+        id: "GHSA-ruby-bad".to_owned(),
+        package: "nokogiri".to_owned(),
+        versions: ">=1.0, <banana".to_owned(),
+        severity: "high".to_owned(),
+        fixed: Vec::new(),
+        set: "ruby".to_owned(),
+    }];
+    let (findings, unassessed) = match_packages(&ruby_lock("nokogiri (1.5.0)"), &bad_scope);
+    assert!(findings.is_empty());
+    assert_eq!(unassessed.len(), 1);
+    assert_eq!(unassessed[0].reason, REASON_VERSION_SYNTAX);
+    let events = r#"[{"introduced": "1.0.0"}, {"fixed": "2.0.0"}]"#;
+    assert_eq!(ruby_hits(events, "nokogiri (1.x.@)"), (0, 1));
+    let mut odd = ruby_lock("nokogiri (1.5.0)");
+    odd[0].version = "not a version".to_owned();
+    let (findings, unassessed) = match_packages(&odd, &ruby_osv(events));
+    assert!(findings.is_empty());
+    assert_eq!(unassessed.len(), 1);
+}
+
+#[test]
+fn ruby_requirement_operators() {
+    assert!(ruby_in_scope("~> 2.2.8", "2.2.9"));
+    assert!(!ruby_in_scope("~> 2.2.8", "2.3.0"));
+    assert!(ruby_in_scope("~> 2.2", "2.9.1"));
+    assert!(ruby_in_scope("!= 1.0, >= 0.5", "1.1"));
+    assert!(!ruby_in_scope("!= 1.0", "1.0.0"));
+    assert!(ruby_in_scope("> 1.0", "1.0.0.1"));
+    assert!(!ruby_in_scope("> 1.0", "1.0"));
+    assert!(ruby_in_scope("= 2.2.8.1", "2.2.8.1-x86_64-linux"));
+    assert!(ruby_in_scope("2.2.8.1", "2.2.8.1"));
+    assert!(!ruby_in_scope("2.2.8.1", "2.2.8.2"));
+    assert!(ruby_in_scope("1.2.3-beta", "1.2.3.pre.beta"));
+}
+
+#[test]
+fn ruby_scoped_exceptions_cover_platform_findings() {
+    let events = r#"[{"introduced": "1.16.0"}, {"fixed": "1.16.9"}]"#;
+    let (findings, _) = match_packages(
+        &ruby_lock("nokogiri (1.16.8-x86_64-linux)"),
+        &ruby_osv(events),
+    );
+    let exception = |versions: &str| RiskException {
+        advisory: "GHSA-ruby-range-0001".to_owned(),
+        package: "nokogiri".to_owned(),
+        set: "ruby".to_owned(),
+        versions: versions.to_owned(),
+        reason: "accepted".to_owned(),
+        expires: "2099-01-01".to_owned(),
+    };
+    for covering in [">= 1.16.0, < 1.16.9", "1.16.8", "1.16.8-x86_64-linux"] {
+        let (left, problems) = apply_exceptions(&findings, &[exception(covering)], "2026-10-22");
+        assert!(left.is_empty(), "{covering}");
+        assert!(problems.is_empty(), "{covering}");
+    }
+    let (left, _) = apply_exceptions(&findings, &[exception("< 1.16.0")], "2026-10-22");
+    assert_eq!(left.len(), 1);
+    let (left, _) = apply_exceptions(&findings, &[exception("<banana")], "2026-10-22");
     assert_eq!(left.len(), 1);
 }

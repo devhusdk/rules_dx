@@ -36,5 +36,6 @@ fn locked(name: &str, version: &str) -> LockedPackage {
         is_git: false,
         is_private: false,
         location: None,
+        platform: None,
     }
 }

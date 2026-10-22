@@ -1,6 +1,7 @@
 use super::{
-    canonical_severity, go_in_scope, maven_in_scope, normalize_level, nuget_in_scope, Advisory,
-    LockedPackage, Unassessed, VulnFinding, REASON_GIT, REASON_PRIVATE,
+    canonical_severity, go_in_scope, maven_in_scope, normalize_level, nuget_in_scope, ruby_assess,
+    ruby_in_scope, Advisory, LockedPackage, RubyScope, Unassessed, VulnFinding, REASON_GIT,
+    REASON_PRIVATE, REASON_VERSION_SYNTAX,
 };
 use crate::exception::{
     check_expiry, npm_in_scope, validate_exception, version_in_scope, ExceptionProblem, FindingRef,
@@ -38,18 +39,6 @@ pub fn same_package(set: &str, left: &str, right: &str) -> bool {
     package_identity(set, left) == package_identity(set, right)
 }
 
-pub fn ruby_in_scope(scope: &str, version: &str) -> bool {
-    let scope = scope.trim();
-    let version = version.trim();
-    if scope == version {
-        return true;
-    }
-    if scope.contains(',') || scope.contains(['<', '>', '=', '~', '^', '*']) {
-        return version_in_scope(scope, version);
-    }
-    false
-}
-
 pub fn match_packages(
     packages: &[LockedPackage],
     advisories: &[Advisory],
@@ -82,14 +71,34 @@ pub fn match_packages(
             if advisory.id.trim().is_empty() {
                 continue;
             }
-            if !version_affected(&package.set, &advisory.versions, &package.version) {
+            if package.set == "ruby" {
+                match ruby_assess(
+                    &advisory.versions,
+                    &package.version,
+                    package.platform.as_deref(),
+                ) {
+                    RubyScope::Unaffected => continue,
+                    RubyScope::Incomplete => {
+                        unassessed.push(Unassessed {
+                            package: package.name.clone(),
+                            set: package.set.clone(),
+                            reason: REASON_VERSION_SYNTAX,
+                        });
+                        continue;
+                    }
+                    RubyScope::Affected => {}
+                }
+            } else if !version_affected(&package.set, &advisory.versions, &package.version) {
                 continue;
             }
             let severity = canonical_severity(&advisory.severity);
             findings.push(VulnFinding {
                 advisory: advisory.id.clone(),
                 package: package.name.clone(),
-                version: package.version.clone(),
+                version: match &package.platform {
+                    Some(platform) => format!("{}-{platform}", package.version),
+                    None => package.version.clone(),
+                },
                 set: package.set.clone(),
                 level: normalize_level(&severity),
                 severity,
@@ -100,6 +109,7 @@ pub fn match_packages(
     findings
         .sort_by(|a, b| (&a.set, &a.package, &a.advisory).cmp(&(&b.set, &b.package, &b.advisory)));
     unassessed.sort_by(|a, b| (&a.set, &a.package).cmp(&(&b.set, &b.package)));
+    unassessed.dedup();
     (findings, unassessed)
 }
 

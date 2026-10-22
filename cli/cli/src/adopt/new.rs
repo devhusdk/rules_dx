@@ -291,6 +291,26 @@ mod tests {
             "demo-app",
             &["Hello.psm1", "Main.ps1", "Hello.Tests.ps1"],
         ),
+        (
+            "astro",
+            "demo-app",
+            &[
+                "Hello.astro",
+                "helper.js",
+                "hello.test.js",
+                "pnpm-lock.yaml",
+            ],
+        ),
+        (
+            "svelte",
+            "demo-app",
+            &[
+                "Hello.svelte",
+                "helper.js",
+                "hello.test.js",
+                "pnpm-lock.yaml",
+            ],
+        ),
     ];
 
     #[test]
@@ -320,13 +340,23 @@ mod tests {
             }
             let build =
                 std::fs::read_to_string(root.join(name).join("BUILD.bazel")).expect("build");
-            for target in ["\"demo-app\"", "\"demo-app_bin\"", "\"demo-app_test\""] {
+            for target in ["\"demo-app\"", "\"demo-app_test\""] {
                 assert!(build.contains(target), "{language}: {build}");
             }
+            assert_eq!(
+                build.contains("\"demo-app_bin\""),
+                matches!(*language, "ruby" | "powershell"),
+                "{language}: {build}"
+            );
             let module =
                 std::fs::read_to_string(root.join(name).join("MODULE.bazel")).expect("module");
             assert!(module.contains("module(name = \"demo-app\")"), "{module}");
             assert_eq!(module.contains("platforms"), *language == "powershell");
+            assert_eq!(
+                module.contains("aspect_rules_js"),
+                matches!(*language, "astro" | "svelte"),
+                "{module}"
+            );
             let (code, out, _err) = run(&invocation(&["new", language, name]), &root);
             assert_eq!(code, 0, "{language}: {out}");
         }
@@ -391,6 +421,8 @@ mod tests {
         for words in [
             vec!["new", "--apply", "ruby", "demo", "--force"],
             vec!["new", "--apply", "powershell", "demo", "--dry-run"],
+            vec!["new", "--apply", "astro", "demo", "--force"],
+            vec!["new", "--apply", "svelte", "demo", "--dry-run"],
         ] {
             let parsed = crate::args::parse(&crate::test_support::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

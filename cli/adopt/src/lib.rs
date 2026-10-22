@@ -14,6 +14,7 @@ pub mod error;
 pub mod git_changes;
 pub mod migrate;
 pub mod new;
+mod new_locks;
 pub mod policy;
 pub mod preset_fragment;
 pub mod scaffold;

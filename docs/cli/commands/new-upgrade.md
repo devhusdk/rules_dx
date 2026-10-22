@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, or `powershell`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, or `svelte`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds C sources and `cpp` scaffolds C++ sources.
@@ -48,7 +48,7 @@ and `README.md`. `python` takes dotted names.
 `javascript` takes npm names. `typescript` takes npm names. `go` takes
 module paths. `java` takes Maven artifact ids. `kotlin` takes Maven artifact
 ids. `scala` takes Maven artifact ids. `csharp` takes NuGet ids. `fsharp`
-takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
+takes NuGet ids. `ruby` takes Bazel module names. `powershell` takes Bazel module names. `astro` takes Bazel module names. `svelte` takes Bazel module names. A module name uses lowercase letters, digits, dots, hyphens and underscores, starts with a letter, and ends with a letter or digit. `c` carries no package identity. `cpp` carries no package identity. Rejected names fail before any
 file is written.
 
 ## `dx new ruby` And `dx new powershell`
@@ -72,6 +72,39 @@ Build, run and test inside the new project:
 ```text
 bazel build //...
 bazel run :demo_bin
+bazel test //...
+```
+
+Output: text only.
+
+Exit codes: `0` success, `2` usage errors including an invalid
+destination or package identity, `1` scaffolding failed.
+
+Scaffolding into an existing directory adds absent files only and leaves
+custom files untouched.
+
+## `dx new astro` And `dx new svelte`
+
+```text
+dx new [--apply] astro [name]
+dx new [--apply] svelte [name]
+```
+
+Scaffolds a standalone consumer with one component, a helper and a test:
+`MODULE.bazel`, `.bazelversion`, `.bazelrc`, `.bazelignore`, `.npmrc`,
+`BUILD.bazel`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`,
+sources, and `README.md`. The only npm dependency is the framework package, pinned to the version
+rules_dx qualifies.
+Node comes from the rules_dx toolchain, so nothing needs to be installed.
+
+```sh
+bazel run @rules_dx//:dx -- new --apply astro demo
+```
+
+Build and test inside the new project:
+
+```text
+bazel build //...
 bazel test //...
 ```
 

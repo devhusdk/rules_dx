@@ -18,7 +18,13 @@ pub const SUPPORTED_NEW_LANGUAGES: &[&str] = &[
     "rust-web",
     "ruby",
     "powershell",
+    "astro",
+    "svelte",
 ];
+
+pub const ASPECT_RULES_JS_VERSION: &str = "3.4.1";
+pub const ASTRO_COMPILER_VERSION: &str = "4.0.0";
+pub const SVELTE_VERSION: &str = "5.57.0";
 
 pub const RUST_WEB_EDITION: &str = "2021";
 pub const RUST_WEB_WASM_BINDGEN_CRATE_VERSION: &str = "0.2.121";
@@ -218,7 +224,7 @@ pub fn derive_new_identity(canonical: &str, destination: &str) -> Result<String,
             dx_identity::validate_dotted(&identity, "maven artifact ids use [A-Za-z0-9_.-] only")
         }
         "csharp" | "fsharp" => dx_identity::validate_nuget(&identity),
-        "ruby" | "powershell" => validate_bazel_module_name(&identity),
+        "ruby" | "powershell" | "astro" | "svelte" => validate_bazel_module_name(&identity),
         _ => Ok(()),
     };
     check.map_err(|reason| AdoptError::NewInvalidIdentity {
@@ -534,6 +540,125 @@ The targets are Linux only.
     ]
 }
 
+struct JsStarter {
+    rule: &'static str,
+    component: &'static str,
+    package: &'static str,
+    version: &'static str,
+    lock: &'static str,
+    component_source: &'static str,
+    test_source: &'static str,
+}
+
+fn js_starter_files(identity: &str, starter: &JsStarter) -> Vec<(String, String)> {
+    let module = format!(
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"aspect_rules_js\", version = \"{js}\")\n\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"demo_npm\",\n    npmrc = \"//:.npmrc\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n    verify_node_modules_ignored = \"//:.bazelignore\",\n)\nuse_repo(npm, \"demo_npm\")\n",
+        dx = super::DX_VERSION,
+        js = ASPECT_RULES_JS_VERSION,
+    );
+    let build = format!(
+        r#"load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@demo_npm//:defs.bzl", "npm_link_all_packages")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library")
+load("@rules_dx//{rule}/rules:defs.bzl", "{rule}_library")
+
+npm_link_all_packages(name = "node_modules")
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+)
+
+javascript_library(
+    name = "helper",
+    srcs = ["helper.js"],
+)
+
+{rule}_library(
+    name = "IDENTITY",
+    srcs = ["{component}"],
+    deps = [":helper"],
+)
+
+javascript_js_test(
+    name = "IDENTITY_test",
+    size = "small",
+    srcs = ["hello.test.js"],
+    data = [
+        ":IDENTITY",
+        ":node_modules/{package}",
+    ],
+    entry_point = "hello.test.js",
+)
+"#,
+        rule = starter.rule,
+        component = starter.component,
+        package = starter.package,
+    )
+    .replace("IDENTITY", identity);
+    let package_json = format!(
+        "{{\n  \"name\": \"{}\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"devDependencies\": {{\n    \"{}\": \"{}\"\n  }}\n}}\n",
+        escape_json_string(identity),
+        starter.package,
+        starter.version
+    );
+    let readme = format!("# {identity}\n\n```sh\nbazel build //...\nbazel test //...\n```\n");
+    vec![
+        ("MODULE.bazel".to_owned(), module),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        (".bazelignore".to_owned(), "node_modules\n".to_owned()),
+        (".npmrc".to_owned(), "hoist=false\n".to_owned()),
+        ("BUILD.bazel".to_owned(), build),
+        ("package.json".to_owned(), package_json),
+        ("pnpm-lock.yaml".to_owned(), starter.lock.to_owned()),
+        (
+            "pnpm-workspace.yaml".to_owned(),
+            "packages:\n  - .\nallowBuilds: {}\n".to_owned(),
+        ),
+        (
+            starter.component.to_owned(),
+            starter.component_source.to_owned(),
+        ),
+        (
+            "helper.js".to_owned(),
+            "export function helper(name) {\n  return `hello ${name}`;\n}\n".to_owned(),
+        ),
+        ("hello.test.js".to_owned(), starter.test_source.to_owned()),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn astro_files(identity: &str) -> Vec<(String, String)> {
+    js_starter_files(
+        identity,
+        &JsStarter {
+            rule: "astro",
+            component: "Hello.astro",
+            package: "@astrojs/compiler",
+            version: ASTRO_COMPILER_VERSION,
+            lock: super::new_locks::ASTRO_LOCK,
+            component_source: "---\nimport { helper } from \"./helper.js\";\n\nconst message = helper(\"world\");\n---\n\n<div class=\"hello\">{message}</div>\n",
+            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@astrojs/compiler/sync\";\nimport { is } from \"@astrojs/compiler/utils\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst result = parse(fs.readFileSync(path.join(here, \"Hello.astro\"), \"utf8\"));\n\nassert.deepEqual(result.diagnostics, []);\nassert.ok(result.ast.children.some((node) => is.frontmatter(node)));\nassert.ok(\n  result.ast.children.some((node) => is.element(node) && node.name === \"div\"),\n);\nconsole.log(\"PASS\");\n",
+        },
+    )
+}
+
+fn svelte_files(identity: &str) -> Vec<(String, String)> {
+    js_starter_files(
+        identity,
+        &JsStarter {
+            rule: "svelte",
+            component: "Hello.svelte",
+            package: "svelte",
+            version: SVELTE_VERSION,
+            lock: super::new_locks::SVELTE_LOCK,
+            component_source: "<script>\n  import { helper } from \"./helper.js\";\n\n  let name = \"world\";\n  let message = $derived(helper(name));\n</script>\n\n<div class=\"hello\">{message}</div>\n",
+            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"svelte/compiler\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.svelte\"), \"utf8\");\nconst ast = parse(source, { modern: true });\n\nassert.ok(ast.fragment.nodes.length > 0);\nassert.notEqual(ast.instance, null);\nassert.ok(\n  source.slice(ast.instance.start, ast.instance.end).includes(\"./helper.js\"),\n);\nconsole.log(\"PASS\");\n",
+        },
+    )
+}
+
 fn python_manifest(identity: &str) -> Result<String, AdoptError> {
     let mut project = toml::Table::new();
     project.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
@@ -683,6 +808,8 @@ fn new_language_files(
         ],
         "ruby" => ruby_files(identity),
         "powershell" => powershell_files(identity),
+        "astro" => astro_files(identity),
+        "svelte" => svelte_files(identity),
         "c" => vec![
             (
                 "hello.c".to_owned(),
@@ -748,6 +875,57 @@ mod tests {
     use super::super::DX_VERSION;
     use super::*;
 
+    fn workspace_text(path: &str) -> String {
+        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        std::fs::read_to_string(Path::new(&source).join(workspace).join(path))
+            .expect("file ships as test data")
+    }
+
+    #[test]
+    fn js_starter_pins_match_repository_pins() {
+        let module = workspace_text("MODULE.bazel");
+        assert!(module.contains(&format!(
+            "bazel_dep(name = \"aspect_rules_js\", version = \"{ASPECT_RULES_JS_VERSION}\")"
+        )));
+        let package = workspace_text("package.json");
+        assert!(package.contains(&format!(
+            "\"@astrojs/compiler\": \"{ASTRO_COMPILER_VERSION}\""
+        )));
+        assert!(package.contains(&format!("\"svelte\": \"{SVELTE_VERSION}\"")));
+    }
+
+    #[test]
+    fn js_starters_pin_one_framework_package_and_no_extras() {
+        for (language, package, version) in [
+            ("astro", "@astrojs/compiler", ASTRO_COMPILER_VERSION),
+            ("svelte", "svelte", SVELTE_VERSION),
+        ] {
+            let files = plan_new_files(language, "demo-app").expect("plans");
+            let read = |name: &str| {
+                files
+                    .iter()
+                    .find(|f| f.path == format!("demo-app/{name}"))
+                    .unwrap_or_else(|| panic!("{language}: {name}"))
+                    .content
+                    .clone()
+            };
+            let manifest = read("package.json");
+            assert!(
+                manifest.contains(&format!("\"{package}\": \"{version}\"")),
+                "{manifest}"
+            );
+            assert_eq!(manifest.matches("\": \"").count(), 3, "{manifest}");
+            assert!(read("pnpm-lock.yaml").contains(&format!("specifier: {version}")));
+            let build = read("BUILD.bazel");
+            assert!(build.contains(&format!("{language}_library(")), "{build}");
+            assert!(build.contains("javascript_js_test("), "{build}");
+            assert!(!build.contains("jest"), "{build}");
+            let module = read("MODULE.bazel");
+            assert!(module.contains("module(name = \"demo-app\")"), "{module}");
+        }
+    }
+
     #[test]
     fn new_aliases_normalize_to_canonical_templates() {
         assert_eq!(normalize_new_language("rust"), Some("rust"));
@@ -762,7 +940,7 @@ mod tests {
         assert!(new_is_known_language("go"));
         assert!(new_is_known_language("rust-web"));
         assert!(!new_is_known_language("swift"));
-        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 15);
+        assert_eq!(SUPPORTED_NEW_LANGUAGES.len(), 17);
     }
 
     #[test]
@@ -832,7 +1010,7 @@ mod tests {
         assert!(plan_new_files("swift", "demo").is_err());
         assert_eq!(
             plan_new_files("swift", "demo").unwrap_err().to_string(),
-            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell)"
+            "unknown language for dx new: swift (want one of rust, python, javascript, typescript, go, java, kotlin, scala, csharp, fsharp, c, cpp, rust-web, ruby, powershell, astro, svelte)"
         );
     }
 

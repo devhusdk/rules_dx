@@ -288,6 +288,36 @@ pub fn error_event(
     Ok(Value::Object(map))
 }
 
+/// The class, child status and diagnostic tail of one failure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FailureFacts<'a> {
+    pub cause: &'a str,
+    pub status: Option<i32>,
+    pub excerpt: Option<&'a crate::diagnostics::Excerpt>,
+}
+
+/// An `error` event that also names the failure's cause, child status and bounded excerpt.
+pub fn failure_event(
+    code: &str,
+    message: &str,
+    phase: Option<&str>,
+    facts: &FailureFacts<'_>,
+) -> Result<Value, OutputError> {
+    nonempty("cause", facts.cause)?;
+    let mut event = error_event(code, message, None, None, phase)?;
+    if let Value::Object(map) = &mut event {
+        map.insert("cause".to_owned(), Value::String(facts.cause.to_owned()));
+        if let Some(status) = facts.status {
+            map.insert("status".to_owned(), Value::from(status));
+        }
+        if let Some(excerpt) = facts.excerpt {
+            map.insert("excerpt".to_owned(), Value::String(excerpt.text.clone()));
+            map.insert("truncated".to_owned(), Value::Bool(excerpt.truncated));
+        }
+    }
+    Ok(event)
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TestOutcome {
     pub target: String,
@@ -565,6 +595,56 @@ pub fn write_event(writer: &mut dyn std::io::Write, event: &Value) -> Result<(),
 mod tests {
     use super::*;
     use serde_json::Value;
+
+    #[test]
+    fn failure_events_carry_cause_status_and_excerpt() {
+        let excerpt = crate::diagnostics::Excerpt {
+            text: "ERROR: boom".to_owned(),
+            truncated: true,
+        };
+        let event = failure_event(
+            "query_failed",
+            "query failed",
+            None,
+            &FailureFacts {
+                cause: "query",
+                status: Some(7),
+                excerpt: Some(&excerpt),
+            },
+        )
+        .expect("event");
+        assert_eq!(event["event"], "error");
+        assert_eq!(event["cause"], "query");
+        assert_eq!(event["status"], 7);
+        assert_eq!(event["excerpt"], "ERROR: boom");
+        assert_eq!(event["truncated"], true);
+        let bare = failure_event(
+            "invalid_scope",
+            "bad scope",
+            Some("resolve"),
+            &FailureFacts {
+                cause: "input",
+                status: None,
+                excerpt: None,
+            },
+        )
+        .expect("event");
+        assert_eq!(bare["phase"], "resolve");
+        assert!(bare.get("status").is_none());
+        assert!(bare.get("excerpt").is_none());
+        assert!(bare.get("truncated").is_none());
+        assert!(failure_event(
+            "x",
+            "y",
+            None,
+            &FailureFacts {
+                cause: "",
+                status: None,
+                excerpt: None
+            }
+        )
+        .is_err());
+    }
 
     const DIGEST: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 

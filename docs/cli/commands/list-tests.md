@@ -44,8 +44,8 @@ the label), one `error` event per problem, and ends with
 
 Exit codes: `0` success, `2` usage errors including an external scope, a
 relative label, or an unreadable path, `1` operational failures including
-`no_tests`, `bazel_failed`, `unsupported_framework`, `no_cases`,
-or `case_failed`. A partial match still exits `1` when
+`no_tests`, `bazel_failed`, `query_launch_failed`, `unsupported_framework`,
+`no_cases`, or `case_failed`. A partial match still exits `1` when
 any scope contributed no tests.
 
 ```sh

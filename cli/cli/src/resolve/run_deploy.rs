@@ -3,7 +3,9 @@ use std::path::Path;
 use super::classify::classify_scopes;
 use super::classify::resolve_file_owners;
 use super::packages::PackageCache;
-use super::{first_line, quote_set, run_label_query, QueryRunner, ResolveError, SelectionContext};
+use super::{
+    quote_set, run_label_query, QueryFailure, QueryRunner, ResolveError, SelectionContext,
+};
 
 fn dir_runnable_expression(pattern: &str) -> String {
     format!("kind('rule', {pattern})")
@@ -34,26 +36,25 @@ fn filter_executables(
     let selection = SelectionContext::unconfigured(startup_options);
     let argv = selection
         .selection_argv("cquery", &required, &expression)
-        .map_err(|error| ResolveError::QueryFailed {
-            label: expression.clone(),
-            detail: error.to_string(),
+        .map_err(|error| {
+            ResolveError::query(
+                &expression,
+                QueryFailure::Prepare {
+                    detail: error.to_string(),
+                },
+            )
         })?;
-    let result = runner
-        .run_query(&argv, workspace)
-        .map_err(|error| ResolveError::QueryFailed {
-            label: expression.clone(),
-            detail: error.to_string(),
-        })?;
-    if result.code != Some(0) {
-        return Err(ResolveError::QueryFailed {
-            label: expression,
-            detail: first_line(&result.stderr),
-        });
-    }
-    let text = std::str::from_utf8(&result.stdout).map_err(|_| ResolveError::QueryFailed {
-        label: expression.clone(),
-        detail: "query output is not UTF-8".to_owned(),
-    })?;
+    let result = ResolveError::run(runner, &argv, workspace, &expression)?;
+    let malformed = |detail: &str| {
+        ResolveError::query(
+            &expression,
+            QueryFailure::Output {
+                detail: detail.to_owned(),
+            },
+        )
+    };
+    let text =
+        std::str::from_utf8(&result.stdout).map_err(|_| malformed("query output is not UTF-8"))?;
     let mut executables: Vec<String> = Vec::new();
     for line in text.lines() {
         let line = line.trim();
@@ -62,18 +63,14 @@ fn filter_executables(
         }
         let (raw_label, flag) = line
             .split_once('|')
-            .ok_or_else(|| ResolveError::QueryFailed {
-                label: expression.clone(),
-                detail: "cquery returned a malformed executable observation".to_owned(),
-            })?;
+            .ok_or_else(|| malformed("cquery returned a malformed executable observation"))?;
         match flag.trim() {
             "True" => executables.push(normalize_cquery_label(raw_label.trim())),
             "False" => {}
             _ => {
-                return Err(ResolveError::QueryFailed {
-                    label: expression.clone(),
-                    detail: "cquery returned a malformed executable observation".to_owned(),
-                });
+                return Err(malformed(
+                    "cquery returned a malformed executable observation",
+                ));
             }
         }
     }
@@ -222,30 +219,22 @@ pub fn check_deployable(
     startup_options: &[String],
 ) -> Result<DeployInfo, ResolveError> {
     let argv = deploy_query_argv(label, startup_options);
-    let result = runner
-        .run_query(&argv, workspace)
-        .map_err(|error| ResolveError::QueryFailed {
-            label: label.to_owned(),
-            detail: error.to_string(),
-        })?;
-    if result.code != Some(0) {
-        return Err(ResolveError::QueryFailed {
-            label: label.to_owned(),
-            detail: first_line(&result.stderr),
-        });
-    }
-    let text = std::str::from_utf8(&result.stdout).map_err(|_| ResolveError::QueryFailed {
-        label: label.to_owned(),
-        detail: "query output is not UTF-8".to_owned(),
-    })?;
+    let result = ResolveError::run(runner, &argv, workspace, label)?;
+    let malformed = |detail: &str| {
+        ResolveError::query(
+            label,
+            QueryFailure::Output {
+                detail: detail.to_owned(),
+            },
+        )
+    };
+    let text =
+        std::str::from_utf8(&result.stdout).map_err(|_| malformed("query output is not UTF-8"))?;
     let line = text
         .lines()
         .map(str::trim)
         .find(|line| !line.is_empty())
-        .ok_or_else(|| ResolveError::QueryFailed {
-            label: label.to_owned(),
-            detail: "cquery returned no deploy observation".to_owned(),
-        })?;
+        .ok_or_else(|| malformed("cquery returned no deploy observation"))?;
     let mut parts = line.split('|');
     let (has, profile_raw, app_raw, exe) = match (
         parts.next(),
@@ -256,30 +245,21 @@ pub fn check_deployable(
     ) {
         (Some(has), Some(profile), Some(app), Some(exe), None) => (has, profile, app, exe),
         _ => {
-            return Err(ResolveError::QueryFailed {
-                label: label.to_owned(),
-                detail: "cquery returned a malformed deploy observation".to_owned(),
-            });
+            return Err(malformed("cquery returned a malformed deploy observation"));
         }
     };
     let has_provider = match has {
         "True" => true,
         "False" => false,
         _ => {
-            return Err(ResolveError::QueryFailed {
-                label: label.to_owned(),
-                detail: "cquery returned a malformed deploy observation".to_owned(),
-            });
+            return Err(malformed("cquery returned a malformed deploy observation"));
         }
     };
     let executable = match exe {
         "True" => true,
         "False" => false,
         _ => {
-            return Err(ResolveError::QueryFailed {
-                label: label.to_owned(),
-                detail: "cquery returned a malformed deploy observation".to_owned(),
-            });
+            return Err(malformed("cquery returned a malformed deploy observation"));
         }
     };
     if !has_provider && !executable {
@@ -514,7 +494,7 @@ mod tests {
     }
 
     #[test]
-    fn runnable_query_failures_report_first_line() {
+    fn runnable_query_failures_are_query_failed() {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-query-fail-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "app/BUILD.bazel", "");
@@ -635,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn executable_probe_failures_report_first_line() {
+    fn executable_probe_failures_are_query_failed() {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-fail-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");

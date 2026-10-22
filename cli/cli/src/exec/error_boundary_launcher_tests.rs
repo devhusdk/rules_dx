@@ -1,0 +1,472 @@
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::{CommandExt, ExitStatusExt};
+use std::path::PathBuf;
+use std::process::{Command, ExitStatus, Stdio};
+use std::time::{Duration, Instant};
+
+const MODULE: &str = "module(name = \"acme_renamed\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+
+const FAKE_BAZEL: &str = r#"#!/bin/sh
+printf '%s\n' "$*" >> "$FAKE_LOG"
+case " $* " in
+  *" query "*|*" cquery "*)
+    case "$FAKE_QUERY" in
+      fail) printf 'Loading: 1 package\nINFO: still loading\nERROR: no such target //src:gone\n' >&2; exit 7 ;;
+      owner) printf '//src:bin\n'; exit 0 ;;
+      sleep) : > "$FAKE_LOG.started"; sleep 30; exit 0 ;;
+      *) exit 0 ;;
+    esac ;;
+esac
+for arg in "$@"; do
+  case "$arg" in --build_event_json_file=*) bep="${arg#--build_event_json_file=}" ;; esac
+done
+case "$FAKE_BUILD" in
+  badbep) printf 'not json\n' > "$bep" ;;
+  sleep) : > "$bep"; : > "$FAKE_LOG.started"; sleep 30 ;;
+  *) : > "$bep" ;;
+esac
+exit 0
+"#;
+
+struct Consumer {
+    base: PathBuf,
+    _scratch: dx_test_scratch::TempDir,
+}
+
+struct Outcome {
+    status: ExitStatus,
+    out: String,
+    err: String,
+    bazel: Vec<String>,
+}
+
+impl Outcome {
+    fn events(&self) -> Vec<serde_json::Value> {
+        self.out
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("stdout is NDJSON only"))
+            .collect()
+    }
+
+    fn kinds(&self) -> Vec<String> {
+        self.events()
+            .iter()
+            .map(|event| event["event"].as_str().expect("event").to_owned())
+            .collect()
+    }
+
+    fn built(&self) -> bool {
+        self.bazel
+            .iter()
+            .any(|line| line.contains(" build ") || line.contains(" test "))
+    }
+
+    fn context(&self) -> String {
+        format!(
+            "status {:?}\nstdout:\n{}\nstderr:\n{}\nbazel:\n{}",
+            self.status,
+            self.out,
+            self.err,
+            self.bazel.join("\n")
+        )
+    }
+}
+
+impl Consumer {
+    fn new() -> Self {
+        let scratch = dx_test_scratch::scratch("dx-error-boundary-");
+        let base = scratch.path().to_path_buf();
+        let workspace = base.join("ws");
+        for dir in [
+            workspace.join(".dx"),
+            workspace.join("src"),
+            base.join("bin"),
+            base.join("nobin"),
+            base.join("tmp"),
+        ] {
+            fs::create_dir_all(dir).expect("dir");
+        }
+        fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
+        fs::write(workspace.join(".dx/version"), "0.0.0\n").expect("pin");
+        fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
+        fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");
+        let bazel = base.join("bin/bazel");
+        fs::write(&bazel, FAKE_BAZEL).expect("fake bazel");
+        fs::set_permissions(&bazel, fs::Permissions::from_mode(0o755)).expect("chmod");
+        Consumer {
+            base,
+            _scratch: scratch,
+        }
+    }
+
+    fn workspace(&self) -> PathBuf {
+        self.base.join("ws")
+    }
+
+    fn log(&self) -> PathBuf {
+        self.base.join("bazel.log")
+    }
+
+    fn command(&self, args: &[&str], env: &[(&str, &str)], bazel: bool) -> Command {
+        let bin = self.base.join(if bazel { "bin" } else { "nobin" });
+        let _ = fs::remove_file(self.log());
+        let mut command = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"));
+        command
+            .args(args)
+            .current_dir(self.workspace())
+            .env_clear()
+            .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+            .env("HOME", &self.base)
+            .env("TMPDIR", self.base.join("tmp"))
+            .env("FAKE_LOG", self.log())
+            .stdin(Stdio::null());
+        for (key, value) in env {
+            command.env(key, value);
+        }
+        command
+    }
+
+    fn bazel_calls(&self) -> Vec<String> {
+        fs::read_to_string(self.log())
+            .unwrap_or_default()
+            .lines()
+            .map(|line| format!(" {line} "))
+            .collect()
+    }
+
+    fn run(&self, args: &[&str], env: &[(&str, &str)], bazel: bool) -> Outcome {
+        let output = self.command(args, env, bazel).output().expect("dx runs");
+        Outcome {
+            status: output.status,
+            out: String::from_utf8(output.stdout).expect("stdout"),
+            err: String::from_utf8_lossy(&output.stderr).into_owned(),
+            bazel: self.bazel_calls(),
+        }
+    }
+
+    fn run_closed_stdout(&self, args: &[&str], env: &[(&str, &str)]) -> Outcome {
+        let mut fds = [0; 2];
+        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0, "pipe");
+        unsafe { libc::close(fds[0]) };
+        let stdout = unsafe { <Stdio as std::os::fd::FromRawFd>::from_raw_fd(fds[1]) };
+        let output = self
+            .command(args, env, true)
+            .stdout(stdout)
+            .stderr(Stdio::piped())
+            .output()
+            .expect("dx runs");
+        Outcome {
+            status: output.status,
+            out: String::new(),
+            err: String::from_utf8_lossy(&output.stderr).into_owned(),
+            bazel: self.bazel_calls(),
+        }
+    }
+
+    fn run_cancelled(&self, args: &[&str], env: &[(&str, &str)], signo: i32) -> Outcome {
+        let started = self.base.join("bazel.log.started");
+        let _ = fs::remove_file(&started);
+        let child = self
+            .command(args, env, true)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(0)
+            .spawn()
+            .expect("dx starts");
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !started.exists() {
+            assert!(Instant::now() < deadline, "bazel never started");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let pgid = child.id() as i32;
+        assert_eq!(unsafe { libc::kill(-pgid, signo) }, 0, "signal delivered");
+        let output = child.wait_with_output().expect("dx stops");
+        unsafe { libc::kill(-pgid, libc::SIGKILL) };
+        Outcome {
+            status: output.status,
+            out: String::from_utf8(output.stdout).expect("stdout"),
+            err: String::from_utf8_lossy(&output.stderr).into_owned(),
+            bazel: self.bazel_calls(),
+        }
+    }
+}
+
+const JSON_MODES: [(&[&str], &[(&str, &str)]); 4] = [
+    (&["--output=json"], &[]),
+    (&["--output=json", "-q"], &[]),
+    (&[], &[("DX_OUTPUT", "json")]),
+    (&["-q"], &[("DX_OUTPUT", "json")]),
+];
+
+fn with_mode<'a>(args: &[&'a str], flags: &[&'a str]) -> Vec<&'a str> {
+    let mut words = args.to_vec();
+    words.extend_from_slice(flags);
+    words
+}
+
+fn assert_terminal_failure(outcome: &Outcome, code: &str, cause: &str, exit: i32) {
+    let context = outcome.context();
+    assert_eq!(outcome.status.code(), Some(exit), "{context}");
+    let events = outcome.events();
+    let kinds = outcome.kinds();
+    assert!(kinds.len() >= 2, "{context}");
+    assert_eq!(
+        kinds[kinds.len() - 2..],
+        ["error", "command_finished"],
+        "{context}"
+    );
+    assert_eq!(
+        kinds.iter().filter(|kind| *kind == "error").count(),
+        1,
+        "{context}"
+    );
+    let error = &events[events.len() - 2];
+    assert_eq!(error["code"], code, "{context}");
+    assert_eq!(error["cause"], cause, "{context}");
+    let finished = &events[events.len() - 1];
+    assert_eq!(finished["exit_code"], exit, "{context}");
+    assert_eq!(finished["results_complete"], false, "{context}");
+    assert!(
+        outcome.err.contains(
+            error["message"]
+                .as_str()
+                .expect("message")
+                .lines()
+                .next()
+                .expect("line")
+        ),
+        "{context}"
+    );
+}
+
+#[test]
+fn input_and_default_failures_end_in_one_error_before_any_bazel_call() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        for (args, code) in [
+            (vec!["build", "no/such/path"], "invalid_scope"),
+            (vec!["run"], "invalid_scope"),
+            (vec!["build", "--cwd", "src"], "invalid_arguments"),
+            (vec!["build", "--dry-run"], "invalid_arguments"),
+        ] {
+            let outcome = consumer.run(&with_mode(&args, flags), env, true);
+            assert_terminal_failure(&outcome, code, "input", 2);
+            assert!(outcome.bazel.is_empty(), "{}", outcome.context());
+            assert_eq!(outcome.kinds(), ["error", "command_finished"]);
+        }
+    }
+    let outcome = consumer.run(
+        &["build"],
+        &[("DX_OUTPUT", "json"), ("DX_DRY_RUN", "1")],
+        true,
+    );
+    assert_terminal_failure(&outcome, "invalid_defaults", "defaults", 2);
+    assert!(outcome.bazel.is_empty(), "{}", outcome.context());
+}
+
+#[test]
+fn malformed_defaults_keep_the_json_intent_they_name() {
+    let consumer = Consumer::new();
+    fs::write(
+        consumer.workspace().join("dx.toml"),
+        "[dx]\noutput = \"json\"\nlog-level = \"debug\"\n",
+    )
+    .expect("config");
+    for flags in [&[][..], &["-q"][..]] {
+        let outcome = consumer.run(&with_mode(&["build", "//..."], flags), &[], true);
+        assert_terminal_failure(&outcome, "invalid_defaults", "defaults", 2);
+        assert_eq!(outcome.kinds(), ["error", "command_finished"]);
+        assert!(outcome.err.contains("log-level"), "{}", outcome.context());
+        assert!(outcome.bazel.is_empty(), "{}", outcome.context());
+    }
+}
+
+#[test]
+fn owned_and_unowned_file_scopes_resolve_before_building() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        let unowned = consumer.run(&with_mode(&["build", "src/main.rs"], flags), env, true);
+        assert_terminal_failure(&unowned, "no_owner", "input", 2);
+        assert_eq!(unowned.kinds(), ["error", "command_finished"]);
+        assert!(!unowned.built(), "{}", unowned.context());
+        let mut owner_env = env.to_vec();
+        owner_env.push(("FAKE_QUERY", "owner"));
+        let owned = consumer.run(
+            &with_mode(&["build", "src/main.rs"], flags),
+            &owner_env,
+            true,
+        );
+        assert_eq!(owned.status.code(), Some(0), "{}", owned.context());
+        assert_eq!(owned.kinds(), ["command_started", "command_finished"]);
+        assert!(
+            owned
+                .bazel
+                .last()
+                .is_some_and(|line| line.contains(" build ") && line.ends_with(" //src:bin ")),
+            "{}",
+            owned.context()
+        );
+    }
+}
+
+#[test]
+fn a_failed_query_keeps_its_status_and_excerpt_and_never_builds() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        let mut fail_env = env.to_vec();
+        fail_env.push(("FAKE_QUERY", "fail"));
+        let outcome = consumer.run(
+            &with_mode(&["build", "src/main.rs"], flags),
+            &fail_env,
+            true,
+        );
+        assert_terminal_failure(&outcome, "query_failed", "query", 2);
+        assert_eq!(outcome.kinds(), ["error", "command_finished"]);
+        let error = &outcome.events()[0];
+        assert_eq!(error["status"], 7, "{}", outcome.context());
+        assert_eq!(error["phase"], "resolve");
+        assert_eq!(error["truncated"], false);
+        let excerpt = error["excerpt"].as_str().expect("excerpt");
+        assert!(excerpt.starts_with("Loading: 1 package\n"), "{excerpt}");
+        assert!(
+            excerpt.ends_with("ERROR: no such target //src:gone"),
+            "{excerpt}"
+        );
+        assert!(
+            outcome.err.contains("  ERROR: no such target //src:gone\n"),
+            "{}",
+            outcome.context()
+        );
+        assert_eq!(outcome.bazel.len(), 1, "{}", outcome.context());
+        assert!(!outcome.built(), "{}", outcome.context());
+    }
+}
+
+#[test]
+fn a_query_that_cannot_launch_is_not_an_empty_selection() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        let outcome = consumer.run(&with_mode(&["build", "src/main.rs"], flags), env, false);
+        assert_terminal_failure(&outcome, "query_launch_failed", "query_launch", 2);
+        assert_eq!(outcome.kinds(), ["error", "command_finished"]);
+        assert!(outcome.events()[0].get("status").is_none());
+    }
+}
+
+#[test]
+fn an_unavailable_bazel_is_a_tool_failure_after_the_start() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        let outcome = consumer.run(&with_mode(&["build", "//..."], flags), env, false);
+        assert_terminal_failure(&outcome, "launch_failed", "tool_unavailable", 1);
+        assert_eq!(
+            outcome.kinds(),
+            ["command_started", "error", "command_finished"]
+        );
+    }
+}
+
+#[test]
+fn malformed_build_events_are_a_collection_failure() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        let mut bad_env = env.to_vec();
+        bad_env.push(("FAKE_BUILD", "badbep"));
+        let outcome = consumer.run(&with_mode(&["test", "//..."], flags), &bad_env, true);
+        assert_terminal_failure(&outcome, "invalid_bep", "collection", 1);
+        assert_eq!(outcome.kinds()[0], "command_started");
+    }
+}
+
+#[test]
+fn a_report_that_cannot_be_written_fails_after_the_build() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        let outcome = consumer.run(
+            &with_mode(
+                &["build", "//...", "--report=failures=missing/f.json"],
+                flags,
+            ),
+            env,
+            true,
+        );
+        let context = outcome.context();
+        assert_eq!(outcome.status.code(), Some(1), "{context}");
+        assert_eq!(
+            outcome.kinds(),
+            ["command_started", "error", "command_finished"],
+            "{context}"
+        );
+        let events = outcome.events();
+        assert_eq!(events[1]["code"], "report_failed", "{context}");
+        assert_eq!(events[1]["cause"], "report", "{context}");
+        assert_eq!(events[2]["exit_code"], 1, "{context}");
+        assert!(outcome.err.contains("dx: report_failed: "), "{context}");
+        assert!(outcome.built(), "{context}");
+    }
+}
+
+#[test]
+fn cancellation_ends_without_a_failure_event() {
+    let consumer = Consumer::new();
+    for signo in [libc::SIGINT, libc::SIGTERM] {
+        let outcome = consumer.run_cancelled(
+            &["build", "src/main.rs", "--output=json"],
+            &[("FAKE_QUERY", "sleep")],
+            signo,
+        );
+        let context = outcome.context();
+        assert_eq!(outcome.status.code(), Some(128 + signo), "{context}");
+        assert!(outcome.out.is_empty(), "{context}");
+        assert!(
+            outcome
+                .err
+                .contains(&format!("dx: cancelled: stopped by signal {signo}")),
+            "{context}"
+        );
+        assert!(!outcome.built(), "{context}");
+        let outcome = consumer.run_cancelled(
+            &["build", "//...", "--output=json"],
+            &[("FAKE_BUILD", "sleep")],
+            signo,
+        );
+        let context = outcome.context();
+        assert_eq!(outcome.status.signal(), Some(signo), "{context}");
+        assert_eq!(outcome.kinds(), ["command_started"], "{context}");
+    }
+}
+
+#[test]
+fn a_closed_stdout_ends_a_failure_with_the_broken_pipe_exit() {
+    let consumer = Consumer::new();
+    for (flags, env) in JSON_MODES {
+        let mut fail_env = env.to_vec();
+        fail_env.push(("FAKE_QUERY", "fail"));
+        for (args, query) in [
+            (vec!["build", "src/main.rs"], true),
+            (vec!["build", "no/such/path"], false),
+        ] {
+            let run_env = if query { &fail_env[..] } else { env };
+            let outcome = consumer.run_closed_stdout(&with_mode(&args, flags), run_env);
+            assert_eq!(outcome.status.code(), Some(141), "{}", outcome.context());
+            assert!(outcome.err.starts_with("dx: "), "{}", outcome.context());
+            assert!(!outcome.built(), "{}", outcome.context());
+        }
+    }
+}
+
+#[test]
+fn text_mode_failures_keep_stdout_empty() {
+    let consumer = Consumer::new();
+    let outcome = consumer.run(&["build", "src/main.rs"], &[("FAKE_QUERY", "fail")], true);
+    assert_eq!(outcome.status.code(), Some(2), "{}", outcome.context());
+    assert!(outcome.out.is_empty(), "{}", outcome.context());
+    assert!(
+        outcome
+            .err
+            .starts_with("dx: query_failed: query kind('rule', rdeps(//..., set(\"//:src/main.rs\"), 1)) failed: Bazel exited 7\n"),
+        "{}",
+        outcome.context()
+    );
+}

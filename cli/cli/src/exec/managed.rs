@@ -28,6 +28,8 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     } = env;
     if !invocation.command.is_managed() {
         return pre_exec(
+            invocation.output,
+            out,
             err,
             &ForwardError::UnsupportedCommand {
                 command: invocation.command.name().to_owned(),
@@ -37,7 +39,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let scope = match dx_setup::resolve_scope(&invocation.targets) {
         Ok(scope) => scope,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let bep = bep_path(temp_dir, pid, nonce);
     let Some(bep_text) = bep.to_str() else {
@@ -58,7 +60,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 &invocation.bazel_startup_options,
             ) {
                 Ok(roots) => Some(roots),
-                Err(error) => return pre_exec(err, &error.to_string()),
+                Err(error) => return resolve_failed(invocation.output, out, err, &error),
             }
         }
         _ => None,
@@ -81,7 +83,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let plan = match plan {
         Ok(plan) => plan,
-        Err(error) => return pre_exec(err, &format!("{error}")),
+        Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
     let verbose = invocation.chatty();
     let json = invocation.output == OutputMode::Json;

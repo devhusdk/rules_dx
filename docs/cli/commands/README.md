@@ -103,7 +103,11 @@ a near match exists, then prints the usage line above.
 `command_started` and ends with `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
-the process exit code and `results_complete: false`.
+the process exit code and `results_complete: false`. `DX_OUTPUT=json` and
+`output = "json"` in `dx.toml` give the same stream, also when the rest of
+`dx.toml` is invalid. A stop signal ends the run with no `error` and no
+`command_finished`; dx exits `128` plus the signal number. A closed stdout
+exits `141`.
 
 ```sh
 bazel run @rules_dx//:dx -- lint --check //... --output=json
@@ -136,8 +140,12 @@ bazel run @rules_dx//:dx -- lint --check //... --output=json
 - `test_outcome`: one test result, with `target`, `outcome`, `evidence_complete`,
   and `artifacts`, plus optional `configuration`, `status`, `cached`, `run`,
   `shard`, `attempt`, `duration_millis`, case counts, and `cases_omitted`.
-- `error`: a failure, with `code`, `message`, and optional `path`, `flag`, and
-  `phase`.
+- `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
+  `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
+  `input`, `defaults`, `query_launch`, `query`, `analysis`, `bazel`,
+  `tool_unavailable`, `collection`, `report`, `operational`, or `unknown`.
+  `status` is the exit code of the failed Bazel run. `excerpt` holds the last
+  lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
 - `command_finished`: the `exit_code`, plus any `results_complete`,
   `diagnostics`, `changes`, and `mutations` counts.
 

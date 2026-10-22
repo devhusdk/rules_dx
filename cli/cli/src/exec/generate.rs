@@ -16,6 +16,15 @@ use std::io::Write;
 
 fn finish_incomplete_generate(output: OutputMode, out: &mut dyn Write, code: i32) -> i32 {
     if output == OutputMode::Json {
+        if code != 0 {
+            if let Some(event) = bazel_exit_event(
+                CODE_BAZEL_FAILED,
+                &format!("Bazel generate failed with exit {code}; results are incomplete"),
+                code,
+            ) {
+                let _ = write_event(out, &event);
+            }
+        }
         let _ = write_event(
             out,
             &command_finished(
@@ -34,8 +43,8 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.generate_request() {
         Ok(request) => request,
         Err(message) => {
-            let Env { err, .. } = env;
-            return pre_exec(err, &message);
+            let Env { out, err, .. } = env;
+            return pre_exec(invocation.output, out, err, &message);
         }
     };
     execute_generate_request(&request, env)
@@ -49,7 +58,7 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
         &request.common.output,
     ) {
         Ok(_) => {}
-        Err(error) => return pre_exec(env.err, &error.to_string()),
+        Err(error) => return pre_exec(request.common.output, env.out, env.err, &error.to_string()),
     }
     let resolved = match resolve(
         &request.targets,
@@ -58,7 +67,7 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
         &request.bazel_startup_options,
     ) {
         Ok(resolved) => resolved,
-        Err(error) => return pre_exec(env.err, &error.to_string()),
+        Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
     let plan = match plan_generate(
@@ -68,7 +77,9 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
         &request.bazel_startup_options,
     ) {
         Ok(plan) => plan,
-        Err(error) => return pre_exec(env.err, &format!("{error}")),
+        Err(error) => {
+            return pre_exec(request.common.output, env.out, env.err, &format!("{error}"))
+        }
     };
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {

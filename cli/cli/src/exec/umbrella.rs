@@ -431,8 +431,8 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.umbrella_request() {
         Ok(request) => request,
         Err(message) => {
-            let Env { err, .. } = env;
-            return pre_exec(err, &message);
+            let Env { out, err, .. } = env;
+            return pre_exec(invocation.output, out, err, &message);
         }
     };
     execute_umbrella_request(&request, env)
@@ -460,11 +460,13 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         &request.common.reports,
         &request.common.output,
     ) {
-        return pre_exec(err, &error.to_string());
+        return pre_exec(request.common.output, out, err, &error.to_string());
     }
     for report in &request.common.reports {
         if report.destination == "-" {
             return pre_exec(
+                request.common.output,
+                out,
                 err,
                 &format!(
                     "option \"--report={}={}\" is not supported by dx {}: phases share one stdout document",
@@ -500,7 +502,12 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
                     phase.name()
                 ));
                 let Some(capture_text) = capture.to_str() else {
-                    return pre_exec(err, "temporary report path is not UTF-8"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+                    return pre_exec(
+                        request.common.output,
+                        out,
+                        err,
+                        "temporary report path is not UTF-8",
+                    ); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
                 };
                 phase_reports.push(ReportRequest {
                     format: report.format.clone(),

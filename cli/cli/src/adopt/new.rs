@@ -1,10 +1,9 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::check_stdout_write;
+use crate::exec::common::{check_stdout_write, pre_exec};
 
 use super::{operational, summaries_suppressed};
-use dx_process::pre_exec_code;
 
 pub(crate) const CODE_NEW_FAILED: &str = "new_failed";
 
@@ -17,8 +16,7 @@ fn invalid_name_code(
     match error {
         dx_adopt::AdoptError::NewInvalidDestination { .. }
         | dx_adopt::AdoptError::NewInvalidIdentity { .. } => {
-            let _ = writeln!(err, "dx: {error}");
-            pre_exec_code()
+            pre_exec(invocation.output, out, err, &error.to_string())
         }
         _ => operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string()),
     }
@@ -37,19 +35,23 @@ pub(crate) fn execute_new(
         .map(String::as_str)
         .unwrap_or(dx_adopt::default_new_name());
     if let Some(canonical) = dx_adopt::removed_new_language(language) {
-        let _ = writeln!(
+        return pre_exec(
+            invocation.output,
+            out,
             err,
-            "dx: language spelling for dx new was removed: {language} (use {canonical})"
+            &format!("language spelling for dx new was removed: {language} (use {canonical})"),
         );
-        return pre_exec_code();
     }
     if !dx_adopt::new_is_known_language(language) {
-        let _ = writeln!(
+        return pre_exec(
+            invocation.output,
+            out,
             err,
-            "dx: unknown language for dx new: {language} (want one of {})",
-            dx_adopt::new_language_name_list()
+            &format!(
+                "unknown language for dx new: {language} (want one of {})",
+                dx_adopt::new_language_name_list()
+            ),
         );
-        return pre_exec_code();
     }
     if !invocation.applies() {
         return check_new(invocation, workspace, language, name, out, err);
@@ -114,8 +116,8 @@ fn check_new(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::adopt::test_support::{invocation, run};
+    use dx_process::pre_exec_code;
     use std::path::PathBuf;
 
     #[test]

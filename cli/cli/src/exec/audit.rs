@@ -1079,7 +1079,14 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let family = match invocation.command {
         Command::Security => dx_audit::AuditFamily::Security,
         Command::License => dx_audit::AuditFamily::License,
-        _ => return pre_exec(err, "audit dispatch guards commands"),
+        _ => {
+            return pre_exec(
+                invocation.output,
+                out,
+                err,
+                "audit dispatch guards commands",
+            )
+        }
     };
     let request = dx_audit::AuditRequest {
         families: vec![family],
@@ -1092,7 +1099,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         &invocation.output,
     ) {
         Ok(planned) => planned,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let families = request
         .families
@@ -1115,7 +1122,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let verbose = invocation.chatty() && !stdout_report;
     let registry = match dx_adopt::dependency_sets::load(workspace) {
         Ok(registry) => registry,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let builtin_sets;
     let configured_sets;
@@ -1123,7 +1130,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         None => {
             builtin_sets = match resolve_audit_sets(&effective) {
                 Ok(sets) => sets,
-                Err(error) => return pre_exec(err, &error.to_string()),
+                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
             };
             builtin_sets
                 .iter()
@@ -1133,7 +1140,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         Some(registry) => {
             configured_sets = match resolve_configured_audit_sets(registry, &effective) {
                 Ok(sets) => sets,
-                Err(error) => return pre_exec(err, &error.to_string()),
+                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
             };
             configured_sets
                 .iter()

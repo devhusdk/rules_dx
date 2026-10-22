@@ -114,6 +114,39 @@ pub fn first_diagnostic_line(bytes: &[u8], limit: usize, fallback: &str) -> Stri
     }
 }
 
+/// A bounded tail of a child's diagnostic output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Excerpt {
+    pub text: String,
+    pub truncated: bool,
+}
+
+/// Keeps the last nonblank lines of a child's output within `max_lines` and `max_bytes`; `None` when it printed nothing.
+pub fn diagnostic_excerpt(bytes: &[u8], max_lines: usize, max_bytes: usize) -> Option<Excerpt> {
+    let text = String::from_utf8_lossy(bytes);
+    let lines: Vec<&str> = text
+        .lines()
+        .map(str::trim_end)
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+    if lines.is_empty() || max_lines == 0 {
+        return None;
+    }
+    let mut start = lines.len().saturating_sub(max_lines);
+    let mut truncated = start > 0;
+    let joined = |from: usize| lines[from..].join("\n");
+    while start + 1 < lines.len() && joined(start).len() > max_bytes {
+        start += 1;
+        truncated = true;
+    }
+    let mut text = joined(start);
+    if text.len() > max_bytes {
+        text = truncate_line(&text, max_bytes);
+        truncated = true;
+    }
+    Some(Excerpt { text, truncated })
+}
+
 pub fn init_diagnostics_with_color(verbose: bool, color: ColorMode) {
     set_color_override(color);
     init_diagnostics(verbose);
@@ -201,6 +234,43 @@ mod tests {
         let short = first_diagnostic_line(&vec![b'y'; 400], 300, "none");
         assert_eq!(short, format!("{}...", "y".repeat(300)));
         assert_eq!(first_diagnostic_line(b"tiny", 300, "none"), "tiny");
+    }
+
+    #[test]
+    fn the_excerpt_keeps_the_tail_past_leading_progress_text() {
+        let stderr = b"Loading: 0 packages loaded\n\nAnalyzing: target\nERROR: no such target '//pkg:zz'\nERROR: Evaluation of query failed\n";
+        let excerpt = diagnostic_excerpt(stderr, 20, 4096).expect("excerpt");
+        assert!(!excerpt.truncated);
+        assert_eq!(
+            excerpt.text,
+            "Loading: 0 packages loaded\nAnalyzing: target\nERROR: no such target '//pkg:zz'\nERROR: Evaluation of query failed"
+        );
+        let excerpt = diagnostic_excerpt(stderr, 2, 4096).expect("excerpt");
+        assert!(excerpt.truncated);
+        assert_eq!(
+            excerpt.text,
+            "ERROR: no such target '//pkg:zz'\nERROR: Evaluation of query failed"
+        );
+    }
+
+    #[test]
+    fn the_excerpt_is_bounded_in_bytes_and_marks_truncation() {
+        let stderr = format!("{}\nERROR: last\n", "x".repeat(100));
+        let excerpt = diagnostic_excerpt(stderr.as_bytes(), 20, 50).expect("excerpt");
+        assert_eq!(excerpt.text, "ERROR: last");
+        assert!(excerpt.truncated);
+        let long = format!("ERROR: {}", "€".repeat(40));
+        let excerpt = diagnostic_excerpt(long.as_bytes(), 20, 50).expect("excerpt");
+        assert!(excerpt.truncated);
+        assert!(excerpt.text.len() <= 53, "{}", excerpt.text);
+        assert!(excerpt.text.ends_with("..."));
+    }
+
+    #[test]
+    fn an_empty_or_blank_output_has_no_excerpt() {
+        assert_eq!(diagnostic_excerpt(b"", 20, 4096), None);
+        assert_eq!(diagnostic_excerpt(b"\n  \n", 20, 4096), None);
+        assert_eq!(diagnostic_excerpt(b"x", 0, 4096), None);
     }
 
     #[test]

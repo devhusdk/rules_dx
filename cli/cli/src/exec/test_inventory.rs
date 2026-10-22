@@ -1,8 +1,14 @@
 use std::io::Write;
 
 use crate::args::{Command, Invocation};
-use crate::exec::common::{check_stdout_write, emit_event, operational, pre_exec};
-use crate::resolve::{first_line, resolve_for_test_with_selection, QueryRunner, SelectionContext};
+use crate::exec::common::{
+    check_stdout_write, emit_event, operational, pre_exec, report_failure, resolve_failed, Failure,
+    CODE_QUERY_LAUNCH_FAILED,
+};
+use crate::resolve::{
+    first_line, resolve_for_test_with_selection, QueryFailure, QueryRunner, ResolveError,
+    SelectionContext,
+};
 use dx_output::{
     command_finished, command_started, error_event, status_event, FinishedCounts, OutputMode,
     StatusEvent,
@@ -114,7 +120,7 @@ fn parse_cases(stdout: &[u8]) -> Vec<String> {
     cases
 }
 
-fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, (String, String)> {
+fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, Failure> {
     if !ctx.selection.configured() {
         return run_label_kind_query(ctx, &ctx.selection, ctx.verb, expr);
     }
@@ -127,29 +133,37 @@ fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, (
     run_label_kind_query(ctx, &ctx.selection, ctx.verb, &filter)
 }
 
+fn inventory_failure(code: &str, message: &str) -> Failure {
+    let mut failure = Failure::new(code, message, operational_code());
+    failure.phase = Some("query");
+    failure
+}
+
 fn run_label_kind_query(
     ctx: &Ctx,
     selection: &SelectionContext,
     verb: &str,
     expr: &str,
-) -> Result<Vec<(String, String)>, (String, String)> {
+) -> Result<Vec<(String, String)>, Failure> {
     let argv = query_argv(selection, verb, expr)
-        .map_err(|detail| (CODE_QUERY_FAILED.to_owned(), detail))?;
-    let result = ctx
-        .query_runner
-        .run_query(&argv, ctx.workspace)
-        .map_err(|error| (CODE_QUERY_FAILED.to_owned(), error.to_string()))?;
-    if result.code != Some(0) {
-        return Err((
-            CODE_QUERY_FAILED.to_owned(),
-            format!(
-                "query failed: bazel {verb} {expr} exited with code {} ({})",
-                result.code.unwrap_or(-1),
-                first_line(&result.stderr)
-            ),
-        ));
-    }
-    parse_label_kind(&result.stdout).map_err(|detail| (CODE_QUERY_FAILED.to_owned(), detail))
+        .map_err(|detail| inventory_failure(CODE_QUERY_FAILED, &detail))?;
+    let label = format!("bazel {verb} {expr}");
+    let result =
+        ResolveError::run(ctx.query_runner, &argv, ctx.workspace, &label).map_err(|error| {
+            match &error {
+                ResolveError::QueryFailed {
+                    failure: QueryFailure::Exit { status, excerpt },
+                    ..
+                } => {
+                    let mut failure = inventory_failure(CODE_QUERY_FAILED, &error.to_string());
+                    failure.status = *status;
+                    failure.excerpt = excerpt.clone();
+                    failure
+                }
+                _ => inventory_failure(CODE_QUERY_LAUNCH_FAILED, &error.to_string()),
+            }
+        })?;
+    parse_label_kind(&result.stdout).map_err(|detail| inventory_failure(CODE_QUERY_FAILED, &detail))
 }
 
 pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) -> i32 {
@@ -161,7 +175,7 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
         ..
     } = env;
     if invocation.command != Command::ListTests {
-        return pre_exec(err, "not a tests command");
+        return pre_exec(invocation.output, out, err, "not a tests command");
     }
     let verb = if invocation.configured {
         "cquery"
@@ -187,7 +201,7 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
         &ctx.selection,
     ) {
         Ok(resolved) => resolved,
-        Err(error) => return pre_exec(ctx.err, &error.to_string()),
+        Err(error) => return resolve_failed(invocation.output, ctx.out, ctx.err, &error),
     };
     let mut pairs: Vec<(String, String, String)> = Vec::new();
     let mut empty_scopes: Vec<String> = Vec::new();
@@ -202,8 +216,8 @@ pub(crate) fn execute_tests(invocation: &Invocation, env: crate::exec::Env<'_>) 
                     pairs.push((kind, label, scope.clone()));
                 }
             }
-            Err((code, detail)) => {
-                return operational(ctx.invocation, ctx.out, ctx.err, &code, &detail);
+            Err(failure) => {
+                return report_failure(ctx.invocation.output, ctx.out, ctx.err, &failure);
             }
         }
     }

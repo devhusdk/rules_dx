@@ -1,5 +1,6 @@
 use dx_process::{
-    build_workflow_argv, describe_scope, operation_summary, ForwardError, ProtectedFlag, Scope,
+    build_workflow_argv, describe_scope, operation_summary, redact_url_credentials, ForwardError,
+    ProtectedFlag, Scope,
 };
 
 use super::{
@@ -138,6 +139,17 @@ fn provenance_secret_names() -> &'static [&'static str] {
         "auth",
         "private_key",
         "oauth",
+        "header",
+    ]
+}
+
+fn provenance_env_names() -> &'static [&'static str] {
+    &[
+        "action_env",
+        "host_action_env",
+        "test_env",
+        "repo_env",
+        "client_env",
     ]
 }
 
@@ -146,32 +158,62 @@ fn provenance_option_name(option: &str) -> &str {
     bare.split('=').next().unwrap_or(bare)
 }
 
+fn env_assignment(value: &str) -> String {
+    match value.split_once('=') {
+        Some((name, _)) => format!("{name}=(value)"),
+        None => value.to_owned(),
+    }
+}
+
+enum Pending {
+    None,
+    Secret,
+    Env(String),
+}
+
+/// Splits Bazel options into ones safe to echo and redacted stand-ins for secrets.
 pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<String>) {
     let mut safe = Vec::new();
     let mut withheld = Vec::new();
-    let mut skip_value = false;
+    let mut pending = Pending::None;
     for option in options {
-        if skip_value {
-            skip_value = false;
-            if option.starts_with('-') {
-                safe.push(option.clone());
-            } else {
+        match std::mem::replace(&mut pending, Pending::None) {
+            Pending::Secret if !option.starts_with('-') => {
                 withheld.push("(value)".to_owned());
+                continue;
+            }
+            Pending::Env(name) if !option.starts_with('-') => {
+                withheld.push(format!("--{name} {}", env_assignment(option)));
+                continue;
+            }
+            Pending::Env(name) => safe.push(format!("--{name}")),
+            _ => {}
+        }
+        let name = provenance_option_name(option).to_lowercase();
+        if provenance_env_names().contains(&name.as_str()) {
+            match option.split_once('=') {
+                Some((flag, value)) if value.contains('=') => {
+                    withheld.push(format!("{flag}={}", env_assignment(value)));
+                }
+                Some(_) => safe.push(redact_url_credentials(option)),
+                None => pending = Pending::Env(name),
             }
             continue;
         }
-        let name = provenance_option_name(option).to_lowercase();
         let secret = provenance_secret_names()
             .iter()
             .any(|secret| name == *secret || name.ends_with(&format!("_{secret}")));
         if !secret {
-            safe.push(option.clone());
+            safe.push(redact_url_credentials(option));
             continue;
         }
         withheld.push(format!("--{}", provenance_option_name(option)));
         if !option.contains('=') {
-            skip_value = true;
+            pending = Pending::Secret;
         }
+    }
+    if let Pending::Env(name) = pending {
+        safe.push(format!("--{name}"));
     }
     (safe, withheld)
 }

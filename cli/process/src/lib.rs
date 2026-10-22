@@ -221,10 +221,33 @@ pub enum StartupOptionError {
     UnsupportedStartup { flag: String },
 }
 
+/// Replaces the user and password of every `scheme://user:pass@host` in `text`.
+pub fn redact_url_credentials(text: &str) -> String {
+    let mut redacted = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find("://") {
+        let (head, tail) = rest.split_at(start + 3);
+        redacted.push_str(head);
+        let authority_end = tail
+            .find(|cell: char| matches!(cell, '/' | '?' | '#') || cell.is_whitespace())
+            .unwrap_or(tail.len());
+        match tail[..authority_end].rfind('@') {
+            Some(at) => {
+                redacted.push_str("(credentials)");
+                rest = &tail[at..];
+            }
+            None => rest = tail,
+        }
+    }
+    redacted.push_str(rest);
+    redacted
+}
+
 pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError> {
     let Some(bare) = token.strip_prefix("--") else {
+        let name = token.split('=').next().unwrap_or(token);
         return Err(StartupOptionError::UnsupportedStartup {
-            flag: token.to_owned(),
+            flag: redact_url_credentials(name),
         });
     };
     let (name, value) = match bare.split_once('=') {

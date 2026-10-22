@@ -16,7 +16,7 @@ pub fn expand_codegen_roots(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::QueryResult;
+    use crate::resolve::{QueryFailure, QueryResult};
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;
@@ -100,7 +100,7 @@ mod tests {
     }
 
     #[test]
-    fn expansion_failures_report_the_first_bazel_line() {
+    fn expansion_failures_keep_the_bazel_status_and_excerpt() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fail-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
@@ -112,7 +112,7 @@ mod tests {
                 label:
                     "kind('.*codegen_shard rule', rdeps(//..., set(\"//generation:result_proto\")))"
                         .to_owned(),
-                detail: "query failed: blah".to_owned(),
+                failure: QueryFailure::exit_for_test(2, "  query failed: blah\nmore"),
             }
         );
     }

@@ -28,7 +28,7 @@ pub(super) fn execute_configured(
     } = env;
     let resolved = match dependency_sets::resolve(registry, &invocation.targets) {
         Ok(resolved) => resolved,
-        Err(error) => return pre_exec(err, &error.to_string()),
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let summary = frozen_summary(
         offline_summary(display_summary(&resolved, mode), invocation.offline),

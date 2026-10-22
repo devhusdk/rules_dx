@@ -3,7 +3,8 @@ use std::path::{Component, Path};
 
 use super::packages::PackageCache;
 use super::{
-    owned_sources_expression, ownership_set_expression, run_label_query, QueryRunner, ResolveError,
+    owned_sources_expression, ownership_set_expression, run_label_query, QueryFailure, QueryRunner,
+    ResolveError,
 };
 
 fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
@@ -44,9 +45,13 @@ pub(crate) fn first_line(bytes: &[u8]) -> String {
 }
 
 pub(crate) fn parse_owners(stdout: &[u8], label: &str) -> Result<Vec<String>, ResolveError> {
-    let text = std::str::from_utf8(stdout).map_err(|_| ResolveError::QueryFailed {
-        label: label.to_owned(),
-        detail: "query output is not UTF-8".to_owned(),
+    let text = std::str::from_utf8(stdout).map_err(|_| {
+        ResolveError::query(
+            label,
+            QueryFailure::Output {
+                detail: "query output is not UTF-8".to_owned(),
+            },
+        )
     })?;
     let mut owners: Vec<String> = text
         .lines()
@@ -105,12 +110,14 @@ pub(crate) fn classify_scopes(
             {
                 ResolveError::PathNotFound { scope: raw.clone() }
             } else {
-                ResolveError::QueryFailed {
-                    label: cache
+                ResolveError::query(
+                    &cache
                         .file_label(workspace, &rel, raw)
                         .unwrap_or_else(|_| raw.clone()),
-                    detail: error.to_string(),
-                }
+                    QueryFailure::Prepare {
+                        detail: error.to_string(),
+                    },
+                )
             }
         })?;
         if metadata.is_dir() {
@@ -472,7 +479,7 @@ mod tests {
             err,
             ResolveError::QueryFailed {
                 label: "deps(set(\"//pkg:lib\"), 1)".to_owned(),
-                detail: "ERROR: no such package".to_owned(),
+                failure: QueryFailure::exit_for_test(2, "ERROR: no such package\nmore context"),
             }
         );
     }

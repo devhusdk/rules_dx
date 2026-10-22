@@ -232,6 +232,24 @@ pub struct DefaultsFailure {
     pub detail: String,
 }
 
+fn raw_output_defaults(
+    start: &std::path::Path,
+    flag_workspace: Option<&str>,
+    env_workspace: Option<&str>,
+    is_ci: bool,
+) -> super::FileDefaults {
+    let env_workspace =
+        env_workspace.filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
+    let dir = match flag_workspace.or(env_workspace) {
+        Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), start),
+        None => start.to_path_buf(),
+    };
+    super::FileDefaults {
+        output: dx_adopt::defaults::raw_output(&dir, is_ci),
+        ..super::FileDefaults::default()
+    }
+}
+
 /// Loads the defaults a run uses, following one config-directed workspace hop.
 pub fn load_startup_defaults(
     start: &std::path::Path,
@@ -239,9 +257,15 @@ pub fn load_startup_defaults(
     env_workspace: Option<String>,
     is_ci: bool,
 ) -> Result<super::FileDefaults, DefaultsFailure> {
+    let lenient = raw_output_defaults(
+        start,
+        flag_workspace.as_deref(),
+        env_workspace.as_deref(),
+        is_ci,
+    );
     let selected = select_startup_defaults_with_ci(start, flag_workspace, env_workspace, is_ci)
         .map_err(|detail| DefaultsFailure {
-            partial: Box::default(),
+            partial: Box::new(lenient),
             detail,
         })?;
     let Some(target) = selected.file_workspace else {
@@ -988,6 +1012,14 @@ mod startup_tests {
         let failure = load_startup_defaults(broken.path(), None, None, false)
             .expect_err("broken start fails");
         assert_eq!(*failure.partial, crate::args::FileDefaults::default());
+        let invalid = scratch_with_config(
+            "startup-load-invalid-key-",
+            Some("[dx]\noutput = \"json\"\nlog-level = \"debug\"\n"),
+        );
+        let failure = load_startup_defaults(invalid.path(), None, None, false)
+            .expect_err("invalid key fails");
+        assert_eq!(failure.partial.output, Some("json".to_owned()));
+        assert!(failure.detail.contains("log-level"), "{}", failure.detail);
     }
 
     #[test]

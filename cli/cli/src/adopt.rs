@@ -41,7 +41,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::Version => version::execute_version(invocation, workspace, out, err),
         Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),
         Command::Completion => completion::execute_completion(invocation, out, err),
-        _ => pre_exec(err, "not an adoption command"),
+        _ => pre_exec(invocation.output, out, err, "not an adoption command"),
     }
 }
 

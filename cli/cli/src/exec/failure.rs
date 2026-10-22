@@ -1,0 +1,361 @@
+use super::common::{emit_event, flush_out};
+use crate::resolve::{QueryFailure, ResolveError};
+use dx_output::{
+    command_finished, failure_event, Excerpt, FailureFacts, FinishedCounts, OutputMode,
+};
+use dx_process::{interrupted, interrupted_code, pre_exec_code};
+use std::io::Write;
+
+pub(crate) const CODE_INVALID_ARGUMENTS: &str = "invalid_arguments";
+pub(crate) const CODE_INVALID_SCOPE: &str = "invalid_scope";
+pub(crate) const CODE_NO_OWNER: &str = "no_owner";
+pub(crate) const CODE_NO_TESTS: &str = "no_tests";
+pub(crate) const CODE_NOT_DEPLOYABLE: &str = "not_deployable";
+pub(crate) const CODE_QUERY_LAUNCH_FAILED: &str = "query_launch_failed";
+pub(crate) const CODE_QUERY_FAILED: &str = "query_failed";
+pub(crate) const CODE_BAZEL_FAILED: &str = "bazel_failed";
+pub(crate) const CODE_ANALYSIS_FAILED: &str = "analysis_failed";
+
+/// The class of one failure, reported as the `cause` of its `error` event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cause {
+    Input,
+    Defaults,
+    QueryLaunch,
+    Query,
+    Analysis,
+    Bazel,
+    ToolUnavailable,
+    Collection,
+    Report,
+    Operational,
+    Unknown,
+}
+
+impl Cause {
+    pub fn name(self) -> &'static str {
+        match self {
+            Cause::Input => "input",
+            Cause::Defaults => "defaults",
+            Cause::QueryLaunch => "query_launch",
+            Cause::Query => "query",
+            Cause::Analysis => "analysis",
+            Cause::Bazel => "bazel",
+            Cause::ToolUnavailable => "tool_unavailable",
+            Cause::Collection => "collection",
+            Cause::Report => "report",
+            Cause::Operational => "operational",
+            Cause::Unknown => "unknown",
+        }
+    }
+
+    /// The cause an error code belongs to.
+    pub fn of(code: &str) -> Cause {
+        match code {
+            "invalid_arguments"
+            | "invalid_scope"
+            | "scope_error"
+            | "no_owner"
+            | "no_tests"
+            | "no_runnable"
+            | "ambiguous_runnable"
+            | "not_deployable"
+            | "completion_failed"
+            | "unresolved_workspace"
+            | "unreadable_working_directory" => Cause::Input,
+            "invalid_defaults" => Cause::Defaults,
+            "query_launch_failed" => Cause::QueryLaunch,
+            "query_failed" => Cause::Query,
+            "analysis_failed" => Cause::Analysis,
+            "bazel_failed" => Cause::Bazel,
+            "launch_failed" | "unsupported_platform" => Cause::ToolUnavailable,
+            "unreadable_bep" | "invalid_bep" | "collection_failed" | "invalid_result" => {
+                Cause::Collection
+            }
+            "report_failed" => Cause::Report,
+            "bazel_signalled" => Cause::Unknown,
+            _ => Cause::Operational,
+        }
+    }
+}
+
+/// One failure on its way to stderr and, in JSON mode, the terminal event pair.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Failure {
+    pub code: String,
+    pub message: String,
+    pub exit: i32,
+    pub status: Option<i32>,
+    pub excerpt: Option<Excerpt>,
+    pub phase: Option<&'static str>,
+}
+
+impl Failure {
+    pub fn new(code: &str, message: &str, exit: i32) -> Self {
+        Failure {
+            code: code.to_owned(),
+            message: message.to_owned(),
+            exit,
+            status: None,
+            excerpt: None,
+            phase: None,
+        }
+    }
+
+    pub fn cause(&self) -> Cause {
+        Cause::of(&self.code)
+    }
+
+    fn shows_usage(&self) -> bool {
+        matches!(self.cause(), Cause::Input | Cause::Defaults) && self.exit == pre_exec_code()
+    }
+
+    /// The failure of scope resolution, keeping a query's native status and excerpt.
+    pub(crate) fn resolve(error: &ResolveError) -> Self {
+        let code = match error {
+            ResolveError::QueryFailed {
+                failure: QueryFailure::Launch { .. },
+                ..
+            } => CODE_QUERY_LAUNCH_FAILED,
+            ResolveError::QueryFailed {
+                failure: QueryFailure::Prepare { .. },
+                ..
+            } => CODE_INVALID_SCOPE,
+            ResolveError::QueryFailed { .. } => CODE_QUERY_FAILED,
+            ResolveError::NoOwner { .. } => CODE_NO_OWNER,
+            ResolveError::NoTests { .. } => CODE_NO_TESTS,
+            ResolveError::NoRunnable { .. } => "no_runnable",
+            ResolveError::AmbiguousRunnable { .. } => "ambiguous_runnable",
+            ResolveError::NotDeployable { .. } => CODE_NOT_DEPLOYABLE,
+            _ => CODE_INVALID_SCOPE,
+        };
+        let mut failure = Failure::new(code, &error.to_string(), pre_exec_code());
+        failure.phase = Some("resolve");
+        if let ResolveError::QueryFailed {
+            failure: QueryFailure::Exit { status, excerpt },
+            ..
+        } = error
+        {
+            failure.status = *status;
+            failure.excerpt = excerpt.clone();
+        }
+        failure
+    }
+}
+
+/// Writes the `error` event and the terminal `command_finished` for one failure.
+pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(), i32> {
+    let cause = failure.cause();
+    let facts = FailureFacts {
+        cause: cause.name(),
+        status: failure.status,
+        excerpt: failure.excerpt.as_ref(),
+    };
+    if let Ok(event) = failure_event(&failure.code, &failure.message, failure.phase, &facts) {
+        emit_event(out, &event)?;
+    }
+    emit_event(
+        out,
+        &command_finished(
+            failure.exit,
+            &FinishedCounts {
+                results_complete: Some(false),
+                ..FinishedCounts::default()
+            },
+        ),
+    )?;
+    flush_out(out)
+}
+
+/// Writes one failure to stderr and, in JSON mode, to stdout; a stop signal turns it into a cancellation.
+pub fn report_failure(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    failure: &Failure,
+) -> i32 {
+    if let Some(signo) = interrupted() {
+        let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+        return interrupted_code(signo);
+    }
+    if failure.shows_usage() {
+        let _ = writeln!(err, "dx: {}", failure.message);
+    } else {
+        let _ = writeln!(err, "dx: {}: {}", failure.code, failure.message);
+    }
+    if let Some(excerpt) = &failure.excerpt {
+        for line in excerpt.text.lines() {
+            let _ = writeln!(err, "  {line}");
+        }
+        if excerpt.truncated {
+            let _ = writeln!(err, "  (excerpt truncated)");
+        }
+    }
+    if failure.shows_usage() {
+        let _ = writeln!(err, "{}", crate::args::help::usage_banner());
+    }
+    if output == OutputMode::Json {
+        if let Err(exit) = emit_failure_events(out, failure) {
+            return exit;
+        }
+    }
+    failure.exit
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dx_process::{broken_pipe_code, operational_code};
+    use std::io;
+
+    struct BrokenPipe;
+
+    impl Write for BrokenPipe {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+            Err(io::Error::from(io::ErrorKind::BrokenPipe))
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn events(out: &[u8]) -> Vec<serde_json::Value> {
+        std::str::from_utf8(out)
+            .expect("utf8")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("NDJSON"))
+            .collect()
+    }
+
+    fn query_error(failure: QueryFailure) -> ResolveError {
+        ResolveError::QueryFailed {
+            label: "owners".to_owned(),
+            failure,
+        }
+    }
+
+    #[test]
+    fn every_code_has_one_cause_and_input_classes_stay_separate() {
+        for (code, cause) in [
+            ("invalid_arguments", "input"),
+            ("invalid_scope", "input"),
+            ("no_owner", "input"),
+            ("invalid_defaults", "defaults"),
+            ("query_launch_failed", "query_launch"),
+            ("query_failed", "query"),
+            ("analysis_failed", "analysis"),
+            ("bazel_failed", "bazel"),
+            ("launch_failed", "tool_unavailable"),
+            ("invalid_bep", "collection"),
+            ("collection_failed", "collection"),
+            ("report_failed", "report"),
+            ("bazel_signalled", "unknown"),
+            ("version_skew", "operational"),
+        ] {
+            assert_eq!(Cause::of(code).name(), cause, "{code}");
+        }
+    }
+
+    #[test]
+    fn resolve_failures_keep_the_query_cause_status_and_excerpt() {
+        let excerpt = Excerpt {
+            text: "ERROR: no such package".to_owned(),
+            truncated: true,
+        };
+        let failure = Failure::resolve(&query_error(QueryFailure::Exit {
+            status: Some(7),
+            excerpt: Some(excerpt.clone()),
+        }));
+        assert_eq!(failure.code, "query_failed");
+        assert_eq!(failure.status, Some(7));
+        assert_eq!(failure.excerpt, Some(excerpt));
+        assert_eq!(failure.exit, pre_exec_code());
+        let launch = Failure::resolve(&query_error(QueryFailure::Launch {
+            detail: "not found".to_owned(),
+        }));
+        assert_eq!(launch.code, "query_launch_failed");
+        assert_eq!(launch.status, None);
+        let scope = Failure::resolve(&ResolveError::PathNotFound {
+            scope: "x.py".to_owned(),
+        });
+        assert_eq!(scope.code, "invalid_scope");
+        assert_eq!(scope.cause(), Cause::Input);
+    }
+
+    #[test]
+    fn json_failures_emit_the_error_then_the_terminal_event() {
+        let failure = Failure::resolve(&query_error(QueryFailure::Exit {
+            status: Some(7),
+            excerpt: Some(Excerpt {
+                text: "Loading: 1 package\nERROR: boom".to_owned(),
+                truncated: false,
+            }),
+        }));
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = report_failure(OutputMode::Json, &mut out, &mut err, &failure);
+        assert_eq!(code, 2);
+        let events = events(&out);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0]["event"], "error");
+        assert_eq!(events[0]["code"], "query_failed");
+        assert_eq!(events[0]["cause"], "query");
+        assert_eq!(events[0]["status"], 7);
+        assert_eq!(events[0]["phase"], "resolve");
+        assert_eq!(events[0]["excerpt"], "Loading: 1 package\nERROR: boom");
+        assert_eq!(events[0]["truncated"], false);
+        assert_eq!(events[1]["event"], "command_finished");
+        assert_eq!(events[1]["exit_code"], 2);
+        assert_eq!(events[1]["results_complete"], false);
+        let err = String::from_utf8(err).expect("utf8");
+        assert!(
+            err.starts_with("dx: query_failed: query owners failed: Bazel exited 7\n  Loading: 1 package\n  ERROR: boom\n"),
+            "{err}"
+        );
+        assert!(!err.contains("usage:"), "{err}");
+    }
+
+    #[test]
+    fn input_failures_show_usage_and_text_mode_keeps_stdout_empty() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let failure = Failure::new("invalid_scope", "unknown path", pre_exec_code());
+        let code = report_failure(
+            OutputMode::Text { quiet: false },
+            &mut out,
+            &mut err,
+            &failure,
+        );
+        assert_eq!(code, 2);
+        assert!(out.is_empty());
+        let err = String::from_utf8(err).expect("utf8");
+        assert!(err.starts_with("dx: unknown path\nusage: dx "), "{err}");
+    }
+
+    #[test]
+    fn a_truncated_excerpt_is_marked_on_stderr() {
+        let mut failure = Failure::new("query_failed", "query failed", pre_exec_code());
+        failure.excerpt = Some(Excerpt {
+            text: "ERROR: tail".to_owned(),
+            truncated: true,
+        });
+        let mut err = Vec::new();
+        report_failure(
+            OutputMode::Text { quiet: true },
+            &mut Vec::new(),
+            &mut err,
+            &failure,
+        );
+        assert!(String::from_utf8(err)
+            .expect("utf8")
+            .ends_with("  ERROR: tail\n  (excerpt truncated)\n"));
+    }
+
+    #[test]
+    fn a_closed_stdout_ends_the_failure_with_the_broken_pipe_exit() {
+        let failure = Failure::new("collection_failed", "boom", operational_code());
+        let code = report_failure(OutputMode::Json, &mut BrokenPipe, &mut Vec::new(), &failure);
+        assert_eq!(code, broken_pipe_code());
+    }
+}

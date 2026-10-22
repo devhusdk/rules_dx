@@ -5,12 +5,16 @@ use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
-    command_finished, command_started, write_event, ChangeEvent, ChangeKind, DiagnosticEvent,
-    FinishedCounts, OutputMode,
+    command_started, write_event, ChangeEvent, ChangeKind, DiagnosticEvent, OutputMode,
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
 use std::io::{self, BufReader, Write};
 use std::path::Path;
+
+pub(crate) use super::failure::{
+    emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED,
+    CODE_INVALID_ARGUMENTS, CODE_QUERY_LAUNCH_FAILED,
+};
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
     if error.is_broken_pipe() {
@@ -258,10 +262,49 @@ pub(crate) fn text_diagnostic(diagnostic: &DiagnosticEvent) -> String {
     line
 }
 
-pub(crate) fn pre_exec(err: &mut dyn Write, message: &str) -> i32 {
-    let _ = writeln!(err, "dx: {message}");
-    let _ = writeln!(err, "{}", crate::args::help::usage_banner());
-    pre_exec_code()
+/// Reports one failure found before the command executes.
+pub(crate) fn pre_exec(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    message: &str,
+) -> i32 {
+    report_failure(
+        output,
+        out,
+        err,
+        &Failure::new(CODE_INVALID_ARGUMENTS, message, pre_exec_code()),
+    )
+}
+
+/// Reports a scope that did not resolve; a failed query never becomes an empty selection.
+pub(crate) fn resolve_failed(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    error: &crate::resolve::ResolveError,
+) -> i32 {
+    report_failure(output, out, err, &Failure::resolve(error))
+}
+
+/// The `error` event for a Bazel run that exited nonzero, keeping its native status.
+pub(crate) fn bazel_exit_event(
+    code: &str,
+    message: &str,
+    status: i32,
+) -> Option<serde_json::Value> {
+    let cause = Cause::of(code);
+    dx_output::failure_event(
+        code,
+        message,
+        Some("execute"),
+        &dx_output::FailureFacts {
+            cause: cause.name(),
+            status: Some(status),
+            excerpt: None,
+        },
+    )
+    .ok()
 }
 
 /// Reports one failed report as a `dx: report_failed:` line and, in JSON mode, an error event.
@@ -273,7 +316,12 @@ pub(crate) fn report_failed(
 ) {
     let _ = writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}");
     if output == OutputMode::Json {
-        if let Ok(event) = dx_output::error_event(CODE_REPORT_FAILED, detail, None, None, None) {
+        let facts = dx_output::FailureFacts {
+            cause: Cause::Report.name(),
+            status: None,
+            excerpt: None,
+        };
+        if let Ok(event) = dx_output::failure_event(CODE_REPORT_FAILED, detail, None, &facts) {
             let _ = write_event(out, &event);
         }
     }
@@ -353,25 +401,12 @@ pub(crate) fn operational_output(
     code: &str,
     message: &str,
 ) -> i32 {
-    let _ = writeln!(err, "dx: {code}: {message}");
-    if output == OutputMode::Json {
-        if let Ok(event) = dx_output::error_event(code, message, None, None, None) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-        let finished = command_finished(
-            operational_code(),
-            &FinishedCounts {
-                results_complete: Some(false),
-                ..FinishedCounts::default()
-            },
-        );
-        if let Err(exit) = emit_event(out, &finished) {
-            return exit;
-        }
-    }
-    operational_code()
+    report_failure(
+        output,
+        out,
+        err,
+        &Failure::new(code, message, operational_code()),
+    )
 }
 
 pub(crate) fn operational(
@@ -384,30 +419,14 @@ pub(crate) fn operational(
     operational_output(invocation.output, out, err, code, message)
 }
 
-/// Emits the terminal pair for a failure before the command starts: one
-/// `error` event carrying the machine-readable code, then `command_finished`
-/// with the process exit and `results_complete: false`. No `command_started`
-/// precedes them because the command never began execution.
+/// Emits the `error` and `command_finished` pair for a failure before the command starts.
 pub fn emit_startup_outcome(
     out: &mut dyn Write,
     code: &str,
     message: &str,
     exit: i32,
 ) -> Result<(), i32> {
-    if let Ok(event) = dx_output::error_event(code, message, None, None, None) {
-        emit_event(out, &event)?;
-    }
-    emit_event(
-        out,
-        &command_finished(
-            exit,
-            &FinishedCounts {
-                results_complete: Some(false),
-                ..FinishedCounts::default()
-            },
-        ),
-    )?;
-    flush_out(out)
+    emit_failure_events(out, &Failure::new(code, message, exit))
 }
 
 /// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
@@ -505,7 +524,7 @@ pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_output::{Severity, Snapshot};
+    use dx_output::{command_finished, FinishedCounts, Severity, Snapshot};
     use std::cell::RefCell;
     use std::rc::Rc;
 

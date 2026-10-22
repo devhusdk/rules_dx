@@ -530,6 +530,11 @@ fn qualified_startup_options_validate_as_single_tokens() {
         ("--bogus=1", "bogus"),
         ("plain", "plain"),
         ("", ""),
+        ("output_base=hunter2", "output_base"),
+        (
+            "https://user:hunter2@cache.example",
+            "https://(credentials)@cache.example",
+        ),
     ] {
         let err = validate_startup_option(token).expect_err("unsupported");
         assert_eq!(
@@ -540,6 +545,25 @@ fn qualified_startup_options_validate_as_single_tokens() {
             "{token:?}"
         );
         assert!(err.to_string().contains("unsupported"), "{token:?}: {err}");
+    }
+}
+
+#[test]
+fn url_credentials_are_redacted_and_other_text_is_kept() {
+    for (text, want) in [
+        (
+            "--remote_cache=grpcs://user:pw@cache.example:443/x",
+            "--remote_cache=grpcs://(credentials)@cache.example:443/x",
+        ),
+        (
+            "a https://t@h/p and http://u:p@g",
+            "a https://(credentials)@h/p and http://(credentials)@g",
+        ),
+        ("https://cache.example/a@b", "https://cache.example/a@b"),
+        ("no url here", "no url here"),
+        ("trailing://", "trailing://"),
+    ] {
+        assert_eq!(redact_url_credentials(text), want, "{text}");
     }
 }
 

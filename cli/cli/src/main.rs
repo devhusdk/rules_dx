@@ -183,10 +183,10 @@ fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json
     exit
 }
 
-fn usage_error(message: &str, json: bool) -> i32 {
+fn usage_error(code: &str, message: &str, json: bool) -> i32 {
     startup_failure(
         &format!("dx: {message}\n{}", dx_cli::args::help::usage_banner()),
-        "invalid_arguments",
+        code,
         message,
         pre_exec_code(),
         json,
@@ -267,7 +267,11 @@ fn run() -> i32 {
         }
         Err(error) => {
             let json = json_output_intent(&args, &env_get, &file_defaults, is_ci);
-            return usage_error(&error.to_string(), json);
+            let code = match error {
+                dx_cli::args::ArgsError::BadDefault { .. } => "invalid_defaults",
+                _ => "invalid_arguments",
+            };
+            return usage_error(code, &error.to_string(), json);
         }
     };
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

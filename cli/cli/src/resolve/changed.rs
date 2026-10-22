@@ -394,7 +394,7 @@ pub fn resolve_affected(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::{resolve, NeverQuery, QueryResult};
+    use crate::resolve::{resolve, NeverQuery, QueryFailure, QueryResult};
     use crate::test_support::strings;
     use std::cell::RefCell;
     use std::path::PathBuf;
@@ -858,7 +858,7 @@ mod tests {
             err,
             ResolveError::QueryFailed {
                 label: "kind('rule', rdeps(//..., set(\"//pkg:a.py\"), 1))".to_owned(),
-                detail: "ERROR: no such package".to_owned(),
+                failure: QueryFailure::exit_for_test(2, "ERROR: no such package\nmore"),
             }
         );
     }
@@ -888,7 +888,7 @@ mod tests {
             err,
             ResolveError::QueryFailed {
                 label: "deps(set(\"//pkg:lib\"), 1)".to_owned(),
-                detail: "ERROR: no such package".to_owned(),
+                failure: QueryFailure::exit_for_test(2, "ERROR: no such package\nmore"),
             }
         );
     }

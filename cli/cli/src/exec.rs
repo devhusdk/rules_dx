@@ -5,6 +5,7 @@ mod clean;
 pub mod common;
 mod deploy;
 mod docs;
+mod failure;
 mod failure_reports;
 mod generate;
 mod managed;
@@ -128,8 +129,13 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.command.name()
     );
     if invocation.here {
-        let Env { err, .. } = env;
-        return common::pre_exec(err, "option \"--here\" needs cwd resolution");
+        let Env { out, err, .. } = env;
+        return common::pre_exec(
+            invocation.output,
+            out,
+            err,
+            "option \"--here\" needs cwd resolution",
+        );
     }
     match family(invocation.command) {
         Family::Adoption => {

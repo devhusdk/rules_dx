@@ -37,6 +37,42 @@ format. `dx test --output=json` adds one
 attempt, cached state, duration, case counts, artifact counts, and whether its
 evidence is complete.
 
+`dx build`, `dx test` and `dx coverage` report each failure Bazel records
+when it exits nonzero. `--output=text` prints one `dx: build failure:` line
+per failure on stderr, with its rustc diagnostics under it.
+`--output=json` adds one `build_failure` event per failure, before
+`command_finished`. Each event has:
+
+- `record_version`: `1`. New fields are only ever added.
+- `target`, `configuration`, `target_kind` (`test`, `other` or `unknown`).
+- `stage`: `analysis`, `tool_acquisition`, `compilation`, `linking`,
+  `test_execution`, `other` or `unknown`.
+- `category`: `analysis_failed`, `loading_failed`, `tool_unavailable`,
+  `tool_missing`, `compile_failed`, `link_failed`, `test_execution_failed`,
+  `action_failed`, `target_not_built`, `skipped`, `cancelled` or `aborted`.
+- `action`: `mnemonic`, `primary_output` and, when known, `exit_code`.
+- `tool`: `rustc` for Rust actions.
+- `message`: the first line of Bazel's reason, for failures with no action.
+- `diagnostics`: `status`, `total` and up to 50 `items` with `severity`,
+  `code`, `message`, `path`, `line` and `column`.
+
+Anything Bazel did not report reads `unknown`. An analysis failure has no
+action, so its action fields are `unknown`. A test target that fails to build
+emits a `build_failure` with `target_kind` `test`, no `test_outcome` event and
+no test case in the JUnit report. Environment variables and command lines are
+never reported.
+
+Diagnostics come from rustc's JSON diagnostics in the failed action's stderr.
+`status` is `parsed` when diagnostics were read, `none` when the stderr held
+none, `unavailable` when the stderr is remote or unreadable, and `unknown` for
+non-Rust actions. A Rust action whose diagnostics include a `linking with`
+error is reported as `linking`. Pass a rustc JSON error format through Bazel
+to get diagnostics, for example
+`-- --@rules_rust//rust/settings:error_format=json`.
+
+If Bazel's event file ends early or cannot be read, dx still returns Bazel's
+code and reports a `build_events_incomplete` notice.
+
 Exit codes: `0` success. `2` usage or scope errors. `1` operational
 failures. Bazel failures keep Bazel's code. A missing, truncated or invalid
 `test.xml` artifact fails the run as incomplete, even when Bazel passes.

@@ -5,6 +5,7 @@ pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
 pub const EVENTS: &[&str] = &[
+    "build_failure",
     "capability",
     "change",
     "command_finished",
@@ -351,6 +352,106 @@ pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
         Value::Bool(outcome.evidence_complete),
     );
     Ok(Value::Object(map))
+}
+
+/// One rustc diagnostic that Bazel's failed action produced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FailureDiagnostic {
+    pub severity: String,
+    pub code: Option<String>,
+    pub message: String,
+    pub path: Option<String>,
+    pub line: Option<u64>,
+    pub column: Option<u64>,
+}
+
+/// One failure Bazel reported while building. `None` identity fields are unknown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuildFailureEvent {
+    pub target: Option<String>,
+    pub configuration: Option<String>,
+    pub target_kind: String,
+    pub stage: String,
+    pub category: String,
+    pub mnemonic: Option<String>,
+    pub primary_output: Option<String>,
+    pub exit_code: Option<i64>,
+    pub tool: Option<String>,
+    pub message: Option<String>,
+    pub diagnostics_status: String,
+    pub diagnostics_total: u64,
+    pub diagnostics: Vec<FailureDiagnostic>,
+}
+
+pub const BUILD_FAILURE_RECORD_VERSION: u64 = 1;
+
+fn known(value: &Option<String>) -> Value {
+    Value::String(value.clone().unwrap_or_else(|| "unknown".to_owned()))
+}
+
+pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputError> {
+    nonempty("stage", &failure.stage)?;
+    nonempty("category", &failure.category)?;
+    nonempty("target_kind", &failure.target_kind)?;
+    nonempty("diagnostics_status", &failure.diagnostics_status)?;
+    let mut map = base("build_failure");
+    map.insert(
+        "record_version".to_owned(),
+        Value::from(BUILD_FAILURE_RECORD_VERSION),
+    );
+    map.insert("target".to_owned(), known(&failure.target));
+    map.insert("configuration".to_owned(), known(&failure.configuration));
+    map.insert(
+        "target_kind".to_owned(),
+        Value::String(failure.target_kind.clone()),
+    );
+    map.insert("stage".to_owned(), Value::String(failure.stage.clone()));
+    map.insert(
+        "category".to_owned(),
+        Value::String(failure.category.clone()),
+    );
+    let mut action = serde_json::Map::new();
+    action.insert("mnemonic".to_owned(), known(&failure.mnemonic));
+    action.insert("primary_output".to_owned(), known(&failure.primary_output));
+    opt_i64(&mut action, "exit_code", failure.exit_code);
+    map.insert("action".to_owned(), Value::Object(action));
+    map.insert("tool".to_owned(), known(&failure.tool));
+    opt_str(&mut map, "message", &failure.message);
+    let items: Vec<Value> = failure
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let mut item = serde_json::Map::new();
+            item.insert(
+                "severity".to_owned(),
+                Value::String(diagnostic.severity.clone()),
+            );
+            opt_str(&mut item, "code", &diagnostic.code);
+            item.insert(
+                "message".to_owned(),
+                Value::String(diagnostic.message.clone()),
+            );
+            opt_str(&mut item, "path", &diagnostic.path);
+            opt_u64(&mut item, "line", diagnostic.line);
+            opt_u64(&mut item, "column", diagnostic.column);
+            Value::Object(item)
+        })
+        .collect();
+    map.insert(
+        "diagnostics".to_owned(),
+        json!({
+            "status": failure.diagnostics_status,
+            "total": failure.diagnostics_total,
+            "items": items,
+        }),
+    );
+    Ok(Value::Object(map))
+}
+
+fn opt_i64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<i64>) {
+    if let Some(value) = value {
+        map.insert(field.to_owned(), Value::from(value));
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -765,5 +866,54 @@ mod tests {
         let event = command_started("status", "default").expect("started");
         let error = write_event(&mut BrokenPipe, &event).expect_err("broken pipe");
         assert!(error.is_broken_pipe());
+    }
+}
+
+#[cfg(test)]
+mod build_failure_tests {
+    use super::*;
+
+    fn sample() -> BuildFailureEvent {
+        BuildFailureEvent {
+            target: Some("//a:lib".to_owned()),
+            configuration: None,
+            target_kind: "other".to_owned(),
+            stage: "compilation".to_owned(),
+            category: "compile_failed".to_owned(),
+            mnemonic: Some("Rustc".to_owned()),
+            primary_output: None,
+            exit_code: Some(1),
+            tool: Some("rustc".to_owned()),
+            message: None,
+            diagnostics_status: "parsed".to_owned(),
+            diagnostics_total: 1,
+            diagnostics: vec![FailureDiagnostic {
+                severity: "error".to_owned(),
+                code: Some("E0425".to_owned()),
+                message: "cannot find value".to_owned(),
+                path: Some("a/lib.rs".to_owned()),
+                line: Some(3),
+                column: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn missing_facts_read_unknown() {
+        let event = build_failure_event(&sample()).expect("event");
+        assert_eq!(event["event"], "build_failure");
+        assert_eq!(event["record_version"], 1);
+        assert_eq!(event["configuration"], "unknown");
+        assert_eq!(event["action"]["primary_output"], "unknown");
+        assert_eq!(event["action"]["exit_code"], 1);
+        assert_eq!(event["diagnostics"]["items"][0]["code"], "E0425");
+        assert!(event["diagnostics"]["items"][0].get("column").is_none());
+    }
+
+    #[test]
+    fn an_empty_stage_is_rejected() {
+        let mut failure = sample();
+        failure.stage.clear();
+        assert!(build_failure_event(&failure).is_err());
     }
 }

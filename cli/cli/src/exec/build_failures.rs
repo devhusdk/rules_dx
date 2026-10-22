@@ -1,0 +1,585 @@
+use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
+use dx_output::{
+    build_failure_event, notice_event, write_event, BuildFailureEvent, FailureDiagnostic,
+    NoticeEvent, OutputMode,
+};
+use quality_adapter::parsers::{parse_rustc_action_output, ActionDiagnostic};
+use quality_adapter::ToolSeverity;
+use std::io::{BufReader, Read, Write};
+use std::path::Path;
+
+const DIAGNOSTIC_LIMIT: usize = 50;
+const STDERR_LIMIT: u64 = 8 * 1024 * 1024;
+const LINK_PREFIX: &str = "linking with";
+
+struct Diagnostics {
+    status: &'static str,
+    total: u64,
+    items: Vec<ActionDiagnostic>,
+}
+
+fn read_stderr(path: &Path) -> Option<Vec<u8>> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut bytes = Vec::new();
+    file.take(STDERR_LIMIT + 1).read_to_end(&mut bytes).ok()?;
+    if bytes.len() as u64 > STDERR_LIMIT {
+        return None;
+    }
+    Some(bytes)
+}
+
+fn rustc_diagnostics(failure: &BuildFailure) -> Diagnostics {
+    let StderrRef::Local(path) = &failure.stderr else {
+        return Diagnostics {
+            status: "unavailable",
+            total: 0,
+            items: Vec::new(),
+        };
+    };
+    let parsed = read_stderr(path).and_then(|bytes| parse_rustc_action_output(&bytes).ok());
+    match parsed {
+        None => Diagnostics {
+            status: "unavailable",
+            total: 0,
+            items: Vec::new(),
+        },
+        Some(items) if items.is_empty() => Diagnostics {
+            status: "none",
+            total: 0,
+            items,
+        },
+        Some(items) => Diagnostics {
+            status: "parsed",
+            total: items.len() as u64,
+            items,
+        },
+    }
+}
+
+fn severity_name(severity: ToolSeverity) -> &'static str {
+    match severity {
+        ToolSeverity::Error => "error",
+        ToolSeverity::Warning => "warning",
+        ToolSeverity::Info => "info",
+    }
+}
+
+fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
+    let is_rustc = failure
+        .mnemonic
+        .as_deref()
+        .is_some_and(|mnemonic| mnemonic.starts_with("Rustc"));
+    let diagnostics = if is_rustc {
+        rustc_diagnostics(failure)
+    } else {
+        Diagnostics {
+            status: "unknown",
+            total: 0,
+            items: Vec::new(),
+        }
+    };
+    let (mut stage, mut category) = (failure.stage, failure.category);
+    if is_rustc
+        && stage == FailureStage::Compilation
+        && diagnostics
+            .items
+            .iter()
+            .any(|item| item.message.starts_with(LINK_PREFIX))
+    {
+        stage = FailureStage::Linking;
+        category = "link_failed";
+    }
+    BuildFailureEvent {
+        target: failure.target.clone(),
+        configuration: failure.configuration.clone(),
+        target_kind: failure.target_kind.name().to_owned(),
+        stage: stage.name().to_owned(),
+        category: category.to_owned(),
+        mnemonic: failure.mnemonic.clone(),
+        primary_output: failure.primary_output.clone(),
+        exit_code: failure.exit_code,
+        tool: is_rustc.then(|| "rustc".to_owned()),
+        message: failure.message.clone(),
+        diagnostics_status: diagnostics.status.to_owned(),
+        diagnostics_total: diagnostics.total,
+        diagnostics: diagnostics
+            .items
+            .into_iter()
+            .take(DIAGNOSTIC_LIMIT)
+            .map(|item| FailureDiagnostic {
+                severity: severity_name(item.severity).to_owned(),
+                code: item.code,
+                message: item.message,
+                path: item.file,
+                line: item.line,
+                column: item.column,
+            })
+            .collect(),
+    }
+}
+
+fn describe(event: &BuildFailureEvent) -> String {
+    let unknown = "unknown";
+    let mut text = format!(
+        "dx: build failure: {} ({}/{}",
+        event.target.as_deref().unwrap_or(unknown),
+        event.stage,
+        event.category
+    );
+    if let Some(mnemonic) = &event.mnemonic {
+        text.push_str(&format!(", {mnemonic}"));
+    }
+    text.push(')');
+    if let Some(message) = &event.message {
+        text.push_str(&format!(": {message}"));
+    }
+    for diagnostic in &event.diagnostics {
+        text.push_str(&format!("\n  {}", diagnostic.severity));
+        if let Some(code) = &diagnostic.code {
+            text.push_str(&format!("[{code}]"));
+        }
+        text.push_str(&format!(": {}", diagnostic.message));
+        if let Some(path) = &diagnostic.path {
+            text.push_str(&format!(" ({path}"));
+            if let Some(line) = diagnostic.line {
+                text.push_str(&format!(":{line}"));
+                if let Some(column) = diagnostic.column {
+                    text.push_str(&format!(":{column}"));
+                }
+            }
+            text.push(')');
+        }
+    }
+    text
+}
+
+fn unavailable(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, detail: &str) {
+    match output {
+        OutputMode::Json => {
+            let notice = NoticeEvent {
+                level: "warning".to_owned(),
+                code: "build_events_incomplete".to_owned(),
+                message: detail.to_owned(),
+                related_command: None,
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            };
+            if let Ok(event) = notice_event(&notice) {
+                let _ = write_event(out, &event);
+            }
+        }
+        OutputMode::Text { .. } => {
+            let _ = writeln!(err, "dx: build_events_incomplete: {detail}");
+        }
+        _ => {}
+    }
+}
+
+/// Reports the failures Bazel recorded in the event file and returns how many it found.
+pub(crate) fn report_build_failures(
+    bep: &Path,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> usize {
+    let file = match std::fs::File::open(bep) {
+        Ok(file) => file,
+        Err(error) => {
+            unavailable(
+                output,
+                out,
+                err,
+                &format!("build failures are unknown: {error}"),
+            );
+            return 0;
+        }
+    };
+    let collected = collect_build_failures(BufReader::new(file));
+    let events: Vec<BuildFailureEvent> = collected.failures.iter().map(to_event).collect();
+    for event in &events {
+        match output {
+            OutputMode::Json => {
+                if let Ok(value) = build_failure_event(event) {
+                    let _ = write_event(out, &value);
+                }
+            }
+            OutputMode::Text { .. } => {
+                let _ = writeln!(err, "{}", describe(event));
+            }
+            _ => {}
+        }
+    }
+    if let Some(problem) = &collected.problem {
+        unavailable(
+            output,
+            out,
+            err,
+            &format!("build events end early, so later failures may be missing: {problem}"),
+        );
+    }
+    events.len()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::test_support::*;
+    use serde_json::{json, Value};
+
+    const ERROR_LINE: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"app/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null}"#;
+    const LINK_LINE: &str = r#"{"$message_type":"diagnostic","message":"linking with `cc` failed: exit status: 1","code":null,"level":"error","spans":[],"children":[],"rendered":null}"#;
+
+    fn stderr_file(harness: &Harness, name: &str, text: &str) -> String {
+        let dir = harness.temp.join("stderr");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let path = dir.join(name);
+        std::fs::write(&path, text).expect("stderr");
+        format!("file://{}", path.to_string_lossy())
+    }
+
+    fn failed_action(label: &str, config: &str, mnemonic: &str, output: &str, uri: &str) -> String {
+        json!({
+            "id": {"actionCompleted": {
+                "primaryOutput": output,
+                "label": label,
+                "configuration": {"id": config},
+            }},
+            "action": {
+                "success": false,
+                "type": mnemonic,
+                "exitCode": 1,
+                "stderr": {"name": "stderr", "uri": uri},
+                "label": label,
+                "configuration": {"id": config},
+                "failureDetail": {
+                    "message": "Rustc failed: exec env - SECRET_TOKEN=hunter2 /bin/rustc",
+                    "spawn": {"code": "NON_ZERO_EXIT"},
+                },
+            },
+        })
+        .to_string()
+    }
+
+    fn with_bep(name: &str, bazel_code: i32, lines: Vec<String>) -> Harness {
+        Harness {
+            bazel_code,
+            raw_bep: Some(lines),
+            ..Harness::new(name)
+        }
+    }
+
+    fn failures_of(out: &str) -> Vec<Value> {
+        json_events(out)
+            .into_iter()
+            .filter(|event| event["event"] == "build_failure")
+            .collect()
+    }
+
+    #[test]
+    fn a_rust_compile_error_names_the_action_and_its_diagnostics() {
+        let harness = Harness::new("bf-compile");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let line = failed_action("//app:bin", "c1", "Rustc", "bazel-out/bin/app/bin", &uri);
+        let harness = with_bep("bf-compile", 1, vec![line]);
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let failures = failures_of(&out);
+        assert_eq!(failures.len(), 1, "{out}");
+        let failure = &failures[0];
+        assert_eq!(failure["stage"], "compilation");
+        assert_eq!(failure["category"], "compile_failed");
+        assert_eq!(failure["target"], "//app:bin");
+        assert_eq!(failure["configuration"], "c1");
+        assert_eq!(failure["tool"], "rustc");
+        assert_eq!(failure["action"]["mnemonic"], "Rustc");
+        assert_eq!(failure["action"]["exit_code"], 1);
+        assert_eq!(failure["diagnostics"]["status"], "parsed");
+        let item = &failure["diagnostics"]["items"][0];
+        assert_eq!(item["code"], "E0425");
+        assert_eq!(item["path"], "app/src/main.rs");
+        assert_eq!(item["line"], 3);
+        assert_eq!(item["column"], 5);
+        assert!(!out.contains("hunter2"), "{out}");
+        assert!(!out.contains("SECRET_TOKEN"), "{out}");
+    }
+
+    #[test]
+    fn a_link_failure_is_not_a_compile_failure() {
+        let harness = Harness::new("bf-link");
+        let uri = stderr_file(&harness, "e1", &format!("{LINK_LINE}\n"));
+        let line = failed_action("//app:bin", "c1", "Rustc", "bazel-out/bin/app/bin", &uri);
+        let harness = with_bep("bf-link", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures[0]["stage"], "linking", "{out}");
+        assert_eq!(failures[0]["category"], "link_failed");
+    }
+
+    #[test]
+    fn a_test_target_that_fails_to_build_emits_no_test_case() {
+        let harness = Harness::new("bf-test-build");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let configured = json!({
+            "id": {"targetConfigured": {"label": "//app:unit"}},
+            "configured": {"targetKind": "rust_test rule", "testSize": "SMALL"},
+        })
+        .to_string();
+        let action = failed_action("//app:unit", "c1", "Rustc", "bazel-out/bin/app/unit", &uri);
+        let harness = with_bep("bf-test-build", 1, vec![configured, action]);
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let failures = failures_of(&out);
+        assert_eq!(failures.len(), 1, "{out}");
+        assert_eq!(failures[0]["target_kind"], "test");
+        assert_eq!(failures[0]["stage"], "compilation");
+        let events = json_events(&out);
+        assert!(events_of_kind(&events, "test_outcome").is_empty(), "{out}");
+    }
+
+    #[test]
+    fn a_failed_test_build_writes_no_infrastructure_case_to_junit() {
+        let harness = Harness::new("bf-junit");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let action = failed_action("//app:unit", "c1", "Rustc", "out/unit", &uri);
+        let harness = with_bep("bf-junit", 1, vec![action]);
+        let (code, _, _) = harness.run(&["test", "--report=junit=out.xml"]);
+        assert_eq!(code, 1);
+        let text = std::fs::read_to_string(harness.workspace.join("out.xml")).expect("junit");
+        assert!(!text.contains("<testcase"), "{text}");
+    }
+
+    #[test]
+    fn coverage_reports_build_failures_too() {
+        let harness = Harness::new("bf-coverage");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let action = failed_action("//app:unit", "c1", "Rustc", "out/unit", &uri);
+        let harness = with_bep("bf-coverage", 3, vec![action]);
+        let (code, out, _) = harness.run(&["coverage", "--output=json"]);
+        assert_eq!(code, 3, "{out}");
+        assert_eq!(failures_of(&out).len(), 1, "{out}");
+    }
+
+    #[test]
+    fn several_actions_and_configurations_each_get_a_record() {
+        let harness = Harness::new("bf-many");
+        let one = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let two = stderr_file(&harness, "e2", &format!("{LINK_LINE}\n"));
+        let lines = vec![
+            failed_action("//a:lib", "c1", "Rustc", "out/a1", &one),
+            failed_action("//a:lib", "c2", "Rustc", "out/a2", &two),
+            failed_action("//b:bin", "c1", "CppLink", "out/b", &one),
+        ];
+        let harness = with_bep("bf-many", 1, lines);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures.len(), 3, "{out}");
+        assert_eq!(failures[0]["stage"], "compilation");
+        assert_eq!(failures[1]["stage"], "linking");
+        assert_eq!(failures[1]["configuration"], "c2");
+        assert_eq!(failures[2]["stage"], "linking");
+        assert_eq!(failures[2]["diagnostics"]["status"], "unknown");
+        assert_eq!(failures[2]["tool"], "unknown");
+    }
+
+    #[test]
+    fn non_ascii_paths_reach_the_record() {
+        let harness = Harness::new("bf-unicode");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let line = failed_action("//ünï:bin", "c1", "Rustc", "bazel-out/ünï/日本", &uri);
+        let harness = with_bep("bf-unicode", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures[0]["target"], "//ünï:bin");
+        assert_eq!(
+            failures[0]["action"]["primary_output"],
+            "bazel-out/ünï/日本"
+        );
+    }
+
+    #[test]
+    fn analysis_failure_has_no_action_and_unknown_facts() {
+        let line = json!({
+            "id": {"targetCompleted": {"label": "//a:t"}},
+            "aborted": {"reason": "ANALYSIS_FAILURE", "description": "Analysis of target '//a:t' failed"},
+        })
+        .to_string();
+        let harness = with_bep("bf-analysis", 1, vec![line]);
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 1);
+        let failures = failures_of(&out);
+        assert_eq!(failures.len(), 1, "{out}");
+        assert_eq!(failures[0]["stage"], "analysis");
+        assert_eq!(failures[0]["configuration"], "unknown");
+        assert_eq!(failures[0]["action"]["mnemonic"], "unknown");
+        assert_eq!(failures[0]["tool"], "unknown");
+        assert_eq!(failures[0]["diagnostics"]["items"], json!([]));
+    }
+
+    #[test]
+    fn a_truncated_stream_keeps_the_status_and_says_it_is_incomplete() {
+        let harness = Harness::new("bf-truncated");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let good = failed_action("//a:lib", "c1", "Rustc", "out/a", &uri);
+        let harness = with_bep(
+            "bf-truncated",
+            7,
+            vec![good, r#"{"id":{"actionCompleted":{"prim"#.to_owned()],
+        );
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 7, "{out}");
+        assert_eq!(failures_of(&out).len(), 1, "{out}");
+        let events = json_events(&out);
+        let notices = events_of_kind(&events, "notice");
+        assert_eq!(notices[0]["code"], "build_events_incomplete");
+    }
+
+    #[test]
+    fn a_malformed_stream_never_changes_the_bazel_status() {
+        let harness = with_bep("bf-malformed", 9, vec!["not json".to_owned()]);
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 9, "{out}");
+        assert!(failures_of(&out).is_empty());
+        let events = json_events(&out);
+        assert_eq!(event(&events, "command_finished")["exit_code"], 9);
+    }
+
+    #[test]
+    fn a_missing_event_file_is_said_not_guessed() {
+        let mut harness = Harness::new("bf-missing");
+        harness.bazel_code = 2;
+        harness.skip_bep = true;
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 2, "{out}");
+        assert!(failures_of(&out).is_empty());
+        let events = json_events(&out);
+        assert_eq!(
+            events_of_kind(&events, "notice")[0]["code"],
+            "build_events_incomplete"
+        );
+    }
+
+    #[test]
+    fn an_interrupted_build_is_a_cancellation_record() {
+        let line = json!({
+            "id": {"targetCompleted": {"label": "//a:t"}},
+            "aborted": {"reason": "USER_INTERRUPTED"},
+        })
+        .to_string();
+        let harness = with_bep("bf-cancel", 8, vec![line]);
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 8);
+        assert_eq!(failures_of(&out)[0]["category"], "cancelled");
+    }
+
+    #[test]
+    fn a_signalled_bazel_reports_no_failures() {
+        let mut harness = Harness::new("bf-signal");
+        harness.signalled = true;
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        assert!(failures_of(&out).is_empty(), "{out}");
+    }
+
+    #[test]
+    fn a_successful_build_reports_no_failures() {
+        let harness = Harness::new("bf-ok");
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 0);
+        assert!(failures_of(&out).is_empty());
+    }
+
+    #[test]
+    fn json_stdout_holds_only_events() {
+        let harness = Harness::new("bf-json-only");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let line = failed_action("//a:lib", "c1", "Rustc", "out/a", &uri);
+        let harness = with_bep("bf-json-only", 1, vec![line]);
+        let (_, out, err) = harness.run(&["build", "--output=json"]);
+        assert_eq!(json_events(&out).len(), out.lines().count());
+        assert!(!err.contains("build failure"), "{err}");
+    }
+
+    #[test]
+    fn text_output_lists_the_failure_on_stderr() {
+        let harness = Harness::new("bf-text");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let line = failed_action("//a:lib", "c1", "Rustc", "out/a", &uri);
+        let harness = with_bep("bf-text", 1, vec![line]);
+        let (code, _, err) = harness.run(&["build", "--output=text"]);
+        assert_eq!(code, 1);
+        assert!(
+            err.contains("build failure: //a:lib (compilation/compile_failed, Rustc)"),
+            "{err}"
+        );
+        assert!(
+            err.contains("error[E0425]: cannot find value `y` in this scope (app/src/main.rs:3:5)"),
+            "{err}"
+        );
+    }
+
+    struct BrokenPipe;
+
+    impl std::io::Write for BrokenPipe {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Err(std::io::Error::from(std::io::ErrorKind::BrokenPipe))
+        }
+    }
+
+    #[test]
+    fn a_broken_stdout_keeps_the_bazel_status() {
+        let harness = Harness::new("bf-broken");
+        let uri = stderr_file(&harness, "e1", &format!("{ERROR_LINE}\n"));
+        let line = failed_action("//a:lib", "c1", "Rustc", "out/a", &uri);
+        let harness = with_bep("bf-broken", 5, vec![line]);
+        let inv = invocation(&["build", "--output=json"]);
+        let runner = harness.runner();
+        let code = harness.run_streams(&inv, &runner, &mut BrokenPipe, &mut Vec::new());
+        assert_eq!(code, 5);
+    }
+
+    #[test]
+    fn stderr_that_is_not_json_is_none_not_invented() {
+        let harness = Harness::new("bf-plain");
+        let uri = stderr_file(&harness, "e1", "error[E0425]: human text only\n");
+        let line = failed_action("//a:lib", "c1", "Rustc", "out/a", &uri);
+        let harness = with_bep("bf-plain", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures[0]["diagnostics"]["status"], "none");
+        assert_eq!(failures[0]["diagnostics"]["items"], json!([]));
+    }
+
+    #[test]
+    fn remote_stderr_is_unavailable() {
+        let line = failed_action(
+            "//a:lib",
+            "c1",
+            "Rustc",
+            "out/a",
+            "bytestream://cache/blobs/ab/1",
+        );
+        let harness = with_bep("bf-remote", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(failures_of(&out)[0]["diagnostics"]["status"], "unavailable");
+    }
+
+    #[test]
+    fn the_event_file_reaches_bazel_for_every_workflow_verb() {
+        for verb in ["build", "test", "coverage"] {
+            let harness = Harness::new("bf-flag");
+            let inv = invocation(&[verb]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            assert!(
+                run.argv[0]
+                    .iter()
+                    .any(|arg| arg.starts_with("--build_event_json_file=")),
+                "{verb}: {:?}",
+                run.argv
+            );
+        }
+    }
+}

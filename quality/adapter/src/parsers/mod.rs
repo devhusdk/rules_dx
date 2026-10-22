@@ -89,7 +89,7 @@ pub use qmllint::parse_qmllint;
 pub use roslyn::parse_roslyn;
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};
-pub use rust::{parse_clippy, parse_rustc};
+pub use rust::{parse_clippy, parse_rustc, parse_rustc_action_output, ActionDiagnostic};
 pub use rustfmt::parse_rustfmt;
 pub use scalafix::parse_scalafix;
 pub use scalafmt::parse_scalafmt;

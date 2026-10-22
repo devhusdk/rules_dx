@@ -191,12 +191,12 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "missing scala CLI aspect is an actionable failure",
-                support_scala_cli_error(["//quality:real_aspects.bzl%real_lint_aspect"]),
+                support_scala_cli_error(["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]),
                 "support: scalafmt format is qualified but has no CLI format aspect (missing real_scala_format_aspect)",
             ),
             expect_equal(
                 "scala CLI aspect clears the CLI gap",
-                support_scala_cli_error(["//quality:real_aspects.bzl%real_scala_format_aspect"]),
+                support_scala_cli_error(["@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect"]),
                 "",
             ),
             expect_equal(

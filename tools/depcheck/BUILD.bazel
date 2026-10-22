@@ -41,6 +41,7 @@ rust_library(
             "serde_json",
             "thiserror",
             "toml",
+            "yaml_serde",
         ],
         package_name = "tools/dx_depcheck",
     ) + [

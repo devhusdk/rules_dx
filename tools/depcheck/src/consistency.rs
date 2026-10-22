@@ -25,7 +25,9 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<BTreeMap<String, String>, De
     match eco {
         Ecosystem::Rust => rust::parse_rust_lock(lock),
         Ecosystem::Python => python::parse_python_lock(lock),
-        Ecosystem::Js | Ecosystem::Ts => js::parse_pnpm_lock(lock),
+        Ecosystem::Js | Ecosystem::Ts => Err(DepcheckError::LockParse(
+            "pnpm locks are read per importer".to_owned(),
+        )),
         Ecosystem::Go => go::parse_go_lock(lock),
         Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => jvm::parse_jvm_lock(lock),
         Ecosystem::Csharp | Ecosystem::Fsharp => dotnet::parse_dotnet_lock(lock),
@@ -119,19 +121,44 @@ fn check_maps(
             }
         }
     }
+    report(eco, deps.len(), &failures, stdout, stderr)
+}
+
+fn report(
+    eco: Ecosystem,
+    declared: usize,
+    failures: &[String],
+    stdout: &mut dyn std::fmt::Write,
+    stderr: &mut dyn std::fmt::Write,
+) -> i32 {
     if !failures.is_empty() {
-        for failure in &failures {
+        for failure in failures {
             let _ = writeln!(stderr, "depcheck: FAIL: consistency: {failure}");
         }
         return 1;
     }
     let _ = writeln!(
         stdout,
-        "depcheck: OK: consistency: {} declarations match lock ({})",
-        deps.len(),
+        "depcheck: OK: consistency: {declared} declarations match lock ({})",
         eco.name()
     );
     0
+}
+
+fn check_pnpm(
+    deps: &BTreeMap<String, DepInfo>,
+    manifest: &Path,
+    lock_path: &Path,
+) -> Result<Vec<String>, DepcheckError> {
+    let key = js::pnpm_importer_key(manifest, lock_path)?;
+    let lock = js::parse_pnpm_lock(lock_path)?;
+    let Some(importer) = lock.importer(&key) else {
+        return Err(DepcheckError::LockParse(format!(
+            "no importer '{key}' (lock has: {})",
+            lock.importer_keys().join(", ")
+        )));
+    };
+    js::pnpm_failures(deps, importer, &lock)
 }
 
 pub(crate) fn check_pair(
@@ -164,6 +191,15 @@ pub(crate) fn check_pair(
     };
     if matches!(pair.eco, Ecosystem::Js | Ecosystem::Ts) {
         deps.retain(|_, v| !v.peer);
+    }
+    if matches!(pair.eco, Ecosystem::Js | Ecosystem::Ts) {
+        return match check_pnpm(&deps, pair.manifest, pair.lock) {
+            Ok(failures) => report(pair.eco, deps.len(), &failures, stdout, stderr),
+            Err(err) => {
+                let _ = writeln!(stderr, "depcheck: ERROR: {err}");
+                2
+            }
+        };
     }
     let pkgs = match (pair.load_pkgs)(pair.eco, pair.lock) {
         Ok(pkgs) => pkgs,

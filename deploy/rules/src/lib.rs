@@ -1891,6 +1891,184 @@ pub fn oci_build_layout(
     Ok(layout)
 }
 
+/// Returns the config image id of the single image in a docker-save archive.
+pub fn oci_archive_image_id(image: &Path) -> Result<String, String> {
+    let file =
+        std::fs::File::open(image).map_err(|error| format!("{}: {error}", image.display()))?;
+    let reader: Box<dyn Read> = if image.to_string_lossy().ends_with(".gz") {
+        Box::new(flate2::read::GzDecoder::new(file))
+    } else {
+        Box::new(file)
+    };
+    let mut archive = tar::Archive::new(reader);
+    let entries = archive
+        .entries()
+        .map_err(|error| format!("malformed image archive: {error}"))?;
+    let mut manifest: Option<Vec<u8>> = None;
+    let mut configs: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    for entry in entries {
+        let mut entry = entry.map_err(|error| format!("malformed image archive: {error}"))?;
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
+        let name = entry
+            .path()
+            .map_err(|error| format!("malformed image archive: {error}"))?
+            .to_string_lossy()
+            .trim_start_matches("./")
+            .to_owned();
+        let is_manifest = name == "manifest.json";
+        let is_json = name.ends_with(".json");
+        if !is_manifest && !is_json {
+            continue;
+        }
+        let mut body = Vec::new();
+        entry
+            .read_to_end(&mut body)
+            .map_err(|error| format!("malformed image archive: {error}"))?;
+        if is_manifest {
+            manifest = Some(body);
+        } else {
+            configs.insert(name, dx_digest::sha256_hex(&body));
+        }
+    }
+    let Some(manifest) = manifest else {
+        return Err(
+            "image archive has no manifest.json; want a full image archive (docker save), not a rootfs layer"
+                .to_owned(),
+        );
+    };
+    let parsed: serde_json::Value = serde_json::from_slice(&manifest)
+        .map_err(|error| format!("malformed manifest.json: {error}"))?;
+    let images = parsed
+        .as_array()
+        .ok_or_else(|| "malformed manifest.json: want an array".to_owned())?;
+    if images.len() != 1 {
+        return Err(format!(
+            "image archive holds {} images; want exactly one",
+            images.len()
+        ));
+    }
+    let config = images[0]
+        .get("Config")
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| "malformed manifest.json: missing Config".to_owned())?;
+    let config = config.trim_start_matches("./");
+    let digest = configs
+        .get(config)
+        .ok_or_else(|| format!("image archive is missing its config blob '{config}'"))?;
+    Ok(format!("sha256:{digest}"))
+}
+
+fn docker_image_id(reference: &str) -> Result<String, String> {
+    let output = std::process::Command::new("docker")
+        .args(["image", "inspect", "--format", "{{.Id}}", reference])
+        .output()
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        return Err(format!("docker image inspect failed for {reference}"));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+
+fn oci_live_push(
+    image: &Path,
+    registry: &str,
+    repository: &str,
+    tag: &str,
+    user: &str,
+    token: &str,
+) -> i32 {
+    let image_id = match oci_archive_image_id(image) {
+        Ok(id) => id,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    if which_on_path("docker").is_none() {
+        eprintln!("oci_deploy: 'docker' CLI not found on PATH");
+        return 1;
+    }
+    let reference = format!("{registry}/{repository}:{tag}");
+    let mut login = std::process::Command::new("docker");
+    login
+        .arg("login")
+        .arg(registry)
+        .arg("-u")
+        .arg(user)
+        .arg("--password-stdin");
+    let mut child = match login.stdin(std::process::Stdio::piped()).spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(token.as_bytes());
+    }
+    if !child.wait().map(|s| s.success()).unwrap_or(false) {
+        eprintln!("oci_deploy: docker login failed");
+        return 1;
+    }
+    let load = std::process::Command::new("docker")
+        .arg("load")
+        .arg("-i")
+        .arg(image)
+        .status();
+    if !load.map(|s| s.success()).unwrap_or(false) {
+        eprintln!("oci_deploy: docker load failed");
+        return 1;
+    }
+    let tagged = std::process::Command::new("docker")
+        .arg("tag")
+        .arg(&image_id)
+        .arg(&reference)
+        .status();
+    if !tagged.map(|s| s.success()).unwrap_or(false) {
+        eprintln!("oci_deploy: docker tag {image_id} {reference} failed");
+        return 1;
+    }
+    let (loaded, bound) = (docker_image_id(&image_id), docker_image_id(&reference));
+    match (loaded, bound) {
+        (Ok(loaded), Ok(bound)) if loaded == bound => {
+            println!("oci_deploy: bound {reference} to {image_id}");
+        }
+        (Ok(loaded), Ok(bound)) => {
+            eprintln!(
+                "oci_deploy: {reference} identifies {bound}, not the declared image {loaded}; refusing to push"
+            );
+            return 1;
+        }
+        (Err(error), _) | (_, Err(error)) => {
+            eprintln!("oci_deploy: {error}; refusing to push");
+            return 1;
+        }
+    }
+    match std::process::Command::new("docker")
+        .arg("push")
+        .arg(&reference)
+        .status()
+    {
+        Ok(status) if status.success() => {
+            println!("oci_deploy: pushed {reference}");
+            println!(
+                "oci_deploy: signing-first: run cosign sign <digest> plus verify on the release trust root before updating scaffold refs"
+            );
+            0
+        }
+        Ok(status) => {
+            eprintln!("oci_deploy: docker push failed with {status}");
+            1
+        }
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            1
+        }
+    }
+}
+
 /// Runs the OCI deploy launcher.
 pub fn oci_main(
     image_rloc: &str,
@@ -1938,64 +2116,7 @@ pub fn oci_main(
             );
             return 1;
         }
-        if which_on_path("docker").is_none() {
-            eprintln!("oci_deploy: 'docker' CLI not found on PATH");
-            return 1;
-        }
-        let reference = format!("{registry}/{repository}:{tag}");
-        let mut login = std::process::Command::new("docker");
-        login
-            .arg("login")
-            .arg(registry)
-            .arg("-u")
-            .arg(&user)
-            .arg("--password-stdin");
-        use std::io::Write as _;
-        let mut child = match login.stdin(std::process::Stdio::piped()).spawn() {
-            Ok(child) => child,
-            Err(error) => {
-                eprintln!("oci_deploy: {error}");
-                return 1;
-            }
-        };
-        if let Some(stdin) = child.stdin.take() {
-            let mut stdin = stdin;
-            let _ = stdin.write_all(token.as_bytes());
-        }
-        if !child.wait().map(|s| s.success()).unwrap_or(false) {
-            eprintln!("oci_deploy: docker login failed");
-            return 1;
-        }
-        let load = std::process::Command::new("docker")
-            .arg("load")
-            .arg("-i")
-            .arg(&image)
-            .status();
-        if !load.map(|s| s.success()).unwrap_or(false) {
-            eprintln!("oci_deploy: docker load failed");
-            return 1;
-        }
-        match std::process::Command::new("docker")
-            .arg("push")
-            .arg(&reference)
-            .status()
-        {
-            Ok(status) if status.success() => {
-                println!("oci_deploy: pushed {reference}");
-                println!(
-                    "oci_deploy: signing-first: run cosign sign <digest> plus verify on the release trust root before updating scaffold refs"
-                );
-                return 0;
-            }
-            Ok(status) => {
-                eprintln!("oci_deploy: docker push failed with {status}");
-                return 1;
-            }
-            Err(error) => {
-                eprintln!("oci_deploy: {error}");
-                return 1;
-            }
-        }
+        return oci_live_push(&image, registry, repository, tag, &user, &token);
     }
     if std::env::var("OCI_PUBLISH_DRY_RUN").unwrap_or_default() == "1" {
         println!(
@@ -5222,6 +5343,167 @@ mod tests {
             },
         );
         std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    fn docker_save_archive(path: &Path, manifest: &str, config_name: Option<&str>) -> String {
+        let config = b"{\"architecture\":\"amd64\",\"os\":\"linux\"}";
+        let mut builder = tar::Builder::new(Vec::new());
+        for (name, body) in [("manifest.json", manifest.as_bytes())]
+            .into_iter()
+            .chain(config_name.map(|name| (name, &config[..])))
+        {
+            let mut header = ustar_header(name, body.len() as u64, 0o644).expect("header");
+            header.set_cksum();
+            builder.append(&header, body).expect("append");
+        }
+        std::fs::write(path, builder.into_inner().expect("tar")).expect("write archive");
+        format!("sha256:{}", dx_digest::sha256_hex(config))
+    }
+
+    #[test]
+    fn oci_archive_image_id_binds_the_single_config_digest() {
+        let scratch = scratch_dir();
+        let archive = scratch.path().join("image.tar");
+        let id = docker_save_archive(
+            &archive,
+            "[{\"Config\":\"abc.json\",\"RepoTags\":[\"other:tag\"],\"Layers\":[]}]",
+            Some("abc.json"),
+        );
+        assert_eq!(oci_archive_image_id(&archive).expect("id"), id);
+    }
+
+    #[test]
+    fn oci_archive_image_id_rejects_unsupported_archives() {
+        let scratch = scratch_dir();
+        let archive = scratch.path().join("image.tar");
+        docker_save_archive(&archive, "[]", None);
+        assert!(oci_archive_image_id(&archive)
+            .expect_err("empty")
+            .contains("exactly one"));
+        docker_save_archive(
+            &archive,
+            "[{\"Config\":\"a.json\"},{\"Config\":\"a.json\"}]",
+            Some("a.json"),
+        );
+        assert!(oci_archive_image_id(&archive)
+            .expect_err("many")
+            .contains("2 images"));
+        docker_save_archive(&archive, "[{\"Config\":\"gone.json\"}]", Some("a.json"));
+        assert!(oci_archive_image_id(&archive)
+            .expect_err("missing config")
+            .contains("missing its config"));
+        docker_save_archive(&archive, "{not json", None);
+        assert!(oci_archive_image_id(&archive)
+            .expect_err("malformed")
+            .contains("malformed manifest.json"));
+        std::fs::write(&archive, b"image").expect("rootfs");
+        assert!(oci_archive_image_id(&archive).is_err());
+        let layer = {
+            let mut builder = tar::Builder::new(Vec::new());
+            let mut header = ustar_header("etc/os-release", 2, 0o644).expect("header");
+            header.set_cksum();
+            builder.append(&header, &b"x\n"[..]).expect("append");
+            builder.into_inner().expect("tar")
+        };
+        std::fs::write(&archive, layer).expect("layer");
+        assert!(oci_archive_image_id(&archive)
+            .expect_err("rootfs layer")
+            .contains("no manifest.json"));
+    }
+
+    #[cfg(unix)]
+    fn fake_docker(dir: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        let script = dir.join("docker");
+        std::fs::write(
+            &script,
+            "#!/bin/sh\n\
+             echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
+             if [ \"$1\" = login ]; then cat > /dev/null; fi\n\
+             if [ \"$1\" = \"$FAKE_DOCKER_FAIL\" ]; then exit 1; fi\n\
+             if [ \"$1 $2\" = \"image inspect\" ]; then\n\
+             case \"$5\" in sha256:*) echo \"$5\" ;; *) echo \"$FAKE_REF_ID\" ;; esac\n\
+             fi\n\
+             exit 0\n",
+        )
+        .expect("script");
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    }
+
+    #[cfg(unix)]
+    fn run_fake_live_push(fail: &str, ref_id: Option<&str>, rootfs: bool) -> (i32, Vec<String>) {
+        let scratch = scratch_dir();
+        let bin = scratch.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("bin");
+        fake_docker(&bin);
+        let log = scratch.path().join("docker.log");
+        let archive = scratch.path().join("image.tar");
+        let id = docker_save_archive(
+            &archive,
+            "[{\"Config\":\"c.json\",\"RepoTags\":[\"old:1\"]}]",
+            Some("c.json"),
+        );
+        if rootfs {
+            std::fs::write(&archive, b"rootfs").expect("rootfs");
+        }
+        let ref_id = ref_id.map(str::to_owned).unwrap_or(id);
+        let code = with_env(
+            &[
+                ("PATH", Some(bin.to_string_lossy().as_ref())),
+                ("FAKE_DOCKER_LOG", Some(log.to_string_lossy().as_ref())),
+                ("FAKE_DOCKER_FAIL", Some(fail)),
+                ("FAKE_REF_ID", Some(&ref_id)),
+            ],
+            || {
+                oci_live_push(
+                    &archive,
+                    "registry.invalid",
+                    "demo/app",
+                    "1.2.3",
+                    "me",
+                    "s3cret",
+                )
+            },
+        );
+        let calls = std::fs::read_to_string(&log)
+            .unwrap_or_default()
+            .lines()
+            .map(str::to_owned)
+            .collect();
+        (code, calls)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_tags_the_declared_image_before_pushing() {
+        let (code, calls) = run_fake_live_push("", None, false);
+        assert_eq!(code, 0);
+        let id = calls[2].split(' ').nth(1).expect("tag source").to_owned();
+        assert!(id.starts_with("sha256:"));
+        assert_eq!(calls[0], "login registry.invalid -u me --password-stdin");
+        assert!(calls[1].starts_with("load -i "));
+        assert_eq!(
+            calls[2],
+            format!("tag {id} registry.invalid/demo/app:1.2.3")
+        );
+        assert_eq!(calls[5], "push registry.invalid/demo/app:1.2.3");
+        assert!(calls.iter().all(|call| !call.contains("s3cret")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_stops_before_push_on_failures() {
+        let (code, calls) = run_fake_live_push("", Some("sha256:stale"), false);
+        assert_eq!(code, 1);
+        assert!(calls.iter().all(|call| !call.starts_with("push")));
+        for step in ["login", "load", "tag"] {
+            let (code, calls) = run_fake_live_push(step, None, false);
+            assert_eq!(code, 1, "{step}");
+            assert!(calls.iter().all(|call| !call.starts_with("push")), "{step}");
+        }
+        let (code, calls) = run_fake_live_push("", None, true);
+        assert_eq!(code, 1);
+        assert!(calls.is_empty());
     }
 
     #[test]

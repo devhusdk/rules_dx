@@ -42,6 +42,7 @@ GATE_JOBS = (
     "dogfood",
     "docs",
     "devcontainer-check",
+    "hermetic",
     "preflight",
     "workflow-check",
 )

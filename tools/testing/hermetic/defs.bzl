@@ -1,0 +1,105 @@
+"""No-install, network-denied consumer qualification targets."""
+
+load("//rust/rules:defs.bzl", "rust_test")
+
+def _hermetic_manifest_impl(ctx):
+    """Writes the consumer manifest and carries every file it names."""
+    files = []
+    for target, dest in ctx.attr.files.items():
+        srcs = target.files.to_list()
+        if len(srcs) != 1:
+            fail("%s must name exactly one file for %s" % (target.label, dest))
+        files.append({"dest": dest, "src": srcs[0].short_path})
+    out = ctx.actions.declare_file(ctx.label.name + ".json")
+    ctx.actions.write(out, json.encode_indent({
+        "bazelversion": ctx.file._bazelversion.short_path,
+        "dx": ctx.executable._dx.short_path,
+        "files": files,
+        "label": ctx.attr.qualification,
+        "languages": ctx.attr.languages,
+        "module": ctx.attr.module,
+        "module_file": ctx.file._module.short_path,
+        "module_fragment": ctx.file.module_fragment.short_path,
+        "patterns": ctx.attr.patterns,
+        "repo_name": ctx.attr.repo_name,
+        "workspace_dir": ctx.attr.workspace_dir,
+    }, indent = "  ") + "\n")
+    runfiles = ctx.runfiles(
+        files = [out, ctx.file._bazelversion, ctx.file._module, ctx.file.module_fragment] + ctx.files.files,
+    ).merge(ctx.attr._dx[DefaultInfo].default_runfiles)
+    return [DefaultInfo(files = depset([out]), runfiles = runfiles)]
+
+hermetic_manifest = rule(
+    implementation = _hermetic_manifest_impl,
+    doc = "Describes one consumer workspace for hermetic qualification.",
+    attrs = {
+        "files": attr.label_keyed_string_dict(
+            allow_files = True,
+            doc = "Consumer files mapped to their workspace-relative paths.",
+        ),
+        "languages": attr.string_list(mandatory = True, doc = "Languages this consumer qualifies."),
+        "module": attr.string(mandatory = True, doc = "Consumer module name."),
+        "module_fragment": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+            doc = "MODULE.bazel lines appended after the dx init snippet.",
+        ),
+        "patterns": attr.string_list(mandatory = True, doc = "Consumer target patterns to fetch, build and test."),
+        "qualification": attr.string(mandatory = True, doc = "Label of the qualification test."),
+        "repo_name": attr.string(mandatory = True, doc = "Repository name the consumer gives rules_dx."),
+        "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
+        "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
+        "_dx": attr.label(cfg = "target", default = "//:dx", executable = True),
+        "_module": attr.label(allow_single_file = True, default = "//:MODULE.bazel"),
+    },
+)
+
+QUALIFICATION_TAGS = [
+    "exclusive",
+    "hermetic-qualification",
+    "manual",
+    "no-cache",
+    "no-coverage",
+    "no-remote",
+    "no-sandbox",
+    "requires-network",
+]
+
+def hermetic_qualification(
+        name,
+        languages,
+        files,
+        module_fragment,
+        patterns,
+        module = "hermetic_consumer",
+        repo_name = "my_dx",
+        workspace_dir = "consumer ws",
+        **kwargs):
+    """Declares one consumer qualification test and its manifest."""
+    hermetic_manifest(
+        name = name + "_manifest",
+        testonly = True,
+        files = files,
+        languages = languages,
+        module = module,
+        module_fragment = module_fragment,
+        patterns = patterns,
+        qualification = "//%s:%s" % (native.package_name(), name),
+        repo_name = repo_name,
+        target_compatible_with = ["@platforms//os:linux"],
+        workspace_dir = workspace_dir,
+    )
+    rust_test(
+        name = name,
+        size = "enormous",
+        srcs = ["//tools/testing/hermetic:qualification_test.rs"],
+        data = [":" + name + "_manifest"],
+        env = {"DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name},
+        tags = QUALIFICATION_TAGS + ["hermetic-consumer"],
+        target_compatible_with = ["@platforms//os:linux"],
+        deps = [
+            "//tools/testing:dx_testing",
+            "//tools/testing/hermetic",
+        ],
+        **kwargs
+    )

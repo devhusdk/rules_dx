@@ -58,6 +58,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "dogfood",
         "docs",
         "devcontainer-check",
+        "hermetic",
         "preflight",
         "workflow-check"
     ]);

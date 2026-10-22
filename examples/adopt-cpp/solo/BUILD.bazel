@@ -3,6 +3,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
 cc_test(
     name = "pure_test",
     srcs = ["pure_test.cc"],

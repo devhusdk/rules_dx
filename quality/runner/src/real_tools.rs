@@ -422,8 +422,8 @@ fn ty_search_path_argv(
     _env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert!(
-        argv.windows(2).any(|pair| pair[0] == "--extra-search-path"
-            && pair[1] == "/wheels/site-packages"),
+        argv.windows(2)
+            .any(|pair| pair[0] == "--extra-search-path" && pair[1] == "/wheels/site-packages"),
         "tool search path reaches ty"
     );
     Ok(ChildOutput {

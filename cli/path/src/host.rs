@@ -11,7 +11,12 @@ pub const RESERVED_STEMS: &[&str] = &[
 
 /// Maps one logical tool name to its host-native filename.
 pub fn host_filename(name: &str) -> String {
-    if cfg!(windows) {
+    host_filename_for(name, cfg!(windows))
+}
+
+/// Maps one logical tool name to its filename on the named platform.
+pub fn host_filename_for(name: &str, windows: bool) -> String {
+    if windows {
         format!("{name}.exe")
     } else {
         name.to_owned()

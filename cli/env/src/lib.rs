@@ -45,6 +45,8 @@ struct StagedMetadata {
 struct StagedTool {
     bin_name: String,
     owner: String,
+    #[serde(default)]
+    aliases: Vec<String>,
     host_names: Vec<String>,
 }
 
@@ -175,7 +177,7 @@ pub fn decode_marker(bytes: &[u8]) -> Result<[u8; 32], Error> {
     Ok(identity)
 }
 
-pub fn parse_staged(text: &str) -> Result<Vec<ToolPlan>, Error> {
+pub fn parse_staged(text: &str, windows: bool) -> Result<Vec<ToolPlan>, Error> {
     let metadata: StagedMetadata = serde_json::from_str(text).map_err(|e| Error::Staged {
         reason: format!("metadata is not valid JSON: {e}"),
     })?;
@@ -189,6 +191,7 @@ pub fn parse_staged(text: &str) -> Result<Vec<ToolPlan>, Error> {
             reason: "metadata carries no tools".to_string(),
         });
     }
+    let mut claimed: Vec<(String, String)> = Vec::new();
     metadata
         .tools
         .iter()
@@ -208,8 +211,38 @@ pub fn parse_staged(text: &str) -> Result<Vec<ToolPlan>, Error> {
                     reason: format!("tool '{}' has no host names", tool.bin_name),
                 });
             }
+            let logical: Vec<&String> = std::iter::once(&tool.bin_name)
+                .chain(tool.aliases.iter())
+                .collect();
+            for name in &logical {
+                validate_logical_name(&tool.bin_name, name)?;
+            }
+            let mut expected: Vec<String> = logical
+                .iter()
+                .map(|name| dx_path::host::host_filename_for(name, windows))
+                .collect();
+            let mut declared = tool.host_names.clone();
+            expected.sort();
+            declared.sort();
+            if declared != expected {
+                return Err(Error::InvalidTool {
+                    reason: format!(
+                        "tool '{}' declares host names {:?} but its logical names map to {:?}",
+                        tool.bin_name, tool.host_names, expected
+                    ),
+                });
+            }
             for name in &tool.host_names {
-                validate_host_name(&tool.bin_name, name)?;
+                let key = name.to_lowercase();
+                if let Some((_, other)) = claimed.iter().find(|(held, _)| *held == key) {
+                    return Err(Error::InvalidTool {
+                        reason: format!(
+                            "host name '{name}' of tool '{}' collides with tool '{other}'",
+                            tool.bin_name
+                        ),
+                    });
+                }
+                claimed.push((key, tool.bin_name.clone()));
             }
             Ok(ToolPlan {
                 bin_name: tool.bin_name.clone(),
@@ -220,9 +253,9 @@ pub fn parse_staged(text: &str) -> Result<Vec<ToolPlan>, Error> {
         .collect()
 }
 
-fn validate_host_name(bin_name: &str, name: &str) -> Result<(), Error> {
+fn validate_logical_name(bin_name: &str, name: &str) -> Result<(), Error> {
     let bad = |why: &str| Error::InvalidTool {
-        reason: format!("tool '{bin_name}' has invalid host name '{name}': {why}"),
+        reason: format!("tool '{bin_name}' has invalid name '{name}': {why}"),
     };
     if name.is_empty() {
         return Err(bad("must be a non-empty single path component"));
@@ -304,7 +337,7 @@ pub fn refresh(
             options.staged_metadata.display()
         ),
     })?;
-    let tools = parse_staged(&text)?;
+    let tools = parse_staged(&text, options.os == "windows")?;
     let staged = read_staged_links(&options.staged_bin, &tools)?;
     if !options.workspace_root.is_dir() {
         return Err(Error::WorkspaceRoot {

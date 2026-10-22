@@ -23,7 +23,22 @@ fn install(bin: &Path, root: &Path) -> String {
 }
 
 fn host(name: &str) -> String {
-    dx_path::host::host_filename(name)
+    let doc = dx_testing::read_json(&staged_metadata()).expect("read staged metadata");
+    let tool = doc
+        .get("tools")
+        .and_then(|tools| tools.as_array())
+        .and_then(|tools| {
+            tools
+                .iter()
+                .find(|tool| tool.get("bin_name").and_then(|n| n.as_str()) == Some(name))
+        })
+        .unwrap_or_else(|| panic!("metadata has no tool {name}"));
+    tool.get("host_names")
+        .and_then(|names| names.as_array())
+        .and_then(|names| names.first())
+        .and_then(|first| first.as_str())
+        .unwrap_or_else(|| panic!("metadata has no host name for {name}"))
+        .to_string()
 }
 
 #[cfg(windows)]
@@ -179,7 +194,7 @@ fn env_bootstrap() {
 
     let foreign = scratch.join("foreign");
     std::fs::create_dir_all(foreign.join(".dx/bin")).expect("foreign");
-    std::fs::write(foreign.join(".dx/bin").join(host("stale_tool")), b"stale").expect("stale tool");
+    std::fs::write(foreign.join(".dx/bin").join("stale_tool"), b"stale").expect("stale tool");
     let refused = dx_testing::run(
         &bin,
         &["--workspace", foreign.to_string_lossy().as_ref()],
@@ -193,8 +208,7 @@ fn env_bootstrap() {
         refused.combined()
     );
     assert_eq!(
-        std::fs::read_to_string(foreign.join(".dx/bin").join(host("stale_tool")))
-            .expect("read stale"),
+        std::fs::read_to_string(foreign.join(".dx/bin").join("stale_tool")).expect("read stale"),
         "stale",
         "foreign tree was modified"
     );

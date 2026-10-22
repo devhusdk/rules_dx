@@ -147,10 +147,8 @@ rust_test(
         "DX_STAGED_METADATA": "env/default_tree.metadata.json",
     },
     tags = ["no-coverage"],
-    deps = [
-        "//cli/path:dx_path",
-        "//tools/testing:dx_testing",
-    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

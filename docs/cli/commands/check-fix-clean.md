@@ -28,6 +28,11 @@ error: the run fails and the report is marked incomplete. Findings from the
 phases that did land are still merged. The written line names every phase
 that failed, was skipped, or lost its capture.
 
+A phase that fails still keeps the findings it wrote: its SARIF is merged and
+the report is marked incomplete. The run exits with that phase's code, even
+when the report cannot be written. A failed phase that wrote nothing adds no
+`collection_failed` error.
+
 Output: `--output text|diff|json`. JSON adds one correlated `operation` event
 per phase (`check/format`), a correlated `notice` per skipped phase, and a
 correlated `error` per capture the run could not collect.

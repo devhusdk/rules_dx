@@ -124,10 +124,10 @@ impl PhaseCollector {
         }
     }
 
-    /// Reads and validates every capture an executed phase owed.
+    /// Reads and validates every capture a phase that ran owed, failed or not.
     fn collect(&mut self) {
         for phase in &mut self.phases {
-            if phase.state != PhaseState::Executed {
+            if !matches!(phase.state, PhaseState::Executed | PhaseState::Failed) {
                 continue;
             }
             let Some(capture) = phase.capture.as_mut() else {
@@ -153,13 +153,21 @@ impl PhaseCollector {
             .collect()
     }
 
-    /// Names every executed phase whose capture could not be collected.
+    /// Names every phase whose capture could not be collected.
+    /// A failed phase that wrote nothing is a tool failure, not a collection failure.
     fn collection_failures(&self) -> Vec<(&'static str, &'static str)> {
         self.phases
             .iter()
-            .filter(|phase| phase.state == PhaseState::Executed)
             .filter_map(|phase| {
                 let capture = phase.capture.as_ref()?;
+                let owed = match phase.state {
+                    PhaseState::Executed => true,
+                    PhaseState::Failed => capture.state != CaptureState::Absent,
+                    PhaseState::Planned | PhaseState::Skipped => false,
+                };
+                if !owed {
+                    return None;
+                }
                 Some((phase.phase.name(), capture_reason(capture)?))
             })
             .collect()
@@ -172,6 +180,14 @@ impl PhaseCollector {
             let name = phase.phase.name();
             if phase.state == PhaseState::Failed {
                 reasons.push(format!("{name} failed"));
+                if let Some(reason) = phase
+                    .capture
+                    .as_ref()
+                    .filter(|capture| capture.state != CaptureState::Absent)
+                    .and_then(capture_reason)
+                {
+                    reasons.push(format!("{name} {reason}"));
+                }
                 continue;
             }
             if phase.state != PhaseState::Executed {
@@ -638,8 +654,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         None => match verify_forward_exit {
             Some(exit) => exit,
             None => match stop_code {
-                Some(phase_code) if reports_ok => phase_code,
-                Some(_) => 1,
+                Some(phase_code) => phase_code,
                 None if reports_ok && !verification_failed => 0,
                 None => 1,
             },
@@ -1944,6 +1959,114 @@ mod tests {
         assert_eq!(runs.len(), 2);
         assert_eq!(runs[0]["tool"]["driver"]["name"], "lint-tool");
         assert_eq!(runs[1]["tool"]["driver"]["name"], "typecheck-tool");
+    }
+
+    /// Runs `check` where format passes and lint reports findings.
+    fn check_with_failing_lint(name: &str, words: &[&str]) -> (Harness, i32, String, String) {
+        let harness = umbrella_clean(name);
+        let (artifact, _) = harness
+            .staged_artifacts()
+            .into_iter()
+            .next()
+            .expect("artifact");
+        let findings = harness.valid_result(
+            vec![Harness::diagnostic("unused", true)],
+            vec![harness.replacement(b"y")],
+        );
+        let staged = staged_runner(&harness, vec![(artifact, findings)], None, 1);
+        let inv = umbrella_invocation(&harness, words);
+        let (code, out, err) = harness.execute_with(&inv, &staged);
+        (harness, code, out, err)
+    }
+
+    #[test]
+    fn check_failed_phase_keeps_its_findings_in_the_merged_report() {
+        let (harness, code, out, err) = check_with_failing_lint(
+            "umbrella-failed-lint",
+            &["check", "--output=json", "--report=sarif=out.sarif"],
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let report = *events_of_kind(&events, "report")
+            .last()
+            .expect("umbrella report");
+        assert_eq!(report["results_complete"], serde_json::json!(false));
+        let finished = *events_of_kind(&events, "command_finished")
+            .last()
+            .expect("umbrella finished");
+        assert_eq!(finished["exit_code"], serde_json::json!(1));
+        assert_eq!(finished["results_complete"], serde_json::json!(false));
+        let runs = merged_runs(&harness);
+        assert_eq!(runs.len(), 1, "the failed lint capture is retained");
+        assert!(
+            runs[0]["results"]
+                .as_array()
+                .is_some_and(|results| !results.is_empty()),
+            "{runs:?}"
+        );
+        let skipped: Vec<&str> = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == "umbrella_phase_skipped")
+            .map(|notice| notice["correlation"].as_str().expect("correlation"))
+            .collect();
+        assert_eq!(skipped, vec!["check/typecheck", "check/generate"]);
+        assert!(
+            events_of_kind(&events, "error").is_empty(),
+            "a findings failure is not a collection failure: {out}"
+        );
+    }
+
+    #[test]
+    fn check_failed_phase_with_a_failed_report_write_keeps_its_exit() {
+        let (_, code, out, err) = check_with_failing_lint(
+            "umbrella-failed-lint-write",
+            &[
+                "check",
+                "--output=text",
+                "--report=sarif=missing-dir/out.sarif",
+            ],
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("report_failed"), "{err}");
+    }
+
+    #[test]
+    fn collector_keeps_what_a_failed_phase_wrote() {
+        let dir = temp_dir("umbrella-collector-failed");
+        let good = dir.path().join("good.sarif");
+        let bad = dir.path().join("bad.sarif");
+        let missing = dir.path().join("missing.sarif");
+        std::fs::write(
+            &good,
+            crate::reports::render_sarif(
+                &["lint-tool".to_owned()],
+                &[],
+                &std::collections::BTreeMap::new(),
+                true,
+            )
+            .expect("render"),
+        )
+        .expect("good capture");
+        std::fs::write(&bad, b"{").expect("bad capture");
+        for (path, expected) in [
+            (&good, Vec::new()),
+            (&bad, vec![("lint", "sarif capture is malformed")]),
+            (&missing, Vec::new()),
+        ] {
+            let mut collector = PhaseCollector::default();
+            collector.plan(Command::Lint);
+            collector.require_capture(0, path.clone());
+            collector.record_exit(0, 1);
+            collector.collect();
+            assert_eq!(collector.collection_failures(), expected);
+            assert!(!collector.complete());
+            let document: serde_json::Value =
+                serde_json::from_str(&collector.document()).expect("JSON");
+            assert_eq!(
+                document["runs"].as_array().expect("runs").len(),
+                usize::from(path == &good)
+            );
+        }
     }
 
     #[test]

@@ -201,6 +201,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
         StandardReports {
             workspace,
             collected: &collected,
+            sources: &sources,
             status: &status,
             planned: &planned_reports,
             output: &request.common.output,

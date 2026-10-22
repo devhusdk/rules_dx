@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::ReportError;
-use dx_output::{sort_diagnostics, DiagnosticEvent, Severity};
+use dx_output::{sort_diagnostics, DiagnosticEvent, Severity, Snapshot};
 use line_index::{LineIndex, TextSize, WideEncoding};
 use serde_sarif::sarif::{
     ArtifactLocation, Invocation, Location, Message, PhysicalLocation, Region, ReportingDescriptor,
@@ -67,7 +67,7 @@ fn sarif_level(severity: Severity) -> ResultLevel {
 
 fn location(
     finding: &DiagnosticEvent,
-    snapshots: &BTreeMap<String, String>,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
 ) -> Result<Option<Location>, ReportError> {
     let Some(path) = &finding.path else {
         if finding.range.is_some() {
@@ -81,7 +81,7 @@ fn location(
             return Err(ReportError::InvertedRange);
         }
         let text = snapshots
-            .get(path)
+            .get(&(finding.snapshot, path.clone()))
             .ok_or_else(|| ReportError::MissingSnapshot { path: path.clone() })?;
         let (start_line, start_column) = byte_to_line(path, text, start)?;
         let (end_line, end_column) = byte_to_line(path, text, end)?;
@@ -110,7 +110,7 @@ fn location(
 
 fn result(
     finding: &DiagnosticEvent,
-    snapshots: &BTreeMap<String, String>,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
 ) -> Result<SarifResult, ReportError> {
     if finding.tool.is_empty() {
         return Err(ReportError::InvalidFinding {
@@ -149,7 +149,7 @@ fn result(
 pub fn render_sarif(
     tools: &[String],
     findings: &[DiagnosticEvent],
-    snapshots: &BTreeMap<String, String>,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
     complete: bool,
 ) -> Result<String, ReportError> {
     render_sarif_with_baseline(tools, findings, snapshots, complete, None)
@@ -165,7 +165,7 @@ pub struct BaselineReport {
 pub fn render_sarif_with_baseline(
     tools: &[String],
     findings: &[DiagnosticEvent],
-    snapshots: &BTreeMap<String, String>,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
     complete: bool,
     baseline: Option<&BaselineReport>,
 ) -> Result<String, ReportError> {
@@ -202,7 +202,7 @@ pub fn render_sarif_with_baseline(
 fn render_inner(
     tools: &[String],
     findings: &[DiagnosticEvent],
-    snapshots: &BTreeMap<String, String>,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
     complete: bool,
 ) -> Result<String, ReportError> {
     let ordered: BTreeSet<&str> = tools.iter().map(String::as_str).collect();
@@ -267,7 +267,6 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    use dx_output::Snapshot;
     use serde_json::{json, Value};
 
     fn finding(tool: &str, severity: Severity, path: Option<&str>) -> DiagnosticEvent {
@@ -361,7 +360,10 @@ mod tests {
 
     #[test]
     fn sarif_projects_runs_rules_results_and_regions() {
-        let snapshots = BTreeMap::from([("src/a.py".to_owned(), "x = 1\nxx = 2\n".to_owned())]);
+        let snapshots = BTreeMap::from([(
+            (Snapshot::Terminal, "src/a.py".to_owned()),
+            "x = 1\nxx = 2\n".to_owned(),
+        )]);
         let tools = ["lint-tool".to_owned(), "other-tool".to_owned()];
         let findings = vec![
             finding("other-tool", Severity::Error, None),
@@ -522,7 +524,7 @@ mod tests {
                     range: Some((1, 0)),
                     ..ranged("src/a.py", 1, 0)
                 }],
-                &BTreeMap::from([("src/a.py".to_owned(), "ab".to_owned())]),
+                &BTreeMap::from([((Snapshot::Terminal, "src/a.py".to_owned()), "ab".to_owned())]),
                 true,
             ),
             Err(ReportError::InvertedRange)
@@ -626,7 +628,10 @@ mod tests {
 
     #[test]
     fn sarif_output_parses_as_typed_sarif() {
-        let snapshots = BTreeMap::from([("src/a.py".to_owned(), "x = 1\n".to_owned())]);
+        let snapshots = BTreeMap::from([(
+            (Snapshot::Terminal, "src/a.py".to_owned()),
+            "x = 1\n".to_owned(),
+        )]);
         let tools = ["lint-tool".to_owned(), "other-tool".to_owned()];
         let findings = vec![
             finding("other-tool", Severity::Error, None),

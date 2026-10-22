@@ -15,6 +15,7 @@ struct Staged {
     terminal: Vec<DiagnosticEvent>,
     changes: Vec<FileChange>,
     digests: Vec<(String, [u8; 32])>,
+    originals: Vec<(String, [u8; 32])>,
 }
 
 impl Staged {
@@ -24,6 +25,7 @@ impl Staged {
         self.terminal.extend(other.terminal);
         self.changes.extend(other.changes);
         self.digests.extend(other.digests);
+        self.originals.extend(other.originals);
     }
 }
 
@@ -41,6 +43,10 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
     for snapshot in &result.terminal_snapshot {
         let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
         staged.digests.push((snapshot.path.clone(), digest));
+    }
+    for snapshot in &result.original_snapshot {
+        let digest: [u8; 32] = snapshot.digest.as_slice().try_into().ok()?;
+        staged.originals.push((snapshot.path.clone(), digest));
     }
     for diagnostic in &result.initial_diagnostics {
         staged
@@ -64,6 +70,7 @@ pub(crate) struct Collected {
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
     pub(crate) terminal_digests: BTreeMap<String, [u8; 32]>,
+    pub(crate) original_digests: BTreeMap<String, [u8; 32]>,
     pub(crate) conflicts: Vec<Conflict>,
     pub(crate) complete: bool,
 }
@@ -131,6 +138,7 @@ pub(crate) fn collect_results_in(
     let mut initial = Vec::new();
     let mut terminal = Vec::new();
     let mut producers = Vec::new();
+    let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
     let mut complete = true;
     for target in &targets {
         if !target.success {
@@ -151,6 +159,16 @@ pub(crate) fn collect_results_in(
             continue;
         }
         tools.extend(staged.tools.iter().cloned());
+        for (path, digest) in &staged.originals {
+            originals
+                .entry(path.clone())
+                .and_modify(|held| {
+                    if *held != Some(*digest) {
+                        *held = None;
+                    }
+                })
+                .or_insert(Some(*digest));
+        }
         initial.extend(staged.initial);
         terminal.extend(staged.terminal);
         producers.push(Producer {
@@ -167,6 +185,10 @@ pub(crate) fn collect_results_in(
         terminal,
         changes: reconciled.changes,
         terminal_digests: reconciled.digests,
+        original_digests: originals
+            .into_iter()
+            .filter_map(|(path, digest)| Some((path, digest?)))
+            .collect(),
         conflicts: reconciled.conflicts,
         complete,
     })

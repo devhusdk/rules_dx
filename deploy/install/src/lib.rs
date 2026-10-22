@@ -168,7 +168,7 @@ pub fn cosign_argv(
         bundle.to_string_lossy().into_owned(),
         "--certificate-identity".to_owned(),
         identity.to_owned(),
-        "--certificate-issuer".to_owned(),
+        "--certificate-oidc-issuer".to_owned(),
         issuer.to_owned(),
         subject.to_string_lossy().into_owned(),
     ]
@@ -625,7 +625,7 @@ mod tests {
                 "/u",
                 "--certificate-identity",
                 "ID",
-                "--certificate-issuer",
+                "--certificate-oidc-issuer",
                 "ISS",
                 "/b",
             ]

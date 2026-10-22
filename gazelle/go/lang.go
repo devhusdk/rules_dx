@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/devhusdk/rules_dx/gazelle/common"
+	"golang.org/x/mod/modfile"
 )
 
 const languageName = "go"
@@ -119,14 +121,11 @@ func (*goLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.I
 	if r.Kind() != LibraryKind {
 		return nil
 	}
-	var specs []resolve.ImportSpec
-	for _, src := range r.AttrStrings("srcs") {
-		if !isSupported(src) || IsTestSource(src) {
-			continue
-		}
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: ModuleName(src)})
+	importpath := r.AttrString("importpath")
+	if importpath == "" {
+		return nil
 	}
-	return specs
+	return []resolve.ImportSpec{{Lang: languageName, Imp: importpath}}
 }
 
 func (*goLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
@@ -316,8 +315,8 @@ func goImportPath(repoRoot, dir string) (string, bool) {
 	for cur := cleanDir; ; cur = filepath.Dir(cur) {
 		candidate := filepath.Join(cur, "go.mod")
 		if content, err := os.ReadFile(candidate); err == nil {
-			module, ok := parseGoModule(string(content))
-			if !ok {
+			module := modfile.ModulePath(content)
+			if module == "" {
 				return "", false
 			}
 			rel, err := filepath.Rel(cur, cleanDir)
@@ -337,24 +336,6 @@ func goImportPath(repoRoot, dir string) (string, bool) {
 			return "", false
 		}
 	}
-}
-
-func parseGoModule(content string) (string, bool) {
-	for _, line := range strings.Split(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
-			continue
-		}
-		fields := strings.Fields(trimmed)
-		if len(fields) >= 2 && fields[0] == "module" {
-			path := strings.Trim(fields[1], "\"'")
-			if path != "" {
-				return path, true
-			}
-			return "", false
-		}
-	}
-	return "", false
 }
 
 func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
@@ -408,7 +389,13 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 				ignore.Used = true
 				continue
 			}
-			l.fail("go: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping", from, name)
+			if leaf := path.Base(name); leaf != name {
+				if override, found := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: languageName, Imp: leaf}, languageName); found {
+					l.fail("go: %s: unresolved import %q; # gazelle:resolve go %s %s names only the last path element, so key it by the full import path", from, name, leaf, override)
+					continue
+				}
+			}
+			l.fail("go: %s: unresolved import %q; add a go_library with that importpath or an exact # gazelle:resolve mapping", from, name)
 		default:
 			l.fail("go: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
 		}

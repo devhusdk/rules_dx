@@ -3,7 +3,6 @@ package golang
 import (
 	"go/parser"
 	"go/token"
-	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,9 +20,7 @@ func ParseImports(content []byte) ([]string, error) {
 		if err != nil || strings.TrimSpace(raw) == "" {
 			continue
 		}
-		if root := normalizeImport(raw); root != "" {
-			set[root] = struct{}{}
-		}
+		set[raw] = struct{}{}
 	}
 	out := make([]string, 0, len(set))
 	for name := range set {
@@ -40,27 +37,6 @@ func ParsePackage(content []byte) (string, error) {
 		return "", err
 	}
 	return f.Name.Name, nil
-}
-
-func normalizeImport(spec string) string {
-	spec = strings.TrimSpace(spec)
-	if spec == "" {
-		return ""
-	}
-	if IsCgoImport(spec) {
-		return spec
-	}
-	first := spec
-	if i := strings.IndexByte(spec, '/'); i >= 0 {
-		first = spec[:i]
-	}
-	if strings.Contains(first, ".") {
-		return spec
-	}
-	if IsStdLib(spec) {
-		return spec
-	}
-	return path.Base(spec)
 }
 
 func IsCgoImport(path string) bool {

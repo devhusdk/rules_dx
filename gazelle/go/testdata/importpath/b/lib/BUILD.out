@@ -1,0 +1,7 @@
+load("@rules_dx//go/rules:defs.bzl", "go_library")
+
+go_library(
+    name = "lib",
+    srcs = ["b.go"],
+    importpath = "example.test/demo/b/lib",
+)

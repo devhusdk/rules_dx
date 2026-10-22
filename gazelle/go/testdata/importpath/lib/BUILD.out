@@ -1,0 +1,16 @@
+load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
+
+go_library(
+    name = "lib",
+    srcs = [
+        "impl.go",
+        "more.go",
+    ],
+    importpath = "example.test/demo/lib",
+)
+
+go_test(
+    name = "lib_test",
+    srcs = ["impl_test.go"],
+    embed = [":lib"],
+)

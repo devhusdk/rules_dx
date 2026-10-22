@@ -24,6 +24,7 @@ go_library(
         "@gazelle//rule",
         "@gazelle//v2/label",
         "@gazelle//v2/rule",
+        "@org_golang_x_mod//modfile",
     ],
 )
 
@@ -64,6 +65,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/entries/README.md",
+        "testdata/importpath/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",
     ],

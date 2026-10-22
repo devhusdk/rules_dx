@@ -3176,7 +3176,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 342
+PROMISE_COUNT = 343
 
 PROMISE_FAMILIES = [
     "artifact",

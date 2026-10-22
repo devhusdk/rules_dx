@@ -1109,6 +1109,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "dep.apple_support",
+        "native": False,
+        "owner": "//:MODULE.bazel",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "dep.aspect_rules_jest",
         "native": False,
         "owner": "//:MODULE.bazel",
@@ -2810,6 +2819,15 @@ PROMISES = [
         "evidence": [
             "//modules:versions_contract",
         ],
+        "id": "version.apple_support_version",
+        "native": False,
+        "owner": "//modules:versions.bzl",
+        "state": "evidenced",
+    },
+    {
+        "evidence": [
+            "//modules:versions_contract",
+        ],
         "id": "version.aspect_rules_jest_version",
         "native": False,
         "owner": "//modules:versions.bzl",
@@ -3204,7 +3222,7 @@ PROMISES = [
     },
 ]
 
-PROMISE_COUNT = 345
+PROMISE_COUNT = 347
 
 PROMISE_FAMILIES = [
     "artifact",

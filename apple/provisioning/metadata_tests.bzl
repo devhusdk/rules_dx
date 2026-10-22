@@ -35,7 +35,6 @@ def _selection(**kwargs):
         "deployment",
         "endpoint",
         "host",
-        "local_path",
         "macos_version",
         "route",
         "sdk",

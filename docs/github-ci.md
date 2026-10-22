@@ -159,6 +159,24 @@ A `validate` job rejects a bad input naming the accepted values. Each platform
 cell runs the task, uploads its log as the `evidence-<platform>` artifact, and
 writes the tail to the job summary.
 
+## Apple Workflow
+
+`apple.yml` runs the Apple toolchain tests on a hosted macOS runner with Xcode
+preinstalled. Dispatch it per run:
+
+```sh
+gh workflow run apple.yml --ref <branch> -f command=test \
+  -f targets="//apple/... //apple/tests:macos_consumer_test"
+```
+
+- `command`: `test` (default) or `build`.
+- `targets`: space-separated Bazel targets. Each must start with `//`.
+- `runner`: `macos-15` (arm64, default).
+
+Each run uploads the
+`apple-evidence-<runner>` artifact with the executor's macOS, Xcode, and SDK
+identities, the Bazel log, and the test logs and outputs.
+
 ## Advisory Snapshots
 
 `security-audit` reads `.dx/advisory/`. One `advisory snapshots (one run,

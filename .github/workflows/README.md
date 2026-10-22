@@ -4,6 +4,7 @@
 - `reusable-docs.yml`: `docs-check` plus `docs-publish` (GitHub Pages).
 - `ci.yml`: this repository's own `ci` gate.
 - `evidence.yml`: native evidence on hosted runners, dispatched per run.
+- `apple.yml`: Apple toolchain tests on a hosted macOS runner.
 - `bump.yml`: `widen-one-requirement loop` for one dependency per run.
 - `ghcr.yml`: prebuilt devcontainer images.
 - `publish-dry-run.yml`: the release path without a release.

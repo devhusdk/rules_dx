@@ -26,6 +26,21 @@ _HOST_CONSTRAINTS = {
 
 _DIGITS = "0123456789"
 
+AppleToolingInfo = provider(
+    doc = "One validated Xcode selection with its execution route.",
+    fields = {
+        "credential_file": "Path to the managed executor credential; never its contents.",
+        "deployment": "Declared minimum OS version, or empty.",
+        "endpoint": "Managed executor endpoint, or empty.",
+        "exec_constraints": "Platform constraint labels the executor must match.",
+        "host": "Execution host name.",
+        "macos_version": "Minimum executor macOS version.",
+        "route": "Execution route: local or managed.",
+        "sdk": "SDK identity name.",
+        "xcode_version": "Declared Xcode version, or empty.",
+    },
+)
+
 def routes():
     """Returns the supported provisioning route names."""
     return sorted([LOCAL_ROUTE, MANAGED_ROUTE])
@@ -57,7 +72,8 @@ def _numbers(version):
         numbers.append(int(part))
     return numbers
 
-def _below(version, minimum):
+def version_below(version, minimum):
+    """Returns whether one dotted version sorts below another."""
     left = _numbers(version)
     right = _numbers(minimum)
     if len(left) == 0 or len(right) == 0:
@@ -70,13 +86,26 @@ def _below(version, minimum):
             return first < second
     return False
 
+def version_matches(declared, resolved):
+    """Returns whether a resolved version carries every declared component."""
+    wanted = declared.split(".")
+    actual = resolved.split(".")
+    for index in range(len(wanted)):
+        have = actual[index] if index < len(actual) else "0"
+        if have.isdigit() and wanted[index].isdigit():
+            if int(have) != int(wanted[index]):
+                return False
+        elif have != wanted[index]:
+            return False
+    return True
+
 def version_errors(field, version, minimum):
     """Returns one error string per malformed or downgraded dotted version."""
     if version == "":
         return []
     if len(_numbers(version)) == 0:
         return ["apple: " + field + " '" + version + "' is not a dotted version"]
-    if _below(version, minimum):
+    if version_below(version, minimum):
         return ["apple: " + field + " '" + version + "' is below " + minimum]
     return []
 
@@ -129,7 +158,6 @@ def default_selection(route):
         deployment = "",
         endpoint = "",
         host = QUALIFIED_HOST if route != "" else "",
-        local_path = "",
         macos_version = "",
         route = route,
         sdk = "",
@@ -170,7 +198,6 @@ def _provisioning_selection_impl(ctx):
         deployment = ctx.attr.deployment,
         endpoint = ctx.attr.endpoint,
         host = ctx.attr.host,
-        local_path = ctx.attr.local_path,
         macos_version = ctx.attr.macos_version,
         route = ctx.attr.route,
         sdk = ctx.attr.sdk,
@@ -178,10 +205,21 @@ def _provisioning_selection_impl(ctx):
     ))
     if len(failures) > 0:
         fail("; ".join(failures))
-    return []
+    return [AppleToolingInfo(
+        credential_file = ctx.attr.credential_file,
+        deployment = ctx.attr.deployment,
+        endpoint = ctx.attr.endpoint,
+        exec_constraints = host_constraints(ctx.attr.host),
+        host = ctx.attr.host,
+        macos_version = ctx.attr.macos_version or MINIMUM_MACOS,
+        route = ctx.attr.route,
+        sdk = ctx.attr.sdk,
+        xcode_version = ctx.attr.xcode_version,
+    )]
 
 _provisioning_selection = rule(
     implementation = _provisioning_selection_impl,
+    provides = [AppleToolingInfo],
     attrs = {
         "accept_licenses": attr.string_list(mandatory = True),
         "allow_download": attr.bool(mandatory = True),
@@ -190,7 +228,6 @@ _provisioning_selection = rule(
         "deployment": attr.string(mandatory = True),
         "endpoint": attr.string(mandatory = True),
         "host": attr.string(mandatory = True),
-        "local_path": attr.string(mandatory = True),
         "macos_version": attr.string(mandatory = True),
         "route": attr.string(mandatory = True),
         "sdk": attr.string(mandatory = True),
@@ -208,13 +245,13 @@ def apple_provisioning(
         deployment = "",
         endpoint = "",
         host = "",
-        local_path = "",
         macos_version = "",
         sdk = "",
-        xcode_version = ""):
+        xcode_version = "",
+        **kwargs):
     """Validates one Apple toolchain provisioning selection; nothing builds."""
     _provisioning_selection(
-        name = name + "_selection",
+        name = name,
         accept_licenses = accept_licenses,
         allow_download = allow_download,
         api_token = api_token,
@@ -222,11 +259,9 @@ def apple_provisioning(
         deployment = deployment,
         endpoint = endpoint,
         host = host,
-        local_path = local_path,
         macos_version = macos_version,
         route = route,
         sdk = sdk,
         xcode_version = xcode_version,
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
+        **kwargs
     )

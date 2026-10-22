@@ -1,5 +1,6 @@
 //! Native and WASI entry point over the shared task board.
 
+use std::path::Path;
 use std::process::ExitCode;
 
 use shared_tasks::{asset_report, Board, CORE_VERSION};
@@ -48,7 +49,10 @@ fn run(args: &[String]) -> Result<(), ExitCode> {
     println!("summary {}", board.summary());
     for path in assets {
         let bytes = read(path)?;
-        let name = path.rsplit('/').next().unwrap_or(path);
+        let name = Path::new(path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(path);
         println!("{}", asset_report(name, &bytes));
     }
     let build = if cfg!(debug_assertions) {

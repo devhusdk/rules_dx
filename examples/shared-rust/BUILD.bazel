@@ -261,6 +261,7 @@ rust_wasi_test(
     args = ["/board/board.txt"],
     binary = ":tasks",
     expected_code = 2,
+    expected_stderr_substring = "err:unreadable: /board/board.txt",
     tags = ["block-network"],
 )
 

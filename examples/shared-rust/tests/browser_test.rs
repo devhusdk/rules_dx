@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use dx_site_browser::{wait_for, Browser};
 
-const APP: &str = "examples/shared-rust/app";
+const APP: &str = "examples/shared-rust/app_release/app";
 const FIREFOX: &str = "DX_FIREFOX";
 const SERVE: &str = "DX_SHARED_SERVE";
 

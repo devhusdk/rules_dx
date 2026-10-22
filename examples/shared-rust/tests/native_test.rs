@@ -1,8 +1,5 @@
 //! Runs the relocated native task board over its packaged resources.
 
-#![cfg(unix)]
-
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
@@ -31,9 +28,9 @@ fn serial() -> MutexGuard<'static, ()> {
 fn relocated() -> (PathBuf, PathBuf) {
     let rel = std::env::var("DX_TASKS").expect("DX_TASKS names the native binary");
     let dir = dx_testing::mkscratch("tasks-native").expect("scratch dir");
-    let bin = dir.join("tasks");
-    std::fs::copy(dx_testing::resolve_runfiles(&rel), &bin).expect("relocate the binary");
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let source = dx_testing::resolve_runfiles(&rel);
+    let bin = dir.join(source.file_name().expect("binary file name"));
+    std::fs::copy(&source, &bin).expect("relocate the binary");
     for name in ["board.txt", "notes.txt"] {
         let source = dx_testing::resolve_runfiles(&format!("{ASSETS}/{name}"));
         std::fs::copy(source, dir.join(name)).expect("relocate the asset");

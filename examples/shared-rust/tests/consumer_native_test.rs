@@ -1,9 +1,5 @@
 //! Asserts the independent consumer's own adapter, features and release build.
 
-#![cfg(unix)]
-
-use std::os::unix::fs::PermissionsExt;
-
 fn artifact(var: &str) -> std::path::PathBuf {
     let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} names a consumer output"));
     dx_testing::resolve_runfiles(&rel)
@@ -27,9 +23,9 @@ runtime=default
 #[test]
 fn consumer_release_runs_relocated() {
     let dir = dx_testing::mkscratch("consumer-release").expect("scratch dir");
-    let bin = dir.join("consumer_report");
-    std::fs::copy(artifact("DX_SHARED_CONSUMER_RELEASE"), &bin).expect("relocate");
-    std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let source = artifact("DX_SHARED_CONSUMER_RELEASE");
+    let bin = dir.join(source.file_name().expect("binary file name"));
+    std::fs::copy(&source, &bin).expect("relocate");
     let board = dir.join("board.txt");
     std::fs::write(&board, "[ ] Relocate the release\n").expect("write board");
     let board = board.to_str().expect("utf8 path");

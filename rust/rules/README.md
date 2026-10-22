@@ -72,6 +72,7 @@ environment and undeclared files stay denied.
 | `preopens` | Guest directory mapped to one host file, staged alone. |
 | `expected_stdout` | Exact guest stdout, trailing newlines trimmed. Default empty. |
 | `expected_code` | Guest exit code. Default `0`. |
+| `expected_stderr_substring` | Text guest stderr must contain. Default empty. |
 | `runtime` | Executable that acts like `wasmtime run`. Default Wasmtime. |
 | `ambient` | Host test environment entries. Never reach the guest. |
 

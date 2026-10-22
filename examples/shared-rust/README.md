@@ -62,8 +62,8 @@ bazel test //examples/shared-rust:wasi_test \
 
 `tasks_wasi` is `tasks` built for `wasm32-wasip1` and run under
 Wasmtime 49.0.2. `wasi_error_test` expects exit 1 for a rejected
-command. `wasi_capability_test` expects exit 2 when the board is not
-preopened.
+command. `wasi_capability_test` expects exit 2 and
+`err:unreadable: /board/board.txt` when the board is not preopened.
 
 ## Android
 
@@ -81,8 +81,8 @@ bazel run $NDK //examples/shared-rust:log
 The inspect tests check the package, SDK floor, label, launch activity,
 byte-identical assets, exported symbols per ABI, no extra ABIs, and the
 signature. The activity logs under the `DxSharedTasks` tag:
-`lifecycle=create` through `lifecycle=destroy`, `board=loaded tasks=4`,
-the summary, the asset report, and `input=touch|key <reply>` after a
+`lifecycle=create` through `lifecycle=destroy`, `board=loaded tasks=4`
+or `board=invalid`, the summary or `summary none`, the asset report, and `input=touch|key <reply>` after a
 tap or key press.
 
 Tools: NDK 27.2.12479018, build-tools 34.0.0, platform-tools 37.0.0,

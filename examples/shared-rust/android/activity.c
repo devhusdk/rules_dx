@@ -13,14 +13,16 @@
   __android_log_print(ANDROID_LOG_INFO, "DxSharedTasks", __VA_ARGS__)
 
 static void log_summary(void) {
-  char summary[128];
-  size_t length = tasks_summary((uint8_t *)summary, sizeof(summary) - 1);
-  summary[length] = '\0';
-  LOG("summary %s", length == 0 ? "none" : summary);
+  char summary[128] = "";
+  if (tasks_summary((uint8_t *)summary, sizeof(summary)) == 0) {
+    LOG("summary none");
+    return;
+  }
+  LOG("summary %s", summary);
 }
 
 static void run(const char *command, const char *source) {
-  char reply[128];
+  char reply[128] = "";
   tasks_apply((const uint8_t *)command, strlen(command), (uint8_t *)reply,
               sizeof(reply));
   LOG("input=%s %s", source, reply);
@@ -108,15 +110,20 @@ static void load_board(ANativeActivity *activity) {
   if (asset == NULL) {
     return;
   }
-  LOG("board=loaded tasks=%d", tasks_load(bytes, length));
+  int count = tasks_load(bytes, length);
   AAsset_close(asset);
+  if (count < 0) {
+    LOG("board=invalid");
+  } else {
+    LOG("board=loaded tasks=%d", count);
+  }
   log_summary();
   const char *name = "notes.txt";
   asset = open_asset(activity, name, &bytes, &length);
   if (asset == NULL) {
     return;
   }
-  char report[128];
+  char report[128] = "";
   tasks_asset_report((const uint8_t *)name, strlen(name), bytes, length,
                      (uint8_t *)report, sizeof(report));
   LOG("%s", report);

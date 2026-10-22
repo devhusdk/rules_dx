@@ -1,11 +1,12 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::deploy::execute_deploy;
+use super::failure_reports::write_failure_reports;
 use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
 use crate::args::{Command, Invocation};
 use crate::plan::{bep_path, plan_workflow, WorkflowVerb};
-use crate::reports::{plan_reports, Destination};
+use crate::reports::{plan_reports, Destination, StandardFormat};
 use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
 use dx_output::{
     command_finished, command_started, error_event, write_event, FinishedCounts, OutputMode,
@@ -39,8 +40,12 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(planned) => planned,
         Err(error) => return pre_exec(err, &error.to_string()),
     };
+    let (failure_reports, planned_reports): (Vec<_>, Vec<_>) = planned_reports
+        .into_iter()
+        .partition(|report| report.format == StandardFormat::Failures);
     let stdout_report = planned_reports
         .iter()
+        .chain(failure_reports.iter())
         .any(|report| report.destination == Destination::Stdout);
     let resolved = match invocation.command {
         Command::Build => resolve(
@@ -136,7 +141,21 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         if bazel_code != 0 {
             report_build_failures(&bep, invocation.output, out, err);
         }
+        let reports_ok = write_failure_reports(
+            invocation,
+            workspace,
+            &bep,
+            bazel_code,
+            &failure_reports,
+            out,
+            err,
+        );
         let _ = std::fs::remove_file(&bep);
+        let code = if bazel_code == 0 && !reports_ok {
+            1
+        } else {
+            bazel_code
+        };
         if invocation.output == OutputMode::Json {
             if bazel_code != 0 {
                 if let Ok(event) = error_event(
@@ -152,12 +171,9 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
                     let _ = write_event(out, &event);
                 }
             }
-            let _ = write_event(
-                out,
-                &command_finished(bazel_code, &FinishedCounts::default()),
-            );
+            let _ = write_event(out, &command_finished(code, &FinishedCounts::default()));
         }
-        return bazel_code;
+        return code;
     }
     execute_test_reports(TestReportsRequest {
         invocation,
@@ -167,6 +183,7 @@ pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
         verb,
         bep: &bep,
         planned_reports: &planned_reports,
+        failure_reports: &failure_reports,
         stdout_report,
         bazel_code,
         query_runner,

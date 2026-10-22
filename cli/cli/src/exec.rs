@@ -5,6 +5,7 @@ mod clean;
 pub mod common;
 mod deploy;
 mod docs;
+mod failure_reports;
 mod generate;
 mod managed;
 mod managed_codegen;

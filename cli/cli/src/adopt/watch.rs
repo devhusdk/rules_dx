@@ -721,7 +721,7 @@ mod tests {
         assert!(got.verbose);
         assert!(crate::args::parse(&["watch", "--check", "build"]).is_err());
         assert!(crate::args::parse(&["watch", "--fail-on=error", "build"]).is_err());
-        assert!(crate::args::parse(&["watch", "--report=sarif=a", "build"]).is_err());
+        assert!(crate::args::parse(&["watch", "--report=failures=a.json", "build"]).is_ok());
     }
 
     #[test]

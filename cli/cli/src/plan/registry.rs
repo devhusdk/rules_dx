@@ -79,19 +79,19 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Build => CommandSpec {
             command,
             aspects: &[],
-            reports: &[],
+            reports: &[StandardFormat::Failures],
             settings: &[],
         },
         Command::Test => CommandSpec {
             command,
             aspects: &[],
-            reports: &[StandardFormat::Junit],
+            reports: &[StandardFormat::Junit, StandardFormat::Failures],
             settings: &[],
         },
         Command::Coverage => CommandSpec {
             command,
             aspects: &[],
-            reports: &[StandardFormat::Lcov],
+            reports: &[StandardFormat::Lcov, StandardFormat::Failures],
             settings: &[],
         },
         Command::Run => CommandSpec {
@@ -235,11 +235,17 @@ mod tests {
         assert!(format.reports.is_empty());
         let build = spec(Command::Build);
         assert!(build.aspects.is_empty());
-        assert!(build.reports.is_empty());
+        assert_eq!(build.reports, &[StandardFormat::Failures]);
         let test = spec(Command::Test);
-        assert_eq!(test.reports, &[StandardFormat::Junit]);
+        assert_eq!(
+            test.reports,
+            &[StandardFormat::Junit, StandardFormat::Failures]
+        );
         let coverage = spec(Command::Coverage);
-        assert_eq!(coverage.reports, &[StandardFormat::Lcov]);
+        assert_eq!(
+            coverage.reports,
+            &[StandardFormat::Lcov, StandardFormat::Failures]
+        );
         let run = spec(Command::Run);
         assert!(run.aspects.is_empty());
         assert!(run.reports.is_empty());
@@ -286,6 +292,7 @@ mod tests {
             StandardFormat::Junit,
             StandardFormat::Lcov,
             StandardFormat::Spdx,
+            StandardFormat::Failures,
         ] {
             assert_eq!(StandardFormat::parse(format.name()), Some(format));
         }
@@ -302,6 +309,7 @@ mod tests {
             StandardFormat::Junit,
             StandardFormat::Lcov,
             StandardFormat::Spdx,
+            StandardFormat::Failures,
         ] {
             assert!(
                 Command::value_variants()

@@ -752,6 +752,7 @@ mod tests {
             "-o",
             "--debug",
             "--release",
+            "--report",
             "--here",
             "-h",
         ] {
@@ -761,7 +762,6 @@ mod tests {
             );
         }
         for flag in [
-            "--report",
             "--fail-on",
             "--min-coverage",
             "--check",

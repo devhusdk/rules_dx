@@ -1,5 +1,6 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
+use super::failure_reports::write_failure_reports;
 use crate::args::Invocation;
 use crate::plan::WorkflowVerb;
 use crate::reports::{
@@ -90,6 +91,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) verb: WorkflowVerb,
     pub(crate) bep: &'a Path,
     pub(crate) planned_reports: &'a [PlannedReport],
+    pub(crate) failure_reports: &'a [PlannedReport],
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
@@ -174,6 +176,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         verb,
         bep,
         planned_reports,
+        failure_reports,
         stdout_report,
         bazel_code,
         query_runner,
@@ -183,6 +186,15 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         0
     };
+    let failure_reports_ok = write_failure_reports(
+        invocation,
+        workspace,
+        bep,
+        bazel_code,
+        failure_reports,
+        out,
+        err,
+    );
     let events = match std::fs::File::open(bep).map_err(|err| {
         (
             CODE_UNREADABLE_BEP.to_owned(),
@@ -464,7 +476,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         }
     }
-    let mut reports_ok = true;
+    let mut reports_ok = failure_reports_ok;
     for planned in planned_reports {
         let document: Option<String> = match verb {
             WorkflowVerb::Test => match render_junit(&suites) {

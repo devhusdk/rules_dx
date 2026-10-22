@@ -64,7 +64,7 @@ fn severity_name(severity: ToolSeverity) -> &'static str {
     }
 }
 
-fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
+pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
     let is_rustc = failure
         .mnemonic
         .as_deref()

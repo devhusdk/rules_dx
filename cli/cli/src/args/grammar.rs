@@ -579,6 +579,7 @@ command_args! {
     Build => 6, BazelTail, {
         output: ReadOutputFlag,
         own: ProfileArgs,
+        report: ReportFlag,
         here: HereFlag,
     };
     /// The flags `dx test` accepts.

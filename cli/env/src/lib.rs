@@ -363,7 +363,7 @@ pub fn refresh(
     }
     let current = read_current_identity(&bin_dir)?;
     let candidate = identity_digest(&canonical_identity_bytes(&tools));
-    if current == Some(candidate) {
+    if current == Some(candidate) && verify_installed(&bin_dir, &staged)? {
         clean_stage(&stage_dir);
         return Ok(RefreshOutcome::AlreadyCurrent);
     }
@@ -446,6 +446,38 @@ fn read_current_identity(bin_dir: &Path) -> Result<Option<[u8; 32]>, Error> {
             detail: format!("provenance marker is not ours: {other}"),
         }),
     }
+}
+
+fn verify_installed(bin_dir: &Path, staged: &[(String, PathBuf)]) -> Result<bool, Error> {
+    let entries = fs::read_dir(bin_dir).map_err(|e| Error::Unmanaged {
+        path: bin_dir.to_path_buf(),
+        detail: format!("cannot list installed tree: {e}"),
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|e| Error::Unmanaged {
+            path: bin_dir.to_path_buf(),
+            detail: format!("cannot list installed tree: {e}"),
+        })?;
+        let name = entry.file_name();
+        let known = name == MARKER_FILE_NAME
+            || staged
+                .iter()
+                .any(|(staged_name, _)| name.as_os_str() == staged_name.as_str());
+        if !known {
+            return Err(unmanaged(
+                bin_dir,
+                &format!("contains unexpected entry {}", name.to_string_lossy()),
+            ));
+        }
+    }
+    for (name, target) in staged {
+        let link = bin_dir.join(name);
+        match fs::read_link(&link) {
+            Ok(installed) if installed == *target && link.exists() => {}
+            _ => return Ok(false),
+        }
+    }
+    Ok(true)
 }
 
 fn unmanaged(bin_dir: &Path, detail: &str) -> Error {

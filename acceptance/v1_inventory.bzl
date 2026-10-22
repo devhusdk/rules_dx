@@ -2583,12 +2583,14 @@ PROMISES = [
     },
     {
         "evidence": [
+            "//quality/tests:qml_format_consumer_test",
+            "//quality/tests:qt_adapter_test",
             "//quality:registry_unit",
         ],
         "id": "tool.qmlformat",
         "native": True,
         "owner": "//quality:adapters.bzl",
-        "state": "gapped",
+        "state": "evidenced",
     },
     {
         "evidence": [

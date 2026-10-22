@@ -41,6 +41,15 @@ A target from a module you did not enable fails analysis and names the
 module. `gui`, `quick` and `widgets` always fail analysis: the closure
 carries no graphics stack.
 
+## Formatting QML
+
+`dx format` runs `@dx_qt//:qmlformat` when a `qml` family selects
+`qmlformat`:
+
+```sh
+dx format --apply -- --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat
+```
+
 ## Linking Qt
 
 Build Qt code for `@rules_dx//qt/platforms:linux_x86_64`, or a platform

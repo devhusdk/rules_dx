@@ -128,11 +128,26 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff` is the tool with an override flag today.
+- `ruff` and `qmlformat` have override flags.
 - The alternate must be a single executable file. Anything else fails the
   analysis with the tool named.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
+
+### QML formatting
+
+`qmlformat` has no default executable. Enable the managed Qt SDK from
+`qt/README.md`, select `qmlformat` in a `qml` family, and point the flag at
+the SDK tool.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat
+bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat
+```
+
+Without the flag, a policy that selects `qmlformat` fails the analysis and
+names the flag. `qmlformat` reads `.qmlformat.ini` when you add one with
+`qmlformat_config`.
 
 ## Baselines
 

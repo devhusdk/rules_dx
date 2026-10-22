@@ -15,6 +15,7 @@ dx_rust_crate(
         "src/lib.rs",
         "src/migrate.rs",
         "src/new.rs",
+        "src/new_locks.rs",
         "src/policy.rs",
         "src/preset_fragment.rs",
         "src/scaffold.rs",
@@ -38,6 +39,8 @@ dx_rust_crate(
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
     test_data = [
         "//examples:consumer-ci/caller.yml",
+        "//:MODULE.bazel",
+        "//:package.json",
         "//modules:versions.bzl",
         ":python_interpreter",
     ],
